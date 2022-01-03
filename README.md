@@ -9,7 +9,7 @@ Make sure that the dependencies can be found with `find_package()`
 For example, you can install these packages with `vcpkg`
 and provide the toolchain file to cmake with configuration option:
 
-    -DCMAKE_TOOLCHAIN_FILE=[path to vcpkg]/sctipts/buildsystems/vcpkg.cmake
+    -DCMAKE_TOOLCHAIN_FILE=[path to vcpkg]/scripts/buildsystems/vcpkg.cmake
 
 # build
 
