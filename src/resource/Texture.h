@@ -1,7 +1,6 @@
 #pragma once
 #include <string>
 #include <stdexcept>
-#undef STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
 #include "TypeAliases.h"
