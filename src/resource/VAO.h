@@ -7,11 +7,11 @@
 
 class VAO : public IResource {
 private:
-	size_t m_numVertices;
+	size_t numVertices_;
 
 protected:
-	void acquireResource() { glGenVertexArrays(1, &m_id); }
-	void releaseResource() { glDeleteVertexArrays(1, &m_id); }
+	void acquireResource() { glGenVertexArrays(1, &id_); }
+	void releaseResource() { glDeleteVertexArrays(1, &id_); }
 
 public:
 	// for now this only takes one VBO 
@@ -19,11 +19,11 @@ public:
 
 	virtual ~VAO() override { releaseResource(); }
 
-	void bind() const { glBindVertexArray(m_id); }
+	void bind() const { glBindVertexArray(id_); }
 	static void unbind() { glBindVertexArray(0); }
 	
 	void draw(int firstOffset = 0, GLenum mode = GL_TRIANGLES) const {
-		glDrawArrays(GL_TRIANGLES, firstOffset, static_cast<int>(m_numVertices)); 
+		glDrawArrays(GL_TRIANGLES, firstOffset, static_cast<int>(numVertices_));
 	}
 	
 	void bindAndDraw(int firstOffset = 0, GLenum mode = GL_TRIANGLES) const {
@@ -57,6 +57,6 @@ inline VAO::VAO(const VBO& vbo, GLenum usage) {
 		++i;
 	}
 
-	m_numVertices = data.size() / stride;
+	numVertices_ = data.size() / stride;
 }
 

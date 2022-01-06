@@ -8,22 +8,22 @@
 
 class Texture : public IResource {
 private:
-	std::string m_filename;
-	const static std::array<GLenum, 32> s_texUnits;
+	std::string filename_;
+	const static std::array<GLenum, 32> texUnits_s;
 
 protected:
-	void acquireResource() { glGenTextures(1, &m_id); }
-	void releaseResource() { glDeleteTextures(1, &m_id); }
+	void acquireResource() { glGenTextures(1, &id_); }
+	void releaseResource() { glDeleteTextures(1, &id_); }
 
 public:
 	Texture(const std::string& filename, GLenum format, GLenum internalformat = GL_RGB);
 
 	virtual ~Texture() override { releaseResource(); }
 
-	const std::string& getFilename() const { return m_filename; }
-	void bind() { glBindTexture(GL_TEXTURE_2D, m_id); }
+	const std::string& getFilename() const { return filename_; }
+	void bind() { glBindTexture(GL_TEXTURE_2D, id_); }
 	
-	static void setActiveUnit(int texUnit) { glActiveTexture(s_texUnits.at(texUnit)); }
+	static void setActiveUnit(int texUnit) { glActiveTexture(texUnits_s.at(texUnit)); }
 	
 	// set Active Texture Unit and then bind the Texture to it
 	void setActiveUnitAndBind(int texUnit) {
@@ -35,7 +35,7 @@ public:
 };
 
 
-const std::array<GLenum, 32> Texture::s_texUnits{
+const std::array<GLenum, 32> Texture::texUnits_s{
 	GL_TEXTURE0,  GL_TEXTURE1,  GL_TEXTURE2,  GL_TEXTURE3,  GL_TEXTURE4,
 	GL_TEXTURE5,  GL_TEXTURE6,  GL_TEXTURE7,  GL_TEXTURE8,  GL_TEXTURE9,
 	GL_TEXTURE10, GL_TEXTURE11, GL_TEXTURE12, GL_TEXTURE13, GL_TEXTURE14,
@@ -47,7 +47,7 @@ const std::array<GLenum, 32> Texture::s_texUnits{
 
 
 inline Texture::Texture(const std::string& filename, GLenum format, GLenum internalformat) :
-		m_filename{ filename } {
+		filename_{ filename } {
 
 	int width, height, numChannels;
 	stbi_set_flip_vertically_on_load(true);
@@ -63,7 +63,7 @@ inline Texture::Texture(const std::string& filename, GLenum format, GLenum inter
 	acquireResource();
 
 
-	glBindTexture(GL_TEXTURE_2D, m_id);
+	glBindTexture(GL_TEXTURE_2D, id_);
 	glTexImage2D(GL_TEXTURE_2D, 0, internalformat, width, height, 0, format, GL_UNSIGNED_BYTE, data);
 	glGenerateMipmap(GL_TEXTURE_2D);
 

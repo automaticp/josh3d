@@ -12,11 +12,11 @@
 
 class ShaderProgram : public IResource {
 private:
-	std::vector<refw<Shader>> m_shaders;
+	std::vector<refw<Shader>> shaders_;
 
 protected:
-	void acquireResource() { m_id = glCreateProgram(); }
-	void releaseResource() { glDeleteProgram(m_id); }
+	void acquireResource() { id_ = glCreateProgram(); }
+	void releaseResource() { glDeleteProgram(id_); }
 
 public:
 	ShaderProgram(std::vector<refw<Shader>> shaders);
@@ -26,15 +26,15 @@ public:
 	std::string getLinkInfo();
 
 	void use() const {
-		glUseProgram(m_id);
+		glUseProgram(id_);
 	}
 
 	int getUniformLocation(const std::string& name) const {
-		return glGetUniformLocation(m_id, name.c_str());
+		return glGetUniformLocation(id_, name.c_str());
 	}
 
 	int getUniformLocation(const char* name) const {
-		return glGetUniformLocation(m_id, name);
+		return glGetUniformLocation(id_, name);
 	}
 
 
@@ -106,16 +106,16 @@ public:
 
 
 inline ShaderProgram::ShaderProgram(std::vector<refw<Shader>> shaders) :
-		m_shaders{ shaders } {
+		shaders_{ shaders } {
 
 	acquireResource();
 	for ( Shader& shader : shaders ) {
-		glAttachShader(m_id, shader);
+		glAttachShader(id_, shader);
 	}
-	glLinkProgram(m_id);
+	glLinkProgram(id_);
 
 	int success;
-	glGetProgramiv(m_id, GL_LINK_STATUS, &success);
+	glGetProgramiv(id_, GL_LINK_STATUS, &success);
 	if ( !success ) {
 		std::string linkInfo{ getLinkInfo() };
 		// delete id before thorwing (undoes glCreateProgram())
@@ -128,9 +128,9 @@ inline std::string ShaderProgram::getLinkInfo() {
 	std::string output{};
 	int success;
 
-	glGetProgramiv(m_id, GL_LINK_STATUS, &success);
+	glGetProgramiv(id_, GL_LINK_STATUS, &success);
 	output += "\nLinking Status: " + ((success == GL_TRUE) ? std::string("Success") : std::string("Failure"));
-	output += "\nProgram Id: " + std::to_string(m_id);
+	output += "\nProgram Id: " + std::to_string(id_);
 
 	return output;
 }

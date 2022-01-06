@@ -17,50 +17,50 @@ struct VertexAttributeLayout {
 
 class VBO : public IResource {
 private:
-	std::vector<float> m_data;
-	std::vector<VertexAttributeLayout> m_attributeLayout;
+	std::vector<float> data_;
+	std::vector<VertexAttributeLayout> attributeLayout_;
 
 protected:
-	void acquireResource() { glGenBuffers(1, &m_id); }
-	void releaseResource() { glDeleteBuffers(1, &m_id); }
+	void acquireResource() { glGenBuffers(1, &id_); }
+	void releaseResource() { glDeleteBuffers(1, &id_); }
 
 public:
 	// somebody tell this man how to use forwarding constructors
 	VBO(const std::vector<float>& data, const std::vector<VertexAttributeLayout>& attrbuteLayout)
-		: m_data{ data }, m_attributeLayout{ attrbuteLayout } {
+		: data_{ data }, attributeLayout_{ attrbuteLayout } {
 		
 		acquireResource();
 	}
 
 	VBO(std::vector<float>&& data, const std::vector<VertexAttributeLayout>& attrbuteLayout)
-		: m_data{ std::move(data) }, m_attributeLayout{ attrbuteLayout } {
+		: data_{ std::move(data) }, attributeLayout_{ attrbuteLayout } {
 	
 		acquireResource();
 	}
 
 	VBO(std::vector<float>&& data, std::vector<VertexAttributeLayout>&& attrbuteLayout)
-		: m_data{ std::move(data) }, m_attributeLayout{ std::move(attrbuteLayout) } {
+		: data_{ std::move(data) }, attributeLayout_{ std::move(attrbuteLayout) } {
 
 		acquireResource();
 	}
 
 	virtual ~VBO() override { releaseResource(); }
 
-	const std::vector<VertexAttributeLayout>& getLayout() const noexcept { return m_attributeLayout; }
-	const std::vector<float>& getData() const noexcept { return m_data; }
+	const std::vector<VertexAttributeLayout>& getLayout() const noexcept { return attributeLayout_; }
+	const std::vector<float>& getData() const noexcept { return data_; }
 
 	const VertexAttributeLayout::AttribSize_t getStride() const;
 
 	const VertexAttributeLayout::AttribSize_t getOffset(int index) const;
 
 	// why did this not have a bind method before???
-	void bind() const { glBindBuffer(GL_ARRAY_BUFFER, m_id); }
+	void bind() const { glBindBuffer(GL_ARRAY_BUFFER, id_); }
 };
 
 
 inline const VertexAttributeLayout::AttribSize_t VBO::getStride() const {
 	VertexAttributeLayout::AttribSize_t sum{ 0 };
-	for ( const auto& currentLayout : m_attributeLayout ) {
+	for ( const auto& currentLayout : attributeLayout_ ) {
 		sum += currentLayout.size;
 	}
 	return sum;
@@ -68,10 +68,10 @@ inline const VertexAttributeLayout::AttribSize_t VBO::getStride() const {
 
 
 inline const VertexAttributeLayout::AttribSize_t VBO::getOffset(int index) const {
-	assert(index < m_attributeLayout.size());
+	assert(index < attributeLayout_.size());
 	VertexAttributeLayout::AttribSize_t sum{ 0 };
 	for ( int i{ 0 }; i < index; ++i ) {
-		sum += m_attributeLayout[i].size;
+		sum += attributeLayout_[i].size;
 	}
 	return sum;
 }
