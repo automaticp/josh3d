@@ -19,35 +19,9 @@ protected:
 	void releaseResource() { glDeleteProgram(m_id); }
 
 public:
-	ShaderProgram(std::vector<refw<Shader>> shaders) :
-		m_shaders{ shaders } {
-		
-		acquireResource();
-		for ( Shader& shader : shaders ) {
-			glAttachShader(m_id, shader);
-		}
-		glLinkProgram(m_id);
-		
-		int success;
-		glGetProgramiv(m_id, GL_LINK_STATUS, &success);
-		if ( !success ) {
-			std::string linkInfo{ getLinkInfo() };
-			// delete id before thorwing (undoes glCreateProgram())
-			releaseResource();
-			throw std::runtime_error(std::string("runtime_error: program linking failed") + linkInfo);
-		}		
-	}
+	ShaderProgram(std::vector<refw<Shader>> shaders);
 
-	std::string getLinkInfo() {
-		std::string output{};
-		int success;
-
-		glGetProgramiv(m_id, GL_LINK_STATUS, &success);
-		output += "\nLinking Status: " + ((success == GL_TRUE) ? std::string("Success") : std::string("Failure"));
-		output += "\nProgram Id: " + std::to_string(m_id);
-
-		return output;
-	}
+	std::string getLinkInfo();
 
 	void use() const {
 		glUseProgram(m_id);
@@ -126,9 +100,36 @@ public:
 		glUniformMatrix4fv(location, count, transpose, glm::value_ptr(m));
 	}
 
-
-
-
-
 };
+
+
+inline ShaderProgram::ShaderProgram(std::vector<refw<Shader>> shaders) :
+		m_shaders{ shaders } {
+
+	acquireResource();
+	for ( Shader& shader : shaders ) {
+		glAttachShader(m_id, shader);
+	}
+	glLinkProgram(m_id);
+
+	int success;
+	glGetProgramiv(m_id, GL_LINK_STATUS, &success);
+	if ( !success ) {
+		std::string linkInfo{ getLinkInfo() };
+		// delete id before thorwing (undoes glCreateProgram())
+		releaseResource();
+		throw std::runtime_error(std::string("runtime_error: program linking failed") + linkInfo);
+	}
+}
+
+inline std::string ShaderProgram::getLinkInfo() {
+	std::string output{};
+	int success;
+
+	glGetProgramiv(m_id, GL_LINK_STATUS, &success);
+	output += "\nLinking Status: " + ((success == GL_TRUE) ? std::string("Success") : std::string("Failure"));
+	output += "\nProgram Id: " + std::to_string(m_id);
+
+	return output;
+}
 

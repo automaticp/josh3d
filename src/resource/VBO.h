@@ -48,24 +48,30 @@ public:
 	const std::vector<VertexAttributeLayout>& getLayout() const noexcept { return m_attributeLayout; }
 	const std::vector<float>& getData() const noexcept { return m_data; }
 
-	const VertexAttributeLayout::AttribSize_t getStride() const {
-		VertexAttributeLayout::AttribSize_t sum{ 0 };
-		for ( const auto& currentLayout : m_attributeLayout ) {
-			sum += currentLayout.size;
-		}
-		return sum;
-	}
+	const VertexAttributeLayout::AttribSize_t getStride() const;
 
-	const VertexAttributeLayout::AttribSize_t getOffset(int index) const {
-		assert(index < m_attributeLayout.size());
-		VertexAttributeLayout::AttribSize_t sum{ 0 };
-		for ( int i{ 0 }; i < index; ++i ) {
-			sum += m_attributeLayout[i].size;
-		}
-		return sum;
-	}
+	const VertexAttributeLayout::AttribSize_t getOffset(int index) const;
 
 	// why did this not have a bind method before???
 	void bind() const { glBindBuffer(GL_ARRAY_BUFFER, m_id); }
 };
+
+
+inline const VertexAttributeLayout::AttribSize_t VBO::getStride() const {
+	VertexAttributeLayout::AttribSize_t sum{ 0 };
+	for ( const auto& currentLayout : m_attributeLayout ) {
+		sum += currentLayout.size;
+	}
+	return sum;
+}
+
+
+inline const VertexAttributeLayout::AttribSize_t VBO::getOffset(int index) const {
+	assert(index < m_attributeLayout.size());
+	VertexAttributeLayout::AttribSize_t sum{ 0 };
+	for ( int i{ 0 }; i < index; ++i ) {
+		sum += m_attributeLayout[i].size;
+	}
+	return sum;
+}
 

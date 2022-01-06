@@ -16,29 +16,7 @@ protected:
 	void releaseResource() { glDeleteTextures(1, &m_id); }
 
 public:
-	Texture(const std::string& filename, GLenum format, GLenum internalformat = GL_RGB) :
-		m_filename{ filename } {
-
-		int width, height, numChannels;
-		stbi_set_flip_vertically_on_load(true);
-		
-		static const std::string textureDir{ "resources/textures/" };
-		std::string texturePath{ textureDir + filename };
-		
-		unsigned char* data = stbi_load(texturePath.c_str(), &width, &height, &numChannels, 0);
-		if ( !data ) {
-			throw std::runtime_error("runtime_error: could not read image file " + texturePath);
-		}
-
-		acquireResource();
-
-
-		glBindTexture(GL_TEXTURE_2D, m_id);
-		glTexImage2D(GL_TEXTURE_2D, 0, internalformat, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-		glGenerateMipmap(GL_TEXTURE_2D);
-
-		stbi_image_free(data);
-	}
+	Texture(const std::string& filename, GLenum format, GLenum internalformat = GL_RGB);
 
 	const std::string& getFilename() const { return m_filename; }
 	void bind() { glBindTexture(GL_TEXTURE_2D, m_id); }
@@ -64,5 +42,30 @@ const std::array<GLenum, 32> Texture::s_texUnits{
 	GL_TEXTURE25, GL_TEXTURE26, GL_TEXTURE27, GL_TEXTURE28, GL_TEXTURE29,
 	GL_TEXTURE30, GL_TEXTURE31 
 };
+
+
+inline Texture::Texture(const std::string& filename, GLenum format, GLenum internalformat) :
+		m_filename{ filename } {
+
+	int width, height, numChannels;
+	stbi_set_flip_vertically_on_load(true);
+
+	static const std::string textureDir{ "resources/textures/" };
+	std::string texturePath{ textureDir + filename };
+
+	unsigned char* data = stbi_load(texturePath.c_str(), &width, &height, &numChannels, 0);
+	if ( !data ) {
+		throw std::runtime_error("runtime_error: could not read image file " + texturePath);
+	}
+
+	acquireResource();
+
+
+	glBindTexture(GL_TEXTURE_2D, m_id);
+	glTexImage2D(GL_TEXTURE_2D, 0, internalformat, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+	glGenerateMipmap(GL_TEXTURE_2D);
+
+	stbi_image_free(data);
+}
 
 

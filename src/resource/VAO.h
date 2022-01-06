@@ -15,30 +15,7 @@ protected:
 
 public:
 	// for now this only takes one VBO 
-	VAO(const VBO& vbo, GLenum usage = GL_STATIC_DRAW) {
-		
-		acquireResource();
-		bind();
-		
-		vbo.bind();
-		const auto& data{ vbo.getData() };
-		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * data.size(), data.data(), usage);
-
-		const auto& VALayout{ vbo.getLayout() };
-		auto stride{ vbo.getStride() };
-		auto offset{ 0 };
-		for ( int i{ 0 }; const auto& currentLayout : VALayout ) {
-			
-			glVertexAttribPointer(currentLayout.index, currentLayout.size, GL_FLOAT, GL_FALSE,
-				stride * sizeof(float), reinterpret_cast<void*>(offset * sizeof(float)));
-			glEnableVertexAttribArray(currentLayout.index);
-			
-			offset += currentLayout.size;
-			++i;
-		}
-
-		m_numVertices = data.size() / stride;
-	}
+	VAO(const VBO& vbo, GLenum usage = GL_STATIC_DRAW);
 
 	void bind() const { glBindVertexArray(m_id); }
 	static void unbind() { glBindVertexArray(0); }
@@ -54,4 +31,30 @@ public:
 
 
 };
+
+
+inline VAO::VAO(const VBO& vbo, GLenum usage) {
+
+	acquireResource();
+	bind();
+
+	vbo.bind();
+	const auto& data{ vbo.getData() };
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float) * data.size(), data.data(), usage);
+
+	const auto& VALayout{ vbo.getLayout() };
+	auto stride{ vbo.getStride() };
+	auto offset{ 0 };
+	for ( int i{ 0 }; const auto& currentLayout : VALayout ) {
+
+		glVertexAttribPointer(currentLayout.index, currentLayout.size, GL_FLOAT, GL_FALSE,
+		                      stride * sizeof(float), reinterpret_cast<void*>(offset * sizeof(float)));
+		glEnableVertexAttribArray(currentLayout.index);
+
+		offset += currentLayout.size;
+		++i;
+	}
+
+	m_numVertices = data.size() / stride;
+}
 
