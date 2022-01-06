@@ -7,8 +7,8 @@
 #include "IResource.h"
 
 struct VertexAttributeLayout {
-	using AttribIndex_t = int;
-	using AttribSize_t = int;
+	using AttribIndex_t = GLsizei; // int
+	using AttribSize_t = GLsizei;
 
 	AttribIndex_t index;
 	AttribSize_t size;
@@ -25,7 +25,7 @@ protected:
 	void releaseResource() { glDeleteBuffers(1, &id_); }
 
 public:
-	// somebody tell this man how to use forwarding constructors
+	// FIXME: somebody tell this man how to use forwarding constructors
 	VBO(const std::vector<float>& data, const std::vector<VertexAttributeLayout>& attrbuteLayout)
 		: data_{ data }, attributeLayout_{ attrbuteLayout } {
 		
@@ -51,7 +51,7 @@ public:
 
 	const VertexAttributeLayout::AttribSize_t getStride() const;
 
-	const VertexAttributeLayout::AttribSize_t getOffset(int index) const;
+	const VertexAttributeLayout::AttribSize_t getOffset(VertexAttributeLayout::AttribIndex_t index) const;
 
 	// why did this not have a bind method before???
 	void bind() const { glBindBuffer(GL_ARRAY_BUFFER, id_); }
@@ -67,7 +67,7 @@ inline const VertexAttributeLayout::AttribSize_t VBO::getStride() const {
 }
 
 
-inline const VertexAttributeLayout::AttribSize_t VBO::getOffset(int index) const {
+inline const VertexAttributeLayout::AttribSize_t VBO::getOffset(VertexAttributeLayout::AttribIndex_t index) const {
 	assert(index < attributeLayout_.size());
 	VertexAttributeLayout::AttribSize_t sum{ 0 };
 	for ( int i{ 0 }; i < index; ++i ) {

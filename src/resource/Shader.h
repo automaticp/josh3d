@@ -8,8 +8,7 @@
 #include <glad/glad.h>
 #include "TypeAliases.h"
 #include "IResource.h"
-// TODO: make a base class for Id holders
-// with id_ and m_isDeleted, typecasts to Id_t and bool, and virtual del() method
+
 
 class Shader : public IResource {
 private:
@@ -67,17 +66,17 @@ inline Shader::Shader(GLenum type, const std::string& filename) :
 	// create shader id and compile from file
 	acquireResource();
 	std::string shaderSourceString{ getShaderFileSource(filename) };
-	const char* shaderSource{ shaderSourceString.c_str() };
+	const GLchar* shaderSource{ shaderSourceString.c_str() };
 	glShaderSource(id_, 1, &shaderSource, nullptr);
 	glCompileShader(id_);
 
 	// check for succesful compilation
-	int success;
+	GLint success;
 	glGetShaderiv(id_, GL_COMPILE_STATUS, &success);
 	if ( !success ) {
 		std::string compileInfo{ getCompileInfo() };
 		// delete id before thorwing (undoes glCreateShader())
-		glDeleteShader(id_);
+		releaseResource();
 		throw std::runtime_error(std::string("runtime_error: shader compilation failed") + compileInfo);
 	}
 }
@@ -93,7 +92,7 @@ inline std::string Shader::getShaderFileSource(const std::string& filename) {
 
 inline std::string Shader::getCompileInfo() {
 	std::string output{};
-	int shaderType, success, sourceLength;
+	GLint shaderType, success, sourceLength;
 	glGetShaderiv(id_, GL_SHADER_TYPE, &shaderType);
 	glGetShaderiv(id_, GL_COMPILE_STATUS, &success);
 	glGetShaderiv(id_, GL_SHADER_SOURCE_LENGTH, &sourceLength);
@@ -109,9 +108,9 @@ inline std::string Shader::getCompileInfo() {
 	output += "\nSource File: " + filename_;
 	output += "\nSource Length: " + std::to_string(sourceLength);
 	if ( success != GL_TRUE ) {
-		int infoLength;
+		GLint infoLength;
 		glGetShaderiv(id_, GL_INFO_LOG_LENGTH, &infoLength);
-		auto infoLog{ std::make_unique<char[]>(infoLength) };
+		auto infoLog{ std::make_unique<GLchar[]>(infoLength) };
 		glGetShaderInfoLog(id_, infoLength, nullptr, infoLog.get());
 		output += "\nInfo Length: " + std::to_string(infoLength);
 		output += "\nInfo Message:< " + std::string(infoLog.get());

@@ -16,7 +16,7 @@ protected:
 	void releaseResource() { glDeleteTextures(1, &id_); }
 
 public:
-	Texture(const std::string& filename, GLenum format, GLenum internalformat = GL_RGB);
+	Texture(const std::string& filename, GLenum format, GLint internalFormat = GL_RGB);
 
 	virtual ~Texture() override { releaseResource(); }
 
@@ -46,7 +46,7 @@ const std::array<GLenum, 32> Texture::texUnits_s{
 };
 
 
-inline Texture::Texture(const std::string& filename, GLenum format, GLenum internalformat) :
+inline Texture::Texture(const std::string& filename, GLenum format, GLint internalFormat) :
 		filename_{ filename } {
 
 	int width, height, numChannels;
@@ -64,7 +64,7 @@ inline Texture::Texture(const std::string& filename, GLenum format, GLenum inter
 
 
 	glBindTexture(GL_TEXTURE_2D, id_);
-	glTexImage2D(GL_TEXTURE_2D, 0, internalformat, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, GL_UNSIGNED_BYTE, data);
 	glGenerateMipmap(GL_TEXTURE_2D);
 
 	stbi_image_free(data);
