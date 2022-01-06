@@ -17,8 +17,8 @@ private:
 	GLenum m_type;
 
 protected:
-	virtual void acquireResource() override { m_id = glCreateShader(m_type); }
-	virtual void releaseResource() override { glDeleteShader(m_id); }
+	void acquireResource() { m_id = glCreateShader(m_type); }
+	void releaseResource() { glDeleteShader(m_id); }
 
 public:
 	Shader(GLenum type, const std::string& filename) :

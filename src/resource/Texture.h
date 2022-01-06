@@ -12,8 +12,8 @@ private:
 	const static std::array<GLenum, 32> s_texUnits;
 
 protected:
-	virtual void acquireResource() override { glGenTextures(1, &m_id); }
-	virtual void releaseResource() override { glDeleteTextures(1, &m_id); }
+	void acquireResource() { glGenTextures(1, &m_id); }
+	void releaseResource() { glDeleteTextures(1, &m_id); }
 
 public:
 	Texture(const std::string& filename, GLenum format, GLenum internalformat = GL_RGB) :

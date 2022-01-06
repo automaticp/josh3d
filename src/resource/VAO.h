@@ -10,8 +10,8 @@ private:
 	size_t m_numVertices;
 
 protected:
-	virtual void acquireResource() override { glGenVertexArrays(1, &m_id); }
-	virtual void releaseResource() override { glDeleteVertexArrays(1, &m_id); }
+	void acquireResource() { glGenVertexArrays(1, &m_id); }
+	void releaseResource() { glDeleteVertexArrays(1, &m_id); }
 
 public:
 	// for now this only takes one VBO 

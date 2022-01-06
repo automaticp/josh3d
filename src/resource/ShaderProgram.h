@@ -15,8 +15,8 @@ private:
 	std::vector<refw<Shader>> m_shaders;
 
 protected:
-	virtual void acquireResource() override { m_id = glCreateProgram(); }
-	virtual void releaseResource() override { glDeleteProgram(m_id); }
+	void acquireResource() { m_id = glCreateProgram(); }
+	void releaseResource() { glDeleteProgram(m_id); }
 
 public:
 	ShaderProgram(std::vector<refw<Shader>> shaders) :

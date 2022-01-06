@@ -21,8 +21,8 @@ private:
 	std::vector<VertexAttributeLayout> m_attributeLayout;
 
 protected:
-	virtual void acquireResource() override { glGenBuffers(1, &m_id); }
-	virtual void releaseResource() override { glDeleteBuffers(1, &m_id); }
+	void acquireResource() { glGenBuffers(1, &m_id); }
+	void releaseResource() { glDeleteBuffers(1, &m_id); }
 
 public:
 	// somebody tell this man how to use forwarding constructors
