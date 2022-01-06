@@ -9,7 +9,6 @@
 class glResource {
 protected:
 	GLuint m_id{ 0 };
-	bool m_isDestroyed{ false };
 
 	// wraps the call to OpenGL to acquire a resource;
 	// all resources have to be acquired in the constructors of the Derived classes;
@@ -27,16 +26,12 @@ public:
 	// all resources must be destroyed manually (no u-d destructor; hopefully, will change later)
 	void destroy() {
 		releaseResource();
-		m_isDestroyed = true;
 	};
 
 	GLuint getId() const noexcept { return m_id; }
 
 	// implicit conversion for C API calls
 	operator GLuint() const noexcept { return m_id; }
-	
-	// isAlive check
-	operator bool() const noexcept { return !m_isDestroyed; }
 
 	// no accidental conversions to other integral types
 	template <typename T> requires std::convertible_to<T, GLuint>
