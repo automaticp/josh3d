@@ -1,6 +1,5 @@
 #pragma once
 #include <concepts>
-#include "TypeAliases.h"
 // TODO: implement some actual ownership of the Id through smart pointers with custom deallocators 
 // maybe have like a templated glResource<std::unique_ptr<GLuint, glDeallocator<Derived>>> with CRTP in Derived classes
 
