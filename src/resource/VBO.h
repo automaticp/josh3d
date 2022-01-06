@@ -4,7 +4,7 @@
 #include <tuple>
 #include <glad/glad.h>
 #include "TypeAliases.h"
-#include "glResource.h"
+#include "IResource.h"
 
 struct VertexAttributeLayout {
 	using AttribIndex_t = int;
@@ -15,7 +15,7 @@ struct VertexAttributeLayout {
 };
 
 
-class VBO : public glResource {
+class VBO : public IResource {
 private:
 	std::vector<float> m_data;
 	std::vector<VertexAttributeLayout> m_attributeLayout;

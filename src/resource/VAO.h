@@ -2,10 +2,10 @@
 #include <numeric>
 #include <glad/glad.h>
 #include "TypeAliases.h"
-#include "glResource.h"
+#include "IResource.h"
 #include "VBO.h"
 
-class VAO : public glResource {
+class VAO : public IResource {
 private:
 	size_t m_numVertices;
 

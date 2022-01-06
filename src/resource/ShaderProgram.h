@@ -7,10 +7,10 @@
 
 
 #include "TypeAliases.h"
-#include "glResource.h"
+#include "IResource.h"
 #include "Shader.h"
 
-class ShaderProgram : public glResource {
+class ShaderProgram : public IResource {
 private:
 	std::vector<refw<Shader>> m_shaders;
 

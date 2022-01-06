@@ -4,9 +4,9 @@
 #include <stb_image.h>
 
 #include "TypeAliases.h"
-#include "glResource.h"
+#include "IResource.h"
 
-class Texture : public glResource {
+class Texture : public IResource {
 private:
 	std::string m_filename;
 	const static std::array<GLenum, 32> s_texUnits;

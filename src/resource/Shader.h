@@ -7,11 +7,11 @@
 #include <memory>
 #include <glad/glad.h>
 #include "TypeAliases.h"
-#include "glResource.h"
+#include "IResource.h"
 // TODO: make a base class for Id holders
 // with m_id and m_isDeleted, typecasts to Id_t and bool, and virtual del() method
 
-class Shader : public glResource {
+class Shader : public IResource {
 private:
 	std::string m_filename;
 	GLenum m_type;
