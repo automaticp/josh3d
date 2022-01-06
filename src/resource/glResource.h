@@ -2,16 +2,13 @@
 #include <concepts>
 #include "TypeAliases.h"
 // TODO: implement some actual ownership of the Id through smart pointers with custom deallocators 
-// maybe have like a templated glResource<std::unique_ptr<Id_t, glDeallocator<Derived>>> with CRTP in Derived classes
+// maybe have like a templated glResource<std::unique_ptr<GLuint, glDeallocator<Derived>>> with CRTP in Derived classes
 // TODO: maybe also allow for dynamic memory managment though "std::shared_ptr<bool> m_isDestroyed" and conditional destructor;
 // the above idea sound like some dangerous garbo, tbh
 
 class glResource {
-public: 
-	using Id_t = GLuint; // typedef of unsigned int
-
 protected:
-	Id_t m_id{ 0 };
+	GLuint m_id{ 0 };
 	bool m_isDestroyed{ false };
 
 	// wraps the call to OpenGL to acquire a resource;
@@ -33,16 +30,16 @@ public:
 		m_isDestroyed = true;
 	};
 
-	Id_t getId() const noexcept { return m_id; }
+	GLuint getId() const noexcept { return m_id; }
 
 	// implicit conversion for C API calls
-	operator Id_t() const noexcept { return m_id; }
+	operator GLuint() const noexcept { return m_id; }
 	
 	// isAlive check
 	operator bool() const noexcept { return !m_isDestroyed; }
 
 	// no accidental conversions to other integral types
-	template <typename T> requires std::convertible_to<T, Id_t>
+	template <typename T> requires std::convertible_to<T, GLuint>
 	operator T() const = delete; 
 
 	glResource() = default;
