@@ -23,6 +23,8 @@ protected:
 public:
 	Shader(GLenum type, const std::string& filename);
 
+	virtual ~Shader() override { releaseResource(); }
+
 	GLenum getType() const noexcept { return m_type; }
 	const std::string& getFilename() const noexcept { return m_filename; }
 	std::string getSource() const { return getShaderFileSource(m_filename); }

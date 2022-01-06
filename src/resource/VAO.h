@@ -17,6 +17,8 @@ public:
 	// for now this only takes one VBO 
 	VAO(const VBO& vbo, GLenum usage = GL_STATIC_DRAW);
 
+	virtual ~VAO() override { releaseResource(); }
+
 	void bind() const { glBindVertexArray(m_id); }
 	static void unbind() { glBindVertexArray(0); }
 	

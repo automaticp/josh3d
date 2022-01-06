@@ -21,6 +21,8 @@ protected:
 public:
 	ShaderProgram(std::vector<refw<Shader>> shaders);
 
+	virtual ~ShaderProgram() override { releaseResource(); }
+
 	std::string getLinkInfo();
 
 	void use() const {

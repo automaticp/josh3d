@@ -44,6 +44,7 @@ public:
 		acquireResource();
 	}
 
+	virtual ~VBO() override { releaseResource(); }
 
 	const std::vector<VertexAttributeLayout>& getLayout() const noexcept { return m_attributeLayout; }
 	const std::vector<float>& getData() const noexcept { return m_data; }

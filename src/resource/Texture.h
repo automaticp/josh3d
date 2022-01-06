@@ -18,6 +18,8 @@ protected:
 public:
 	Texture(const std::string& filename, GLenum format, GLenum internalformat = GL_RGB);
 
+	virtual ~Texture() override { releaseResource(); }
+
 	const std::string& getFilename() const { return m_filename; }
 	void bind() { glBindTexture(GL_TEXTURE_2D, m_id); }
 	
