@@ -35,3 +35,5 @@ public:
 
 };
 
+inline IResource::~IResource() = default;
+
