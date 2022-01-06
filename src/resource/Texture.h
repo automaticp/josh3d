@@ -11,7 +11,6 @@ private:
 	std::string filename_;
 	const static std::array<GLenum, 32> texUnits_s;
 
-protected:
 	void acquireResource() { glGenTextures(1, &id_); }
 	void releaseResource() { glDeleteTextures(1, &id_); }
 

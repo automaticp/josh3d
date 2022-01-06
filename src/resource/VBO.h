@@ -20,7 +20,6 @@ private:
 	std::vector<float> data_;
 	std::vector<VertexAttributeLayout> attributeLayout_;
 
-protected:
 	void acquireResource() { glGenBuffers(1, &id_); }
 	void releaseResource() { glDeleteBuffers(1, &id_); }
 

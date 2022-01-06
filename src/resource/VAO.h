@@ -9,7 +9,6 @@ class VAO : public IResource {
 private:
 	size_t numVertices_;
 
-protected:
 	void acquireResource() { glGenVertexArrays(1, &id_); }
 	void releaseResource() { glDeleteVertexArrays(1, &id_); }
 

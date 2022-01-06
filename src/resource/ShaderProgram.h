@@ -14,7 +14,6 @@ class ShaderProgram : public IResource {
 private:
 	std::vector<refw<Shader>> shaders_;
 
-protected:
 	void acquireResource() { id_ = glCreateProgram(); }
 	void releaseResource() { glDeleteProgram(id_); }
 

@@ -15,7 +15,6 @@ private:
 	std::string filename_;
 	GLenum type_;
 
-protected:
 	void acquireResource() { id_ = glCreateShader(type_); }
 	void releaseResource() { glDeleteShader(id_); }
 
