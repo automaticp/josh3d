@@ -5,6 +5,8 @@
 #include <stdexcept>
 #include <concepts>
 #include <memory>
+#include <iostream>
+#include <utility>
 #include <glad/glad.h>
 #include "TypeAliases.h"
 #include "IResource.h"
@@ -19,7 +21,7 @@ private:
 	void releaseResource() noexcept { glDeleteShader(id_); }
 
 public:
-	Shader(GLenum type, const std::string& filename);
+	Shader(GLenum type, std::string filename);
 
 	virtual ~Shader() override { releaseResource(); }
 
@@ -29,42 +31,55 @@ public:
 
 	static std::string getShaderFileSource(const std::string& filename);
 
-	std::string getCompileInfo();
+	std::string getCompileInfo() const;
 
+	void compile() const;
 };
 
 
 
 
-class FragmentShader :
-		public Shader {
+class FragmentShader : public Shader {
 public:
-	explicit FragmentShader(const std::string& filename) :
-			Shader(GL_FRAGMENT_SHADER, filename) {}
+	explicit FragmentShader(std::string filename) :
+			Shader(GL_FRAGMENT_SHADER, std::move(filename)) {}
 };
 
 
-class VertexShader :
-		public Shader {
+class VertexShader : public Shader {
 public:
-	explicit VertexShader(const std::string& filename) :
-			Shader(GL_VERTEX_SHADER, filename) {}
+	explicit VertexShader(std::string filename) :
+			Shader(GL_VERTEX_SHADER, std::move(filename)) {}
 };
 
 
 
 
-inline Shader::Shader(GLenum type, const std::string& filename) :
-		type_{ type }, filename_{ filename } {
+inline Shader::Shader(GLenum type, std::string filename) :
+		type_{ type }, filename_{ std::move(filename) } {
 
 	// check shader type to be a valid enum
-	if ( (type != GL_VERTEX_SHADER) && (type != GL_FRAGMENT_SHADER) ) {
+	if ( (type_ != GL_VERTEX_SHADER) && (type_ != GL_FRAGMENT_SHADER) ) {
 		throw std::invalid_argument("invalid_argument: invalid shader type");
 	}
 
 	// create shader id and compile from file
 	acquireResource();
-	std::string shaderSourceString{ getShaderFileSource(filename) };
+	try { compile(); }
+	catch (const std::runtime_error& e) {
+		std::cerr << e.what();
+		releaseResource();
+		throw;
+	}
+	catch (...) {
+		releaseResource();
+		throw;
+	}
+
+}
+
+inline void Shader::compile() const {
+	const std::string shaderSourceString{ getSource() };
 	const GLchar* shaderSource{ shaderSourceString.c_str() };
 	glShaderSource(id_, 1, &shaderSource, nullptr);
 	glCompileShader(id_);
@@ -74,8 +89,6 @@ inline Shader::Shader(GLenum type, const std::string& filename) :
 	glGetShaderiv(id_, GL_COMPILE_STATUS, &success);
 	if ( !success ) {
 		std::string compileInfo{ getCompileInfo() };
-		// delete id before thorwing (undoes glCreateShader())
-		releaseResource();
 		throw std::runtime_error(std::string("runtime_error: shader compilation failed") + compileInfo);
 	}
 }
@@ -89,7 +102,7 @@ inline std::string Shader::getShaderFileSource(const std::string& filename) {
 	return outString;
 }
 
-inline std::string Shader::getCompileInfo() {
+inline std::string Shader::getCompileInfo() const {
 	std::string output{};
 	GLint shaderType, success, sourceLength;
 	glGetShaderiv(id_, GL_SHADER_TYPE, &shaderType);
