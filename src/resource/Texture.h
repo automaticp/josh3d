@@ -16,35 +16,31 @@ public:
 };
 
 
-class Texture : public IResource {
+class Texture : public TextureAllocator {
 private:
 	std::string filename_;
 	const static std::array<GLenum, 32> texUnits_s;
 
-	void acquireResource() noexcept { glGenTextures(1, &id_); }
-	void releaseResource() noexcept { glDeleteTextures(1, &id_); }
-
 public:
 	Texture(const std::string& filename, GLenum format, GLint internalFormat = GL_RGB);
 
-	virtual ~Texture() override { releaseResource(); }
-
-	const std::string& getFilename() const { return filename_; }
 	void bind() { glBindTexture(GL_TEXTURE_2D, id_); }
-	
+
 	static void setActiveUnit(int texUnit) { glActiveTexture(texUnits_s.at(texUnit)); }
-	
+
 	// set Active Texture Unit and then bind the Texture to it
 	void setActiveUnitAndBind(int texUnit) {
 		setActiveUnit(texUnit);
 		bind();
 	}
 
+	const std::string& getFilename() const { return filename_; }
+
 
 };
 
 
-const std::array<GLenum, 32> Texture::texUnits_s{
+inline const std::array<GLenum, 32> Texture::texUnits_s{
 	GL_TEXTURE0,  GL_TEXTURE1,  GL_TEXTURE2,  GL_TEXTURE3,  GL_TEXTURE4,
 	GL_TEXTURE5,  GL_TEXTURE6,  GL_TEXTURE7,  GL_TEXTURE8,  GL_TEXTURE9,
 	GL_TEXTURE10, GL_TEXTURE11, GL_TEXTURE12, GL_TEXTURE13, GL_TEXTURE14,
@@ -68,9 +64,6 @@ inline Texture::Texture(const std::string& filename, GLenum format, GLint intern
 	if ( !data ) {
 		throw std::runtime_error("runtime_error: could not read image file " + texturePath);
 	}
-
-	acquireResource();
-
 
 	glBindTexture(GL_TEXTURE_2D, id_);
 	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, GL_UNSIGNED_BYTE, data);
