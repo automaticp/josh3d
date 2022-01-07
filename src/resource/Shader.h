@@ -17,7 +17,8 @@ protected:
 	explicit ShaderAllocator(GLenum type) noexcept {
 		id_ = glCreateShader(type);
 #ifndef NDEBUG
-		std::cerr << "\nShaderAllocator("
+		std::cerr << "\n[id: " << id_ << "] "
+		          << "ShaderAllocator("
 		          << ((type == GL_FRAGMENT_SHADER) ? "GL_FRAGMENT_SHADER" : "")
 		          << ((type == GL_VERTEX_SHADER) ? "GL_VERTEX_SHADER" : "") << ")";
 #endif
@@ -25,7 +26,7 @@ protected:
 public:
 	virtual ~ShaderAllocator() override {
 #ifndef NDEBUG
-		std::cerr << "\n~ShaderAllocator()";
+		std::cerr << "\n[id: " << id_ << "] " << "~ShaderAllocator()" ;
 #endif
 		glDeleteShader(id_);
 	}
@@ -83,6 +84,9 @@ inline Shader::Shader(GLenum type, std::string filename) : ShaderAllocator(type)
 	// compile from file
 	try {
 		compile();
+#ifndef NDEBUG
+		std::cerr << getCompileInfo();
+#endif
 	}
 	catch (const std::runtime_error& e) {
 		std::cerr << e.what();
