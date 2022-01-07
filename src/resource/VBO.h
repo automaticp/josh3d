@@ -18,10 +18,21 @@ struct VertexAttributeLayout {
 
 class VBOAllocator : public IResource {
 protected:
-	VBOAllocator() noexcept { glGenBuffers(1, &id_); }
+	VBOAllocator() noexcept {
+		glGenBuffers(1, &id_);
+#ifndef NDEBUG
+		std::cerr << "\n[id: " << id_ << "] "
+		          << "VBOAllocator()";
+#endif
+	}
 
 public:
-	virtual ~VBOAllocator() override { glDeleteBuffers(1, &id_); }
+	virtual ~VBOAllocator() override {
+#ifndef NDEBUG
+		std::cerr << "\n[id: " << id_ << "] " << "~VBOAllocator()" ;
+#endif
+		glDeleteBuffers(1, &id_);
+	}
 };
 
 
