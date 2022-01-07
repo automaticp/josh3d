@@ -5,18 +5,34 @@
 #include "IResource.h"
 #include "VBO.h"
 
-class VAO : public IResource {
+
+class VAOAllocator : public IResource {
+protected:
+	VAOAllocator() noexcept {
+		glGenVertexArrays(1, &id_);
+#ifndef NDEBUG
+		std::cerr << "\n[id: " << id_ << "] "
+		          << "VAOAllocator()";
+#endif
+	}
+
+public:
+	virtual ~VAOAllocator() override {
+#ifndef NDEBUG
+		std::cerr << "\n[id: " << id_ << "] " << "~VAOAllocator()" ;
+#endif
+		glDeleteVertexArrays(1, &id_);
+	}
+};
+
+
+class VAO : public VAOAllocator {
 private:
 	size_t numVertices_;
-
-	void acquireResource() noexcept { glGenVertexArrays(1, &id_); }
-	void releaseResource() noexcept { glDeleteVertexArrays(1, &id_); }
 
 public:
 	// for now this only takes one VBO 
 	explicit VAO(const VBO& vbo, GLenum usage = GL_STATIC_DRAW);
-
-	virtual ~VAO() override { releaseResource(); }
 
 	void bind() const { glBindVertexArray(id_); }
 	static void unbind() { glBindVertexArray(0); }
@@ -36,7 +52,6 @@ public:
 
 inline VAO::VAO(const VBO& vbo, GLenum usage) {
 
-	acquireResource();
 	bind();
 
 	vbo.bind();
