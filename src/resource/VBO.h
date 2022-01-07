@@ -20,8 +20,8 @@ private:
 	std::vector<float> data_;
 	std::vector<VertexAttributeLayout> attributeLayout_;
 
-	void acquireResource() { glGenBuffers(1, &id_); }
-	void releaseResource() { glDeleteBuffers(1, &id_); }
+	void acquireResource() noexcept { glGenBuffers(1, &id_); }
+	void releaseResource() noexcept { glDeleteBuffers(1, &id_); }
 
 public:
 	// FIXME: somebody tell this man how to use forwarding constructors

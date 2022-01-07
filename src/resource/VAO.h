@@ -9,8 +9,8 @@ class VAO : public IResource {
 private:
 	size_t numVertices_;
 
-	void acquireResource() { glGenVertexArrays(1, &id_); }
-	void releaseResource() { glDeleteVertexArrays(1, &id_); }
+	void acquireResource() noexcept { glGenVertexArrays(1, &id_); }
+	void releaseResource() noexcept { glDeleteVertexArrays(1, &id_); }
 
 public:
 	// for now this only takes one VBO 

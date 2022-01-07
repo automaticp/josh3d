@@ -11,8 +11,8 @@ private:
 	std::string filename_;
 	const static std::array<GLenum, 32> texUnits_s;
 
-	void acquireResource() { glGenTextures(1, &id_); }
-	void releaseResource() { glDeleteTextures(1, &id_); }
+	void acquireResource() noexcept { glGenTextures(1, &id_); }
+	void releaseResource() noexcept { glDeleteTextures(1, &id_); }
 
 public:
 	Texture(const std::string& filename, GLenum format, GLint internalFormat = GL_RGB);
