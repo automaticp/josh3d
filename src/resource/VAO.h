@@ -8,10 +8,21 @@
 
 class VAOAllocator : public IResource {
 protected:
-	VAOAllocator() noexcept { glGenVertexArrays(1, &id_); }
+	VAOAllocator() noexcept {
+		glGenVertexArrays(1, &id_);
+#ifndef NDEBUG
+		std::cerr << "\n[id: " << id_ << "] "
+		          << "VAOAllocator()";
+#endif
+	}
 
 public:
-	virtual ~VAOAllocator() override { glDeleteVertexArrays(1, &id_); }
+	virtual ~VAOAllocator() override {
+#ifndef NDEBUG
+		std::cerr << "\n[id: " << id_ << "] " << "~VAOAllocator()" ;
+#endif
+		glDeleteVertexArrays(1, &id_);
+	}
 };
 
 
