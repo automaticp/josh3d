@@ -9,10 +9,21 @@
 
 class TextureAllocator : public IResource {
 protected:
-	TextureAllocator() noexcept { glGenTextures(1, &id_); }
+	TextureAllocator() noexcept {
+		glGenTextures(1, &id_);
+#ifndef NDEBUG
+		std::cerr << "\n[id: " << id_ << "] "
+		          << "TextureAllocator()";
+#endif
+	}
 
 public:
-	virtual ~TextureAllocator() override { glDeleteTextures(1, &id_); }
+	virtual ~TextureAllocator() override {
+#ifndef NDEBUG
+		std::cerr << "\n[id: " << id_ << "] " << "~TextureAllocator()" ;
+#endif
+		glDeleteTextures(1, &id_);
+	}
 };
 
 
