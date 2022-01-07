@@ -32,28 +32,23 @@ public:
 };
 
 
-class Shader : public IResource {
+class Shader : public ShaderAllocator {
 private:
 	std::string filename_;
 	GLenum type_;
 
-	void acquireResource() noexcept { id_ = glCreateShader(type_); }
-	void releaseResource() noexcept { glDeleteShader(id_); }
+	void compile() const;
 
 public:
 	Shader(GLenum type, std::string filename);
 
-	virtual ~Shader() override { releaseResource(); }
-
 	GLenum getType() const noexcept { return type_; }
 	const std::string& getFilename() const noexcept { return filename_; }
+
+	std::string getCompileInfo() const;
 	std::string getSource() const { return getShaderFileSource(filename_); }
 
 	static std::string getShaderFileSource(const std::string& filename);
-
-	std::string getCompileInfo() const;
-
-	void compile() const;
 };
 
 
@@ -75,24 +70,22 @@ public:
 
 
 
-inline Shader::Shader(GLenum type, std::string filename) :
-		type_{ type }, filename_{ std::move(filename) } {
+inline Shader::Shader(GLenum type, std::string filename) : ShaderAllocator(type) {
+	type_ = type;
+	filename_ = std::move(filename);
 
 	// check shader type to be a valid enum
+	// TODO: hopefully one day this will be a compile time error
 	if ( (type_ != GL_VERTEX_SHADER) && (type_ != GL_FRAGMENT_SHADER) ) {
 		throw std::invalid_argument("invalid_argument: invalid shader type");
 	}
 
-	// create shader id and compile from file
-	acquireResource();
-	try { compile(); }
+	// compile from file
+	try {
+		compile();
+	}
 	catch (const std::runtime_error& e) {
 		std::cerr << e.what();
-		releaseResource();
-		throw;
-	}
-	catch (...) {
-		releaseResource();
 		throw;
 	}
 
