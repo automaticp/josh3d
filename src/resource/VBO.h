@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <vector>
+#include <utility>
 #include <tuple>
 #include <glad/glad.h>
 #include "TypeAliases.h"
@@ -24,22 +25,8 @@ private:
 	void releaseResource() noexcept { glDeleteBuffers(1, &id_); }
 
 public:
-	// FIXME: somebody tell this man how to use forwarding constructors
-	VBO(const std::vector<float>& data, const std::vector<VertexAttributeLayout>& attrbuteLayout)
-		: data_{ data }, attributeLayout_{ attrbuteLayout } {
-		
-		acquireResource();
-	}
-
-	VBO(std::vector<float>&& data, const std::vector<VertexAttributeLayout>& attrbuteLayout)
-		: data_{ std::move(data) }, attributeLayout_{ attrbuteLayout } {
-	
-		acquireResource();
-	}
-
-	VBO(std::vector<float>&& data, std::vector<VertexAttributeLayout>&& attrbuteLayout)
-		: data_{ std::move(data) }, attributeLayout_{ std::move(attrbuteLayout) } {
-
+	VBO(std::vector<float> data, std::vector<VertexAttributeLayout> attributeLayout)
+			: data_{ std::move(data) }, attributeLayout_{ std::move(attributeLayout) } {
 		acquireResource();
 	}
 
