@@ -2,6 +2,11 @@
 #include <concepts>
 // TODO: implement some actual ownership of the Id through smart pointers with custom deallocators 
 //  maybe have like a templated IResource<std::unique_ptr<GLuint, glDeallocator<Derived>>> with CRTP in Derived classes
+// TODO: could be interesting to try to separate the concerns of allocation by adding an intermediate Allocator class
+//  that implements noexcept acquire/release methods and noexcept constructors/destructors,
+//  so that whenever the derived class throws, deallocation happens automatically.
+//  For example, the inheritance would look like: IResource <- ShaderAllocator <- Shader.
+
 
 // Base class for OpenGL resources that carry a handle (Shaders, Textures, VBOs, etc.). RAII-enabled.
 class IResource {
