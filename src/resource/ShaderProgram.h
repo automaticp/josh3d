@@ -1,4 +1,5 @@
 #pragma once
+#include <utility>
 #include <vector>
 #include <glad/glad.h>
 #include <glm/glm.hpp>
@@ -19,23 +20,22 @@ public:
 };
 
 
-class ShaderProgram : public IResource {
+class ShaderProgram : public ShaderProgramAllocator {
 private:
 	std::vector<refw<Shader>> shaders_;
 
-	void acquireResource() noexcept { id_ = glCreateProgram(); }
-	void releaseResource() noexcept { glDeleteProgram(id_); }
-
 public:
-	explicit ShaderProgram(const std::vector<refw<Shader>>& shaders);
-
-	virtual ~ShaderProgram() override { releaseResource(); }
-
-	std::string getLinkInfo();
-
-	void use() const {
-		glUseProgram(id_);
+	explicit ShaderProgram(std::vector<refw<Shader>> shaders) : shaders_{ std::move(shaders) } {
+		link();
 	}
+
+	void link() const;
+
+	void use() const { glUseProgram(id_); }
+
+	std::string getLinkInfo() const;
+
+	GLint getLinkSuccess() const;
 
 	GLint getUniformLocation(const std::string& name) const {
 		return glGetUniformLocation(id_, name.c_str());
@@ -44,8 +44,6 @@ public:
 	GLint getUniformLocation(const GLchar* name) const {
 		return glGetUniformLocation(id_, name);
 	}
-
-
 	// values float
 	static void setUniform(int location, float val0) {
 		glUniform1f(location, val0);
@@ -112,30 +110,28 @@ public:
 };
 
 
-inline ShaderProgram::ShaderProgram(const std::vector<refw<Shader>>& shaders) :
-		shaders_{ shaders } {
-
-	acquireResource();
-	for ( Shader& shader : shaders ) {
+void ShaderProgram::link() const {
+	for (Shader& shader: shaders_) {
 		glAttachShader(id_, shader);
 	}
 	glLinkProgram(id_);
 
-	int success;
-	glGetProgramiv(id_, GL_LINK_STATUS, &success);
-	if ( !success ) {
+	GLint success = getLinkSuccess();
+	if ( success != GL_TRUE ) {
 		std::string linkInfo{ getLinkInfo() };
-		// delete id before thorwing (undoes glCreateProgram())
-		releaseResource();
 		throw std::runtime_error(std::string("runtime_error: program linking failed") + linkInfo);
 	}
 }
 
-inline std::string ShaderProgram::getLinkInfo() {
-	std::string output{};
-	int success;
-
+GLint ShaderProgram::getLinkSuccess() const {
+	GLint success;
 	glGetProgramiv(id_, GL_LINK_STATUS, &success);
+	return success;
+}
+
+inline std::string ShaderProgram::getLinkInfo() const {
+	std::string output{};
+	GLint success = getLinkSuccess();
 	output += "\nLinking Status: " + ((success == GL_TRUE) ? std::string("Success") : std::string("Failure"));
 	output += "\nProgram Id: " + std::to_string(id_);
 
