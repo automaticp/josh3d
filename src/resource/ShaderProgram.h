@@ -13,10 +13,21 @@
 
 class ShaderProgramAllocator : public IResource {
 protected:
-	ShaderProgramAllocator() noexcept { id_ = glCreateProgram(); }
+	ShaderProgramAllocator() noexcept {
+		id_ = glCreateProgram();
+#ifndef NDEBUG
+		std::cerr << "\n[id: " << id_ << "] "
+		          << "ShaderProgramAllocator()";
+#endif
+	}
 
 public:
-	virtual ~ShaderProgramAllocator() override { glDeleteProgram(id_); }
+	virtual ~ShaderProgramAllocator() override {
+#ifndef NDEBUG
+		std::cerr << "\n[id: " << id_ << "] " << "~ShaderProgramAllocator()" ;
+#endif
+		glDeleteProgram(id_);
+	}
 };
 
 
@@ -27,6 +38,9 @@ private:
 public:
 	explicit ShaderProgram(std::vector<refw<Shader>> shaders) : shaders_{ std::move(shaders) } {
 		link();
+#ifndef NDEBUG
+		std::cerr << getLinkInfo();
+#endif
 	}
 
 	void link() const;
@@ -133,7 +147,7 @@ inline std::string ShaderProgram::getLinkInfo() const {
 	std::string output{};
 	GLint success = getLinkSuccess();
 	output += "\nLinking Status: " + ((success == GL_TRUE) ? std::string("Success") : std::string("Failure"));
-	output += "\nProgram Id: " + std::to_string(id_);
+	output += "\nProgram Id: " + std::to_string(id_) + "\n";
 
 	return output;
 }
