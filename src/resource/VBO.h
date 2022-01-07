@@ -41,13 +41,13 @@ public:
 
 	const std::vector<float>& getData() const noexcept { return data_; }
 
-	const VertexAttributeLayout::AttribSize_t getStride() const;
+	VertexAttributeLayout::AttribSize_t getStride() const;
 
-	const VertexAttributeLayout::AttribSize_t getOffset(VertexAttributeLayout::AttribIndex_t index) const;
+	VertexAttributeLayout::AttribSize_t getOffset(VertexAttributeLayout::AttribIndex_t index) const;
 };
 
 
-inline const VertexAttributeLayout::AttribSize_t VBO::getStride() const {
+inline VertexAttributeLayout::AttribSize_t VBO::getStride() const {
 	VertexAttributeLayout::AttribSize_t sum{ 0 };
 	for ( const auto& currentLayout : attributeLayout_ ) {
 		sum += currentLayout.size;
@@ -56,7 +56,7 @@ inline const VertexAttributeLayout::AttribSize_t VBO::getStride() const {
 }
 
 
-inline const VertexAttributeLayout::AttribSize_t VBO::getOffset(VertexAttributeLayout::AttribIndex_t index) const {
+inline VertexAttributeLayout::AttribSize_t VBO::getOffset(VertexAttributeLayout::AttribIndex_t index) const {
 	assert(index < attributeLayout_.size());
 	VertexAttributeLayout::AttribSize_t sum{ 0 };
 	for ( int i{ 0 }; i < index; ++i ) {
