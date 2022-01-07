@@ -5,6 +5,16 @@
 #include "IResource.h"
 #include "VBO.h"
 
+
+class VAOAllocator : public IResource {
+protected:
+	VAOAllocator() noexcept { glGenVertexArrays(1, &id_); }
+
+public:
+	virtual ~VAOAllocator() override { glDeleteVertexArrays(1, &id_); }
+};
+
+
 class VAO : public IResource {
 private:
 	size_t numVertices_;

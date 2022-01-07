@@ -6,6 +6,16 @@
 #include "TypeAliases.h"
 #include "IResource.h"
 
+
+class TextureAllocator : public IResource {
+protected:
+	TextureAllocator() noexcept { glGenTextures(1, &id_); }
+
+public:
+	virtual ~TextureAllocator() override { glDeleteTextures(1, &id_); }
+};
+
+
 class Texture : public IResource {
 private:
 	std::string filename_;

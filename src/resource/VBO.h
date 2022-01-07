@@ -16,6 +16,17 @@ struct VertexAttributeLayout {
 };
 
 
+class VBOAllocator : public IResource {
+protected:
+	VBOAllocator() noexcept { glGenBuffers(1, &id_); }
+
+public:
+	virtual ~VBOAllocator() override { glDeleteBuffers(1, &id_); }
+};
+
+
+
+
 class VBO : public IResource {
 private:
 	std::vector<float> data_;

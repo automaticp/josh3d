@@ -5,10 +5,19 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-
 #include "TypeAliases.h"
 #include "IResource.h"
 #include "Shader.h"
+
+
+class ShaderProgramAllocator : public IResource {
+protected:
+	ShaderProgramAllocator() noexcept { id_ = glCreateProgram(); }
+
+public:
+	virtual ~ShaderProgramAllocator() override { glDeleteProgram(id_); }
+};
+
 
 class ShaderProgram : public IResource {
 private:

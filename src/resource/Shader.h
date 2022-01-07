@@ -12,6 +12,26 @@
 #include "IResource.h"
 
 
+class ShaderAllocator : public IResource {
+protected:
+	explicit ShaderAllocator(GLenum type) noexcept {
+		id_ = glCreateShader(type);
+#ifndef NDEBUG
+		std::cerr << "\nShaderAllocator("
+		          << ((type == GL_FRAGMENT_SHADER) ? "GL_FRAGMENT_SHADER" : "")
+		          << ((type == GL_VERTEX_SHADER) ? "GL_VERTEX_SHADER" : "") << ")";
+#endif
+	}
+public:
+	virtual ~ShaderAllocator() override {
+#ifndef NDEBUG
+		std::cerr << "\n~ShaderAllocator()";
+#endif
+		glDeleteShader(id_);
+	}
+};
+
+
 class Shader : public IResource {
 private:
 	std::string filename_;
