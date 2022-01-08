@@ -1,4 +1,5 @@
 #pragma once
+
 #include <glad/glad.h>
 #include <iostream>
 #include "IResource.h"
@@ -15,12 +16,16 @@ protected:
 		          << ((type == GL_VERTEX_SHADER) ? "GL_VERTEX_SHADER" : "") << ")";
 #endif
 	}
+
+private:
+	virtual void release() noexcept override final { glDeleteShader(id_); }
+
 public:
 	virtual ~ShaderAllocator() override {
 #ifndef NDEBUG
 		std::cerr << "\n[id: " << id_ << "] " << "~ShaderAllocator()" ;
 #endif
-		glDeleteShader(id_);
+		ShaderAllocator::release();
 	}
 };
 
@@ -35,12 +40,15 @@ protected:
 #endif
 	}
 
+private:
+	virtual void release() noexcept override final { glDeleteProgram(id_); }
+
 public:
 	virtual ~ShaderProgramAllocator() override {
 #ifndef NDEBUG
 		std::cerr << "\n[id: " << id_ << "] " << "~ShaderProgramAllocator()" ;
 #endif
-		glDeleteProgram(id_);
+		ShaderProgramAllocator::release();
 	}
 };
 
@@ -55,12 +63,15 @@ protected:
 #endif
 	}
 
+private:
+	virtual void release() noexcept override final { glDeleteTextures(1, &id_); }
+
 public:
 	virtual ~TextureAllocator() override {
 #ifndef NDEBUG
 		std::cerr << "\n[id: " << id_ << "] " << "~TextureAllocator()" ;
 #endif
-		glDeleteTextures(1, &id_);
+		TextureAllocator::release();
 	}
 };
 
@@ -75,12 +86,15 @@ protected:
 #endif
 	}
 
+private:
+	virtual void release() noexcept override final { glDeleteVertexArrays(1, &id_); }
+
 public:
 	virtual ~VAOAllocator() override {
 #ifndef NDEBUG
 		std::cerr << "\n[id: " << id_ << "] " << "~VAOAllocator()" ;
 #endif
-		glDeleteVertexArrays(1, &id_);
+		VAOAllocator::release();
 	}
 };
 
@@ -95,11 +109,14 @@ protected:
 #endif
 	}
 
+private:
+	virtual void release() noexcept override final { glDeleteBuffers(1, &id_); }
+
 public:
 	virtual ~VBOAllocator() override {
 #ifndef NDEBUG
 		std::cerr << "\n[id: " << id_ << "] " << "~VBOAllocator()" ;
 #endif
-		glDeleteBuffers(1, &id_);
+		VBOAllocator::release();
 	}
 };
