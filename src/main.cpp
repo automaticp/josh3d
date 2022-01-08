@@ -97,20 +97,6 @@ int main() {
 
 
 
-
-	for ( Shader& shader : std::vector<refw<Shader>>{ VS, FSTextured, FSColored, FSLightSource } ) {
-		std::cout << shader.getCompileInfo() << '\n';
-	}
-
-	for ( ShaderProgram& sp : std::vector<refw<ShaderProgram>>{ SPTextured, SPColored, SPLightSource } ) {
-		std::cout << sp.getLinkInfo() << '\n';
-	}
-
-
-
-
-
-
     // Vertex Data {3: pos, 3: normals, 2: tex coord}
     std::vector<float> vertices{
             -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
