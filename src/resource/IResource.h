@@ -23,18 +23,38 @@ public:
 	//     Example defenition body: glGenBuffers(1, &id_);
 	IResource() = default;
 
-	// disallow copying, allow moving
+	// disallow copying
 	IResource(const IResource& other) = delete;
 	IResource& operator=(const IResource& other) = delete;
-	IResource(IResource&& other) = default;
-	IResource& operator=(IResource&& other) = default;
+	// allow moving
+	IResource(IResource&& other) noexcept;
+	// FIXME: i have no idea how to implement move assignment here since the operator needs to know
+	//  how to release the resource that the object currently holds and that is only known in derived classes.
+	//  For now I'm thinking I could make this one default and implement the assignment in the Allocator classes.
+	//  There's also an option of creating a virtual method release(), implementing it in the Allocator classes
+	//  and calling that.
+	//  Calling release from IResource d-tor instead of overriding the destructor in the Allocator classes
+	//  will also allow the creation of implicitly defined copy and move c-tors
+	IResource& operator=(IResource&& other) noexcept;
 
+	virtual void release() noexcept = 0;
 	// wraps the call to OpenGL to release a resource;
 	// all resources have to be released in the virtual destructors of the Derived classes;
 	//     Example defenition body: glDeleteBuffers(1, &id_);
 	virtual ~IResource() = 0;
 
 };
+
+inline IResource::IResource(IResource&& other) noexcept : id_{other.id_} {
+	other.id_ = 0; // deletion of null-handles is silently ignored in OGL
+}
+
+inline IResource& IResource::operator=(IResource&& other) noexcept {
+	this->release();
+	id_ = other.id_;
+	other.id_ = 0;
+	return *this;
+}
 
 inline IResource::~IResource() = default;
 
