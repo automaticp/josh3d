@@ -37,10 +37,16 @@ public:
 	//  will also allow the creation of implicitly defined copy and move c-tors
 	IResource& operator=(IResource&& other) noexcept;
 
-	virtual void release() noexcept = 0;
+protected:
 	// wraps the call to OpenGL to release a resource;
-	// all resources have to be released in the virtual destructors of the Derived classes;
+	// defined separate from the d-tor for use in move-assignment
 	//     Example defenition body: glDeleteBuffers(1, &id_);
+	virtual void release() noexcept = 0;
+
+public:
+	// all resources have to be released in the destructors of the derived classes;
+	//      Derived d-tor body: Derived::release();
+	// this calls local non-virtual copy of the release() method
 	virtual ~IResource() = 0;
 
 };
