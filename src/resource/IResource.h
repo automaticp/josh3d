@@ -28,13 +28,6 @@ public:
 	IResource& operator=(const IResource& other) = delete;
 	// allow moving
 	IResource(IResource&& other) noexcept;
-	// FIXME: i have no idea how to implement move assignment here since the operator needs to know
-	//  how to release the resource that the object currently holds and that is only known in derived classes.
-	//  For now I'm thinking I could make this one default and implement the assignment in the Allocator classes.
-	//  There's also an option of creating a virtual method release(), implementing it in the Allocator classes
-	//  and calling that.
-	//  Calling release from IResource d-tor instead of overriding the destructor in the Allocator classes
-	//  will also allow the creation of implicitly defined copy and move c-tors
 	IResource& operator=(IResource&& other) noexcept;
 
 protected:
