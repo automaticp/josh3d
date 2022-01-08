@@ -1,4 +1,4 @@
-add_library(resource INTERFACE)
+add_library(resource INTERFACE ResourceAllocators.h ResourceAllocators.h)
 target_sources(resource INTERFACE IResource.h Shader.h ShaderProgram.h Texture.h VAO.h VBO.h)
 target_include_directories(resource INTERFACE .)
 

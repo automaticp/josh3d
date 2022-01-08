@@ -2,28 +2,8 @@
 #include <numeric>
 #include <glad/glad.h>
 #include "TypeAliases.h"
-#include "IResource.h"
 #include "VBO.h"
-
-
-class VAOAllocator : public IResource {
-protected:
-	VAOAllocator() noexcept {
-		glGenVertexArrays(1, &id_);
-#ifndef NDEBUG
-		std::cerr << "\n[id: " << id_ << "] "
-		          << "VAOAllocator()";
-#endif
-	}
-
-public:
-	virtual ~VAOAllocator() override {
-#ifndef NDEBUG
-		std::cerr << "\n[id: " << id_ << "] " << "~VAOAllocator()" ;
-#endif
-		glDeleteVertexArrays(1, &id_);
-	}
-};
+#include "ResourceAllocators.h"
 
 
 class VAO : public VAOAllocator {

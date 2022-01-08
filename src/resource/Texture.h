@@ -4,27 +4,7 @@
 #include <stb_image.h>
 
 #include "TypeAliases.h"
-#include "IResource.h"
-
-
-class TextureAllocator : public IResource {
-protected:
-	TextureAllocator() noexcept {
-		glGenTextures(1, &id_);
-#ifndef NDEBUG
-		std::cerr << "\n[id: " << id_ << "] "
-		          << "TextureAllocator()";
-#endif
-	}
-
-public:
-	virtual ~TextureAllocator() override {
-#ifndef NDEBUG
-		std::cerr << "\n[id: " << id_ << "] " << "~TextureAllocator()" ;
-#endif
-		glDeleteTextures(1, &id_);
-	}
-};
+#include "ResourceAllocators.h"
 
 
 class Texture : public TextureAllocator {
