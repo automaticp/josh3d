@@ -1,71 +1,59 @@
 #pragma once
 #include <array>
 #include <vector>
+#include <utility>
 #include <tuple>
 #include <glad/glad.h>
 #include "TypeAliases.h"
-#include "glResource.h"
+#include "ResourceAllocators.h"
+
 
 struct VertexAttributeLayout {
-	using AttribIndex_t = int;
-	using AttribSize_t = int;
+	using AttribIndex_t = GLsizei; // int
+	using AttribSize_t = GLsizei;
 
 	AttribIndex_t index;
 	AttribSize_t size;
 };
 
 
-class VBO : public glResource {
+class VBO : public VBOAllocator {
 private:
-	std::vector<float> m_data;
-	std::vector<VertexAttributeLayout> m_attributeLayout;
-
-protected:
-	virtual void acquireResource() override { glGenBuffers(1, &m_id); }
-	virtual void releaseResource() override { glDeleteBuffers(1, &m_id); }
+	std::vector<float> data_;
+	std::vector<VertexAttributeLayout> attributeLayout_;
 
 public:
-	// somebody tell this man how to use forwarding constructors
-	VBO(const std::vector<float>& data, const std::vector<VertexAttributeLayout>& attrbuteLayout)
-		: m_data{ data }, m_attributeLayout{ attrbuteLayout } {
-		
-		acquireResource();
-	}
-
-	VBO(std::vector<float>&& data, const std::vector<VertexAttributeLayout>& attrbuteLayout)
-		: m_data{ std::move(data) }, m_attributeLayout{ attrbuteLayout } {
-	
-		acquireResource();
-	}
-
-	VBO(std::vector<float>&& data, std::vector<VertexAttributeLayout>&& attrbuteLayout)
-		: m_data{ std::move(data) }, m_attributeLayout{ std::move(attrbuteLayout) } {
-
-		acquireResource();
-	}
-
-
-	const std::vector<VertexAttributeLayout>& getLayout() const noexcept { return m_attributeLayout; }
-	const std::vector<float>& getData() const noexcept { return m_data; }
-
-	const VertexAttributeLayout::AttribSize_t getStride() const {
-		VertexAttributeLayout::AttribSize_t sum{ 0 };
-		for ( const auto& currentLayout : m_attributeLayout ) {
-			sum += currentLayout.size;
-		}
-		return sum;
-	}
-
-	const VertexAttributeLayout::AttribSize_t getOffset(int index) const {
-		assert(index < m_attributeLayout.size());
-		VertexAttributeLayout::AttribSize_t sum{ 0 };
-		for ( int i{ 0 }; i < index; ++i ) {
-			sum += m_attributeLayout[i].size;
-		}
-		return sum;
-	}
+	VBO(std::vector<float> data, std::vector<VertexAttributeLayout> attributeLayout)
+			: data_{ std::move(data) }, attributeLayout_{ std::move(attributeLayout) } {}
 
 	// why did this not have a bind method before???
-	void bind() const { glBindBuffer(GL_ARRAY_BUFFER, m_id); }
+	void bind() const { glBindBuffer(GL_ARRAY_BUFFER, id_); }
+
+	const std::vector<VertexAttributeLayout>& getLayout() const noexcept { return attributeLayout_; }
+
+	const std::vector<float>& getData() const noexcept { return data_; }
+
+	VertexAttributeLayout::AttribSize_t getStride() const;
+
+	VertexAttributeLayout::AttribSize_t getOffset(VertexAttributeLayout::AttribIndex_t index) const;
 };
+
+
+inline VertexAttributeLayout::AttribSize_t VBO::getStride() const {
+	VertexAttributeLayout::AttribSize_t sum{ 0 };
+	for ( const auto& currentLayout : attributeLayout_ ) {
+		sum += currentLayout.size;
+	}
+	return sum;
+}
+
+
+inline VertexAttributeLayout::AttribSize_t VBO::getOffset(VertexAttributeLayout::AttribIndex_t index) const {
+	assert(index < attributeLayout_.size());
+	VertexAttributeLayout::AttribSize_t sum{ 0 };
+	for ( int i{ 0 }; i < index; ++i ) {
+		sum += attributeLayout_[i].size;
+	}
+	return sum;
+}
 

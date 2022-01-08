@@ -1,5 +1,5 @@
 add_library(resource INTERFACE)
-target_sources(resource INTERFACE glResource.h Shader.h ShaderProgram.h Texture.h VAO.h VBO.h)
+target_sources(resource INTERFACE ResourceAllocators.h IResource.h Shader.h ShaderProgram.h Texture.h VAO.h VBO.h)
 target_include_directories(resource INTERFACE .)
 
 # internal dependencies

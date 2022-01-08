@@ -100,8 +100,6 @@ int main() {
 
 	for ( Shader& shader : std::vector<refw<Shader>>{ VS, FSTextured, FSColored, FSLightSource } ) {
 		std::cout << shader.getCompileInfo() << '\n';
-		shader.destroy();
-		std::cout << "Shader Id: " << shader.getId() << " is " << (shader ? std::string("alive") : std::string("deleted")) << '\n';
 	}
 
 	for ( ShaderProgram& sp : std::vector<refw<ShaderProgram>>{ SPTextured, SPColored, SPLightSource } ) {
