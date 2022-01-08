@@ -18,15 +18,15 @@ protected:
 	}
 
 private:
-	virtual void release() noexcept override final { glDeleteShader(id_); }
+	virtual void release() noexcept override final {
+#ifndef NDEBUG
+		std::cerr << "\n[id: " << id_ << "] " << "ShaderAllocator::release()";
+#endif
+		glDeleteShader(id_);
+	}
 
 public:
-	virtual ~ShaderAllocator() override {
-#ifndef NDEBUG
-		std::cerr << "\n[id: " << id_ << "] " << "~ShaderAllocator()" ;
-#endif
-		ShaderAllocator::release();
-	}
+	virtual ~ShaderAllocator() override { ShaderAllocator::release(); }
 
 	ShaderAllocator(ShaderAllocator&&) = default;
 	ShaderAllocator& operator=(ShaderAllocator&&) = default;
@@ -44,16 +44,16 @@ protected:
 	}
 
 private:
-	virtual void release() noexcept override final { glDeleteProgram(id_); }
+	virtual void release() noexcept override final {
+#ifndef NDEBUG
+		std::cerr << "\n[id: " << id_ << "] " << "ShaderProgramAllocator::release()";
+#endif
+		glDeleteProgram(id_);
+	}
 
 public:
-	virtual ~ShaderProgramAllocator() override {
-#ifndef NDEBUG
-		std::cerr << "\n[id: " << id_ << "] " << "~ShaderProgramAllocator()" ;
-#endif
-		ShaderProgramAllocator::release();
-	}
-	
+	virtual ~ShaderProgramAllocator() override { ShaderProgramAllocator::release(); }
+
 	ShaderProgramAllocator(ShaderProgramAllocator&&) = default;
 	ShaderProgramAllocator& operator=(ShaderProgramAllocator&&) = default;
 };
@@ -70,15 +70,15 @@ protected:
 	}
 
 private:
-	virtual void release() noexcept override final { glDeleteTextures(1, &id_); }
+	virtual void release() noexcept override final {
+#ifndef NDEBUG
+		std::cerr << "\n[id: " << id_ << "] " << "TextureAllocator::release()";
+#endif
+		glDeleteTextures(1, &id_);
+	}
 
 public:
-	virtual ~TextureAllocator() override {
-#ifndef NDEBUG
-		std::cerr << "\n[id: " << id_ << "] " << "~TextureAllocator()" ;
-#endif
-		TextureAllocator::release();
-	}
+	virtual ~TextureAllocator() override { TextureAllocator::release(); }
 
 	TextureAllocator(TextureAllocator&&) = default;
 	TextureAllocator& operator=(TextureAllocator&&) = default;
@@ -96,15 +96,15 @@ protected:
 	}
 
 private:
-	virtual void release() noexcept override final { glDeleteVertexArrays(1, &id_); }
+	virtual void release() noexcept override final {
+#ifndef NDEBUG
+		std::cerr << "\n[id: " << id_ << "] " << "VAOAllocator::release()";
+#endif
+		glDeleteVertexArrays(1, &id_);
+	}
 
 public:
-	virtual ~VAOAllocator() override {
-#ifndef NDEBUG
-		std::cerr << "\n[id: " << id_ << "] " << "~VAOAllocator()" ;
-#endif
-		VAOAllocator::release();
-	}
+	virtual ~VAOAllocator() override { VAOAllocator::release(); }
 
 	VAOAllocator(VAOAllocator&&) = default;
 	VAOAllocator& operator=(VAOAllocator&&) = default;
@@ -122,15 +122,15 @@ protected:
 	}
 
 private:
-	virtual void release() noexcept override final { glDeleteBuffers(1, &id_); }
+	virtual void release() noexcept override final {
+#ifndef NDEBUG
+		std::cerr << "\n[id: " << id_ << "] " << "VBOAllocator::release()";
+#endif
+		glDeleteBuffers(1, &id_);
+	}
 
 public:
-	virtual ~VBOAllocator() override {
-#ifndef NDEBUG
-		std::cerr << "\n[id: " << id_ << "] " << "~VBOAllocator()" ;
-#endif
-		VBOAllocator::release();
-	}
+	virtual ~VBOAllocator() override { VBOAllocator::release(); }
 
 	VBOAllocator(VBOAllocator&&) = default;
 	VBOAllocator& operator=(VBOAllocator&&) = default;
