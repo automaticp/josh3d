@@ -9,28 +9,7 @@
 #include <utility>
 #include <glad/glad.h>
 #include "TypeAliases.h"
-#include "IResource.h"
-
-
-class ShaderAllocator : public IResource {
-protected:
-	explicit ShaderAllocator(GLenum type) noexcept {
-		id_ = glCreateShader(type);
-#ifndef NDEBUG
-		std::cerr << "\n[id: " << id_ << "] "
-		          << "ShaderAllocator("
-		          << ((type == GL_FRAGMENT_SHADER) ? "GL_FRAGMENT_SHADER" : "")
-		          << ((type == GL_VERTEX_SHADER) ? "GL_VERTEX_SHADER" : "") << ")";
-#endif
-	}
-public:
-	virtual ~ShaderAllocator() override {
-#ifndef NDEBUG
-		std::cerr << "\n[id: " << id_ << "] " << "~ShaderAllocator()" ;
-#endif
-		glDeleteShader(id_);
-	}
-};
+#include "ResourceAllocators.h"
 
 
 class Shader : public ShaderAllocator {
