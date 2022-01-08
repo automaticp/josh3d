@@ -5,7 +5,8 @@
 #include <tuple>
 #include <glad/glad.h>
 #include "TypeAliases.h"
-#include "IResource.h"
+#include "ResourceAllocators.h"
+
 
 struct VertexAttributeLayout {
 	using AttribIndex_t = GLsizei; // int
@@ -13,26 +14,6 @@ struct VertexAttributeLayout {
 
 	AttribIndex_t index;
 	AttribSize_t size;
-};
-
-
-class VBOAllocator : public IResource {
-protected:
-	VBOAllocator() noexcept {
-		glGenBuffers(1, &id_);
-#ifndef NDEBUG
-		std::cerr << "\n[id: " << id_ << "] "
-		          << "VBOAllocator()";
-#endif
-	}
-
-public:
-	virtual ~VBOAllocator() override {
-#ifndef NDEBUG
-		std::cerr << "\n[id: " << id_ << "] " << "~VBOAllocator()" ;
-#endif
-		glDeleteBuffers(1, &id_);
-	}
 };
 
 

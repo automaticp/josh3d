@@ -1,34 +1,15 @@
 #pragma once
 #include <utility>
 #include <vector>
+#include <exception>
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #include "TypeAliases.h"
-#include "IResource.h"
 #include "Shader.h"
-
-
-class ShaderProgramAllocator : public IResource {
-protected:
-	ShaderProgramAllocator() noexcept {
-		id_ = glCreateProgram();
-#ifndef NDEBUG
-		std::cerr << "\n[id: " << id_ << "] "
-		          << "ShaderProgramAllocator()";
-#endif
-	}
-
-public:
-	virtual ~ShaderProgramAllocator() override {
-#ifndef NDEBUG
-		std::cerr << "\n[id: " << id_ << "] " << "~ShaderProgramAllocator()" ;
-#endif
-		glDeleteProgram(id_);
-	}
-};
+#include "ResourceAllocators.h"
 
 
 class ShaderProgram : public ShaderProgramAllocator {
