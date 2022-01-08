@@ -5,7 +5,7 @@
 
 
 class ShaderAllocator : public IResource {
-protected:
+public:
 	explicit ShaderAllocator(GLenum type) noexcept {
 		id_ = glCreateShader(type);
 #ifndef NDEBUG
@@ -26,7 +26,7 @@ public:
 
 
 class ShaderProgramAllocator : public IResource {
-protected:
+public:
 	ShaderProgramAllocator() noexcept {
 		id_ = glCreateProgram();
 #ifndef NDEBUG
@@ -46,7 +46,7 @@ public:
 
 
 class TextureAllocator : public IResource {
-protected:
+public:
 	TextureAllocator() noexcept {
 		glGenTextures(1, &id_);
 #ifndef NDEBUG
@@ -66,7 +66,7 @@ public:
 
 
 class VAOAllocator : public IResource {
-protected:
+public:
 	VAOAllocator() noexcept {
 		glGenVertexArrays(1, &id_);
 #ifndef NDEBUG
@@ -86,7 +86,7 @@ public:
 
 
 class VBOAllocator : public IResource {
-protected:
+public:
 	VBOAllocator() noexcept {
 		glGenBuffers(1, &id_);
 #ifndef NDEBUG
