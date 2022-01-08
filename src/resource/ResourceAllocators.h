@@ -27,6 +27,9 @@ public:
 #endif
 		ShaderAllocator::release();
 	}
+
+	ShaderAllocator(ShaderAllocator&&) = default;
+	ShaderAllocator& operator=(ShaderAllocator&&) = default;
 };
 
 
@@ -50,6 +53,9 @@ public:
 #endif
 		ShaderProgramAllocator::release();
 	}
+	
+	ShaderProgramAllocator(ShaderProgramAllocator&&) = default;
+	ShaderProgramAllocator& operator=(ShaderProgramAllocator&&) = default;
 };
 
 
@@ -73,6 +79,9 @@ public:
 #endif
 		TextureAllocator::release();
 	}
+
+	TextureAllocator(TextureAllocator&&) = default;
+	TextureAllocator& operator=(TextureAllocator&&) = default;
 };
 
 
@@ -96,6 +105,9 @@ public:
 #endif
 		VAOAllocator::release();
 	}
+
+	VAOAllocator(VAOAllocator&&) = default;
+	VAOAllocator& operator=(VAOAllocator&&) = default;
 };
 
 
@@ -119,4 +131,7 @@ public:
 #endif
 		VBOAllocator::release();
 	}
+
+	VBOAllocator(VBOAllocator&&) = default;
+	VBOAllocator& operator=(VBOAllocator&&) = default;
 };
