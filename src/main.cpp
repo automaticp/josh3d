@@ -231,11 +231,11 @@ int main() {
 		model = glm::translate(model, lightPos);
 		model = glm::scale(model, glm::vec3{ 0.2f });
 		normalModel = glm::mat3(glm::transpose(glm::inverse(model)));
-		SPLightSource.setUniform(SPLightSource.getUniformLocation("model"), model);
-		SPLightSource.setUniform(SPLightSource.getUniformLocation("normalModel"), normalModel);
-		SPLightSource.setUniform(SPLightSource.getUniformLocation("projection"), projection);
-		SPLightSource.setUniform(SPLightSource.getUniformLocation("view"), view);
-		SPLightSource.setUniform(SPLightSource.getUniformLocation("lightColor"), lightColor);
+		ShaderProgram::setUniform(SPLightSource.getUniformLocation("model"), model);
+		ShaderProgram::setUniform(SPLightSource.getUniformLocation("normalModel"), normalModel);
+		ShaderProgram::setUniform(SPLightSource.getUniformLocation("projection"), projection);
+		ShaderProgram::setUniform(SPLightSource.getUniformLocation("view"), view);
+		ShaderProgram::setUniform(SPLightSource.getUniformLocation("lightColor"), lightColor);
 
 		lightVAO.bindAndDraw();
 
@@ -244,8 +244,8 @@ int main() {
 
 		texture1.setActiveUnitAndBind(0);
 		texture2.setActiveUnitAndBind(1);
-		SPTextured.setUniform(SPTextured.getUniformLocation("texture1"), 0);
-		SPTextured.setUniform(SPTextured.getUniformLocation("texture2"), 1);
+		ShaderProgram::setUniform(SPTextured.getUniformLocation("texture1"), 0);
+		ShaderProgram::setUniform(SPTextured.getUniformLocation("texture2"), 1);
 
 		for ( int i{ 0 }; i < cubePositions.size(); ++i ) {
 
@@ -255,17 +255,17 @@ int main() {
 			model = glm::translate(model, cubePositions[i]);
 			model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.5f, 0.3f));
 			normalModel = glm::mat3(glm::transpose(glm::inverse(model)));
-			SPTextured.setUniform(SPTextured.getUniformLocation("model"), model);
-			SPTextured.setUniform(SPTextured.getUniformLocation("normalModel"), normalModel);
+			ShaderProgram::setUniform(SPTextured.getUniformLocation("model"), model);
+			ShaderProgram::setUniform(SPTextured.getUniformLocation("normalModel"), normalModel);
 			boxVAO.bindAndDraw();
 
 		}
 
-		SPTextured.setUniform(SPTextured.getUniformLocation("projection"), projection);
-		SPTextured.setUniform(SPTextured.getUniformLocation("view"), view);
-		SPTextured.setUniform(SPTextured.getUniformLocation("lightColor"), lightColor);
-		SPTextured.setUniform(SPTextured.getUniformLocation("lightPos"), lightPos);
-		SPTextured.setUniform(SPTextured.getUniformLocation("camPos"), camPos);
+		ShaderProgram::setUniform(SPTextured.getUniformLocation("projection"), projection);
+		ShaderProgram::setUniform(SPTextured.getUniformLocation("view"), view);
+		ShaderProgram::setUniform(SPTextured.getUniformLocation("lightColor"), lightColor);
+		ShaderProgram::setUniform(SPTextured.getUniformLocation("lightPos"), lightPos);
+		ShaderProgram::setUniform(SPTextured.getUniformLocation("camPos"), camPos);
 		
 
 
@@ -279,14 +279,14 @@ int main() {
 		model = glm::rotate(model, glm::radians(30.0f), glm::vec3{ 1.0f });
 		model = glm::scale(model, glm::vec3{ 0.75f });
 		normalModel = glm::mat3(glm::transpose(glm::inverse(model)));
-		SPColored.setUniform(SPColored.getUniformLocation("model"), model);
-		SPColored.setUniform(SPColored.getUniformLocation("normalModel"), normalModel);
-		SPColored.setUniform(SPColored.getUniformLocation("projection"), projection);
-		SPColored.setUniform(SPColored.getUniformLocation("view"), view);
-		SPColored.setUniform(SPColored.getUniformLocation("objectColor"), objectColor);
-		SPColored.setUniform(SPColored.getUniformLocation("lightColor"), lightColor);
-		SPColored.setUniform(SPColored.getUniformLocation("lightPos"), lightPos);
-		SPColored.setUniform(SPColored.getUniformLocation("camPos"), camPos);
+		ShaderProgram::setUniform(SPColored.getUniformLocation("model"), model);
+		ShaderProgram::setUniform(SPColored.getUniformLocation("normalModel"), normalModel);
+		ShaderProgram::setUniform(SPColored.getUniformLocation("projection"), projection);
+		ShaderProgram::setUniform(SPColored.getUniformLocation("view"), view);
+		ShaderProgram::setUniform(SPColored.getUniformLocation("objectColor"), objectColor);
+		ShaderProgram::setUniform(SPColored.getUniformLocation("lightColor"), lightColor);
+		ShaderProgram::setUniform(SPColored.getUniformLocation("lightPos"), lightPos);
+		ShaderProgram::setUniform(SPColored.getUniformLocation("camPos"), camPos);
 
 		boxVAO.bindAndDraw();
 
