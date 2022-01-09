@@ -231,11 +231,11 @@ int main() {
 		model = glm::translate(model, lightPos);
 		model = glm::scale(model, glm::vec3{ 0.2f });
 		normalModel = glm::mat3(glm::transpose(glm::inverse(model)));
-		ShaderProgram::setUniform(SPLightSource.getUniformLocation("model"), model);
-		ShaderProgram::setUniform(SPLightSource.getUniformLocation("normalModel"), normalModel);
-		ShaderProgram::setUniform(SPLightSource.getUniformLocation("projection"), projection);
-		ShaderProgram::setUniform(SPLightSource.getUniformLocation("view"), view);
-		ShaderProgram::setUniform(SPLightSource.getUniformLocation("lightColor"), lightColor);
+		SPLightSource.setUniform("model", model);
+		SPLightSource.setUniform("normalModel", normalModel);
+		SPLightSource.setUniform("projection", projection);
+		SPLightSource.setUniform("view", view);
+		SPLightSource.setUniform("lightColor", lightColor);
 
 		lightVAO.bindAndDraw();
 
@@ -244,8 +244,8 @@ int main() {
 
 		texture1.setActiveUnitAndBind(0);
 		texture2.setActiveUnitAndBind(1);
-		ShaderProgram::setUniform(SPTextured.getUniformLocation("texture1"), 0);
-		ShaderProgram::setUniform(SPTextured.getUniformLocation("texture2"), 1);
+		SPTextured.setUniform("texture1", 0);
+		SPTextured.setUniform("texture2", 1);
 
 		for ( int i{ 0 }; i < cubePositions.size(); ++i ) {
 
@@ -255,18 +255,17 @@ int main() {
 			model = glm::translate(model, cubePositions[i]);
 			model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.5f, 0.3f));
 			normalModel = glm::mat3(glm::transpose(glm::inverse(model)));
-			ShaderProgram::setUniform(SPTextured.getUniformLocation("model"), model);
-			ShaderProgram::setUniform(SPTextured.getUniformLocation("normalModel"), normalModel);
+			SPTextured.setUniform("model", model);
+			SPTextured.setUniform("normalModel", normalModel);
 			boxVAO.bindAndDraw();
 
 		}
 
-		ShaderProgram::setUniform(SPTextured.getUniformLocation("projection"), projection);
-		ShaderProgram::setUniform(SPTextured.getUniformLocation("view"), view);
-		ShaderProgram::setUniform(SPTextured.getUniformLocation("lightColor"), lightColor);
-		ShaderProgram::setUniform(SPTextured.getUniformLocation("lightPos"), lightPos);
-		ShaderProgram::setUniform(SPTextured.getUniformLocation("camPos"), camPos);
-		
+		SPTextured.setUniform("projection", projection);
+		SPTextured.setUniform("view", view);
+		SPTextured.setUniform("lightColor", lightColor);
+		SPTextured.setUniform("lightPos", lightPos);
+		SPTextured.setUniform("camPos", camPos);
 
 
 		// Colored Object
@@ -279,14 +278,16 @@ int main() {
 		model = glm::rotate(model, glm::radians(30.0f), glm::vec3{ 1.0f });
 		model = glm::scale(model, glm::vec3{ 0.75f });
 		normalModel = glm::mat3(glm::transpose(glm::inverse(model)));
-		ShaderProgram::setUniform(SPColored.getUniformLocation("model"), model);
-		ShaderProgram::setUniform(SPColored.getUniformLocation("normalModel"), normalModel);
-		ShaderProgram::setUniform(SPColored.getUniformLocation("projection"), projection);
-		ShaderProgram::setUniform(SPColored.getUniformLocation("view"), view);
-		ShaderProgram::setUniform(SPColored.getUniformLocation("objectColor"), objectColor);
-		ShaderProgram::setUniform(SPColored.getUniformLocation("lightColor"), lightColor);
-		ShaderProgram::setUniform(SPColored.getUniformLocation("lightPos"), lightPos);
-		ShaderProgram::setUniform(SPColored.getUniformLocation("camPos"), camPos);
+
+		SPColored.setUniform("model", model);
+		SPColored.setUniform("normalModel", normalModel);
+		SPColored.setUniform("projection", projection);
+		SPColored.setUniform("view", view);
+		SPColored.setUniform("objectColor", objectColor);
+		SPColored.setUniform("lightColor", lightColor);
+		SPColored.setUniform("lightPos", lightPos);
+		SPColored.setUniform("camPos", camPos);
+
 
 		boxVAO.bindAndDraw();
 
