@@ -39,6 +39,13 @@ public:
 	GLint getUniformLocation(const GLchar* name) const {
 		return glGetUniformLocation(id_, name);
 	}
+
+	// this enables calls like: shaderProgram.setUniform("viewMat", viewMat);
+	template<typename... Types>
+	void setUniform(const GLchar* name, Types... args) const {
+		ShaderProgram::setUniform(getUniformLocation(name), args...);
+	}
+
 	// values float
 	static void setUniform(int location, float val0) {
 		glUniform1f(location, val0);
