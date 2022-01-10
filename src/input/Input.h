@@ -17,7 +17,7 @@ protected:
 	GLFWwindow* window_;
 
 public:
-	InputGlobal(GLFWwindow* window) : window_{ window } {}
+	explicit InputGlobal(GLFWwindow* window) : window_{ window } {}
 
 	virtual void processInput() override {
 		processInputGlobal();
