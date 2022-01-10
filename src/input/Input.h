@@ -1,10 +1,7 @@
 #pragma once
-#include <utility>
-#include <functional>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 #include "Camera.h"
 
 extern float deltaFrameTime;
