@@ -6,45 +6,45 @@
 
 class Basis3D {
 protected:
-	glm::vec3 m_x;
-	glm::vec3 m_y;
-	glm::vec3 m_z;
+	glm::vec3 x_;
+	glm::vec3 y_;
+	glm::vec3 z_;
 
 public: 
 	Basis3D(const glm::vec3& x, const glm::vec3& y, const glm::vec3& z) noexcept :
-		m_x{ x }, m_y{ y }, m_z{ z } {}
+			x_{ x }, y_{ y }, z_{ z } {}
 
-	const glm::vec3& getX() const { return m_x; }
-	const glm::vec3& getY() const { return m_y; }
-	const glm::vec3& getZ() const { return m_z; }
+	const glm::vec3& getX() const { return x_; }
+	const glm::vec3& getY() const { return y_; }
+	const glm::vec3& getZ() const { return z_; }
 
 };
 
 class OrthonormalBasis3D : public Basis3D {
 private:
-	bool m_isRightHanded;
+	bool isRightHanded_;
 
 public:
 	OrthonormalBasis3D(const glm::vec3& x, const glm::vec3& y, bool isRightHanded = true) : 
 		Basis3D(glm::normalize(x),
 				glm::orthonormalize(y, x),
 				(isRightHanded ? 1.0f : -1.0f) * glm::normalize(glm::cross(x, y))),
-		m_isRightHanded{isRightHanded} {}
+			isRightHanded_{ isRightHanded } {}
 
 	void rotate(float angleRad, const glm::vec3& axis) {
 		auto rotationMatrix{ glm::rotate(glm::mat4(1.0f), angleRad, axis) };
 
 		// glm implicitly exctracts vec3 from vec4
-		m_x = static_cast<glm::vec3>(rotationMatrix * glm::vec4(m_x, 1.0f));
-		m_y = static_cast<glm::vec3>(rotationMatrix * glm::vec4(m_y, 1.0f));
-		m_z = static_cast<glm::vec3>(rotationMatrix * glm::vec4(m_z, 1.0f));
+		x_ = static_cast<glm::vec3>(rotationMatrix * glm::vec4(x_, 1.0f));
+		y_ = static_cast<glm::vec3>(rotationMatrix * glm::vec4(y_, 1.0f));
+		z_ = static_cast<glm::vec3>(rotationMatrix * glm::vec4(z_, 1.0f));
 	}
 
 	static OrthonormalBasis3D invert(const OrthonormalBasis3D& basis) {
-		return { -basis.m_x, -basis.m_y, !basis.m_isRightHanded };
+		return { -basis.x_, -basis.y_, !basis.isRightHanded_ };
 	}
 
-	bool isRightHanded() const { return m_isRightHanded; }
+	bool isRightHanded() const { return isRightHanded_; }
 
 
 };
