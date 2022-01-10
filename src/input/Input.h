@@ -17,10 +17,10 @@ public:
 
 class InputGlobal : public IInput {
 protected:
-	GLFWwindow* m_window;
+	GLFWwindow* window_;
 
 public:
-	InputGlobal(GLFWwindow* window) : m_window{ window } {}
+	InputGlobal(GLFWwindow* window) : window_{ window } {}
 
 	virtual void processInput() override {
 		processInputGlobal();
@@ -29,16 +29,16 @@ public:
 protected:
 	void processInputGlobal() {
 
-		if ( glfwGetKey(m_window, GLFW_KEY_ESCAPE) == GLFW_PRESS ) {
-			while ( glfwGetKey(m_window, GLFW_KEY_ESCAPE) != GLFW_RELEASE ) {
+		if ( glfwGetKey(window_, GLFW_KEY_ESCAPE) == GLFW_PRESS ) {
+			while ( glfwGetKey(window_, GLFW_KEY_ESCAPE) != GLFW_RELEASE ) {
 				glfwPollEvents();
 			}
-			glfwSetWindowShouldClose(m_window, true);
+			glfwSetWindowShouldClose(window_, true);
 		}
 
 		static bool isLineMode{ false };
-		if ( glfwGetKey(m_window, GLFW_KEY_H) == GLFW_PRESS ) {
-			while ( glfwGetKey(m_window, GLFW_KEY_H) != GLFW_RELEASE ) {
+		if ( glfwGetKey(window_, GLFW_KEY_H) == GLFW_PRESS ) {
+			while ( glfwGetKey(window_, GLFW_KEY_H) != GLFW_RELEASE ) {
 				glfwPollEvents();
 			}
 			glPolygonMode(GL_FRONT_AND_BACK, isLineMode ? GL_LINE : GL_FILL);
@@ -54,19 +54,19 @@ protected:
 
 class InputFreeCamera : public InputGlobal {
 private:
-	Camera& m_camera;
+	Camera& camera_;
 
 public:
-	InputFreeCamera(GLFWwindow* window, Camera& camera) : InputGlobal{ window }, m_camera { camera } {
+	InputFreeCamera(GLFWwindow* window, Camera& camera) : InputGlobal{ window }, camera_ { camera } {
 		
 		// https://www.glfw.org/faq.html#216---how-do-i-use-c-methods-as-callbacks 
 		setThisAsUserPointer(window); // oh. my. fucking. god. how. I. hate. C. APIs.
 		
-		glfwSetCursorPosCallback(m_window,
-			&InputFreeCamera::processInputCameraRotate);
+		glfwSetCursorPosCallback(window_,
+		                         &InputFreeCamera::processInputCameraRotate);
 		
-		glfwSetScrollCallback(m_window,
-			&InputFreeCamera::processInputCameraZoom);
+		glfwSetScrollCallback(window_,
+		                      &InputFreeCamera::processInputCameraZoom);
 	}
 
 	void setThisAsUserPointer(GLFWwindow* window) {
@@ -83,25 +83,25 @@ private:
 		
 		constexpr float cameraSpeed{ 5.0f };
 		float cameraAbsMove{ cameraSpeed * deltaFrameTime };
-		if ( glfwGetKey(m_window, GLFW_KEY_W) == GLFW_PRESS )
-			m_camera.move(cameraAbsMove * -m_camera.backUV());
-		if ( glfwGetKey(m_window, GLFW_KEY_S) == GLFW_PRESS )
-			m_camera.move(cameraAbsMove * m_camera.backUV());
-		if ( glfwGetKey(m_window, GLFW_KEY_A) == GLFW_PRESS )
-			m_camera.move(cameraAbsMove * -m_camera.rightUV());
-		if ( glfwGetKey(m_window, GLFW_KEY_D) == GLFW_PRESS )
-			m_camera.move(cameraAbsMove * m_camera.rightUV());
-		if ( glfwGetKey(m_window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS )
-			m_camera.move(cameraAbsMove * -m_camera.upUV());
-		if ( glfwGetKey(m_window, GLFW_KEY_SPACE) == GLFW_PRESS )
-			m_camera.move(cameraAbsMove * m_camera.upUV());
+		if ( glfwGetKey(window_, GLFW_KEY_W) == GLFW_PRESS )
+			camera_.move(cameraAbsMove * -camera_.backUV());
+		if ( glfwGetKey(window_, GLFW_KEY_S) == GLFW_PRESS )
+			camera_.move(cameraAbsMove * camera_.backUV());
+		if ( glfwGetKey(window_, GLFW_KEY_A) == GLFW_PRESS )
+			camera_.move(cameraAbsMove * -camera_.rightUV());
+		if ( glfwGetKey(window_, GLFW_KEY_D) == GLFW_PRESS )
+			camera_.move(cameraAbsMove * camera_.rightUV());
+		if ( glfwGetKey(window_, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS )
+			camera_.move(cameraAbsMove * -camera_.upUV());
+		if ( glfwGetKey(window_, GLFW_KEY_SPACE) == GLFW_PRESS )
+			camera_.move(cameraAbsMove * camera_.upUV());
 
 	}
 
 
 	void static processInputCameraRotate(GLFWwindow* window, double xpos, double ypos) {
 		InputFreeCamera* objPtr{ static_cast<InputFreeCamera*>(glfwGetWindowUserPointer(window)) };
-		Camera& cam{ objPtr->m_camera };
+		Camera& cam{ objPtr->camera_ };
 
 		static float lastXPos{ 0.0f };
 		static float lastYPos{ 0.0f };
@@ -124,7 +124,7 @@ private:
 
 	void static processInputCameraZoom(GLFWwindow* window, double, double yoffset) {
 		InputFreeCamera* objPtr{ static_cast<InputFreeCamera*>(glfwGetWindowUserPointer(window)) };
-		Camera& cam{ objPtr->m_camera };
+		Camera& cam{ objPtr->camera_ };
 
 		constexpr float sensitivity{ 2.0f };
 		cam.setFOV(cam.getFOV() - sensitivity * glm::radians(static_cast<float>(yoffset)));
