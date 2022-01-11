@@ -22,10 +22,15 @@ float deltaFrameTime{};
 
 const OrthonormalBasis3D globalBasis{ glm::vec3(1.0f, 0.0, 0.0), glm::vec3(0.0f, 1.0f, 0.0f), true };
 
+void updateFrameTime() {
+	currentFrameTime = static_cast<float>(glfwGetTime());
+	deltaFrameTime = currentFrameTime - lastFrameTime;
+	lastFrameTime = currentFrameTime;
+}
+
 void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
 	glViewport(0, 0, width, height);
 }
-
 
 int main() {
 
@@ -136,9 +141,7 @@ int main() {
 
 	while ( !glfwWindowShouldClose(window) ) {
 
-		currentFrameTime = static_cast<float>(glfwGetTime());
-		deltaFrameTime = currentFrameTime - lastFrameTime;
-		lastFrameTime = currentFrameTime;
+		updateFrameTime();
 
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
