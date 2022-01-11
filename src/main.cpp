@@ -14,6 +14,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#include "GLFWWindowWrapper.h"
 #include "TypeAliases.h"
 #include "Shader.h"
 #include "ShaderProgram.h"
@@ -30,53 +31,26 @@ float deltaFrameTime{};
 
 const OrthonormalBasis3D globalBasis{ glm::vec3(1.0f, 0.0, 0.0), glm::vec3(0.0f, 1.0f, 0.0f), true };
 
-std::tuple<int, int>  getWindowSize(GLFWwindow* window) {
-	int w, h;
-	glfwGetWindowSize(window, &w, &h);
-	return { w, h };
-}
-
 void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
 	glViewport(0, 0, width, height);
 }
-
-[[nodiscard]] 
-GLFWwindow* initWindow(int width, int height, const std::string& name) {
-
-	glfwInit();
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-	GLFWwindow* window{ glfwCreateWindow(width, height, name.c_str(), nullptr, nullptr) };
-	if ( !window ) {
-		glfwTerminate();
-		throw std::runtime_error("runtime_error: failed to create GLFW window");
-	}
-
-	glfwMakeContextCurrent(window);
-
-	return window;
-}
-
 
 
 int main() {
 
 	// Init GLFW window
-	int defaultWidth{ 800 };
-	int defaultHeight{ 600 };
-	GLFWwindow* window{ initWindow(defaultWidth, defaultHeight, "Window Name") };
-
+	GLFWWindowWrapper window{ 800, 600, "Window Name", 3, 3, GLFWOpenGLProfile::core };
+	window.setFramebufferSizeCallback(framebufferSizeCallback);
 	glfwSwapInterval(0);
+
 	// Init GLAD
 	if ( !gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)) ) {
 		throw std::runtime_error("runtime_error: failed to initialize GLAD");
 	}
-	glViewport(0, 0, defaultWidth, defaultHeight);
+	WindowSize windowSize { window.getWindowSize() };
+	glViewport(0, 0, windowSize.width, windowSize.height);
 
-	// Window size callback
-	glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
+
 
 
 
@@ -208,7 +182,7 @@ int main() {
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		
-		auto [width, height] { getWindowSize(window) };
+		windowSize = window.getWindowSize();
 
 		input.processInput();
 
@@ -216,7 +190,7 @@ int main() {
 
 
 
-		projection = glm::perspective(cam.getFOV(), static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f);
+		projection = glm::perspective(cam.getFOV(), static_cast<float>(windowSize.width) / static_cast<float>(windowSize.height), 0.1f, 100.0f);
 		view = cam.getViewMat();
 
 		// Lighting Source
@@ -295,7 +269,7 @@ int main() {
 
 
 
-		glfwSwapBuffers(window);
+		window.swapBuffers();
 		glfwPollEvents();
 	}
 
@@ -312,7 +286,7 @@ int main() {
 
 
 
-	glfwTerminate();
+
 
 	return 0;
 }
