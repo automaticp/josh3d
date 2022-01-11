@@ -33,6 +33,7 @@ int main() {
 	GLFWWindowWrapper window{ 800, 600, "Window Name", 3, 3, GLFWOpenGLProfile::core };
 	window.setFramebufferSizeCallback(framebufferSizeCallback);
 	glfwSwapInterval(0);
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 	// Init GLAD
 	if ( !gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)) ) {
@@ -40,6 +41,9 @@ int main() {
 	}
 	WindowSize windowSize { window.getWindowSize() };
 	glViewport(0, 0, windowSize.width, windowSize.height);
+	glEnable(GL_DEPTH_TEST);
+
+
 
 
 
@@ -136,10 +140,6 @@ int main() {
 	Texture texture2("awesomeface.png", GL_RGBA);
 
 
-
-	glEnable(GL_DEPTH_TEST);
-
-	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 	Camera cam{ glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, -1.0f) };
 	InputFreeCamera input{ window, cam };
