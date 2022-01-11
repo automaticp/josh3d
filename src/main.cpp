@@ -44,27 +44,17 @@ int main() {
 	glEnable(GL_DEPTH_TEST);
 
 
-
-
-
-
-
 	// Shaders
 	VertexShader VS{ "VertexShader.vert" };
-
 	// Textured Box
 	FragmentShader FSTextured{ "TexturedObject.frag" };
 	ShaderProgram SPTextured{ { VS, FSTextured } };
-
 	// Colored Box
 	FragmentShader FSColored{ "ColoredObject.frag" };
 	ShaderProgram SPColored{ { VS, FSColored } };
-	
 	// Lighting Source
 	FragmentShader FSLightSource{ "LightSource.frag" };
 	ShaderProgram SPLightSource{ { VS, FSLightSource } };
-
-
 
     // Vertex Data {3: pos, 3: normals, 2: tex coord}
     std::vector<float> vertices{
@@ -112,7 +102,6 @@ int main() {
 
     };
 
-
 	std::vector<glm::vec3> cubePositions{
 		{0.0f,  0.0f,  0.0f},
 		{2.0f,  5.0f, -15.0f},
@@ -128,37 +117,18 @@ int main() {
 
 	// Creating VAO and linking data from VBO
 	VBO boxVBO{ std::move(vertices), { { 0, 3 }, { 1, 3 }, { 2, 2 } } };
-	
 	VAO boxVAO{ boxVBO };
 	VAO lightVAO{ boxVBO };
 
-
-
 	// Loading textures
-	//Texture texture1("container.jpg", GL_RGB);
 	Texture texture1("arch.png", GL_RGB);
 	Texture texture2("awesomeface.png", GL_RGBA);
 
-
-
+	// Creating camera and binding it to input
 	Camera cam{ glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, -1.0f) };
 	InputFreeCamera input{ window, cam };
 
-	
-	// don't do this kek, input needs some internal timer
-	// but this works
-	// really fast
-	/*
-	std::thread t{ 
-		[&input, &window]() {
-			while ( !glfwWindowShouldClose(window) ) { 
-				glfwPollEvents();
-				input.processInput(); 
-			}
-		} 
-	};
-	*/
-	
+	// Transformation matrices
 	glm::mat4 view{};
 	glm::mat4 projection{};
 	glm::mat4 model{};
@@ -173,14 +143,9 @@ int main() {
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		
-		windowSize = window.getWindowSize();
-
 		input.processInput();
 
-
-
-
-
+		windowSize = window.getWindowSize();
 		projection = glm::perspective(cam.getFOV(), static_cast<float>(windowSize.width) / static_cast<float>(windowSize.height), 0.1f, 100.0f);
 		view = cam.getViewMat();
 
@@ -253,31 +218,11 @@ int main() {
 		SPColored.setUniform("lightPos", lightPos);
 		SPColored.setUniform("camPos", camPos);
 
-
 		boxVAO.bindAndDraw();
-
-
-
-
 
 		window.swapBuffers();
 		glfwPollEvents();
 	}
-
-
-
-	//t.join();
-
-
-
-
-
-
-
-
-
-
-
 
 	return 0;
 }
