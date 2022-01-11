@@ -49,7 +49,7 @@ public:
 	void swapBuffers() { glfwSwapBuffers(window_); }
 
 	// implicit cast to window*
-	GLFWwindow* GLFWwindow() { return window_; }
+	operator GLFWwindow*() { return window_; }
 
 
 public:
