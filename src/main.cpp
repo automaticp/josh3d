@@ -51,9 +51,6 @@ int main() {
 
 	// Shaders
 	VertexShader VS{ "VertexShader.vert" };
-	// Textured Box
-	FragmentShader FSTextured{ "TexturedObject.frag" };
-	ShaderProgram SPTextured{ { VS, FSTextured } };
 	// Colored Box
 	FragmentShader FSColored{ "ColoredObject.frag" };
 	ShaderProgram SPColored{ { VS, FSColored } };
@@ -107,27 +104,11 @@ int main() {
 
     };
 
-	std::vector<glm::vec3> cubePositions{
-		{0.0f,  0.0f,  0.0f},
-		{2.0f,  5.0f, -15.0f},
-		{-1.5f, -2.2f, -2.5f},
-		{-3.8f, -2.0f, -12.3f},
-		{2.4f, -0.4f, -3.5f},
-		{-1.7f,  3.0f, -7.5f},
-		{1.3f, -2.0f, -2.5f},
-		{1.5f,  2.0f, -2.5f},
-		{1.5f,  0.2f, -1.5f},
-		{-1.3f,  1.0f, -1.5f}
-	};
 
 	// Creating VAO and linking data from VBO
 	VBO boxVBO{ std::move(vertices), { { 0, 3 }, { 1, 3 }, { 2, 2 } } };
 	VAO boxVAO{ boxVBO };
 	VAO lightVAO{ boxVBO };
-
-	// Loading textures
-	Texture texture1("arch.png", GL_RGB);
-	Texture texture2("awesomeface.png", GL_RGBA);
 
 	// Creating camera and binding it to input
 	Camera cam{ glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, -1.0f) };
@@ -161,8 +142,8 @@ int main() {
 		SPLightSource.use();
 
 		glm::vec3 lightColor{ 1.0f };
-		glm::vec3 lightPos{ glm::sin(currentFrameTime), 3.0f, 2.0f * glm::cos(currentFrameTime) };
-		//glm::vec3 lightPos{ -2.5f, -2.5f, 2.0f };
+		//glm::vec3 lightPos{ glm::sin(currentFrameTime), 3.0f, 2.0f * glm::cos(currentFrameTime) };
+		glm::vec3 lightPos{ -2.0f, -0.5f, 1.5f };
 		glm::vec3 camPos{ cam.getPos() };
 
 		model = glm::mat4{ 1.0f };
@@ -176,35 +157,6 @@ int main() {
 		SPLightSource.setUniform("lightColor", lightColor);
 
 		lightVAO.bindAndDraw();
-
-		// Textured Boxes
-		SPTextured.use();
-
-		texture1.setActiveUnitAndBind(0);
-		texture2.setActiveUnitAndBind(1);
-		SPTextured.setUniform("texture1", 0);
-		SPTextured.setUniform("texture2", 1);
-
-		for ( int i{ 0 }; i < cubePositions.size(); ++i ) {
-
-			model = glm::mat4(1.0f);
-			auto angle{ 20.0f * static_cast<float>(i) };
-
-			model = glm::translate(model, cubePositions[i]);
-			model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.5f, 0.3f));
-			normalModel = glm::mat3(glm::transpose(glm::inverse(model)));
-			SPTextured.setUniform("model", model);
-			SPTextured.setUniform("normalModel", normalModel);
-			boxVAO.bindAndDraw();
-
-		}
-
-		SPTextured.setUniform("projection", projection);
-		SPTextured.setUniform("view", view);
-		SPTextured.setUniform("lightColor", lightColor);
-		SPTextured.setUniform("lightPos", lightPos);
-		SPTextured.setUniform("camPos", camPos);
-
 
 		// Colored Object
 		SPColored.use();
