@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <array>
 #include <stdexcept>
 #include <stb_image.h>
 
