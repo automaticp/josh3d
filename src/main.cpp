@@ -140,14 +140,19 @@ int main() {
 	glm::mat3 normalModel{};
 
 	while ( !glfwWindowShouldClose(window) ) {
-
+		// Updates currentFrameTime, lastFrameTime, deltaFrameTime
 		updateFrameTime();
 
+		// Swap buffers first (back -> front), then clear the backbuffer for a new frame
+		window.swapBuffers();
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		
-		input.processInput();
 
+		// Process input
+		input.processInput();
+		glfwPollEvents();
+
+		// Get projection and view matricies from camera positions
 		windowSize = window.getWindowSize();
 		projection = glm::perspective(cam.getFOV(), static_cast<float>(windowSize.width) / static_cast<float>(windowSize.height), 0.1f, 100.0f);
 		view = cam.getViewMat();
@@ -223,8 +228,6 @@ int main() {
 
 		boxVAO.bindAndDraw();
 
-		window.swapBuffers();
-		glfwPollEvents();
 	}
 
 	return 0;
