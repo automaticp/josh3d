@@ -1,21 +1,12 @@
-#include <iostream>
-#include <string>
 #include <vector>
-#include <array>
 #include <cmath>
-#include <tuple>
 #include <numbers>
-#include <utility>
-#include <thread>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <stb_image.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
 
 #include "GLFWWindowWrapper.h"
-#include "TypeAliases.h"
 #include "Shader.h"
 #include "ShaderProgram.h"
 #include "Texture.h"
