@@ -42,10 +42,10 @@ void main() {
     // ambient color
     vec3 ambientColor = ambientStrength * material.ambient;
     // diffuse color
-    vec3 diffuseColor = diffuseStrength * material.diffuse;
+    vec3 diffuseColor = diffuseStrength * material.diffuse * lightColor;
     // specular color
-    vec3 specularColor = specularStrength * pow(specularAlignment, material.shininess);
+    vec3 specularColor = specularStrength * pow(specularAlignment, material.shininess) * lightColor;
 
-    // C_ambient + k * [C_light * (C_diffuse + C_specular) / R^2]
-    fragColor = vec4(ambientColor + lightColor * distanceWeight * (diffuseColor + specularColor), 1.0f);
+    // C_ambient + k * [(C_diffuse + C_specular) / R^2]
+    fragColor = vec4(ambientColor + distanceWeight * (diffuseColor + specularColor), 1.0f);
 }
