@@ -32,7 +32,7 @@ void main() {
     // reflection direction
     vec3 viewDir = normalize(camPos - fragPos);         // direction from camera to fragment
     vec3 reflectionDir = reflect(-lightDir, normalDir); // reflection direction around a normal
-    vec3 specularAlignment = max(dot(viewDir, reflectionDir), 0.0f);    // how close camera is to the reflection line
+    float specularAlignment = max(dot(viewDir, reflectionDir), 0.0f);   // how close camera is to the reflection line
 
     // -- Color --
     // weights
