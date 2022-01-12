@@ -141,7 +141,10 @@ int main() {
 		// Lighting Source
 		SPLightSource.use();
 
-		glm::vec3 lightColor{ 1.0f };
+		//glm::vec3 lightColor{ 1.0f };
+		glm::vec3 lightColor{
+				(1.0f + glm::vec3{glm::sin(0.5f * currentFrameTime), glm::sin(currentFrameTime), glm::sin(2.0f * currentFrameTime)}) / 2.0f
+		};
 		//glm::vec3 lightPos{ glm::sin(currentFrameTime), 3.0f, 2.0f * glm::cos(currentFrameTime) };
 		glm::vec3 lightPos{ -2.0f, -0.5f, 1.5f };
 		glm::vec3 camPos{ cam.getPos() };
