@@ -47,6 +47,6 @@ void main() {
     // specular color
     vec3 specularColor = specularStrength * pow(specularAlignment, material.shininess);
 
-    // C_obj * (C_ambient + [k * C_light * (C_diffuse + C_specular) / R^2])
-    fragColor = vec4(objectColor * (ambientColor + lightColor * distanceWeight * (diffuseColor + specularColor)), 1.0f);
+    // C_ambient + k * [C_light * (C_diffuse + C_specular) / R^2]
+    fragColor = vec4(ambientColor + lightColor * distanceWeight * (diffuseColor + specularColor), 1.0f);
 }
