@@ -97,9 +97,9 @@ int main() {
 
 	// Shaders
 	VertexShader VS{ "VertexShader.vert" };
-	// Colored Box
-	FragmentShader FSColored{ "ColoredObject.frag" };
-	ShaderProgram SPColored{ { VS, FSColored } };
+	// Material Box
+	FragmentShader FSMaterial{ "MaterialObject.frag" };
+	ShaderProgram SPMaterial{ { VS, FSMaterial } };
 	// Lighting Source
 	FragmentShader FSLightSource{ "LightSource.frag" };
 	ShaderProgram SPLightSource{ { VS, FSLightSource } };
@@ -158,10 +158,21 @@ int main() {
 
 		lightVAO.bindAndDraw();
 
-		// Colored Object
-		SPColored.use();
-		
-		glm::vec3 objectColor{ 1.0f, 0.5f, 0.31f };
+		// Material Object
+		SPMaterial.use();
+
+		struct Material {
+			glm::vec3 ambient;
+			glm::vec3 diffuse;
+			glm::vec3 specular;
+			float shininess;
+		};
+
+		Material objectMat{ .ambient = {1.0f, 0.5f, 0.31f},
+							.diffuse = {1.0f, 0.5f, 0.31f},
+							.specular = {0.5f, 0.5f, 0.5f},
+							.shininess = 32.0f
+		};
 
 		model = glm::mat4{ 1.0f };
 		model = glm::translate(model, glm::vec3{ 0.0f, 2.5f, 1.0f });
@@ -169,14 +180,19 @@ int main() {
 		model = glm::scale(model, glm::vec3{ 0.75f });
 		normalModel = glm::mat3(glm::transpose(glm::inverse(model)));
 
-		SPColored.setUniform("model", model);
-		SPColored.setUniform("normalModel", normalModel);
-		SPColored.setUniform("projection", projection);
-		SPColored.setUniform("view", view);
-		SPColored.setUniform("objectColor", objectColor);
-		SPColored.setUniform("lightColor", lightColor);
-		SPColored.setUniform("lightPos", lightPos);
-		SPColored.setUniform("camPos", camPos);
+		SPMaterial.setUniform("model", model);
+		SPMaterial.setUniform("normalModel", normalModel);
+		SPMaterial.setUniform("projection", projection);
+		SPMaterial.setUniform("view", view);
+
+		SPMaterial.setUniform("material.ambient", objectMat.ambient);
+		SPMaterial.setUniform("material.diffuse", objectMat.diffuse);
+		SPMaterial.setUniform("material.specular", objectMat.specular);
+		SPMaterial.setUniform("material.shininess", objectMat.shininess);
+
+		SPMaterial.setUniform("lightColor", lightColor);
+		SPMaterial.setUniform("lightPos", lightPos);
+		SPMaterial.setUniform("camPos", camPos);
 
 		boxVAO.bindAndDraw();
 
