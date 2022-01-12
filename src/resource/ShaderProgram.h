@@ -18,7 +18,12 @@ private:
 
 public:
 	explicit ShaderProgram(std::vector<refw<Shader>> shaders) : shaders_{ std::move(shaders) } {
-		link();
+		try {
+			link();
+		} catch (const std::exception& e) {
+			std::cerr << e.what() << '\n';
+			throw;
+		}
 #ifndef NDEBUG
 		std::cerr << getLinkInfo();
 #endif
@@ -136,7 +141,15 @@ inline std::string ShaderProgram::getLinkInfo() const {
 	GLint success = getLinkSuccess();
 	output += "\nLinking Status: " + ((success == GL_TRUE) ? std::string("Success") : std::string("Failure"));
 	output += "\nProgram Id: " + std::to_string(id_) + "\n";
-
+	if ( success != GL_TRUE ) {
+		GLint infoLength;
+		glGetProgramiv(id_, GL_INFO_LOG_LENGTH, &infoLength);
+		auto infoLog{ std::make_unique<GLchar[]>(infoLength) };
+		glGetProgramInfoLog(id_, infoLength, nullptr, infoLog.get());
+		output += "\nInfo Length: " + std::to_string(infoLength);
+		output += "\nInfo Message:< " + std::string(infoLog.get());
+		output += " >";
+	}
 	return output;
 }
 
