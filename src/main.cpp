@@ -22,6 +22,52 @@ float deltaFrameTime{};
 
 const OrthonormalBasis3D globalBasis{ glm::vec3(1.0f, 0.0, 0.0), glm::vec3(0.0f, 1.0f, 0.0f), true };
 
+// Vertex Data {3: pos, 3: normals, 2: tex coord}
+std::vector<float> vertices{
+		-0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
+		0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f,
+		0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f,
+		0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f,
+		-0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
+
+		-0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+		0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
+		0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+		0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+		-0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
+		-0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+
+		-0.5f, 0.5f, 0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+		-0.5f, 0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+		-0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+		-0.5f, -0.5f, 0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+		-0.5f, 0.5f, 0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+
+		0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+		0.5f, 0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+		0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+		0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+		0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+		0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+
+		-0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f,
+		0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f,
+		0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+		0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+		-0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+		-0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f,
+
+		-0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+		0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+		0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+		0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+		-0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+		-0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f
+
+};
+
 void updateFrameTime() {
 	currentFrameTime = static_cast<float>(glfwGetTime());
 	deltaFrameTime = currentFrameTime - lastFrameTime;
@@ -51,83 +97,18 @@ int main() {
 
 	// Shaders
 	VertexShader VS{ "VertexShader.vert" };
-	// Textured Box
-	FragmentShader FSTextured{ "TexturedObject.frag" };
-	ShaderProgram SPTextured{ { VS, FSTextured } };
-	// Colored Box
-	FragmentShader FSColored{ "ColoredObject.frag" };
-	ShaderProgram SPColored{ { VS, FSColored } };
+	// Material Box
+	FragmentShader FSMaterial{ "MaterialObject.frag" };
+	ShaderProgram SPMaterial{ { VS, FSMaterial } };
 	// Lighting Source
 	FragmentShader FSLightSource{ "LightSource.frag" };
 	ShaderProgram SPLightSource{ { VS, FSLightSource } };
 
-    // Vertex Data {3: pos, 3: normals, 2: tex coord}
-    std::vector<float> vertices{
-            -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
-            0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f,
-            0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f,
-            0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f,
-            -0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f,
-            -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
-
-            -0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-            0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
-            0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
-            0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
-            -0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
-            -0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-
-            -0.5f, 0.5f, 0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-            -0.5f, 0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-            -0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-            -0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-            -0.5f, -0.5f, 0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-            -0.5f, 0.5f, 0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-
-            0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-            0.5f, 0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-            0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-            0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-            0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-            0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-
-            -0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f,
-            0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f,
-            0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-            0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-            -0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f,
-            -0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f,
-
-            -0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-            0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-            0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
-            0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
-            -0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
-            -0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f
-
-    };
-
-	std::vector<glm::vec3> cubePositions{
-		{0.0f,  0.0f,  0.0f},
-		{2.0f,  5.0f, -15.0f},
-		{-1.5f, -2.2f, -2.5f},
-		{-3.8f, -2.0f, -12.3f},
-		{2.4f, -0.4f, -3.5f},
-		{-1.7f,  3.0f, -7.5f},
-		{1.3f, -2.0f, -2.5f},
-		{1.5f,  2.0f, -2.5f},
-		{1.5f,  0.2f, -1.5f},
-		{-1.3f,  1.0f, -1.5f}
-	};
 
 	// Creating VAO and linking data from VBO
-	VBO boxVBO{ std::move(vertices), { { 0, 3 }, { 1, 3 }, { 2, 2 } } };
+	VBO boxVBO{ vertices, { { 0, 3 }, { 1, 3 }, { 2, 2 } } };
 	VAO boxVAO{ boxVBO };
 	VAO lightVAO{ boxVBO };
-
-	// Loading textures
-	Texture texture1("arch.png", GL_RGB);
-	Texture texture2("awesomeface.png", GL_RGBA);
 
 	// Creating camera and binding it to input
 	Camera cam{ glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, -1.0f) };
@@ -160,9 +141,12 @@ int main() {
 		// Lighting Source
 		SPLightSource.use();
 
-		glm::vec3 lightColor{ 1.0f };
-		glm::vec3 lightPos{ glm::sin(currentFrameTime), 3.0f, 2.0f * glm::cos(currentFrameTime) };
-		//glm::vec3 lightPos{ -2.5f, -2.5f, 2.0f };
+		//glm::vec3 lightColor{ 1.0f };
+		glm::vec3 lightColor{
+				(1.0f + glm::vec3{glm::sin(0.5f * currentFrameTime), glm::sin(currentFrameTime), glm::sin(2.0f * currentFrameTime)}) / 2.0f
+		};
+		//glm::vec3 lightPos{ glm::sin(currentFrameTime), 3.0f, 2.0f * glm::cos(currentFrameTime) };
+		glm::vec3 lightPos{ -2.0f, -0.5f, 1.5f };
 		glm::vec3 camPos{ cam.getPos() };
 
 		model = glm::mat4{ 1.0f };
@@ -177,39 +161,21 @@ int main() {
 
 		lightVAO.bindAndDraw();
 
-		// Textured Boxes
-		SPTextured.use();
+		// Material Object
+		SPMaterial.use();
 
-		texture1.setActiveUnitAndBind(0);
-		texture2.setActiveUnitAndBind(1);
-		SPTextured.setUniform("texture1", 0);
-		SPTextured.setUniform("texture2", 1);
+		struct Material {
+			glm::vec3 ambient;
+			glm::vec3 diffuse;
+			glm::vec3 specular;
+			float shininess;
+		};
 
-		for ( int i{ 0 }; i < cubePositions.size(); ++i ) {
-
-			model = glm::mat4(1.0f);
-			auto angle{ 20.0f * static_cast<float>(i) };
-
-			model = glm::translate(model, cubePositions[i]);
-			model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.5f, 0.3f));
-			normalModel = glm::mat3(glm::transpose(glm::inverse(model)));
-			SPTextured.setUniform("model", model);
-			SPTextured.setUniform("normalModel", normalModel);
-			boxVAO.bindAndDraw();
-
-		}
-
-		SPTextured.setUniform("projection", projection);
-		SPTextured.setUniform("view", view);
-		SPTextured.setUniform("lightColor", lightColor);
-		SPTextured.setUniform("lightPos", lightPos);
-		SPTextured.setUniform("camPos", camPos);
-
-
-		// Colored Object
-		SPColored.use();
-		
-		glm::vec3 objectColor{ 1.0f, 0.5f, 0.31f };
+		Material objectMat{ .ambient = {1.0f, 0.5f, 0.31f},
+							.diffuse = {1.0f, 0.5f, 0.31f},
+							.specular = {0.5f, 0.5f, 0.5f},
+							.shininess = 32.0f
+		};
 
 		model = glm::mat4{ 1.0f };
 		model = glm::translate(model, glm::vec3{ 0.0f, 2.5f, 1.0f });
@@ -217,14 +183,19 @@ int main() {
 		model = glm::scale(model, glm::vec3{ 0.75f });
 		normalModel = glm::mat3(glm::transpose(glm::inverse(model)));
 
-		SPColored.setUniform("model", model);
-		SPColored.setUniform("normalModel", normalModel);
-		SPColored.setUniform("projection", projection);
-		SPColored.setUniform("view", view);
-		SPColored.setUniform("objectColor", objectColor);
-		SPColored.setUniform("lightColor", lightColor);
-		SPColored.setUniform("lightPos", lightPos);
-		SPColored.setUniform("camPos", camPos);
+		SPMaterial.setUniform("model", model);
+		SPMaterial.setUniform("normalModel", normalModel);
+		SPMaterial.setUniform("projection", projection);
+		SPMaterial.setUniform("view", view);
+
+		SPMaterial.setUniform("material.ambient", objectMat.ambient);
+		SPMaterial.setUniform("material.diffuse", objectMat.diffuse);
+		SPMaterial.setUniform("material.specular", objectMat.specular);
+		SPMaterial.setUniform("material.shininess", objectMat.shininess);
+
+		SPMaterial.setUniform("lightColor", lightColor);
+		SPMaterial.setUniform("lightPos", lightPos);
+		SPMaterial.setUniform("camPos", camPos);
 
 		boxVAO.bindAndDraw();
 
