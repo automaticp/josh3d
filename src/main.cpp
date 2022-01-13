@@ -100,10 +100,27 @@ int main() {
 	// Material Box
 	FragmentShader FSMaterial{ "MaterialObject.frag" };
 	ShaderProgram SPMaterial{ { VS, FSMaterial } };
+	// Texture Material Box
+	FragmentShader FSTexture{ "TextureMaterialEmissionObject.frag" };
+	ShaderProgram SPTexture{ {VS, FSTexture} };
 	// Lighting Source
 	FragmentShader FSLightSource{ "LightSource.frag" };
 	ShaderProgram SPLightSource{ { VS, FSLightSource } };
 
+	// Textures
+	Texture boxTexDiffuse{ "container2_d.png" };
+	Texture boxTexSpecular{ "container2_colored_s.png" };
+	Texture boxTexEmission{ "container2_e.png" };
+
+	SPTexture.use();
+	SPTexture.setUniform("material.diffuse", 0);
+	SPTexture.setUniform("material.specular", 1);
+	SPTexture.setUniform("material.emission", 2);
+	SPTexture.setUniform("material.shininess", 128.0f);
+
+	boxTexDiffuse.setActiveUnitAndBind(0);
+	boxTexSpecular.setActiveUnitAndBind(1);
+	boxTexEmission.setActiveUnitAndBind(2);
 
 	// Creating VAO and linking data from VBO
 	VBO boxVBO{ vertices, { { 0, 3 }, { 1, 3 }, { 2, 2 } } };
@@ -141,11 +158,11 @@ int main() {
 		// Lighting Source
 		SPLightSource.use();
 
-		//glm::vec3 lightColor{ 1.0f };
-		glm::vec3 lightColor{
-				(1.0f + glm::vec3{glm::sin(0.5f * currentFrameTime), glm::sin(currentFrameTime), glm::sin(2.0f * currentFrameTime)}) / 2.0f
-		};
-		//glm::vec3 lightPos{ glm::sin(currentFrameTime), 3.0f, 2.0f * glm::cos(currentFrameTime) };
+		glm::vec3 lightColor{ 1.0f };
+//		glm::vec3 lightColor{
+//				(1.0f + glm::vec3{glm::sin(0.5f * currentFrameTime), glm::sin(currentFrameTime), glm::sin(2.0f * currentFrameTime)}) / 2.0f
+//		};
+//		//glm::vec3 lightPos{ glm::sin(currentFrameTime), 3.0f, 2.0f * glm::cos(currentFrameTime) };
 		glm::vec3 lightPos{ -2.0f, -0.5f, 1.5f };
 		glm::vec3 camPos{ cam.getPos() };
 
@@ -160,6 +177,37 @@ int main() {
 		SPLightSource.setUniform("lightColor", lightColor);
 
 		lightVAO.bindAndDraw();
+
+		// Textured diff+spec object
+		SPTexture.use();
+
+		model = glm::mat4{ 1.0f };
+		model = glm::translate(model, glm::vec3{ -2.0f, 1.5f, 0.5f });
+		model = glm::rotate(model, glm::radians(-60.0f), glm::vec3{ 1.0f });
+		model = glm::scale(model, glm::vec3{ 0.75f });
+		normalModel = glm::mat3(glm::transpose(glm::inverse(model)));
+
+		SPTexture.setUniform("model", model);
+		SPTexture.setUniform("normalModel", normalModel);
+		SPTexture.setUniform("projection", projection);
+		SPTexture.setUniform("view", view);
+
+		SPTexture.setUniform("lightColor", lightColor);
+		SPTexture.setUniform("lightPos", lightPos);
+		SPTexture.setUniform("camPos", camPos);
+
+
+//		boxTexDiffuse.setActiveUnitAndBind(2);
+//		boxTexSpecular.setActiveUnitAndBind(3);
+
+//		SPTexture.setUniform("material.diffuse", static_cast<GLenum>(0));
+//		SPTexture.setUniform("material.specular", static_cast<GLenum>(1));
+//		SPTexture.setUniform("material.shininess", 128.0f);
+
+
+		boxVAO.bindAndDraw();
+
+
 
 		// Material Object
 		SPMaterial.use();
