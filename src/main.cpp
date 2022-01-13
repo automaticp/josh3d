@@ -101,23 +101,26 @@ int main() {
 	FragmentShader FSMaterial{ "MaterialObject.frag" };
 	ShaderProgram SPMaterial{ { VS, FSMaterial } };
 	// Texture Material Box
-	FragmentShader FSTexture{ "TextureMaterialObject.frag" };
+	FragmentShader FSTexture{ "TextureMaterialEmissionObject.frag" };
 	ShaderProgram SPTexture{ {VS, FSTexture} };
 	// Lighting Source
 	FragmentShader FSLightSource{ "LightSource.frag" };
 	ShaderProgram SPLightSource{ { VS, FSLightSource } };
 
 	// Textures
-	Texture boxTexDiffuse{ "container2_d.png", GL_RGBA };
-	Texture boxTexSpecular{ "container2_s.png", GL_RGBA };
+	Texture boxTexDiffuse{ "container2_d.png" };
+	Texture boxTexSpecular{ "container2_colored_s.png" };
+	Texture boxTexEmission{ "container2_e.png" };
 
 	SPTexture.use();
 	SPTexture.setUniform("material.diffuse", 0);
 	SPTexture.setUniform("material.specular", 1);
+	SPTexture.setUniform("material.emission", 2);
 	SPTexture.setUniform("material.shininess", 128.0f);
 
 	boxTexDiffuse.setActiveUnitAndBind(0);
 	boxTexSpecular.setActiveUnitAndBind(1);
+	boxTexEmission.setActiveUnitAndBind(2);
 
 	// Creating VAO and linking data from VBO
 	VBO boxVBO{ vertices, { { 0, 3 }, { 1, 3 }, { 2, 2 } } };
