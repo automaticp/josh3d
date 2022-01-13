@@ -2,6 +2,7 @@
 #include <string>
 #include <array>
 #include <stdexcept>
+#include <utility>
 #include <stb_image.h>
 
 #include "TypeAliases.h"
@@ -13,8 +14,16 @@ private:
 	std::string filename_;
 	const static std::array<GLenum, 32> texUnits_s;
 
+	struct BasicImageData {
+		unsigned char* data;
+		int width;
+		int height;
+		int numChannels;
+	};
+
+
 public:
-	Texture(const std::string& filename, GLenum format, GLint internalFormat = GL_RGB);
+	explicit Texture(std::string  filename, GLint internalFormat = GL_RGBA, GLenum format = GL_NONE);
 
 	void bind() { glBindTexture(GL_TEXTURE_2D, id_); }
 
@@ -28,6 +37,8 @@ public:
 
 	const std::string& getFilename() const { return filename_; }
 
+private:
+	BasicImageData loadTextureImage(int numDesiredChannels = 0);
 
 };
 
@@ -43,25 +54,44 @@ inline const std::array<GLenum, 32> Texture::texUnits_s{
 };
 
 
-inline Texture::Texture(const std::string& filename, GLenum format, GLint internalFormat) :
-		filename_{ filename } {
+inline Texture::Texture(std::string filename, GLint internalFormat, GLenum format) :
+		filename_{ std::move(filename) } {
 
-	int width, height, numChannels;
-	stbi_set_flip_vertically_on_load(true);
+	// FIXME: depending on the 'format', the numer of channels loaded can be coerced into the requested value
+	//  with numDesiredChannels. Needs a map between 'format' and number of channels though.
+	BasicImageData imageData { loadTextureImage(0) };
 
-	static const std::string textureDir{ "resources/textures/" };
-	std::string texturePath{ textureDir + filename };
-
-	unsigned char* data = stbi_load(texturePath.c_str(), &width, &height, &numChannels, 0);
-	if ( !data ) {
-		throw std::runtime_error("runtime_error: could not read image file " + texturePath);
+	if (!format) {
+		switch (imageData.numChannels) {
+			case 1: format = GL_RED; break;
+			case 2: format = GL_RG; break;
+			case 3: format = GL_RGB; break;
+			case 4: format = GL_RGBA; break;
+			default: format = GL_RED; // FIXME: what's a reasonable default behaviour?
+		}
 	}
 
 	glBindTexture(GL_TEXTURE_2D, id_);
-	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, imageData.width, imageData.height, 0, format, GL_UNSIGNED_BYTE, imageData.data);
 	glGenerateMipmap(GL_TEXTURE_2D);
 
-	stbi_image_free(data);
+	stbi_image_free(imageData.data);
+}
+
+Texture::BasicImageData Texture::loadTextureImage(int numDesiredChannels) {
+
+	BasicImageData imageData{};
+	stbi_set_flip_vertically_on_load(true);
+
+	static const std::string textureDir{ "resources/textures/" };
+	std::string texturePath{ textureDir + filename_ };
+
+	imageData.data = stbi_load(texturePath.c_str(), &imageData.width, &imageData.height, &imageData.numChannels, numDesiredChannels);
+	if ( !imageData.data ) {
+		throw std::runtime_error("runtime_error: could not read image file " + texturePath);
+	}
+
+	return imageData;
 }
 
 
