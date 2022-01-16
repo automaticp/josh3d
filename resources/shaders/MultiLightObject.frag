@@ -69,7 +69,7 @@ vec3 getTotalLightColor(vec3 lightColor, const LightParams lp, TextureColor texC
 vec3 getLightDirectional(DirectionalLight light, vec3 normalDir, vec3 viewDir, TextureColor texColor) {
 
     vec3 lightDir = normalize(-light.direction); // direction from fragment to light ???
-    Attenuation noAtt = {1.0f, 0.0f, 0.0f}; // no distance scaling for directional light
+    Attenuation noAtt = Attenuation(1.0f, 0.0f, 0.0f); // no distance scaling for directional light
     LightParams lp = getLightParams(normalDir, lightDir, viewDir, 0.0f, noAtt);
 
     return getTotalLightColor(light.color, lp, texColor);
