@@ -3,10 +3,6 @@
 
 namespace light {
 
-	struct Colored {
-		glm::vec3 color;
-	};
-
 	struct Attenuation {
 		float constant;
 		float linear;
@@ -14,16 +10,19 @@ namespace light {
 	};
 
 
-	struct Directional : Colored {
+	struct Directional {
+		glm::vec3 color;
 		glm::vec3 direction;
 	};
 
-	struct Point : Colored {
+	struct Point {
+		glm::vec3 color;
 		glm::vec3 position;
 		Attenuation attenuation;
 	};
 
-	struct Spotlight : Colored {
+	struct Spotlight {
+		glm::vec3 color;
 		glm::vec3 position;
 		glm::vec3 direction;
 		Attenuation attenuation;
