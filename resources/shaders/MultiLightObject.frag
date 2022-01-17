@@ -92,9 +92,18 @@ vec3 getLightSpotlight(SpotlightLight light, vec3 normalDir, vec3 viewDir, Textu
 
     vec3 result;
     if (thetaCos > light.outerCutoffCos) {
+        float edgeFactor;
+        if (thetaCos < light.innerCutoffCos) {
+            edgeFactor = clamp(
+                (thetaCos - light.outerCutoffCos) / (light.innerCutoffCos - light.outerCutoffCos),
+                0.0f, 1.0f
+            );
+        }
+        else { edgeFactor = 1.0f; }
+
         float lightDistance = length(lightVec);
         LightParams lp = getLightParams(normalDir, lightDir, viewDir, lightDistance, light.attenuation);
-        result = getTotalLightColor(light.color, lp, texColor);
+        result = edgeFactor * getTotalLightColor(light.color, lp, texColor);
     }
     else {
         result = vec3(0.0f); // no light ouside the cutoff
@@ -144,7 +153,7 @@ vec3 getTotalLightColor(vec3 lightColor, const LightParams lp, TextureColor texC
     vec3 ambientColor = lp.ambientStrength * texColor.diffuse;
     vec3 diffuseColor = lp.diffuseStrength * texColor.diffuse * lightColor;
     vec3 specularColor = lp.specularStrength * texColor.specular * pow(lp.specularAlignment, material.shininess) * lightColor;
-
+    // FIXME: the ambient color from all sources stacks unconditionally
     return (ambientColor + lp.distanceFactor * (diffuseColor + specularColor));
 }
 
