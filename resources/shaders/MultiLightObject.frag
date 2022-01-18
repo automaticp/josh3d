@@ -154,6 +154,6 @@ vec3 getTotalLightColor(vec3 lightColor, const LightParams lp, TextureColor texC
     vec3 diffuseColor = lp.diffuseStrength * texColor.diffuse * lightColor;
     vec3 specularColor = lp.specularStrength * texColor.specular * pow(lp.specularAlignment, material.shininess) * lightColor;
     // FIXME: the ambient color from all sources stacks unconditionally
-    return (ambientColor + lp.distanceFactor * (diffuseColor + specularColor));
+    return (lp.distanceFactor * (ambientColor + diffuseColor + specularColor));
 }
 
