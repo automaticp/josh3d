@@ -15,6 +15,7 @@
 #include "Input.h"
 #include "VBO.h"
 #include "VAO.h"
+#include "LightCasters.h"
 
 float currentFrameTime{};
 float lastFrameTime{};
@@ -97,12 +98,9 @@ int main() {
 
 	// Shaders
 	VertexShader VS{ "VertexShader.vert" };
-	// Material Box
-	FragmentShader FSMaterial{ "MaterialObject.frag" };
-	ShaderProgram SPMaterial{ { VS, FSMaterial } };
 	// Texture Material Box
-	FragmentShader FSTexture{ "TextureMaterialEmissionObject.frag" };
-	ShaderProgram SPTexture{ {VS, FSTexture} };
+	FragmentShader FSMultiLight{ "MultiLightObject.frag" };
+	ShaderProgram SPMultiLight{{ VS, FSMultiLight }};
 	// Lighting Source
 	FragmentShader FSLightSource{ "LightSource.frag" };
 	ShaderProgram SPLightSource{ { VS, FSLightSource } };
@@ -110,22 +108,42 @@ int main() {
 	// Textures
 	Texture boxTexDiffuse{ "container2_d.png" };
 	Texture boxTexSpecular{ "container2_colored_s.png" };
-	Texture boxTexEmission{ "container2_e.png" };
 
-	SPTexture.use();
-	SPTexture.setUniform("material.diffuse", 0);
-	SPTexture.setUniform("material.specular", 1);
-	SPTexture.setUniform("material.emission", 2);
-	SPTexture.setUniform("material.shininess", 128.0f);
+
+	SPMultiLight.use();
+	SPMultiLight.setUniform("material.diffuse", 0);
+	SPMultiLight.setUniform("material.specular", 1);
+	SPMultiLight.setUniform("material.shininess", 128.0f);
 
 	boxTexDiffuse.setActiveUnitAndBind(0);
 	boxTexSpecular.setActiveUnitAndBind(1);
-	boxTexEmission.setActiveUnitAndBind(2);
 
 	// Creating VAO and linking data from VBO
 	VBO boxVBO{ vertices, { { 0, 3 }, { 1, 3 }, { 2, 2 } } };
 	VAO boxVAO{ boxVBO };
 	VAO lightVAO{ boxVBO };
+
+	// Cube positions for the scene
+	std::vector<glm::vec3> cubePositions {
+			glm::vec3( 0.0f,  0.0f,  0.0f),
+			glm::vec3( 2.0f,  5.0f, -15.0f),
+			glm::vec3(-1.5f, -2.2f, -2.5f),
+			glm::vec3(-3.8f, -2.0f, -12.3f),
+			glm::vec3( 2.4f, -0.4f, -3.5f),
+			glm::vec3(-1.7f,  3.0f, -7.5f),
+			glm::vec3( 1.3f, -2.0f, -2.5f),
+			glm::vec3( 1.5f,  2.0f, -2.5f),
+			glm::vec3( 1.5f,  0.2f, -1.5f),
+			glm::vec3(-1.3f,  1.0f, -1.5f)
+	};
+
+	std::vector<glm::vec3> pointLightPositions {
+			glm::vec3( 0.7f,  0.2f,  2.0f),
+			glm::vec3( 2.3f, -3.3f, -4.0f),
+			glm::vec3(-4.0f,  2.0f, -12.0f),
+			glm::vec3( 0.0f,  0.0f, -3.0f)
+	};
+
 
 	// Creating camera and binding it to input
 	Camera cam{ glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, -1.0f) };
@@ -155,97 +173,126 @@ int main() {
 		projection = glm::perspective(cam.getFOV(), static_cast<float>(windowSize.width) / static_cast<float>(windowSize.height), 0.1f, 100.0f);
 		view = cam.getViewMat();
 
-		// Lighting Source
-		SPLightSource.use();
-
-		glm::vec3 lightColor{ 1.0f };
-//		glm::vec3 lightColor{
-//				(1.0f + glm::vec3{glm::sin(0.5f * currentFrameTime), glm::sin(currentFrameTime), glm::sin(2.0f * currentFrameTime)}) / 2.0f
-//		};
-//		//glm::vec3 lightPos{ glm::sin(currentFrameTime), 3.0f, 2.0f * glm::cos(currentFrameTime) };
-		glm::vec3 lightPos{ -2.0f, -0.5f, 1.5f };
 		glm::vec3 camPos{ cam.getPos() };
 
-		model = glm::mat4{ 1.0f };
-		model = glm::translate(model, lightPos);
-		model = glm::scale(model, glm::vec3{ 0.2f });
-		normalModel = glm::mat3(glm::transpose(glm::inverse(model)));
-		SPLightSource.setUniform("model", model);
-		SPLightSource.setUniform("normalModel", normalModel);
+
+		// Textured diff+spec objects with multiple of lights shining on them
+		SPMultiLight.use();
+
+		boxVAO.bind();
+
+		SPMultiLight.setUniform("projection", projection);
+		SPMultiLight.setUniform("view", view);
+		SPMultiLight.setUniform("camPos", camPos);
+
+		// ---- Light Sources ----
+		// (most of them are constant, but I'll set them within the render loop anyway, for clarity)
+
+		// Directional
+		light::Directional ld{
+			.color = { 0.3f, 0.3f, 0.2f },
+			.direction = { -0.2f, -1.0f, -0.3f }
+		};
+		SPMultiLight.setUniform("dirLight.color", ld.color);
+		SPMultiLight.setUniform("dirLight.direction", ld.direction);
+
+
+		// Point
+		std::vector<light::Point> lps;
+		lps.reserve(4);
+		for (int i{ 0 }; i < 4; ++i) {
+			lps.emplace_back(light::Point{
+					.color = glm::vec3(1.0f, 0.0f, 1.0f),
+					.position = pointLightPositions[i],
+					.attenuation = light::Attenuation{ .constant = 1.0f, .linear = 0.4f, .quadratic = 0.2f },
+			});
+		}
+
+		for (int i{ 0 }; i < 4; ++i) {
+			// what a mess, though
+			std::string colName{ "pointLights[x].color" };
+			std::string posName{ "pointLights[x].position" };
+			std::string att0Name{ "pointLights[x].attenuation.constant" };
+			std::string att1Name{ "pointLights[x].attenuation.linear" };
+			std::string att2Name{ "pointLights[x].attenuation.quadratic" };
+			auto iString {std::to_string(i)};
+			colName.replace(12, 1, iString);
+			posName.replace(12, 1, iString);
+			att0Name.replace(12, 1, iString);
+			att1Name.replace(12, 1, iString);
+			att2Name.replace(12, 1, iString);
+
+			SPMultiLight.setUniform(colName.c_str(), lps[i].color);
+			SPMultiLight.setUniform(posName.c_str(), lps[i].position);
+			SPMultiLight.setUniform(att0Name.c_str(), lps[i].attenuation.constant);
+			SPMultiLight.setUniform(att1Name.c_str(), lps[i].attenuation.linear);
+			SPMultiLight.setUniform(att2Name.c_str(), lps[i].attenuation.quadratic);
+		}
+
+
+		// Spotlight
+		light::Spotlight ls{
+				.color = glm::vec3(1.0f),
+				.position = camPos,
+				.direction = -cam.backUV(),
+				.attenuation = light::Attenuation{ .constant = 1.0f, .linear = 1.0f, .quadratic = 2.1f },
+				.innerCutoffRad = glm::radians(12.0f),
+				.outerCutoffRad = glm::radians(15.0f)
+		};
+		SPMultiLight.setUniform("spotLight.color", ls.color);
+		SPMultiLight.setUniform("spotLight.position", ls.position);
+		SPMultiLight.setUniform("spotLight.direction", ls.direction);
+		SPMultiLight.setUniform("spotLight.attenuation.constant", ls.attenuation.constant);
+		SPMultiLight.setUniform("spotLight.attenuation.linear", ls.attenuation.linear);
+		SPMultiLight.setUniform("spotLight.attenuation.quadratic", ls.attenuation.quadratic);
+		SPMultiLight.setUniform("spotLight.innerCutoffCos", glm::cos(ls.innerCutoffRad));
+		SPMultiLight.setUniform("spotLight.outerCutoffCos", glm::cos(ls.outerCutoffRad));
+
+
+		// ---- Scene of Boxes ----
+
+		for (size_t i{0}; i < 10; ++i) {
+			model = glm::mat4{ 1.0f };
+			model = glm::translate(model, cubePositions[i]);
+			float angle = 20.0f * i;
+
+			model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
+			SPMultiLight.setUniform("model", model);
+
+			normalModel = glm::mat3(glm::transpose(glm::inverse(model)));
+			SPMultiLight.setUniform("normalModel", normalModel);
+
+
+			boxVAO.draw();
+		}
+
+
+
+		// Point Lighting Sources
+
+		SPLightSource.use();
+
+		lightVAO.bind();
+
+
 		SPLightSource.setUniform("projection", projection);
 		SPLightSource.setUniform("view", view);
-		SPLightSource.setUniform("lightColor", lightColor);
-
-		lightVAO.bindAndDraw();
-
-		// Textured diff+spec object
-		SPTexture.use();
-
-		model = glm::mat4{ 1.0f };
-		model = glm::translate(model, glm::vec3{ -2.0f, 1.5f, 0.5f });
-		model = glm::rotate(model, glm::radians(-60.0f), glm::vec3{ 1.0f });
-		model = glm::scale(model, glm::vec3{ 0.75f });
-		normalModel = glm::mat3(glm::transpose(glm::inverse(model)));
-
-		SPTexture.setUniform("model", model);
-		SPTexture.setUniform("normalModel", normalModel);
-		SPTexture.setUniform("projection", projection);
-		SPTexture.setUniform("view", view);
-
-		SPTexture.setUniform("lightColor", lightColor);
-		SPTexture.setUniform("lightPos", lightPos);
-		SPTexture.setUniform("camPos", camPos);
 
 
-//		boxTexDiffuse.setActiveUnitAndBind(2);
-//		boxTexSpecular.setActiveUnitAndBind(3);
+		for (size_t i{0}; i < 4; ++i) {
+			model = glm::mat4{ 1.0f };
+			model = glm::translate(model, pointLightPositions[i]);
+			model = glm::scale(model, glm::vec3{ 0.2f });
+			SPLightSource.setUniform("model", model);
 
-//		SPTexture.setUniform("material.diffuse", static_cast<GLenum>(0));
-//		SPTexture.setUniform("material.specular", static_cast<GLenum>(1));
-//		SPTexture.setUniform("material.shininess", 128.0f);
+			normalModel = glm::mat3(glm::transpose(glm::inverse(model)));
+			SPLightSource.setUniform("normalModel", normalModel);
 
+			SPLightSource.setUniform("lightColor", lps[i].color);
 
-		boxVAO.bindAndDraw();
+			lightVAO.draw();
+		}
 
-
-
-		// Material Object
-		SPMaterial.use();
-
-		struct Material {
-			glm::vec3 ambient;
-			glm::vec3 diffuse;
-			glm::vec3 specular;
-			float shininess;
-		};
-
-		Material objectMat{ .ambient = {1.0f, 0.5f, 0.31f},
-							.diffuse = {1.0f, 0.5f, 0.31f},
-							.specular = {0.5f, 0.5f, 0.5f},
-							.shininess = 32.0f
-		};
-
-		model = glm::mat4{ 1.0f };
-		model = glm::translate(model, glm::vec3{ 0.0f, 2.5f, 1.0f });
-		model = glm::rotate(model, glm::radians(30.0f), glm::vec3{ 1.0f });
-		model = glm::scale(model, glm::vec3{ 0.75f });
-		normalModel = glm::mat3(glm::transpose(glm::inverse(model)));
-
-		SPMaterial.setUniform("model", model);
-		SPMaterial.setUniform("normalModel", normalModel);
-		SPMaterial.setUniform("projection", projection);
-		SPMaterial.setUniform("view", view);
-
-		SPMaterial.setUniform("material.ambient", objectMat.ambient);
-		SPMaterial.setUniform("material.diffuse", objectMat.diffuse);
-		SPMaterial.setUniform("material.specular", objectMat.specular);
-		SPMaterial.setUniform("material.shininess", objectMat.shininess);
-
-		SPMaterial.setUniform("lightColor", lightColor);
-		SPMaterial.setUniform("lightPos", lightPos);
-		SPMaterial.setUniform("camPos", camPos);
-
-		boxVAO.bindAndDraw();
 
 	}
 
