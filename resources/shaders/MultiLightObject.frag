@@ -54,16 +54,30 @@ struct TextureColor {
     vec3 specular;
 };
 
+// Parameters for various geometrical attenuations
 struct LightParams {
-    float ambientStrength;
-    float diffuseStrength;
-    float specularStrength;
+    float diffuseAlignment;
     float specularAlignment;
     float distanceFactor;
 };
 
+// Output strength after accounting for alignment and distance
+struct LightStrength {
+    float ambient;
+    float diffuse;
+    float specular;
+};
+
+// Initial weights for different light types
+struct LightComponentWeights {
+    float ambient;
+    float diffuse;
+    float specular;
+};
+
 LightParams getLightParams(vec3 normalDir, vec3 lightDir, vec3 viewDir, float lightDistance, Attenuation att);
-vec3 getTotalLightColor(vec3 lightColor, const LightParams lp, TextureColor texColor);
+LightStrength getLightStrength(const LightComponentWeights lcw, const LightParams lp);
+vec3 getTotalLightColor(vec3 lightColor, const LightStrength ls, TextureColor texColor);
 
 
 vec3 getLightDirectional(DirectionalLight light, vec3 normalDir, vec3 viewDir, TextureColor texColor) {
@@ -72,7 +86,9 @@ vec3 getLightDirectional(DirectionalLight light, vec3 normalDir, vec3 viewDir, T
     Attenuation noAtt = Attenuation(1.0f, 0.0f, 0.0f); // no distance scaling for directional light
     LightParams lp = getLightParams(normalDir, lightDir, viewDir, 0.0f, noAtt);
 
-    return getTotalLightColor(light.color, lp, texColor);
+    LightStrength ls = getLightStrength(LightComponentWeights(0.1f, 1.0f, 0.8f), lp);
+
+    return getTotalLightColor(light.color, ls, texColor);
 }
 
 vec3 getLightPoint(PointLight light, vec3 normalDir, vec3 viewDir, TextureColor texColor) {
@@ -82,7 +98,9 @@ vec3 getLightPoint(PointLight light, vec3 normalDir, vec3 viewDir, TextureColor 
     float lightDistance = length(lightVec);
     LightParams lp = getLightParams(normalDir, lightDir, viewDir, lightDistance, light.attenuation);
 
-    return getTotalLightColor(light.color, lp, texColor);
+    LightStrength ls = getLightStrength(LightComponentWeights(0.1f, 1.0f, 0.8f), lp);
+
+    return getTotalLightColor(light.color, ls, texColor);
 }
 
 vec3 getLightSpotlight(SpotlightLight light, vec3 normalDir, vec3 viewDir, TextureColor texColor) {
@@ -103,7 +121,10 @@ vec3 getLightSpotlight(SpotlightLight light, vec3 normalDir, vec3 viewDir, Textu
 
         float lightDistance = length(lightVec);
         LightParams lp = getLightParams(normalDir, lightDir, viewDir, lightDistance, light.attenuation);
-        result = edgeFactor * getTotalLightColor(light.color, lp, texColor);
+
+        LightStrength ls = getLightStrength(LightComponentWeights(0.1f, 1.0f, 0.8f), lp);
+
+        result = edgeFactor * getTotalLightColor(light.color, ls, texColor);
     }
     else {
         result = vec3(0.0f); // no light ouside the cutoff
@@ -139,21 +160,27 @@ void main() {
 
 LightParams getLightParams(vec3 normalDir, vec3 lightDir, vec3 viewDir, float lightDistance, Attenuation att) {
     LightParams lp;
-    lp.diffuseStrength = max(dot(normalDir, lightDir), 0.0f);
-    lp.ambientStrength = 0.1f;
-    lp.specularStrength = 0.8f;
+    lp.diffuseAlignment = max(dot(normalDir, lightDir), 0.0f); // how `normal` light is to the surface
     vec3 reflectionDir = reflect(-lightDir, normalDir); // reflection direction around a normal
     lp.specularAlignment = max(dot(viewDir, reflectionDir), 0.0f);   // how close camera is to the reflection line
     lp.distanceFactor = 1.0f / (att.constant + att.linear * lightDistance + att.quadratic * (lightDistance * lightDistance));
     return lp;
 }
 
-vec3 getTotalLightColor(vec3 lightColor, const LightParams lp, TextureColor texColor) {
-    // Colors
-    vec3 ambientColor = lp.ambientStrength * texColor.diffuse;
-    vec3 diffuseColor = lp.diffuseStrength * texColor.diffuse * lightColor;
-    vec3 specularColor = lp.specularStrength * texColor.specular * pow(lp.specularAlignment, material.shininess) * lightColor;
-    // FIXME: the ambient color from all sources stacks unconditionally
-    return (lp.distanceFactor * (ambientColor + diffuseColor + specularColor));
+LightStrength getLightStrength(const LightComponentWeights lcw, const LightParams lp) {
+    LightStrength ls;
+    ls.ambient = lcw.ambient * lp.distanceFactor;
+    ls.diffuse = lcw.diffuse * lp.diffuseAlignment * lp.distanceFactor;
+    ls.specular = lcw.specular * pow(lp.specularAlignment, material.shininess) * lp.distanceFactor;
+    return ls;
+}
+
+vec3 getTotalLightColor(vec3 lightColor, const LightStrength ls, TextureColor texColor) {
+
+    vec3 ambientColor = ls.ambient * texColor.diffuse;
+    vec3 diffuseColor = ls.diffuse * texColor.diffuse;
+    vec3 specularColor = ls.specular * texColor.specular;
+
+    return (lightColor * (ambientColor + diffuseColor + specularColor));
 }
 
