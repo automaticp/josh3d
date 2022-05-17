@@ -23,5 +23,6 @@ target_link_libraries(ogllearn
         stb::stb
         glm::glm
         glad::glad
+        glbinding::glbinding
         glfw::glfw
 )

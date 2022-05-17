@@ -2,6 +2,7 @@
     "name": "ogl-learning",
     "version": "0.2",
     "dependencies": [
+        "glbinding",
         "glad",
         "glfw3",
         "glm",
