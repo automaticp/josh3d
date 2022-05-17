@@ -1,0 +1,10 @@
+{
+    "name": "ogl-learning",
+    "version": "0.2",
+    "dependencies": [
+        "glad",
+        "glfw3",
+        "glm",
+        "stb"
+    ]
+}
