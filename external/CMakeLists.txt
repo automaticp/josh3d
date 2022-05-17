@@ -1,7 +1,6 @@
 
 set(
     EXTERNAL_DIRS
-        glad
         glbinding
         glfw
         glm
