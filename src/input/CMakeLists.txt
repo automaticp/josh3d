@@ -13,5 +13,5 @@ target_link_libraries(input
     INTERFACE
         glm::glm
         glfw::glfw
-        glad::glad
+        glbinding::glbinding
 )

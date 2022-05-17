@@ -1,8 +1,9 @@
 #include <vector>
 #include <cmath>
 #include <numbers>
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
+#include <glbinding/gl/gl.h>
+#include <glbinding/glbinding.h>
+#include <glfw3_noinclude.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -16,6 +17,8 @@
 #include "VBO.h"
 #include "VAO.h"
 #include "LightCasters.h"
+
+using namespace gl;
 
 float currentFrameTime{};
 float lastFrameTime{};
@@ -87,10 +90,9 @@ int main() {
 	glfwSwapInterval(0);
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-	// Init GLAD
-	if ( !gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)) ) {
-		throw std::runtime_error("runtime_error: failed to initialize GLAD");
-	}
+	// Init glbindings
+	glbinding::initialize(glfwGetProcAddress);
+
 	WindowSize windowSize { window.getWindowSize() };
 	glViewport(0, 0, windowSize.width, windowSize.height);
 	glEnable(GL_DEPTH_TEST);

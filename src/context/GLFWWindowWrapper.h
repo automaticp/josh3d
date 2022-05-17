@@ -1,6 +1,6 @@
 #pragma once
 #include <stdexcept>
-#include <GLFW/glfw3.h>
+#include <glfw3_noinclude.h>
 #include "IContextWrapper.h"
 
 enum class GLFWOpenGLProfile {

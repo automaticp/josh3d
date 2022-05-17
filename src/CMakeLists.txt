@@ -24,5 +24,6 @@ target_link_libraries(ogllearn
         glm::glm
         glad::glad
         glbinding::glbinding
+        glbinding::glbinding-aux
         glfw::glfw
 )

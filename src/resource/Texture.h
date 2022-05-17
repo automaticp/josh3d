@@ -4,10 +4,12 @@
 #include <stdexcept>
 #include <utility>
 #include <stb_image.h>
+#include <glbinding/gl/gl.h>
 
 #include "TypeAliases.h"
 #include "ResourceAllocators.h"
 
+using namespace gl;
 
 class Texture : public TextureAllocator {
 private:
@@ -23,7 +25,7 @@ private:
 
 
 public:
-	explicit Texture(std::string  filename, GLint internalFormat = GL_RGBA, GLenum format = GL_NONE);
+	explicit Texture(std::string filename, GLenum internalFormat = GL_RGBA, GLenum format = GL_NONE);
 
 	void bind() { glBindTexture(GL_TEXTURE_2D, id_); }
 
@@ -50,18 +52,18 @@ inline const std::array<GLenum, 32> Texture::texUnits_s{
 	GL_TEXTURE15, GL_TEXTURE16, GL_TEXTURE17, GL_TEXTURE18, GL_TEXTURE19,
 	GL_TEXTURE20, GL_TEXTURE21, GL_TEXTURE22, GL_TEXTURE23, GL_TEXTURE24,
 	GL_TEXTURE25, GL_TEXTURE26, GL_TEXTURE27, GL_TEXTURE28, GL_TEXTURE29,
-	GL_TEXTURE30, GL_TEXTURE31 
+	GL_TEXTURE30, GL_TEXTURE31
 };
 
 
-inline Texture::Texture(std::string filename, GLint internalFormat, GLenum format) :
+inline Texture::Texture(std::string filename, GLenum internalFormat, GLenum format) :
 		filename_{ std::move(filename) } {
 
 	// FIXME: depending on the 'format', the numer of channels loaded can be coerced into the requested value
 	//  with numDesiredChannels. Needs a map between 'format' and number of channels though.
 	BasicImageData imageData { loadTextureImage(0) };
 
-	if (!format) {
+	if (format == GL_NONE) {
 		switch (imageData.numChannels) {
 			case 1: format = GL_RED; break;
 			case 2: format = GL_RG; break;
@@ -72,7 +74,8 @@ inline Texture::Texture(std::string filename, GLint internalFormat, GLenum forma
 	}
 
 	glBindTexture(GL_TEXTURE_2D, id_);
-	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, imageData.width, imageData.height, 0, format, GL_UNSIGNED_BYTE, imageData.data);
+	glTexImage2D(GL_TEXTURE_2D, 0, static_cast<GLint>(internalFormat), imageData.width, imageData.height, 0,
+		format, GL_UNSIGNED_BYTE, imageData.data);
 	glGenerateMipmap(GL_TEXTURE_2D);
 
 	stbi_image_free(imageData.data);

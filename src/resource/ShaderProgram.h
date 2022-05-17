@@ -2,7 +2,7 @@
 #include <utility>
 #include <vector>
 #include <exception>
-#include <glad/glad.h>
+#include <glbinding/gl/gl.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -10,6 +10,8 @@
 #include "TypeAliases.h"
 #include "Shader.h"
 #include "ResourceAllocators.h"
+
+using namespace gl;
 
 
 class ShaderProgram : public ShaderProgramAllocator {
