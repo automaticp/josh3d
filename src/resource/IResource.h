@@ -1,8 +1,10 @@
 #pragma once
 #include <concepts>
-// TODO: implement some actual ownership of the Id through smart pointers with custom deallocators 
+#include <glbinding/gl/gl.h>
+// TODO: implement some actual ownership of the Id through smart pointers with custom deallocators
 //  maybe have like a templated IResource<std::unique_ptr<GLuint, glDeallocator<Derived>>> with CRTP in Derived classes
 
+using namespace gl;
 
 // Base class for OpenGL resources that carry a handle (Shaders, Textures, VBOs, etc.). RAII-enabled.
 class IResource {

@@ -1,5 +1,5 @@
 #pragma once
-#include <GLFW/glfw3.h>
+#include <glfw3_noinclude.h>
 
 
 class IContextWrapper {

@@ -3,9 +3,11 @@
 #include <vector>
 #include <utility>
 #include <tuple>
-#include <glad/glad.h>
+#include <glbinding/gl/gl.h>
 #include "TypeAliases.h"
 #include "ResourceAllocators.h"
+
+using namespace gl;
 
 
 struct VertexAttributeLayout {

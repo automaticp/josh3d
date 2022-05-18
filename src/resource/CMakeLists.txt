@@ -12,6 +12,6 @@ target_link_libraries(resource
 target_link_libraries(resource
     INTERFACE
         glm::glm
-        glad::glad
+        glbinding::glbinding
         stb::stb
 )

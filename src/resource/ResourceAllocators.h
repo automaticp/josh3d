@@ -1,9 +1,9 @@
 #pragma once
-
-#include <glad/glad.h>
+#include <glbinding/gl/gl.h>
 #include <iostream>
 #include "IResource.h"
 
+using namespace gl;
 
 class ShaderAllocator : public IResource {
 public:

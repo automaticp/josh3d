@@ -22,6 +22,7 @@ target_link_libraries(ogllearn
     PRIVATE
         stb::stb
         glm::glm
-        glad::glad
+        glbinding::glbinding
+        glbinding::glbinding-aux
         glfw::glfw
 )

@@ -1,14 +1,16 @@
 #pragma once
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
+#include <glbinding/gl/gl.h>
+#include <glfw3_noinclude.h>
 #include <glm/glm.hpp>
 #include "Camera.h"
+
+using namespace gl;
 
 extern float deltaFrameTime;
 extern const OrthonormalBasis3D globalBasis;
 
 class IInput {
-public: 
+public:
 	virtual void processInput() = 0;
 };
 
@@ -55,13 +57,13 @@ private:
 
 public:
 	InputFreeCamera(GLFWwindow* window, Camera& camera) : InputGlobal{ window }, camera_ { camera } {
-		
-		// https://www.glfw.org/faq.html#216---how-do-i-use-c-methods-as-callbacks 
+
+		// https://www.glfw.org/faq.html#216---how-do-i-use-c-methods-as-callbacks
 		setThisAsUserPointer(window); // oh. my. fucking. god. how. I. hate. C. APIs.
-		
+
 		glfwSetCursorPosCallback(window_,
 		                         &InputFreeCamera::processInputCameraRotate);
-		
+
 		glfwSetScrollCallback(window_,
 		                      &InputFreeCamera::processInputCameraZoom);
 	}
@@ -77,7 +79,7 @@ public:
 
 private:
 	void processInputCameraMove() {
-		
+
 		constexpr float cameraSpeed{ 5.0f };
 		float cameraAbsMove{ cameraSpeed * deltaFrameTime };
 		if ( glfwGetKey(window_, GLFW_KEY_W) == GLFW_PRESS )
@@ -107,10 +109,10 @@ private:
 
 		float xOffset{ static_cast<float>(xpos) - lastXPos };
 		xOffset = glm::radians(sensitivity * xOffset);
-		
+
 		float yOffset{ static_cast<float>(ypos) - lastYPos };
 		yOffset = glm::radians(sensitivity * yOffset);
-		
+
 		lastXPos = static_cast<float>(xpos);
 		lastYPos = static_cast<float>(ypos);
 

@@ -7,9 +7,11 @@
 #include <memory>
 #include <iostream>
 #include <utility>
-#include <glad/glad.h>
+#include <glbinding/gl/gl.h>
 #include "TypeAliases.h"
 #include "ResourceAllocators.h"
+
+using namespace gl;
 
 
 class Shader : public ShaderAllocator {
