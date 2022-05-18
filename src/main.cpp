@@ -1,6 +1,7 @@
 #include <vector>
 #include <cmath>
 #include <numbers>
+#include <memory>
 #include <glbinding/gl/gl.h>
 #include <glbinding/glbinding.h>
 #include <glfw3_noinclude.h>
