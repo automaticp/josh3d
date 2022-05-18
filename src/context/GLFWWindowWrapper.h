@@ -1,6 +1,9 @@
 #pragma once
 #include <stdexcept>
+#include <utility>
+#include <memory>
 #include <glfw3_noinclude.h>
+#include "GLFWInitTerminateWrapper.h"
 #include "IContextWrapper.h"
 
 enum class GLFWOpenGLProfile {
@@ -13,21 +16,23 @@ struct WindowSize { int width; int height; };
 
 class GLFWWindowWrapper : public IContextWrapper {
 private:
-	GLFWwindow* window_;
+	GLFWwindow* window_{};
+	std::shared_ptr<GLFWInitTerminateWrapper> raiiWrapper_;
 
 public:
-	GLFWWindowWrapper(int initWidth, int initHeight, const char* title,
+	GLFWWindowWrapper(std::shared_ptr<GLFWInitTerminateWrapper> raiiWrapper,
+					  int initWidth, int initHeight, const char* title,
 					  int contextVerMajor, int contextVerMinor,
 					  GLFWOpenGLProfile profile,
-					  GLFWmonitor* monitor = nullptr, GLFWwindow* share = nullptr) {
-		glfwInit();
+					  GLFWmonitor* monitor = nullptr, GLFWwindow* share = nullptr)
+					  : raiiWrapper_{ std::move(raiiWrapper) } {
+
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, contextVerMajor);
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, contextVerMinor);
 		glfwWindowHint(GLFW_OPENGL_PROFILE, static_cast<int>(profile));
 
 		window_ = glfwCreateWindow(initWidth, initHeight, title, monitor, share);
 		if ( !window_ ) {
-			glfwTerminate();
 			throw std::runtime_error("runtime_error: failed to create GLFW window");
 		}
 
@@ -53,7 +58,5 @@ public:
 
 
 public:
-	virtual ~GLFWWindowWrapper() override {
-		glfwTerminate();
-	}
+	virtual ~GLFWWindowWrapper() override = default;
 };

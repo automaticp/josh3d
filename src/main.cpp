@@ -7,6 +7,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "GLFWInitTerminateWrapper.h"
 #include "GLFWWindowWrapper.h"
 #include "Shader.h"
 #include "ShaderProgram.h"
@@ -84,8 +85,10 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
 
 int main() {
 
-	// Init GLFW window
-	GLFWWindowWrapper window{ 800, 600, "Window Name", 3, 3, GLFWOpenGLProfile::core };
+	// Init GLFW and create a window
+	auto glfwInitTerminate{ std::make_shared<GLFWInitTerminateWrapper>() };
+
+	GLFWWindowWrapper window{ glfwInitTerminate, 800, 600, "Window Name", 3, 3, GLFWOpenGLProfile::core };
 	window.setFramebufferSizeCallback(framebufferSizeCallback);
 	glfwSwapInterval(0);
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
