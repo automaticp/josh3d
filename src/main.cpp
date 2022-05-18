@@ -4,12 +4,10 @@
 #include <memory>
 #include <glbinding/gl/gl.h>
 #include <glbinding/glbinding.h>
-#include <glfw3_noinclude.h>
+#include <glfwpp/glfwpp.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include "GLFWInitTerminateWrapper.h"
-#include "GLFWWindowWrapper.h"
 #include "Shader.h"
 #include "ShaderProgram.h"
 #include "Texture.h"
@@ -87,18 +85,22 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
 int main() {
 
 	// Init GLFW and create a window
-	auto glfwInitTerminate{ std::make_shared<GLFWInitTerminateWrapper>() };
+	auto glfwInstance{ glfw::init() };
 
-	GLFWWindowWrapper window{ glfwInitTerminate, 800, 600, "Window Name", 3, 3, GLFWOpenGLProfile::core };
-	window.setFramebufferSizeCallback(framebufferSizeCallback);
-	glfwSwapInterval(0);
-	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	glfw::WindowHints{
+		.contextVersionMajor=3, .contextVersionMinor=3, .openglProfile=glfw::OpenGlProfile::Core
+	}.apply();
+	glfw::Window window{ 800, 600, "WindowName" };
+	window.framebufferSizeEvent.setCallback(framebufferSizeCallback);
+	glfw::makeContextCurrent(window);
+	glfw::swapInterval(0);
+	window.setInputModeCursor(glfw::CursorMode::Disabled);
 
 	// Init glbindings
 	glbinding::initialize(glfwGetProcAddress);
 
-	WindowSize windowSize { window.getWindowSize() };
-	glViewport(0, 0, windowSize.width, windowSize.height);
+	auto [width, height] { window.getSize() };
+	glViewport(0, 0, width, height);
 	glEnable(GL_DEPTH_TEST);
 
 
@@ -161,7 +163,7 @@ int main() {
 	glm::mat4 model{};
 	glm::mat3 normalModel{};
 
-	while ( !glfwWindowShouldClose(window) ) {
+	while ( !window.shouldClose() ) {
 		// Updates currentFrameTime, lastFrameTime, deltaFrameTime
 		updateFrameTime();
 
@@ -172,11 +174,11 @@ int main() {
 
 		// Process input
 		input.processInput();
-		glfwPollEvents();
+		glfw::pollEvents();
 
 		// Get projection and view matricies from camera positions
-		windowSize = window.getWindowSize();
-		projection = glm::perspective(cam.getFOV(), static_cast<float>(windowSize.width) / static_cast<float>(windowSize.height), 0.1f, 100.0f);
+		auto [width, height] = window.getSize();
+		projection = glm::perspective(cam.getFOV(), static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f);
 		view = cam.getViewMat();
 
 		glm::vec3 camPos{ cam.getPos() };
