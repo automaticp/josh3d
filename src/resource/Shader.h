@@ -93,7 +93,7 @@ inline void Shader::compile() const {
 
 inline std::string Shader::getShaderFileSource(const std::string& filename) {
 
-	static const std::string shaderDir{ "resources/shaders/" };
+	static const std::string shaderDir{ "data/shaders/" };
 
 	std::ifstream file{ shaderDir + filename };
 	std::string outString{ std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>() };

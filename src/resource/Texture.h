@@ -86,7 +86,7 @@ Texture::BasicImageData Texture::loadTextureImage(int numDesiredChannels) {
 	BasicImageData imageData{};
 	stbi_set_flip_vertically_on_load(true);
 
-	static const std::string textureDir{ "resources/textures/" };
+	static const std::string textureDir{ "data/textures/" };
 	std::string texturePath{ textureDir + filename_ };
 
 	imageData.data = stbi_load(texturePath.c_str(), &imageData.width, &imageData.height, &imageData.numChannels, numDesiredChannels);

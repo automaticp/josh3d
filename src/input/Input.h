@@ -1,6 +1,7 @@
 #pragma once
+#include <functional>
 #include <glbinding/gl/gl.h>
-#include <glfw3_noinclude.h>
+#include <glfwpp/glfwpp.h>
 #include <glm/glm.hpp>
 #include "Camera.h"
 
@@ -12,40 +13,53 @@ extern const OrthonormalBasis3D globalBasis;
 class IInput {
 public:
 	virtual void processInput() = 0;
+	virtual ~IInput() = default;
 };
 
 class InputGlobal : public IInput {
 protected:
-	GLFWwindow* window_;
+	glfw::Window& window_;
 
 public:
-	explicit InputGlobal(GLFWwindow* window) : window_{ window } {}
-
-	virtual void processInput() override {
-		processInputGlobal();
+	explicit InputGlobal(glfw::Window& window) : window_{ window } {
+		using namespace std::placeholders;
+		window_.keyEvent.setCallback(std::bind(&InputGlobal::callbackKeys, this, _1, _2, _3, _4, _5));
 	}
+
+	virtual void processInput() override {}
 
 protected:
-	void processInputGlobal() {
+	struct KeysCallbackArgs {
+		glfw::Window& window; glfw::KeyCode key; int scancode;
+		glfw::KeyState state; glfw::ModifierKeyBit mods;
+	};
 
-		if ( glfwGetKey(window_, GLFW_KEY_ESCAPE) == GLFW_PRESS ) {
-			while ( glfwGetKey(window_, GLFW_KEY_ESCAPE) != GLFW_RELEASE ) {
-				glfwPollEvents();
-			}
-			glfwSetWindowShouldClose(window_, true);
-		}
-
-		static bool isLineMode{ false };
-		if ( glfwGetKey(window_, GLFW_KEY_H) == GLFW_PRESS ) {
-			while ( glfwGetKey(window_, GLFW_KEY_H) != GLFW_RELEASE ) {
-				glfwPollEvents();
-			}
-			glPolygonMode(GL_FRONT_AND_BACK, isLineMode ? GL_LINE : GL_FILL);
-			isLineMode ^= true;
-		}
-
+	virtual void respondInputKeys(KeysCallbackArgs& args) {
+		respondInputCloseWindow(args);
+		respondInputShowLines(args);
 	}
 
+	void callbackKeys(glfw::Window& window, glfw::KeyCode key, int scancode,
+		glfw::KeyState state, glfw::ModifierKeyBit mods) {
+		KeysCallbackArgs args{ window, key, scancode, state, mods };
+		respondInputKeys(args);
+	}
+
+	void respondInputCloseWindow(KeysCallbackArgs& args) {
+		using namespace glfw;
+		if ( args.key == KeyCode::Escape && args.state == KeyState::Release ) {
+			args.window.setShouldClose(true);
+		}
+	}
+
+	void respondInputShowLines(KeysCallbackArgs& args) {
+		using namespace glfw;
+		static bool isLineMode{ false }; // FIXME: Is it bad that this is shared between all instances?
+		if ( args.key == KeyCode::H && args.state == KeyState::Release ) {
+			glPolygonMode(GL_FRONT_AND_BACK, isLineMode ? GL_FILL : GL_LINE);
+			isLineMode ^= true;
+		}
+	}
 
 };
 
@@ -56,56 +70,72 @@ private:
 	Camera& camera_;
 
 public:
-	InputFreeCamera(GLFWwindow* window, Camera& camera) : InputGlobal{ window }, camera_ { camera } {
-
-		// https://www.glfw.org/faq.html#216---how-do-i-use-c-methods-as-callbacks
-		setThisAsUserPointer(window); // oh. my. fucking. god. how. I. hate. C. APIs.
-
-		glfwSetCursorPosCallback(window_,
-		                         &InputFreeCamera::processInputCameraRotate);
-
-		glfwSetScrollCallback(window_,
-		                      &InputFreeCamera::processInputCameraZoom);
+	InputFreeCamera(glfw::Window& window, Camera& camera) : InputGlobal{ window }, camera_{ camera } {
+		using namespace std::placeholders;
+		window_.cursorPosEvent.setCallback(std::bind(&InputFreeCamera::callbackCameraRotate, this, _1, _2, _3));
+		window_.scrollEvent.setCallback(std::bind(&InputFreeCamera::callbackCameraZoom, this, _1, _2, _3));
 	}
 
-	void setThisAsUserPointer(GLFWwindow* window) {
-		glfwSetWindowUserPointer(window, this);
-	}
 
 	virtual void processInput() override {
-		processInputGlobal();
-		processInputCameraMove();
+		processInputMove();
 	}
 
-private:
-	void processInputCameraMove() {
+protected:
+	virtual void respondInputKeys(KeysCallbackArgs& args) override {
+		respondInputCloseWindow(args);
+		respondInputShowLines(args);
+		respondInputCameraMove(args);
+	}
 
+	struct MoveState {
+		bool up		{ false };
+		bool down	{ false };
+		bool right	{ false };
+		bool left	{ false };
+		bool back	{ false };
+		bool forward{ false };
+	};
+	MoveState moveState_{};
+
+	void processInputMove() {
 		constexpr float cameraSpeed{ 5.0f };
-		float cameraAbsMove{ cameraSpeed * deltaFrameTime };
-		if ( glfwGetKey(window_, GLFW_KEY_W) == GLFW_PRESS )
-			camera_.move(cameraAbsMove * -camera_.backUV());
-		if ( glfwGetKey(window_, GLFW_KEY_S) == GLFW_PRESS )
-			camera_.move(cameraAbsMove * camera_.backUV());
-		if ( glfwGetKey(window_, GLFW_KEY_A) == GLFW_PRESS )
-			camera_.move(cameraAbsMove * -camera_.rightUV());
-		if ( glfwGetKey(window_, GLFW_KEY_D) == GLFW_PRESS )
-			camera_.move(cameraAbsMove * camera_.rightUV());
-		if ( glfwGetKey(window_, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS )
-			camera_.move(cameraAbsMove * -camera_.upUV());
-		if ( glfwGetKey(window_, GLFW_KEY_SPACE) == GLFW_PRESS )
-			camera_.move(cameraAbsMove * camera_.upUV());
+		float absMove{ cameraSpeed * deltaFrameTime };
+		glm::vec3 sumMove{ 0.0f, 0.0f, 0.0f };
 
+		if (moveState_.up) 		sumMove += camera_.upUV();
+		if (moveState_.down)	sumMove -= camera_.upUV();
+		if (moveState_.right)	sumMove += camera_.rightUV();
+		if (moveState_.left)	sumMove -= camera_.rightUV();
+		if (moveState_.back)	sumMove += camera_.backUV();
+		if (moveState_.forward)	sumMove -= camera_.backUV();
+		// FIXME
+		if ( sumMove != glm::vec3{ 0.0f, 0.0f, 0.0f } ) {
+			camera_.move(absMove * glm::normalize(sumMove));
+		}
 	}
 
+	void respondInputCameraMove(KeysCallbackArgs& args) {
+		using namespace glfw;
 
-	void static processInputCameraRotate(GLFWwindow* window, double xpos, double ypos) {
-		InputFreeCamera* objPtr{ static_cast<InputFreeCamera*>(glfwGetWindowUserPointer(window)) };
-		Camera& cam{ objPtr->camera_ };
+		if ( args.state == KeyState::Press || args.state == KeyState::Release ) {
+			bool state{ static_cast<bool>(args.state) };
+			if 		( args.key == KeyCode::W ) 			moveState_.forward	= state;
+			else if ( args.key == KeyCode::S ) 			moveState_.back 	= state;
+			else if ( args.key == KeyCode::A ) 			moveState_.left 	= state;
+			else if ( args.key == KeyCode::D ) 			moveState_.right 	= state;
+			else if ( args.key == KeyCode::LeftShift ) 	moveState_.down		= state;
+			else if ( args.key == KeyCode::Space ) 	   	moveState_.up 		= state;
+
+		}
+	}
+
+	void callbackCameraRotate(glfw::Window& window, double xpos, double ypos) {
 
 		static float lastXPos{ 0.0f };
 		static float lastYPos{ 0.0f };
 
-		float sensitivity{ 0.1f * cam.getFOV() };
+		float sensitivity{ 0.1f * camera_.getFOV() };
 
 		float xOffset{ static_cast<float>(xpos) - lastXPos };
 		xOffset = glm::radians(sensitivity * xOffset);
@@ -116,22 +146,20 @@ private:
 		lastXPos = static_cast<float>(xpos);
 		lastYPos = static_cast<float>(ypos);
 
-		cam.rotate(xOffset, -globalBasis.getY());
-		cam.rotate(yOffset, -cam.rightUV());
+		camera_.rotate(xOffset, -globalBasis.getY());
+		camera_.rotate(yOffset, -camera_.rightUV());
 
 	}
 
-	void static processInputCameraZoom(GLFWwindow* window, double, double yoffset) {
-		InputFreeCamera* objPtr{ static_cast<InputFreeCamera*>(glfwGetWindowUserPointer(window)) };
-		Camera& cam{ objPtr->camera_ };
+	void callbackCameraZoom(glfw::Window& window, double, double yoffset) {
 
 		constexpr float sensitivity{ 2.0f };
-		cam.setFOV(cam.getFOV() - sensitivity * glm::radians(static_cast<float>(yoffset)));
-		if ( cam.getFOV() < glm::radians(1.0f) )
-			cam.setFOV(glm::radians(1.0f));
-		if ( cam.getFOV() > glm::radians(135.0f) )
-			cam.setFOV(glm::radians(135.0f));
 
+		camera_.setFOV(camera_.getFOV() - sensitivity * glm::radians(static_cast<float>(yoffset)));
+		if ( camera_.getFOV() < glm::radians(1.0f) )
+			camera_.setFOV(glm::radians(1.0f));
+		if ( camera_.getFOV() > glm::radians(135.0f) )
+			camera_.setFOV(glm::radians(135.0f));
 	}
 
 };

@@ -2,7 +2,7 @@
 set(
     EXTERNAL_DIRS
         glbinding
-        glfw
+        glfwpp
         glm
         stb
 )

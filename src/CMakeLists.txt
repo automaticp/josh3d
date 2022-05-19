@@ -5,7 +5,6 @@ add_subdirectory(world)
 add_subdirectory(resource)
 add_subdirectory(input)
 add_subdirectory(types)
-add_subdirectory(context)
 
 # internal dependencies
 target_link_libraries(ogllearn
@@ -14,7 +13,6 @@ target_link_libraries(ogllearn
         world
         input
         types
-        context
 )
 
 # external depenencies
@@ -24,5 +22,5 @@ target_link_libraries(ogllearn
         glm::glm
         glbinding::glbinding
         glbinding::glbinding-aux
-        glfw::glfw
+        glfwpp::glfwpp
 )
