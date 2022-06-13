@@ -5,6 +5,7 @@
         "glbinding",
         "glfw3",
         "glm",
-        "stb"
+        "stb",
+        "assimp"
     ]
 }
