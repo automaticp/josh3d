@@ -54,145 +54,6 @@ namespace detail {
 
 using namespace gl;
 
-class VBO;
-class EBO;
-
-
-class VAO : public VAOAllocator {
-public:
-    VAO& bind() {
-        glBindVertexArray(id_);
-        return *this;
-    }
-
-    // There's no check for whether the current VAO has been bound prior to
-    // calling any of the methods below.
-    // Stick to the "bind and do X" idiom when working with VBOs and VAOs:
-    //     VAO vao;
-    //     VBO vbo;
-    //     EBO ebo;
-    //     vbo.bind().attach_data(...);
-    //     ebo.bind().attach_data(...);
-    //     vao.bind().associate_with(vbo, ...)
-    //               .associate_with(ebo)
-    //               .draw_elements(...);
-
-
-
-    VAO& enable_array_access(GLuint attrib_index) {
-        glEnableVertexAttribArray(attrib_index);
-        return *this;
-    }
-
-    VAO& disable_array_access(GLuint attrib_index) {
-        glDisableVertexAttribArray(attrib_index);
-        return *this;
-    }
-
-    VAO& draw_arrays(GLenum mode, GLint first, GLsizei count) {
-        glDrawArrays(mode, first, count);
-        return *this;
-    }
-
-    VAO& draw_elements(GLenum mode, GLsizei count, GLenum type,
-                       const void* indices_buffer = nullptr) {
-        glDrawElements(mode, count, type, indices_buffer);
-        return *this;
-    }
-
-
-    template<size_t N>
-    VAO& set_many_attribute_params(
-        const std::array<AttributeParams, N>& aparams) {
-
-        for (const auto& ap : aparams) {
-            set_attribute_params(ap);
-            enable_array_access(ap.index);
-        }
-        return *this;
-    }
-
-
-
-    template<size_t N>
-    VAO& associate_with(VBO& vbo,
-                        const std::array<AttributeParams, N>& aparams) {
-        vbo.bind();
-        set_many_attribute_params(aparams);
-        return *this;
-    }
-
-
-
-    VAO& associate_with(EBO& ebo) {
-        ebo.bind();
-        return *this;
-    }
-
-
-
-    static void set_attribute_params(const AttributeParams& ap) {
-        glVertexAttribPointer(
-            ap.index, ap.size, ap.type, ap.normalized,
-            ap.stride_bytes, reinterpret_cast<void*>(ap.offset_bytes)
-        );
-    }
-
-};
-
-
-
-
-class VBO : public VBOAllocator {
-public:
-    VBO& bind() {
-        glBindBuffer(GL_ARRAY_BUFFER, id_);
-        return *this;
-    }
-
-
-    template<typename T>
-    VBO& attach_data(size_t size, const T* data, GLenum usage) {
-        glBufferData(
-            GL_ARRAY_BUFFER,
-            static_cast<GLsizeiptr>(size * sizeof(T)),
-            reinterpret_cast<const void*>(data),
-            usage
-        );
-    }
-
-};
-
-
-class EBO : public VBOAllocator {
-public:
-    EBO& bind() {
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id_);
-        return *this;
-    }
-
-    template<typename T>
-    EBO& attach_data(size_t size, const T* data, GLenum usage) {
-        glBufferData(
-            GL_ELEMENT_ARRAY_BUFFER,
-            static_cast<GLsizeiptr>(size * sizeof(T)),
-            reinterpret_cast<const void*>(data),
-            usage
-        );
-    }
-
-};
-
-
-
-
-} // namespace detail
-
-
-namespace detail2 {
-
-using namespace gl;
-
 class VAO;
 class VBO;
 class EBO;
@@ -328,7 +189,7 @@ vbo.bind().attach_data(...).associate_with(bvao, ...);
 ebo.bind(bvao).attach_data(...);
 */
 
-} // namespace detail2
+} // namespace detail
 
 
 
@@ -341,9 +202,9 @@ private:
     Texture diffuse_texture;
     Texture specular_texture;
 
-    detail2::VBO vbo;
-    detail2::VAO vao;
-    detail2::EBO ebo;
+    detail::VBO vbo;
+    detail::VAO vao;
+    detail::EBO ebo;
 
 public:
     Mesh(std::vector<V> vertices, std::vector<GLuint> elements,
