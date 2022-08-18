@@ -26,7 +26,52 @@ float deltaFrameTime{};
 
 const OrthonormalBasis3D globalBasis{ glm::vec3(1.0f, 0.0, 0.0), glm::vec3(0.0f, 1.0f, 0.0f), true };
 
-// Vertex Data {3: pos, 3: normals, 2: tex coord}
+
+void updateFrameTime() {
+	currentFrameTime = static_cast<float>(glfwGetTime());
+	deltaFrameTime = currentFrameTime - lastFrameTime;
+	lastFrameTime = currentFrameTime;
+}
+
+void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
+	glViewport(0, 0, width, height);
+}
+
+static void render_cube_scene(glfw::Window&);
+// static void render_model_scene(glfw::Window&);
+
+int main() {
+
+	// Init GLFW and create a window
+	auto glfwInstance{ glfw::init() };
+
+	glfw::WindowHints{
+		.contextVersionMajor=3, .contextVersionMinor=3, .openglProfile=glfw::OpenGlProfile::Core
+	}.apply();
+	glfw::Window window{ 800, 600, "WindowName" };
+	window.framebufferSizeEvent.setCallback(framebufferSizeCallback);
+	glfw::makeContextCurrent(window);
+	glfw::swapInterval(0);
+	window.setInputModeCursor(glfw::CursorMode::Disabled);
+
+	// Init glbindings
+	glbinding::initialize(glfwGetProcAddress);
+
+	auto [width, height] { window.getSize() };
+	glViewport(0, 0, width, height);
+	glEnable(GL_DEPTH_TEST);
+
+	render_cube_scene(window);
+
+
+	return 0;
+}
+
+
+
+
+
+// Vertex Data of a Cube {3: pos, 3: normals, 2: tex coord}
 std::vector<float> vertices{
 		-0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
 		0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f,
@@ -72,37 +117,8 @@ std::vector<float> vertices{
 
 };
 
-void updateFrameTime() {
-	currentFrameTime = static_cast<float>(glfwGetTime());
-	deltaFrameTime = currentFrameTime - lastFrameTime;
-	lastFrameTime = currentFrameTime;
-}
 
-void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
-	glViewport(0, 0, width, height);
-}
-
-int main() {
-
-	// Init GLFW and create a window
-	auto glfwInstance{ glfw::init() };
-
-	glfw::WindowHints{
-		.contextVersionMajor=3, .contextVersionMinor=3, .openglProfile=glfw::OpenGlProfile::Core
-	}.apply();
-	glfw::Window window{ 800, 600, "WindowName" };
-	window.framebufferSizeEvent.setCallback(framebufferSizeCallback);
-	glfw::makeContextCurrent(window);
-	glfw::swapInterval(0);
-	window.setInputModeCursor(glfw::CursorMode::Disabled);
-
-	// Init glbindings
-	glbinding::initialize(glfwGetProcAddress);
-
-	auto [width, height] { window.getSize() };
-	glViewport(0, 0, width, height);
-	glEnable(GL_DEPTH_TEST);
-
+static void render_cube_scene(glfw::Window& window) {
 
 	// Shaders
 	VertexShader VS{ "VertexShader.vert" };
@@ -304,6 +320,5 @@ int main() {
 
 	}
 
-	return 0;
-}
 
+}
