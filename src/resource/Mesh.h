@@ -25,7 +25,7 @@ struct AttributeParams {
     GLenum      type;
     GLboolean   normalized;
     GLsizei     stride_bytes;
-    GLint       offset_bytes;
+    GLint64       offset_bytes;
 };
 
 
@@ -38,7 +38,7 @@ struct Vertex {
 
 template<typename V>
 struct VertexTraits {
-    static_assert(sizeof(V) == 0, "Custom vertex class must have a VertexTraits<> specialization. There's no default that makes sense.");
+    static_assert(sizeof(V) == 0, "Custom vertex class V must have a VertexTraits<V> specialization. There's no default that makes sense.");
     constexpr static std::array<AttributeParams, 1> aparams;
 };
 
@@ -56,20 +56,7 @@ namespace detail {
 
 using namespace gl;
 
-class VAO;
-class VBO;
-class EBO;
-class BoundVAO;
 class BoundVBO;
-class BoundEBO;
-
-class VAO : public VAOAllocator {
-public:
-    BoundVAO bind() {
-        glBindVertexArray(id_);
-        return {};
-    }
-};
 
 class BoundVAO {
 public:
@@ -118,7 +105,7 @@ public:
     static void set_attribute_params(const AttributeParams& ap) {
         glVertexAttribPointer(
             ap.index, ap.size, ap.type, ap.normalized,
-            ap.stride_bytes, reinterpret_cast<void*>(ap.offset_bytes)
+            ap.stride_bytes, reinterpret_cast<const void*>(ap.offset_bytes)
         );
     }
 
@@ -129,16 +116,16 @@ public:
 
 };
 
-
-
-
-class VBO : public VBOAllocator {
+class VAO : public VAOAllocator {
 public:
-    BoundVBO bind() {
-        glBindBuffer(GL_ARRAY_BUFFER, id_);
+    BoundVAO bind() {
+        glBindVertexArray(id_);
         return {};
     }
 };
+
+
+
 
 class BoundVBO {
 public:
@@ -165,16 +152,16 @@ public:
     }
 };
 
-
-
-
-class EBO : public VBOAllocator {
+class VBO : public VBOAllocator {
 public:
-    BoundEBO bind(BoundVAO& vao) {
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id_);
+    BoundVBO bind() {
+        glBindBuffer(GL_ARRAY_BUFFER, id_);
         return {};
     }
 };
+
+
+
 
 class BoundEBO {
 public:
@@ -194,6 +181,15 @@ public:
     }
 };
 
+class EBO : public VBOAllocator {
+public:
+    BoundEBO bind(BoundVAO& vao) {
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id_);
+        return {};
+    }
+};
+
+
 
 /*
 VAO vao;
@@ -204,54 +200,6 @@ vbo.bind().attach_data(...).associate_with(bvao, ...);
 ebo.bind(bvao).attach_data(...);
 */
 
-class TextureData;
-class BoundTextureHandle;
-
-class TextureHandle : public TextureAllocator {
-public:
-    BoundTextureHandle bind() {
-        glBindTexture(GL_TEXTURE_2D, id_);
-        return {};
-    }
-
-    BoundTextureHandle bind_to_unit(GLenum tex_unit) {
-        set_active_unit(tex_unit);
-        bind();
-        return {};
-    }
-
-    static void set_active_unit(GLenum tex_unit) { glActiveTexture(tex_unit); }
-
-};
-
-
-class BoundTextureHandle {
-public:
-
-    BoundTextureHandle& attach_data(const TextureData& tex_data,
-        GLenum internal_format = GL_RGBA, GLenum format = GL_NONE) {
-
-        if (format == GL_NONE) {
-            switch (tex_data.n_channels()) {
-                case 1ull: format = GL_RED; break;
-                case 2ull: format = GL_RG; break;
-                case 3ull: format = GL_RGB; break;
-                case 4ull: format = GL_RGBA; break;
-                default: format = GL_RED;
-            }
-        }
-
-        glTexImage2D(
-            GL_TEXTURE_2D, 0, static_cast<GLint>(internal_format),
-            tex_data.width(), tex_data.height(), 0,
-            format, GL_UNSIGNED_BYTE, tex_data.data()
-        );
-        glGenerateMipmap(GL_TEXTURE_2D);
-
-        return *this;
-    }
-
-};
 
 
 // Texture data variants
@@ -328,6 +276,61 @@ public:
     size_t height() const noexcept { std::visit([](auto&& v) { return v.height(); }, *this); }
     size_t n_channels() const noexcept { std::visit([](auto&& v) { return v.n_channels(); }, *this); }
 };
+
+
+
+
+
+
+
+
+class BoundTextureHandle {
+public:
+
+    BoundTextureHandle& attach_data(const TextureData& tex_data,
+        GLenum internal_format = GL_RGBA, GLenum format = GL_NONE) {
+
+        if (format == GL_NONE) {
+            switch (tex_data.n_channels()) {
+                case 1ull: format = GL_RED; break;
+                case 2ull: format = GL_RG; break;
+                case 3ull: format = GL_RGB; break;
+                case 4ull: format = GL_RGBA; break;
+                default: format = GL_RED;
+            }
+        }
+
+        glTexImage2D(
+            GL_TEXTURE_2D, 0, static_cast<GLint>(internal_format),
+            tex_data.width(), tex_data.height(), 0,
+            format, GL_UNSIGNED_BYTE, tex_data.data()
+        );
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        return *this;
+    }
+
+};
+
+class TextureHandle : public TextureAllocator {
+public:
+    BoundTextureHandle bind() {
+        glBindTexture(GL_TEXTURE_2D, id_);
+        return {};
+    }
+
+    BoundTextureHandle bind_to_unit(GLenum tex_unit) {
+        set_active_unit(tex_unit);
+        bind();
+        return {};
+    }
+
+    static void set_active_unit(GLenum tex_unit) { glActiveTexture(tex_unit); }
+
+};
+
+
+
 
 
 
@@ -459,7 +462,7 @@ private:
     }
 
 
-    TextureHandle get_texture_from_material(const aiMaterial* material, aiTextureType type) {
+    detail::TextureHandle get_texture_from_material(const aiMaterial* material, aiTextureType type) {
 
         assert(material->GetTextureCount(type) == 1);
 
