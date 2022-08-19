@@ -18,6 +18,9 @@
 #include <cstddef>
 #include <variant>
 #include <stdexcept>
+#include <unordered_map>
+#include <memory>
+#include <string_view>
 
 struct AttributeParams {
     GLuint      index;
@@ -279,7 +282,31 @@ public:
 
 
 
+class TextureDataPool {
+private:
+    using pool_t = std::unordered_map<std::string, std::shared_ptr<TextureData>>;
+    pool_t pool_;
 
+public:
+    std::shared_ptr<TextureData> load(const std::string& path) {
+        auto it = pool_.find(path);
+
+        if ( it != pool_.end() ) {
+            return it->second;
+        } else {
+            auto [emplaced_it, was_emplaced] = pool_.emplace(path, load_data_from(path));
+            return emplaced_it->second;
+        }
+    }
+
+private:
+    std::shared_ptr<TextureData> load_data_from(const std::string& path) {
+        return std::make_shared<TextureData>(StbImageData(path));
+    }
+};
+
+
+inline TextureDataPool default_texture_data_pool{};
 
 
 
@@ -479,7 +506,7 @@ private:
         aiString filename;
         material->GetTexture(type, 0ull, &filename);
 
-        detail::TextureData tex_data{ detail::StbImageData(directory_ + filename.C_Str()) };
+        auto tex_data = detail::default_texture_data_pool.load(directory_ + filename.C_Str());
         detail::TextureHandle tex;
 
         // FIXME: this is ewww
@@ -490,7 +517,7 @@ private:
             case aiTextureType_DIFFUSE:  tex_unit = GL_TEXTURE0; break;
         }
 
-        tex.bind_to_unit(tex_unit).attach_data(tex_data);
+        tex.bind_to_unit(tex_unit).attach_data(*tex_data);
         return tex;
     }
 
