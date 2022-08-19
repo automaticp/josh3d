@@ -219,7 +219,7 @@ private:
     stb_image_owner_t data_{};
 
 public:
-    explicit StbImageData(const std::string& path, int num_desired_channels = 0) {
+    StbImageData(const std::string& path, int num_desired_channels = 0) {
 
         stbi_set_flip_vertically_on_load(true);
 
@@ -270,11 +270,11 @@ public:
 
 class TextureData : public std::variant<ImageData, StbImageData> {
 public:
-    size_t size() const noexcept { std::visit([](auto&& v) { return v.size(); }, *this); }
-    std::byte* data() const noexcept { std::visit([](auto&& v) { return v.data(); }, *this); }
-    size_t width() const noexcept { std::visit([](auto&& v) { return v.width(); }, *this); }
-    size_t height() const noexcept { std::visit([](auto&& v) { return v.height(); }, *this); }
-    size_t n_channels() const noexcept { std::visit([](auto&& v) { return v.n_channels(); }, *this); }
+    size_t size() const noexcept { return std::visit([](auto&& v) { return v.size(); }, *this); }
+    std::byte* data() const noexcept { return std::visit([](auto&& v) { return v.data(); }, *this); }
+    size_t width() const noexcept { return std::visit([](auto&& v) { return v.width(); }, *this); }
+    size_t height() const noexcept { return std::visit([](auto&& v) { return v.height(); }, *this); }
+    size_t n_channels() const noexcept { return std::visit([](auto&& v) { return v.n_channels(); }, *this); }
 };
 
 
@@ -400,19 +400,28 @@ std::vector<V> get_vertex_data(const aiMesh* mesh);
 template<typename V>
 class Model {
 private:
-    std::vector<Mesh<V>> meshes;
+    // FIXME: bad design. But passing it through 5 function calls is worse.
+    // Also keep this above meshes_ as initialization order matters here.
+    std::string directory_;
+    std::vector<Mesh<V>> meshes_;
 
 public:
 
     void draw(ShaderProgram& sp) {
-        for (auto& mesh : meshes) {
+        for (auto& mesh : meshes_) {
             mesh.draw(sp);
         }
     }
 
+    Model(Assimp::Importer& importer, const std::string& path)
+        : directory_{ path.substr(0ull, path.find_last_of('/') + 1) },
+        meshes_{ retrieve_mesh_data(importer, path) }
+    {}
+
+
 private:
 
-    Model& retrieve_mesh_data(Assimp::Importer& importer,
+    std::vector<Mesh<V>> retrieve_mesh_data(Assimp::Importer& importer,
                               const std::string& path)
     {
         const aiScene* scene{
@@ -428,13 +437,14 @@ private:
             // Myself. Out the window.
         }
 
+        std::vector<Mesh<V>> meshes;
         meshes.reserve(scene->mNumMeshes);
-        process_node(scene->mRootNode, scene);
+        process_node(scene->mRootNode, scene, meshes);
 
-        return *this;
+        return meshes;
     }
 
-    void process_node(aiNode* node, const aiScene* scene) {
+    void process_node(aiNode* node, const aiScene* scene, std::vector<Mesh<V>>& meshes) {
 
         for ( auto&& mesh_id : std::span(node->mMeshes, node->mNumMeshes) ) {
             aiMesh* mesh{ scene->mMeshes[mesh_id] };
@@ -442,7 +452,7 @@ private:
         }
 
         for ( auto&& child : std::span(node->mChildren, node->mNumChildren) ) {
-            process_node(child, scene);
+            process_node(child, scene, meshes);
         }
     }
 
@@ -466,10 +476,10 @@ private:
 
         assert(material->GetTextureCount(type) == 1);
 
-        aiString path;
-        material->GetTexture(type, 0ull, &path);
+        aiString filename;
+        material->GetTexture(type, 0ull, &filename);
 
-        detail::TextureData tex_data{ path.C_Str() };
+        detail::TextureData tex_data{ detail::StbImageData(directory_ + filename.C_Str()) };
         detail::TextureHandle tex;
 
         // FIXME: this is ewww
