@@ -18,6 +18,8 @@
 #include "VAO.h"
 #include "LightCasters.h"
 
+#include "Mesh.h"
+
 using namespace gl;
 
 float currentFrameTime{};
@@ -38,7 +40,7 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
 }
 
 static void render_cube_scene(glfw::Window&);
-// static void render_model_scene(glfw::Window&);
+static void render_model_scene(glfw::Window&);
 
 int main() {
 
@@ -61,14 +63,79 @@ int main() {
 	glViewport(0, 0, width, height);
 	glEnable(GL_DEPTH_TEST);
 
-	render_cube_scene(window);
-
+	// render_cube_scene(window);
+	render_model_scene(window);
 
 	return 0;
 }
 
 
+static void render_model_scene(glfw::Window& window) {
 
+	VertexShader vs{ "VertexShader.vert" };
+	FragmentShader fs_model{ "MultiLightObject.frag" };
+	FragmentShader fs_light{ "LightSource.frag" };
+
+	ShaderProgram sp_model{ {vs, fs_model} };
+	ShaderProgram sp_light{ {vs, fs_light} };
+
+
+	Assimp::Importer importer{};
+	// FIXME: fill path later
+	Model<Vertex> backpack_model{ importer, "data/models/backpack/backpack.obj" };
+
+
+	Camera cam{ glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, -1.0f) };
+	InputFreeCamera input{ window, cam };
+
+	glm::mat4 view{};
+	glm::mat4 projection{};
+	glm::mat4 model{};
+	glm::mat3 normal_model{};
+
+
+	while ( !window.shouldClose() ) {
+
+		updateFrameTime();
+		window.swapBuffers();
+		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		input.processInput();
+		glfw::pollEvents();
+
+		// Get projection and view matricies from camera positions
+		auto [width, height] = window.getSize();
+		projection = glm::perspective(cam.getFOV(), static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f);
+		view = cam.getViewMat();
+
+		glm::vec3 cam_pos{ cam.getPos() };
+
+		sp_model.use();
+		sp_model.setUniform("projection", projection);
+		sp_model.setUniform("view", view);
+		sp_model.setUniform("camPos", cam_pos);
+
+		model = glm::mat4{ 1.0f };
+		sp_model.setUniform("model", model);
+
+		normal_model = glm::mat3(glm::transpose(glm::inverse(model)));
+		sp_model.setUniform("normalModel", normal_model);
+
+		backpack_model.draw(sp_model);
+
+
+		// Directional Light
+		light::Directional ld{
+			.color = { 0.3f, 0.3f, 0.2f },
+			.direction = { -0.2f, -1.0f, -0.3f }
+		};
+		sp_model.setUniform("dirLight.color", ld.color);
+		sp_model.setUniform("dirLight.direction", ld.direction);
+
+
+	}
+}
 
 
 // Vertex Data of a Cube {3: pos, 3: normals, 2: tex coord}
@@ -185,7 +252,7 @@ static void render_cube_scene(glfw::Window& window) {
 
 		// Swap buffers first (back -> front), then clear the backbuffer for a new frame
 		window.swapBuffers();
-		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+		glClearColor(0.15f, 0.15f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		// Process input
@@ -226,7 +293,7 @@ static void render_cube_scene(glfw::Window& window) {
 		lps.reserve(4);
 		for (int i{ 0 }; i < 4; ++i) {
 			lps.emplace_back(light::Point{
-					.color = glm::vec3(1.0f, 0.0f, 1.0f),
+					.color = glm::vec3(1.0f, 1.0f, 0.8f),
 					.position = pointLightPositions[i],
 					.attenuation = light::Attenuation{ .constant = 1.0f, .linear = 0.4f, .quadratic = 0.2f },
 			});
