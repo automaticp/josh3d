@@ -26,7 +26,7 @@ private:
 	}
 
 public:
-	virtual ~ShaderAllocator() override { ShaderAllocator::release(); }
+	virtual ~ShaderAllocator() override { if (id_) { ShaderAllocator::release(); } }
 
 	ShaderAllocator(ShaderAllocator&&) = default;
 	ShaderAllocator& operator=(ShaderAllocator&&) = default;
@@ -52,7 +52,7 @@ private:
 	}
 
 public:
-	virtual ~ShaderProgramAllocator() override { ShaderProgramAllocator::release(); }
+	virtual ~ShaderProgramAllocator() override { if (id_) { ShaderProgramAllocator::release(); } }
 
 	ShaderProgramAllocator(ShaderProgramAllocator&&) = default;
 	ShaderProgramAllocator& operator=(ShaderProgramAllocator&&) = default;
@@ -78,7 +78,7 @@ private:
 	}
 
 public:
-	virtual ~TextureAllocator() override { TextureAllocator::release(); }
+	virtual ~TextureAllocator() override { if (id_) {  TextureAllocator::release(); } }
 
 	TextureAllocator(TextureAllocator&&) = default;
 	TextureAllocator& operator=(TextureAllocator&&) = default;
@@ -104,7 +104,7 @@ private:
 	}
 
 public:
-	virtual ~VAOAllocator() override { VAOAllocator::release(); }
+	virtual ~VAOAllocator() override { if (id_) {  VAOAllocator::release(); } }
 
 	VAOAllocator(VAOAllocator&&) = default;
 	VAOAllocator& operator=(VAOAllocator&&) = default;
@@ -130,7 +130,7 @@ private:
 	}
 
 public:
-	virtual ~VBOAllocator() override { VBOAllocator::release(); }
+	virtual ~VBOAllocator() override { if (id_) { VBOAllocator::release(); } }
 
 	VBOAllocator(VBOAllocator&&) = default;
 	VBOAllocator& operator=(VBOAllocator&&) = default;
