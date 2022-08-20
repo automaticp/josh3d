@@ -77,11 +77,9 @@ int main() {
 static void render_model_scene(glfw::Window& window) {
 
 	VertexShader vs{ "VertexShader.vert" };
-	FragmentShader fs_model{ "MultiLightObject.frag" };
-	FragmentShader fs_light{ "LightSource.frag" };
+	FragmentShader fs_model{ "TextureMaterialObject.frag" };
 
 	ShaderProgram sp_model{ {vs, fs_model} };
-	ShaderProgram sp_light{ {vs, fs_light} };
 
 
 	Assimp::Importer importer{};
@@ -97,6 +95,10 @@ static void render_model_scene(glfw::Window& window) {
 	glm::mat4 model{};
 	glm::mat3 normal_model{};
 
+	light::Point lp{
+		.color = { 0.3f, 0.3f, 0.2f },
+		.position = { 0.5f, 0.8f, 1.5f },
+	};
 
 	while ( !window.shouldClose() ) {
 
@@ -126,16 +128,11 @@ static void render_model_scene(glfw::Window& window) {
 		normal_model = glm::mat3(glm::transpose(glm::inverse(model)));
 		sp_model.setUniform("normalModel", normal_model);
 
+
+		sp_model.setUniform("lightColor", lp.color);
+		sp_model.setUniform("lightPos", lp.position);
+
 		backpack_model.draw(sp_model);
-
-
-		// Directional Light
-		light::Directional ld{
-			.color = { 0.3f, 0.3f, 0.2f },
-			.direction = { -0.2f, -1.0f, -0.3f }
-		};
-		sp_model.setUniform("dirLight.color", ld.color);
-		sp_model.setUniform("dirLight.direction", ld.direction);
 
 
 	}
