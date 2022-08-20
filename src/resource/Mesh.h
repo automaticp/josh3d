@@ -305,9 +305,8 @@ private:
     }
 };
 
-
+// FIXME: This is destroyed after main() scope is over and OpenGL context is destroyed.
 inline TextureDataPool default_texture_data_pool{};
-
 
 
 
@@ -358,6 +357,45 @@ public:
 
 
 
+class TextureHandlePool {
+private:
+    using pool_t = std::unordered_map<std::string, std::shared_ptr<TextureHandle>>;
+    pool_t pool_;
+
+    using upstream_t = TextureDataPool;
+    upstream_t& upstream_;
+
+public:
+    explicit TextureHandlePool(upstream_t& upstream) : upstream_{ upstream } {}
+
+    std::shared_ptr<TextureHandle> load(const std::string& path) {
+        auto it = pool_.find(path);
+
+        if ( it != pool_.end() ) {
+            return it->second;
+        } else {
+            auto [emplaced_it, was_emplaced] = pool_.emplace(path, load_data_from(path));
+            return emplaced_it->second;
+        }
+    }
+
+private:
+    std::shared_ptr<TextureHandle> load_data_from(const std::string& path) {
+        std::shared_ptr<TextureData> tex_data{ upstream_.load(path) };
+
+        auto new_handle = std::make_shared<TextureHandle>();
+        new_handle->bind().attach_data(*tex_data);
+
+        return new_handle;
+    }
+};
+
+
+inline TextureHandlePool default_texture_handle_pool{ default_texture_data_pool };
+
+
+
+
 
 
 
@@ -367,13 +405,16 @@ public:
 
 template<typename V>
 class Mesh {
+public:
+    using tex_handle_t = std::shared_ptr<detail::TextureHandle>;
+
 private:
     std::vector<V> vertices;
     std::vector<GLuint> elements;
 
     // FIXME: separate texture handle from data
-    detail::TextureHandle diffuse_texture;
-    detail::TextureHandle specular_texture;
+    tex_handle_t diffuse_texture;
+    tex_handle_t specular_texture;
 
     detail::VBO vbo;
     detail::VAO vao;
@@ -381,7 +422,7 @@ private:
 
 public:
     Mesh(std::vector<V> vertices, std::vector<GLuint> elements,
-         detail::TextureHandle diffuse, detail::TextureHandle specular)
+         tex_handle_t diffuse, tex_handle_t specular)
         : vertices{ std::move(vertices) }, elements{ std::move(elements) },
         diffuse_texture{ std::move(diffuse) }, specular_texture{ std::move(specular) }
     {
@@ -400,10 +441,10 @@ public:
     void draw(ShaderProgram& sp) {
 
         sp.setUniform("material.diffuse", 0);
-	    diffuse_texture.bind_to_unit(GL_TEXTURE0);
+	    diffuse_texture->bind_to_unit(GL_TEXTURE0);
 
         sp.setUniform("material.specular", 1);
-	    specular_texture.bind_to_unit(GL_TEXTURE1);
+	    specular_texture->bind_to_unit(GL_TEXTURE1);
 
         sp.setUniform("material.shininess", 128.0f);
 
@@ -488,8 +529,8 @@ private:
     Mesh<V> get_mesh_data(const aiMesh* mesh, const aiScene* scene) {
         if (mesh->mMaterialIndex >= 0) {
             aiMaterial* material{ scene->mMaterials[mesh->mMaterialIndex] };
-            detail::TextureHandle diffuse  = get_texture_from_material(material, aiTextureType_DIFFUSE);
-            detail::TextureHandle specular = get_texture_from_material(material, aiTextureType_SPECULAR);
+            auto diffuse  = get_texture_from_material(material, aiTextureType_DIFFUSE);
+            auto specular = get_texture_from_material(material, aiTextureType_SPECULAR);
             return Mesh<V>(
                 get_vertex_data<V>(mesh), get_element_data(mesh), std::move(diffuse), std::move(specular)
             );
@@ -499,26 +540,16 @@ private:
     }
 
 
-    detail::TextureHandle get_texture_from_material(const aiMaterial* material, aiTextureType type) {
+    std::shared_ptr<detail::TextureHandle>
+    get_texture_from_material(const aiMaterial* material, aiTextureType type) {
 
         assert(material->GetTextureCount(type) == 1);
 
         aiString filename;
         material->GetTexture(type, 0ull, &filename);
 
-        auto tex_data = detail::default_texture_data_pool.load(directory_ + filename.C_Str());
-        detail::TextureHandle tex;
-
-        // FIXME: this is ewww
-        gl::GLenum tex_unit;
-        switch (type) {
-            case aiTextureType_SPECULAR: tex_unit = GL_TEXTURE1; break;
-            default:
-            case aiTextureType_DIFFUSE:  tex_unit = GL_TEXTURE0; break;
-        }
-
-        tex.bind_to_unit(tex_unit).attach_data(*tex_data);
-        return tex;
+        std::string full_path{ directory_ + filename.C_Str() };
+        return detail::default_texture_handle_pool.load(full_path);
     }
 
 
