@@ -5,9 +5,7 @@
 #include <iostream>
 #include <glbinding/gl/gl.h>
 #include <glbinding/glbinding.h>
-#include <glbinding/AbstractFunction.h>
-#include <glbinding/FunctionCall.h>
-#include <glbinding-aux/debug.h>
+#include "Logging.h"
 #include <glfwpp/glfwpp.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -63,45 +61,7 @@ int main() {
 	// Init glbindings
 	glbinding::initialize(glfwGetProcAddress);
 
-
-	glbinding::setCallbackMaskExcept(
-		glbinding::CallbackMask::After | glbinding::CallbackMask::ParametersAndReturnValue,
-		{ "glGetError" }
-	);
-
-	glbinding::setAfterCallback([](const glbinding::FunctionCall& call) {
-		std::cerr << call.function->name() << '(';
-		for ( size_t i{ 0 }; i < call.parameters.size(); ++i ) {
-			std::cerr << call.parameters[i].get();
-			if ( (i + 1) < call.parameters.size() ) {
-				std::cerr << ", ";
-			}
-		}
-		std::cerr << ')';
-		if ( call.returnValue ) {
-			std::cerr << " -> " << call.returnValue.get();
-		}
-
-		std::cerr << '\n';
-
-		const GLenum error = glGetError();
-		if ( error != GL_NO_ERROR ) {
-			std::cerr << "[OpenGL Error]: ";
-			std::string err_type;
-			switch ( error ) {
-				case GL_INVALID_ENUM: err_type = "GL_INVALID_ENUM"; break;
-				case GL_INVALID_VALUE: err_type = "GL_INVALID_VALUE"; break;
-				case GL_INVALID_OPERATION: err_type = "GL_INVALID_OPERATION"; break;
-				case GL_INVALID_FRAMEBUFFER_OPERATION: err_type = "GL_INVALID_FRAMEBUFFER_OPERATION"; break;
-				case GL_OUT_OF_MEMORY: err_type = "GL_OUT_OF_MEMORY"; break;
-				case GL_STACK_UNDERFLOW: err_type = "GL_STACK_UNDERFLOW"; break;
-				case GL_STACK_OVERFLOW: err_type = "GL_STACK_OVERFLOW"; break;
-				default: err_type = "Unknown Error";
-			}
-			std::cerr << err_type << '\n';
-		}
-
-	});
+	enable_glbinding_logger(std::clog);
 
 	auto [width, height] { window.getSize() };
 	glViewport(0, 0, width, height);

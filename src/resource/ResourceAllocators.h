@@ -9,7 +9,7 @@ class ShaderAllocator : public IResource {
 public:
 	explicit ShaderAllocator(GLenum type) noexcept {
 		id_ = glCreateShader(type);
-#ifndef NDEBUG
+#ifdef LEARN_ENABLE_LOGGING
 		std::cerr << "\n[id: " << id_ << "] "
 		          << "ShaderAllocator("
 		          << ((type == GL_FRAGMENT_SHADER) ? "GL_FRAGMENT_SHADER" : "")
@@ -19,7 +19,7 @@ public:
 
 private:
 	virtual void release() noexcept override final {
-#ifndef NDEBUG
+#ifdef LEARN_ENABLE_LOGGING
 		std::cerr << "\n[id: " << id_ << "] " << "ShaderAllocator::release()";
 #endif
 		glDeleteShader(id_);
@@ -37,7 +37,7 @@ class ShaderProgramAllocator : public IResource {
 public:
 	ShaderProgramAllocator() noexcept {
 		id_ = glCreateProgram();
-#ifndef NDEBUG
+#ifdef LEARN_ENABLE_LOGGING
 		std::cerr << "\n[id: " << id_ << "] "
 		          << "ShaderProgramAllocator()";
 #endif
@@ -45,7 +45,7 @@ public:
 
 private:
 	virtual void release() noexcept override final {
-#ifndef NDEBUG
+#ifdef LEARN_ENABLE_LOGGING
 		std::cerr << "\n[id: " << id_ << "] " << "ShaderProgramAllocator::release()";
 #endif
 		glDeleteProgram(id_);
@@ -63,7 +63,7 @@ class TextureAllocator : public IResource {
 public:
 	TextureAllocator() noexcept {
 		glGenTextures(1, &id_);
-#ifndef NDEBUG
+#ifdef LEARN_ENABLE_LOGGING
 		std::cerr << "\n[id: " << id_ << "] "
 		          << "TextureAllocator()";
 #endif
@@ -71,7 +71,7 @@ public:
 
 private:
 	virtual void release() noexcept override final {
-#ifndef NDEBUG
+#ifdef LEARN_ENABLE_LOGGING
 		std::cerr << "\n[id: " << id_ << "] " << "TextureAllocator::release()";
 #endif
 		glDeleteTextures(1, &id_);
@@ -89,7 +89,7 @@ class VAOAllocator : public IResource {
 public:
 	VAOAllocator() noexcept {
 		glGenVertexArrays(1, &id_);
-#ifndef NDEBUG
+#ifdef LEARN_ENABLE_LOGGING
 		std::cerr << "\n[id: " << id_ << "] "
 		          << "VAOAllocator()";
 #endif
@@ -97,7 +97,7 @@ public:
 
 private:
 	virtual void release() noexcept override final {
-#ifndef NDEBUG
+#ifdef LEARN_ENABLE_LOGGING
 		std::cerr << "\n[id: " << id_ << "] " << "VAOAllocator::release()";
 #endif
 		glDeleteVertexArrays(1, &id_);
@@ -115,7 +115,7 @@ class VBOAllocator : public IResource {
 public:
 	VBOAllocator() noexcept {
 		glGenBuffers(1, &id_);
-#ifndef NDEBUG
+#ifdef LEARN_ENABLE_LOGGING
 		std::cerr << "\n[id: " << id_ << "] "
 		          << "VBOAllocator()";
 #endif
@@ -123,7 +123,7 @@ public:
 
 private:
 	virtual void release() noexcept override final {
-#ifndef NDEBUG
+#ifdef LEARN_ENABLE_LOGGING
 		std::cerr << "\n[id: " << id_ << "] " << "VBOAllocator::release()";
 #endif
 		glDeleteBuffers(1, &id_);
