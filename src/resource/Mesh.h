@@ -409,48 +409,48 @@ public:
     using tex_handle_t = std::shared_ptr<detail::TextureHandle>;
 
 private:
-    std::vector<V> vertices;
-    std::vector<GLuint> elements;
+    std::vector<V> vertices_;
+    std::vector<GLuint> elements_;
 
     // FIXME: separate texture handle from data
-    tex_handle_t diffuse_texture;
-    tex_handle_t specular_texture;
+    tex_handle_t diffuse_;
+    tex_handle_t specular_;
 
-    detail::VBO vbo;
-    detail::VAO vao;
-    detail::EBO ebo;
+    detail::VBO vbo_;
+    detail::VAO vao_;
+    detail::EBO ebo_;
 
 public:
     Mesh(std::vector<V> vertices, std::vector<GLuint> elements,
          tex_handle_t diffuse, tex_handle_t specular)
-        : vertices{ std::move(vertices) }, elements{ std::move(elements) },
-        diffuse_texture{ std::move(diffuse) }, specular_texture{ std::move(specular) }
+        : vertices_{ std::move(vertices) }, elements_{ std::move(elements) },
+        diffuse_{ std::move(diffuse) }, specular_{ std::move(specular) }
     {
 
-        auto bvao = vao.bind();
+        auto bvao = vao_.bind();
 
-        vbo.bind()
-           .attach_data(vertices.size(), vertices.data(), GL_STATIC_DRAW)
+        vbo_.bind()
+           .attach_data(vertices_.size(), vertices_.data(), GL_STATIC_DRAW)
            .associate_with(bvao, VertexTraits<V>::aparams);
 
-        ebo.bind(bvao)
-           .attach_data(elements.size(), elements.data(), GL_STATIC_DRAW);
+        ebo_.bind(bvao)
+           .attach_data(elements_.size(), elements_.data(), GL_STATIC_DRAW);
 
     }
 
     void draw(ShaderProgram& sp) {
 
         sp.setUniform("material.diffuse", 0);
-	    diffuse_texture->bind_to_unit(GL_TEXTURE0);
+	    diffuse_->bind_to_unit(GL_TEXTURE0);
 
         sp.setUniform("material.specular", 1);
-	    specular_texture->bind_to_unit(GL_TEXTURE1);
+	    specular_->bind_to_unit(GL_TEXTURE1);
 
         sp.setUniform("material.shininess", 128.0f);
 
 
-        vao.bind()
-           .draw_elements(GL_TRIANGLES, elements.size(), GL_UNSIGNED_INT, nullptr);
+        vao_.bind()
+           .draw_elements(GL_TRIANGLES, elements_.size(), GL_UNSIGNED_INT, nullptr);
 
 
     }
