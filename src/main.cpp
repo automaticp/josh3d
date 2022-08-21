@@ -60,9 +60,9 @@ int main() {
 
 	// Init glbindings
 	glbinding::initialize(glfwGetProcAddress);
-
+#ifndef NDEBUG
 	enable_glbinding_logger(std::clog);
-
+#endif
 	auto [width, height] { window.getSize() };
 	glViewport(0, 0, width, height);
 	glEnable(GL_DEPTH_TEST);
@@ -83,8 +83,12 @@ static void render_model_scene(glfw::Window& window) {
 
 
 	Assimp::Importer importer{};
-	// FIXME: fill path later
-	Model<Vertex> backpack_model{ importer, "data/models/backpack/backpack.obj" };
+
+	auto backpack_model {
+		AssimpModelLoader<Vertex>(importer)
+			.add_flags(aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph)
+			.load("data/models/backpack/backpack.obj").get()
+	};
 
 
 	Camera cam{ glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, -1.0f) };

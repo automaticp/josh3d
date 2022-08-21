@@ -412,7 +412,6 @@ private:
     std::vector<V> vertices_;
     std::vector<GLuint> elements_;
 
-    // FIXME: separate texture handle from data
     tex_handle_t diffuse_;
     tex_handle_t specular_;
 
@@ -460,58 +459,92 @@ public:
 
 
 
-// Provide specialization for your own Vertex layout
 template<typename V>
-std::vector<V> get_vertex_data(const aiMesh* mesh);
-
+class AssimpModelLoader;
 
 template<typename V>
 class Model {
 private:
-    // FIXME: bad design. But passing it through 5 function calls is worse.
-    // Also keep this above meshes_ as initialization order matters here.
-    std::string directory_;
     std::vector<Mesh<V>> meshes_;
 
 public:
+    explicit Model(std::vector<Mesh<V>> meshes) : meshes_{ std::move(meshes) } {}
 
     void draw(ShaderProgram& sp) {
-        for (auto& mesh : meshes_) {
+        for (auto&& mesh : meshes_) {
             mesh.draw(sp);
         }
     }
 
-    Model(Assimp::Importer& importer, const std::string& path)
-        : directory_{ path.substr(0ull, path.find_last_of('/') + 1) },
-        meshes_{ retrieve_mesh_data(importer, path) }
-    {}
+private:
+    friend class AssimpModelLoader<V>;
 
+    Model() = default;
+};
+
+
+// Provide specialization for your own Vertex layout
+template<typename V>
+std::vector<V> get_vertex_data(const aiMesh* mesh);
+
+template<typename V>
+class AssimpModelLoader {
+public:
+    using flags_t = unsigned int;
 
 private:
+    Model<V> model_;
 
-    std::vector<Mesh<V>> retrieve_mesh_data(Assimp::Importer& importer,
-                              const std::string& path)
-    {
-        const aiScene* scene{
-            importer.ReadFile(path,
-                aiProcess_Triangulate | aiProcess_FlipUVs |
-                aiProcess_ImproveCacheLocality
-            )
-        };
+    std::string directory_;
+    flags_t flags_;
 
-        if ( std::strlen(importer.GetErrorString()) != 0 ) {
-            std::cerr << "Assimp Error: " << importer.GetErrorString() << '\n';
-            // FIXME: Throw maybe?
-            // Myself. Out the window.
-        }
+    Assimp::Importer& importer_;
+public:
+    explicit AssimpModelLoader(
+        Assimp::Importer& importer,
+        flags_t flags =
+        aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_ImproveCacheLocality
+    ) : importer_{ importer }, flags_{ flags } {}
 
-        std::vector<Mesh<V>> meshes;
-        meshes.reserve(scene->mNumMeshes);
-        process_node(scene->mRootNode, scene, meshes);
-
-        return meshes;
+    AssimpModelLoader& add_flags(flags_t flags) {
+        flags_ |= flags;
+        return *this;
     }
 
+    AssimpModelLoader& remove_flags(flags_t flags) {
+        flags_ &= ~flags;
+        return *this;
+    }
+
+    AssimpModelLoader& reset_flags() {
+        flags_ &= 0;
+        return *this;
+    }
+
+    AssimpModelLoader& load(const std::string& path) {
+
+        directory_ = path.substr(0ull, path.find_last_of('/') + 1);
+
+        const aiScene* scene{ importer_.ReadFile(path, flags_) };
+
+        if ( std::strlen(importer_.GetErrorString()) != 0 ) {
+            std::cerr << "[Assimp Error] " << importer_.GetErrorString() << '\n';
+            // FIXME: Throw maybe?
+        }
+
+        model_ = Model<V>();
+        model_.meshes_.reserve(scene->mNumMeshes);
+        process_node(scene->mRootNode, scene, model_.meshes_);
+
+        return *this;
+    }
+
+    [[nodiscard]]
+    Model<V>&& get() {
+        return std::move(model_);
+    }
+
+private:
     void process_node(aiNode* node, const aiScene* scene, std::vector<Mesh<V>>& meshes) {
 
         for ( auto&& mesh_id : std::span(node->mMeshes, node->mNumMeshes) ) {
@@ -523,7 +556,6 @@ private:
             process_node(child, scene, meshes);
         }
     }
-
 
 
     Mesh<V> get_mesh_data(const aiMesh* mesh, const aiScene* scene) {
@@ -564,9 +596,7 @@ private:
         }
         return indices;
     }
-
 };
-
 
 
 template<>
@@ -594,4 +624,6 @@ inline std::vector<Vertex> get_vertex_data(const aiMesh* mesh) {
 
     return vertices;
 }
+
+
 
