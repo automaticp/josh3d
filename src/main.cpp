@@ -2,8 +2,10 @@
 #include <cmath>
 #include <numbers>
 #include <memory>
+#include <iostream>
 #include <glbinding/gl/gl.h>
 #include <glbinding/glbinding.h>
+#include "Logging.h"
 #include <glfwpp/glfwpp.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -18,6 +20,8 @@
 #include "VAO.h"
 #include "LightCasters.h"
 
+#include "Mesh.h"
+
 using namespace gl;
 
 float currentFrameTime{};
@@ -26,7 +30,120 @@ float deltaFrameTime{};
 
 const OrthonormalBasis3D globalBasis{ glm::vec3(1.0f, 0.0, 0.0), glm::vec3(0.0f, 1.0f, 0.0f), true };
 
-// Vertex Data {3: pos, 3: normals, 2: tex coord}
+
+void updateFrameTime() {
+	currentFrameTime = static_cast<float>(glfwGetTime());
+	deltaFrameTime = currentFrameTime - lastFrameTime;
+	lastFrameTime = currentFrameTime;
+}
+
+void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
+	glViewport(0, 0, width, height);
+}
+
+static void render_cube_scene(glfw::Window&);
+static void render_model_scene(glfw::Window&);
+
+int main() {
+
+	// Init GLFW and create a window
+	auto glfwInstance{ glfw::init() };
+
+	glfw::WindowHints{
+		.contextVersionMajor=3, .contextVersionMinor=3, .openglProfile=glfw::OpenGlProfile::Core
+	}.apply();
+	glfw::Window window{ 800, 600, "WindowName" };
+	window.framebufferSizeEvent.setCallback(framebufferSizeCallback);
+	glfw::makeContextCurrent(window);
+	glfw::swapInterval(0);
+	window.setInputModeCursor(glfw::CursorMode::Disabled);
+
+	// Init glbindings
+	glbinding::initialize(glfwGetProcAddress);
+#ifndef NDEBUG
+	enable_glbinding_logger(std::clog);
+#endif
+	auto [width, height] { window.getSize() };
+	glViewport(0, 0, width, height);
+	glEnable(GL_DEPTH_TEST);
+
+	// render_cube_scene(window);
+	render_model_scene(window);
+
+	return 0;
+}
+
+
+static void render_model_scene(glfw::Window& window) {
+
+	VertexShader vs{ "VertexShader.vert" };
+	FragmentShader fs_model{ "TextureMaterialObject.frag" };
+
+	ShaderProgram sp_model{ {vs, fs_model} };
+
+
+	Assimp::Importer importer{};
+
+	auto backpack_model {
+		AssimpModelLoader<Vertex>(importer)
+			.add_flags(aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph)
+			.load("data/models/backpack/backpack.obj").get()
+	};
+
+
+	Camera cam{ glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, -1.0f) };
+	InputFreeCamera input{ window, cam };
+
+	glm::mat4 view{};
+	glm::mat4 projection{};
+	glm::mat4 model{};
+	glm::mat3 normal_model{};
+
+	light::Point lp{
+		.color = { 0.3f, 0.3f, 0.2f },
+		.position = { 0.5f, 0.8f, 1.5f },
+	};
+
+	while ( !window.shouldClose() ) {
+
+		updateFrameTime();
+		window.swapBuffers();
+		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		input.processInput();
+		glfw::pollEvents();
+
+		// Get projection and view matricies from camera positions
+		auto [width, height] = window.getSize();
+		projection = glm::perspective(cam.getFOV(), static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f);
+		view = cam.getViewMat();
+
+		glm::vec3 cam_pos{ cam.getPos() };
+
+		sp_model.use();
+		sp_model.setUniform("projection", projection);
+		sp_model.setUniform("view", view);
+		sp_model.setUniform("camPos", cam_pos);
+
+		model = glm::mat4{ 1.0f };
+		sp_model.setUniform("model", model);
+
+		normal_model = glm::mat3(glm::transpose(glm::inverse(model)));
+		sp_model.setUniform("normalModel", normal_model);
+
+
+		sp_model.setUniform("lightColor", lp.color);
+		sp_model.setUniform("lightPos", lp.position);
+
+		backpack_model.draw(sp_model);
+
+
+	}
+}
+
+
+// Vertex Data of a Cube {3: pos, 3: normals, 2: tex coord}
 std::vector<float> vertices{
 		-0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
 		0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f,
@@ -72,37 +189,8 @@ std::vector<float> vertices{
 
 };
 
-void updateFrameTime() {
-	currentFrameTime = static_cast<float>(glfwGetTime());
-	deltaFrameTime = currentFrameTime - lastFrameTime;
-	lastFrameTime = currentFrameTime;
-}
 
-void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
-	glViewport(0, 0, width, height);
-}
-
-int main() {
-
-	// Init GLFW and create a window
-	auto glfwInstance{ glfw::init() };
-
-	glfw::WindowHints{
-		.contextVersionMajor=3, .contextVersionMinor=3, .openglProfile=glfw::OpenGlProfile::Core
-	}.apply();
-	glfw::Window window{ 800, 600, "WindowName" };
-	window.framebufferSizeEvent.setCallback(framebufferSizeCallback);
-	glfw::makeContextCurrent(window);
-	glfw::swapInterval(0);
-	window.setInputModeCursor(glfw::CursorMode::Disabled);
-
-	// Init glbindings
-	glbinding::initialize(glfwGetProcAddress);
-
-	auto [width, height] { window.getSize() };
-	glViewport(0, 0, width, height);
-	glEnable(GL_DEPTH_TEST);
-
+static void render_cube_scene(glfw::Window& window) {
 
 	// Shaders
 	VertexShader VS{ "VertexShader.vert" };
@@ -169,7 +257,7 @@ int main() {
 
 		// Swap buffers first (back -> front), then clear the backbuffer for a new frame
 		window.swapBuffers();
-		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+		glClearColor(0.15f, 0.15f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		// Process input
@@ -210,7 +298,7 @@ int main() {
 		lps.reserve(4);
 		for (int i{ 0 }; i < 4; ++i) {
 			lps.emplace_back(light::Point{
-					.color = glm::vec3(1.0f, 0.0f, 1.0f),
+					.color = glm::vec3(1.0f, 1.0f, 0.8f),
 					.position = pointLightPositions[i],
 					.attenuation = light::Attenuation{ .constant = 1.0f, .linear = 0.4f, .quadratic = 0.2f },
 			});
@@ -304,6 +392,5 @@ int main() {
 
 	}
 
-	return 0;
-}
 
+}

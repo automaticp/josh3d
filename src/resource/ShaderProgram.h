@@ -26,7 +26,7 @@ public:
 			std::cerr << e.what() << '\n';
 			throw;
 		}
-#ifndef NDEBUG
+#ifdef LEARN_ENABLE_LOGGING
 		std::cerr << getLinkInfo();
 #endif
 	}

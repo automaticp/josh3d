@@ -65,7 +65,7 @@ inline Shader::Shader(GLenum type, std::string filename) : ShaderAllocator(type)
 	// compile from file
 	try {
 		compile();
-#ifndef NDEBUG
+#ifdef LEARN_ENABLE_LOGGING
 		std::cerr << getCompileInfo();
 #endif
 	}
