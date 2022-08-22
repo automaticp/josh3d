@@ -5,7 +5,6 @@
 #include <glbinding/gl/gl.h>
 #include "GLObjects.hpp"
 #include "Vertex.hpp"
-#include "ShaderProgram.h"
 
 
 namespace learn {
@@ -46,15 +45,15 @@ public:
 
     }
 
-    void draw(ShaderProgram& sp) {
+    void draw(ActiveShaderProgram& sp) {
 
-        sp.setUniform("material.diffuse", 0);
+        sp.uniform("material.diffuse", 0);
 	    diffuse_->bind_to_unit(GL_TEXTURE0);
 
-        sp.setUniform("material.specular", 1);
+        sp.uniform("material.specular", 1);
 	    specular_->bind_to_unit(GL_TEXTURE1);
 
-        sp.setUniform("material.shininess", 128.0f);
+        sp.uniform("material.shininess", 128.0f);
 
 
         vao_.bind()

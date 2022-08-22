@@ -1,5 +1,5 @@
 add_library(resource INTERFACE)
-file(GLOB LOCAL_SOURCES CONFIGURE_DEPENDS *.h *.hpp)
+file(GLOB LOCAL_SOURCES CONFIGURE_DEPENDS *.h *.hpp *.cpp)
 target_sources(resource INTERFACE "${LOCAL_SOURCES}")
 target_include_directories(resource INTERFACE .)
 target_compile_features(resource INTERFACE cxx_std_20)

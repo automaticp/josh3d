@@ -12,7 +12,8 @@
 #include "Mesh.hpp"
 #include "GLObjects.hpp"
 #include "GLObjectPools.hpp"
-#include "ShaderProgram.h"
+
+
 
 namespace learn {
 
@@ -33,7 +34,7 @@ private:
 public:
     explicit Model(std::vector<Mesh<V>> meshes) : meshes_{ std::move(meshes) } {}
 
-    void draw(ShaderProgram& sp) {
+    void draw(ActiveShaderProgram& sp) {
         for (auto&& mesh : meshes_) {
             mesh.draw(sp);
         }
