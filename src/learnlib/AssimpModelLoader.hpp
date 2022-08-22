@@ -122,7 +122,7 @@ private:
         std::string full_path{ directory_ + filename.C_Str() };
 
         // FIXME: pool should be a c-tor parameter of something
-        return default_texture_handle_pool.load(full_path);
+        return global_texture_handle_pool.load(full_path);
     }
 
 

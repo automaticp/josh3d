@@ -44,7 +44,7 @@ private:
 };
 
 
-inline TextureHandlePool default_texture_handle_pool{ default_texture_data_pool };
+inline TextureHandlePool global_texture_handle_pool{ global_texture_data_pool };
 
 
 } // namespace learn

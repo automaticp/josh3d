@@ -33,7 +33,7 @@ private:
 };
 
 // FIXME: This is destroyed after main() scope is over and OpenGL context is destroyed.
-inline TextureDataPool default_texture_data_pool{};
+inline TextureDataPool global_texture_data_pool{};
 
 
 } // namespace learn
