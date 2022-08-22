@@ -18,6 +18,3 @@ target_link_libraries(resource
         stb::stb
         assimp::assimp
 )
-
-add_library(resource_tu STATIC resource.cpp)
-target_link_libraries(resource_tu PRIVATE resource)

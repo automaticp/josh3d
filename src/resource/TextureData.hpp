@@ -3,6 +3,7 @@
 #include <string>
 #include <stdexcept>
 #include <cstddef>
+#include <variant>
 #include <stb_image.h>
 
 

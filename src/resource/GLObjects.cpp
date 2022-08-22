@@ -6,7 +6,7 @@
 
 
 
-TextureHandle::Bound& TextureHandle::Bound::attach_data(const TextureData& tex_data,
+BoundTextureHandle& BoundTextureHandle::attach_data(const TextureData& tex_data,
     GLenum internal_format, GLenum format) {
 
     if (format == GL_NONE) {

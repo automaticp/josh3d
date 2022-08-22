@@ -1,8 +1,10 @@
 #pragma once
 #include <glbinding/gl/gl.h>
 #include <array>
-#include "ResourceAllocators.h"
+#include "GLObjectAllocators.hpp"
 #include "TextureData.hpp"
+#include "Vertex.hpp"
+
 
 namespace learn {
 
@@ -44,73 +46,45 @@ sense to make these calls in absence of a bound VAO.
 
 
 
+class VAO;
+class VBO;
+class EBO;
+class BoundVAO;
+class BoundVBO;
+class BoundEBO;
+
+// P.S. Some definitions were moved to a *.cpp file to break dependencies
 
 
-class VAO : public VAOAllocator {
-public:
-    class Bound;
-
-    Bound bind() {
-        glBindVertexArray(id_);
-        return {};
-    }
-};
-
-
-class VBO : public VBOAllocator {
-public:
-    class Bound;
-
-    Bound bind() {
-        glBindBuffer(GL_ARRAY_BUFFER, id_);
-        return {};
-    }
-};
-
-
-class EBO : public VBOAllocator {
-public:
-    class Bound;
-
-    Bound bind(VAO::Bound& vao) {
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id_);
-        return {};
-    }
-};
-
-
-
-
-
-class VAO::Bound {
+class BoundVAO {
 private:
     friend class VAO;
-    Bound() = default;
+    BoundVAO() = default;
 
 public:
-    Bound& enable_array_access(GLuint attrib_index) {
+    BoundVAO& enable_array_access(GLuint attrib_index) {
         glEnableVertexAttribArray(attrib_index);
         return *this;
     }
 
-    Bound& disable_array_access(GLuint attrib_index) {
+    BoundVAO& disable_array_access(GLuint attrib_index) {
         glDisableVertexAttribArray(attrib_index);
         return *this;
     }
 
-    Bound& draw_arrays(GLenum mode, GLint first, GLsizei count) {
+    BoundVAO& draw_arrays(GLenum mode, GLint first, GLsizei count) {
         glDrawArrays(mode, first, count);
         return *this;
     }
 
-    Bound& draw_elements(GLenum mode, GLsizei count, GLenum type,
+    BoundVAO& draw_elements(GLenum mode, GLsizei count, GLenum type,
                     const void* indices_buffer = nullptr) {
         glDrawElements(mode, count, type, indices_buffer);
         return *this;
     }
 
     template<size_t N>
-    Bound& set_many_attribute_params(
+    BoundVAO& set_many_attribute_params(
         const std::array<AttributeParams, N>& aparams) {
 
         for (const auto& ap : aparams) {
@@ -121,7 +95,7 @@ public:
     }
 
     template<size_t N>
-    Bound& associate_with(VBO::Bound& vbo,
+    BoundVAO& associate_with(BoundVBO& vbo,
                         const std::array<AttributeParams, N>& aparams) {
         this->set_many_attribute_params(aparams);
         return *this;
@@ -137,21 +111,30 @@ public:
     void unbind() {
         glBindVertexArray(0u);
     }
+};
 
+
+class VAO : public VAOAllocator {
+public:
+    BoundVAO bind() {
+        glBindVertexArray(id_);
+        return {};
+    }
 };
 
 
 
 
 
-class VBO::Bound {
+
+class BoundVBO {
 private:
     friend class VBO;
-    Bound() = default;
+    BoundVBO() = default;
 
 public:
     template<typename T>
-    Bound& attach_data(size_t size, const T* data, GLenum usage) {
+    BoundVBO& attach_data(size_t size, const T* data, GLenum usage) {
         glBufferData(
             GL_ARRAY_BUFFER,
             static_cast<GLsizeiptr>(size * sizeof(T)),
@@ -162,7 +145,7 @@ public:
     }
 
     template<size_t N>
-    Bound& associate_with(VAO::Bound& vao,
+    BoundVBO& associate_with(BoundVAO& vao,
                         const std::array<AttributeParams, N>& aparams) {
         vao.associate_with(*this, aparams);
         return *this;
@@ -174,17 +157,27 @@ public:
 };
 
 
+class VBO : public BufferAllocator {
+public:
+    BoundVBO bind() {
+        glBindBuffer(GL_ARRAY_BUFFER, id_);
+        return {};
+    }
+};
 
 
 
-class EBO::Bound {
+
+
+
+class BoundEBO {
 private:
     friend class EBO;
-    Bound() = default;
+    BoundEBO() = default;
 
 public:
     template<typename T>
-    Bound& attach_data(size_t size, const T* data, GLenum usage) {
+    BoundEBO& attach_data(size_t size, const T* data, GLenum usage) {
         glBufferData(
             GL_ELEMENT_ARRAY_BUFFER,
             static_cast<GLsizeiptr>(size * sizeof(T)),
@@ -200,21 +193,39 @@ public:
 };
 
 
+class EBO : public BufferAllocator {
+public:
+    BoundEBO bind(BoundVAO& vao) {
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id_);
+        return {};
+    }
+};
+
 
 
 
 class TextureData;
 
+
+class BoundTextureHandle {
+private:
+    friend class TextureHandle;
+    BoundTextureHandle() = default;
+
+public:
+    BoundTextureHandle& attach_data(const TextureData& tex_data,
+        GLenum internal_format = GL_RGBA, GLenum format = GL_NONE);
+};
+
+
 class TextureHandle : public TextureAllocator {
 public:
-    class Bound;
-
-    TextureHandle::Bound bind() {
+    BoundTextureHandle bind() {
         glBindTexture(GL_TEXTURE_2D, id_);
         return {};
     }
 
-    TextureHandle::Bound bind_to_unit(GLenum tex_unit) {
+    BoundTextureHandle bind_to_unit(GLenum tex_unit) {
         set_active_unit(tex_unit);
         bind();
         return {};
@@ -224,19 +235,6 @@ public:
         glActiveTexture(tex_unit);
     }
 };
-
-
-
-class TextureHandle::Bound {
-private:
-    friend class TextureHandle;
-    Bound() = default;
-
-public:
-    Bound& attach_data(const TextureData& tex_data,
-        GLenum internal_format = GL_RGBA, GLenum format = GL_NONE);
-};
-
 
 
 

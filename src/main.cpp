@@ -19,10 +19,12 @@
 #include "VBO.h"
 #include "VAO.h"
 #include "LightCasters.h"
+#include "Model.hpp"
 
-#include "Mesh.h"
+
 
 using namespace gl;
+using namespace learn;
 
 float currentFrameTime{};
 float lastFrameTime{};
