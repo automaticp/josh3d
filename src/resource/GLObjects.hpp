@@ -1,5 +1,7 @@
 #pragma once
 #include <glbinding/gl/gl.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <array>
 #include "GLObjectAllocators.hpp"
 #include "TextureData.hpp"
@@ -236,6 +238,191 @@ public:
     }
 };
 
+
+
+
+
+class ShaderSource;
+
+
+class Shader : public ShaderAllocator {
+public:
+    explicit Shader(GLenum type) : ShaderAllocator(type) {};
+
+    Shader& set_source(const std::string& src) {
+        const GLchar* csrc{ src.c_str() };
+        glShaderSource(id_, 1, &csrc, nullptr);
+        return *this;
+    }
+
+    Shader& set_source(const GLchar* src) {
+        glShaderSource(id_, 1, &src, nullptr);
+        return *this;
+    }
+
+    void compile() {
+        glCompileShader(id_);
+    }
+};
+
+
+class VertexShader : public Shader {
+public:
+    VertexShader() : Shader(GL_VERTEX_SHADER) {}
+};
+
+
+class FragmentShader : public Shader {
+public:
+    FragmentShader() : Shader(GL_FRAGMENT_SHADER) {}
+};
+
+
+
+
+
+class ShaderProgram;
+
+
+class ActiveShaderProgram {
+private:
+    friend class ShaderProgram;
+    // An exception to a common case of stateless Bound dummies.
+    // In order to permit setting uniforms by name.
+    GLuint parent_id_;
+    ActiveShaderProgram(GLuint id) : parent_id_{ id } {}
+
+public:
+    // This enables calls like: shaderProgram.setUniform("viewMat", viewMat);
+	template<typename... Args>
+	ActiveShaderProgram& uniform(const GLchar* name, Args... args) {
+		ActiveShaderProgram::uniform(glGetUniformLocation(parent_id_, name), args...);
+        return *this;
+	}
+
+    template<typename... Args>
+	ActiveShaderProgram& uniform(const std::string& name, Args... args) {
+		ActiveShaderProgram::uniform(glGetUniformLocation(parent_id_, name.c_str()), args...);
+        return *this;
+	}
+
+    template<typename... Args>
+	ActiveShaderProgram& uniform(GLint location, Args... args) {
+		ActiveShaderProgram::uniform(location, args...);
+        return *this;
+	}
+
+
+    // Values float
+	static void uniform(int location, float val0) {
+		glUniform1f(location, val0);
+	}
+
+    static void uniform(int location, float val0, float val1) {
+		glUniform2f(location, val0, val1);
+	}
+
+    static void uniform(int location, float val0, float val1, float val2) {
+		glUniform3f(location, val0, val1, val2);
+	}
+
+    static void uniform(int location, float val0, float val1, float val2, float val3) {
+		glUniform4f(location, val0, val1, val2, val3);
+	}
+
+    // Values int
+    static void uniform(int location, int val0) {
+		glUniform1i(location, val0);
+	}
+
+    static void uniform(int location, int val0, int val1) {
+		glUniform2i(location, val0, val1);
+	}
+
+    static void uniform(int location, int val0, int val1, int val2) {
+		glUniform3i(location, val0, val1, val2);
+	}
+
+    static void uniform(int location, int val0, int val1, int val2, int val3) {
+		glUniform4i(location, val0, val1, val2, val3);
+	}
+
+    // Values uint
+    static void uniform(int location, unsigned int val0) {
+		glUniform1ui(location, val0);
+	}
+
+    static void uniform(int location, unsigned int val0, unsigned int val1) {
+		glUniform2ui(location, val0, val1);
+	}
+
+    static void uniform(int location, unsigned int val0, unsigned int val1, unsigned int val2) {
+		glUniform3ui(location, val0, val1, val2);
+	}
+
+    static void uniform(int location, unsigned int val0, unsigned int val1, unsigned int val2, unsigned int val3) {
+		glUniform4ui(location, val0, val1, val2, val3);
+	}
+
+    // Vector float
+	static void uniform(int location, const glm::vec1& v, GLsizei count = 1) {
+		glUniform1fv(location, count, glm::value_ptr(v));
+	}
+
+    static void uniform(int location, const glm::vec2& v, GLsizei count = 1) {
+		glUniform2fv(location, count, glm::value_ptr(v));
+	}
+
+    static void uniform(int location, const glm::vec3& v, GLsizei count = 1) {
+		glUniform3fv(location, count, glm::value_ptr(v));
+	}
+
+    static void uniform(int location, const glm::vec4& v, GLsizei count = 1) {
+		glUniform4fv(location, count, glm::value_ptr(v));
+	}
+
+    // Matrix float
+	static void uniform(int location, const glm::mat2& m, GLsizei count = 1, GLboolean transpose = GL_FALSE) {
+		glUniformMatrix2fv(location, count, transpose, glm::value_ptr(m));
+	}
+
+    static void uniform(int location, const glm::mat3& m, GLsizei count = 1, GLboolean transpose = GL_FALSE) {
+		glUniformMatrix3fv(location, count, transpose, glm::value_ptr(m));
+	}
+
+    static void uniform(int location, const glm::mat4& m, GLsizei count = 1, GLboolean transpose = GL_FALSE ) {
+		glUniformMatrix4fv(location, count, transpose, glm::value_ptr(m));
+	}
+
+};
+
+
+class ShaderProgram : public ShaderProgramAllocator {
+public:
+    ShaderProgram& attach_shader(GLuint shader) {
+        glAttachShader(id_, shader);
+        return *this;
+    }
+
+    ShaderProgram& link() {
+        glLinkProgram(id_);
+        return *this;
+    }
+
+    ActiveShaderProgram use() {
+        glUseProgram(id_);
+        return { id_ };
+    }
+
+    GLint uniform_location(const std::string& name) const {
+        return glGetUniformLocation(id_, name.c_str());
+    }
+
+    GLint uniform_location(const GLchar* name) const {
+        return glGetUniformLocation(id_, name);
+    }
+
+};
 
 
 

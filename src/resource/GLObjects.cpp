@@ -1,9 +1,12 @@
-#include <glbinding/gl/gl.h>
 #include "GLObjects.hpp"
+#include <glbinding/gl/gl.h>
 #include "TextureData.hpp"
-#include "Mesh.hpp"
 
 
+
+namespace learn {
+
+using namespace gl;
 
 
 BoundTextureHandle& BoundTextureHandle::attach_data(const TextureData& tex_data,
@@ -28,3 +31,8 @@ BoundTextureHandle& BoundTextureHandle::attach_data(const TextureData& tex_data,
 
     return *this;
 }
+
+
+
+
+} // namespace learn
