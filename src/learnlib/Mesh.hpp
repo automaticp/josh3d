@@ -9,7 +9,7 @@
 
 namespace learn {
 
-using namespace gl;
+
 
 template<typename V>
 class Mesh {
@@ -33,6 +33,7 @@ public:
         : vertices_{ std::move(vertices) }, elements_{ std::move(elements) },
         diffuse_{ std::move(diffuse) }, specular_{ std::move(specular) }
     {
+        using namespace gl;
 
         auto bvao = vao_.bind();
 
@@ -46,6 +47,7 @@ public:
     }
 
     void draw(ActiveShaderProgram& sp) {
+        using namespace gl;
 
         sp.uniform("material.diffuse", 0);
 	    diffuse_->bind_to_unit(GL_TEXTURE0);
