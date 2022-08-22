@@ -1,18 +1,12 @@
 add_executable(ogllearn main.cpp)
 target_compile_features(ogllearn PRIVATE cxx_std_20)
 
-add_subdirectory(world)
-add_subdirectory(resource)
-add_subdirectory(input)
-add_subdirectory(types)
+add_subdirectory(learnlib)
 
 # internal dependencies
 target_link_libraries(ogllearn
     PRIVATE
-        resource
-        world
-        input
-        types
+        learnlib
 )
 
 # external depenencies
@@ -23,4 +17,5 @@ target_link_libraries(ogllearn
         glbinding::glbinding
         glbinding::glbinding-aux
         glfwpp::glfwpp
+        assimp::assimp
 )

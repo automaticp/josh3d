@@ -26,6 +26,7 @@ protected:
     //     glDeleteBuffers(1, &id_);
     void release() noexcept = delete;
 
+    friend class CRTP;
     // Destructor. Defined here so that you don't have to :^
     ~GLObject() {
         if (id_) {
