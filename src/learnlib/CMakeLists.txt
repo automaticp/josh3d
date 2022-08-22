@@ -7,7 +7,7 @@ target_compile_features(learnlib PUBLIC cxx_std_20)
 
 # external dependencies
 target_link_libraries(learnlib
-    INTERFACE
+    PUBLIC
         glm::glm
         glfwpp::glfwpp
         glbinding::glbinding
