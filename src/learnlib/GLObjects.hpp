@@ -10,8 +10,6 @@
 
 namespace learn {
 
-using namespace gl;
-
 
 /*
 This file defines thin wrappers around various OpenGL objects: Buffers, Arrays, Textures, Shaders, etc.
@@ -48,6 +46,21 @@ sense to make these calls in absence of a bound VAO.
 
 
 
+class TextureData;
+
+
+/*
+In order to not move trivial single-line definitions into a .cpp file
+and to not have to prepend every OpenGL type and function with gl::,
+we're 'using namespace gl' inside of 'leaksgl' namespace,
+and then reexpose the symbols back to this namespace at the end
+with 'using leaksgl::Type' declarations.
+*/
+
+namespace leaksgl {
+
+using namespace gl;
+
 class VAO;
 class VBO;
 class EBO;
@@ -55,8 +68,8 @@ class BoundVAO;
 class BoundVBO;
 class BoundEBO;
 
-// P.S. Some definitions were moved to a *.cpp file to break dependencies
 
+// P.S. Some definitions were moved to a *.cpp file to break dependencies
 
 class BoundVAO {
 private:
@@ -123,6 +136,7 @@ public:
         return {};
     }
 };
+
 
 
 
@@ -206,7 +220,6 @@ public:
 
 
 
-class TextureData;
 
 
 class BoundTextureHandle {
@@ -242,7 +255,6 @@ public:
 
 
 
-class ShaderSource;
 
 
 class Shader : public ShaderAllocator {
@@ -425,7 +437,15 @@ public:
 };
 
 
+} // namespace leaksgl
 
+
+using leaksgl::BoundVAO, leaksgl::VAO;
+using leaksgl::BoundVBO, leaksgl::VBO;
+using leaksgl::BoundEBO, leaksgl::EBO;
+using leaksgl::BoundTextureHandle, leaksgl::TextureHandle;
+using leaksgl::Shader;
+using leaksgl::ActiveShaderProgram, leaksgl::ShaderProgram;
 
 
 } // namespace learn

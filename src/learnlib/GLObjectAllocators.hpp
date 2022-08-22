@@ -5,6 +5,17 @@
 
 namespace learn {
 
+
+/*
+In order to not move trivial single-line definitions into a .cpp file
+and to not have to prepend every OpenGL type and function with gl::,
+we're 'using namespace gl' inside of 'leaksgl' namespace,
+and then reexpose the symbols back to this namespace at the end
+with 'using leaksgl::Type' declarations.
+*/
+
+namespace leaksgl {
+
 using namespace gl;
 
 
@@ -113,8 +124,17 @@ private:
 };
 
 
+} // namespace leaksgl
 
 
+template<typename CRTP>
+using GLObject = leaksgl::GLObject<CRTP>; // what?
+
+using leaksgl::ShaderAllocator;
+using leaksgl::ShaderProgramAllocator;
+using leaksgl::TextureAllocator;
+using leaksgl::VAOAllocator;
+using leaksgl::BufferAllocator;
 
 
 } // namespace learn
