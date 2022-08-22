@@ -7,16 +7,15 @@
 
 namespace learn {
 
-using namespace gl;
 
 
 struct AttributeParams {
-    GLuint      index;
-    GLint       size;
-    GLenum      type;
-    GLboolean   normalized;
-    GLsizei     stride_bytes;
-    GLint64     offset_bytes;
+    gl::GLuint      index;
+    gl::GLint       size;
+    gl::GLenum      type;
+    gl::GLboolean   normalized;
+    gl::GLsizei     stride_bytes;
+    gl::GLint64     offset_bytes;
 };
 
 
@@ -37,9 +36,9 @@ struct VertexTraits {
 template<>
 struct VertexTraits<Vertex> {
     constexpr static std::array<AttributeParams, 3> aparams{{
-        { 0u, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, position) },
-        { 1u, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, normal) },
-        { 2u, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), offsetof(Vertex, tex_uv) }
+        { 0u, 3, gl::GL_FLOAT, gl::GL_FALSE, sizeof(Vertex), offsetof(Vertex, position) },
+        { 1u, 3, gl::GL_FLOAT, gl::GL_FALSE, sizeof(Vertex), offsetof(Vertex, normal) },
+        { 2u, 2, gl::GL_FLOAT, gl::GL_FALSE, sizeof(Vertex), offsetof(Vertex, tex_uv) }
     }};
 };
 
