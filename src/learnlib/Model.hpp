@@ -17,8 +17,6 @@
 
 namespace learn {
 
-using namespace gl;
-
 
 
 
