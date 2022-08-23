@@ -11,7 +11,7 @@ namespace learn {
 
 
 
-template<typename V>
+template<typename V = Vertex>
 class Mesh {
 public:
     using tex_handle_t = std::shared_ptr<TextureHandle>;
