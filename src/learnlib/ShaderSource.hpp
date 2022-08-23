@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <stdexcept>
 #include <variant>
 #include <utility>
 #include <fstream>
@@ -12,6 +13,10 @@ namespace learn {
 struct FileReader {
     std::string operator()(const std::string& path) {
         std::ifstream file{ path };
+        if ( file.fail() ) {
+            throw std::runtime_error("Cannot open file: " + path);
+        }
+
         return std::string{
             std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()
         };
