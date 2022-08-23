@@ -86,8 +86,8 @@ public:
         // using namespace std::placeholders;
         // window_.cursorPosEvent.setCallback(std::bind(&InputFreeCamera::callback_camera_rotate, this, _1, _2, _3));
         // window_.scrollEvent.setCallback(std::bind(&InputFreeCamera::callback_camera_zoom, this, _1, _2, _3));
-        window_.cursorPosEvent.setCallback([this](auto&&... args){ this->callback_camera_rotate(std::forward<decltype(args)>(args)...) });
-        window_.scrollEvent.setCallback([this](auto&&... args){ this->callback_camera_zoom(std::forward<decltype(args)>(args)...) });
+        window_.cursorPosEvent.setCallback([this](auto&&... args){ this->callback_camera_rotate(std::forward<decltype(args)>(args)...); });
+        window_.scrollEvent.setCallback([this](auto&&... args){ this->callback_camera_zoom(std::forward<decltype(args)>(args)...); });
     }
 
 
@@ -117,7 +117,7 @@ protected:
 
     void process_input_move() {
         constexpr float camera_speed{ 5.0f };
-        float abs_move{ camera_speed * global_frame_timer.delta() };
+        float abs_move{ camera_speed * float(global_frame_timer.delta()) };
         glm::vec3 sum_move{ 0.0f, 0.0f, 0.0f };
 
         if (move_state_.up)         sum_move += camera_.up_uv();

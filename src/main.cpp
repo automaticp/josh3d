@@ -5,57 +5,29 @@
 #include <iostream>
 #include <glbinding/gl/gl.h>
 #include <glbinding/glbinding.h>
-#include "Logging.h"
 #include <glfwpp/glfwpp.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <assimp/Importer.hpp>
+#include <assimp/postprocess.h>
 
-#include "Shader.h"
-#include "ShaderProgram.h"
-#include "Texture.h"
-#include "Basis.h"
-#include "Camera.h"
-#include "Input.h"
-#include "VBO.h"
-#include "VAO.h"
-#include "LightCasters.h"
-#include "Model.hpp"
-
-
-
-using namespace gl;
-using namespace learn;
-
-float currentFrameTime{};
-float lastFrameTime{};
-float deltaFrameTime{};
-
-const OrthonormalBasis3D globalBasis{ glm::vec3(1.0f, 0.0, 0.0), glm::vec3(0.0f, 1.0f, 0.0f), true };
-
-
-void updateFrameTime() {
-	currentFrameTime = static_cast<float>(glfwGetTime());
-	deltaFrameTime = currentFrameTime - lastFrameTime;
-	lastFrameTime = currentFrameTime;
-}
-
-void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
-	glViewport(0, 0, width, height);
-}
+#include "All.hpp"
 
 static void render_cube_scene(glfw::Window&);
 static void render_model_scene(glfw::Window&);
 
 int main() {
+	using namespace gl;
+	using namespace learn;
 
 	// Init GLFW and create a window
-	auto glfwInstance{ glfw::init() };
+	auto glfw_instance{ glfw::init() };
 
 	glfw::WindowHints{
 		.contextVersionMajor=3, .contextVersionMinor=3, .openglProfile=glfw::OpenGlProfile::Core
 	}.apply();
 	glfw::Window window{ 800, 600, "WindowName" };
-	window.framebufferSizeEvent.setCallback(framebufferSizeCallback);
+	window.framebufferSizeEvent.setCallback([](glfw::Window& window, int w, int h) { glViewport(0, 0, w, h); });
 	glfw::makeContextCurrent(window);
 	glfw::swapInterval(0);
 	window.setInputModeCursor(glfw::CursorMode::Disabled);
@@ -63,11 +35,12 @@ int main() {
 	// Init glbindings
 	glbinding::initialize(glfwGetProcAddress);
 #ifndef NDEBUG
-	enable_glbinding_logger(std::clog);
+	enable_glbinding_logger();
 #endif
 	auto [width, height] { window.getSize() };
 	glViewport(0, 0, width, height);
 	glEnable(GL_DEPTH_TEST);
+
 
 	// render_cube_scene(window);
 	render_model_scene(window);
@@ -78,16 +51,25 @@ int main() {
 
 static void render_model_scene(glfw::Window& window) {
 
-	VertexShader vs{ "VertexShader.vert" };
-	FragmentShader fs_model{ "TextureMaterialObject.frag" };
+	using namespace learn;
+	using namespace gl;
 
-	ShaderProgram sp_model{ {vs, fs_model} };
+	FileReader fr;
+
+	VertexShader vs;
+	vs.set_source(fr("data/shaders/VertexShader.vert")).compile();
+
+	FragmentShader fs;
+	fs.set_source(fr("data/shaders/TextureMaterialObject.frag")).compile();
+
+	ShaderProgram sp;
+	sp.attach_shader(vs).attach_shader(fs).link();
 
 
 	Assimp::Importer importer{};
 
 	auto backpack_model {
-		AssimpModelLoader<Vertex>(importer)
+		AssimpModelLoader(importer)
 			.add_flags(aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph)
 			.load("data/models/backpack/backpack.obj").get()
 	};
@@ -108,37 +90,37 @@ static void render_model_scene(glfw::Window& window) {
 
 	while ( !window.shouldClose() ) {
 
-		updateFrameTime();
+		global_frame_timer.update();
 		window.swapBuffers();
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		input.processInput();
+		input.process_input();
 		glfw::pollEvents();
 
 		// Get projection and view matricies from camera positions
 		auto [width, height] = window.getSize();
-		projection = glm::perspective(cam.getFOV(), static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f);
-		view = cam.getViewMat();
+		projection = glm::perspective(cam.get_fov(), static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f);
+		view = cam.view_mat();
 
-		glm::vec3 cam_pos{ cam.getPos() };
+		glm::vec3 cam_pos{ cam.get_pos() };
 
-		sp_model.use();
-		sp_model.setUniform("projection", projection);
-		sp_model.setUniform("view", view);
-		sp_model.setUniform("camPos", cam_pos);
+		auto asp = sp.use();
+		asp.uniform("projection", projection);
+		asp.uniform("view", view);
+		asp.uniform("camPos", cam_pos);
 
 		model = glm::mat4{ 1.0f };
-		sp_model.setUniform("model", model);
+		asp.uniform("model", model);
 
 		normal_model = glm::mat3(glm::transpose(glm::inverse(model)));
-		sp_model.setUniform("normalModel", normal_model);
+		asp.uniform("normalModel", normal_model);
 
 
-		sp_model.setUniform("lightColor", lp.color);
-		sp_model.setUniform("lightPos", lp.position);
+		asp.uniform("lightColor", lp.color);
+		asp.uniform("lightPos", lp.position);
 
-		backpack_model.draw(sp_model);
+		backpack_model.draw(asp);
 
 
 	}
@@ -191,7 +173,7 @@ std::vector<float> vertices{
 
 };
 
-
+/*
 static void render_cube_scene(glfw::Window& window) {
 
 	// Shaders
@@ -209,9 +191,9 @@ static void render_cube_scene(glfw::Window& window) {
 
 
 	SPMultiLight.use();
-	SPMultiLight.setUniform("material.diffuse", 0);
-	SPMultiLight.setUniform("material.specular", 1);
-	SPMultiLight.setUniform("material.shininess", 128.0f);
+	SPMultiLight.uniform("material.diffuse", 0);
+	SPMultiLight.uniform("material.specular", 1);
+	SPMultiLight.uniform("material.shininess", 128.0f);
 
 	boxTexDiffuse.setActiveUnitAndBind(0);
 	boxTexSpecular.setActiveUnitAndBind(1);
@@ -263,15 +245,15 @@ static void render_cube_scene(glfw::Window& window) {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		// Process input
-		input.processInput();
+		input.process_input();
 		glfw::pollEvents();
 
 		// Get projection and view matricies from camera positions
 		auto [width, height] = window.getSize();
-		projection = glm::perspective(cam.getFOV(), static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f);
-		view = cam.getViewMat();
+		projection = glm::perspective(cam.get_fov(), static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f);
+		view = cam.view_mat();
 
-		glm::vec3 camPos{ cam.getPos() };
+		glm::vec3 camPos{ cam.get_pos() };
 
 
 		// Textured diff+spec objects with multiple of lights shining on them
@@ -279,9 +261,9 @@ static void render_cube_scene(glfw::Window& window) {
 
 		boxVAO.bind();
 
-		SPMultiLight.setUniform("projection", projection);
-		SPMultiLight.setUniform("view", view);
-		SPMultiLight.setUniform("camPos", camPos);
+		SPMultiLight.uniform("projection", projection);
+		SPMultiLight.uniform("view", view);
+		SPMultiLight.uniform("camPos", camPos);
 
 		// ---- Light Sources ----
 		// (most of them are constant, but I'll set them within the render loop anyway, for clarity)
@@ -291,8 +273,8 @@ static void render_cube_scene(glfw::Window& window) {
 			.color = { 0.3f, 0.3f, 0.2f },
 			.direction = { -0.2f, -1.0f, -0.3f }
 		};
-		SPMultiLight.setUniform("dirLight.color", ld.color);
-		SPMultiLight.setUniform("dirLight.direction", ld.direction);
+		SPMultiLight.uniform("dirLight.color", ld.color);
+		SPMultiLight.uniform("dirLight.direction", ld.direction);
 
 
 		// Point
@@ -320,11 +302,11 @@ static void render_cube_scene(glfw::Window& window) {
 			att1Name.replace(12, 1, iString);
 			att2Name.replace(12, 1, iString);
 
-			SPMultiLight.setUniform(colName.c_str(), lps[i].color);
-			SPMultiLight.setUniform(posName.c_str(), lps[i].position);
-			SPMultiLight.setUniform(att0Name.c_str(), lps[i].attenuation.constant);
-			SPMultiLight.setUniform(att1Name.c_str(), lps[i].attenuation.linear);
-			SPMultiLight.setUniform(att2Name.c_str(), lps[i].attenuation.quadratic);
+			SPMultiLight.uniform(colName.c_str(), lps[i].color);
+			SPMultiLight.uniform(posName.c_str(), lps[i].position);
+			SPMultiLight.uniform(att0Name.c_str(), lps[i].attenuation.constant);
+			SPMultiLight.uniform(att1Name.c_str(), lps[i].attenuation.linear);
+			SPMultiLight.uniform(att2Name.c_str(), lps[i].attenuation.quadratic);
 		}
 
 
@@ -332,19 +314,19 @@ static void render_cube_scene(glfw::Window& window) {
 		light::Spotlight ls{
 				.color = glm::vec3(1.0f),
 				.position = camPos,
-				.direction = -cam.backUV(),
+				.direction = -cam.back_uv(),
 				.attenuation = light::Attenuation{ .constant = 1.0f, .linear = 1.0f, .quadratic = 2.1f },
 				.innerCutoffRad = glm::radians(12.0f),
 				.outerCutoffRad = glm::radians(15.0f)
 		};
-		SPMultiLight.setUniform("spotLight.color", ls.color);
-		SPMultiLight.setUniform("spotLight.position", ls.position);
-		SPMultiLight.setUniform("spotLight.direction", ls.direction);
-		SPMultiLight.setUniform("spotLight.attenuation.constant", ls.attenuation.constant);
-		SPMultiLight.setUniform("spotLight.attenuation.linear", ls.attenuation.linear);
-		SPMultiLight.setUniform("spotLight.attenuation.quadratic", ls.attenuation.quadratic);
-		SPMultiLight.setUniform("spotLight.innerCutoffCos", glm::cos(ls.innerCutoffRad));
-		SPMultiLight.setUniform("spotLight.outerCutoffCos", glm::cos(ls.outerCutoffRad));
+		SPMultiLight.uniform("spotLight.color", ls.color);
+		SPMultiLight.uniform("spotLight.position", ls.position);
+		SPMultiLight.uniform("spotLight.direction", ls.direction);
+		SPMultiLight.uniform("spotLight.attenuation.constant", ls.attenuation.constant);
+		SPMultiLight.uniform("spotLight.attenuation.linear", ls.attenuation.linear);
+		SPMultiLight.uniform("spotLight.attenuation.quadratic", ls.attenuation.quadratic);
+		SPMultiLight.uniform("spotLight.innerCutoffCos", glm::cos(ls.innerCutoffRad));
+		SPMultiLight.uniform("spotLight.outerCutoffCos", glm::cos(ls.outerCutoffRad));
 
 
 		// ---- Scene of Boxes ----
@@ -355,10 +337,10 @@ static void render_cube_scene(glfw::Window& window) {
 			float angle = 20.0f * i;
 
 			model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
-			SPMultiLight.setUniform("model", model);
+			SPMultiLight.uniform("model", model);
 
 			normalModel = glm::mat3(glm::transpose(glm::inverse(model)));
-			SPMultiLight.setUniform("normalModel", normalModel);
+			SPMultiLight.uniform("normalModel", normalModel);
 
 
 			boxVAO.draw();
@@ -373,20 +355,20 @@ static void render_cube_scene(glfw::Window& window) {
 		lightVAO.bind();
 
 
-		SPLightSource.setUniform("projection", projection);
-		SPLightSource.setUniform("view", view);
+		SPLightSource.uniform("projection", projection);
+		SPLightSource.uniform("view", view);
 
 
 		for (size_t i{0}; i < 4; ++i) {
 			model = glm::mat4{ 1.0f };
 			model = glm::translate(model, pointLightPositions[i]);
 			model = glm::scale(model, glm::vec3{ 0.2f });
-			SPLightSource.setUniform("model", model);
+			SPLightSource.uniform("model", model);
 
 			normalModel = glm::mat3(glm::transpose(glm::inverse(model)));
-			SPLightSource.setUniform("normalModel", normalModel);
+			SPLightSource.uniform("normalModel", normalModel);
 
-			SPLightSource.setUniform("lightColor", lps[i].color);
+			SPLightSource.uniform("lightColor", lps[i].color);
 
 			lightVAO.draw();
 		}
@@ -396,3 +378,4 @@ static void render_cube_scene(glfw::Window& window) {
 
 
 }
+ */

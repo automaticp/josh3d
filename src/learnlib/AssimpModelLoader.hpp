@@ -10,6 +10,7 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
+#include "GLObjects.hpp"
 #include "GLObjectPools.hpp"
 #include "Vertex.hpp"
 #include "Model.hpp"
@@ -80,7 +81,7 @@ public:
 
     [[nodiscard]]
     Model<V> get() {
-        return { std::move(meshes_) };
+        return Model<V>{ std::move(meshes_) };
     }
 
 private:
@@ -127,7 +128,8 @@ private:
 
 
     static std::vector<gl::GLuint> get_element_data(const aiMesh* mesh) {
-        std::vector<gl::GLuint> indices;
+        using namespace gl;
+        std::vector<GLuint> indices;
         // FIXME: Is there a way to reserve correctly?
         indices.reserve(mesh->mNumFaces * 3ull);
         for ( const auto& face : std::span<aiFace>(mesh->mFaces, mesh->mNumFaces) ) {

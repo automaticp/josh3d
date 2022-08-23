@@ -40,7 +40,7 @@ inline std::stringstream get_generic_call_info(const glbinding::FunctionCall& ca
 };
 
 
-inline std::string_view get_error_name(const GLenum error) {
+inline std::string_view get_error_name(const gl::GLenum error) {
     using namespace gl;
     switch ( error ) {
         case GL_INVALID_ENUM: return "GL_INVALID_ENUM";

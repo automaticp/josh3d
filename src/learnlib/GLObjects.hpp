@@ -4,8 +4,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <array>
 #include "GLObjectAllocators.hpp"
-#include "TextureData.hpp"
-#include "Vertex.hpp"
+#include "VertexTraits.hpp"
 
 
 namespace learn {
@@ -444,7 +443,7 @@ using leaksgl::BoundVAO, leaksgl::VAO;
 using leaksgl::BoundVBO, leaksgl::VBO;
 using leaksgl::BoundEBO, leaksgl::EBO;
 using leaksgl::BoundTextureHandle, leaksgl::TextureHandle;
-using leaksgl::Shader;
+using leaksgl::Shader, leaksgl::VertexShader, leaksgl::FragmentShader;
 using leaksgl::ActiveShaderProgram, leaksgl::ShaderProgram;
 
 

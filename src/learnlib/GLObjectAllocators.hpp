@@ -37,7 +37,7 @@ protected:
     //     glDeleteBuffers(1, &id_);
     void release() noexcept = delete;
 
-    friend class CRTP;
+    friend CRTP;
     // Destructor. Defined here so that you don't have to :^
     ~GLObject() {
         if (id_) {
@@ -84,6 +84,7 @@ public:
 	explicit ShaderAllocator(GLenum type) noexcept { id_ = glCreateShader(type); }
 
 private:
+	friend class GLObject<ShaderAllocator>;
 	void release() noexcept { glDeleteShader(id_); }
 };
 
@@ -93,6 +94,7 @@ public:
 	ShaderProgramAllocator() noexcept { id_ = glCreateProgram(); }
 
 private:
+	friend class GLObject<ShaderProgramAllocator>;
 	void release() noexcept { glDeleteProgram(id_); }
 };
 
@@ -102,6 +104,7 @@ public:
 	TextureAllocator() noexcept { glGenTextures(1, &id_); }
 
 private:
+	friend class GLObject<TextureAllocator>;
     void release() noexcept { glDeleteTextures(1, &id_); }
 };
 
@@ -111,6 +114,7 @@ public:
 	VAOAllocator() noexcept { glGenVertexArrays(1, &id_); }
 
 private:
+	friend class GLObject<VAOAllocator>;
 	void release() noexcept { glDeleteVertexArrays(1, &id_); }
 };
 
@@ -120,6 +124,7 @@ public:
 	BufferAllocator() noexcept { glGenBuffers(1, &id_); }
 
 private:
+	friend class GLObject<BufferAllocator>;
 	void release() noexcept { glDeleteBuffers(1, &id_); }
 };
 

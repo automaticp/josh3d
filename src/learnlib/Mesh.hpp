@@ -18,7 +18,7 @@ public:
 
 private:
     std::vector<V> vertices_;
-    std::vector<GLuint> elements_;
+    std::vector<gl::GLuint> elements_;
 
     tex_handle_t diffuse_;
     tex_handle_t specular_;
@@ -28,7 +28,7 @@ private:
     EBO ebo_;
 
 public:
-    Mesh(std::vector<V> vertices, std::vector<GLuint> elements,
+    Mesh(std::vector<V> vertices, std::vector<gl::GLuint> elements,
          tex_handle_t diffuse, tex_handle_t specular)
         : vertices_{ std::move(vertices) }, elements_{ std::move(elements) },
         diffuse_{ std::move(diffuse) }, specular_{ std::move(specular) }
