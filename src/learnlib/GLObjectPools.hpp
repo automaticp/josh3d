@@ -33,6 +33,16 @@ public:
         }
     }
 
+    void clear_unused() {
+        for ( auto it = pool_.begin(); it != pool_.end(); ) {
+            if ( it->second && it->second.use_count() == 1ull ) {
+                it = pool_.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
 private:
     std::shared_ptr<TextureHandle> load_data_from(const std::string& path) {
         std::shared_ptr<TextureData> tex_data{ upstream_.load(path) };

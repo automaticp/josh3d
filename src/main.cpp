@@ -44,6 +44,7 @@ int main() {
 	render_cube_scene(window);
 	// render_model_scene(window);
 
+	global_texture_handle_pool.clear_unused();
 	return 0;
 }
 
