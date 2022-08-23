@@ -1,4 +1,5 @@
-add_executable(ogllearn main.cpp)
+add_executable(ogllearn main.cpp Scenes.cpp)
+target_include_directories(ogllearn PRIVATE .)
 target_compile_features(ogllearn PRIVATE cxx_std_20)
 
 add_subdirectory(learnlib)
