@@ -13,10 +13,10 @@ void render_model_scene(glfw::Window& window) {
 	FileReader fr;
 
 	VertexShader vs;
-	vs.set_source(fr("data/shaders/VertexShader.vert")).compile();
+	vs.set_source(fr("src/shaders/VertexShader.vert")).compile();
 
 	FragmentShader fs;
-	fs.set_source(fr("data/shaders/TextureMaterialObject.frag")).compile();
+	fs.set_source(fr("src/shaders/TextureMaterialObject.frag")).compile();
 
 	ShaderProgram sp;
 	sp.attach_shader(vs).attach_shader(fs).link();
@@ -141,11 +141,11 @@ void render_cube_scene(glfw::Window& window) {
     FileReader fr;
 
     VertexShader vs;
-    vs.set_source(fr("data/shaders/VertexShader.vert")).compile();
+    vs.set_source(fr("src/shaders/VertexShader.vert")).compile();
     FragmentShader fs;
-    fs.set_source(fr("data/shaders/MultiLightObject.frag")).compile();
+    fs.set_source(fr("src/shaders/MultiLightObject.frag")).compile();
     FragmentShader fs_light;
-    fs_light.set_source(fr("data/shaders/LightSource.frag")).compile();
+    fs_light.set_source(fr("src/shaders/LightSource.frag")).compile();
 
     ShaderProgram sp;
     sp.attach_shader(vs).attach_shader(fs).link();
