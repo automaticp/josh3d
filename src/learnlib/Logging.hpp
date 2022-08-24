@@ -14,12 +14,16 @@
 #include <glbinding-aux/Meta.h>
 
 
+namespace learn {
+
+
+inline std::ostream& global_logstream{ std::clog };
+
 
 namespace detail {
 
-using namespace gl;
 
-std::stringstream get_generic_call_info(const glbinding::FunctionCall& call) {
+inline std::stringstream get_generic_call_info(const glbinding::FunctionCall& call) {
     std::stringstream ss;
     ss << call.function->name() << '(';
     for ( size_t i{ 0 }; i < call.parameters.size(); ++i ) {
@@ -36,7 +40,8 @@ std::stringstream get_generic_call_info(const glbinding::FunctionCall& call) {
 };
 
 
-std::string_view get_error_name(const GLenum error) {
+inline std::string_view get_error_name(const gl::GLenum error) {
+    using namespace gl;
     switch ( error ) {
         case GL_INVALID_ENUM: return "GL_INVALID_ENUM";
         case GL_INVALID_VALUE: return "GL_INVALID_VALUE";
@@ -50,11 +55,13 @@ std::string_view get_error_name(const GLenum error) {
 };
 
 
-
 } // namespace detail
 
 
-inline void enable_glbinding_logger(std::ostream& os) {
+
+
+
+inline void enable_glbinding_logger(std::ostream& os = global_logstream) {
 
     using namespace gl;
     using namespace glbinding;
@@ -199,3 +206,6 @@ inline void enable_glbinding_logger(std::ostream& os) {
     });
 
 }
+
+
+} // namespace learn
