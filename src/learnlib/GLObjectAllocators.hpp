@@ -132,8 +132,7 @@ private:
 } // namespace leaksgl
 
 
-template<typename CRTP>
-using GLObject = leaksgl::GLObject<CRTP>; // what?
+using leaksgl::GLObject;
 
 using leaksgl::ShaderAllocator;
 using leaksgl::ShaderProgramAllocator;
