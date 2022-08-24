@@ -31,8 +31,8 @@ struct Spotlight {
     glm::vec3 position;
     glm::vec3 direction;
     Attenuation attenuation;
-    float innerCutoffRad;
-    float outerCutoffRad;
+    float inner_cutoff_radians;
+    float outer_cutoff_radians;
 };
 
 

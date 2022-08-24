@@ -223,8 +223,8 @@ void render_cube_scene(glfw::Window& window) {
         .position = {},     // Update
         .direction = {},    // Update
         .attenuation = light::Attenuation{ .constant = 1.0f, .linear = 1.0f, .quadratic = 2.1f },
-        .innerCutoffRad = glm::radians(12.0f),
-        .outerCutoffRad = glm::radians(15.0f)
+        .inner_cutoff_radians = glm::radians(12.0f),
+        .outer_cutoff_radians = glm::radians(15.0f)
     };
 
 
@@ -305,8 +305,8 @@ void render_cube_scene(glfw::Window& window) {
 		asp.uniform("spotLight.attenuation.constant", ls.attenuation.constant);
 		asp.uniform("spotLight.attenuation.linear", ls.attenuation.linear);
 		asp.uniform("spotLight.attenuation.quadratic", ls.attenuation.quadratic);
-		asp.uniform("spotLight.innerCutoffCos", glm::cos(ls.innerCutoffRad));
-		asp.uniform("spotLight.outerCutoffCos", glm::cos(ls.outerCutoffRad));
+		asp.uniform("spotLight.innerCutoffCos", glm::cos(ls.inner_cutoff_radians));
+		asp.uniform("spotLight.outerCutoffCos", glm::cos(ls.outer_cutoff_radians));
 
 
 
