@@ -10,16 +10,13 @@ void render_model_scene(glfw::Window& window) {
 	using namespace learn;
 	using namespace gl;
 
-	FileReader fr;
 
-	VertexShader vs;
-	vs.set_source(fr("src/shaders/VertexShader.vert")).compile();
-
-	FragmentShader fs;
-	fs.set_source(fr("src/shaders/TextureMaterialObject.frag")).compile();
-
-	ShaderProgram sp;
-	sp.attach_shader(vs).attach_shader(fs).link();
+	ShaderProgram sp{
+		ShaderBuilder()
+			.load_vert("src/shaders/VertexShader.vert")
+			.load_frag("src/shaders/TextureMaterialObject.frag")
+			.get()
+	};
 
 
 	Assimp::Importer importer{};
@@ -138,20 +135,20 @@ void render_cube_scene(glfw::Window& window) {
     using namespace learn;
     using namespace gl;
 
-    FileReader fr;
+	ShaderProgram sp{
+		ShaderBuilder()
+			.load_vert("src/shaders/VertexShader.vert")
+			.load_frag("src/shaders/MultiLightObject.frag")
+			.get()
+	};
 
-    VertexShader vs;
-    vs.set_source(fr("src/shaders/VertexShader.vert")).compile();
-    FragmentShader fs;
-    fs.set_source(fr("src/shaders/MultiLightObject.frag")).compile();
-    FragmentShader fs_light;
-    fs_light.set_source(fr("src/shaders/LightSource.frag")).compile();
+	ShaderProgram sp_light{
+		ShaderBuilder()
+			.load_vert("src/shaders/VertexShader.vert")
+			.load_frag("src/shaders/LightSource.frag")
+			.get()
+	};
 
-    ShaderProgram sp;
-    sp.attach_shader(vs).attach_shader(fs).link();
-
-    ShaderProgram sp_light;
-    sp_light.attach_shader(vs).attach_shader(fs_light).link();
 
     // ---- Boxes ----
 

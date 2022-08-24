@@ -12,6 +12,7 @@
 #include "Logging.hpp"
 #include "Mesh.hpp"
 #include "Model.hpp"
+#include "ShaderBuilder.hpp"
 #include "ShaderSource.hpp"
 #include "TextureData.hpp"
 #include "Vertex.hpp"
