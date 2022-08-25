@@ -45,8 +45,8 @@ public:
     explicit IInput(glfw::Window& window) : window_{ window } {
 
         window_.keyEvent.setCallback(
-            [this](glfw::Window& window, glfw::KeyCode key, int scancode, glfw::KeyState state, glfw::ModifierKeyBit mods) {
-                this->respond_to_key({ window, key, scancode, state, mods });
+            [this](auto&&... args) {
+                this->respond_to_key({ std::forward<decltype(args)>(args)... });
             }
         );
 
