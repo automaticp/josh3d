@@ -11,9 +11,20 @@ void render_model_scene(glfw::Window& window) {
 	using namespace gl;
 
 
+	ShaderSource vert_src{ FileReader{}, "src/shaders/VertexShader.vert" };
+	vert_src.find_and_insert_as_next_line(
+		"uniform",
+		"uniform float time;"
+	);
+
+	vert_src.find_and_replace(
+		"texCoord = aTexCoord;",
+		"texCoord = cos(time) * aTexCoord;"
+	);
+
 	ShaderProgram sp{
 		ShaderBuilder()
-			.load_vert("src/shaders/VertexShader.vert")
+			.add_vert(vert_src)
 			.load_frag("src/shaders/TextureMaterialObject.frag")
 			.get()
 	};
@@ -72,6 +83,8 @@ void render_model_scene(glfw::Window& window) {
 
 		asp.uniform("lightColor", lp.color);
 		asp.uniform("lightPos", lp.position);
+
+		asp.uniform("time", static_cast<float>(global_frame_timer.current()));
 
 		backpack_model.draw(asp);
 
