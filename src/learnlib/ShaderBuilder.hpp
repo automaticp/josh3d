@@ -16,16 +16,22 @@ private:
 
 public:
     ShaderBuilder& load_frag(const std::string& path) {
-        FragmentShader fs;
-        fs.set_source(FileReader{}(path)).compile();
-        sp_.attach_shader(fs);
+        compile_from_source_and_attach(FileReader{}(path), gl::GL_FRAGMENT_SHADER);
         return *this;
     }
 
     ShaderBuilder& load_vert(const std::string& path) {
-        VertexShader vs;
-        vs.set_source(FileReader{}(path)).compile();
-        sp_.attach_shader(vs);
+        compile_from_source_and_attach(FileReader{}(path), gl::GL_VERTEX_SHADER);
+        return *this;
+    }
+
+    ShaderBuilder& add_frag(const ShaderSource& source) {
+        compile_from_source_and_attach(source, gl::GL_FRAGMENT_SHADER);
+        return *this;
+    }
+
+    ShaderBuilder& add_vert(const ShaderSource& source) {
+        compile_from_source_and_attach(source, gl::GL_VERTEX_SHADER);
         return *this;
     }
 
@@ -33,6 +39,13 @@ public:
     ShaderProgram get() {
         sp_.link();
         return std::move(sp_);
+    }
+
+private:
+    void compile_from_source_and_attach(const std::string& source, gl::GLenum type) {
+        Shader s{ type };
+        s.set_source(source).compile();
+        sp_.attach_shader(s);
     }
 
 };
