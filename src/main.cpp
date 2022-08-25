@@ -34,7 +34,7 @@ int main() {
 	// Init glbindings
 	glbinding::initialize(glfwGetProcAddress);
 #ifndef NDEBUG
-	enable_glbinding_logger();
+	// enable_glbinding_logger();
 #endif
 	auto [width, height] { window.getSize() };
 	glViewport(0, 0, width, height);
