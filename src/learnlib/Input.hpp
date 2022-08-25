@@ -13,30 +13,9 @@ namespace learn {
 
 
 class IInput {
-public:
-    virtual void process_input() = 0;
-    virtual ~IInput() = default;
-};
-
-
-class InputGlobal : public IInput {
 protected:
     glfw::Window& window_;
 
-public:
-    explicit InputGlobal(glfw::Window& window) : window_{ window } {
-        // using namespace std::placeholders;
-        // window_.keyEvent.setCallback(std::bind(&InputGlobal::callbackKeys, this, _1, _2, _3, _4, _5));
-        window_.keyEvent.setCallback(
-            [this](glfw::Window& window, glfw::KeyCode key, int scancode, glfw::KeyState state, glfw::ModifierKeyBit mods) {
-                this->respond_to_key({ window, key, scancode, state, mods });
-            }
-        );
-    }
-
-    virtual void process_input() override {}
-
-protected:
     struct KeyCallbackArgs {
         glfw::Window& window;
         glfw::KeyCode key;
@@ -45,74 +24,115 @@ protected:
         glfw::ModifierKeyBit mods;
     };
 
-    virtual void respond_to_key(const KeyCallbackArgs& args) {
-        respond_close_window(args);
-        respond_enable_line_mode(args);
-    }
-/*
-    void callbackKeys(glfw::Window& window, glfw::KeyCode key, int scancode,
-        glfw::KeyState state, glfw::ModifierKeyBit mods) {
-        KeyCallbackArgs args{ window, key, scancode, state, mods };
-        respond_to_key(args);
-    }
- */
-    void respond_close_window(const KeyCallbackArgs& args) {
-        using namespace glfw;
-        if ( args.key == KeyCode::Escape && args.state == KeyState::Release ) {
-            args.window.setShouldClose(true);
-        }
+    struct CursorPosCallbackArgs {
+        glfw::Window& window;
+        double xpos;
+        double ypos;
+    };
+
+    struct ScrollCallbackArgs {
+        glfw::Window& window;
+        double xoffset;
+        double yoffset;
+    };
+
+    // Response invoked on callback events
+    virtual void respond_to_key(const KeyCallbackArgs& args) = 0;
+    virtual void respond_to_cursor_pos(const CursorPosCallbackArgs& args) = 0;
+    virtual void respond_to_scroll(const ScrollCallbackArgs& args) = 0;
+
+public:
+    explicit IInput(glfw::Window& window) : window_{ window } {
+
+        window_.keyEvent.setCallback(
+            [this](glfw::Window& window, glfw::KeyCode key, int scancode, glfw::KeyState state, glfw::ModifierKeyBit mods) {
+                this->respond_to_key({ window, key, scancode, state, mods });
+            }
+        );
+
+        window_.cursorPosEvent.setCallback(
+            [this](auto&&... args){
+                this->respond_to_cursor_pos({ std::forward<decltype(args)>(args)... });
+            }
+        );
+
+        window_.scrollEvent.setCallback(
+            [this](auto&&... args){
+                this->respond_to_scroll({ std::forward<decltype(args)>(args)... });
+            }
+        );
+
     }
 
-    void respond_enable_line_mode(const KeyCallbackArgs& args) {
-        using namespace glfw;
-        using namespace gl;
-        static bool is_line_mode{ false }; // FIXME: Is it bad that this is shared between all instances?
-        if ( args.key == KeyCode::H && args.state == KeyState::Release ) {
-            glPolygonMode(GL_FRONT_AND_BACK, is_line_mode ? GL_FILL : GL_LINE);
-            is_line_mode ^= true;
-        }
-    }
+    // Updates referenced members (or global state) depending on the state of the input instance.
+    // Must be called after each glfwPollEvents().
+    virtual void process_input() = 0;
+
+    virtual ~IInput() = default;
 
 };
 
 
 
-class InputFreeCamera : public InputGlobal {
-private:
-    Camera& camera_;
-
-public:
-    InputFreeCamera(glfw::Window& window, Camera& camera) : InputGlobal{ window }, camera_{ camera } {
-        // using namespace std::placeholders;
-        // window_.cursorPosEvent.setCallback(std::bind(&InputFreeCamera::callback_camera_rotate, this, _1, _2, _3));
-        // window_.scrollEvent.setCallback(std::bind(&InputFreeCamera::callback_camera_zoom, this, _1, _2, _3));
-        window_.cursorPosEvent.setCallback([this](auto&&... args){ this->callback_camera_rotate(std::forward<decltype(args)>(args)...); });
-        window_.scrollEvent.setCallback([this](auto&&... args){ this->callback_camera_zoom(std::forward<decltype(args)>(args)...); });
-    }
 
 
-    virtual void process_input() override {
-        process_input_move();
-    }
+struct InputConfigFreeCamera {
+    using key_t = decltype(glfw::KeyCode::A);
+    key_t up            { key_t::Space };
+    key_t down          { key_t::LeftShift };
+    key_t left          { key_t::A };
+    key_t right         { key_t::D };
+    key_t forward       { key_t::W };
+    key_t back          { key_t::S };
+    key_t toggle_line   { key_t::H };
+    key_t close_window  { key_t::Escape };
+};
 
+
+class InputFreeCamera : public IInput {
 protected:
-    virtual void respond_to_key(const KeyCallbackArgs& args) override {
-        respond_close_window(args);
-        respond_enable_line_mode(args);
-        respond_camera_move(args);
-    }
+    Camera& camera_;
 
     struct MoveState {
         bool up		{ false };
         bool down	{ false };
-        bool right	{ false };
         bool left	{ false };
-        bool back	{ false };
+        bool right	{ false };
         bool forward{ false };
+        bool back	{ false };
     };
 
-    MoveState move_state_{};
+    MoveState move_state_;
 
+    bool is_line_mode_{ false };
+
+    float last_xpos_{ 0.0f };
+    float last_ypos_{ 0.0f };
+
+public:
+    InputConfigFreeCamera config;
+
+    InputFreeCamera(glfw::Window& window, Camera& camera, const InputConfigFreeCamera& input_config = {}) :
+        IInput{ window }, camera_{ camera }, config{ input_config } {}
+
+    void process_input() override {
+        process_input_move();
+    }
+
+protected:
+    void respond_to_key(const KeyCallbackArgs& args) override {
+        respond_close_window(args);
+        respond_toggle_line_mode(args);
+        respond_camera_move(args);
+    }
+
+    void respond_to_cursor_pos(const CursorPosCallbackArgs& args) override {
+        respond_camera_rotate(args);
+    }
+
+    void respond_to_scroll(const ScrollCallbackArgs& args) override {
+        respond_camera_zoom(args);
+    }
 
 
     void process_input_move() {
@@ -133,49 +153,66 @@ protected:
         }
     }
 
+
+    void respond_close_window(const KeyCallbackArgs& args) {
+        using namespace glfw;
+        if ( args.key == KeyCode::Escape && args.state == KeyState::Release ) {
+            args.window.setShouldClose(true);
+        }
+    }
+
+    void respond_toggle_line_mode(const KeyCallbackArgs& args) {
+        using namespace glfw;
+        using namespace gl;
+
+        if ( args.key == KeyCode::H && args.state == KeyState::Release ) {
+            glPolygonMode(GL_FRONT_AND_BACK, is_line_mode_ ? GL_FILL : GL_LINE);
+            is_line_mode_ ^= true;
+        }
+    }
+
     void respond_camera_move(const KeyCallbackArgs& args) {
         using namespace glfw;
 
         if ( args.state == KeyState::Press || args.state == KeyState::Release ) {
             bool state{ static_cast<bool>(args.state) };
-            // FIXME: Probably switch statement is better
-            if 	    ( args.key == KeyCode::W )          move_state_.forward	= state;
-            else if ( args.key == KeyCode::S )          move_state_.back    = state;
-            else if ( args.key == KeyCode::A )          move_state_.left    = state;
-            else if ( args.key == KeyCode::D )          move_state_.right   = state;
-            else if ( args.key == KeyCode::LeftShift )  move_state_.down    = state;
-            else if ( args.key == KeyCode::Space )      move_state_.up      = state;
-
+            // FIXME: This scales like ... Use flatmap maybe?
+            // Callbacks for actions not keys is a double-maybe.
+            if ( args.key == config.up )       move_state_.up = state;
+            if ( args.key == config.down )     move_state_.down = state;
+            if ( args.key == config.left )     move_state_.left = state;
+            if ( args.key == config.right )    move_state_.right = state;
+            if ( args.key == config.forward )  move_state_.forward = state;
+            if ( args.key == config.back )     move_state_.back = state;
         }
     }
 
-    void callback_camera_rotate(glfw::Window& window, double xpos, double ypos) {
+    void respond_camera_rotate(const CursorPosCallbackArgs& args) {
 
-        // FIXME: no statics for god's sake
-        static float last_xpos{ 0.0f };
-        static float last_ypos{ 0.0f };
+        float xpos{ static_cast<float>(args.xpos) };
+        float ypos{ static_cast<float>(args.ypos) };
 
         float sensitivity{ 0.1f * camera_.get_fov() };
 
-        float xoffset{ static_cast<float>(xpos) - last_xpos };
+        float xoffset{ xpos - last_xpos_ };
         xoffset = glm::radians(sensitivity * xoffset);
 
-        float yoffset{ static_cast<float>(ypos) - last_ypos };
+        float yoffset{ ypos - last_ypos_ };
         yoffset = glm::radians(sensitivity * yoffset);
 
-        last_xpos = static_cast<float>(xpos);
-        last_ypos = static_cast<float>(ypos);
+        last_xpos_ = xpos;
+        last_ypos_ = ypos;
 
         camera_.rotate(xoffset, -global_basis.y());
         camera_.rotate(yoffset, -camera_.right_uv());
 
     }
 
-    void callback_camera_zoom(glfw::Window& window, double, double yoffset) {
+    void respond_camera_zoom(const ScrollCallbackArgs& args) {
 
         constexpr float sensitivity{ 2.0f };
 
-        camera_.set_fov(camera_.get_fov() - sensitivity * glm::radians(static_cast<float>(yoffset)));
+        camera_.set_fov(camera_.get_fov() - sensitivity * glm::radians(static_cast<float>(args.yoffset)));
         if ( camera_.get_fov() < glm::radians(5.0f) )
             camera_.set_fov(glm::radians(5.0f));
         if ( camera_.get_fov() > glm::radians(135.0f) )

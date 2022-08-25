@@ -48,8 +48,8 @@ void render_model_scene(glfw::Window& window) {
 		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		input.process_input();
 		glfw::pollEvents();
+		input.process_input();
 
 		// Get projection and view matricies from camera positions
 		auto [width, height] = window.getSize();
