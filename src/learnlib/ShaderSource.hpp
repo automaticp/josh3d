@@ -30,7 +30,7 @@ private:
 
 public:
     template<typename Reader, typename... Args>
-    ShaderSource(Reader&& reader, Args&&... args) : text_{ reader(args...) } {}
+    ShaderSource(Reader&& reader, Args&&... args) : text_{ reader(std::forward<Args>(args)...) } {}
 
     ShaderSource(std::string text) : text_{ std::move(text) } {}
 
