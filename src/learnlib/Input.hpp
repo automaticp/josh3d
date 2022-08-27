@@ -85,6 +85,7 @@ struct InputConfigFreeCamera {
     key_t forward       { key_t::W };
     key_t back          { key_t::S };
     key_t toggle_line   { key_t::H };
+    key_t toggle_cursor { key_t::C };
     key_t close_window  { key_t::Escape };
 };
 
@@ -105,6 +106,7 @@ protected:
     MoveState move_state_;
 
     bool is_line_mode_{ false };
+    bool is_cursor_mode_{ false };
 
     float last_xpos_{ 0.0f };
     float last_ypos_{ 0.0f };
@@ -123,11 +125,14 @@ protected:
     void respond_to_key(const KeyCallbackArgs& args) override {
         respond_close_window(args);
         respond_toggle_line_mode(args);
+        respond_toggle_cursor(args);
         respond_camera_move(args);
     }
 
     void respond_to_cursor_pos(const CursorPosCallbackArgs& args) override {
-        respond_camera_rotate(args);
+        if ( !is_cursor_mode_ ) {
+            respond_camera_rotate(args);
+        }
     }
 
     void respond_to_scroll(const ScrollCallbackArgs& args) override {
@@ -156,7 +161,7 @@ protected:
 
     void respond_close_window(const KeyCallbackArgs& args) {
         using namespace glfw;
-        if ( args.key == KeyCode::Escape && args.state == KeyState::Release ) {
+        if ( args.key == config.close_window && args.state == KeyState::Release ) {
             args.window.setShouldClose(true);
         }
     }
@@ -165,9 +170,18 @@ protected:
         using namespace glfw;
         using namespace gl;
 
-        if ( args.key == KeyCode::H && args.state == KeyState::Release ) {
-            glPolygonMode(GL_FRONT_AND_BACK, is_line_mode_ ? GL_FILL : GL_LINE);
+        if ( args.key == config.toggle_line && args.state == KeyState::Release ) {
             is_line_mode_ ^= true;
+            glPolygonMode(GL_FRONT_AND_BACK, is_line_mode_ ? GL_LINE : GL_FILL);
+        }
+    }
+
+    void respond_toggle_cursor(const KeyCallbackArgs& args) {
+        using namespace glfw;
+
+        if ( args.key == config.toggle_cursor && args.state == KeyState::Release ) {
+            is_cursor_mode_ ^= true;
+            args.window.setInputModeCursor( is_cursor_mode_ ? CursorMode::Normal : CursorMode::Disabled );
         }
     }
 
