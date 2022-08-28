@@ -40,7 +40,21 @@ void render_model_scene(glfw::Window& window) {
 
 
 	Camera cam{ glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, -1.0f) };
-	InputFreeCamera input{ window, cam };
+	// InputFreeCamera input{ window, cam };
+
+	RebindableInputFreeCamera rinput{ window, cam };
+
+	rinput.add_keybind(
+		glfw::KeyCode::R,
+		[&sp](const IInput::KeyCallbackArgs& args) {
+			if ( args.state == glfw::KeyState::Release ) {
+				sp = ShaderBuilder()
+					.load_vert("src/shaders/VertexShader.vert")
+					.load_frag("src/shaders/TextureMaterialObject.frag")
+					.get();
+			}
+		}
+	);
 
 	glm::mat4 view{};
 	glm::mat4 projection{};
@@ -60,7 +74,7 @@ void render_model_scene(glfw::Window& window) {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		glfw::pollEvents();
-		input.process_input();
+		rinput.process_input();
 
 		// Get projection and view matricies from camera positions
 		auto [width, height] = window.getSize();
