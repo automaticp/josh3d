@@ -45,7 +45,10 @@ protected:
     virtual void respond_to_scroll(const ScrollCallbackArgs& args) = 0;
 
 public:
-    explicit IInput(glfw::Window& window) : window_{ window } {
+    explicit IInput(glfw::Window& window) : window_{ window } {}
+
+    // Call this to enable or switch input depending on concrete Input class
+    void bind_callbacks() {
 
         window_.keyEvent.setCallback(
             [this](auto&&... args) {
@@ -66,6 +69,9 @@ public:
         );
 
     }
+
+    // Enables this input. The same as bind_callbacks().
+    void use() { bind_callbacks(); }
 
     // Updates referenced members (or global state) depending on the state of the input instance.
     // Must be called after each glfwPollEvents().

@@ -44,6 +44,8 @@ void render_model_scene(glfw::Window& window) {
 
 	RebindableInputFreeCamera rinput{ window, cam };
 
+	rinput.use();
+
 	rinput.add_keybind(
 		glfw::KeyCode::R,
 		[&sp](const IInput::KeyCallbackArgs& args) {
@@ -255,6 +257,7 @@ void render_cube_scene(glfw::Window& window) {
 
 	Camera cam{ glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, -1.0f) };
 	InputFreeCamera input{ window, cam };
+	input.use();
 
 	glm::mat4 view{};
 	glm::mat4 projection{};
