@@ -5,6 +5,7 @@
 #include <utility>
 #include <fstream>
 #include <string_view>
+#include <algorithm>
 
 
 namespace learn {
@@ -68,14 +69,11 @@ public:
             return false;
         }
 
-        it += target.size();
-
-        // Just advances it until the end of this line
-        // or the end of text, whichever comes first.
-        for ( ; (it != text_.cend()) && (*(it) != '\n'); ++it );
+        it = std::find(it + target.size(), text_.cend(), '\n');
 
         if ( it != text_.cend() ) {
-            insert_as_line_at(++it, new_line);
+            ++it; // Move to the next line
+            insert_as_line_at(it, new_line);
         } else {
             insert_as_last_line_at(it, new_line);
         }
@@ -96,6 +94,7 @@ private:
         return it;
     }
 
+    // std::string::find alternative that returns an iterator
     static auto it_find(const std::string& str, std::string_view target) -> std::string::const_iterator {
         auto pos = str.find(target);
         return ( pos != str.npos ) ? str.cbegin() + pos : str.cend();
