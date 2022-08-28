@@ -1,6 +1,7 @@
 #pragma once
 #include <functional>
 #include <utility>
+#include <unordered_map>
 #include <glbinding/gl/gl.h>
 #include <glfwpp/glfwpp.h>
 #include <glm/glm.hpp>
@@ -16,6 +17,7 @@ class IInput {
 protected:
     glfw::Window& window_;
 
+public:
     struct KeyCallbackArgs {
         glfw::Window& window;
         glfw::KeyCode key;
@@ -36,6 +38,7 @@ protected:
         double yoffset;
     };
 
+protected:
     // Response invoked on callback events
     virtual void respond_to_key(const KeyCallbackArgs& args) = 0;
     virtual void respond_to_cursor_pos(const CursorPosCallbackArgs& args) = 0;
@@ -74,6 +77,36 @@ public:
 
 
 
+class RebindableInput : public virtual IInput {
+public:
+    using key_t = decltype(glfw::KeyCode::A);
+    using map_t = std::unordered_map<key_t, std::function<void(const KeyCallbackArgs&)>>;
+
+private:
+    map_t keymap_;
+
+public:
+    explicit RebindableInput(glfw::Window& window) : IInput(window) {}
+
+    RebindableInput& add_keybind(key_t key, std::function<void(const KeyCallbackArgs&)> callback) {
+        keymap_.emplace(key, std::move(callback));
+        return *this;
+    }
+
+protected:
+
+    void respond_to_key(const KeyCallbackArgs& args) override {
+        // Maybe better to just use [] to avoid branching?
+        auto it = keymap_.find(args.key);
+        if ( it != keymap_.end() ) {
+            std::invoke(it->second, args);
+        }
+    }
+
+};
+
+
+
 
 
 struct InputConfigFreeCamera {
@@ -90,7 +123,7 @@ struct InputConfigFreeCamera {
 };
 
 
-class InputFreeCamera : public IInput {
+class InputFreeCamera : public virtual IInput {
 protected:
     Camera& camera_;
 
@@ -234,6 +267,24 @@ protected:
     }
 
 };
+
+
+// How to commit a sin 101
+class RebindableInputFreeCamera : public InputFreeCamera, public RebindableInput {
+protected:
+    void respond_to_key(const KeyCallbackArgs& args) override {
+        InputFreeCamera::respond_to_key(args);
+        RebindableInput::respond_to_key(args);
+    }
+
+public:
+    RebindableInputFreeCamera(glfw::Window& window, Camera& camera, const InputConfigFreeCamera& input_config = {}) :
+        InputFreeCamera(window, camera, input_config), RebindableInput(window), IInput(window) {}
+
+};
+
+
+
 
 
 } // namespace learn
