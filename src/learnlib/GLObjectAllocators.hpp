@@ -67,7 +67,7 @@ public:
 
 	GLObject& operator=(GLObject&& other) noexcept {
         static_cast<CRTP&>(*this).release();
-        id_ = other.id;
+        id_ = other.id_;
         other.id_ = 0;
         return *this;
     }
