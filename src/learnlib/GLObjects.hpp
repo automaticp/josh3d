@@ -274,6 +274,36 @@ public:
 
 
 
+class BoundRenderbuffer {
+private:
+    friend class Renderbuffer;
+    BoundRenderbuffer() = default;
+
+public:
+    BoundRenderbuffer& create_storage(GLsizei width, GLsizei height, GLenum internal_format) {
+        glRenderbufferStorage(GL_RENDERBUFFER, internal_format, width, height);
+        return *this;
+    }
+
+    void unbind() {
+        glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    }
+};
+
+
+
+class Renderbuffer : public RenderbufferAllocator {
+public:
+    void bind() {
+        glBindRenderbuffer(GL_RENDERBUFFER, id_);
+    }
+
+};
+
+
+
+
+
 
 
 
@@ -498,9 +528,9 @@ using leaksgl::BoundAbstractBuffer, leaksgl::AbstractBuffer;
 using leaksgl::BoundVAO, leaksgl::VAO;
 using leaksgl::BoundVBO, leaksgl::VBO;
 using leaksgl::BoundEBO, leaksgl::EBO;
+using leaksgl::BoundRenderbuffer, leaksgl::Renderbuffer;
 using leaksgl::BoundTextureHandle, leaksgl::TextureHandle;
 using leaksgl::Shader, leaksgl::VertexShader, leaksgl::FragmentShader;
 using leaksgl::ActiveShaderProgram, leaksgl::ShaderProgram;
-
 
 } // namespace learn
