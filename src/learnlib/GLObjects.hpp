@@ -264,8 +264,9 @@ public:
 
 class Framebuffer : public FramebufferAllocator {
 public:
-    void bind() {
+    BoundFramebuffer bind() {
         glBindFramebuffer(GL_FRAMEBUFFER, id_);
+        return {};
     }
 
 };
