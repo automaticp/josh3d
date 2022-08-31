@@ -109,7 +109,7 @@ public:
     }
 
     template<size_t N>
-    BoundVAO& associate_with(BoundVBO& vbo,
+    BoundVAO& associate_with(const BoundVBO& vbo,
                         const std::array<AttributeParams, N>& aparams) {
         this->set_many_attribute_params(aparams);
         return *this;
@@ -194,6 +194,12 @@ public:
         return *this;
     }
 
+    template<size_t N>
+    BoundVBO& associate_with(BoundVAO&& vao,
+            const std::array<AttributeParams, N>& aparams) {
+        return associate_with(vao, aparams);
+    }
+
     void unbind() {
         glBindBuffer(GL_ARRAY_BUFFER, 0u);
     }
@@ -238,7 +244,7 @@ public:
 
 class EBO : public BufferAllocator {
 public:
-    BoundEBO bind(BoundVAO& vao) {
+    BoundEBO bind(const BoundVAO& vao) {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id_);
         return {};
     }
