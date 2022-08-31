@@ -263,6 +263,11 @@ public:
         glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, texture, mipmap_level);
         return *this;
     }
+
+    BoundFramebuffer& attach_renderbuffer(GLuint renderbuffer, GLenum attachment) {
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachment, GL_RENDERBUFFER, renderbuffer);
+        return *this;
+    }
 };
 
 
