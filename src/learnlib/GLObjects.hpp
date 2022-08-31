@@ -250,6 +250,10 @@ public:
 
 
 class BoundFramebuffer {
+private:
+    friend class Framebuffer;
+    BoundFramebuffer() = default;
+
 public:
     void unbind() {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -528,6 +532,7 @@ using leaksgl::BoundAbstractBuffer, leaksgl::AbstractBuffer;
 using leaksgl::BoundVAO, leaksgl::VAO;
 using leaksgl::BoundVBO, leaksgl::VBO;
 using leaksgl::BoundEBO, leaksgl::EBO;
+using leaksgl::BoundFramebuffer, leaksgl::Framebuffer;
 using leaksgl::BoundRenderbuffer, leaksgl::Renderbuffer;
 using leaksgl::BoundTextureHandle, leaksgl::TextureHandle;
 using leaksgl::Shader, leaksgl::VertexShader, leaksgl::FragmentShader;
