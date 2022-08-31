@@ -12,7 +12,7 @@ using namespace gl;
 
 
 BoundTextureHandle& BoundTextureHandle::attach_data(const TextureData& tex_data,
-    GLenum internal_format, GLenum format) {
+    GLint internal_format, GLenum format) {
 
     if (format == GL_NONE) {
         switch (tex_data.n_channels()) {
@@ -24,11 +24,13 @@ BoundTextureHandle& BoundTextureHandle::attach_data(const TextureData& tex_data,
         }
     }
 
-    glTexImage2D(
-        GL_TEXTURE_2D, 0, static_cast<GLint>(internal_format),
-        tex_data.width(), tex_data.height(), 0,
-        format, GL_UNSIGNED_BYTE, tex_data.data()
+
+    specify_image(
+        tex_data.width(), tex_data.height(),
+        internal_format, format,
+        GL_UNSIGNED_BYTE, tex_data.data()
     );
+
     glGenerateMipmap(GL_TEXTURE_2D);
 
     return *this;
