@@ -139,6 +139,35 @@ public:
 
 
 
+class AbstractBuffer;
+
+class BoundAbstractBuffer {
+private:
+    GLenum type_;
+
+    friend class AbstractBuffer;
+    BoundAbstractBuffer(GLenum type) : type_{ type } {}
+
+public:
+    void unbind() {
+        glBindBuffer(type_, 0);
+    }
+};
+
+
+class AbstractBuffer : public BufferAllocator {
+public:
+    BoundAbstractBuffer bind_as(GLenum type) {
+        glBindBuffer(type, id_);
+        return { type };
+    }
+
+    void unbind_as(GLenum type) {
+        glBindBuffer(type, 0);
+    }
+};
+
+
 
 
 
@@ -438,7 +467,7 @@ public:
 
 } // namespace leaksgl
 
-
+using leaksgl::BoundAbstractBuffer, leaksgl::AbstractBuffer;
 using leaksgl::BoundVAO, leaksgl::VAO;
 using leaksgl::BoundVBO, leaksgl::VBO;
 using leaksgl::BoundEBO, leaksgl::EBO;
