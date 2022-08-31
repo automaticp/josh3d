@@ -38,6 +38,7 @@ void render_model_scene(glfw::Window& window) {
 			.load("data/models/backpack/backpack.obj").get()
 	};
 
+	Transform backpack_transform{};
 
 	Camera cam{ glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, -1.0f) };
 	// InputFreeCamera input{ window, cam };
@@ -60,8 +61,7 @@ void render_model_scene(glfw::Window& window) {
 
 	glm::mat4 view{};
 	glm::mat4 projection{};
-	glm::mat4 model{};
-	glm::mat3 normal_model{};
+
 
 	light::Point lp{
 		.color = { 0.3f, 0.3f, 0.2f },
@@ -90,11 +90,8 @@ void render_model_scene(glfw::Window& window) {
 		asp.uniform("view", view);
 		asp.uniform("camPos", cam_pos);
 
-		model = glm::mat4{ 1.0f };
-		asp.uniform("model", model);
-
-		normal_model = glm::mat3(glm::transpose(glm::inverse(model)));
-		asp.uniform("normalModel", normal_model);
+		asp.uniform("model", backpack_transform.model());
+		asp.uniform("normalModel", backpack_transform.normal_model());
 
 
 		asp.uniform("lightColor", lp.color);
@@ -266,8 +263,7 @@ void render_cube_scene(glfw::Window& window) {
 
 	glm::mat4 view{};
 	glm::mat4 projection{};
-	glm::mat4 model{};
-	glm::mat3 normal_model{};
+
 
 	while ( !window.shouldClose() ) {
 
