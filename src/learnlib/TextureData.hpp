@@ -67,6 +67,9 @@ public:
         : width_{ width }, height_{ height }, n_channels_{ n_channels },
         data_{ std::make_unique_for_overwrite<std::byte[]>(size()) } {}
 
+    ImageData(std::unique_ptr<std::byte[]> data, size_t width, size_t height, size_t n_channels)
+        : width_{ width }, height_{ height }, n_channels_{ n_channels }, data_{ std::move(data) } {}
+
     size_t size() const noexcept { return width_ * height_ * n_channels_; }
     std::byte* data() const noexcept { return data_.get(); }
     size_t width() const noexcept { return width_; }
