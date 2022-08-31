@@ -181,15 +181,12 @@ void render_cube_scene(glfw::Window& window) {
 
     // ---- Boxes ----
 
-    std::vector<GLuint> elements(vertices.size());
-    std::iota(elements.begin(), elements.end(), 0u);
-
-    Mesh<Vertex> box{
-        vertices,
-        elements,
-        global_texture_handle_pool.load("data/textures/container2_d.png"),
-        global_texture_handle_pool.load("data/textures/container2_colored_s.png")
-    };
+	Assimp::Importer importer;
+	Model<Vertex> box{
+		AssimpModelLoader<Vertex>(importer)
+			.load("data/models/container/container.obj")
+			.get()
+	};
 
 	std::vector<glm::vec3> cube_positions {
 			glm::vec3( 0.0f,  0.0f,  0.0f),
@@ -214,7 +211,7 @@ void render_cube_scene(glfw::Window& window) {
     light_vbo.bind()
         .attach_data(vertices.size(), vertices.data(), GL_STATIC_DRAW)
         .associate_with(bound_light_vao, VertexTraits<Vertex>::aparams);
-    // bound_light_vao.unbind();
+
 
 
     // Point
@@ -285,7 +282,6 @@ void render_cube_scene(glfw::Window& window) {
 
 		// Textured diff+spec objects with multiple of lights shining on them
 
-		// boxVAO.bind();
 
 		ActiveShaderProgram asp{ sp.use() };
         asp .uniform("projection", projection)
