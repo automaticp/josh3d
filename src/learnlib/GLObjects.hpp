@@ -139,7 +139,6 @@ public:
 
 
 
-class AbstractBuffer;
 
 class BoundAbstractBuffer {
 private:
@@ -244,6 +243,33 @@ public:
         return {};
     }
 };
+
+
+
+
+
+
+class BoundFramebuffer {
+public:
+    void unbind() {
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+
+    BoundFramebuffer& attach_texture(GLuint texture, GLenum attachment, GLint mipmap_level = 0) {
+        glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, texture, mipmap_level);
+        return *this;
+    }
+};
+
+
+class Framebuffer : public FramebufferAllocator {
+public:
+    void bind() {
+        glBindFramebuffer(GL_FRAMEBUFFER, id_);
+    }
+
+};
+
 
 
 

@@ -129,6 +129,17 @@ private:
 };
 
 
+class FramebufferAllocator : public GLObject<FramebufferAllocator> {
+public:
+	FramebufferAllocator() noexcept { glGenFramebuffers(1, &id_); }
+
+private:
+	friend class GLObject<FramebufferAllocator>;
+	void release() noexcept { glDeleteFramebuffers(1, &id_); }
+};
+
+
+
 } // namespace leaksgl
 
 
@@ -139,6 +150,6 @@ using leaksgl::ShaderProgramAllocator;
 using leaksgl::TextureAllocator;
 using leaksgl::VAOAllocator;
 using leaksgl::BufferAllocator;
-
+using leaksgl::FramebufferAllocator;
 
 } // namespace learn
