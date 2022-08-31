@@ -15,5 +15,6 @@
 #include "ShaderBuilder.hpp"
 #include "ShaderSource.hpp"
 #include "TextureData.hpp"
+#include "Transform.hpp"
 #include "Vertex.hpp"
 #include "VertexTraits.hpp"

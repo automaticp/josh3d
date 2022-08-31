@@ -202,6 +202,14 @@ void render_cube_scene(glfw::Window& window) {
 	};
 
 
+	std::vector<Transform> box_transfroms(10);
+	for ( size_t i{ 0 }; i < cube_positions.size(); ++i ) {
+		box_transfroms[i]
+			.translate(cube_positions[i])
+			.rotate(glm::radians(20.0f * i), { 1.0f, 0.3f, 0.5f });
+	}
+
+
     // ---- Light Sources ----
 
     // Light Box
@@ -335,21 +343,11 @@ void render_cube_scene(glfw::Window& window) {
 
 		// ---- Scene of Boxes ----
 
-		for (size_t i{0}; i < 10; ++i) {
-			model = glm::mat4{ 1.0f };
-			model = glm::translate(model, cube_positions[i]);
-			float angle = 20.0f * i;
-
-			model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
-			asp.uniform("model", model);
-
-			normal_model = glm::mat3(glm::transpose(glm::inverse(model)));
-			asp.uniform("normalModel", normal_model);
-
-
+		for ( const auto& transform : box_transfroms ) {
+			asp.uniform("model", transform.model());
+			asp.uniform("normalModel", transform.normal_model());
 			box.draw(asp);
 		}
-
 
 
 		// Point Lighting Sources
@@ -362,13 +360,11 @@ void render_cube_scene(glfw::Window& window) {
 		asp_light.uniform("view", view);
 
 		for (auto&& lp : lps) {
-			model = glm::mat4{ 1.0f };
-			model = glm::translate(model, lp.position);
-			model = glm::scale(model, glm::vec3{ 0.2f });
-			asp_light.uniform("model", model);
+			Transform lp_transform;
+			lp_transform.translate(lp.position).scale(glm::vec3{ 0.2f });
+			asp_light.uniform("model", lp_transform.model());
 
-			normal_model = glm::mat3(glm::transpose(glm::inverse(model)));
-			asp_light.uniform("normalModel", normal_model);
+			asp_light.uniform("normalModel", lp_transform.normal_model());
 
 			asp_light.uniform("lightColor", lp.color);
 
