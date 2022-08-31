@@ -323,13 +323,16 @@ private:
 
 public:
     BoundTextureHandle& attach_data(const TextureData& tex_data,
-        GLint internal_format = GL_RGBA, GLenum format = GL_NONE);
+        GLenum internal_format = GL_RGBA, GLenum format = GL_NONE);
 
     BoundTextureHandle& specify_image(GLsizei width, GLsizei height,
-        GLint internal_format, GLenum format, GLenum type,
+        GLenum internal_format, GLenum format, GLenum type,
         const void* data, GLint mipmap_level = 0) {
 
-        glTexImage2D(GL_TEXTURE_2D, mipmap_level, internal_format, width, height, 0, format, type, data);
+        glTexImage2D(
+            GL_TEXTURE_2D, mipmap_level, static_cast<GLint>(internal_format),
+            width, height, 0, format, type, data
+        );
         return *this;
     }
 };

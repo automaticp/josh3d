@@ -12,7 +12,7 @@ using namespace gl;
 
 
 BoundTextureHandle& BoundTextureHandle::attach_data(const TextureData& tex_data,
-    GLint internal_format, GLenum format) {
+    GLenum internal_format, GLenum format) {
 
     if (format == GL_NONE) {
         switch (tex_data.n_channels()) {
