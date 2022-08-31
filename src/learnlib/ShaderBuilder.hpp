@@ -15,24 +15,30 @@ private:
     ShaderProgram sp_{};
 
 public:
-    ShaderBuilder& load_frag(const std::string& path) {
-        compile_from_source_and_attach(FileReader{}(path), gl::GL_FRAGMENT_SHADER);
+    ShaderBuilder& load_shader(const std::string& path, gl::GLenum type) {
+        compile_from_source_and_attach(FileReader{}(path), type);
         return *this;
     }
 
+    ShaderBuilder& load_frag(const std::string& path) {
+        return load_shader(path, gl::GL_FRAGMENT_SHADER);
+    }
+
     ShaderBuilder& load_vert(const std::string& path) {
-        compile_from_source_and_attach(FileReader{}(path), gl::GL_VERTEX_SHADER);
+        return load_shader(path, gl::GL_VERTEX_SHADER);
+    }
+
+    ShaderBuilder& add_shader(const ShaderSource& source, gl::GLenum type) {
+        compile_from_source_and_attach(source, type);
         return *this;
     }
 
     ShaderBuilder& add_frag(const ShaderSource& source) {
-        compile_from_source_and_attach(source, gl::GL_FRAGMENT_SHADER);
-        return *this;
+        return add_shader(source, gl::GL_FRAGMENT_SHADER);
     }
 
     ShaderBuilder& add_vert(const ShaderSource& source) {
-        compile_from_source_and_attach(source, gl::GL_VERTEX_SHADER);
-        return *this;
+        return add_shader(source, gl::GL_VERTEX_SHADER);
     }
 
     [[nodiscard]]
