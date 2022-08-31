@@ -169,9 +169,7 @@ protected:
     }
 
     void respond_to_cursor_pos(const CursorPosCallbackArgs& args) override {
-        if ( !is_cursor_mode_ ) {
-            respond_camera_rotate(args);
-        }
+        respond_camera_rotate(args);
     }
 
     void respond_to_scroll(const ScrollCallbackArgs& args) override {
@@ -256,9 +254,10 @@ protected:
         last_xpos_ = xpos;
         last_ypos_ = ypos;
 
-        camera_.rotate(xoffset, -global_basis.y());
-        camera_.rotate(yoffset, -camera_.right_uv());
-
+        if ( !is_cursor_mode_ ) {
+            camera_.rotate(xoffset, -global_basis.y());
+            camera_.rotate(yoffset, -camera_.right_uv());
+        }
     }
 
     void respond_camera_zoom(const ScrollCallbackArgs& args) {
