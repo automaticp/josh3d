@@ -6,6 +6,8 @@
 
 namespace learn {
 
+namespace leaksgl {
+
 using namespace gl;
 
 
@@ -32,7 +34,6 @@ BoundTextureHandle& BoundTextureHandle::attach_data(const TextureData& tex_data,
     return *this;
 }
 
-
-
+} // namespace leaksgl
 
 } // namespace learn
