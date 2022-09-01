@@ -195,7 +195,7 @@ inline void enable_glbinding_logger(std::ostream& os = global_logstream) {
         glGetProgramiv(id, GL_INFO_LOG_LENGTH, &val);
         if ( val ) {
             auto info_log = std::make_unique<GLchar[]>(static_cast<size_t>(val));
-            glGetShaderInfoLog(id, val, nullptr, info_log.get());
+            glGetProgramInfoLog(id, val, nullptr, info_log.get());
             os << "[Linking Log] " << info_log.get() << '\n';
         }
     };
