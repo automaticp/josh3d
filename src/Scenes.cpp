@@ -259,8 +259,20 @@ void render_cube_scene(glfw::Window& window) {
 
 
 	Camera cam{ glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, -1.0f) };
-	InputFreeCamera input{ window, cam };
+	RebindableInputFreeCamera input{ window, cam };
 	input.use();
+
+	input.add_keybind(
+		glfw::KeyCode::F,
+		[&ls](const IInput::KeyCallbackArgs& args) {
+			static bool flashlight_on{ true };
+			if ( args.state == glfw::KeyState::Release ) {
+				flashlight_on ^= true;
+				ls.color = flashlight_on ? glm::vec3(1.0f) : glm::vec3(0.0f);
+			}
+		}
+	);
+
 
 	glm::mat4 view{};
 	glm::mat4 projection{};
