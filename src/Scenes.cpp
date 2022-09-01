@@ -224,7 +224,8 @@ void render_cube_scene(glfw::Window& window) {
 			glm::vec3( 0.7f,  0.2f,  2.0f),
 			glm::vec3( 2.3f, -3.3f, -4.0f),
 			glm::vec3(-4.0f,  2.0f, -12.0f),
-			glm::vec3( 0.0f,  0.0f, -3.0f)
+			glm::vec3( 0.0f,  0.0f, -3.0f),
+			glm::vec3( 0.0f,  1.0f,  0.0f)
 	};
 
     std::vector<light::Point> lps;
@@ -301,7 +302,10 @@ void render_cube_scene(glfw::Window& window) {
 
 
         // Point
-		for (size_t i{ 0 }; i < 4; ++i) {
+
+		asp.uniform("numPointLights", GLint(lps.size()));
+
+		for (size_t i{ 0 }; i < lps.size(); ++i) {
 			// what a mess, though
 			std::string col_name{ "pointLights[x].color" };
 			std::string pos_name{ "pointLights[x].position" };

@@ -42,8 +42,11 @@ struct SpotlightLight {
 };
 
 uniform DirectionalLight dirLight;
-#define NUM_POINT_LIGHTS 4
-uniform PointLight pointLights[NUM_POINT_LIGHTS];
+
+#define MAX_POINT_LIGHTS 32
+uniform PointLight pointLights[MAX_POINT_LIGHTS];
+uniform int numPointLights;
+
 uniform SpotlightLight spotLight;
 
 out vec4 fragColor;
@@ -149,7 +152,7 @@ void main() {
 
     vec3 result = getLightDirectional(dirLight, normalDir, viewDir, texColor);
 
-    for (int i = 0; i < NUM_POINT_LIGHTS; ++i) {
+    for (int i = 0; i < numPointLights && i < MAX_POINT_LIGHTS; ++i) {
         result += getLightPoint(pointLights[i], normalDir, viewDir, texColor);
     }
 
