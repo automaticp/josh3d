@@ -5,6 +5,7 @@
 #include <utility>
 #include <cstddef>
 #include <memory>
+#include <cassert>
 #include <glbinding/gl/gl.h>
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
@@ -72,6 +73,7 @@ public:
             // FIXME: Throw maybe?
         }
 
+        assert(scene->mNumMeshes);
 
         meshes_.reserve(scene->mNumMeshes);
         process_node(scene->mRootNode, scene, meshes_);
