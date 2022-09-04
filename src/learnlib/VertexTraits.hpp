@@ -21,7 +21,7 @@ struct AttributeParams {
 template<typename V>
 struct VertexTraits {
     static_assert(sizeof(V) == 0, "Custom vertex class V must have a VertexTraits<V> specialization. There's no default that makes sense.");
-    constexpr static std::array<AttributeParams, 0> aparams;
+    constexpr static std::array<AttributeParams, 0> aparams{};
 };
 
 
