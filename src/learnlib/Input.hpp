@@ -12,33 +12,33 @@
 namespace learn {
 
 
+struct KeyCallbackArgs {
+    glfw::Window& window;
+    glfw::KeyCode key;
+    int scancode;
+    glfw::KeyState state;
+    glfw::ModifierKeyBit mods;
+};
+
+struct CursorPosCallbackArgs {
+    glfw::Window& window;
+    double xpos;
+    double ypos;
+};
+
+struct ScrollCallbackArgs {
+    glfw::Window& window;
+    double xoffset;
+    double yoffset;
+};
+
+
+
 
 class IInput {
 protected:
     glfw::Window& window_;
 
-public:
-    struct KeyCallbackArgs {
-        glfw::Window& window;
-        glfw::KeyCode key;
-        int scancode;
-        glfw::KeyState state;
-        glfw::ModifierKeyBit mods;
-    };
-
-    struct CursorPosCallbackArgs {
-        glfw::Window& window;
-        double xpos;
-        double ypos;
-    };
-
-    struct ScrollCallbackArgs {
-        glfw::Window& window;
-        double xoffset;
-        double yoffset;
-    };
-
-protected:
     // Response invoked on callback events
     virtual void respond_to_key(const KeyCallbackArgs& args) = 0;
     virtual void respond_to_cursor_pos(const CursorPosCallbackArgs& args) = 0;

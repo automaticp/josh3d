@@ -49,7 +49,7 @@ void render_model_scene(glfw::Window& window) {
 
 	rinput.add_keybind(
 		glfw::KeyCode::R,
-		[&sp](const IInput::KeyCallbackArgs& args) {
+		[&sp](const KeyCallbackArgs& args) {
 			if ( args.state == glfw::KeyState::Release ) {
 				sp = ShaderBuilder()
 					.load_vert("src/shaders/VertexShader.vert")
@@ -264,7 +264,7 @@ void render_cube_scene(glfw::Window& window) {
 
 	input.add_keybind(
 		glfw::KeyCode::F,
-		[&ls](const IInput::KeyCallbackArgs& args) {
+		[&ls](const KeyCallbackArgs& args) {
 			static bool flashlight_on{ true };
 			if ( args.state == glfw::KeyState::Release ) {
 				flashlight_on ^= true;
