@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <cstddef>
 #include <variant>
+#include <utility>
 #include <stb_image.h>
 
 
@@ -79,13 +80,22 @@ public:
 };
 
 
-class TextureData : public std::variant<ImageData, StbImageData> {
+class TextureData {
 public:
-    size_t size() const noexcept { return std::visit([](auto&& v) { return v.size(); }, *this); }
-    std::byte* data() const noexcept { return std::visit([](auto&& v) { return v.data(); }, *this); }
-    size_t width() const noexcept { return std::visit([](auto&& v) { return v.width(); }, *this); }
-    size_t height() const noexcept { return std::visit([](auto&& v) { return v.height(); }, *this); }
-    size_t n_channels() const noexcept { return std::visit([](auto&& v) { return v.n_channels(); }, *this); }
+    using variant_t = std::variant<ImageData, StbImageData>;
+
+private:
+    variant_t variant_;
+
+public:
+    explicit(false) TextureData(variant_t image_variant) : variant_{ std::move(image_variant) } {}
+    size_t size() const noexcept { return std::visit([](auto&& v) { return v.size(); }, variant_); }
+    std::byte* data() const noexcept { return std::visit([](auto&& v) { return v.data(); }, variant_); }
+    size_t width() const noexcept { return std::visit([](auto&& v) { return v.width(); }, variant_); }
+    size_t height() const noexcept { return std::visit([](auto&& v) { return v.height(); }, variant_); }
+    size_t n_channels() const noexcept { return std::visit([](auto&& v) { return v.n_channels(); }, variant_); }
+
+    operator variant_t() && noexcept { return std::move(variant_); }
 };
 
 
