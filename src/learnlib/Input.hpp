@@ -2,6 +2,7 @@
 #include <functional>
 #include <utility>
 #include <unordered_map>
+#include <concepts>
 #include <glbinding/gl/gl.h>
 #include <glfwpp/glfwpp.h>
 #include <glm/glm.hpp>
@@ -31,6 +32,113 @@ struct ScrollCallbackArgs {
     double xoffset;
     double yoffset;
 };
+
+
+
+
+
+
+class BasicRebindableInput {
+public:
+    using key_t = decltype(glfw::KeyCode::A);
+    using keymap_t = std::unordered_map<key_t, std::function<void(const KeyCallbackArgs&)>>;
+
+private:
+    keymap_t keymap_;
+
+protected:
+    glfw::Window& window_;
+
+
+public:
+    explicit BasicRebindableInput(glfw::Window& window) : window_{ window } {}
+
+    BasicRebindableInput(glfw::Window& window, keymap_t keymap)
+        : window_{ window }, keymap_{ std::move(keymap) } {}
+
+
+    void add_keybind(key_t key, std::function<void(const KeyCallbackArgs&)> callback) {
+        keymap_.emplace(key, std::move(callback));
+    }
+
+
+    template<std::invocable CallbackT>
+    void set_cursor_pos_callback(CallbackT&& callback) {
+
+        set_glfw_callback<CursorPosCallbackArgs>(
+            window_.cursorPosEvent, std::forward<CallbackT>(callback)
+        );
+
+    }
+
+    template<std::invocable CallbackT>
+    void set_scroll_callback(CallbackT&& callback) {
+
+        set_glfw_callback<ScrollCallbackArgs>(
+            window_.scrollEvent, std::forward<CallbackT>(callback)
+        );
+
+    }
+
+    // Updates referenced members (or global state)
+    // depending on the state of the input instance.
+    // Must be called after each glfwPollEvents().
+    virtual void process_input() {}
+
+    virtual ~BasicRebindableInput() = default;
+
+private:
+    // We use a templated setter to basically 'emplace' arbitrary callable
+    // into the glfwpp callback (implemented as std::function) for corresponding event.
+    //
+    // However, we also want to pack the arguments in one of the 'CallbackArgs' structs,
+    // and force the user-specified callback to the signature compatible with:
+    //     void(const CallbackArgs&)
+    //
+    // So we first pack arguments via a proxy 'respond_to' function,
+    // and then inside that function actually invoke the callback.
+    //
+    template<typename CallbackArgsT, std::invocable CallbackT, typename ...EventArgs>
+    void set_glfw_callback(glfw::Event<EventArgs...>& event, CallbackT&& callback) {
+
+        event.setCallback(
+            [this, &callback]<typename ...Args>(Args&&... args) {
+                respond_to<CallbackArgsT>(
+                    std::forward<CallbackT>(callback), { std::forward<Args>(args)... }
+                );
+            }
+        );
+
+    }
+
+    template<typename CallbackArgsT, std::invocable CallbackT>
+    void respond_to(CallbackT&& callback, const CallbackArgsT& args) {
+        callback(args);
+    }
+
+
+    // For keys we set our own special callback, that
+    // indexes into a keymap with KeyCallbackArgs::key
+    // and calls the corresponding used-defined callback,
+    // if it exists.
+    void enable_key_callback() {
+        window_.keyEvent.setCallback(
+            [this]<typename ...Args>(Args&&... args) {
+                respond_to_key({ std::forward<Args>(args)... });
+            }
+        );
+    }
+
+    void respond_to_key(const KeyCallbackArgs& args) {
+        // Maybe better to just use [] to avoid branching?
+        auto it = keymap_.find(args.key);
+        if ( it != keymap_.end() ) {
+            std::invoke(it->second, args);
+        }
+    }
+
+};
+
 
 
 
