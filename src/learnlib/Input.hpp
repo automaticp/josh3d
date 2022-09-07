@@ -58,7 +58,7 @@ public:
 
 
     void set_keybind(key_t key, std::function<void(const KeyCallbackArgs&)> callback) {
-        keymap_.emplace(key, std::move(callback));
+        keymap_.insert_or_assign(key, std::move(callback));
     }
 
 
