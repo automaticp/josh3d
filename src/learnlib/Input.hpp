@@ -57,7 +57,7 @@ public:
         : window_{ window }, keymap_{ std::move(keymap) } {}
 
 
-    void add_keybind(key_t key, std::function<void(const KeyCallbackArgs&)> callback) {
+    void set_keybind(key_t key, std::function<void(const KeyCallbackArgs&)> callback) {
         keymap_.emplace(key, std::move(callback));
     }
 
@@ -202,7 +202,7 @@ private:
 public:
     explicit RebindableInput(glfw::Window& window) : IInput(window) {}
 
-    RebindableInput& add_keybind(key_t key, std::function<void(const KeyCallbackArgs&)> callback) {
+    RebindableInput& set_keybind(key_t key, std::function<void(const KeyCallbackArgs&)> callback) {
         keymap_.emplace(key, std::move(callback));
         return *this;
     }

@@ -47,7 +47,7 @@ void render_model_scene(glfw::Window& window) {
 
 	rinput.use();
 
-	rinput.add_keybind(
+	rinput.set_keybind(
 		glfw::KeyCode::R,
 		[&sp](const KeyCallbackArgs& args) {
 			if ( args.state == glfw::KeyState::Release ) {
@@ -262,7 +262,7 @@ void render_cube_scene(glfw::Window& window) {
 	RebindableInputFreeCamera input{ window, cam };
 	input.use();
 
-	input.add_keybind(
+	input.set_keybind(
 		glfw::KeyCode::F,
 		[&ls](const KeyCallbackArgs& args) {
 			static bool flashlight_on{ true };
