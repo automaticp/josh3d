@@ -1,15 +1,7 @@
-#include <vector>
-#include <cmath>
 #include <numbers>
-#include <memory>
-#include <iostream>
 #include <glbinding/gl/gl.h>
 #include <glbinding/glbinding.h>
 #include <glfwpp/glfwpp.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <assimp/Importer.hpp>
-#include <assimp/postprocess.h>
 
 #include "Scenes.hpp"
 #include "All.hpp"
