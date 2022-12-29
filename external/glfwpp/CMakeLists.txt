@@ -2,8 +2,8 @@ include(FetchContent)
 
 FetchContent_Declare(
     GLFWPP
-    GIT_REPOSITORY https://github.com/janekb04/glfwpp.git
-    GIT_TAG        207096552976035ae466382df6b5fc6905d06fbd
+    GIT_REPOSITORY https://github.com/automaticp/glfwpp.git
+    GIT_TAG        8bd4c23d367cf74eb1770e473f8bcb7432a2bd4d
 )
 
 set(GLFWPP_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
