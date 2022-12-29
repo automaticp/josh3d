@@ -1,7 +1,8 @@
 #pragma once
 
-
-class glfw::Window;
+namespace glfw {
+    class Window;
+}
 
 void render_cube_scene(glfw::Window&);
 
