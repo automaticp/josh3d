@@ -1,0 +1,3 @@
+---
+Checks: 'boost-*,bugprone-*,clang-analyzer-*,concurrency-*,misc-*,-misc-no-recursion,-misc-non-private-member-variables-in-classes,-misc-const-correctness,modernize-*,-modernize-use-trailing-return-type,-modernize-use-nodiscard,performance-*,portability-*'
+...
