@@ -15,12 +15,12 @@ namespace learn {
 
 class StbImageData {
 private:
-    using stb_deleter_t = decltype(
-        [](std::byte* data) {
+    struct StbImageDeleter {
+        void operator()(std::byte* data) {
             if (data) { stbi_image_free(reinterpret_cast<stbi_uc*>(data)); }
         }
-    );
-    using stb_image_owner_t = std::unique_ptr<std::byte[], stb_deleter_t>;
+    };
+    using stb_image_owner_t = std::unique_ptr<std::byte[], StbImageDeleter>;
 
     size_t width_;
     size_t height_;
