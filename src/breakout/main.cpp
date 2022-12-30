@@ -1,6 +1,8 @@
 #include "All.hpp"
 #include "FrameTimer.hpp"
 #include "Game.hpp"
+#include "ShaderSource.hpp"
+#include "Sprite.hpp"
 #include "glfwpp/event.h"
 
 #include <glbinding/gl/gl.h>
@@ -30,7 +32,13 @@ int main() {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     learn::FrameTimer timer;
-    Game game{ timer };
+    SpriteRenderer renderer{
+        learn::ShaderSource{learn::FileReader{}, "src/breakout/shaders/sprite.vert"},
+        learn::ShaderSource{learn::FileReader{}, "src/breakout/shaders/sprite.frag"}
+    };
+    Game game{ timer, renderer };
+
+    game.init();
 
     while (!window.shouldClose()) {
         timer.update();
@@ -41,7 +49,7 @@ int main() {
         glClearColor(0.4, 0.2, 0.15, 1.0);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        // Render?
+        game.render();
 
         window.swapBuffers();
     }
