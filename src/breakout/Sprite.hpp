@@ -6,6 +6,7 @@
 #include "TextureData.hpp"
 #include "Transform.hpp"
 #include "Vertex2D.hpp"
+#include "GLObjectPool.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -17,52 +18,23 @@
 
 
 
-
-inline const learn::TextureData& get_default_texture() {
-    static const learn::TextureData tex{
-        []{
-            learn::ImageData image{
-                std::make_unique<std::byte[]>(4), 1, 1, 4
-            };
-            std::fill_n(image.data(), image.size(), std::byte{ 0xFF });
-            return image;
-        }()
-    };
-    return tex;
-}
-
-inline learn::TextureHandle& get_default_texture_handle() {
-    static learn::TextureHandle tex_handle{
-        [] {
-            learn::TextureHandle handle{};
-            handle.bind().attach_data(get_default_texture());
-            return handle;
-        }()
-    };
-    return tex_handle;
-}
-
-
 class Sprite {
 private:
-    learn::TextureHandle& texture_;
+    learn::Shared<learn::TextureHandle> texture_;
     learn::Transform transform_;
     glm::vec3 color_;
 
     friend class SpriteRenderer;
 
 public:
-    Sprite(learn::TextureHandle& texture, const learn::Transform& transform, glm::vec3 color)
-        : texture_{ texture }, transform_{ transform }, color_{ color } {}
+    Sprite(learn::Shared<learn::TextureHandle> texture, const learn::Transform& transform, glm::vec3 color)
+        : texture_{ std::move(texture) }, transform_{ transform }, color_{ color } {}
 
-    Sprite(learn::TextureHandle& texture, const learn::Transform& transform)
-        : Sprite(texture, transform, glm::vec3{ 1.0f, 1.0f, 1.0f }) {}
+    Sprite(learn::Shared<learn::TextureHandle> texture, const learn::Transform& transform)
+        : Sprite(std::move(texture), transform, glm::vec3{ 1.0f, 1.0f, 1.0f }) {}
 
-    Sprite(learn::TextureHandle& texture)
-        : Sprite(texture, {}, glm::vec3{ 1.0f, 1.0f, 1.0f }) {}
-
-    Sprite()
-        : Sprite(get_default_texture_handle()) {}
+    Sprite(learn::Shared<learn::TextureHandle> texture)
+        : Sprite(std::move(texture), {}, glm::vec3{ 1.0f, 1.0f, 1.0f }) {}
 
     learn::Transform& transform() noexcept { return transform_; }
     const learn::Transform& transform() const noexcept { return transform_; }
@@ -108,7 +80,7 @@ public:
     void draw_sprite(Sprite& sprite) {
         auto asp = sp_.use();
 
-        sprite.texture_.bind_to_unit(gl::GL_TEXTURE0);
+        sprite.texture_->bind_to_unit(gl::GL_TEXTURE0);
 
         asp.uniform("model", sprite.transform().model())
             .uniform("color", sprite.color())
