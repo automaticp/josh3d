@@ -15,6 +15,7 @@
 #include "Model.hpp"
 #include "ShaderBuilder.hpp"
 #include "ShaderSource.hpp"
+#include "SharedPtr.hpp"
 #include "TextureData.hpp"
 #include "Transform.hpp"
 #include "Vertex.hpp"
