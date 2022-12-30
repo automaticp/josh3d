@@ -3,6 +3,7 @@
 #include <glbinding/glbinding.h>
 #include <glfwpp/glfwpp.h>
 
+#include "Globals.hpp"
 #include "Scenes.hpp"
 #include "All.hpp"
 
@@ -36,7 +37,7 @@ int main() {
 	render_cube_scene(window);
 	// render_model_scene(window);
 
-	global_texture_handle_pool.clear_unused();
+	learn::globals::clear_all();
 	return 0;
 }
 

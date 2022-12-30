@@ -1,7 +1,7 @@
 #pragma once
 #include "All.hpp"
 #include "FrameTimer.hpp"
-#include "GLObjectPools.hpp"
+#include "Globals.hpp"
 #include "Sprite.hpp"
 
 #include <vector>
@@ -32,13 +32,13 @@ public:
 
         // Gotta do something about the pools, though
         sprites_.emplace_back(
-            *learn::global_texture_handle_pool.load("src/breakout/sprites/awesomeface.png"),
+            learn::globals::texture_handle_pool.load("src/breakout/sprites/awesomeface.png"),
             learn::Transform().scale({ 200.f, 200.f, 1.0f })
             // color
         );
 
         sprites_.emplace_back(
-            *learn::global_texture_handle_pool.load("src/breakout/sprites/awesomeface.png"),
+            learn::globals::texture_handle_pool.load("src/breakout/sprites/awesomeface.png"),
             learn::Transform().scale({ 200.f, 200.f, 1.0f }).translate({1.f, 1.f, 0.f}),
             glm::vec3{ 0.5f, 1.0f, 0.3f }
         );

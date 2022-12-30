@@ -12,7 +12,8 @@
 #include <assimp/postprocess.h>
 
 #include "GLObjects.hpp"
-#include "GLObjectPools.hpp"
+#include "GLObjectPool.hpp"
+#include "Globals.hpp"
 #include "Vertex.hpp"
 #include "Model.hpp"
 #include "Logging.hpp"
@@ -125,7 +126,7 @@ private:
         std::string full_path{ directory_ + filename.C_Str() };
 
         // FIXME: pool should be a c-tor parameter of something
-        return global_texture_handle_pool.load(full_path);
+        return globals::texture_handle_pool.load(full_path);
     }
 
 

@@ -1,6 +1,7 @@
 #include "All.hpp"
 #include "FrameTimer.hpp"
 #include "Game.hpp"
+#include "Globals.hpp"
 #include "ShaderSource.hpp"
 #include "Sprite.hpp"
 #include "glfwpp/event.h"
@@ -53,5 +54,7 @@ int main() {
 
         window.swapBuffers();
     }
+
+    learn::globals::clear_all();
 
 }
