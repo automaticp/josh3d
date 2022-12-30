@@ -115,6 +115,12 @@ public:
         return *this;
     }
 
+    template<typename VertexT>
+    BoundVAO& associate_with(const BoundVBO& vbo) {
+        this->set_many_attribute_params(learn::VertexTraits<VertexT>::aparams);
+        return *this;
+    }
+
     static void set_attribute_params(const AttributeParams& ap) {
         glVertexAttribPointer(
             ap.index, ap.size, ap.type, ap.normalized,
@@ -197,8 +203,21 @@ public:
     template<size_t N>
     BoundVBO& associate_with(BoundVAO&& vao,
             const std::array<AttributeParams, N>& aparams) {
-        return associate_with(vao, aparams);
+        return this->associate_with(vao, aparams);
     }
+
+    template<typename VertexT>
+    BoundVBO& associate_with(BoundVAO& vao) {
+        vao.associate_with<VertexT>(*this);
+        return *this;
+    }
+
+    template<typename VertexT>
+    BoundVBO& associate_with(BoundVAO&& vao) {
+        return this->associate_with<VertexT>(vao);
+    }
+
+
 
     void unbind() {
         glBindBuffer(GL_ARRAY_BUFFER, 0u);
