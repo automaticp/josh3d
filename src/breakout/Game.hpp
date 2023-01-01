@@ -52,15 +52,16 @@ public:
 
     void init() {
 
-        GameLevel level{
-            GameLevel::tilemap_from_text(
-                "1 0 1 2 0 1\n"
-                "0 0 2 2 0 0\n"
-                "3 3 0 0 3 3\n"
-                "4 5 1 1 5 4\n"
-            )
-        };
-        levels_.emplace_back(std::move(level));
+        // GameLevel level{
+        //     GameLevel::tilemap_from_text(
+        //         "1 0 1 2 0 1\n"
+        //         "0 0 2 2 0 0\n"
+        //         "3 3 0 0 3 3\n"
+        //         "4 5 1 1 5 4\n"
+        //     )
+        // };
+
+        levels_.emplace_back("src/breakout/levels/one.lvl");
 
         // Figure out this line later
         glm::mat4 projection{
