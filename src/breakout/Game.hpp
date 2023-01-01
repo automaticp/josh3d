@@ -1,5 +1,6 @@
 #pragma once
 #include "All.hpp"
+#include "Ball.hpp"
 #include "FrameTimer.hpp"
 #include "Globals.hpp"
 #include "Paddle.hpp"
@@ -34,6 +35,11 @@ private:
     Sprite background_{
         learn::globals::texture_handle_pool.load("src/breakout/sprites/background.jpg")
     };
+
+    Ball ball_{
+        Circle2D{ glm::vec2{400.f, 575.f - 20.f - 15.f }, 15.f }
+    };
+
 
     struct ControlState {
         bool left{ false };
@@ -111,6 +117,7 @@ public:
         }
 
         renderer_.draw_sprite(player_.sprite(), player_.get_transform());
+        renderer_.draw_sprite(ball_.sprite(), ball_.get_transform());
 
     }
 
