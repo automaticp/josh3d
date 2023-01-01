@@ -24,14 +24,14 @@ enum class TileType : size_t {
 class Tile {
 private:
     TileType type_;
-    learn::Transform tranform_;
+    learn::Transform transform_;
     Sprite sprite_;
 
 
 public:
     Tile(TileType type, const learn::Transform& transform)
         : type_{ type },
-        tranform_{ transform },
+        transform_{ transform },
         sprite_{
             learn::globals::texture_handle_pool.load(get_texture_path_for_type(type)),
             get_color_for_type(type)
@@ -39,8 +39,8 @@ public:
     {}
 
 
-    learn::Transform& transform() noexcept { return tranform_; }
-    const learn::Transform& transform() const noexcept { return tranform_; }
+    learn::Transform& transform() noexcept { return transform_; }
+    const learn::Transform& transform() const noexcept { return transform_; }
 
     const Sprite& sprite() const noexcept { return sprite_; }
 

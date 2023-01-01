@@ -2,10 +2,12 @@
 #include "All.hpp"
 #include "FrameTimer.hpp"
 #include "Globals.hpp"
+#include "Paddle.hpp"
 #include "Sprite.hpp"
 #include "GameLevel.hpp"
 #include "Rect2D.hpp"
 #include "Canvas.hpp"
+#include "Transform.hpp"
 
 #include <vector>
 #include <cstddef>
@@ -24,6 +26,16 @@ private:
 
     std::vector<GameLevel> levels_;
     size_t current_level_{ 0 };
+
+    Paddle player_{
+        learn::Transform()
+            .translate({ 400.f - 75.f, 575.f - 20.f, 0.f })
+            .scale({ 150.f, 40.f, 0.f })
+    };
+
+    Sprite background_{
+        learn::globals::texture_handle_pool.load("src/breakout/sprites/background.jpg")
+    };
 
 public:
     Game(learn::FrameTimer& frame_timer, SpriteRenderer& sprite_renderer)
@@ -49,8 +61,9 @@ public:
             glm::ortho(
                 global_canvas.bound_left(),
                 global_canvas.bound_right(),
-                global_canvas.bound_top(),  // Inverted coordinates,
-                global_canvas.bound_bottom(),  // Making the top-left corner (0, 0)
+                global_canvas.bound_top(),     // Inverted coordinates,
+                global_canvas.bound_bottom(),  // Making the top-left corner (0, 0).
+                                               // That's actually pretty bad...
                 -1.0f, 1.0f
             )
         };
@@ -61,9 +74,19 @@ public:
     void process_input();
     void update();
     void render() {
+
+        renderer_.draw_sprite(
+            background_,
+            learn::Transform()
+                .scale({ global_canvas.width(), global_canvas.height(), 1.f })
+        );
+
         for (auto&& tile : levels_[current_level_].tiles()) {
             renderer_.draw_sprite(tile.sprite(), tile.transform());
         }
+
+        renderer_.draw_sprite(player_.sprite(), player_.transform());
+
     }
 
 };
