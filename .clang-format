@@ -112,7 +112,7 @@ KeepEmptyLinesAtTheStartOfBlocks: true
 # LambdaBodyIndentation: Signature
 # MacroBlockBegin: ''
 # MacroBlockEnd: ''
-MaxEmptyLinesToKeep: 2
+MaxEmptyLinesToKeep: 4
 # NamespaceIndentation: None
 # PPIndentWidth: -1
 # PackConstructorInitializers: NextLine
