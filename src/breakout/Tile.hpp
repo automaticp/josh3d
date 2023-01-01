@@ -3,6 +3,7 @@
 #include "All.hpp"
 #include "Globals.hpp"
 #include "Transform.hpp"
+#include "Rect2D.hpp"
 
 #include <glm/glm.hpp>
 #include <cstddef>
@@ -24,23 +25,20 @@ enum class TileType : size_t {
 class Tile {
 private:
     TileType type_;
-    learn::Transform transform_;
+    Rect2D box_;
     Sprite sprite_;
 
-
 public:
-    Tile(TileType type, const learn::Transform& transform)
+    Tile(TileType type, Rect2D bounding_box)
         : type_{ type },
-        transform_{ transform },
+        box_{ bounding_box },
         sprite_{
             learn::globals::texture_handle_pool.load(get_texture_path_for_type(type)),
             get_color_for_type(type)
         }
     {}
 
-
-    learn::Transform& transform() noexcept { return transform_; }
-    const learn::Transform& transform() const noexcept { return transform_; }
+    learn::Transform get_transform() const noexcept { return box_.get_transform(); }
 
     const Sprite& sprite() const noexcept { return sprite_; }
 

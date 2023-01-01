@@ -1,5 +1,6 @@
 #pragma once
 #include "Globals.hpp"
+#include "Rect2D.hpp"
 #include "Sprite.hpp"
 #include "Transform.hpp"
 
@@ -8,20 +9,26 @@
 
 class Paddle {
 private:
-    learn::Transform transform_;
+    Rect2D box_;
     Sprite sprite_;
 
 public:
-    explicit Paddle(const learn::Transform& transform)
-        : transform_{ transform },
+    explicit Paddle(Rect2D bounding_box)
+        : box_{ bounding_box },
         sprite_{
             learn::globals::texture_handle_pool.load("src/breakout/sprites/paddle.png")
         }
     {}
 
-    learn::Transform& transform() noexcept { return transform_; }
-    const learn::Transform& transform() const noexcept { return transform_; }
-    const Sprite& sprite() const noexcept { return sprite_; }
+    Rect2D& box() noexcept { return box_; }
+    const Rect2D& box() const noexcept { return box_; }
+    glm::vec2& center() noexcept { return box_.center; }
+    const glm::vec2& center() const noexcept { return box_.center; }
+    glm::vec2& size() noexcept { return box_.size; }
+    const glm::vec2& size() const noexcept { return box_.size; }
 
+    learn::Transform get_transform() noexcept { return box_.get_transform(); }
+
+    const Sprite& sprite() const noexcept { return sprite_; }
 
 };
