@@ -37,12 +37,20 @@ private:
         learn::globals::texture_handle_pool.load("src/breakout/sprites/background.jpg")
     };
 
+    struct ControlState {
+        bool left{ false };
+        bool right{ false };
+    };
+    ControlState controls_;
+
 public:
     Game(learn::FrameTimer& frame_timer, SpriteRenderer& sprite_renderer)
         : frame_timer_( frame_timer ), renderer_{ sprite_renderer } {}
 
     Game(SpriteRenderer& sprite_renderer)
         : Game(learn::global_frame_timer, sprite_renderer) {}
+
+    ControlState& controls() noexcept { return controls_; }
 
     void init() {
 
@@ -71,7 +79,17 @@ public:
         renderer_.shader().use().uniform("projection", projection);
     }
 
-    void process_input();
+    void process_input() {
+        constexpr float velocity{ 5.0f };
+        // FIXME: do bound checking
+        if (controls_.left) {
+            player_.transform().translate({ -velocity * frame_timer_.delta(), 0.f, 0.f });
+        }
+        if (controls_.right) {
+            player_.transform().translate({ +velocity * frame_timer_.delta(), 0.f, 0.f });
+        }
+    }
+
     void update();
     void render() {
 

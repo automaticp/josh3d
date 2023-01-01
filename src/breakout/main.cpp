@@ -2,9 +2,11 @@
 #include "FrameTimer.hpp"
 #include "Game.hpp"
 #include "Globals.hpp"
+#include "Input.hpp"
 #include "ShaderSource.hpp"
 #include "Sprite.hpp"
 #include "glfwpp/event.h"
+#include "glfwpp/window.h"
 
 #include <glbinding/gl/gl.h>
 
@@ -38,14 +40,32 @@ int main() {
         learn::ShaderSource{learn::FileReader{}, "src/breakout/shaders/sprite.frag"}
     };
     Game game{ timer, renderer };
+    auto& controls = game.controls();
+
+    learn::BasicRebindableInput input{ window };
+    input.set_keybind(
+        glfw::KeyCode::A,
+        [&controls](const learn::KeyCallbackArgs& args) {
+            if (args.state == glfw::KeyState::Press) { controls.left = true; }
+            if (args.state == glfw::KeyState::Release) { controls.left = false; }
+        }
+    );
+    input.set_keybind(
+        glfw::KeyCode::D,
+        [&controls](const learn::KeyCallbackArgs& args) {
+            if (args.state == glfw::KeyState::Press) { controls.right = true; }
+            if (args.state == glfw::KeyState::Release) { controls.right = false; }
+        }
+    );
+    input.enable_key_callback();
 
     game.init();
 
     while (!window.shouldClose()) {
         timer.update();
 
+        game.process_input();
         glfw::pollEvents();
-        // Process input?
 
         glClearColor(0.3, 0.35, 0.4, 1.0);
         glClear(GL_COLOR_BUFFER_BIT);

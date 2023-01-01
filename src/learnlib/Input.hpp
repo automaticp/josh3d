@@ -80,6 +80,20 @@ public:
 
     }
 
+    // For keys we set our own special callback, that
+    // indexes into a keymap with KeyCallbackArgs::key
+    // and calls the corresponding used-defined callback,
+    // if it exists.
+    //
+    // This method was private. Why?
+    void enable_key_callback() {
+        window_.keyEvent.setCallback(
+            [this]<typename ...Args>(Args&&... args) {
+                respond_to_key({ std::forward<Args>(args)... });
+            }
+        );
+    }
+
     // Updates referenced members (or global state)
     // depending on the state of the input instance.
     // Must be called after each glfwPollEvents().
@@ -117,17 +131,6 @@ private:
     }
 
 
-    // For keys we set our own special callback, that
-    // indexes into a keymap with KeyCallbackArgs::key
-    // and calls the corresponding used-defined callback,
-    // if it exists.
-    void enable_key_callback() {
-        window_.keyEvent.setCallback(
-            [this]<typename ...Args>(Args&&... args) {
-                respond_to_key({ std::forward<Args>(args)... });
-            }
-        );
-    }
 
     void respond_to_key(const KeyCallbackArgs& args) {
         // Maybe better to just use [] to avoid branching?
