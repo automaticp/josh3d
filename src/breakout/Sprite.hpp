@@ -41,6 +41,7 @@ public:
 
     // learn::TextureHandle& texture() noexcept { return texture_; }
     glm::vec3& color() noexcept { return color_; }
+    const glm::vec3& color() const noexcept { return color_; }
 };
 
 
@@ -77,7 +78,7 @@ public:
 
     learn::ShaderProgram& shader() noexcept { return sp_; }
 
-    void draw_sprite(Sprite& sprite) {
+    void draw_sprite(const Sprite& sprite) {
         auto asp = sp_.use();
 
         sprite.texture_->bind_to_unit(gl::GL_TEXTURE0);
