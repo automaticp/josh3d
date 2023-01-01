@@ -46,14 +46,15 @@ private:
     learn::VAO vao_;
     learn::ShaderProgram sp_;
 
-    constexpr static std::array<learn::Vertex2D, 6> quad{{
-        {{ 0.0f, 1.0f }, { 0.0f, 1.0f }},
-        {{ 1.0f, 0.0f }, { 1.0f, 0.0f }},
-        {{ 0.0f, 0.0f }, { 0.0f, 0.0f }},
-        {{ 0.0f, 1.0f }, { 0.0f, 1.0f }},
-        {{ 1.0f, 1.0f }, { 1.0f, 1.0f }},
-        {{ 1.0f, 0.0f }, { 1.0f, 0.0f }},
-    }};
+    constexpr static std::array<learn::Vertex2D, 6> quad{ {
+        { { -0.5f, +0.5f }, { 0.0f, 1.0f } },
+        { { +0.5f, -0.5f }, { 1.0f, 0.0f } },
+        { { -0.5f, -0.5f }, { 0.0f, 0.0f } },
+        { { -0.5f, +0.5f }, { 0.0f, 1.0f } },
+        { { +0.5f, +0.5f }, { 1.0f, 1.0f } },
+        { { +0.5f, -0.5f }, { 1.0f, 0.0f } },
+    } };
+
 public:
     SpriteRenderer(const learn::ShaderSource& vert, const learn::ShaderSource& frag)
         : sp_{
