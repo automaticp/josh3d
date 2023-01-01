@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Transform.hpp"
 #include <glm/glm.hpp>
 #include <glm/vector_relational.hpp>
 #include <glm/ext.hpp>
@@ -39,6 +40,12 @@ struct Rect2D {
     bool is_within(glm::vec2 point) const noexcept {
         glm::vec2 dxdy = point - center;
         return glm::any(glm::lessThanEqual(dxdy, half_size()));
+    }
+
+    learn::Transform get_transform() const noexcept {
+        return learn::Transform()
+            .translate({ center.x, center.y, 0.f })
+            .scale({ size.x, size.y, 1.f });
     }
 
 private:
