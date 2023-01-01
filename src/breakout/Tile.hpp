@@ -45,39 +45,6 @@ public:
     const Sprite& sprite() const noexcept { return sprite_; }
 
 private:
-    static glm::vec3 get_color_for_type(TileType type) {
-        using enum TileType;
-        switch (type) {
-            case solid:
-                return { 1.f, 1.f, 1.f };
-            // Colors are temporary for now
-            case brick_blue:
-                return { 0.f, 0.f, 1.f };
-            case brick_green:
-                return { 0.f, 1.f, 0.f };
-            case brick_red:
-                return { 1.f, 0.f, 0.f };
-            case brick_gold:
-                return { 1.f, 1.f, 0.f };
-            case empty:
-            default:
-                throw std::runtime_error("Invalid tile type. Does not have a color.");
-        }
-    }
-
-
-    static std::string get_texture_path_for_type(TileType type) {
-        switch (type) {
-            case TileType::solid:
-                return "src/breakout/sprites/block_solid.png";
-            case TileType::brick_blue:
-            case TileType::brick_green:
-            case TileType::brick_gold:
-            case TileType::brick_red:
-                return "src/breakout/sprites/block.png";
-            case TileType::empty:
-            default:
-                throw std::runtime_error("Invalid tile type. Does not have a texture.");
-        }
-    }
+    static glm::vec3 get_color_for_type(TileType type);
+    static std::string get_texture_path_for_type(TileType type);
 };
