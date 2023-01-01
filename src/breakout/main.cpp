@@ -47,7 +47,7 @@ int main() {
         glfw::pollEvents();
         // Process input?
 
-        glClearColor(0.4, 0.2, 0.15, 1.0);
+        glClearColor(0.3, 0.35, 0.4, 1.0);
         glClear(GL_COLOR_BUFFER_BIT);
 
         game.render();

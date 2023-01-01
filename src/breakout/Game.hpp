@@ -3,8 +3,12 @@
 #include "FrameTimer.hpp"
 #include "Globals.hpp"
 #include "Sprite.hpp"
+#include "GameLevel.hpp"
+#include "Rect2D.hpp"
+#include "Canvas.hpp"
 
 #include <vector>
+#include <cstddef>
 
 
 enum class GameState {
@@ -18,7 +22,8 @@ private:
     SpriteRenderer& renderer_;
     const learn::FrameTimer& frame_timer_;
 
-    std::vector<Sprite> sprites_;
+    std::vector<GameLevel> levels_;
+    size_t current_level_{ 0 };
 
 public:
     Game(learn::FrameTimer& frame_timer, SpriteRenderer& sprite_renderer)
@@ -28,25 +33,26 @@ public:
         : Game(learn::global_frame_timer, sprite_renderer) {}
 
     void init() {
-        sprites_.clear();
 
-        // Gotta do something about the pools, though
-        sprites_.emplace_back(
-            learn::globals::texture_handle_pool.load("src/breakout/sprites/awesomeface.png"),
-            learn::Transform().scale({ 200.f, 200.f, 1.0f })
-            // color
-        );
-
-        sprites_.emplace_back(
-            learn::globals::texture_handle_pool.load("src/breakout/sprites/awesomeface.png"),
-            learn::Transform().scale({ 200.f, 200.f, 1.0f }).translate({1.f, 1.f, 0.f}),
-            glm::vec3{ 0.5f, 1.0f, 0.3f }
-        );
-
+        GameLevel level{
+            GameLevel::tilemap_from_text(
+                "1 0 1 2 0 1\n"
+                "0 0 2 2 0 0\n"
+                "3 3 0 0 3 3\n"
+                "4 3 1 1 3 4\n"
+            )
+        };
+        levels_.emplace_back(std::move(level));
 
         // Figure out this line later
         glm::mat4 projection{
-            glm::ortho(0.0f, 600.f, 800.f, 0.0f, -1.0f, 1.0f)
+            glm::ortho(
+                global_canvas.bound_left(),
+                global_canvas.bound_right(),
+                global_canvas.bound_top(),  // Inverted coordinates,
+                global_canvas.bound_bottom(),  // Making the top-left corner (0, 0)
+                -1.0f, 1.0f
+            )
         };
 
         renderer_.shader().use().uniform("projection", projection);
@@ -55,8 +61,8 @@ public:
     void process_input();
     void update();
     void render() {
-        for (auto&& sprite : sprites_) {
-            renderer_.draw_sprite(sprite);
+        for (auto&& tile : levels_[current_level_].tiles()) {
+            renderer_.draw_sprite(tile.sprite());
         }
     }
 
