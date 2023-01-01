@@ -37,7 +37,7 @@ struct Rect2D {
 
     glm::vec2 half_size() const noexcept { return size / 2.0f; }
 
-    bool is_within(glm::vec2 point) const noexcept {
+    bool contains(glm::vec2 point) const noexcept {
         glm::vec2 dxdy = point - center;
         return glm::any(glm::lessThanEqual(dxdy, half_size()));
     }
