@@ -40,21 +40,16 @@ public:
     const std::vector<Tile>& tiles() const noexcept { return tiles_; }
 
 private:
-
-
-
     void build_level_from_tiles() {
-        auto [tile_width, tile_height]{ fit_tiles_to_grid() };
-        const glm::vec3 tile_scale{ tile_width, tile_height, 1.f };
+        const glm::vec2 tile_scale{ scale_tiles_to_grid() };
 
         for (size_t i{ 0 }; i < tilemap_.nrows(); ++i) {
             for (size_t j{ 0 }; j < tilemap_.ncols(); ++j) {
 
                 TileType current_type{ tilemap_.at(i, j) };
-                glm::vec3 current_transform{
-                    (tile_width * static_cast<float>(j)),
-                    (tile_height * static_cast<float>(i)),
-                    1.0f
+                glm::vec2 current_center{
+                    (tile_scale.x * static_cast<float>(j)) + tile_scale.x / 2.f,
+                    (tile_scale.y * static_cast<float>(i)) + tile_scale.y / 2.f
                 };
 
                 switch (current_type) {
@@ -65,9 +60,7 @@ private:
                     case TileType::brick_gold:
                         tiles_.emplace_back(
                             current_type,
-                            learn::Transform()
-                                .translate(current_transform)
-                                .scale(tile_scale)
+                            Rect2D{ current_center, tile_scale }
                         );
                         break;
                     case TileType::empty:
@@ -80,11 +73,10 @@ private:
 
     }
 
-    struct TileGeometry { float width, height; };
-    TileGeometry fit_tiles_to_grid() {
+    glm::vec2 scale_tiles_to_grid() {
         return {
-            .width = global_canvas.width() / static_cast<float>(tilemap_.ncols()),
-            .height = 0.5f * global_canvas.height() / static_cast<float>(tilemap_.nrows())
+            /* width  */ global_canvas.width() / static_cast<float>(tilemap_.ncols()),
+            /* height */ 0.5f * global_canvas.height() / static_cast<float>(tilemap_.nrows())
         };
     }
 

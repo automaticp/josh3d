@@ -28,9 +28,7 @@ private:
     size_t current_level_{ 0 };
 
     Paddle player_{
-        learn::Transform()
-            .translate({ 400.f - 75.f, 575.f - 20.f, 0.f })
-            .scale({ 150.f, 40.f, 0.f })
+        Rect2D{ { 400.f, 575.f }, { 150.f, 40.f } }
     };
 
     Sprite background_{
@@ -80,13 +78,20 @@ public:
     }
 
     void process_input() {
-        constexpr float velocity{ 5.0f };
+        constexpr float velocity{ 400.0f };
         // FIXME: do bound checking
-        if (controls_.left) {
-            player_.transform().translate({ -velocity * frame_timer_.delta(), 0.f, 0.f });
+        const float dx{ velocity * static_cast<float>(frame_timer_.delta()) };
+
+        auto is_move_in_bounds = [&](float dx) -> bool {
+            return glm::abs((player_.center().x + dx) - global_canvas.center.x)
+                < (global_canvas.size.x - player_.size().x) / 2.f;
+        };
+
+        if (controls_.left && is_move_in_bounds(-dx)) {
+            player_.center().x -= dx;
         }
-        if (controls_.right) {
-            player_.transform().translate({ +velocity * frame_timer_.delta(), 0.f, 0.f });
+        if (controls_.right && is_move_in_bounds(+dx)) {
+            player_.center().x += dx;
         }
     }
 
@@ -96,14 +101,15 @@ public:
         renderer_.draw_sprite(
             background_,
             learn::Transform()
+                .translate({ global_canvas.center.x, global_canvas.center.y, 0.f })
                 .scale({ global_canvas.width(), global_canvas.height(), 1.f })
         );
 
         for (auto&& tile : levels_[current_level_].tiles()) {
-            renderer_.draw_sprite(tile.sprite(), tile.transform());
+            renderer_.draw_sprite(tile.sprite(), tile.get_transform());
         }
 
-        renderer_.draw_sprite(player_.sprite(), player_.transform());
+        renderer_.draw_sprite(player_.sprite(), player_.get_transform());
 
     }
 

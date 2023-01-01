@@ -64,8 +64,8 @@ int main() {
     while (!window.shouldClose()) {
         timer.update();
 
-        game.process_input();
         glfw::pollEvents();
+        game.process_input();
 
         glClearColor(0.3, 0.35, 0.4, 1.0);
         glClear(GL_COLOR_BUFFER_BIT);
