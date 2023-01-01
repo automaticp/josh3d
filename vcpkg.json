@@ -6,6 +6,7 @@
         "glfw3",
         "glm",
         "stb",
-        "assimp"
+        "assimp",
+        "range-v3"
     ]
 }

@@ -11,10 +11,12 @@ target_link_libraries(breakout
 )
 
 # external depenencies
-target_link_libraries(ogllearn
+target_link_libraries(breakout
     PRIVATE
         glm::glm
         glbinding::glbinding
         glbinding::glbinding-aux
         glfwpp::glfwpp
+        range-v3::range-v3
+        range-v3::concepts
 )
