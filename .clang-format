@@ -1,0 +1,189 @@
+---
+#
+# Comments specify inherited values
+# as dumped from clang-format 14.0.6 via
+#   clang-format --dump-config --style=Google > [file]
+#
+# Attributes unrelated to c++ have been removed.
+#
+Language: Cpp
+BasedOnStyle: Google
+AccessModifierOffset: -4
+AlignAfterOpenBracket: DontAlign
+# AlignArrayOfStructures: None
+# AlignConsecutiveMacros: None
+# AlignConsecutiveAssignments: None
+# AlignConsecutiveBitFields: None
+# AlignConsecutiveDeclarations: None
+# AlignEscapedNewlines: Left
+# AlignOperands: Align
+# AlignTrailingComments: true
+# AllowAllArgumentsOnNextLine: true
+# AllowAllParametersOfDeclarationOnNextLine: true
+AllowShortBlocksOnASingleLine: Empty
+AllowShortCaseLabelsOnASingleLine: true
+# AllowShortEnumsOnASingleLine: true
+# AllowShortFunctionsOnASingleLine: All
+# AllowShortIfStatementsOnASingleLine: WithoutElse
+# AllowShortLambdasOnASingleLine: All
+# AllowShortLoopsOnASingleLine: true
+# AlwaysBreakAfterDefinitionReturnType: None
+# AlwaysBreakAfterReturnType: None
+# AlwaysBreakBeforeMultilineStrings: true
+# AlwaysBreakTemplateDeclarations: Yes
+AttributeMacros: []
+# BinPackArguments: true
+# BinPackParameters: true
+# BitFieldColonSpacing: Both
+# BraceWrapping:
+#   AfterCaseLabel:  false
+#   AfterClass:      false
+#   AfterControlStatement: Never
+#   AfterEnum:       false
+#   AfterFunction:   false
+#   AfterNamespace:  false
+#   AfterObjCDeclaration: false
+#   AfterStruct:     false
+#   AfterUnion:      false
+#   AfterExternBlock: false
+#   BeforeCatch:     false
+#   BeforeElse:      false
+#   BeforeLambdaBody: false
+#   BeforeWhile:     false
+#   IndentBraces:    false
+#   SplitEmptyFunction: true
+#   SplitEmptyRecord: true
+#   SplitEmptyNamespace: true
+# BreakBeforeBinaryOperators: None
+# BreakBeforeBraces: Attach
+# BreakBeforeConceptDeclarations: true
+# BreakBeforeTernaryOperators: true
+# BreakConstructorInitializers: BeforeColon
+# BreakConstructorInitializersBeforeComma: false
+BreakInheritanceList: AfterComma
+# BreakBeforeInheritanceComma: false
+BreakStringLiterals: false
+# ColumnLimit: 80
+# CommentPragmas: '^ IWYU pragma:'
+# CompactNamespaces: false
+# ConstructorInitializerAllOnOneLineOrOnePerLine: false
+# ConstructorInitializerIndentWidth: 4
+# ContinuationIndentWidth: 4
+Cpp11BracedListStyle: false
+# DeriveLineEnding: true
+DerivePointerAlignment: false
+# DisableFormat: false
+EmptyLineAfterAccessModifier: Leave
+EmptyLineBeforeAccessModifier: Always
+# ExperimentalAutoDetectBinPacking: false
+# FixNamespaceComments: true
+# AllowAllConstructorInitializersOnNextLine: true
+ForEachMacros: []
+IfMacros: []
+# IncludeBlocks: Regroup
+IncludeCategories:
+  # standard library headers
+  - Regex:           '^<[a-z_]*>'
+    Priority:        3
+    SortPriority:    3
+    CaseSensitive:   true
+  # external headers
+  - Regex:           '^<.*'
+    Priority:        3
+    SortPriority:    2
+    CaseSensitive:   false
+  # internal headers
+  - Regex:           '.*'
+    Priority:        2
+    CaseSensitive:   false
+IncludeIsMainRegex: '([-_.](tests?|unittests?))?$'
+# IncludeIsMainSourceRegex: ''
+# IndentAccessModifiers: false
+# IndentCaseBlocks: false
+# IndentCaseLabels: true
+# IndentExternBlock: AfterExternBlock
+# IndentGotoLabels: true
+# IndentPPDirectives: None
+# IndentRequires:  false
+IndentWidth: 4
+# IndentWrappedFunctionNames: false
+# InsertTrailingCommas: None
+KeepEmptyLinesAtTheStartOfBlocks: true
+# LambdaBodyIndentation: Signature
+# MacroBlockBegin: ''
+# MacroBlockEnd: ''
+MaxEmptyLinesToKeep: 2
+# NamespaceIndentation: None
+# PPIndentWidth: -1
+# PackConstructorInitializers: NextLine
+PenaltyBreakAssignment: 0
+PenaltyBreakBeforeFirstCallParameter: 0
+PenaltyBreakComment: 50
+PenaltyBreakFirstLessLess: 10
+PenaltyBreakOpenParenthesis: 0
+PenaltyBreakString: 100
+# PenaltyBreakTemplateDeclaration: 10
+PenaltyExcessCharacter: 3
+PenaltyReturnTypeOnItsOwnLine: 10
+# PenaltyIndentedWhitespace: 0
+# PointerAlignment: Left
+# QualifierAlignment: Leave
+RawStringFormats:
+  - Language: Cpp
+    Delimiters:
+      - cc
+      - CC
+      - cpp
+      - Cpp
+      - CPP
+      - 'c++'
+      - 'C++'
+    CanonicalDelimiter: ''
+# ReferenceAlignment: Pointer
+# ReflowComments: true
+# RemoveBracesLLVM: false
+# SeparateDefinitionBlocks: Leave
+# ShortNamespaceLines: 1
+# SortIncludes: CaseSensitive
+SortUsingDeclarations: false
+# SpaceAfterCStyleCast: false
+# SpaceAfterLogicalNot: false
+SpaceAfterTemplateKeyword: false
+# SpaceAroundPointerQualifiers: Default
+# SpaceBeforeAssignmentOperators: true
+# SpaceBeforeCaseColon: false
+# SpaceBeforeCpp11BracedList: false
+# SpaceBeforeCtorInitializerColon: true
+# SpaceBeforeInheritanceColon: true
+# SpaceBeforeParens: ControlStatements
+# SpaceBeforeParensOptions:
+#   AfterControlStatements: true
+#   AfterForeachMacros: true
+#   AfterFunctionDefinitionName: false
+#   AfterFunctionDeclarationName: false
+#   AfterIfMacros: true
+#   AfterOverloadedOperator: false
+#   BeforeNonEmptyParentheses: false
+# SpaceBeforeRangeBasedForLoopColon: true
+# SpaceBeforeSquareBrackets: false
+# SpaceInEmptyBlock: false
+# SpaceInEmptyParentheses: false
+SpacesBeforeTrailingComments: 1
+# SpacesInAngles: Never
+# SpacesInCStyleCastParentheses: false
+SpacesInConditionalStatement: true
+SpacesInContainerLiterals: false
+# SpacesInLineCommentPrefix:
+#   Minimum: 1
+#   Maximum: -1
+# SpacesInParentheses: false
+# SpacesInSquareBrackets: false
+# Standard: Auto
+StatementAttributeLikeMacros: []
+StatementMacros: []
+TabWidth: 4
+# UseCRLF: false
+# UseTab: Never
+WhitespaceSensitiveMacros: []
+...
+
