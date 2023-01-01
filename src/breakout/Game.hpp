@@ -39,7 +39,7 @@ public:
                 "1 0 1 2 0 1\n"
                 "0 0 2 2 0 0\n"
                 "3 3 0 0 3 3\n"
-                "4 3 1 1 3 4\n"
+                "4 5 1 1 5 4\n"
             )
         };
         levels_.emplace_back(std::move(level));
@@ -62,7 +62,7 @@ public:
     void update();
     void render() {
         for (auto&& tile : levels_[current_level_].tiles()) {
-            renderer_.draw_sprite(tile.sprite());
+            renderer_.draw_sprite(tile.sprite(), tile.transform());
         }
     }
 

@@ -2,6 +2,7 @@
 #include "Sprite.hpp"
 #include "All.hpp"
 #include "Globals.hpp"
+#include "Transform.hpp"
 
 #include <glm/glm.hpp>
 #include <cstddef>
@@ -23,27 +24,27 @@ enum class TileType : size_t {
 class Tile {
 private:
     TileType type_;
+    learn::Transform tranform_;
     Sprite sprite_;
 
 
 public:
     Tile(TileType type, const learn::Transform& transform)
         : type_{ type },
+        tranform_{ transform },
         sprite_{
             learn::globals::texture_handle_pool.load(get_texture_path_for_type(type)),
-            transform,
             get_color_for_type(type)
         }
     {}
 
 
-    learn::Transform& transform() noexcept { return sprite_.transform(); }
-    const learn::Transform& transform() const noexcept { return sprite_.transform(); }
+    learn::Transform& transform() noexcept { return tranform_; }
+    const learn::Transform& transform() const noexcept { return tranform_; }
 
     const Sprite& sprite() const noexcept { return sprite_; }
 
 private:
-
     static glm::vec3 get_color_for_type(TileType type) {
         using enum TileType;
         switch (type) {

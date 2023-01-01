@@ -21,25 +21,18 @@
 class Sprite {
 private:
     learn::Shared<learn::TextureHandle> texture_;
-    learn::Transform transform_;
     glm::vec3 color_;
 
     friend class SpriteRenderer;
 
 public:
-    Sprite(learn::Shared<learn::TextureHandle> texture, const learn::Transform& transform, glm::vec3 color)
-        : texture_{ std::move(texture) }, transform_{ transform }, color_{ color } {}
+    Sprite(learn::Shared<learn::TextureHandle> texture, glm::vec3 color)
+        : texture_{ std::move(texture) }, color_{ color } {}
 
-    Sprite(learn::Shared<learn::TextureHandle> texture, const learn::Transform& transform)
-        : Sprite(std::move(texture), transform, glm::vec3{ 1.0f, 1.0f, 1.0f }) {}
+    explicit Sprite(learn::Shared<learn::TextureHandle> texture)
+        : Sprite(std::move(texture), glm::vec3{ 1.0f, 1.0f, 1.0f }) {}
 
-    Sprite(learn::Shared<learn::TextureHandle> texture)
-        : Sprite(std::move(texture), {}, glm::vec3{ 1.0f, 1.0f, 1.0f }) {}
-
-    learn::Transform& transform() noexcept { return transform_; }
-    const learn::Transform& transform() const noexcept { return transform_; }
-
-    // learn::TextureHandle& texture() noexcept { return texture_; }
+    const learn::TextureHandle& texture() const noexcept { return *texture_; }
     glm::vec3& color() noexcept { return color_; }
     const glm::vec3& color() const noexcept { return color_; }
 };
@@ -78,14 +71,14 @@ public:
 
     learn::ShaderProgram& shader() noexcept { return sp_; }
 
-    void draw_sprite(const Sprite& sprite) {
+    void draw_sprite(const Sprite& sprite, const learn::Transform& transform) {
         auto asp = sp_.use();
 
         sprite.texture_->bind_to_unit(gl::GL_TEXTURE0);
 
-        asp.uniform("model", sprite.transform().model())
+        asp.uniform("model", transform.model())
             .uniform("color", sprite.color())
-            .uniform("image", 0); // Is this step right?
+            .uniform("image", 0);
 
         vao_.bind()
             .draw_arrays(gl::GL_TRIANGLES, 0, quad.size())
