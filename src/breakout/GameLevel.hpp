@@ -5,6 +5,7 @@
 #include "Transform.hpp"
 #include "Canvas.hpp"
 
+#include <glm/fwd.hpp>
 #include <range/v3/all.hpp>
 #include <range/v3/view/split.hpp>
 #include <range/v3/view/transform.hpp>
@@ -47,9 +48,9 @@ private:
             for (size_t j{ 0 }; j < tilemap_.ncols(); ++j) {
 
                 TileType current_type{ tilemap_.at(i, j) };
-                glm::vec2 current_center{
+                glm::vec2 current_center = glm::vec2{
                     (tile_scale.x * static_cast<float>(j)) + tile_scale.x / 2.f,
-                    (tile_scale.y * static_cast<float>(i)) + tile_scale.y / 2.f
+                    global_canvas.bound_top() - (tile_scale.y * static_cast<float>(i)) - tile_scale.y / 2.f
                 };
 
                 switch (current_type) {

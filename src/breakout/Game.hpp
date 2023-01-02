@@ -29,7 +29,7 @@ private:
     size_t current_level_{ 0 };
 
     Paddle player_{
-        Rect2D{ { 400.f, 575.f }, { 150.f, 40.f } }
+        Rect2D{ { 400.f, 25.f }, { 150.f, 20.f } }
     };
 
     Sprite background_{
@@ -37,7 +37,13 @@ private:
     };
 
     Ball ball_{
-        Circle2D{ glm::vec2{400.f, 575.f - 20.f - 30.f }, 30.f }
+        Circle2D{
+            glm::vec2{
+                player_.center().x,
+                player_.center().y + (player_.size().y / 2.f) + 10.f
+            },
+            10.f
+        }
     };
 
 
@@ -74,9 +80,8 @@ public:
             glm::ortho(
                 global_canvas.bound_left(),
                 global_canvas.bound_right(),
-                global_canvas.bound_top(),     // Inverted coordinates,
-                global_canvas.bound_bottom(),  // Making the top-left corner (0, 0).
-                                               // That's actually pretty bad...
+                global_canvas.bound_bottom(),
+                global_canvas.bound_top(),
                 -1.0f, 1.0f
             )
         };
@@ -116,7 +121,7 @@ public:
         if (ball_.is_stuck()) {
             ball_.make_unstuck();
             // FIXME: make the velocity dependant on movement
-            ball_.velocity() = 400.f * glm::vec2{ 0.7f, -0.2f };
+            ball_.velocity() = 400.f * glm::vec2{ 0.7f, 0.2f };
         }
     }
 
@@ -157,19 +162,16 @@ private:
             if (new_pos.x + ball_.radius() > global_canvas.bound_right()) {
                 // std::clog << "Collision Right\n";
                 ball_.velocity().x =  -ball_.velocity().x;
-                // ball_.center().x = global_canvas.bound_right();
             } else if (new_pos.x - ball_.radius() < global_canvas.bound_left()) {
                 // std::clog << "Collision Left\n";
                 ball_.velocity().x = -ball_.velocity().x;
-                // ball_.center().x = global_canvas.bound_left();
             }
 
-            // Bottom is top because
-            if (new_pos.y - ball_.radius() < global_canvas.bound_bottom()) {
+            if (new_pos.y + ball_.radius() > global_canvas.bound_top()) {
                 // std::clog << "Collision Top\n";
                 ball_.velocity().y = -ball_.velocity().y;
-                // ball_.center().y = global_canvas.bound_top();
-            } else if (new_pos.y + ball_.radius() > global_canvas.bound_top()) {
+
+            } else if (new_pos.y - ball_.radius() < global_canvas.bound_bottom()) {
                 // std::clog << "Collision Bottom\n";
                 ball_.velocity().y = -ball_.velocity().y;
                 // FIXME: Lose the game here.
