@@ -1,6 +1,7 @@
 #pragma once
 #include "All.hpp"
 #include "Ball.hpp"
+#include "Collisions.hpp"
 #include "FrameTimer.hpp"
 #include "Globals.hpp"
 #include "Paddle.hpp"
@@ -115,8 +116,8 @@ public:
     void update() {
         update_player_movement();
         update_ball_movement();
+        resolve_collisions();
     }
-
 
     void launch_ball() {
         if (ball_.is_stuck()) {
@@ -136,7 +137,9 @@ public:
         );
 
         for (auto&& tile : levels_[current_level_].tiles()) {
-            renderer_.draw_sprite(tile.sprite(), tile.get_transform());
+            if (tile.is_alive()) {
+                renderer_.draw_sprite(tile.sprite(), tile.get_transform());
+            }
         }
 
         renderer_.draw_sprite(player_.sprite(), player_.get_transform());
@@ -146,6 +149,20 @@ public:
 
 
 private:
+    void resolve_collisions() {
+        for (auto&& tile : levels_[current_level_].tiles()) {
+            if (tile.is_alive()){
+                if (check_collision(tile.box(), ball_.circle())) {
+                    if (tile.type() != TileType::solid) {
+                        tile.destroy();
+                    }
+                    // do more stuff
+                }
+            }
+        }
+    }
+
+
     void update_player_movement() {
         player_.center() += player_.velocity() * frame_timer_.delta<float>();
     }

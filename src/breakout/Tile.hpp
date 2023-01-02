@@ -27,6 +27,7 @@ private:
     TileType type_;
     Rect2D box_;
     Sprite sprite_;
+    bool is_alive_{ true };
 
 public:
     Tile(TileType type, Rect2D bounding_box)
@@ -41,6 +42,12 @@ public:
     learn::Transform get_transform() const noexcept { return box_.get_transform(); }
 
     const Sprite& sprite() const noexcept { return sprite_; }
+
+    const Rect2D& box() const noexcept { return box_; }
+    TileType type() const noexcept { return type_; }
+
+    void destroy() noexcept { is_alive_ = false; }
+    bool is_alive() const noexcept { return is_alive_; }
 
 private:
     static glm::vec3 get_color_for_type(TileType type);

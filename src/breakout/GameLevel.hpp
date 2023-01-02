@@ -38,6 +38,7 @@ public:
         build_level_from_tiles();
     }
 
+    std::vector<Tile>& tiles() noexcept { return tiles_; }
     const std::vector<Tile>& tiles() const noexcept { return tiles_; }
 
 private:
