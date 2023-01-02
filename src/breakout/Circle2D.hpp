@@ -11,6 +11,6 @@ struct Circle2D {
     learn::Transform get_transform() const noexcept {
         return learn::Transform()
             .translate({ center.x, center.y, 0.f })
-            .scale({ radius, radius, 1.f });
+            .scale({ radius * 2.f, radius * 2.f, 1.f });
     }
 };
