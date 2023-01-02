@@ -12,7 +12,7 @@
 
 #include <vector>
 #include <cstddef>
-
+#include <iostream>
 
 enum class GameState {
     active, win, menu
@@ -37,7 +37,7 @@ private:
     };
 
     Ball ball_{
-        Circle2D{ glm::vec2{400.f, 575.f - 20.f - 15.f }, 15.f }
+        Circle2D{ glm::vec2{400.f, 575.f - 20.f - 30.f }, 30.f }
     };
 
 
@@ -86,8 +86,7 @@ public:
 
     void process_input() {
         constexpr float velocity{ 400.0f };
-        // FIXME: do bound checking
-        const float dx{ velocity * static_cast<float>(frame_timer_.delta()) };
+        const float dx{ velocity * frame_timer_.delta<float>() };
 
         auto is_move_in_bounds = [&](float dx) -> bool {
             return glm::abs((player_.center().x + dx) - global_canvas.center.x)
@@ -96,13 +95,31 @@ public:
 
         if (controls_.left && is_move_in_bounds(-dx)) {
             player_.center().x -= dx;
+            if (ball_.is_stuck()) {
+                ball_.center().x -= dx;
+            }
         }
         if (controls_.right && is_move_in_bounds(+dx)) {
             player_.center().x += dx;
+            if (ball_.is_stuck()) {
+                ball_.center().x += dx;
+            }
         }
     }
 
-    void update();
+    void update() {
+        update_ball_movement();
+    }
+
+
+    void launch_ball() {
+        if (ball_.is_stuck()) {
+            ball_.make_unstuck();
+            // FIXME: make the velocity dependant on movement
+            ball_.velocity() = 400.f * glm::vec2{ 0.7f, -0.2f };
+        }
+    }
+
     void render() {
 
         renderer_.draw_sprite(
@@ -119,6 +136,50 @@ public:
         renderer_.draw_sprite(player_.sprite(), player_.get_transform());
         renderer_.draw_sprite(ball_.sprite(), ball_.get_transform());
 
+    }
+
+
+private:
+    void update_ball_movement() {
+
+        if (ball_.is_stuck()) {
+            return;
+        }
+
+
+        // Super messy
+        const auto dxdy = ball_.velocity() * frame_timer_.delta<float>();
+        const auto new_pos = ball_.center() + dxdy;
+
+        if (!global_canvas.contains(new_pos)) {
+            // std::clog << "Out of Bounds on Next Step\n";
+
+            if (new_pos.x + ball_.radius() > global_canvas.bound_right()) {
+                // std::clog << "Collision Right\n";
+                ball_.velocity().x =  -ball_.velocity().x;
+                // ball_.center().x = global_canvas.bound_right();
+            } else if (new_pos.x - ball_.radius() < global_canvas.bound_left()) {
+                // std::clog << "Collision Left\n";
+                ball_.velocity().x = -ball_.velocity().x;
+                // ball_.center().x = global_canvas.bound_left();
+            }
+
+            // Bottom is top because
+            if (new_pos.y - ball_.radius() < global_canvas.bound_bottom()) {
+                // std::clog << "Collision Top\n";
+                ball_.velocity().y = -ball_.velocity().y;
+                // ball_.center().y = global_canvas.bound_top();
+            } else if (new_pos.y + ball_.radius() > global_canvas.bound_top()) {
+                // std::clog << "Collision Bottom\n";
+                ball_.velocity().y = -ball_.velocity().y;
+                // FIXME: Lose the game here.
+                // Maybe return false from a function.
+            }
+
+            // ball_.center() += ball_.velocity() * frame_timer_.delta<float>();
+        } else {
+            ball_.center() = new_pos;
+        }
     }
 
 };

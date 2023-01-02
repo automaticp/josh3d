@@ -7,7 +7,9 @@
 class Ball {
 private:
     Circle2D circle_;
+    glm::vec2 velocity_{ 0.f, 0.f };
     Sprite sprite_;
+    bool is_stuck_{ true };
 
 public:
     explicit Ball(Circle2D circle)
@@ -23,8 +25,13 @@ public:
     const glm::vec2& center() const noexcept { return circle_.center; }
     float& radius() noexcept { return circle_.radius; }
     float radius() const noexcept { return circle_.radius; }
+    glm::vec2& velocity() noexcept { return velocity_; }
+    const glm::vec2& velocity() const noexcept { return velocity_; }
 
     learn::Transform get_transform() const noexcept { return circle_.get_transform(); }
 
     const Sprite& sprite() const noexcept { return sprite_; }
+
+    void make_unstuck() noexcept { is_stuck_ = false; }
+    bool is_stuck() const noexcept { return is_stuck_; }
 };

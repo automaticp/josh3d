@@ -57,6 +57,12 @@ int main() {
             if (args.state == glfw::KeyState::Release) { controls.right = false; }
         }
     );
+    input.set_keybind(
+        glfw::KeyCode::Space,
+        [&game](const learn::KeyCallbackArgs& args) {
+            game.launch_ball();
+        }
+    );
     input.enable_key_callback();
 
     game.init();
@@ -66,6 +72,8 @@ int main() {
 
         glfw::pollEvents();
         game.process_input();
+
+        game.update();
 
         glClearColor(0.3, 0.35, 0.4, 1.0);
         glClear(GL_COLOR_BUFFER_BIT);
