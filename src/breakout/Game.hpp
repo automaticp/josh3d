@@ -10,6 +10,7 @@
 #include "Canvas.hpp"
 #include "Transform.hpp"
 
+#include <glm/geometric.hpp>
 #include <vector>
 #include <cstddef>
 #include <iostream>
@@ -27,6 +28,9 @@ private:
 
     std::vector<GameLevel> levels_;
     size_t current_level_{ 0 };
+
+    static constexpr float player_speed{ 400.f };
+    static constexpr float ball_speed{ 400.f };
 
     Paddle player_{
         Rect2D{ { 400.f, 25.f }, { 150.f, 20.f } }
@@ -64,18 +68,8 @@ public:
 
     void init() {
 
-        // GameLevel level{
-        //     GameLevel::tilemap_from_text(
-        //         "1 0 1 2 0 1\n"
-        //         "0 0 2 2 0 0\n"
-        //         "3 3 0 0 3 3\n"
-        //         "4 5 1 1 5 4\n"
-        //     )
-        // };
-
         levels_.emplace_back("src/breakout/levels/one.lvl");
 
-        // Figure out this line later
         glm::mat4 projection{
             glm::ortho(
                 global_canvas.bound_left(),
@@ -90,29 +84,36 @@ public:
     }
 
     void process_input() {
-        constexpr float velocity{ 400.0f };
-        const float dx{ velocity * frame_timer_.delta<float>() };
+
+        const float dx{ player_speed * frame_timer_.delta<float>() };
 
         auto is_move_in_bounds = [&](float dx) -> bool {
             return glm::abs((player_.center().x + dx) - global_canvas.center.x)
                 < (global_canvas.size.x - player_.size().x) / 2.f;
         };
 
-        if (controls_.left && is_move_in_bounds(-dx)) {
-            player_.center().x -= dx;
-            if (ball_.is_stuck()) {
-                ball_.center().x -= dx;
-            }
+
+        if (
+            (controls_.left && controls_.right) ||
+            (!controls_.left && !controls_.right)
+        ) {
+            player_.velocity().x = 0.f;
+            if (ball_.is_stuck()) { ball_.velocity().x = 0.f; }
+        } else if (controls_.left && is_move_in_bounds(-dx)) {
+            player_.velocity().x = -player_speed;
+            if (ball_.is_stuck()) { ball_.velocity().x = -player_speed; }
+        } else if (controls_.right && is_move_in_bounds(dx)) {
+            player_.velocity().x = +player_speed;
+            if (ball_.is_stuck()) { ball_.velocity().x = +player_speed; }
+        } else {
+            player_.velocity().x = 0.f;
+            if (ball_.is_stuck()) { ball_.velocity().x = 0.f; }
         }
-        if (controls_.right && is_move_in_bounds(+dx)) {
-            player_.center().x += dx;
-            if (ball_.is_stuck()) {
-                ball_.center().x += dx;
-            }
-        }
+
     }
 
     void update() {
+        update_player_movement();
         update_ball_movement();
     }
 
@@ -120,8 +121,8 @@ public:
     void launch_ball() {
         if (ball_.is_stuck()) {
             ball_.make_unstuck();
-            // FIXME: make the velocity dependant on movement
-            ball_.velocity() = 400.f * glm::vec2{ 0.7f, 0.2f };
+            ball_.velocity() =
+                ball_speed * glm::normalize(player_.velocity() + glm::vec2{ 0.f, 400.f });
         }
     }
 
@@ -145,12 +146,11 @@ public:
 
 
 private:
+    void update_player_movement() {
+        player_.center() += player_.velocity() * frame_timer_.delta<float>();
+    }
+
     void update_ball_movement() {
-
-        if (ball_.is_stuck()) {
-            return;
-        }
-
 
         // Super messy
         const auto dxdy = ball_.velocity() * frame_timer_.delta<float>();
@@ -178,7 +178,6 @@ private:
                 // Maybe return false from a function.
             }
 
-            // ball_.center() += ball_.velocity() * frame_timer_.delta<float>();
         } else {
             ball_.center() = new_pos;
         }

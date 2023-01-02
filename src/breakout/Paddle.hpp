@@ -4,13 +4,17 @@
 #include "Sprite.hpp"
 #include "Transform.hpp"
 
+#include <glm/glm.hpp>
+
 
 
 
 class Paddle {
 private:
     Rect2D box_;
+    glm::vec2 velocity_{ 0.f, 0.f };
     Sprite sprite_;
+
 
 public:
     explicit Paddle(Rect2D bounding_box)
@@ -26,6 +30,8 @@ public:
     const glm::vec2& center() const noexcept { return box_.center; }
     glm::vec2& size() noexcept { return box_.size; }
     const glm::vec2& size() const noexcept { return box_.size; }
+    glm::vec2& velocity() noexcept { return velocity_; }
+    const glm::vec2& velocity() const noexcept { return velocity_; }
 
     learn::Transform get_transform() noexcept { return box_.get_transform(); }
 
