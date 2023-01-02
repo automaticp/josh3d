@@ -153,34 +153,50 @@ private:
     void update_ball_movement() {
 
         // Super messy
-        const auto dxdy = ball_.velocity() * frame_timer_.delta<float>();
+        auto dxdy = ball_.velocity() * frame_timer_.delta<float>();
+        const auto old_pos = ball_.center();
         const auto new_pos = ball_.center() + dxdy;
+        const glm::vec2 move_direction = glm::sign(dxdy);
+        const glm::vec2 new_edge_pos = new_pos + move_direction * ball_.radius();
 
-        if (!global_canvas.contains(new_pos)) {
-            // std::clog << "Out of Bounds on Next Step\n";
+        if (!global_canvas.contains(new_edge_pos)) {
 
-            if (new_pos.x + ball_.radius() > global_canvas.bound_right()) {
-                // std::clog << "Collision Right\n";
-                ball_.velocity().x =  -ball_.velocity().x;
-            } else if (new_pos.x - ball_.radius() < global_canvas.bound_left()) {
-                // std::clog << "Collision Left\n";
+            // Check the collision against the edge of the ball,
+            // Not the center.
+
+            // The following code could be made less redundant...
+            if (new_edge_pos.x > global_canvas.bound_right()) {
                 ball_.velocity().x = -ball_.velocity().x;
+
+                // Reflect the offset against the edge of the screen
+                const float overshoot = new_edge_pos.x - global_canvas.bound_right();
+                dxdy.x = dxdy.x - (2.f * overshoot);
+
+            } else if (new_edge_pos.x < global_canvas.bound_left()) {
+                ball_.velocity().x = -ball_.velocity().x;
+
+                const float overshoot = new_edge_pos.x - global_canvas.bound_left();
+                dxdy.x = dxdy.x - (2.f * overshoot);
             }
 
-            if (new_pos.y + ball_.radius() > global_canvas.bound_top()) {
-                // std::clog << "Collision Top\n";
+            if (new_edge_pos.y > global_canvas.bound_top()) {
                 ball_.velocity().y = -ball_.velocity().y;
 
-            } else if (new_pos.y - ball_.radius() < global_canvas.bound_bottom()) {
-                // std::clog << "Collision Bottom\n";
+                const float overshoot = new_edge_pos.y - global_canvas.bound_top();
+                dxdy.y = dxdy.y - (2.f * overshoot);
+
+            } else if (new_edge_pos.y < global_canvas.bound_bottom()) {
                 ball_.velocity().y = -ball_.velocity().y;
+
+                const float overshoot = new_edge_pos.y - global_canvas.bound_bottom();
+                dxdy.y = dxdy.y - (2.f * overshoot);
+
                 // FIXME: Lose the game here.
                 // Maybe return false from a function.
             }
-
-        } else {
-            ball_.center() = new_pos;
         }
+
+        ball_.center() += dxdy;
     }
 
 };
