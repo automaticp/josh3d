@@ -38,8 +38,8 @@ struct Rect2D {
     glm::vec2 half_size() const noexcept { return size / 2.0f; }
 
     bool contains(glm::vec2 point) const noexcept {
-        glm::vec2 dxdy = point - center;
-        return glm::any(glm::lessThanEqual(dxdy, half_size()));
+        glm::vec2 dxdy = glm::abs(point - center);
+        return glm::all(glm::lessThanEqual(dxdy, half_size()));
     }
 
     learn::Transform get_transform() const noexcept {
