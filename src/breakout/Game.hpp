@@ -11,6 +11,10 @@
 #include "Canvas.hpp"
 #include "Transform.hpp"
 
+#include <array>
+#include <glm/common.hpp>
+#include <range/v3/all.hpp>
+#include <glm/fwd.hpp>
 #include <glm/geometric.hpp>
 #include <vector>
 #include <cstddef>
@@ -30,8 +34,8 @@ private:
     std::vector<GameLevel> levels_;
     size_t current_level_{ 0 };
 
-    static constexpr float player_speed{ 400.f };
-    static constexpr float ball_speed{ 400.f };
+    static constexpr float player_speed{ 500.f };
+    static constexpr float ball_speed{ 500.f };
 
     Paddle player_{
         Rect2D{ { 400.f, 25.f }, { 150.f, 20.f } }
@@ -116,7 +120,7 @@ public:
     void update() {
         update_player_movement();
         update_ball_movement();
-        resolve_collisions();
+        // resolve_collisions();
     }
 
     void launch_ball() {
@@ -171,46 +175,224 @@ private:
 
         // Super messy
         auto dxdy = ball_.velocity() * frame_timer_.delta<float>();
-        const auto old_pos = ball_.center();
-        const auto new_pos = ball_.center() + dxdy;
-        const glm::vec2 move_direction = glm::sign(dxdy);
-        const glm::vec2 new_edge_pos = new_pos + move_direction * ball_.radius();
 
-        if (!global_canvas.contains(new_edge_pos)) {
+        enum class RectXCollisionType {
+            none, left, right
+        };
+        enum class RectYCollisionType {
+            none, top, bottom
+        };
 
-            // Check the collision against the edge of the ball,
-            // Not the center.
+        struct InnerRectCollisionInfo {
+            RectXCollisionType x_collision{ RectXCollisionType::none };
+            RectYCollisionType y_collision{ RectYCollisionType::none };
+            glm::vec2 overshoot{ 0.f, 0.f };
 
-            // The following code could be made less redundant...
-            if (new_edge_pos.x > global_canvas.bound_right()) {
+            bool did_collide() const noexcept {
+                return x_collision != RectXCollisionType::none
+                    || y_collision != RectYCollisionType::none;
+            }
+        };
+
+        auto inner_ball_on_rect_collision =
+            [](const Rect2D& rect, const Ball& ball, glm::vec2 dxdy)
+                -> InnerRectCollisionInfo
+            {
+
+                const glm::vec2 new_pos = ball.center() + dxdy;
+                const glm::vec2 move_direction = glm::sign(dxdy);
+                const glm::vec2 new_edge_pos = new_pos + move_direction * ball.radius();
+
+                InnerRectCollisionInfo info{};
+                auto& [x_collision, y_collision, overshoot] = info;
+
+                if (new_edge_pos.x > rect.bound_right()) {
+
+                    overshoot.x = new_edge_pos.x - rect.bound_right();
+                    x_collision = RectXCollisionType::right;
+
+                } else if (new_edge_pos.x < rect.bound_left()) {
+
+                    overshoot.x = new_edge_pos.x - rect.bound_left();
+                    x_collision = RectXCollisionType::left;
+
+                }
+
+
+                if (new_edge_pos.y > rect.bound_top()) {
+
+                    overshoot.y = new_edge_pos.y - rect.bound_top();
+                    y_collision = RectYCollisionType::top;
+
+                } else if (new_edge_pos.y < rect.bound_bottom()) {
+
+                    overshoot.y = new_edge_pos.y - rect.bound_bottom();
+                    y_collision = RectYCollisionType::bottom;
+
+                }
+
+                return info;
+            };
+
+        // Resolve the collision with the canvas edges
+        auto canvas_collision = inner_ball_on_rect_collision(global_canvas, ball_, dxdy);
+        if (canvas_collision.did_collide()) {
+            if (canvas_collision.x_collision != RectXCollisionType::none) {
                 ball_.velocity().x = -ball_.velocity().x;
+            }
+            if (canvas_collision.y_collision != RectYCollisionType::none) {
+                ball_.velocity().y = -ball_.velocity().y;
+            }
+            dxdy = dxdy - (2.f * canvas_collision.overshoot);
 
-                // Reflect the offset against the edge of the screen
-                const float overshoot = new_edge_pos.x - global_canvas.bound_right();
-                dxdy.x = dxdy.x - (2.f * overshoot);
+            std::clog << "Canvas Overshoot:   (" << canvas_collision.overshoot.x << ", "
+                << canvas_collision.overshoot.y << ")\n";
+        }
 
-            } else if (new_edge_pos.x < global_canvas.bound_left()) {
-                ball_.velocity().x = -ball_.velocity().x;
 
-                const float overshoot = new_edge_pos.x - global_canvas.bound_left();
-                dxdy.x = dxdy.x - (2.f * overshoot);
+        // The side of the rectangle
+        // that the ball collided with,
+        // or 'none' if no collision occured.
+        enum class RectCollisionType : size_t {
+            none=0, left, right, top, bottom
+        };
+
+
+        auto outer_collision_direction =
+            [](glm::vec2 difference_vector) -> RectCollisionType {
+                constexpr std::array<glm::vec2, 4> compass{ {
+                    { -1.f, 0.f }, // left
+                    { 1.f, 0.f },  // right
+                    { 0.f, 1.f },  // top
+                    { 0.f, -1.f }  // bottom
+                } };
+
+                auto me = ranges::max_element(compass, {},
+                    [&](const glm::vec2& dir) {
+                        return glm::dot(dir, -difference_vector);
+                    }
+                );
+                size_t elem_idx = ranges::distance(ranges::begin(compass), me);
+                return RectCollisionType{ elem_idx + 1 };
+            };
+
+        struct OuterRectCollisionInfo {
+            RectCollisionType type{ RectCollisionType::none };
+            glm::vec2 difference{ 0.f, 0.f };
+
+            bool did_collide() const noexcept {
+                return type != RectCollisionType::none;
+            }
+        };
+
+        auto outer_ball_on_rect_collision =
+            [&](const Rect2D& rect, const Ball& ball, glm::vec2 dxdy)
+                -> OuterRectCollisionInfo
+            {
+
+                const glm::vec2 new_ball_center =
+                    ball.center() + dxdy;
+
+                const glm::vec2 center_difference =
+                    new_ball_center - rect.center;
+
+                const glm::vec2 clamped =
+                    glm::clamp(
+                        center_difference,
+                        -rect.half_size(),
+                        rect.half_size()
+                    );
+
+                const glm::vec2 closest = rect.center + clamped;
+                const glm::vec2 difference = closest - new_ball_center;
+
+                bool overlaps =
+                    glm::length(difference) < ball.radius();
+
+                if (overlaps) {
+                    return {
+                        .type=outer_collision_direction(difference),
+                        .difference=difference
+                    };
+                } else {
+                    return {};
+                }
+            };
+
+
+
+        auto apply_outer_collision_correction =
+            [](Ball& ball, glm::vec2& dxdy, const OuterRectCollisionInfo& collision) {
+
+                const auto&[dir, diff_vector] = collision;
+
+                if (dir == RectCollisionType::left ||
+                    dir == RectCollisionType::right) {
+
+                        ball.velocity().x *= -1.f;
+
+                        const float penetration =
+                            ball.radius() - glm::abs(diff_vector.x);
+
+                        std::clog << "Tile X Penetration: " << penetration << '\n';
+
+                        if (dir == RectCollisionType::left) {
+                            dxdy.x -= 2.f * penetration;
+                        } else {
+                            dxdy.x += 2.f * penetration;
+                        }
+                    } else /* vertical */ {
+
+                        ball.velocity().y *= -1.f;
+
+                        const float penetration =
+                            ball.radius() - glm::abs(diff_vector.y);
+
+                        std::clog << "Tile Y Penetration: " << penetration << '\n';
+
+                        if (dir == RectCollisionType::top) {
+                            dxdy.y += 2.f * penetration;
+                        } else {
+                            dxdy.y -= 2.f * penetration;
+                        }
+                    }
+
+            };
+
+
+
+        // Resolve collisions with tiles
+        for (auto&& tile : levels_[current_level_].tiles()) {
+            if (tile.is_alive()) {
+                auto tile_collision =
+                    outer_ball_on_rect_collision(tile.box(), ball_, dxdy);
+
+                if (tile_collision.did_collide()) {
+                    if (tile.type() != TileType::solid) {
+                        tile.destroy();
+                    }
+
+                    apply_outer_collision_correction(ball_, dxdy, tile_collision);
+                }
+
+            }
+        }
+
+        if (!ball_.is_stuck()) {
+
+            auto paddle_collision =
+                outer_ball_on_rect_collision(
+                    player_.box(), ball_, dxdy
+                );
+
+            if (paddle_collision.did_collide()) {
+                apply_outer_collision_correction(ball_, dxdy, paddle_collision);
+
+                ball_.velocity() = ball_speed * glm::normalize(ball_.velocity() + player_.velocity());
+
+                ball_.velocity().y = glm::abs(ball_.velocity().y);
             }
 
-            if (new_edge_pos.y > global_canvas.bound_top()) {
-                ball_.velocity().y = -ball_.velocity().y;
-
-                const float overshoot = new_edge_pos.y - global_canvas.bound_top();
-                dxdy.y = dxdy.y - (2.f * overshoot);
-
-            } else if (new_edge_pos.y < global_canvas.bound_bottom()) {
-                ball_.velocity().y = -ball_.velocity().y;
-
-                const float overshoot = new_edge_pos.y - global_canvas.bound_bottom();
-                dxdy.y = dxdy.y - (2.f * overshoot);
-
-                // FIXME: Lose the game here.
-                // Maybe return false from a function.
-            }
         }
 
         ball_.center() += dxdy;

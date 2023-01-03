@@ -19,6 +19,21 @@ inline bool check_collision(Rect2D rect, Circle2D circle) noexcept {
 }
 
 
+// struct RectCollisionInfo {
+//     bool did_collide{ false };
+//     glm::vec2 overshot{};
+// };
+
+// inline RectCollisionInfo check_collision_but_better(Rect2D rect, Circle2D circle) noexcept {
+//     auto closest_point_offset =
+//         glm::clamp(circle.center - rect.center, -rect.half_size(), rect.half_size());
+//     return {
+//         .did_collide=glm::length((closest_point_offset + rect.center) - circle.center) < circle.radius,
+//         .overshot={} // FIXME?
+//     }
+// }
+
+
 inline bool check_collision(Circle2D lhs, Circle2D rhs) noexcept {
     return glm::length(lhs.center - rhs.center) < (lhs.radius + rhs.radius);
 }
