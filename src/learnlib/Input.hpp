@@ -62,7 +62,7 @@ public:
     }
 
 
-    template<std::invocable CallbackT>
+    template<std::invocable<const CursorPosCallbackArgs&> CallbackT>
     void set_cursor_pos_callback(CallbackT&& callback) {
 
         set_glfw_callback<CursorPosCallbackArgs>(
@@ -71,7 +71,7 @@ public:
 
     }
 
-    template<std::invocable CallbackT>
+    template<std::invocable<const ScrollCallbackArgs&> CallbackT>
     void set_scroll_callback(CallbackT&& callback) {
 
         set_glfw_callback<ScrollCallbackArgs>(
@@ -112,7 +112,7 @@ private:
     // So we first pack arguments via a proxy 'respond_to' function,
     // and then inside that function actually invoke the callback.
     //
-    template<typename CallbackArgsT, std::invocable CallbackT, typename ...EventArgs>
+    template<typename CallbackArgsT, typename CallbackT, typename ...EventArgs>
     void set_glfw_callback(glfw::Event<EventArgs...>& event, CallbackT&& callback) {
 
         event.setCallback(
@@ -125,7 +125,7 @@ private:
 
     }
 
-    template<typename CallbackArgsT, std::invocable CallbackT>
+    template<typename CallbackArgsT, typename CallbackT>
     void respond_to(CallbackT&& callback, const CallbackArgsT& args) {
         callback(args);
     }
