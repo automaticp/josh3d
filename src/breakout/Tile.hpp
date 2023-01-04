@@ -50,6 +50,6 @@ public:
     bool is_alive() const noexcept { return is_alive_; }
 
 private:
-    static glm::vec3 get_color_for_type(TileType type);
+    static glm::vec4 get_color_for_type(TileType type);
     static std::string get_texture_path_for_type(TileType type);
 };
