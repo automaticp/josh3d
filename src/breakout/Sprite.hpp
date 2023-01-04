@@ -73,12 +73,16 @@ public:
     learn::ShaderProgram& shader() noexcept { return sp_; }
 
     void draw_sprite(const Sprite& sprite, const learn::Transform& transform) {
+        draw_sprite(sprite, transform, sprite.color());
+    }
+
+    void draw_sprite(const Sprite& sprite, const learn::Transform& transform, glm::vec4 color) {
         auto asp = sp_.use();
 
         sprite.texture_->bind_to_unit(gl::GL_TEXTURE0);
 
         asp.uniform("model", transform.model())
-            .uniform("color", sprite.color())
+            .uniform("color", color)
             .uniform("image", 0);
 
         vao_.bind()
