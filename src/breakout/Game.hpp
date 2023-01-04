@@ -5,6 +5,8 @@
 #include "FrameTimer.hpp"
 #include "Globals.hpp"
 #include "Paddle.hpp"
+#include "Particle2D.hpp"
+#include "Particle2DGenerator.hpp"
 #include "Sprite.hpp"
 #include "GameLevel.hpp"
 #include "Rect2D.hpp"
@@ -12,7 +14,9 @@
 #include "Transform.hpp"
 
 #include <array>
+#include <glbinding/gl/enum.h>
 #include <glm/common.hpp>
+#include <random>
 #include <range/v3/all.hpp>
 #include <glm/fwd.hpp>
 #include <glm/geometric.hpp>
@@ -54,6 +58,18 @@ private:
             10.f
         }
     };
+
+    Particle2DGenerator particle_gen_{
+        100u,
+        Sprite{
+            learn::globals::texture_handle_pool.load("src/breakout/sprites/particle_white.png")
+        },
+        std::normal_distribution<float>{ 0.7f, 0.15f },
+        glm::vec2{ ball_.center() },
+        glm::vec2{ ball_.radius() / 4.f, ball_.radius() / 4.f },
+        glm::vec4{ 0.f, 0.9f, 0.6f, 0.9f }
+    };
+
 
 
     struct ControlState {
@@ -119,8 +135,14 @@ public:
 
     void update() {
         update_player_movement();
+
+        constexpr float drag{ 2.f };
+        particle_gen_.set_origin(ball_.center() - drag * (ball_.velocity() * frame_timer_.delta<float>()));
+
         update_ball_movement();
-        // resolve_collisions();
+
+        particle_gen_.update(frame_timer_.delta<float>(), ball_.velocity());
+
     }
 
     void launch_ball() {
@@ -147,6 +169,18 @@ public:
         }
 
         renderer_.draw_sprite(player_.sprite(), player_.get_transform());
+
+        using namespace gl;
+        if (!ball_.is_stuck()) {
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+            for (const Particle2D& p : particle_gen_.particles()) {
+                if (p.lifetime > 0.f) {
+                    renderer_.draw_sprite(particle_gen_.sprite(), p.get_transform(), p.color);
+                }
+            }
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        }
+
         renderer_.draw_sprite(ball_.sprite(), ball_.get_transform());
 
     }
