@@ -187,20 +187,6 @@ public:
 
 
 private:
-    void resolve_collisions() {
-        for (auto&& tile : levels_[current_level_].tiles()) {
-            if (tile.is_alive()){
-                if (check_collision(tile.box(), ball_.circle())) {
-                    if (tile.type() != TileType::solid) {
-                        tile.destroy();
-                    }
-                    // do more stuff
-                }
-            }
-        }
-    }
-
-
     void update_player_movement() {
         player_.center() += player_.velocity() * frame_timer_.delta<float>();
     }
