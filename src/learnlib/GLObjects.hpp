@@ -360,6 +360,17 @@ public:
         );
         return *this;
     }
+
+    // Technically applies to Active Tex Unit and not to the Bound Texture directly
+    BoundTextureHandle& set_parameter(GLenum param_name, GLint param_value) {
+        glTexParameteri(GL_TEXTURE_2D, param_name, param_value);
+        return *this;
+    }
+
+    BoundTextureHandle& set_parameter(GLenum param_name, GLfloat param_value) {
+        glTexParameterf(GL_TEXTURE_2D, param_name, param_value);
+        return *this;
+    }
 };
 
 
