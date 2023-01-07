@@ -39,7 +39,10 @@ public:
             )
         );
         if (!data_) {
-            throw std::runtime_error("Stb could not load the image at " + path);
+            throw std::runtime_error(
+                "Stb could not load the image at " + path
+                + ". Reason: " + stbi_failure_reason()
+            );
         }
 
         this->width_      = width;
