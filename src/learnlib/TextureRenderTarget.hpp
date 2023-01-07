@@ -1,0 +1,70 @@
+#pragma once
+
+#include "All.hpp"
+#include "GLObjects.hpp"
+#include <glbinding/gl/enum.h>
+#include <glbinding/gl/gl.h>
+
+
+namespace learn {
+
+
+class TextureRenderTarget {
+private:
+    TextureHandle tex_;
+    Framebuffer fb_;
+    Renderbuffer rb_;
+
+
+public:
+    TextureRenderTarget(gl::GLsizei width, gl::GLsizei height) {
+        using namespace gl;
+
+        tex_.bind_to_unit(GL_TEXTURE0)
+            .specify_image(width, height, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, nullptr)
+            .set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+            .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        rb_ .bind()
+            .create_storage(width, height, GL_DEPTH24_STENCIL8);
+
+        fb_ .bind()
+            .attach_texture(tex_, GL_COLOR_ATTACHMENT0)
+            .attach_renderbuffer(rb_, GL_DEPTH_STENCIL_ATTACHMENT)
+            .unbind();
+
+    }
+
+    TextureHandle& get_target_texture() noexcept { return tex_; }
+    const TextureHandle& get_target_texture() const noexcept { return tex_; }
+
+    void enable() {
+        fb_.bind();
+        // The user can enable specific features themselves:
+        //
+        // glEnable(GL_DEPTH_TEST);
+        // glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    }
+
+    void disable() {
+        BoundFramebuffer::unbind();
+    }
+
+    void reset_size(gl::GLsizei width, gl::GLsizei height) {
+        using namespace gl;
+
+        tex_.bind_to_unit(GL_TEXTURE0)
+            .specify_image(width, height, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+
+        rb_.bind().create_storage(width, height, GL_DEPTH24_STENCIL8);
+
+    }
+
+
+};
+
+
+
+} // namespace learn
+
