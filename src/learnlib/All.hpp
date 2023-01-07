@@ -19,4 +19,5 @@
 #include "TextureData.hpp"
 #include "Transform.hpp"
 #include "Vertex.hpp"
+#include "Vertex2D.hpp"
 #include "VertexTraits.hpp"
