@@ -128,7 +128,7 @@ public:
         );
     }
 
-    void unbind() {
+    static void unbind() {
         glBindVertexArray(0u);
     }
 };
@@ -167,7 +167,7 @@ public:
         return { type };
     }
 
-    void unbind_as(GLenum type) {
+    static void unbind_as(GLenum type) {
         glBindBuffer(type, 0);
     }
 };
@@ -219,7 +219,7 @@ public:
 
 
 
-    void unbind() {
+    static void unbind() {
         glBindBuffer(GL_ARRAY_BUFFER, 0u);
     }
 };
@@ -255,7 +255,7 @@ public:
         return *this;
     }
 
-    void unbind() {
+    static void unbind() {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0u);
     }
 };
@@ -280,7 +280,7 @@ private:
     BoundFramebuffer() = default;
 
 public:
-    void unbind() {
+    static void unbind() {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
@@ -319,7 +319,7 @@ public:
         return *this;
     }
 
-    void unbind() {
+    static void unbind() {
         glBindRenderbuffer(GL_RENDERBUFFER, 0);
     }
 };
@@ -347,6 +347,10 @@ private:
     BoundTextureHandle() = default;
 
 public:
+    static void unbind() {
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+
     BoundTextureHandle& attach_data(const TextureData& tex_data,
         GLenum internal_format = GL_RGBA, GLenum format = GL_NONE);
 
