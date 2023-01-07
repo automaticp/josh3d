@@ -328,8 +328,9 @@ public:
 
 class Renderbuffer : public RenderbufferAllocator {
 public:
-    void bind() {
+    BoundRenderbuffer bind() {
         glBindRenderbuffer(GL_RENDERBUFFER, id_);
+        return {};
     }
 
 };
