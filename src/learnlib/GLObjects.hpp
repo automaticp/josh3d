@@ -372,6 +372,11 @@ public:
         return *this;
     }
 
+    BoundTextureHandle& set_parameter(GLenum param_name, GLenum param_value) {
+        glTexParameteri(GL_TEXTURE_2D, param_name, param_value);
+        return *this;
+    }
+
     BoundTextureHandle& set_parameter(GLenum param_name, GLfloat param_value) {
         glTexParameterf(GL_TEXTURE_2D, param_name, param_value);
         return *this;
