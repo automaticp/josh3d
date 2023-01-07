@@ -6,4 +6,6 @@ namespace glfw {
 
 void render_cube_scene(glfw::Window&);
 
+void render_postprocessing_scene(glfw::Window&);
+
 void render_model_scene(glfw::Window&);

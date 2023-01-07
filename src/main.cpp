@@ -33,8 +33,8 @@ int main() {
 	glViewport(0, 0, width, height);
 	glEnable(GL_DEPTH_TEST);
 
-
-	render_cube_scene(window);
+    render_postprocessing_scene(window);
+	// render_cube_scene(window);
 	// render_model_scene(window);
 
 	learn::globals::clear_all();
