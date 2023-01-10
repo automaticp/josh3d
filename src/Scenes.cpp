@@ -25,7 +25,7 @@ void render_model_scene(glfw::Window& window) {
     ModelScene scene{ window };
 
     while (!window.shouldClose()) {
-        learn::global_frame_timer.update();
+        learn::globals::frame_timer.update();
 
         glfw::pollEvents();
         scene.process_input();
@@ -44,7 +44,7 @@ void render_postprocessing_scene(glfw::Window& window) {
     PostprocessingScene scene{ window };
 
     while (!window.shouldClose()) {
-        learn::global_frame_timer.update();
+        learn::globals::frame_timer.update();
 
         glfw::pollEvents();
         scene.process_input();
@@ -228,7 +228,7 @@ void render_cube_scene(glfw::Window& window) {
 
 	while ( !window.shouldClose() ) {
 
-        global_frame_timer.update();
+        globals::frame_timer.update();
 
 		window.swapBuffers();
 		glClearColor(0.15f, 0.15f, 0.1f, 1.0f);

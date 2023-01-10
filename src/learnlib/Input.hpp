@@ -8,7 +8,7 @@
 #include <glm/glm.hpp>
 #include "Camera.hpp"
 #include "Basis.hpp"
-#include "FrameTimer.hpp"
+#include "Globals.hpp"
 
 namespace learn {
 
@@ -290,7 +290,7 @@ protected:
 
     void process_input_move() {
         constexpr float camera_speed{ 5.0f };
-        float abs_move{ camera_speed * float(global_frame_timer.delta()) };
+        float abs_move{ camera_speed * float(globals::frame_timer.delta()) };
         glm::vec3 sum_move{ 0.0f, 0.0f, 0.0f };
 
         if (move_state_.up)         sum_move += camera_.up_uv();

@@ -27,8 +27,4 @@ public:
 };
 
 
-
-inline FrameTimer global_frame_timer{};
-
-
 } // namespace learn

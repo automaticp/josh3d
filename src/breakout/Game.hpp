@@ -83,7 +83,7 @@ public:
         : frame_timer_( frame_timer ), renderer_{ sprite_renderer } {}
 
     Game(SpriteRenderer& sprite_renderer)
-        : Game(learn::global_frame_timer, sprite_renderer) {}
+        : Game(learn::globals::frame_timer, sprite_renderer) {}
 
     ControlState& controls() noexcept { return controls_; }
 

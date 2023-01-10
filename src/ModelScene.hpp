@@ -107,7 +107,7 @@ private:
 		asp.uniform("lightColor", light_.color);
 		asp.uniform("lightPos", light_.position);
 
-		asp.uniform("time", static_cast<float>(global_frame_timer.current()));
+		asp.uniform("time", static_cast<float>(globals::frame_timer.current()));
 
 		backpack_model_.draw(asp);
 
