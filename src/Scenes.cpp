@@ -15,6 +15,9 @@
 #include "ShaderBuilder.hpp"
 #include "TextureRenderTarget.hpp"
 #include "Transform.hpp"
+#include "glfwpp/event.h"
+#include "glfwpp/window.h"
+#include "PostprocessingScene.hpp"
 
 
 void render_model_scene(glfw::Window& window) {
@@ -119,155 +122,25 @@ void render_model_scene(glfw::Window& window) {
 
 
 void render_postprocessing_scene(glfw::Window& window) {
-
-    using namespace gl;
     using namespace learn;
+    using namespace gl;
 
-    constexpr static std::array<Vertex2D, 6> quad{ {
-        { { -1.0f, +1.0f }, { 0.0f, 1.0f } },
-        { { +1.0f, -1.0f }, { 1.0f, 0.0f } },
-        { { -1.0f, -1.0f }, { 0.0f, 0.0f } },
-        { { -1.0f, +1.0f }, { 0.0f, 1.0f } },
-        { { +1.0f, +1.0f }, { 1.0f, 1.0f } },
-        { { +1.0f, -1.0f }, { 1.0f, 0.0f } },
-    } };
-
-    VBO quad_vbo;
-    VAO quad_vao;
-    quad_vbo.bind()
-        .attach_data(quad.size(), quad.data(), gl::GL_STATIC_DRAW)
-        .associate_with<learn::Vertex2D>(quad_vao.bind());
-
-
-
-    Assimp::Importer importer;
-
-    Model box = AssimpModelLoader(importer)
-        .load("data/models/container/container.obj")
-        .get();
-
-    Model plane = AssimpModelLoader(importer)
-        .load("data/models/plane/plane.obj")
-        .get();
-
-    ShaderProgram solid_shader = ShaderBuilder()
-        .load_vert("src/shaders/VertexShader.vert")
-        .load_frag("src/shaders/MultiLightObject.frag")
-        .get();
-
-    ShaderProgram quad_shader = ShaderBuilder()
-        .load_vert("src/shaders/postprocess.vert")
-        .load_frag("src/shaders/postprocess.frag")
-        .get();
-
-
-    light::Directional ld{
-        .color={ 1.0f, 1.0f, 1.0f },
-        .direction=glm::normalize(glm::vec3{ 0.2f, 0.5f, -0.8f })
-    };
-
-    Camera cam{ glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, -1.0f) };
-
-	RebindableInputFreeCamera rinput{ window, cam };
-    rinput.bind_callbacks();
-
-
-    auto [w, h] = window.getSize();
-    TextureRenderTarget tex_target{ w, h };
-
-    window.framebufferSizeEvent.setCallback(
-        [&tex_target](glfw::Window&, int w, int h) {
-            glViewport(0, 0, w, h);
-            tex_target.reset_size(w, h);
-        }
-    );
-
+    PostprocessingScene scene{ window };
 
     while (!window.shouldClose()) {
-
         global_frame_timer.update();
 
-		glfw::pollEvents();
-		rinput.process_input();
+        glfw::pollEvents();
+        scene.process_input();
 
+        scene.update();
 
-        auto [width, height] = window.getSize();
-		auto projection = glm::perspective(cam.get_fov(), static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f);
-		auto view = cam.view_mat();
-
-		glm::vec3 cam_pos{ cam.get_pos() };
-
-
-        // Begin drawing to the texture
-        tex_target.enable();
-		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glEnable(GL_DEPTH_TEST);
-
-
-        // Do the drawing
-        ActiveShaderProgram asp{ solid_shader.use() };
-
-        asp .uniform("projection", projection)
-		    .uniform("view", view)
-		    .uniform("camPos", cam_pos);
-
-
-		asp .uniform("dirLight.color", ld.color)
-		    .uniform("dirLight.direction", ld.direction);
-
-		asp.uniform("numPointLights", 0);
-
-        auto box1_transform = Transform()
-            .translate({1.0f, 1.0f, 0.5f});
-
-        auto box2_transform = Transform()
-            .translate({-1.0f, 1.0f, 0.5f})
-            .rotate(glm::radians(45.f), { 0.f, 0.f, 1.f });
-
-        auto plane_transform = Transform()
-            .scale({ 5.f, 5.f, 1.f });
-
-        asp.uniform("model", box1_transform.model());
-		asp.uniform("normalModel", box1_transform.normal_model());
-		box.draw(asp);
-
-        asp.uniform("model", box2_transform.model());
-		asp.uniform("normalModel", box2_transform.normal_model());
-		box.draw(asp);
-
-        asp.uniform("model", plane_transform.model());
-        asp.uniform("normalModel", plane_transform.normal_model());
-        plane.draw(asp);
-
-
-        // Unbind the texture buffer, render to default
-        tex_target.disable();
-
-
-        // Next draw the quad with the target texture
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
-        glDisable(GL_DEPTH_TEST);
-
-        auto aqsp = quad_shader.use();
-
-        tex_target.get_target_texture().bind_to_unit(GL_TEXTURE0);
-
-        aqsp.uniform("color", 0);
-
-        quad_vao.bind()
-            .draw_arrays(GL_TRIANGLES, 0, quad.size())
-            .unbind();
-
+        scene.render();
 
         window.swapBuffers();
-
     }
 
 }
-
-
 
 
 
