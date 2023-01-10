@@ -50,8 +50,43 @@ sense to make these calls in absence of a bound VAO.
 
 
 
-class TextureData;
+namespace detail {
+/*
+A generic trait that allows you to invoke any
+callable during bound state. Shold help minimize
+creation of bound dummies as lvalues in certain cases.
 
+Example:
+
+dst_framebuffer.bind_as(GL_DRAW_FRAMEBUFFER)
+    .and_then([&] {
+        auto [w, h] = window_.getSize();
+        src_framebuffer.bind_as(GL_READ_FRAMEBUFFER)
+            .blit(0, 0, w, h, 0, 0, w, h, GL_COLOR_BUFFER_BIT, GL_NEAREST)
+            .unbind();
+    })
+    .unbind();
+*/
+template<typename CRTP>
+class AndThen {
+public:
+    // FIXME: should this only work on rvalues, perhaps?
+    template<typename CallableT>
+    CRTP& and_then(CallableT&& f) noexcept(noexcept(f())) {
+        f();
+        return static_cast<CRTP&>(*this);
+    }
+
+    template<typename CallableT>
+    const CRTP& and_then(CallableT&& f) const noexcept(noexcept(f())) {
+        f();
+        return static_cast<const CRTP&>(*this);
+    }
+};
+
+} // namespace detail
+
+class TextureData;
 
 /*
 In order to not move trivial single-line definitions into a .cpp file
@@ -75,7 +110,7 @@ class BoundEBO;
 
 // P.S. Some definitions were moved to a *.cpp file to break dependencies
 
-class BoundVAO {
+class BoundVAO : public detail::AndThen<BoundVAO> {
 private:
     friend class VAO;
     BoundVAO() = default;
@@ -151,7 +186,7 @@ public:
 
 
 
-class BoundAbstractBuffer {
+class BoundAbstractBuffer : public detail::AndThen<BoundAbstractBuffer> {
 private:
     GLenum type_;
 
@@ -181,7 +216,7 @@ public:
 
 
 
-class BoundVBO {
+class BoundVBO : public detail::AndThen<BoundVBO>{
 private:
     friend class VBO;
     BoundVBO() = default;
@@ -243,7 +278,7 @@ public:
 
 
 
-class BoundEBO {
+class BoundEBO : public detail::AndThen<BoundEBO> {
 private:
     friend class EBO;
     BoundEBO() = default;
@@ -277,9 +312,7 @@ public:
 
 
 
-
-
-class BoundFramebuffer {
+class BoundFramebuffer : public detail::AndThen<BoundFramebuffer> {
 private:
     GLenum target_;
 
@@ -344,7 +377,7 @@ public:
 
 
 
-class BoundRenderbuffer {
+class BoundRenderbuffer : public detail::AndThen<BoundRenderbuffer> {
 private:
     friend class Renderbuffer;
     BoundRenderbuffer() = default;
@@ -383,9 +416,7 @@ public:
 
 
 
-
-
-class BoundTextureHandle {
+class BoundTextureHandle : public detail::AndThen<BoundTextureHandle> {
 private:
     friend class TextureHandle;
     BoundTextureHandle() = default;
@@ -448,7 +479,7 @@ public:
 
 
 
-class BoundTextureMS {
+class BoundTextureMS : public detail::AndThen<BoundTextureMS> {
 private:
     friend class TextureMS;
     BoundTextureMS() = default;
@@ -552,10 +583,9 @@ public:
 
 
 
-class ShaderProgram;
 
 
-class ActiveShaderProgram {
+class ActiveShaderProgram : public detail::AndThen<ActiveShaderProgram> {
 private:
     friend class ShaderProgram;
     // An exception to a common case of stateless Bound dummies.
