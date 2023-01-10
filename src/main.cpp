@@ -16,7 +16,9 @@ int main() {
 	auto glfw_instance{ glfw::init() };
 
 	glfw::WindowHints{
-		.contextVersionMajor=3, .contextVersionMinor=3, .openglProfile=glfw::OpenGlProfile::Core
+		.scaleToMonitor=true,
+        .contextVersionMajor=3, .contextVersionMinor=3,
+        .openglProfile=glfw::OpenGlProfile::Core
 	}.apply();
 	glfw::Window window{ 800, 600, "WindowName" };
 	window.framebufferSizeEvent.setCallback([](glfw::Window& window, int w, int h) { glViewport(0, 0, w, h); });
