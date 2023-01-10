@@ -442,6 +442,71 @@ public:
 
 
 
+class BoundTextureMS {
+private:
+    friend class TextureMS;
+    BoundTextureMS() = default;
+
+public:
+    static void unbind() {
+        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+    }
+
+    BoundTextureMS& specify_image(GLsizei width, GLsizei height, GLsizei nsamples,
+        GLenum internal_format = GL_RGB, GLboolean fixed_sample_locations = GL_TRUE)
+    {
+        glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, nsamples, internal_format, width, height, fixed_sample_locations);
+        return *this;
+    }
+
+    BoundTextureMS& set_parameter(GLenum param_name, GLint param_value) {
+        glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, param_name, param_value);
+        return *this;
+    }
+
+    BoundTextureMS& set_parameter(GLenum param_name, GLenum param_value) {
+        glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, param_name, param_value);
+        return *this;
+    }
+
+    BoundTextureMS& set_parameter(GLenum param_name, GLfloat param_value) {
+        glTexParameterf(GL_TEXTURE_2D_MULTISAMPLE, param_name, param_value);
+        return *this;
+    }
+
+
+};
+
+
+class TextureMS : public TextureAllocator {
+public:
+    BoundTextureMS bind() {
+        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, id_);
+        return {};
+    }
+
+    BoundTextureMS bind_to_unit(GLenum tex_unit) {
+        set_active_unit(tex_unit);
+        bind();
+        return {};
+    }
+
+    static void set_active_unit(GLenum tex_unit) {
+        glActiveTexture(tex_unit);
+    }
+};
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -634,6 +699,7 @@ using leaksgl::BoundEBO, leaksgl::EBO;
 using leaksgl::BoundFramebuffer, leaksgl::Framebuffer;
 using leaksgl::BoundRenderbuffer, leaksgl::Renderbuffer;
 using leaksgl::BoundTextureHandle, leaksgl::TextureHandle;
+using leaksgl::BoundTextureMS, leaksgl::TextureMS;
 using leaksgl::Shader, leaksgl::VertexShader, leaksgl::FragmentShader;
 using leaksgl::ActiveShaderProgram, leaksgl::ShaderProgram;
 
