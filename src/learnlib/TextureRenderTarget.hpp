@@ -37,21 +37,10 @@ public:
 
     }
 
-    TextureHandle& get_target_texture() noexcept { return tex_; }
-    const TextureHandle& get_target_texture() const noexcept { return tex_; }
+    TextureHandle& target_texture() noexcept { return tex_; }
+    const TextureHandle& target_texture() const noexcept { return tex_; }
 
-    void enable() {
-        fb_.bind();
-        // The user can enable specific features themselves:
-        //
-        // glEnable(GL_DEPTH_TEST);
-        // glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    }
-
-    void disable() {
-        BoundFramebuffer::unbind();
-    }
+    Framebuffer& framebuffer() noexcept { return fb_; }
 
     void reset_size(gl::GLsizei width, gl::GLsizei height) {
         using namespace gl;
