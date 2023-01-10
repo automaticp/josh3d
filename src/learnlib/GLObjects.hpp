@@ -349,6 +349,13 @@ public:
         return *this;
     }
 
+    BoundRenderbuffer& create_multisample_storage(GLsizei width, GLsizei height,
+        GLsizei samples, GLenum internal_format)
+    {
+        glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, internal_format, width, height);
+        return *this;
+    }
+
     static void unbind() {
         glBindRenderbuffer(GL_RENDERBUFFER, 0);
     }
