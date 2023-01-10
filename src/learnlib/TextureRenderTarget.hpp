@@ -1,6 +1,5 @@
 #pragma once
 
-#include "All.hpp"
 #include "GLObjects.hpp"
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/gl.h>
@@ -23,7 +22,10 @@ public:
         tex_.bind_to_unit(GL_TEXTURE0)
             .specify_image(width, height, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-            .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+            // Fixes edge overflow from kernel effects
+            .set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER)
+            .set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 
         rb_ .bind()
             .create_storage(width, height, GL_DEPTH24_STENCIL8);
