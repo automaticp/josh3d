@@ -43,6 +43,11 @@ private:
 
 public:
     explicit AssimpModelLoader(
+        flags_t flags =
+            aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_ImproveCacheLocality
+    ) : importer_{ default_importer() }, flags_{ flags } {}
+
+    explicit AssimpModelLoader(
         Assimp::Importer& importer,
         flags_t flags =
         aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_ImproveCacheLocality
@@ -88,6 +93,15 @@ public:
     }
 
 private:
+    static Assimp::Importer& default_importer() {
+        thread_local Assimp::Importer instance{};
+        // FIXME: should be a way to free the resources in the importer
+        // before the end of the runtime. Otherwise there's always some
+        // zombie data hanging around.
+        // NOTE: call FreeScene().
+        return instance;
+    }
+
     void process_node(aiNode* node, const aiScene* scene, std::vector<Mesh<V>>& meshes) {
 
         for ( auto&& mesh_id : std::span(node->mMeshes, node->mNumMeshes) ) {
