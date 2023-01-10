@@ -1,5 +1,10 @@
 #pragma once
+#include <glbinding/gl/bitfield.h>
+#include <glbinding/gl/boolean.h>
+#include <glbinding/gl/enum.h>
+#include <glbinding/gl/functions.h>
 #include <glbinding/gl/gl.h>
+#include <glbinding/gl/types.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <array>
@@ -276,21 +281,43 @@ public:
 
 class BoundFramebuffer {
 private:
+    GLenum target_;
+
     friend class Framebuffer;
-    BoundFramebuffer() = default;
+    BoundFramebuffer(GLenum target) : target_{ target } {};
 
 public:
-    static void unbind() {
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    void unbind() {
+        glBindFramebuffer(target_, 0);
+    }
+
+    static void unbind_as(GLenum target) {
+        glBindFramebuffer(target, 0);
     }
 
     BoundFramebuffer& attach_texture(GLuint texture, GLenum attachment, GLint mipmap_level = 0) {
-        glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, texture, mipmap_level);
+        glFramebufferTexture2D(target_, attachment, GL_TEXTURE_2D, texture, mipmap_level);
+        return *this;
+    }
+
+    BoundFramebuffer& attach_multisample_texture(GLuint texture, GLenum attachment, GLint mipmap_level = 0) {
+        glFramebufferTexture2D(target_, attachment, GL_TEXTURE_2D_MULTISAMPLE, texture, mipmap_level);
         return *this;
     }
 
     BoundFramebuffer& attach_renderbuffer(GLuint renderbuffer, GLenum attachment) {
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachment, GL_RENDERBUFFER, renderbuffer);
+        glFramebufferRenderbuffer(target_, attachment, GL_RENDERBUFFER, renderbuffer);
+        return *this;
+    }
+
+    BoundFramebuffer& blit(GLint src_x0, GLint src_y0, GLint src_x1, GLint src_y1,
+        GLint dst_x0, GLint dst_y0, GLint dst_x1, GLint dst_y1,
+        ClearBufferMask buffer_mask, GLenum interp_filter)
+    {
+        glBlitFramebuffer(
+            src_x0, src_y0, src_x1, src_y1, dst_x0, dst_y0, dst_x1, dst_y1,
+            buffer_mask, interp_filter
+        );
         return *this;
     }
 };
@@ -299,10 +326,13 @@ public:
 class Framebuffer : public FramebufferAllocator {
 public:
     BoundFramebuffer bind() {
-        glBindFramebuffer(GL_FRAMEBUFFER, id_);
-        return {};
+        return bind_as(GL_FRAMEBUFFER);
     }
 
+    BoundFramebuffer bind_as(GLenum target) {
+        glBindFramebuffer(target, id_);
+        return { target };
+    }
 };
 
 
