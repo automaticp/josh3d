@@ -36,8 +36,8 @@ int main() {
 
     learn::FrameTimer timer;
     SpriteRenderer renderer{
-        learn::ShaderSource{learn::FileReader{}, "src/breakout/shaders/sprite.vert"},
-        learn::ShaderSource{learn::FileReader{}, "src/breakout/shaders/sprite.frag"}
+        learn::ShaderSource::from_file("src/breakout/shaders/sprite.vert"),
+        learn::ShaderSource::from_file("src/breakout/shaders/sprite.frag")
     };
     Game game{ timer, renderer };
     auto& controls = game.controls();

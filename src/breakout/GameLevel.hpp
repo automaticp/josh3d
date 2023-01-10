@@ -86,7 +86,7 @@ private:
 public:
     // 2 beers later
     static Matrix2D<TileType> tilemap_from_file(const std::string& path) {
-        auto text = learn::FileReader{}(path);
+        auto text = learn::read_file(path);
         return tilemap_from_text(text);
     }
 

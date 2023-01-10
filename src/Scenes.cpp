@@ -13,6 +13,7 @@
 #include "Scenes.hpp"
 #include "All.hpp"
 #include "ShaderBuilder.hpp"
+#include "ShaderSource.hpp"
 #include "TextureRenderTarget.hpp"
 #include "Transform.hpp"
 #include "glfwpp/event.h"
@@ -26,7 +27,7 @@ void render_model_scene(glfw::Window& window) {
 	using namespace gl;
 
 
-	ShaderSource vert_src{ FileReader{}, "src/shaders/VertexShader.vert" };
+	ShaderSource vert_src = ShaderSource::from_file("src/shaders/VertexShader.vert");
 	vert_src.find_and_insert_as_next_line(
 		"uniform",
 		"uniform float time;"
