@@ -34,8 +34,26 @@ enum class GameState {
 };
 
 
-struct FXState {
-    bool shake{ false };
+class FXState {
+private:
+    bool shake_{ false };
+    float shake_time_{ 0.f };
+
+public:
+    void update(float dt) {
+        shake_time_ -= dt;
+        if (shake_time_ <= 0.f) {
+            shake_ = false;
+        }
+    }
+
+    void enable_shake(float duration) {
+        shake_ = true;
+        shake_time_ = duration;
+    }
+
+    bool is_shake_enabled() { return shake_; }
+
 };
 
 
@@ -55,7 +73,7 @@ private:
     learn::ShaderProgram pp_shake_{
         learn::ShaderBuilder()
             .load_vert("src/breakout/shaders/pp_shake.vert")
-            .load_frag("src/breakout/shaders/pp_shake.frag")
+            .load_frag("src/shaders/pp_kernel_blur.frag")
             .get()
     };
 
@@ -190,6 +208,8 @@ public:
 
         particle_gen_.update(frame_timer_.delta<float>(), ball_.velocity());
 
+        fx_state_.update(frame_timer_.delta<float>());
+
     }
 
     void launch_ball() {
@@ -209,7 +229,7 @@ public:
             .unbind();
         ppdb_.swap_buffers();
 
-        if (fx_state_.shake) {
+        if (fx_state_.is_shake_enabled()) {
 
             auto asp = pp_shake_.use();
             asp.uniform("time", frame_timer_.current<float>());
@@ -300,6 +320,8 @@ private:
                 if (tile_collision.did_collide()) {
                     if (tile.type() != TileType::solid) {
                         tile.destroy();
+                    } else {
+                        fx_state_.enable_shake(0.05f);
                     }
 
                     apply_outer_collision_correction(ball_, dxdy, tile_collision);
@@ -364,8 +386,8 @@ private:
         input_.set_keybind(
             glfw::KeyCode::H,
             [this](const learn::KeyCallbackArgs& args) {
-                if (args.state == glfw::KeyState::Release) {
-                    fx_state_.shake = !fx_state_.shake;
+                if (args.state == glfw::KeyState::Press) {
+                    fx_state_.enable_shake(0.05f);
                 }
             }
         );

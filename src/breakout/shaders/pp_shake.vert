@@ -10,8 +10,8 @@ uniform float time;
 void main() {
     tex_coords = in_tex_coords;
 
-    const float strength = 0.01;
-    const float speed = 30.0;
+    const float strength = 0.007;
+    const float speed = 10.0;
     const float speed_xy_ratio = 1.5;
 
 
