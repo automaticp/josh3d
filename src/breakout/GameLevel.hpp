@@ -5,6 +5,7 @@
 #include "Transform.hpp"
 #include "Canvas.hpp"
 
+#include <algorithm>
 #include <glm/fwd.hpp>
 #include <range/v3/all.hpp>
 #include <range/v3/view/split.hpp>
@@ -25,21 +26,39 @@ private:
     Matrix2D<TileType> tilemap_;
     std::vector<Tile> tiles_;
 
+    size_t num_alive_;
+    size_t max_num_alive_;
+
 public:
     GameLevel(const std::string& path)
-        : tilemap_{ tilemap_from_file(path) }
-    {
-        build_level_from_tiles();
-    }
+        : GameLevel{ tilemap_from_file(path) }
+    {}
 
     GameLevel(Matrix2D<TileType> tilemap)
         : tilemap_{ std::move(tilemap) }
     {
         build_level_from_tiles();
+        num_alive_ = max_num_alive_ =
+            std::count_if(
+                tiles_.begin(), tiles_.end(),
+                [](const Tile& tile) {
+                    return tile.type() != TileType::solid && tile.is_alive();
+                }
+            );
     }
 
     std::vector<Tile>& tiles() noexcept { return tiles_; }
     const std::vector<Tile>& tiles() const noexcept { return tiles_; }
+
+    void report_destroyed_tile() {
+        if (num_alive_ != 0) {
+            --num_alive_;
+        }
+    }
+
+    bool is_level_clear() {
+        return num_alive_ == 0;
+    }
 
 private:
     void build_level_from_tiles() {
