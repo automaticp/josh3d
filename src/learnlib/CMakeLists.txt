@@ -1,5 +1,5 @@
 add_library(learnlib STATIC)
-file(GLOB LOCAL_SOURCES CONFIGURE_DEPENDS *.h *.hpp *.cpp)
+file(GLOB LOCAL_SOURCES CONFIGURE_DEPENDS *.cpp)
 target_sources(learnlib PRIVATE "${LOCAL_SOURCES}")
 target_include_directories(learnlib PUBLIC .)
 target_compile_features(learnlib PUBLIC cxx_std_20)

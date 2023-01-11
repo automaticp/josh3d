@@ -1,5 +1,5 @@
 add_executable(breakout)
-file(GLOB LOCAL_SOURCES CONFIGURE_DEPENDS *.h *.hpp *.cpp)
+file(GLOB LOCAL_SOURCES CONFIGURE_DEPENDS *.cpp)
 target_sources(breakout PRIVATE "${LOCAL_SOURCES}")
 target_include_directories(breakout PRIVATE .)
 target_compile_features(breakout PRIVATE cxx_std_20)
