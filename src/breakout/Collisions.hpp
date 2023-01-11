@@ -10,7 +10,7 @@
 // true if collides, false otherwise
 inline bool check_collision(Rect2D lhs, Rect2D rhs) noexcept {
     return glm::all(
-        glm::lessThan(lhs.center - rhs.center, (lhs.size + rhs.size) / 2.f));
+        glm::lessThan(glm::abs(lhs.center - rhs.center), (lhs.size + rhs.size) / 2.f));
 }
 
 
