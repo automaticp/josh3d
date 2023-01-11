@@ -1,5 +1,4 @@
 #pragma once
-#include "All.hpp"
 #include "Ball.hpp"
 #include "Collisions.hpp"
 #include "FrameTimer.hpp"
@@ -12,6 +11,7 @@
 #include "Rect2D.hpp"
 #include "Canvas.hpp"
 #include "Transform.hpp"
+#include "SpriteRenderer.hpp"
 
 #include <array>
 #include <glbinding/gl/enum.h>
@@ -154,6 +154,15 @@ public:
     }
 
     void render() {
+        using namespace gl;
+
+        draw_scene_objects();
+
+    }
+
+
+private:
+    void draw_scene_objects() {
 
         renderer_.draw_sprite(
             background_,
@@ -186,7 +195,6 @@ public:
     }
 
 
-private:
     void update_player_movement() {
         player_.center() += player_.velocity() * frame_timer_.delta<float>();
     }
