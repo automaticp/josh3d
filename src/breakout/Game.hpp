@@ -5,9 +5,11 @@
 #include "GLObjects.hpp"
 #include "Globals.hpp"
 #include "Input.hpp"
+#include "Logging.hpp"
 #include "Paddle.hpp"
 #include "Particle2D.hpp"
 #include "Particle2DGenerator.hpp"
+#include "PowerUpGenerator.hpp"
 #include "ShaderBuilder.hpp"
 #include "Sprite.hpp"
 #include "GameLevel.hpp"
@@ -78,6 +80,8 @@ private:
     };
 
     FXState fx_state_;
+
+    PowerUpGenerator powerup_gen_;
 
     const learn::FrameTimer& frame_timer_;
 
@@ -199,7 +203,12 @@ public:
     }
 
     void update() {
+
         update_player_movement();
+
+        update_powerup_movement();
+
+        powerup_gen_.remove_destroyed();
 
         constexpr float drag{ 2.f };
         particle_gen_.set_origin(ball_.center() - drag * (ball_.velocity() * frame_timer_.delta<float>()));
@@ -266,9 +275,15 @@ private:
                 .scale({ global_canvas.width(), global_canvas.height(), 1.f })
         );
 
-        for (auto&& tile : levels_[current_level_].tiles()) {
+        for (auto& tile : levels_[current_level_].tiles()) {
             if (tile.is_alive()) {
                 renderer_.draw_sprite(tile.sprite(), tile.get_transform());
+            }
+        }
+
+        for (auto& pup : powerup_gen_.powerups()) {
+            if (pup.is_alive()) {
+                renderer_.draw_sprite(pup.sprite(), pup.get_transform());
             }
         }
 
@@ -292,6 +307,23 @@ private:
 
     void update_player_movement() {
         player_.center() += player_.velocity() * frame_timer_.delta<float>();
+    }
+
+    void update_powerup_movement() {
+        for (auto& pup : powerup_gen_.powerups()) {
+            pup.box().center += pup.velocity() * frame_timer_.delta<float>();
+            if (pup.is_alive()) {
+                if (check_collision(pup.box(), player_.box())) {
+                    // Apply effect...
+                    pup.destroy();
+                    learn::global_logstream << "Destroyed PowerUp Type " << size_t(pup.type()) << " On Player Collision\n";
+                } else if (!check_collision(pup.box(), global_canvas)) {
+                    // Just destroy
+                    pup.destroy();
+                    learn::global_logstream << "Destroyed PowerUp Type " << size_t(pup.type()) << " On Out-of-Bounds\n";
+                }
+            }
+        }
     }
 
     void update_ball_movement() {
@@ -320,7 +352,9 @@ private:
 
                 if (tile_collision.did_collide()) {
                     if (tile.type() != TileType::solid) {
+                        powerup_gen_.try_generate_random_at(tile.box().center);
                         tile.destroy();
+                        levels_[current_level_].report_destroyed_tile();
                     } else {
                         fx_state_.enable_shake(0.05f);
                     }
