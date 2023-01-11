@@ -34,41 +34,12 @@ int main() {
 	glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    learn::FrameTimer timer;
-    SpriteRenderer renderer{
-        learn::ShaderSource::from_file("src/breakout/shaders/sprite.vert"),
-        learn::ShaderSource::from_file("src/breakout/shaders/sprite.frag")
-    };
-    Game game{ timer, renderer };
-    auto& controls = game.controls();
-
-    learn::BasicRebindableInput input{ window };
-    input.set_keybind(
-        glfw::KeyCode::A,
-        [&controls](const learn::KeyCallbackArgs& args) {
-            if (args.state == glfw::KeyState::Press) { controls.left = true; }
-            if (args.state == glfw::KeyState::Release) { controls.left = false; }
-        }
-    );
-    input.set_keybind(
-        glfw::KeyCode::D,
-        [&controls](const learn::KeyCallbackArgs& args) {
-            if (args.state == glfw::KeyState::Press) { controls.right = true; }
-            if (args.state == glfw::KeyState::Release) { controls.right = false; }
-        }
-    );
-    input.set_keybind(
-        glfw::KeyCode::Space,
-        [&game](const learn::KeyCallbackArgs& args) {
-            game.launch_ball();
-        }
-    );
-    input.enable_key_callback();
+    Game game{ window, learn::globals::frame_timer };
 
     game.init();
 
     while (!window.shouldClose()) {
-        timer.update();
+        learn::globals::frame_timer.update();
 
         glfw::pollEvents();
         game.process_input();

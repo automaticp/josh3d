@@ -2,16 +2,21 @@
 #include "Ball.hpp"
 #include "Collisions.hpp"
 #include "FrameTimer.hpp"
+#include "GLObjects.hpp"
 #include "Globals.hpp"
+#include "Input.hpp"
 #include "Paddle.hpp"
 #include "Particle2D.hpp"
 #include "Particle2DGenerator.hpp"
+#include "ShaderBuilder.hpp"
 #include "Sprite.hpp"
 #include "GameLevel.hpp"
-#include "Rect2D.hpp"
 #include "Canvas.hpp"
 #include "Transform.hpp"
 #include "SpriteRenderer.hpp"
+#include "PostprocessDoubleBuffer.hpp"
+#include "PostprocessRenderer.hpp"
+#include "glfwpp/window.h"
 
 #include <array>
 #include <glbinding/gl/enum.h>
@@ -29,10 +34,33 @@ enum class GameState {
 };
 
 
+struct FXState {
+    bool shake{ false };
+};
+
+
 class Game {
 private:
+    glfw::Window& window_;
+
     GameState state_;
-    SpriteRenderer& renderer_;
+    SpriteRenderer renderer_{
+        learn::ShaderSource::from_file("src/breakout/shaders/sprite.vert"),
+        learn::ShaderSource::from_file("src/breakout/shaders/sprite.frag")
+    };
+
+    learn::PostprocessDoubleBuffer ppdb_;
+    learn::PostprocessRenderer pp_renderer_;
+
+    learn::ShaderProgram pp_shake_{
+        learn::ShaderBuilder()
+            .load_vert("src/breakout/shaders/pp_shake.vert")
+            .load_frag("src/breakout/shaders/pp_shake.frag")
+            .get()
+    };
+
+    FXState fx_state_;
+
     const learn::FrameTimer& frame_timer_;
 
     std::vector<GameLevel> levels_;
@@ -71,6 +99,7 @@ private:
     };
 
 
+    learn::BasicRebindableInput input_;
 
     struct ControlState {
         bool left{ false };
@@ -79,15 +108,33 @@ private:
     ControlState controls_;
 
 public:
-    Game(learn::FrameTimer& frame_timer, SpriteRenderer& sprite_renderer)
-        : frame_timer_( frame_timer ), renderer_{ sprite_renderer } {}
+    Game(glfw::Window& window, learn::FrameTimer& frame_timer)
+        : window_{ window }
+        , ppdb_{
+            std::get<0>(window.getSize()),
+            std::get<1>(window.getSize())
+        }
+        , frame_timer_{ frame_timer }
+        , input_{ window_ }
+    {}
 
-    Game(SpriteRenderer& sprite_renderer)
-        : Game(learn::globals::frame_timer, sprite_renderer) {}
+    Game(glfw::Window& window)
+        : Game(window, learn::globals::frame_timer)
+    {}
 
-    ControlState& controls() noexcept { return controls_; }
 
     void init() {
+
+        using namespace gl;
+
+        init_input();
+
+        window_.framebufferSizeEvent.setCallback(
+            [this](glfw::Window&, int w, int h) {
+                glViewport(0, 0, w, h);
+                ppdb_.reset_size(w, h);
+            }
+        );
 
         levels_.emplace_back("src/breakout/levels/one.lvl");
 
@@ -156,7 +203,34 @@ public:
     void render() {
         using namespace gl;
 
-        draw_scene_objects();
+        ppdb_.back().framebuffer()
+            .bind_as(GL_DRAW_FRAMEBUFFER)
+            .and_then([this] { draw_scene_objects(); })
+            .unbind();
+        ppdb_.swap_buffers();
+
+        if (fx_state_.shake) {
+
+            auto asp = pp_shake_.use();
+            asp.uniform("time", frame_timer_.current<float>());
+
+            ppdb_.back().framebuffer()
+                .bind_as(GL_DRAW_FRAMEBUFFER)
+                .and_then([this, &asp] {
+                    pp_renderer_.draw(asp, ppdb_.front_target());
+                })
+                .unbind();
+            ppdb_.swap_buffers();
+
+        }
+
+        auto [w, h] = window_.getSize();
+
+        learn::BoundFramebuffer::unbind_as(GL_DRAW_FRAMEBUFFER);
+        ppdb_.front().framebuffer()
+            .bind_as(GL_READ_FRAMEBUFFER)
+            .blit(0, 0, w, h, 0, 0, w, h, GL_COLOR_BUFFER_BIT, GL_NEAREST)
+            .unbind();
 
     }
 
@@ -253,6 +327,51 @@ private:
         }
 
         ball_.center() += dxdy;
+    }
+
+
+
+    void init_input() {
+        input_.set_keybind(
+            glfw::KeyCode::A,
+            [this](const learn::KeyCallbackArgs& args) {
+                if (args.state == glfw::KeyState::Press) { controls_.left = true; }
+                if (args.state == glfw::KeyState::Release) { controls_.left = false; }
+            }
+        );
+        input_.set_keybind(
+            glfw::KeyCode::D,
+            [this](const learn::KeyCallbackArgs& args) {
+                if (args.state == glfw::KeyState::Press) { controls_.right = true; }
+                if (args.state == glfw::KeyState::Release) { controls_.right = false; }
+            }
+        );
+        input_.set_keybind(
+            glfw::KeyCode::Space,
+            [this](const learn::KeyCallbackArgs& args) {
+                if (args.state == glfw::KeyState::Press) { launch_ball(); }
+            }
+        );
+        input_.set_keybind(
+            glfw::KeyCode::Escape,
+            [this](const learn::KeyCallbackArgs& args) {
+                if (args.state == glfw::KeyState::Release) {
+                    window_.setShouldClose(true);
+                }
+            }
+        );
+
+        input_.set_keybind(
+            glfw::KeyCode::H,
+            [this](const learn::KeyCallbackArgs& args) {
+                if (args.state == glfw::KeyState::Release) {
+                    fx_state_.shake = !fx_state_.shake;
+                }
+            }
+        );
+
+        input_.enable_key_callback();
+
     }
 
 };
