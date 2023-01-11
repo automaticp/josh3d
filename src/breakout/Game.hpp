@@ -88,7 +88,7 @@ private:
     static constexpr float ball_speed{ 500.f };
 
     Paddle player_{
-        Rect2D{ { 400.f, 25.f }, { 150.f, 20.f } }
+        Rect2D{ { 400.f, 20.f }, { 150.f, 20.f } }
     };
 
     Sprite background_{
