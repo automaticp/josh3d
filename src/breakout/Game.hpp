@@ -217,6 +217,7 @@ public:
             ball_.make_unstuck();
             ball_.velocity() =
                 ball_speed * glm::normalize(player_.velocity() + glm::vec2{ 0.f, 400.f });
+            fx_state_.enable_shake(0.05f);
         }
     }
 
@@ -344,6 +345,8 @@ private:
                 ball_.velocity() = ball_speed * glm::normalize(ball_.velocity() + player_.velocity());
 
                 ball_.velocity().y = glm::abs(ball_.velocity().y);
+
+                fx_state_.enable_shake(0.05f);
             }
 
         }
