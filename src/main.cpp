@@ -21,7 +21,6 @@ int main() {
         .openglProfile=glfw::OpenGlProfile::Core
 	}.apply();
 	glfw::Window window{ 800, 600, "WindowName" };
-	window.framebufferSizeEvent.setCallback([](glfw::Window& window, int w, int h) { glViewport(0, 0, w, h); });
 	glfw::makeContextCurrent(window);
 	glfw::swapInterval(0);
 	window.setInputModeCursor(glfw::CursorMode::Disabled);
@@ -31,7 +30,17 @@ int main() {
 #ifndef NDEBUG
 	enable_glbinding_logger();
 #endif
-	auto [width, height] { window.getSize() };
+
+    globals::window_size.track(window);
+
+    window.framebufferSizeEvent.setCallback(
+        [](glfw::Window& window, int w, int h) {
+            globals::window_size.set_to(w, h);
+            glViewport(0, 0, w, h);
+        }
+    );
+
+    auto [width, height] { globals::window_size.size() };
 	glViewport(0, 0, width, height);
 	glEnable(GL_DEPTH_TEST);
 

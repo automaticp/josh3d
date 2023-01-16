@@ -8,6 +8,7 @@
 #include "AssimpModelLoader.hpp"
 #include "FrameTimer.hpp"
 #include "GLObjects.hpp"
+#include "Globals.hpp"
 #include "LightCasters.hpp"
 #include "Model.hpp"
 #include "Scenes.hpp"
@@ -238,7 +239,7 @@ void render_cube_scene(glfw::Window& window) {
 		glfw::pollEvents();
 
 
-		auto [width, height] = window.getSize();
+		auto [width, height] = learn::globals::window_size.size();
 		projection = glm::perspective(cam.get_fov(), static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f);
 		view = cam.view_mat();
 

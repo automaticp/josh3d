@@ -133,8 +133,8 @@ public:
     Game(glfw::Window& window, learn::FrameTimer& frame_timer)
         : window_{ window }
         , ppdb_{
-            std::get<0>(window.getSize()),
-            std::get<1>(window.getSize())
+            learn::globals::window_size.width(),
+            learn::globals::window_size.height()
         }
         , frame_timer_{ frame_timer }
         , input_{ window_ }
@@ -153,6 +153,7 @@ public:
 
         window_.framebufferSizeEvent.setCallback(
             [this](glfw::Window&, int w, int h) {
+                learn::globals::window_size.set_to(w, h);
                 glViewport(0, 0, w, h);
                 ppdb_.reset_size(w, h);
             }
@@ -254,7 +255,7 @@ public:
 
         }
 
-        auto [w, h] = window_.getSize();
+        auto [w, h] = learn::globals::window_size.size();
 
         learn::BoundFramebuffer::unbind_as(GL_DRAW_FRAMEBUFFER);
         ppdb_.front().framebuffer()

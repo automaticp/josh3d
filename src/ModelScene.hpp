@@ -1,6 +1,7 @@
 #pragma once
 #include "All.hpp"
 #include "AssimpModelLoader.hpp"
+#include "Globals.hpp"
 #include "Input.hpp"
 #include "LightCasters.hpp"
 #include "Transform.hpp"
@@ -82,7 +83,7 @@ public:
 
 private:
     void draw_scene_objects() {
-        auto [width, height] = window_.getSize();
+        auto [width, height] = learn::globals::window_size.size();
 		auto projection = glm::perspective(
             cam_.get_fov(),
             static_cast<float>(width) / static_cast<float>(height),

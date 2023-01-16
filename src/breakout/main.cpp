@@ -20,7 +20,6 @@ int main() {
 		.contextVersionMajor=3, .contextVersionMinor=3, .openglProfile=glfw::OpenGlProfile::Core
 	}.apply();
 	glfw::Window window{ 800, 600, "Breakout" };
-	window.framebufferSizeEvent.setCallback([](glfw::Window&, int w, int h) { glViewport(0, 0, w, h); });
 	glfw::makeContextCurrent(window);
 	// glfw::swapInterval(0);
 	// window.setInputModeCursor(glfw::CursorMode::Disabled);
@@ -29,8 +28,19 @@ int main() {
 #ifndef NDEBUG
 	learn::enable_glbinding_logger();
 #endif
-	auto [width, height] { window.getSize() };
-	glViewport(0, 0, width, height);
+
+    learn::globals::window_size.track(window);
+
+    window.framebufferSizeEvent.setCallback(
+        [](glfw::Window&, int w, int h) {
+            learn::globals::window_size.set_to(w, h);
+            glViewport(0, 0, w, h);
+        }
+    );
+
+    auto [width, height] = learn::globals::window_size.size();
+
+    glViewport(0, 0, width, height);
 	glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 

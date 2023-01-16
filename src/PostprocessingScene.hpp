@@ -2,6 +2,7 @@
 #include "All.hpp"
 #include "AssimpModelLoader.hpp"
 #include "GLObjects.hpp"
+#include "Globals.hpp"
 #include "Input.hpp"
 #include "LightCasters.hpp"
 #include "Logging.hpp"
@@ -71,12 +72,12 @@ public:
         }
         , input_{ window, cam_ }
         , pdb_{
-            std::get<0>(window.getSize()),
-            std::get<1>(window.getSize())
+            learn::globals::window_size.width(),
+            learn::globals::window_size.height()
         }
         , tex_ms_target_{
-            std::get<0>(window.getSize()),
-            std::get<1>(window.getSize()),
+            learn::globals::window_size.width(),
+            learn::globals::window_size.height(),
             8
         }
     {
@@ -84,6 +85,7 @@ public:
 
         window_.framebufferSizeEvent.setCallback(
             [this](glfw::Window&, int w, int h) {
+                learn::globals::window_size.set_to(w, h);
                 glViewport(0, 0, w, h);
                 pdb_.reset_size(w, h);
                 tex_ms_target_.reset_size_and_samples(w, h, use_msaa_ ? 8 : 1);
@@ -94,7 +96,7 @@ public:
             glfw::KeyCode::M,
             [this](const KeyCallbackArgs& args) {
                 if (args.state == glfw::KeyState::Release) {
-                    auto [w, h] = args.window.getSize();
+                    auto [w, h] = learn::globals::window_size.size();
                     use_msaa_ = !use_msaa_;
                     tex_ms_target_.reset_size_and_samples(w, h, use_msaa_ ? 8 : 1);
                 }
@@ -156,7 +158,7 @@ public:
             .bind_as(GL_DRAW_FRAMEBUFFER)
             .and_then([&] {
 
-                auto [w, h] = window_.getSize();
+                auto [w, h] = learn::globals::window_size.size();
                 tex_ms_target_.framebuffer()
                     .bind_as(GL_READ_FRAMEBUFFER)
                     .blit(0, 0, w, h, 0, 0, w, h, GL_COLOR_BUFFER_BIT, GL_NEAREST)
@@ -190,7 +192,7 @@ public:
 private:
     void draw_scene_objects() {
 
-        auto [width, height] = window_.getSize();
+        auto [width, height] = learn::globals::window_size.size();
 		auto projection = glm::perspective(cam_.get_fov(), static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f);
 		auto view = cam_.view_mat();
 
