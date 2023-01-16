@@ -20,8 +20,6 @@ public:
 
     void draw(ActiveShaderProgram& pp_shader, TextureHandle& screen_color_texture) {
         using namespace gl;
-        glClearColor(0.f, 0.f, 0.f, 1.f);
-        glClear(GL_COLOR_BUFFER_BIT);
         glDisable(GL_DEPTH_TEST);
 
         // These hardcoded uniform name and unit number are concerning...

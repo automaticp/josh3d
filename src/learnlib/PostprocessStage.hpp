@@ -60,8 +60,6 @@ public:
 
     void draw(TextureHandle& color_tex) {
         using namespace gl;
-        glClearColor(0.f, 0.f, 0.f, 1.f);
-        glClear(GL_COLOR_BUFFER_BIT);
         glDisable(GL_DEPTH_TEST);
 
         ActiveShaderProgram asp{ shader_.use() };
