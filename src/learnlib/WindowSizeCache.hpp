@@ -4,6 +4,8 @@
 #include <tuple>
 
 
+namespace learn {
+
 // This exists because the normal glfw::Window::getSize() call
 // involves an expensive syscall. And even though you'd be tempted
 // to get the size of the widnow via that method everytime you need it,
@@ -11,6 +13,7 @@
 // updated only on resize callbacks.
 
 // TODO: extend to framebuffer size maybe
+
 
 class WindowSizeCache {
 private:
@@ -58,3 +61,6 @@ public:
     int height() const noexcept { return height_; }
 
 };
+
+
+} // namespace learn
