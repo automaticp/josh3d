@@ -11,7 +11,7 @@ namespace learn {
 // to get the size of the widnow via that method everytime you need it,
 // it's much better if it's stored somewhere in the program memory and
 // updated only on resize callbacks.
-
+//
 // TODO: extend to framebuffer size maybe
 
 

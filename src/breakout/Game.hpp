@@ -9,6 +9,7 @@
 #include "Paddle.hpp"
 #include "Particle2D.hpp"
 #include "Particle2DGenerator.hpp"
+#include "PowerUp.hpp"
 #include "PowerUpGenerator.hpp"
 #include "ShaderBuilder.hpp"
 #include "Sprite.hpp"
@@ -27,34 +28,65 @@
 #include <range/v3/all.hpp>
 #include <glm/fwd.hpp>
 #include <glm/geometric.hpp>
+#include <type_traits>
 #include <vector>
 #include <cstddef>
 #include <iostream>
+#include <cassert>
 
 enum class GameState {
     active, win, menu
 };
 
 
+enum class FXType : size_t {
+    shake = 0,
+    speed = 1,
+    sticky = 2,
+    pass_through = 3,
+    pad_size_up = 4,
+    confuse = 5,
+    chaos = 6
+};
+
+
 class FXState {
 private:
-    bool shake_{ false };
-    float shake_time_{ 0.f };
+    struct FX {
+        float time{ 0.f };
+        bool enabled{ false };
+
+        void enable(float duration) noexcept {
+            enabled = true;
+            time = duration;
+        }
+
+        void update(float dt) noexcept {
+            time -= dt;
+            if (time <= 0.f) [[likely]] { enabled = false; }
+        }
+    };
+
+    std::array<FX, 7> effects_{};
+
+    FX& get_fx(FXType type) noexcept {
+        return effects_[static_cast<std::underlying_type_t<FXType>>(type)];
+    }
 
 public:
-    void update(float dt) {
-        shake_time_ -= dt;
-        if (shake_time_ <= 0.f) {
-            shake_ = false;
+    void update(float dt) noexcept {
+        for (auto& fx : effects_) {
+            fx.update(dt);
         }
     }
 
-    void enable_shake(float duration) {
-        shake_ = true;
-        shake_time_ = duration;
+    void enable(FXType type, float duration) {
+        get_fx(type).enable(duration);
     }
 
-    bool is_shake_enabled() { return shake_; }
+    bool is_active(FXType type) {
+        return get_fx(type).enabled;
+    }
 
 };
 
@@ -227,7 +259,7 @@ public:
             ball_.make_unstuck();
             ball_.velocity() =
                 ball_speed * glm::normalize(player_.velocity() + glm::vec2{ 0.f, 400.f });
-            fx_state_.enable_shake(0.05f);
+            fx_state_.enable(FXType::shake, 0.05f);
         }
     }
 
@@ -240,7 +272,7 @@ public:
             .unbind();
         ppdb_.swap_buffers();
 
-        if (fx_state_.is_shake_enabled()) {
+        if (fx_state_.is_active(FXType::shake)) {
 
             auto asp = pp_shake_.use();
             asp.uniform("time", frame_timer_.current<float>());
@@ -357,7 +389,7 @@ private:
                         tile.destroy();
                         levels_[current_level_].report_destroyed_tile();
                     } else {
-                        fx_state_.enable_shake(0.05f);
+                        fx_state_.enable(FXType::shake, 0.05f);
                     }
 
                     apply_outer_collision_correction(ball_, dxdy, tile_collision);
@@ -381,7 +413,7 @@ private:
 
                 ball_.velocity().y = glm::abs(ball_.velocity().y);
 
-                fx_state_.enable_shake(0.05f);
+                fx_state_.enable(FXType::shake, 0.03f);
             }
 
         }
@@ -425,7 +457,7 @@ private:
             glfw::KeyCode::H,
             [this](const learn::KeyCallbackArgs& args) {
                 if (args.state == glfw::KeyState::Press) {
-                    fx_state_.enable_shake(0.05f);
+                    fx_state_.enable(FXType::shake, 0.05f);
                 }
             }
         );
