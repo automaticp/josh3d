@@ -35,7 +35,7 @@ public:
         info_.emplace(std::string(name), info);
     }
 
-    gl::GLint location_of(const std::string& name) {
+    gl::GLint location_of(const std::string& name) const {
         return info_.at(name).index;
     }
 
@@ -105,13 +105,13 @@ public:
 
     ShaderProgram& program() noexcept { return shader_; }
 
-    gl::GLint location_of(const std::string& name) {
+    gl::GLint location_of(const std::string& name) const {
         return uniforms_.location_of(name);
     }
 
     // This is mostly for testing.
     // Make sure the current program is active.
-    void uniform(const std::string& name, auto... args) {
+    void uniform(const std::string& name, auto... args) const {
         ActiveShaderProgram::uniform(uniforms_.location_of(name), args...);
 	}
 

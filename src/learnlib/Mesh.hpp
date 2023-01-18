@@ -61,6 +61,21 @@ public:
         vao_.bind()
            .draw_elements(GL_TRIANGLES, elements_.size(), GL_UNSIGNED_INT, nullptr);
 
+    }
+
+    void draw(ActiveShaderProgram& sp, gl::GLint diffuse_loc, gl::GLint specular_loc, gl::GLint shininess_loc) {
+        using namespace gl;
+
+        sp.uniform(diffuse_loc, 0);
+        diffuse_->bind_to_unit(GL_TEXTURE0);
+
+        sp.uniform(specular_loc, 1);
+        specular_->bind_to_unit(GL_TEXTURE1);
+
+        sp.uniform(shininess_loc, 128.0f);
+
+        vao_.bind()
+           .draw_elements(GL_TRIANGLES, elements_.size(), GL_UNSIGNED_INT, nullptr);
 
     }
 

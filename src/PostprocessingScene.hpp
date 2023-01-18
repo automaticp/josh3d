@@ -1,6 +1,7 @@
 #pragma once
 #include "All.hpp"
 #include "AssimpModelLoader.hpp"
+#include "BatchedShader.hpp"
 #include "GLObjects.hpp"
 #include "Globals.hpp"
 #include "Input.hpp"
@@ -30,7 +31,7 @@ private:
     Model<> box_;
     Model<> plane_;
 
-    ShaderProgram solid_shader_;
+    BatchedShader solid_shader_;
 
     light::Directional light_;
 
@@ -198,16 +199,18 @@ private:
 
 		glm::vec3 cam_pos{ cam_.get_pos() };
 
-        ActiveShaderProgram sasp{ solid_shader_.use() };
+        ActiveShaderProgram sasp{ solid_shader_.program().use() };
 
-        sasp.uniform("projection", projection)
-		    .uniform("view", view)
-		    .uniform("camPos", cam_pos);
+        const auto& sp = solid_shader_;
 
-		sasp.uniform("dirLight.color", light_.color)
-		    .uniform("dirLight.direction", light_.direction);
+        sp.uniform("projection", projection);
+		sp.uniform("view", view);
+		sp.uniform("camPos", cam_pos);
 
-		sasp.uniform("numPointLights", 0);
+		sp.uniform("dirLight.color", light_.color);
+	    sp.uniform("dirLight.direction", light_.direction);
+
+		sp.uniform("numPointLights", 0);
 
         auto box1_transform = Transform()
             .translate({1.0f, 1.0f, 0.5f});
@@ -220,22 +223,30 @@ private:
             .scale({ 5.f, 5.f, 1.f });
 
 
-        sasp.uniform("model", box1_transform.model());
-		sasp.uniform("normalModel", box1_transform.normal_model());
+        sp.uniform("model", box1_transform.model());
+		sp.uniform("normalModel", box1_transform.normal_model());
 
-        box_.draw(sasp);
+        box_.draw(
+            sasp, sp.location_of("material.diffuse"),
+            sp.location_of("material.specular"), sp.location_of("material.shininess")
+        );
 
+        sp.uniform("model", box2_transform.model());
+		sp.uniform("normalModel", box2_transform.normal_model());
 
-        sasp.uniform("model", box2_transform.model());
-		sasp.uniform("normalModel", box2_transform.normal_model());
+        box_.draw(
+            sasp, sp.location_of("material.diffuse"),
+            sp.location_of("material.specular"), sp.location_of("material.shininess")
+        );
 
-        box_.draw(sasp);
+        sp.uniform("model", plane_transform.model());
+        sp.uniform("normalModel", plane_transform.normal_model());
 
+        plane_.draw(
+            sasp, sp.location_of("material.diffuse"),
+            sp.location_of("material.specular"), sp.location_of("material.shininess")
+        );
 
-        sasp.uniform("model", plane_transform.model());
-        sasp.uniform("normalModel", plane_transform.normal_model());
-
-        plane_.draw(sasp);
 
 
     }
