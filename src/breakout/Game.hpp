@@ -60,6 +60,21 @@ private:
             .get()
     };
 
+    learn::ShaderProgram pp_chaos_{
+        learn::ShaderBuilder()
+            .load_vert("src/breakout/shaders/pp_chaos.vert")
+            .load_frag("src/shaders/pp_kernel_edge.frag")
+            .get()
+    };
+
+
+    learn::ShaderProgram pp_confuse_{
+        learn::ShaderBuilder()
+            .load_vert("src/breakout/shaders/pp_confuse.vert")
+            .load_frag("src/shaders/pp_invert.frag")
+            .get()
+    };
+
     FXState fx_;
 
     PowerUpGenerator powerup_gen_;
@@ -243,6 +258,35 @@ public:
             ppdb_.swap_buffers();
         };
 
+        if (fx_.is_active(FXType::chaos)) {
+
+            // Ughh...
+            GLenum old_wrap;
+            glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, &old_wrap);
+            auto& target = ppdb_.front_target();
+
+            target.bind()
+                .set_parameter(GL_TEXTURE_WRAP_S, GL_REPEAT)
+                .set_parameter(GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+            auto asp = pp_chaos_.use();
+            asp.uniform("time", frame_timer_.current<float>());
+            render_pp(asp);
+
+            target.bind()
+                .set_parameter(GL_TEXTURE_WRAP_S, old_wrap)
+                .set_parameter(GL_TEXTURE_WRAP_T, old_wrap);
+
+
+        }
+
+        if (fx_.is_active(FXType::confuse)) {
+
+            auto asp = pp_confuse_.use();
+            render_pp(asp);
+
+        }
+
         if (fx_.is_active(FXType::shake)) {
 
             auto asp = pp_shake_.use();
@@ -251,17 +295,6 @@ public:
 
         }
 
-        if (fx_.is_active(FXType::chaos)) {
-
-            // TODO
-
-        }
-
-        if (fx_.is_active(FXType::confuse)) {
-
-            // TODO
-
-        }
 
         auto [w, h] = learn::globals::window_size.size();
 
@@ -349,12 +382,12 @@ private:
         switch (type) {
             case PowerUpType::chaos:
                 if (!fx_.is_active(FXType::confuse)) {
-                    fx_.enable(FXType::chaos, 10.f);
+                    fx_.enable(FXType::chaos, 5.f);
                 }
                 break;
             case PowerUpType::confuse:
                 if (!fx_.is_active(FXType::chaos)) {
-                    fx_.enable(FXType::confuse, 15.f); break;
+                    fx_.enable(FXType::confuse, 10.f); break;
                 }
                 break;
             case PowerUpType::pad_size_up:  fx_.enable(FXType::pad_size_up, 30.f); break;
@@ -475,6 +508,16 @@ private:
                 }
             }
         );
+
+        input_.set_keybind(
+            glfw::KeyCode::G,
+            [this](const learn::KeyCallbackArgs& args) {
+                if (args.state == glfw::KeyState::Press) {
+                    fx_.enable(FXType::chaos, 5.f);
+                }
+            }
+        );
+
 
         input_.enable_key_callback();
 
