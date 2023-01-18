@@ -60,7 +60,7 @@ private:
             .get()
     };
 
-    FXState fx_state_;
+    FXState fx_;
 
     PowerUpGenerator powerup_gen_;
 
@@ -69,11 +69,14 @@ private:
     std::vector<GameLevel> levels_;
     size_t current_level_{ 0 };
 
-    static constexpr float player_speed{ 500.f };
+    static constexpr float base_player_speed{ 500.f };
     static constexpr float ball_speed{ 500.f };
 
+    static constexpr float paddle_width_default{ 130.f };
+    static constexpr float paddle_width_enhanced{ 160.f };
+
     Paddle player_{
-        Rect2D{ { 400.f, 20.f }, { 150.f, 20.f } }
+        Rect2D{ { 400.f, 20.f }, { paddle_width_default, 20.f } }
     };
 
     Sprite background_{
@@ -157,8 +160,16 @@ public:
 
     void process_input() {
 
+        const float speed_modifier = fx_.is_active(FXType::speed) ? 1.2f : 1.0f;
+
+        const float player_speed = base_player_speed * speed_modifier;
+
         const float dx{ player_speed * frame_timer_.delta<float>() };
 
+        // FIXME: If you pick up the paddle size increase
+        // powerup while standing near the wall, you get stuck.
+        //
+        // Have fun!
         auto is_move_in_bounds = [&](float dx) -> bool {
             return glm::abs((player_.center().x + dx) - global_canvas.center.x)
                 < (global_canvas.size.x - player_.size().x) / 2.f;
@@ -173,10 +184,10 @@ public:
             if (ball_.is_stuck()) { ball_.velocity().x = 0.f; }
         } else if (controls_.left && is_move_in_bounds(-dx)) {
             player_.velocity().x = -player_speed;
-            if (ball_.is_stuck()) { ball_.velocity().x = -player_speed; }
+            if (ball_.is_stuck()) { ball_.velocity().x = player_.velocity().x; }
         } else if (controls_.right && is_move_in_bounds(dx)) {
             player_.velocity().x = +player_speed;
-            if (ball_.is_stuck()) { ball_.velocity().x = +player_speed; }
+            if (ball_.is_stuck()) { ball_.velocity().x = player_.velocity().x; }
         } else {
             player_.velocity().x = 0.f;
             if (ball_.is_stuck()) { ball_.velocity().x = 0.f; }
@@ -199,7 +210,7 @@ public:
 
         particle_gen_.update(frame_timer_.delta<float>(), ball_.velocity());
 
-        fx_state_.update(frame_timer_.delta<float>());
+        fx_.update(frame_timer_.delta<float>());
 
     }
 
@@ -208,7 +219,7 @@ public:
             ball_.make_unstuck();
             ball_.velocity() =
                 ball_speed * glm::normalize(player_.velocity() + glm::vec2{ 0.f, 400.f });
-            fx_state_.enable(FXType::shake, 0.05f);
+            fx_.enable(FXType::shake, 0.05f);
         }
     }
 
@@ -221,11 +232,8 @@ public:
             .unbind();
         ppdb_.swap_buffers();
 
-        if (fx_state_.is_active(FXType::shake)) {
 
-            auto asp = pp_shake_.use();
-            asp.uniform("time", frame_timer_.current<float>());
-
+        auto render_pp = [this](learn::ActiveShaderProgram& asp) {
             ppdb_.back().framebuffer()
                 .bind_as(GL_DRAW_FRAMEBUFFER)
                 .and_then([this, &asp] {
@@ -233,6 +241,25 @@ public:
                 })
                 .unbind();
             ppdb_.swap_buffers();
+        };
+
+        if (fx_.is_active(FXType::shake)) {
+
+            auto asp = pp_shake_.use();
+            asp.uniform("time", frame_timer_.current<float>());
+            render_pp(asp);
+
+        }
+
+        if (fx_.is_active(FXType::chaos)) {
+
+            // TODO
+
+        }
+
+        if (fx_.is_active(FXType::confuse)) {
+
+            // TODO
 
         }
 
@@ -269,7 +296,10 @@ private:
             }
         }
 
-        renderer_.draw_sprite(player_.sprite(), player_.get_transform());
+        renderer_.draw_sprite(
+            player_.sprite(), player_.get_transform(),
+            fx_.is_active(FXType::sticky) ? glm::vec4{ 0.2f, 1.f, 0.5f, 1.f } : player_.sprite().color()
+        );
 
         using namespace gl;
         if (!ball_.is_stuck()) {
@@ -282,12 +312,18 @@ private:
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }
 
-        renderer_.draw_sprite(ball_.sprite(), ball_.get_transform());
+        renderer_.draw_sprite(
+            ball_.sprite(), ball_.get_transform(),
+            fx_.is_active(FXType::pass_through) ? glm::vec4{ 1.f, 0.5f, 0.5f, 1.f } : ball_.sprite().color()
+        );
 
     }
 
 
     void update_player_movement() {
+        player_.size().x =
+            fx_.is_active(FXType::pad_size_up) ? paddle_width_enhanced : paddle_width_default;
+
         player_.center() += player_.velocity() * frame_timer_.delta<float>();
     }
 
@@ -297,6 +333,7 @@ private:
             if (pup.is_alive()) {
                 if (check_collision(pup.box(), player_.box())) {
                     // Apply effect...
+                    apply_powerup(pup.type());
                     pup.destroy();
                     learn::global_logstream << "Destroyed PowerUp Type " << size_t(pup.type()) << " On Player Collision\n";
                 } else if (!check_collision(pup.box(), global_canvas)) {
@@ -305,6 +342,26 @@ private:
                     learn::global_logstream << "Destroyed PowerUp Type " << size_t(pup.type()) << " On Out-of-Bounds\n";
                 }
             }
+        }
+    }
+
+    void apply_powerup(PowerUpType type) {
+        switch (type) {
+            case PowerUpType::chaos:
+                if (!fx_.is_active(FXType::confuse)) {
+                    fx_.enable(FXType::chaos, 10.f);
+                }
+                break;
+            case PowerUpType::confuse:
+                if (!fx_.is_active(FXType::chaos)) {
+                    fx_.enable(FXType::confuse, 15.f); break;
+                }
+                break;
+            case PowerUpType::pad_size_up:  fx_.enable(FXType::pad_size_up, 30.f); break;
+            case PowerUpType::pass_through: fx_.enable(FXType::pass_through, 10.f); break;
+            case PowerUpType::speed:        fx_.enable(FXType::speed, 30.f); break;
+            case PowerUpType::sticky:       fx_.enable(FXType::sticky, 20.f); break;
+            default: break;
         }
     }
 
@@ -337,11 +394,14 @@ private:
                         powerup_gen_.try_generate_random_at(tile.box().center);
                         tile.destroy();
                         levels_[current_level_].report_destroyed_tile();
+                        if (!fx_.is_active(FXType::pass_through)) {
+                            apply_outer_collision_correction(ball_, dxdy, tile_collision);
+                        }
                     } else {
-                        fx_state_.enable(FXType::shake, 0.05f);
+                        fx_.enable(FXType::shake, 0.05f);
+                        apply_outer_collision_correction(ball_, dxdy, tile_collision);
                     }
 
-                    apply_outer_collision_correction(ball_, dxdy, tile_collision);
                 }
 
             }
@@ -356,13 +416,18 @@ private:
                 );
 
             if (paddle_collision.did_collide()) {
+                if (fx_.is_active(FXType::sticky)) {
+                    ball_.make_stuck();
+                    return;
+                }
+
                 apply_outer_collision_correction(ball_, dxdy, paddle_collision);
 
                 ball_.velocity() = ball_speed * glm::normalize(ball_.velocity() + player_.velocity());
 
                 ball_.velocity().y = glm::abs(ball_.velocity().y);
 
-                fx_state_.enable(FXType::shake, 0.03f);
+                fx_.enable(FXType::shake, 0.03f);
             }
 
         }
@@ -406,7 +471,7 @@ private:
             glfw::KeyCode::H,
             [this](const learn::KeyCallbackArgs& args) {
                 if (args.state == glfw::KeyState::Press) {
-                    fx_state_.enable(FXType::shake, 0.05f);
+                    fx_.enable(FXType::shake, 0.05f);
                 }
             }
         );

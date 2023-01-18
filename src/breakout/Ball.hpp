@@ -33,5 +33,9 @@ public:
     const Sprite& sprite() const noexcept { return sprite_; }
 
     void make_unstuck() noexcept { is_stuck_ = false; }
+    void make_stuck() noexcept {
+        velocity_ = { 0.f, 0.f };
+        is_stuck_ = true;
+    }
     bool is_stuck() const noexcept { return is_stuck_; }
 };

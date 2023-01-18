@@ -82,11 +82,11 @@ private:
     constexpr static std::array<float, 7> get_normalized_probabilities() {
         std::array<float, 7> absolute{
         //  none
-            80.f,
+            60.f,
         //  speed, sticky, pass_through, pad_size_up
             1.f,   1.f,    1.f,          1.f,
         //  confuse, chaos
-            4.f,     4.f
+            3.f,     3.f
         };
 
         auto sum = std::reduce(absolute.begin(), absolute.end());
