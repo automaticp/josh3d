@@ -8,7 +8,7 @@
 #include <glm/glm.hpp>
 #include "Camera.hpp"
 #include "Basis.hpp"
-#include "FrameTimer.hpp"
+#include "Globals.hpp"
 
 namespace learn {
 
@@ -62,7 +62,7 @@ public:
     }
 
 
-    template<std::invocable CallbackT>
+    template<std::invocable<const CursorPosCallbackArgs&> CallbackT>
     void set_cursor_pos_callback(CallbackT&& callback) {
 
         set_glfw_callback<CursorPosCallbackArgs>(
@@ -71,13 +71,27 @@ public:
 
     }
 
-    template<std::invocable CallbackT>
+    template<std::invocable<const ScrollCallbackArgs&> CallbackT>
     void set_scroll_callback(CallbackT&& callback) {
 
         set_glfw_callback<ScrollCallbackArgs>(
             window_.scrollEvent, std::forward<CallbackT>(callback)
         );
 
+    }
+
+    // For keys we set our own special callback, that
+    // indexes into a keymap with KeyCallbackArgs::key
+    // and calls the corresponding used-defined callback,
+    // if it exists.
+    //
+    // This method was private. Why?
+    void enable_key_callback() {
+        window_.keyEvent.setCallback(
+            [this]<typename ...Args>(Args&&... args) {
+                respond_to_key({ std::forward<Args>(args)... });
+            }
+        );
     }
 
     // Updates referenced members (or global state)
@@ -98,7 +112,7 @@ private:
     // So we first pack arguments via a proxy 'respond_to' function,
     // and then inside that function actually invoke the callback.
     //
-    template<typename CallbackArgsT, std::invocable CallbackT, typename ...EventArgs>
+    template<typename CallbackArgsT, typename CallbackT, typename ...EventArgs>
     void set_glfw_callback(glfw::Event<EventArgs...>& event, CallbackT&& callback) {
 
         event.setCallback(
@@ -111,23 +125,12 @@ private:
 
     }
 
-    template<typename CallbackArgsT, std::invocable CallbackT>
+    template<typename CallbackArgsT, typename CallbackT>
     void respond_to(CallbackT&& callback, const CallbackArgsT& args) {
         callback(args);
     }
 
 
-    // For keys we set our own special callback, that
-    // indexes into a keymap with KeyCallbackArgs::key
-    // and calls the corresponding used-defined callback,
-    // if it exists.
-    void enable_key_callback() {
-        window_.keyEvent.setCallback(
-            [this]<typename ...Args>(Args&&... args) {
-                respond_to_key({ std::forward<Args>(args)... });
-            }
-        );
-    }
 
     void respond_to_key(const KeyCallbackArgs& args) {
         // Maybe better to just use [] to avoid branching?
@@ -287,7 +290,7 @@ protected:
 
     void process_input_move() {
         constexpr float camera_speed{ 5.0f };
-        float abs_move{ camera_speed * float(global_frame_timer.delta()) };
+        float abs_move{ camera_speed * float(globals::frame_timer.delta()) };
         glm::vec3 sum_move{ 0.0f, 0.0f, 0.0f };
 
         if (move_state_.up)         sum_move += camera_.up_uv();

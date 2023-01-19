@@ -1,114 +1,63 @@
+#include <assimp/Importer.hpp>
+#include <glbinding/gl/bitfield.h>
+#include <glbinding/gl/functions.h>
+#include <glm/geometric.hpp>
 #include <numeric>
 #include <glfwpp/glfwpp.h>
 #include <glbinding/gl/gl.h>
+#include "AssimpModelLoader.hpp"
+#include "FrameTimer.hpp"
+#include "GLObjects.hpp"
+#include "Globals.hpp"
+#include "LightCasters.hpp"
+#include "Model.hpp"
 #include "Scenes.hpp"
 #include "All.hpp"
+#include "ShaderBuilder.hpp"
+#include "ShaderSource.hpp"
+#include "Transform.hpp"
+#include "glfwpp/event.h"
+#include "glfwpp/window.h"
+#include "PostprocessingScene.hpp"
+#include "ModelScene.hpp"
 
 
 void render_model_scene(glfw::Window& window) {
+    ModelScene scene{ window };
 
-	using namespace learn;
-	using namespace gl;
+    while (!window.shouldClose()) {
+        learn::globals::frame_timer.update();
 
+        glfw::pollEvents();
+        scene.process_input();
 
-	ShaderSource vert_src{ FileReader{}, "src/shaders/VertexShader.vert" };
-	vert_src.find_and_insert_as_next_line(
-		"uniform",
-		"uniform float time;"
-	);
+        scene.update();
 
-	vert_src.find_and_replace(
-		"texCoord = aTexCoord;",
-		"texCoord = cos(time) * aTexCoord;"
-	);
+        scene.render();
 
-	ShaderProgram sp{
-		ShaderBuilder()
-			.add_vert(vert_src)
-			.load_frag("src/shaders/TextureMaterialObject.frag")
-			.get()
-	};
+        window.swapBuffers();
+    }
 
-
-	Assimp::Importer importer{};
-
-	auto backpack_model {
-		AssimpModelLoader(importer)
-			.add_flags(aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph)
-			.load("data/models/backpack/backpack.obj").get()
-	};
-
-	Transform backpack_transform{};
-
-	Camera cam{ glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, -1.0f) };
-	// InputFreeCamera input{ window, cam };
-
-	RebindableInputFreeCamera rinput{ window, cam };
-
-	rinput.use();
-
-	rinput.set_keybind(
-		glfw::KeyCode::R,
-		[&sp](const KeyCallbackArgs& args) {
-			if ( args.state == glfw::KeyState::Release ) {
-				sp = ShaderBuilder()
-					.load_vert("src/shaders/VertexShader.vert")
-					.load_frag("src/shaders/TextureMaterialObject.frag")
-					.get();
-			}
-		}
-	);
-
-	glm::mat4 view{};
-	glm::mat4 projection{};
-
-
-	light::Point lp{
-		.color = { 0.3f, 0.3f, 0.2f },
-		.position = { 0.5f, 0.8f, 1.5f },
-	};
-
-	while ( !window.shouldClose() ) {
-
-		global_frame_timer.update();
-		window.swapBuffers();
-		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		glfw::pollEvents();
-		rinput.process_input();
-
-		// Get projection and view matricies from camera positions
-		auto [width, height] = window.getSize();
-		projection = glm::perspective(cam.get_fov(), static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f);
-		view = cam.view_mat();
-
-		glm::vec3 cam_pos{ cam.get_pos() };
-
-		auto asp = sp.use();
-		asp.uniform("projection", projection);
-		asp.uniform("view", view);
-		asp.uniform("camPos", cam_pos);
-
-		asp.uniform("model", backpack_transform.model());
-		asp.uniform("normalModel", backpack_transform.normal_model());
-
-
-		asp.uniform("lightColor", lp.color);
-		asp.uniform("lightPos", lp.position);
-
-		asp.uniform("time", static_cast<float>(global_frame_timer.current()));
-
-		backpack_model.draw(asp);
-
-
-	}
 }
 
+void render_postprocessing_scene(glfw::Window& window) {
 
+    PostprocessingScene scene{ window };
 
+    while (!window.shouldClose()) {
+        learn::globals::frame_timer.update();
 
+        glfw::pollEvents();
+        scene.process_input();
 
+        scene.update();
+
+        scene.render();
+
+        window.swapBuffers();
+    }
+
+}
 
 
 
@@ -280,7 +229,7 @@ void render_cube_scene(glfw::Window& window) {
 
 	while ( !window.shouldClose() ) {
 
-        global_frame_timer.update();
+        globals::frame_timer.update();
 
 		window.swapBuffers();
 		glClearColor(0.15f, 0.15f, 0.1f, 1.0f);
@@ -290,7 +239,7 @@ void render_cube_scene(glfw::Window& window) {
 		glfw::pollEvents();
 
 
-		auto [width, height] = window.getSize();
+		auto [width, height] = learn::globals::window_size.size();
 		projection = glm::perspective(cam.get_fov(), static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f);
 		view = cam.view_mat();
 

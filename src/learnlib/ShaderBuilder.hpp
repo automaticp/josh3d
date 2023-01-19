@@ -16,7 +16,7 @@ private:
 
 public:
     ShaderBuilder& load_shader(const std::string& path, gl::GLenum type) {
-        compile_from_source_and_attach(FileReader{}(path), type);
+        compile_from_source_and_attach(read_file(path), type);
         return *this;
     }
 

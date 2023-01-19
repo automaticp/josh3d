@@ -26,6 +26,12 @@ public:
             mesh.draw(sp);
         }
     }
+
+    void draw(ActiveShaderProgram& sp, gl::GLint diffuse_loc, gl::GLint specular_loc, gl::GLint shininess_loc) {
+        for (auto&& mesh : meshes_) {
+            mesh.draw(sp, diffuse_loc, specular_loc, shininess_loc);
+        }
+    }
 };
 
 

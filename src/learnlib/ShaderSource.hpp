@@ -12,18 +12,16 @@ namespace learn {
 
 
 
-struct FileReader {
-    std::string operator()(const std::string& path) {
-        std::ifstream file{ path };
-        if ( file.fail() ) {
-            throw std::runtime_error("Cannot open file: " + path);
-        }
-
-        return std::string{
-            std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()
-        };
+inline std::string read_file(const std::string& path) {
+    std::ifstream file{ path };
+    if ( file.fail() ) {
+        throw std::runtime_error("Cannot open file: " + path);
     }
-};
+
+    return std::string{
+        std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()
+    };
+}
 
 
 class ShaderSource {
@@ -34,7 +32,11 @@ public:
     template<typename Reader, typename... Args>
     ShaderSource(Reader&& reader, Args&&... args) : text_{ reader(std::forward<Args>(args)...) } {}
 
-    ShaderSource(std::string text) : text_{ std::move(text) } {}
+    explicit ShaderSource(std::string text) : text_{ std::move(text) } {}
+
+    static ShaderSource from_file(const std::string& path) {
+        return ShaderSource{ read_file(path) };
+    }
 
     operator const std::string& () const noexcept {
         return text_;

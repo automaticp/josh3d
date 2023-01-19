@@ -1,5 +1,10 @@
 #pragma once
+#include <glbinding/gl/bitfield.h>
+#include <glbinding/gl/boolean.h>
+#include <glbinding/gl/enum.h>
+#include <glbinding/gl/functions.h>
 #include <glbinding/gl/gl.h>
+#include <glbinding/gl/types.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <array>
@@ -45,8 +50,43 @@ sense to make these calls in absence of a bound VAO.
 
 
 
-class TextureData;
+namespace detail {
+/*
+A generic trait that allows you to invoke any
+callable during bound state. Shold help minimize
+creation of bound dummies as lvalues in certain cases.
 
+Example:
+
+dst_framebuffer.bind_as(GL_DRAW_FRAMEBUFFER)
+    .and_then([&] {
+        auto [w, h] = window_.getSize();
+        src_framebuffer.bind_as(GL_READ_FRAMEBUFFER)
+            .blit(0, 0, w, h, 0, 0, w, h, GL_COLOR_BUFFER_BIT, GL_NEAREST)
+            .unbind();
+    })
+    .unbind();
+*/
+template<typename CRTP>
+class AndThen {
+public:
+    // FIXME: should this only work on rvalues, perhaps?
+    template<typename CallableT>
+    CRTP& and_then(CallableT&& f) noexcept(noexcept(f())) {
+        f();
+        return static_cast<CRTP&>(*this);
+    }
+
+    template<typename CallableT>
+    const CRTP& and_then(CallableT&& f) const noexcept(noexcept(f())) {
+        f();
+        return static_cast<const CRTP&>(*this);
+    }
+};
+
+} // namespace detail
+
+class TextureData;
 
 /*
 In order to not move trivial single-line definitions into a .cpp file
@@ -70,7 +110,7 @@ class BoundEBO;
 
 // P.S. Some definitions were moved to a *.cpp file to break dependencies
 
-class BoundVAO {
+class BoundVAO : public detail::AndThen<BoundVAO> {
 private:
     friend class VAO;
     BoundVAO() = default;
@@ -115,6 +155,12 @@ public:
         return *this;
     }
 
+    template<typename VertexT>
+    BoundVAO& associate_with(const BoundVBO& vbo) {
+        this->set_many_attribute_params(learn::VertexTraits<VertexT>::aparams);
+        return *this;
+    }
+
     static void set_attribute_params(const AttributeParams& ap) {
         glVertexAttribPointer(
             ap.index, ap.size, ap.type, ap.normalized,
@@ -122,7 +168,7 @@ public:
         );
     }
 
-    void unbind() {
+    static void unbind() {
         glBindVertexArray(0u);
     }
 };
@@ -140,7 +186,7 @@ public:
 
 
 
-class BoundAbstractBuffer {
+class BoundAbstractBuffer : public detail::AndThen<BoundAbstractBuffer> {
 private:
     GLenum type_;
 
@@ -161,7 +207,7 @@ public:
         return { type };
     }
 
-    void unbind_as(GLenum type) {
+    static void unbind_as(GLenum type) {
         glBindBuffer(type, 0);
     }
 };
@@ -170,7 +216,7 @@ public:
 
 
 
-class BoundVBO {
+class BoundVBO : public detail::AndThen<BoundVBO>{
 private:
     friend class VBO;
     BoundVBO() = default;
@@ -197,10 +243,23 @@ public:
     template<size_t N>
     BoundVBO& associate_with(BoundVAO&& vao,
             const std::array<AttributeParams, N>& aparams) {
-        return associate_with(vao, aparams);
+        return this->associate_with(vao, aparams);
     }
 
-    void unbind() {
+    template<typename VertexT>
+    BoundVBO& associate_with(BoundVAO& vao) {
+        vao.associate_with<VertexT>(*this);
+        return *this;
+    }
+
+    template<typename VertexT>
+    BoundVBO& associate_with(BoundVAO&& vao) {
+        return this->associate_with<VertexT>(vao);
+    }
+
+
+
+    static void unbind() {
         glBindBuffer(GL_ARRAY_BUFFER, 0u);
     }
 };
@@ -219,7 +278,7 @@ public:
 
 
 
-class BoundEBO {
+class BoundEBO : public detail::AndThen<BoundEBO> {
 private:
     friend class EBO;
     BoundEBO() = default;
@@ -236,7 +295,7 @@ public:
         return *this;
     }
 
-    void unbind() {
+    static void unbind() {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0u);
     }
 };
@@ -253,25 +312,51 @@ public:
 
 
 
-
-
-class BoundFramebuffer {
+class BoundFramebuffer : public detail::AndThen<BoundFramebuffer> {
 private:
+    GLenum target_;
+
     friend class Framebuffer;
-    BoundFramebuffer() = default;
+    BoundFramebuffer(GLenum target) : target_{ target } {};
 
 public:
     void unbind() {
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glBindFramebuffer(target_, 0);
+    }
+
+    static void unbind_as(GLenum target) {
+        glBindFramebuffer(target, 0);
     }
 
     BoundFramebuffer& attach_texture(GLuint texture, GLenum attachment, GLint mipmap_level = 0) {
-        glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, texture, mipmap_level);
+        glFramebufferTexture2D(target_, attachment, GL_TEXTURE_2D, texture, mipmap_level);
+        return *this;
+    }
+
+    BoundFramebuffer& attach_multisample_texture(GLuint texture, GLenum attachment, GLint mipmap_level = 0) {
+        glFramebufferTexture2D(target_, attachment, GL_TEXTURE_2D_MULTISAMPLE, texture, mipmap_level);
         return *this;
     }
 
     BoundFramebuffer& attach_renderbuffer(GLuint renderbuffer, GLenum attachment) {
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachment, GL_RENDERBUFFER, renderbuffer);
+        glFramebufferRenderbuffer(target_, attachment, GL_RENDERBUFFER, renderbuffer);
+        return *this;
+    }
+
+    // FIXME: might be a good idea to make 2 separate child classes for
+    // DRAW and READ framebuffers and establish a blit_to() and blit_from()
+    // methods with clear DRAW/READ bound state dependency. Something like:
+    //
+    // ... BoundReadFramebuffer::blit_to(BoundDrawFramebuffer& dst, ...);
+    //
+    BoundFramebuffer& blit(GLint src_x0, GLint src_y0, GLint src_x1, GLint src_y1,
+        GLint dst_x0, GLint dst_y0, GLint dst_x1, GLint dst_y1,
+        ClearBufferMask buffer_mask, GLenum interp_filter)
+    {
+        glBlitFramebuffer(
+            src_x0, src_y0, src_x1, src_y1, dst_x0, dst_y0, dst_x1, dst_y1,
+            buffer_mask, interp_filter
+        );
         return *this;
     }
 };
@@ -280,16 +365,19 @@ public:
 class Framebuffer : public FramebufferAllocator {
 public:
     BoundFramebuffer bind() {
-        glBindFramebuffer(GL_FRAMEBUFFER, id_);
-        return {};
+        return bind_as(GL_FRAMEBUFFER);
     }
 
+    BoundFramebuffer bind_as(GLenum target) {
+        glBindFramebuffer(target, id_);
+        return { target };
+    }
 };
 
 
 
 
-class BoundRenderbuffer {
+class BoundRenderbuffer : public detail::AndThen<BoundRenderbuffer> {
 private:
     friend class Renderbuffer;
     BoundRenderbuffer() = default;
@@ -300,7 +388,14 @@ public:
         return *this;
     }
 
-    void unbind() {
+    BoundRenderbuffer& create_multisample_storage(GLsizei width, GLsizei height,
+        GLsizei samples, GLenum internal_format)
+    {
+        glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, internal_format, width, height);
+        return *this;
+    }
+
+    static void unbind() {
         glBindRenderbuffer(GL_RENDERBUFFER, 0);
     }
 };
@@ -309,8 +404,9 @@ public:
 
 class Renderbuffer : public RenderbufferAllocator {
 public:
-    void bind() {
+    BoundRenderbuffer bind() {
         glBindRenderbuffer(GL_RENDERBUFFER, id_);
+        return {};
     }
 
 };
@@ -320,14 +416,16 @@ public:
 
 
 
-
-
-class BoundTextureHandle {
+class BoundTextureHandle : public detail::AndThen<BoundTextureHandle> {
 private:
     friend class TextureHandle;
     BoundTextureHandle() = default;
 
 public:
+    static void unbind() {
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+
     BoundTextureHandle& attach_data(const TextureData& tex_data,
         GLenum internal_format = GL_RGBA, GLenum format = GL_NONE);
 
@@ -339,6 +437,22 @@ public:
             GL_TEXTURE_2D, mipmap_level, static_cast<GLint>(internal_format),
             width, height, 0, format, type, data
         );
+        return *this;
+    }
+
+    // Technically applies to Active Tex Unit and not to the Bound Texture directly
+    BoundTextureHandle& set_parameter(GLenum param_name, GLint param_value) {
+        glTexParameteri(GL_TEXTURE_2D, param_name, param_value);
+        return *this;
+    }
+
+    BoundTextureHandle& set_parameter(GLenum param_name, GLenum param_value) {
+        glTexParameteri(GL_TEXTURE_2D, param_name, param_value);
+        return *this;
+    }
+
+    BoundTextureHandle& set_parameter(GLenum param_name, GLfloat param_value) {
+        glTexParameterf(GL_TEXTURE_2D, param_name, param_value);
         return *this;
     }
 };
@@ -361,6 +475,71 @@ public:
         glActiveTexture(tex_unit);
     }
 };
+
+
+
+
+class BoundTextureMS : public detail::AndThen<BoundTextureMS> {
+private:
+    friend class TextureMS;
+    BoundTextureMS() = default;
+
+public:
+    static void unbind() {
+        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+    }
+
+    BoundTextureMS& specify_image(GLsizei width, GLsizei height, GLsizei nsamples,
+        GLenum internal_format = GL_RGB, GLboolean fixed_sample_locations = GL_TRUE)
+    {
+        glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, nsamples, internal_format, width, height, fixed_sample_locations);
+        return *this;
+    }
+
+    BoundTextureMS& set_parameter(GLenum param_name, GLint param_value) {
+        glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, param_name, param_value);
+        return *this;
+    }
+
+    BoundTextureMS& set_parameter(GLenum param_name, GLenum param_value) {
+        glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, param_name, param_value);
+        return *this;
+    }
+
+    BoundTextureMS& set_parameter(GLenum param_name, GLfloat param_value) {
+        glTexParameterf(GL_TEXTURE_2D_MULTISAMPLE, param_name, param_value);
+        return *this;
+    }
+
+
+};
+
+
+class TextureMS : public TextureAllocator {
+public:
+    BoundTextureMS bind() {
+        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, id_);
+        return {};
+    }
+
+    BoundTextureMS bind_to_unit(GLenum tex_unit) {
+        set_active_unit(tex_unit);
+        bind();
+        return {};
+    }
+
+    static void set_active_unit(GLenum tex_unit) {
+        glActiveTexture(tex_unit);
+    }
+};
+
+
+
+
+
+
+
+
 
 
 
@@ -404,10 +583,9 @@ public:
 
 
 
-class ShaderProgram;
 
 
-class ActiveShaderProgram {
+class ActiveShaderProgram : public detail::AndThen<ActiveShaderProgram> {
 private:
     friend class ShaderProgram;
     // An exception to a common case of stateless Bound dummies.
@@ -557,6 +735,7 @@ using leaksgl::BoundEBO, leaksgl::EBO;
 using leaksgl::BoundFramebuffer, leaksgl::Framebuffer;
 using leaksgl::BoundRenderbuffer, leaksgl::Renderbuffer;
 using leaksgl::BoundTextureHandle, leaksgl::TextureHandle;
+using leaksgl::BoundTextureMS, leaksgl::TextureMS;
 using leaksgl::Shader, leaksgl::VertexShader, leaksgl::FragmentShader;
 using leaksgl::ActiveShaderProgram, leaksgl::ShaderProgram;
 

@@ -12,7 +12,8 @@
 #include <assimp/postprocess.h>
 
 #include "GLObjects.hpp"
-#include "GLObjectPools.hpp"
+#include "GLObjectPool.hpp"
+#include "Globals.hpp"
 #include "Vertex.hpp"
 #include "Model.hpp"
 #include "Logging.hpp"
@@ -41,6 +42,11 @@ private:
     Assimp::Importer& importer_;
 
 public:
+    explicit AssimpModelLoader(
+        flags_t flags =
+            aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_ImproveCacheLocality
+    ) : importer_{ default_importer() }, flags_{ flags } {}
+
     explicit AssimpModelLoader(
         Assimp::Importer& importer,
         flags_t flags =
@@ -87,6 +93,15 @@ public:
     }
 
 private:
+    static Assimp::Importer& default_importer() {
+        thread_local Assimp::Importer instance{};
+        // FIXME: should be a way to free the resources in the importer
+        // before the end of the runtime. Otherwise there's always some
+        // zombie data hanging around.
+        // NOTE: call FreeScene().
+        return instance;
+    }
+
     void process_node(aiNode* node, const aiScene* scene, std::vector<Mesh<V>>& meshes) {
 
         for ( auto&& mesh_id : std::span(node->mMeshes, node->mNumMeshes) ) {
@@ -125,7 +140,7 @@ private:
         std::string full_path{ directory_ + filename.C_Str() };
 
         // FIXME: pool should be a c-tor parameter of something
-        return global_texture_handle_pool.load(full_path);
+        return globals::texture_handle_pool.load(full_path);
     }
 
 
