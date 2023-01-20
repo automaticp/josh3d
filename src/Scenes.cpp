@@ -6,6 +6,7 @@
 #include <glfwpp/glfwpp.h>
 #include <glbinding/gl/gl.h>
 #include "AssimpModelLoader.hpp"
+#include "BoxScene.hpp"
 #include "FrameTimer.hpp"
 #include "GLObjects.hpp"
 #include "Globals.hpp"
@@ -16,13 +17,13 @@
 #include "ShaderBuilder.hpp"
 #include "ShaderSource.hpp"
 #include "Transform.hpp"
-#include "glfwpp/event.h"
-#include "glfwpp/window.h"
-#include "PostprocessingScene.hpp"
 #include "ModelScene.hpp"
+#include "PostprocessingScene.hpp"
+#include <glfwpp/window.h>
 
 
 void render_model_scene(glfw::Window& window) {
+
     ModelScene scene{ window };
 
     while (!window.shouldClose()) {
@@ -60,281 +61,23 @@ void render_postprocessing_scene(glfw::Window& window) {
 }
 
 
+void render_box_scene(glfw::Window& window) {
 
-// Vertex Data of a Cube {3: pos, 3: normals, 2: tex coord}
-std::vector<learn::Vertex> vertices({
-		{{-0.5f, -0.5f, -0.5f}, {+0.0f, +0.0f, -1.0f}, {+0.0f, +0.0f}},
-		{{+0.5f, -0.5f, -0.5f}, {+0.0f, +0.0f, -1.0f}, {+1.0f, +0.0f}},
-		{{+0.5f, +0.5f, -0.5f}, {+0.0f, +0.0f, -1.0f}, {+1.0f, +1.0f}},
-		{{+0.5f, +0.5f, -0.5f}, {+0.0f, +0.0f, -1.0f}, {+1.0f, +1.0f}},
-		{{-0.5f, +0.5f, -0.5f}, {+0.0f, +0.0f, -1.0f}, {+0.0f, +1.0f}},
-		{{-0.5f, -0.5f, -0.5f}, {+0.0f, +0.0f, -1.0f}, {+0.0f, +0.0f}},
-		{{-0.5f, -0.5f, +0.5f}, {+0.0f, +0.0f, +1.0f}, {+0.0f, +0.0f}},
-		{{+0.5f, -0.5f, +0.5f}, {+0.0f, +0.0f, +1.0f}, {+1.0f, +0.0f}},
-		{{+0.5f, +0.5f, +0.5f}, {+0.0f, +0.0f, +1.0f}, {+1.0f, +1.0f}},
-		{{+0.5f, +0.5f, +0.5f}, {+0.0f, +0.0f, +1.0f}, {+1.0f, +1.0f}},
-		{{-0.5f, +0.5f, +0.5f}, {+0.0f, +0.0f, +1.0f}, {+0.0f, +1.0f}},
-		{{-0.5f, -0.5f, +0.5f}, {+0.0f, +0.0f, +1.0f}, {+0.0f, +0.0f}},
-		{{-0.5f, +0.5f, +0.5f}, {-1.0f, +0.0f, +0.0f}, {+1.0f, +0.0f}},
-		{{-0.5f, +0.5f, -0.5f}, {-1.0f, +0.0f, +0.0f}, {+1.0f, +1.0f}},
-		{{-0.5f, -0.5f, -0.5f}, {-1.0f, +0.0f, +0.0f}, {+0.0f, +1.0f}},
-		{{-0.5f, -0.5f, -0.5f}, {-1.0f, +0.0f, +0.0f}, {+0.0f, +1.0f}},
-		{{-0.5f, -0.5f, +0.5f}, {-1.0f, +0.0f, +0.0f}, {+0.0f, +0.0f}},
-		{{-0.5f, +0.5f, +0.5f}, {-1.0f, +0.0f, +0.0f}, {+1.0f, +0.0f}},
-		{{+0.5f, +0.5f, +0.5f}, {+1.0f, +0.0f, +0.0f}, {+1.0f, +0.0f}},
-		{{+0.5f, +0.5f, -0.5f}, {+1.0f, +0.0f, +0.0f}, {+1.0f, +1.0f}},
-		{{+0.5f, -0.5f, -0.5f}, {+1.0f, +0.0f, +0.0f}, {+0.0f, +1.0f}},
-		{{+0.5f, -0.5f, -0.5f}, {+1.0f, +0.0f, +0.0f}, {+0.0f, +1.0f}},
-		{{+0.5f, -0.5f, +0.5f}, {+1.0f, +0.0f, +0.0f}, {+0.0f, +0.0f}},
-		{{+0.5f, +0.5f, +0.5f}, {+1.0f, +0.0f, +0.0f}, {+1.0f, +0.0f}},
-		{{-0.5f, -0.5f, -0.5f}, {+0.0f, -1.0f, +0.0f}, {+0.0f, +1.0f}},
-		{{+0.5f, -0.5f, -0.5f}, {+0.0f, -1.0f, +0.0f}, {+1.0f, +1.0f}},
-		{{+0.5f, -0.5f, +0.5f}, {+0.0f, -1.0f, +0.0f}, {+1.0f, +0.0f}},
-		{{+0.5f, -0.5f, +0.5f}, {+0.0f, -1.0f, +0.0f}, {+1.0f, +0.0f}},
-		{{-0.5f, -0.5f, +0.5f}, {+0.0f, -1.0f, +0.0f}, {+0.0f, +0.0f}},
-		{{-0.5f, -0.5f, -0.5f}, {+0.0f, -1.0f, +0.0f}, {+0.0f, +1.0f}},
-		{{-0.5f, +0.5f, -0.5f}, {+0.0f, +1.0f, +0.0f}, {+0.0f, +1.0f}},
-		{{+0.5f, +0.5f, -0.5f}, {+0.0f, +1.0f, +0.0f}, {+1.0f, +1.0f}},
-		{{+0.5f, +0.5f, +0.5f}, {+0.0f, +1.0f, +0.0f}, {+1.0f, +0.0f}},
-		{{+0.5f, +0.5f, +0.5f}, {+0.0f, +1.0f, +0.0f}, {+1.0f, +0.0f}},
-		{{-0.5f, +0.5f, +0.5f}, {+0.0f, +1.0f, +0.0f}, {+0.0f, +0.0f}},
-		{{-0.5f, +0.5f, -0.5f}, {+0.0f, +1.0f, +0.0f}, {+0.0f, +1.0f}},
-});
+    BoxScene scene{ window };
 
+    while (!window.shouldClose()) {
+        learn::globals::frame_timer.update();
 
+        glfw::pollEvents();
+        scene.process_input();
 
+        scene.update();
 
-void render_cube_scene(glfw::Window& window) {
+        scene.render();
 
-
-    using namespace learn;
-    using namespace gl;
-
-	ShaderProgram sp{
-		ShaderBuilder()
-			.load_vert("src/shaders/VertexShader.vert")
-			.load_frag("src/shaders/MultiLightObject.frag")
-			.get()
-	};
-
-	ShaderProgram sp_light{
-		ShaderBuilder()
-			.load_vert("src/shaders/VertexShader.vert")
-			.load_frag("src/shaders/LightSource.frag")
-			.get()
-	};
-
-
-    // ---- Boxes ----
-
-	Assimp::Importer importer;
-	Model<Vertex> box{
-		AssimpModelLoader<Vertex>(importer)
-			.load("data/models/container/container.obj")
-			.get()
-	};
-
-	std::vector<glm::vec3> cube_positions {
-			glm::vec3( 0.0f,  0.0f,  0.0f),
-			glm::vec3( 2.0f,  5.0f, -15.0f),
-			glm::vec3(-1.5f, -2.2f, -2.5f),
-			glm::vec3(-3.8f, -2.0f, -12.3f),
-			glm::vec3( 2.4f, -0.4f, -3.5f),
-			glm::vec3(-1.7f,  3.0f, -7.5f),
-			glm::vec3( 1.3f, -2.0f, -2.5f),
-			glm::vec3( 1.5f,  2.0f, -2.5f),
-			glm::vec3( 1.5f,  0.2f, -1.5f),
-			glm::vec3(-1.3f,  1.0f, -1.5f)
-	};
-
-
-	std::vector<Transform> box_transfroms(10);
-	for ( size_t i{ 0 }; i < cube_positions.size(); ++i ) {
-		box_transfroms[i]
-			.translate(cube_positions[i])
-			.rotate(glm::radians(20.0f * i), { 1.0f, 0.3f, 0.5f });
-	}
-
-
-    // ---- Light Sources ----
-
-    // Light Box
-    VAO light_vao;
-    auto bound_light_vao = light_vao.bind();
-    VBO light_vbo;
-    light_vbo.bind()
-        .attach_data(vertices.size(), vertices.data(), GL_STATIC_DRAW)
-        .associate_with(bound_light_vao, VertexTraits<Vertex>::aparams);
-
-
-
-    // Point
-	std::vector<glm::vec3> point_light_positions {
-			glm::vec3( 0.7f,  0.2f,  2.0f),
-			glm::vec3( 2.3f, -3.3f, -4.0f),
-			glm::vec3(-4.0f,  2.0f, -12.0f),
-			glm::vec3( 0.0f,  0.0f, -3.0f),
-			glm::vec3( 0.0f,  1.0f,  0.0f)
-	};
-
-    std::vector<light::Point> lps;
-    lps.reserve(point_light_positions.size());
-    for (auto&& pos : point_light_positions) {
-        lps.emplace_back(
-            light::Point{
-                .color = glm::vec3(1.0f, 1.0f, 0.8f),
-                .position = pos,
-                .attenuation = light::Attenuation{ .constant = 1.0f, .linear = 0.4f, .quadratic = 0.2f },
-            }
-        );
+        window.swapBuffers();
     }
 
-    // Directional
-    light::Directional ld{
-        .color = { 0.3f, 0.3f, 0.2f },
-        .direction = { -0.2f, -1.0f, -0.3f }
-    };
-
-    // Spotlight
-    light::Spotlight ls{
-        .color = glm::vec3(1.0f),
-        .position = {},     // Update
-        .direction = {},    // Update
-        .attenuation = light::Attenuation{ .constant = 1.0f, .linear = 1.0f, .quadratic = 2.1f },
-        .inner_cutoff_radians = glm::radians(12.0f),
-        .outer_cutoff_radians = glm::radians(15.0f)
-    };
-
-
-
-	Camera cam{ glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, -1.0f) };
-	RebindableInputFreeCamera input{ window, cam };
-	input.use();
-
-	input.set_keybind(
-		glfw::KeyCode::F,
-		[&ls](const KeyCallbackArgs& args) {
-			static bool flashlight_on{ true };
-			if ( args.state == glfw::KeyState::Release ) {
-				flashlight_on ^= true;
-				ls.color = flashlight_on ? glm::vec3(1.0f) : glm::vec3(0.0f);
-			}
-		}
-	);
-
-
-	glm::mat4 view{};
-	glm::mat4 projection{};
-
-
-	while ( !window.shouldClose() ) {
-
-        globals::frame_timer.update();
-
-		window.swapBuffers();
-		glClearColor(0.15f, 0.15f, 0.1f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		input.process_input();
-		glfw::pollEvents();
-
-
-		auto [width, height] = learn::globals::window_size.size();
-		projection = glm::perspective(cam.get_fov(), static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f);
-		view = cam.view_mat();
-
-		glm::vec3 cam_pos{ cam.get_pos() };
-
-
-		// Textured diff+spec objects with multiple of lights shining on them
-
-
-		ActiveShaderProgram asp{ sp.use() };
-        asp .uniform("projection", projection)
-		    .uniform("view", view)
-		    .uniform("camPos", cam_pos);
-
-
-        // ---- Light Sources ----
-
-        // Directional
-		asp .uniform("dirLight.color", ld.color)
-		    .uniform("dirLight.direction", ld.direction);
-
-
-        // Point
-
-		asp.uniform("numPointLights", GLint(lps.size()));
-
-		for (size_t i{ 0 }; i < lps.size(); ++i) {
-			// what a mess, though
-			std::string col_name{ "pointLights[x].color" };
-			std::string pos_name{ "pointLights[x].position" };
-			std::string att0_name{ "pointLights[x].attenuation.constant" };
-			std::string att1_name{ "pointLights[x].attenuation.linear" };
-			std::string att2_name{ "pointLights[x].attenuation.quadratic" };
-			std::string i_string{ std::to_string(i) };
-			col_name.replace(12, 1, i_string);
-			pos_name.replace(12, 1, i_string);
-			att0_name.replace(12, 1, i_string);
-			att1_name.replace(12, 1, i_string);
-			att2_name.replace(12, 1, i_string);
-
-			asp.uniform(col_name, lps[i].color);
-			asp.uniform(pos_name, lps[i].position);
-			asp.uniform(att0_name, lps[i].attenuation.constant);
-			asp.uniform(att1_name, lps[i].attenuation.linear);
-			asp.uniform(att2_name, lps[i].attenuation.quadratic);
-		}
-
-
-		// Spotlight
-        ls.position = cam_pos;
-        ls.direction = -cam.back_uv();
-		asp.uniform("spotLight.color", ls.color);
-		asp.uniform("spotLight.position", ls.position);
-		asp.uniform("spotLight.direction", ls.direction);
-		asp.uniform("spotLight.attenuation.constant", ls.attenuation.constant);
-		asp.uniform("spotLight.attenuation.linear", ls.attenuation.linear);
-		asp.uniform("spotLight.attenuation.quadratic", ls.attenuation.quadratic);
-		asp.uniform("spotLight.innerCutoffCos", glm::cos(ls.inner_cutoff_radians));
-		asp.uniform("spotLight.outerCutoffCos", glm::cos(ls.outer_cutoff_radians));
-
-
-
-		// ---- Scene of Boxes ----
-
-		for ( const auto& transform : box_transfroms ) {
-			asp.uniform("model", transform.model());
-			asp.uniform("normalModel", transform.normal_model());
-			box.draw(asp);
-		}
-
-
-		// Point Lighting Sources
-
-		ActiveShaderProgram asp_light{ sp_light.use() };
-
-        auto bound_light_vao = light_vao.bind();
-
-		asp_light.uniform("projection", projection);
-		asp_light.uniform("view", view);
-
-		for (auto&& lp : lps) {
-			Transform lp_transform;
-			lp_transform.translate(lp.position).scale(glm::vec3{ 0.2f });
-			asp_light.uniform("model", lp_transform.model());
-
-			asp_light.uniform("normalModel", lp_transform.normal_model());
-
-			asp_light.uniform("lightColor", lp.color);
-
-            bound_light_vao.draw_arrays(GL_TRIANGLES, 0, vertices.size());
-		}
-
-
-	}
-
-
 }
+
 

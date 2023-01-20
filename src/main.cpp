@@ -22,7 +22,7 @@ int main() {
 	}.apply();
 	glfw::Window window{ 800, 600, "WindowName" };
 	glfw::makeContextCurrent(window);
-	glfw::swapInterval(0);
+	glfw::swapInterval(1);
 	window.setInputModeCursor(glfw::CursorMode::Disabled);
 
 	// Init glbindings
@@ -44,8 +44,8 @@ int main() {
 	glViewport(0, 0, width, height);
 	glEnable(GL_DEPTH_TEST);
 
-    render_postprocessing_scene(window);
-	// render_cube_scene(window);
+    // render_postprocessing_scene(window);
+	render_box_scene(window);
 	// render_model_scene(window);
 
 	learn::globals::clear_all();
