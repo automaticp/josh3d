@@ -80,6 +80,23 @@ public:
     }
 
 
+    const std::vector<V>& vertices() const noexcept {
+        return vertices_;
+    }
+
+    std::vector<V>& vertices() noexcept {
+        return vertices_;
+    }
+
+    const std::vector<gl::GLuint>& elements() const noexcept {
+        return elements_;
+    }
+
+    std::vector<gl::GLuint>& elements() noexcept {
+        return elements_;
+    }
+
+
 };
 
 

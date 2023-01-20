@@ -32,6 +32,14 @@ public:
             mesh.draw(sp, diffuse_loc, specular_loc, shininess_loc);
         }
     }
+
+    const std::vector<Mesh<V>>& mehses() const noexcept {
+        return meshes_;
+    }
+
+    std::vector<Mesh<V>>& mehses() noexcept {
+        return meshes_;
+    }
 };
 
 
