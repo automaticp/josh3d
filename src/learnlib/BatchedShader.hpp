@@ -214,7 +214,8 @@ public:
     // Sampler types can be either int or unsigned int.
     // So we check on insertion but don't store them as
     // separate types.
-    template<std::same_as<glm::int32_t> T>
+    template<typename T>
+    requires std::same_as<std::remove_cvref_t<T>, glm::int32_t>
     void set(UniformInfo info, T&& arg) {
         using namespace gl;
         auto type = info.type;
@@ -222,7 +223,8 @@ public:
         vectors_.insert_or_assign(info.index, arg);
     }
 
-    template<std::same_as<glm::uint32_t> T>
+    template<typename T>
+    requires std::same_as<std::remove_cvref_t<T>, glm::uint32_t>
     void set(UniformInfo info, T&& arg) {
         using namespace gl;
         auto type = info.type;
@@ -232,7 +234,7 @@ public:
 
     static bool is_sampler_type(gl::GLenum type) noexcept {
         using namespace gl;
-        auto eq_any_of = [](gl::GLenum type, auto... args) {
+        auto eq_any_of = [](GLenum type, auto... args) {
             return ((type == args) || ...);
         };
         return eq_any_of(type,
