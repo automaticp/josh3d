@@ -138,6 +138,16 @@ public:
         return *this;
     }
 
+    BoundVAO& draw_arrays_instanced(GLenum mode, GLint first, GLsizei count, GLsizei instance_count) {
+        glDrawArraysInstanced(mode, first, count, instance_count);
+        return *this;
+    }
+
+    BoundVAO& draw_elements_instanced(GLenum mode, GLsizei elem_count, GLenum type, GLsizei instance_count, const void* indices_buffer = nullptr) {
+        glDrawElementsInstanced(mode, elem_count, type, indices_buffer, instance_count);
+        return *this;
+    }
+
     template<size_t N>
     BoundVAO& set_many_attribute_params(
         const std::array<AttributeParams, N>& aparams) {
