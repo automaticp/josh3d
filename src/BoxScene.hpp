@@ -12,34 +12,36 @@
 #include <glm/fwd.hpp>
 
 
+namespace leakslearn {
 
+using namespace learn;
 
 
 class BoxScene {
 private:
     glfw::Window& window_;
 
-    learn::ShaderProgram sp_box_;
-    learn::ShaderProgram sp_light_;
+    ShaderProgram sp_box_;
+    ShaderProgram sp_light_;
 
-    learn::Model<> box_;
+    Model<> box_;
 
-    std::vector<learn::Vertex> box_vertices_;
+    std::vector<Vertex> box_vertices_;
 
-    learn::VAO light_vao_;
-    learn::VBO light_vbo_;
+    VAO light_vao_;
+    VBO light_vbo_;
 
     static const std::array<glm::vec3, 10> initial_box_positions;
-    std::array<learn::Transform, 10> box_transforms_;
+    std::array<Transform, 10> box_transforms_;
 
     static const std::array<glm::vec3, 5> initial_point_light_positions_;
-    std::array<learn::light::Point, 5> lps_;
+    std::array<light::Point, 5> lps_;
 
-    learn::light::Directional ld_;
-    learn::light::Spotlight ls_;
+    light::Directional ld_;
+    light::Spotlight ls_;
 
-    learn::Camera cam_;
-    learn::RebindableInputFreeCamera input_;
+    Camera cam_;
+    RebindableInputFreeCamera input_;
 
 
     bool is_flashlight_on_{ true };
@@ -48,19 +50,19 @@ public:
     BoxScene(glfw::Window& window)
         : window_{ window }
         , sp_box_{
-            learn::ShaderBuilder()
+            ShaderBuilder()
                 .load_vert("src/shaders/VertexShader.vert")
                 .load_frag("src/shaders/MultiLightObject.frag")
                 .get()
         }
         , sp_light_{
-            learn::ShaderBuilder()
+            ShaderBuilder()
                 .load_vert("src/shaders/VertexShader.vert")
                 .load_frag("src/shaders/LightSource.frag")
                 .get()
         }
         , box_{
-            learn::AssimpModelLoader<>()
+            AssimpModelLoader<>()
                 .load("data/models/container/container.obj")
                 .get()
         }
@@ -69,9 +71,9 @@ public:
         }
         , box_transforms_{
             [] {
-                std::array<learn::Transform, 10> ts;
+                std::array<Transform, 10> ts;
                 for (size_t i{ 0 }; i < ts.size(); ++i) {
-                    ts[i] = learn::Transform()
+                    ts[i] = Transform()
                         .translate(initial_box_positions[i])
                         .rotate(glm::radians(20.0f * i), { 1.0f, 0.3f, 0.5f });
                 }
@@ -80,12 +82,12 @@ public:
         }
         , lps_{
             [] {
-                std::array<learn::light::Point, 5> lps;
+                std::array<light::Point, 5> lps;
                 for (size_t i{ 0 }; i < lps.size(); ++i) {
-                    lps[i] = learn::light::Point{
+                    lps[i] = light::Point{
                         .color = glm::vec3(1.0f, 1.f, 0.8f),
                         .position = initial_point_light_positions_[i],
-                        .attenuation = learn::light::Attenuation{
+                        .attenuation = light::Attenuation{
                             .constant = 1.f,
                             .linear = 0.4f,
                             .quadratic = 0.2f
@@ -114,7 +116,7 @@ public:
     {
         input_.set_keybind(
             glfw::KeyCode::F,
-            [this](const learn::KeyCallbackArgs& args) {
+            [this](const KeyCallbackArgs& args) {
                 if (args.state == glfw::KeyState::Release) {
                     is_flashlight_on_ ^= true;
                     ls_.color = is_flashlight_on_ ? glm::vec3(1.0f) : glm::vec3(0.0f);
@@ -126,7 +128,7 @@ public:
         using namespace gl;
         light_vbo_.bind()
             .attach_data(box_vertices_.size(), box_vertices_.data(),GL_STATIC_DRAW)
-            .associate_with<learn::Vertex>(light_vao_.bind());
+            .associate_with<Vertex>(light_vao_.bind());
 
     }
 
@@ -152,7 +154,7 @@ private:
         using namespace learn;
         using namespace gl;
 
-        auto [width, height] = learn::globals::window_size.size();
+        auto [width, height] = globals::window_size.size();
         glm::mat4 projection = glm::perspective(cam_.get_fov(), static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f);
         glm::mat4 view = cam_.view_mat();
 
@@ -268,3 +270,7 @@ inline const std::array<glm::vec3, 5> BoxScene::initial_point_light_positions_{
     glm::vec3( 0.0f,  0.0f, -3.0f),
     glm::vec3( 0.0f,  1.0f,  0.0f)
 };
+
+} // namespace leakslearn
+
+using leakslearn::BoxScene;
