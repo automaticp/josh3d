@@ -9,6 +9,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <array>
 #include "GLObjectAllocators.hpp"
+#include "Logging.hpp"
 #include "VertexTraits.hpp"
 
 
@@ -639,22 +640,47 @@ private:
     ActiveShaderProgram(GLuint id) : parent_id_{ id } {}
 
 public:
+    bool validate();
+
     // This enables calls like: shaderProgram.setUniform("viewMat", viewMat);
 	template<typename... Args>
 	ActiveShaderProgram& uniform(const GLchar* name, Args... args) {
-		ActiveShaderProgram::uniform(glGetUniformLocation(parent_id_, name), args...);
+		const auto location = glGetUniformLocation(parent_id_, name);
+        // FIXME: Replace with something less
+        // intrusive later.
+        #ifndef NDEBUG
+        if (location < 0) {
+            global_logstream <<
+                "[Warning] Setting uniform " <<
+                name << " at " << location << " location\n";
+        }
+        #endif
+        ActiveShaderProgram::uniform(location, args...);
         return *this;
 	}
 
     template<typename... Args>
 	ActiveShaderProgram& uniform(const std::string& name, Args... args) {
+        const auto location = glGetUniformLocation(parent_id_, name.c_str());
+        #ifndef NDEBUG
+        if (location < 0) {
+            global_logstream <<
+                "[Warning] Setting uniform " <<
+                name << " at " << location << " location\n";
+        }
+        #endif
 		ActiveShaderProgram::uniform(glGetUniformLocation(parent_id_, name.c_str()), args...);
         return *this;
 	}
 
     template<typename... Args>
 	ActiveShaderProgram& uniform(GLint location, Args... args) {
-		ActiveShaderProgram::uniform(location, args...);
+		#ifndef NDEBUG
+        if (location < 0) {
+            global_logstream << "[Warning] Setting uniform at -1 location\n";
+        }
+        #endif
+        ActiveShaderProgram::uniform(location, args...);
         return *this;
 	}
 
@@ -766,6 +792,13 @@ public:
 
     GLint uniform_location(const GLchar* name) const {
         return glGetUniformLocation(id_, name);
+    }
+
+    static bool validate(GLuint program_id) {
+        glValidateProgram(program_id);
+        GLint is_valid;
+        glGetProgramiv(program_id, GL_VALIDATE_STATUS, &is_valid);
+        return is_valid;
     }
 
 };

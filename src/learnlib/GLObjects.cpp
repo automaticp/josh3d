@@ -36,6 +36,13 @@ BoundTextureHandle& BoundTextureHandle::attach_data(const TextureData& tex_data,
     return *this;
 }
 
+
+
+bool ActiveShaderProgram::validate() {
+    return ShaderProgram::validate(parent_id_);
+}
+
+
 } // namespace leaksgl
 
 } // namespace learn
