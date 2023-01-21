@@ -8,16 +8,19 @@ namespace learn {
 namespace light {
 
 
-struct Attenuation {
-    float constant;
-    float linear;
-    float quadratic;
+struct Ambient {
+    glm::vec3 color;
 };
-
 
 struct Directional {
     glm::vec3 color;
     glm::vec3 direction;
+};
+
+struct Attenuation {
+    float constant;
+    float linear;
+    float quadratic;
 };
 
 struct Point {

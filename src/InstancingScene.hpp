@@ -4,6 +4,7 @@
 #include "GLObjects.hpp"
 #include "Globals.hpp"
 #include "Input.hpp"
+#include "LightCasters.hpp"
 #include "Transform.hpp"
 #include <glfwpp/window.h>
 
@@ -23,6 +24,7 @@ private:
 
     Model<> box_model_;
 
+    light::Ambient ambient_;
     light::Point light_;
 
     Camera cam_;
@@ -50,6 +52,9 @@ public:
             AssimpModelLoader<>()
                 .load("data/models/container/container.obj")
                 .get()
+        }
+        , ambient_{
+            .color = { 0.15f, 0.15f, 0.1f }
         }
         , light_{
             .color = { 1.f, 1.0f, 0.8f },
@@ -101,7 +106,7 @@ public:
 
     void render() {
         using namespace gl;
-        glClearColor(0.15f, 0.15f, 0.1f, 1.0f);
+        glClearColor(ambient_.color.r, ambient_.color.g, ambient_.color.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         draw_scene_objects();
@@ -167,7 +172,8 @@ private:
             .uniform("point_light.attenuation.linear",
                 light_.attenuation.linear)
             .uniform("point_light.attenuation.quadratic",
-                light_.attenuation.quadratic);
+                light_.attenuation.quadratic)
+            .uniform("ambient_light.color", ambient_.color);
     }
 
     void init_transforms() {

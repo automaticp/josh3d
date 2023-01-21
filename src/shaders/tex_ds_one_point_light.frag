@@ -25,8 +25,9 @@ uniform struct PointLight {
     Attenuation attenuation;
 } point_light;
 
-// uniform Material material;
-// uniform PointLight point_light;
+uniform struct AmbientLight {
+    vec3 color;
+} ambient_light;
 
 uniform vec3 cam_pos;
 
@@ -67,7 +68,6 @@ get_light_alignment_distance_factors(
 
 // Strength after accounting for alignment and distance
 struct LightComponentStrength {
-    float ambient; // Why is ambient part of any light?
     float diffuse;
     float specular;
 };
@@ -76,7 +76,6 @@ LightComponentStrength
 get_light_component_strength(const LightAlignmentDistanceFactors ladf) {
 
     LightComponentStrength lcs;
-    lcs.ambient = 0.1; // ???
     lcs.diffuse = ladf.diffuse_alignment * ladf.distance_factor;
     lcs.specular = pow(ladf.specular_alignment, material.shininess) * ladf.distance_factor;
 
@@ -90,11 +89,10 @@ vec3 apply_light(
     vec3 tex_diffuse, vec3 tex_specular)
 {
 
-    vec3 ambient = lcs.ambient * tex_diffuse;
     vec3 diffuse = lcs.diffuse * tex_diffuse;
     vec3 specular = lcs.specular * tex_specular;
 
-    return light_color * (ambient + diffuse + specular);
+    return light_color * (diffuse + specular);
 }
 
 
@@ -118,6 +116,8 @@ void main() {
 
     vec3 result_color =
         apply_light(point_light.color, lcs, tex_diffuse, tex_specular);
+
+    result_color += ambient_light.color * tex_diffuse;
 
     frag_color = vec4(result_color, 1.0);
 
