@@ -1,4 +1,3 @@
-#include <numbers>
 #include <glbinding/gl/gl.h>
 #include <glbinding/glbinding.h>
 #include <glfwpp/glfwpp.h>
@@ -17,7 +16,7 @@ int main() {
 
 	glfw::WindowHints{
 		.scaleToMonitor=true,
-        .contextVersionMajor=3, .contextVersionMinor=3,
+        .contextVersionMajor=4, .contextVersionMinor=3,
         .openglProfile=glfw::OpenGlProfile::Core
 	}.apply();
 	glfw::Window window{ 800, 600, "WindowName" };
@@ -44,9 +43,10 @@ int main() {
 	glViewport(0, 0, width, height);
 	glEnable(GL_DEPTH_TEST);
 
-    // render_postprocessing_scene(window);
-	render_box_scene(window);
-	// render_model_scene(window);
+    // render_generic_scene<BoxScene>(window);
+    // render_generic_scene<PostprocessingScene>(window);
+    // render_generic_scene<ModelScene>(window);
+    render_generic_scene<InstancingScene>(window);
 
 	learn::globals::clear_all();
 	return 0;
