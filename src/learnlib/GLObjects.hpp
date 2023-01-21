@@ -195,6 +195,30 @@ private:
     BoundAbstractBuffer(GLenum type) : type_{ type } {}
 
 public:
+    template<typename T>
+    BoundAbstractBuffer& attach_data(size_t size, const T* data, GLenum usage) {
+        glBufferData(
+            type_,
+            static_cast<GLsizeiptr>(size * sizeof(T)),
+            reinterpret_cast<const void*>(data),
+            usage
+        );
+        return *this;
+    }
+
+    template<typename T>
+    BoundAbstractBuffer& sub_data(size_t size, size_t offset, const T* data) {
+        glBufferSubData(
+            type_,
+            static_cast<GLintptr>(offset * sizeof(T)),
+            static_cast<GLsizeiptr>(size * sizeof(T)),
+            reinterpret_cast<const void*>(data)
+        );
+        return *this;
+    }
+
+
+
     void unbind() {
         glBindBuffer(type_, 0);
     }
