@@ -213,6 +213,51 @@ public:
 };
 
 
+class BoundSSBO : public detail::AndThen<BoundSSBO> {
+private:
+    friend class SSBO;
+    BoundSSBO() = default;
+
+public:
+    template<typename T>
+    BoundSSBO& attach_data(size_t size, const T* data, GLenum usage) {
+        glBufferData(
+            GL_SHADER_STORAGE_BUFFER,
+            static_cast<GLsizeiptr>(size * sizeof(T)),
+            reinterpret_cast<const void*>(data),
+            usage
+        );
+        return *this;
+    }
+
+    template<typename T>
+    BoundSSBO& sub_data(size_t size, size_t offset, const T* data) {
+        glBufferSubData(
+            GL_SHADER_STORAGE_BUFFER,
+            static_cast<GLintptr>(offset * sizeof(T)),
+            static_cast<GLsizeiptr>(size * sizeof(T)),
+            reinterpret_cast<const void*>(data)
+        );
+        return *this;
+    }
+
+    static void unbind() {
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0u);
+    }
+};
+
+class SSBO : public BufferAllocator {
+public:
+    BoundSSBO bind() {
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, id_);
+        return {};
+    }
+
+    BoundSSBO bind_to(GLuint binding_index) {
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding_index, id_);
+        return {};
+    }
+};
 
 
 
@@ -731,6 +776,7 @@ public:
 using leaksgl::BoundAbstractBuffer, leaksgl::AbstractBuffer;
 using leaksgl::BoundVAO, leaksgl::VAO;
 using leaksgl::BoundVBO, leaksgl::VBO;
+using leaksgl::BoundSSBO, leaksgl::SSBO;
 using leaksgl::BoundEBO, leaksgl::EBO;
 using leaksgl::BoundFramebuffer, leaksgl::Framebuffer;
 using leaksgl::BoundRenderbuffer, leaksgl::Renderbuffer;
