@@ -233,7 +233,8 @@ private:
 			lp_transform.translate(lp.position).scale(glm::vec3{ 0.2f });
 			asp_light.uniform("model", lp_transform.model());
 
-			asp_light.uniform("normalModel", lp_transform.normal_model());
+            // Will be compiled out regardless
+			// asp_light.uniform("normalModel", lp_transform.normal_model());
 
 			asp_light.uniform("lightColor", lp.color);
 
