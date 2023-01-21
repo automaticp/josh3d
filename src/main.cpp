@@ -8,26 +8,26 @@
 
 
 int main() {
-	using namespace gl;
-	using namespace learn;
+    using namespace gl;
+    using namespace learn;
 
-	// Init GLFW and create a window
-	auto glfw_instance{ glfw::init() };
+    // Init GLFW and create a window
+    auto glfw_instance{ glfw::init() };
 
-	glfw::WindowHints{
-		.scaleToMonitor=true,
+    glfw::WindowHints{
+        .scaleToMonitor=true,
         .contextVersionMajor=4, .contextVersionMinor=3,
         .openglProfile=glfw::OpenGlProfile::Core
-	}.apply();
-	glfw::Window window{ 800, 600, "WindowName" };
-	glfw::makeContextCurrent(window);
-	glfw::swapInterval(1);
-	window.setInputModeCursor(glfw::CursorMode::Disabled);
+    }.apply();
+    glfw::Window window{ 800, 600, "WindowName" };
+    glfw::makeContextCurrent(window);
+    glfw::swapInterval(1);
+    window.setInputModeCursor(glfw::CursorMode::Disabled);
 
-	// Init glbindings
-	glbinding::initialize(glfwGetProcAddress);
+    // Init glbindings
+    glbinding::initialize(glfwGetProcAddress);
 #ifndef NDEBUG
-	enable_glbinding_logger();
+    enable_glbinding_logger();
 #endif
 
     globals::window_size.track(window);
@@ -40,16 +40,16 @@ int main() {
     );
 
     auto [width, height] { globals::window_size.size() };
-	glViewport(0, 0, width, height);
-	glEnable(GL_DEPTH_TEST);
+    glViewport(0, 0, width, height);
+    glEnable(GL_DEPTH_TEST);
 
     // render_generic_scene<BoxScene>(window);
     // render_generic_scene<PostprocessingScene>(window);
     // render_generic_scene<ModelScene>(window);
     render_generic_scene<InstancingScene>(window);
 
-	learn::globals::clear_all();
-	return 0;
+    learn::globals::clear_all();
+    return 0;
 }
 
 

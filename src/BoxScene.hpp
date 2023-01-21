@@ -62,7 +62,7 @@ public:
         , box_{
             learn::AssimpModelLoader<>()
                 .load("data/models/container/container.obj")
-			    .get()
+                .get()
         }
         , box_vertices_{
             box_.mehses().at(0).vertices()
@@ -141,7 +141,7 @@ public:
     void render() {
         using namespace gl;
         glClearColor(0.15f, 0.15f, 0.1f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         draw_scene_objects();
     }
 
@@ -153,93 +153,93 @@ private:
         using namespace gl;
 
         auto [width, height] = learn::globals::window_size.size();
-		glm::mat4 projection = glm::perspective(cam_.get_fov(), static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f);
-		glm::mat4 view = cam_.view_mat();
+        glm::mat4 projection = glm::perspective(cam_.get_fov(), static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f);
+        glm::mat4 view = cam_.view_mat();
 
-		glm::vec3 cam_pos{ cam_.get_pos() };
+        glm::vec3 cam_pos{ cam_.get_pos() };
 
 
         ActiveShaderProgram asp{ sp_box_.use() };
 
         asp .uniform("projection", projection)
-		    .uniform("view", view)
-		    .uniform("camPos", cam_pos);
+            .uniform("view", view)
+            .uniform("camPos", cam_pos);
 
 
         // ---- Light Sources ----
 
         // Directional
-		asp .uniform("dirLight.color", ld_.color)
-		    .uniform("dirLight.direction", ld_.direction);
+        asp .uniform("dirLight.color", ld_.color)
+            .uniform("dirLight.direction", ld_.direction);
 
 
         // Point
 
-		asp.uniform("numPointLights", GLint(lps_.size()));
+        asp.uniform("numPointLights", GLint(lps_.size()));
 
-		for (size_t i{ 0 }; i < lps_.size(); ++i) {
-			// what a mess, though
-			std::string col_name{ "pointLights[x].color" };
-			std::string pos_name{ "pointLights[x].position" };
-			std::string att0_name{ "pointLights[x].attenuation.constant" };
-			std::string att1_name{ "pointLights[x].attenuation.linear" };
-			std::string att2_name{ "pointLights[x].attenuation.quadratic" };
-			std::string i_string{ std::to_string(i) };
-			col_name.replace(12, 1, i_string);
-			pos_name.replace(12, 1, i_string);
-			att0_name.replace(12, 1, i_string);
-			att1_name.replace(12, 1, i_string);
-			att2_name.replace(12, 1, i_string);
+        for (size_t i{ 0 }; i < lps_.size(); ++i) {
+            // what a mess, though
+            std::string col_name{ "pointLights[x].color" };
+            std::string pos_name{ "pointLights[x].position" };
+            std::string att0_name{ "pointLights[x].attenuation.constant" };
+            std::string att1_name{ "pointLights[x].attenuation.linear" };
+            std::string att2_name{ "pointLights[x].attenuation.quadratic" };
+            std::string i_string{ std::to_string(i) };
+            col_name.replace(12, 1, i_string);
+            pos_name.replace(12, 1, i_string);
+            att0_name.replace(12, 1, i_string);
+            att1_name.replace(12, 1, i_string);
+            att2_name.replace(12, 1, i_string);
 
-			asp.uniform(col_name, lps_[i].color);
-			asp.uniform(pos_name, lps_[i].position);
-			asp.uniform(att0_name, lps_[i].attenuation.constant);
-			asp.uniform(att1_name, lps_[i].attenuation.linear);
-			asp.uniform(att2_name, lps_[i].attenuation.quadratic);
-		}
+            asp.uniform(col_name, lps_[i].color);
+            asp.uniform(pos_name, lps_[i].position);
+            asp.uniform(att0_name, lps_[i].attenuation.constant);
+            asp.uniform(att1_name, lps_[i].attenuation.linear);
+            asp.uniform(att2_name, lps_[i].attenuation.quadratic);
+        }
 
         // Spotlight
         ls_.position = cam_pos;
         ls_.direction = -cam_.back_uv();
-		asp.uniform("spotLight.color", ls_.color);
-		asp.uniform("spotLight.position", ls_.position);
-		asp.uniform("spotLight.direction", ls_.direction);
-		asp.uniform("spotLight.attenuation.constant", ls_.attenuation.constant);
-		asp.uniform("spotLight.attenuation.linear", ls_.attenuation.linear);
-		asp.uniform("spotLight.attenuation.quadratic", ls_.attenuation.quadratic);
-		asp.uniform("spotLight.innerCutoffCos", glm::cos(ls_.inner_cutoff_radians));
-		asp.uniform("spotLight.outerCutoffCos", glm::cos(ls_.outer_cutoff_radians));
+        asp.uniform("spotLight.color", ls_.color);
+        asp.uniform("spotLight.position", ls_.position);
+        asp.uniform("spotLight.direction", ls_.direction);
+        asp.uniform("spotLight.attenuation.constant", ls_.attenuation.constant);
+        asp.uniform("spotLight.attenuation.linear", ls_.attenuation.linear);
+        asp.uniform("spotLight.attenuation.quadratic", ls_.attenuation.quadratic);
+        asp.uniform("spotLight.innerCutoffCos", glm::cos(ls_.inner_cutoff_radians));
+        asp.uniform("spotLight.outerCutoffCos", glm::cos(ls_.outer_cutoff_radians));
 
         // ---- Scene of Boxes ----
 
-		for (const auto& transform : box_transforms_) {
-			asp.uniform("model", transform.model());
-			asp.uniform("normalModel", transform.normal_model());
-			box_.draw(asp);
-		}
+        for (const auto& transform : box_transforms_) {
+            asp.uniform("model", transform.model());
+            asp.uniform("normalModel", transform.normal_model());
+            box_.draw(asp);
+        }
 
 
         // Point Lighting Sources
 
-		ActiveShaderProgram asp_light{ sp_light_.use() };
+        ActiveShaderProgram asp_light{ sp_light_.use() };
 
         auto bound_light_vao = light_vao_.bind();
 
-		asp_light.uniform("projection", projection);
-		asp_light.uniform("view", view);
+        asp_light.uniform("projection", projection);
+        asp_light.uniform("view", view);
 
-		for (const auto& lp : lps_) {
-			Transform lp_transform;
-			lp_transform.translate(lp.position).scale(glm::vec3{ 0.2f });
-			asp_light.uniform("model", lp_transform.model());
+        for (const auto& lp : lps_) {
+            Transform lp_transform;
+            lp_transform.translate(lp.position).scale(glm::vec3{ 0.2f });
+            asp_light.uniform("model", lp_transform.model());
 
             // Will be compiled out regardless
-			// asp_light.uniform("normalModel", lp_transform.normal_model());
+            // asp_light.uniform("normalModel", lp_transform.normal_model());
 
-			asp_light.uniform("lightColor", lp.color);
+            asp_light.uniform("lightColor", lp.color);
 
             bound_light_vao.draw_arrays(GL_TRIANGLES, 0, box_vertices_.size());
-		}
+        }
 
     }
 

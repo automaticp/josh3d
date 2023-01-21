@@ -102,7 +102,7 @@ public:
     void render() {
         using namespace gl;
         glClearColor(0.15f, 0.15f, 0.1f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         draw_scene_objects();
     }
@@ -150,7 +150,7 @@ private:
 
         auto [width, height] = learn::globals::window_size.size();
 
-		glm::mat4 projection = glm::perspective(
+        glm::mat4 projection = glm::perspective(
             cam_.get_fov(),
             static_cast<float>(width) / static_cast<float>(height),
             0.1f, 100.0f

@@ -42,7 +42,7 @@ public:
         }
         , light_{
             .color = { 0.3f, 0.3f, 0.2f },
-		    .position = { 0.5f, 0.8f, 1.5f },
+            .position = { 0.5f, 0.8f, 1.5f },
         }
         , cam_{ {0.0f, 0.0f, 3.0f}, {0.0f, 0.0f, -1.0f} }
         , input_{ window_, cam_ }
@@ -76,7 +76,7 @@ public:
     void render() {
         using namespace gl;
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         draw_scene_objects();
     }
 
@@ -84,33 +84,33 @@ public:
 private:
     void draw_scene_objects() {
         auto [width, height] = learn::globals::window_size.size();
-		auto projection = glm::perspective(
+        auto projection = glm::perspective(
             cam_.get_fov(),
             static_cast<float>(width) / static_cast<float>(height),
             0.1f, 100.0f
         );
-		auto view = cam_.view_mat();
+        auto view = cam_.view_mat();
 
-		glm::vec3 cam_pos{ cam_.get_pos() };
+        glm::vec3 cam_pos{ cam_.get_pos() };
 
 
         auto backpack_transform = Transform();
 
-		auto asp = shader_.use();
-		asp.uniform("projection", projection);
-		asp.uniform("view", view);
-		asp.uniform("camPos", cam_pos);
+        auto asp = shader_.use();
+        asp.uniform("projection", projection);
+        asp.uniform("view", view);
+        asp.uniform("camPos", cam_pos);
 
-		asp.uniform("model", backpack_transform.model());
-		asp.uniform("normalModel", backpack_transform.normal_model());
+        asp.uniform("model", backpack_transform.model());
+        asp.uniform("normalModel", backpack_transform.normal_model());
 
 
-		asp.uniform("lightColor", light_.color);
-		asp.uniform("lightPos", light_.position);
+        asp.uniform("lightColor", light_.color);
+        asp.uniform("lightPos", light_.position);
 
-		asp.uniform("time", static_cast<float>(globals::frame_timer.current()));
+        asp.uniform("time", static_cast<float>(globals::frame_timer.current()));
 
-		backpack_model_.draw(asp);
+        backpack_model_.draw(asp);
 
     }
 

@@ -194,23 +194,23 @@ private:
     void draw_scene_objects() {
 
         auto [width, height] = learn::globals::window_size.size();
-		auto projection = glm::perspective(cam_.get_fov(), static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f);
-		auto view = cam_.view_mat();
+        auto projection = glm::perspective(cam_.get_fov(), static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f);
+        auto view = cam_.view_mat();
 
-		glm::vec3 cam_pos{ cam_.get_pos() };
+        glm::vec3 cam_pos{ cam_.get_pos() };
 
         ActiveShaderProgram sasp{ solid_shader_.program().use() };
 
         const auto& sp = solid_shader_;
 
         sp.uniform("projection", projection);
-		sp.uniform("view", view);
-		sp.uniform("camPos", cam_pos);
+        sp.uniform("view", view);
+        sp.uniform("camPos", cam_pos);
 
-		sp.uniform("dirLight.color", light_.color);
-	    sp.uniform("dirLight.direction", light_.direction);
+        sp.uniform("dirLight.color", light_.color);
+        sp.uniform("dirLight.direction", light_.direction);
 
-		sp.uniform("numPointLights", 0);
+        sp.uniform("numPointLights", 0);
 
         auto box1_transform = Transform()
             .translate({1.0f, 1.0f, 0.5f});
@@ -224,7 +224,7 @@ private:
 
 
         sp.uniform("model", box1_transform.model());
-		sp.uniform("normalModel", box1_transform.normal_model());
+        sp.uniform("normalModel", box1_transform.normal_model());
 
         box_.draw(
             sasp, sp.location_of("material.diffuse"),
@@ -232,7 +232,7 @@ private:
         );
 
         sp.uniform("model", box2_transform.model());
-		sp.uniform("normalModel", box2_transform.normal_model());
+        sp.uniform("normalModel", box2_transform.normal_model());
 
         box_.draw(
             sasp, sp.location_of("material.diffuse"),
