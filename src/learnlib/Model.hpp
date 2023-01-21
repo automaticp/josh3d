@@ -33,6 +33,13 @@ public:
         }
     }
 
+    void draw_instanced(ActiveShaderProgram& asp, gl::GLsizei count) {
+        for (auto& mesh : meshes_) {
+            mesh.draw_instanced(asp, count);
+        }
+    }
+
+
     const std::vector<Mesh<V>>& mehses() const noexcept {
         return meshes_;
     }

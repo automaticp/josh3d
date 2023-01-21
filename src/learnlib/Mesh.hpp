@@ -1,9 +1,11 @@
 #pragma once
+#include <glbinding/gl/types.h>
 #include <vector>
 #include <utility>
 #include <memory>
 #include <glbinding/gl/gl.h>
 #include "GLObjects.hpp"
+#include "Logging.hpp"
 #include "Vertex.hpp"
 
 
@@ -59,7 +61,7 @@ public:
 
 
         vao_.bind()
-           .draw_elements(GL_TRIANGLES, elements_.size(), GL_UNSIGNED_INT, nullptr);
+           .draw_elements(GL_TRIANGLES, elements_.size(), GL_UNSIGNED_INT);
 
     }
 
@@ -75,9 +77,27 @@ public:
         sp.uniform(shininess_loc, 128.0f);
 
         vao_.bind()
-           .draw_elements(GL_TRIANGLES, elements_.size(), GL_UNSIGNED_INT, nullptr);
+           .draw_elements(GL_TRIANGLES, elements_.size(), GL_UNSIGNED_INT);
 
     }
+
+
+    void draw_instanced(ActiveShaderProgram& asp, gl::GLsizei count) {
+        using namespace gl;
+
+        asp.uniform("material.diffuse", 0);
+	    diffuse_->bind_to_unit(GL_TEXTURE0);
+
+        asp.uniform("material.specular", 1);
+	    specular_->bind_to_unit(GL_TEXTURE1);
+
+        asp.uniform("material.shininess", 128.0f);
+
+        vao_.bind()
+            .draw_elements_instanced(GL_TRIANGLES, elements_.size(), GL_UNSIGNED_INT, count);
+
+    }
+
 
 
     const std::vector<V>& vertices() const noexcept {
