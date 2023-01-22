@@ -43,6 +43,7 @@ private:
     TextureMSRenderTarget tex_ms_target_;
 
     bool use_msaa_{ true };
+    bool use_pp_{ true };
 
     std::vector<PostprocessStage> pp_stages_;
 
@@ -103,6 +104,16 @@ public:
                 }
             }
         );
+
+        input_.set_keybind(
+            glfw::KeyCode::T,
+            [this](const KeyCallbackArgs& args) {
+                if (args.state == glfw::KeyState::Release) {
+                    use_pp_ = !use_pp_;
+                }
+            }
+        );
+
 
         input_.bind_callbacks();
 
@@ -175,18 +186,30 @@ public:
         // Do the double-buffered postprocessing using PDB
         // with the Bind-Draw-Unbind-Swap loop
 
-        for (auto&& pp : std::span(pp_stages_.begin(), pp_stages_.end() - 1)) {
-            pdb_.back().framebuffer()
-                .bind_as(GL_DRAW_FRAMEBUFFER)
-                .and_then([&] {
-                    pp.draw(pdb_.front_target());
-                })
-                .unbind();
-            pdb_.swap_buffers();
-        }
+        if (use_pp_) {
 
-        // Render last to the default framebuffer
-        pp_stages_.back().draw(pdb_.front_target());
+            for (auto&& pp : std::span(pp_stages_.begin(), pp_stages_.end() - 1)) {
+                pdb_.back().framebuffer()
+                    .bind_as(GL_DRAW_FRAMEBUFFER)
+                    .and_then([&] {
+                        pp.draw(pdb_.front_target());
+                    })
+                    .unbind();
+                pdb_.swap_buffers();
+            }
+
+            // Render last to the default framebuffer
+            pp_stages_.back().draw(pdb_.front_target());
+
+        } else {
+            auto [w, h] = learn::globals::window_size.size();
+
+            learn::BoundFramebuffer::unbind_as(GL_DRAW_FRAMEBUFFER);
+            pdb_.front().framebuffer()
+                .bind_as(GL_READ_FRAMEBUFFER)
+                .blit(0, 0, w, h, 0, 0, w, h, GL_COLOR_BUFFER_BIT, GL_NEAREST)
+                .unbind();
+        }
 
     }
 

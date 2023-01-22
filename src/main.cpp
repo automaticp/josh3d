@@ -42,11 +42,12 @@ int main() {
     auto [width, height] { globals::window_size.size() };
     glViewport(0, 0, width, height);
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
 
     // render_generic_scene<BoxScene>(window);
-    // render_generic_scene<PostprocessingScene>(window);
+    render_generic_scene<PostprocessingScene>(window);
     // render_generic_scene<ModelScene>(window);
-    render_generic_scene<InstancingScene>(window);
+    // render_generic_scene<InstancingScene>(window);
 
     learn::globals::clear_all();
     return 0;
