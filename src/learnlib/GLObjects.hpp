@@ -88,6 +88,7 @@ public:
 } // namespace detail
 
 class TextureData;
+class CubemapData;
 
 /*
 In order to not move trivial single-line definitions into a .cpp file
@@ -617,8 +618,69 @@ public:
 
 
 
+class BoundCubemap : public detail::AndThen<BoundCubemap> {
+private:
+    friend class Cubemap;
+    BoundCubemap() = default;
+public:
+    static void unbind() {
+        glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+    }
+
+    BoundCubemap& specify_image(GLenum target, GLsizei width, GLsizei height,
+        GLenum internal_format, GLenum format, GLenum type,
+        const void* data, GLint mipmap_level = 0) {
+
+        glTexImage2D(
+            target, mipmap_level, static_cast<GLint>(internal_format),
+            width, height, 0, format, type, data
+        );
+        return *this;
+    }
 
 
+    BoundCubemap& set_parameter(GLenum param_name, GLint param_value) {
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, param_name, param_value);
+        return *this;
+    }
+
+    BoundCubemap& set_parameter(GLenum param_name, GLenum param_value) {
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, param_name, param_value);
+        return *this;
+    }
+
+    BoundCubemap& set_parameter(GLenum param_name, GLfloat param_value) {
+        glTexParameterf(GL_TEXTURE_CUBE_MAP, param_name, param_value);
+        return *this;
+    }
+
+
+    BoundCubemap& attach_data(const CubemapData& tex_data,
+        GLenum internal_format = GL_RGB, GLenum format = GL_NONE);
+
+
+};
+
+
+
+
+class Cubemap : public TextureAllocator {
+public:
+    BoundCubemap bind() {
+        glBindTexture(GL_TEXTURE_CUBE_MAP, id_);
+        return {};
+    }
+
+    BoundCubemap bind_to_unit(GLenum tex_unit) {
+        set_active_unit(tex_unit);
+        bind();
+        return {};
+    }
+
+    static void set_active_unit(GLenum tex_unit) {
+        glActiveTexture(tex_unit);
+    }
+};
 
 
 
@@ -849,6 +911,7 @@ using leaksgl::BoundFramebuffer, leaksgl::Framebuffer;
 using leaksgl::BoundRenderbuffer, leaksgl::Renderbuffer;
 using leaksgl::BoundTextureHandle, leaksgl::TextureHandle;
 using leaksgl::BoundTextureMS, leaksgl::TextureMS;
+using leaksgl::BoundCubemap, leaksgl::Cubemap;
 using leaksgl::Shader, leaksgl::VertexShader, leaksgl::FragmentShader;
 using leaksgl::ActiveShaderProgram, leaksgl::ShaderProgram;
 
