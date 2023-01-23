@@ -1,12 +1,9 @@
 #pragma once
-#include "All.hpp"
 #include "CubemapData.hpp"
 #include "GLObjects.hpp"
 #include "Input.hpp"
-#include "Logging.hpp"
-#include "ShaderBuilder.hpp"
-#include "VertexTraits.hpp"
-#include "glfwpp/window.h"
+#include "SkyboxRenderer.hpp"
+#include <glfwpp/window.h>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
 
@@ -21,13 +18,11 @@ class CubemapScene {
 private:
     glfw::Window& window_;
 
-    ShaderProgram skybox_shader_;
+    SkyboxRenderer sky_renderer_;
+
     Cubemap cubemap1_;
     Cubemap cubemap2_;
     bool is_first_cubemap_{ true };
-
-    VBO cube_vbo_;
-    VAO cube_vao_;
 
     Camera cam_;
 
@@ -36,12 +31,6 @@ private:
 public:
     CubemapScene(glfw::Window& window)
         : window_{ window }
-        , skybox_shader_{
-            ShaderBuilder()
-                .load_vert("src/shaders/skybox.vert")
-                .load_frag("src/shaders/skybox.frag")
-                .get()
-        }
         , cam_{}
         , input_{ window_, cam_ }
     {
@@ -99,16 +88,6 @@ public:
             .set_parameter(GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE)
             .unbind();
 
-        cube_vbo_.bind()
-            .attach_data(skybox_vertices.size(), skybox_vertices.data(), GL_STATIC_DRAW)
-            .and_then([this] {
-                auto bvao = cube_vao_.bind();
-                bvao.set_attribute_params(AttributeParams{ 0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), 0 });
-                bvao.enable_array_access(0)
-                    .unbind();
-            })
-            .unbind();
-
     }
 
     void process_input() {
@@ -135,69 +114,9 @@ public:
 
         glm::mat4 view = cam_.view_mat();
 
+        sky_renderer_.draw(active_cubemap, projection, view);
 
-        glDepthMask(GL_FALSE);
-        ActiveShaderProgram asp = skybox_shader_.use();
-        asp .uniform("projection", projection)
-            .uniform("view", view);
-
-        active_cubemap.bind_to_unit(GL_TEXTURE0);
-        asp.uniform("cubemap", 0);
-
-        cube_vao_.bind()
-            .draw_arrays(GL_TRIANGLES, 0, skybox_vertices.size())
-            .unbind();
-
-        glDepthMask(GL_TRUE);
     }
-
-
-
-
-private:
-    inline static const std::array<glm::vec3, 36> skybox_vertices{{
-        {-1.0f,  1.0f, -1.0f},
-        {-1.0f, -1.0f, -1.0f},
-        { 1.0f, -1.0f, -1.0f},
-        { 1.0f, -1.0f, -1.0f},
-        { 1.0f,  1.0f, -1.0f},
-        {-1.0f,  1.0f, -1.0f},
-
-        {-1.0f, -1.0f,  1.0f},
-        {-1.0f, -1.0f, -1.0f},
-        {-1.0f,  1.0f, -1.0f},
-        {-1.0f,  1.0f, -1.0f},
-        {-1.0f,  1.0f,  1.0f},
-        {-1.0f, -1.0f,  1.0f},
-
-        { 1.0f, -1.0f, -1.0f},
-        { 1.0f, -1.0f,  1.0f},
-        { 1.0f,  1.0f,  1.0f},
-        { 1.0f,  1.0f,  1.0f},
-        { 1.0f,  1.0f, -1.0f},
-        { 1.0f, -1.0f, -1.0f},
-
-        {-1.0f, -1.0f,  1.0f},
-        {-1.0f,  1.0f,  1.0f},
-        { 1.0f,  1.0f,  1.0f},
-        { 1.0f,  1.0f,  1.0f},
-        { 1.0f, -1.0f,  1.0f},
-        {-1.0f, -1.0f,  1.0f},
-
-        {-1.0f,  1.0f, -1.0f},
-        { 1.0f,  1.0f, -1.0f},
-        { 1.0f,  1.0f,  1.0f},
-        { 1.0f,  1.0f,  1.0f},
-        {-1.0f,  1.0f,  1.0f},
-        {-1.0f,  1.0f, -1.0f},
-
-        {-1.0f, -1.0f, -1.0f},
-        {-1.0f, -1.0f,  1.0f},
-        { 1.0f, -1.0f, -1.0f},
-        { 1.0f, -1.0f, -1.0f},
-        {-1.0f, -1.0f,  1.0f},
-        { 1.0f, -1.0f,  1.0f}
-    }};
 
 };
 
