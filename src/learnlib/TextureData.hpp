@@ -28,19 +28,23 @@ private:
     stb_image_owner_t data_{};
 
 public:
-    StbImageData(const std::string& path, int num_desired_channels = 0) {
+    StbImageData(const std::string& path, bool flip_vertically = true, int num_desired_channels = 0)
+        : StbImageData(path.c_str(), flip_vertically, num_desired_channels)
+    {}
 
-        stbi_set_flip_vertically_on_load(true);
+    StbImageData(const char* path, bool flip_vertically = true, int num_desired_channels = 0) {
+
+        stbi_set_flip_vertically_on_load(flip_vertically);
 
         int width, height, n_channels;
         data_.reset(
             reinterpret_cast<std::byte*>(
-                stbi_load(path.c_str(), &width, &height, &n_channels, num_desired_channels)
+                stbi_load(path, &width, &height, &n_channels, num_desired_channels)
             )
         );
         if (!data_) {
             throw std::runtime_error(
-                "Stb could not load the image at " + path
+                "Stb could not load the image at " + std::string(path)
                 + ". Reason: " + stbi_failure_reason()
             );
         }
@@ -49,6 +53,7 @@ public:
         this->height_     = height;
         this->n_channels_ = n_channels;
     }
+
 
     size_t size() const noexcept { return width_ * height_ * n_channels_; }
     std::byte* data() const noexcept { return data_.get(); }
