@@ -4,6 +4,7 @@
 #include "InstancingScene.hpp"
 #include "PostprocessingScene.hpp"
 #include "ModelScene.hpp"
+#include "CubemapScene.hpp"
 #include <glfwpp/window.h>
 
 
