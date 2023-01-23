@@ -27,6 +27,7 @@ public:
             fov_{ fov }
         {}
 
+    Camera() : Camera({ 0.f, 0.f, 0.f, }, { 0.f, 0.f, -1.f }) {}
 
     glm::mat4 view_mat() const noexcept { return glm::lookAt(pos_, pos_ - local_basis_.z(), local_basis_.y()); }
 
