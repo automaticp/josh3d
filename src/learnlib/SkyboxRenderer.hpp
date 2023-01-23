@@ -25,19 +25,16 @@ public:
     {
         using namespace gl;
 
+        auto bvao = cube_vao_.bind();
         cube_vbo_.bind()
             .attach_data(skybox_vertices.size(), skybox_vertices.data(),GL_STATIC_DRAW)
-            .and_then([this] {
-                auto bvao = cube_vao_.bind();
-                bvao.set_attribute_params(
-                    AttributeParams{
-                        0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), 0
-                    }
-                );
-                bvao.enable_array_access(0)
-                    .unbind();
+            .associate_with<1>(bvao, {
+                AttributeParams{
+                    0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), 0
+                }
             })
             .unbind();
+        bvao.unbind();
     }
 
     void draw(Cubemap& skybox_cubemap,
