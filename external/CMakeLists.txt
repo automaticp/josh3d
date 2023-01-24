@@ -7,6 +7,7 @@ set(
         stb
         assimp
         range-v3
+        imgui
 )
 
 foreach(EXTERNAL_DIR ${EXTERNAL_DIRS})

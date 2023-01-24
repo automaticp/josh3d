@@ -21,4 +21,5 @@ target_link_libraries(ogllearn
         glbinding::glbinding-aux
         glfwpp::glfwpp
         assimp::assimp
+        imgui::imgui
 )

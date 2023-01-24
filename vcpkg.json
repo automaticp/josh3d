@@ -1,12 +1,16 @@
 {
     "name": "ogl-learning",
-    "version": "0.2",
+    "version": "0.3",
     "dependencies": [
         "glbinding",
         "glfw3",
         "glm",
         "stb",
         "assimp",
-        "range-v3"
+        "range-v3",
+        {
+            "name": "imgui",
+            "features": [ "glfw-binding", "opengl3-binding" ]
+        }
     ]
 }
