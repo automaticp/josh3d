@@ -5,8 +5,42 @@
 #include "Input.hpp"
 #include "LightCasters.hpp"
 #include "Transform.hpp"
-#include "glfwpp/window.h"
+#include "ImGuiContextWrapper.hpp"
+#include <glfwpp/window.h>
 #include <assimp/postprocess.h>
+#include <imgui.h>
+#include <imgui_stdlib.h>
+
+
+
+class ReloadModelGui {
+private:
+    std::string filepath_;
+    learn::Model<>& model_ref_;
+
+public:
+    ReloadModelGui(learn::Model<>& model)
+        : model_ref_{ model }
+    {}
+
+    void process() {
+
+        ImGui::Begin("Load Model");
+
+        ImGui::InputText("Path", &filepath_);
+        if (ImGui::Button("Load")) {
+            model_ref_ = learn::AssimpModelLoader<>()
+                .add_flags(aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph)
+                .load(filepath_)
+                .get();
+        }
+
+        ImGui::End();
+
+    }
+
+};
+
 
 
 namespace leakslearn {
@@ -19,13 +53,16 @@ private:
 
     ShaderProgram shader_;
 
-    Model<> backpack_model_;
+    Model<> model_;
 
     light::Point light_;
 
     Camera cam_;
 
     RebindableInputFreeCamera input_;
+
+    ImGuiContextWrapper imgui_;
+    ReloadModelGui gui_;
 
 public:
     ModelScene(glfw::Window& window)
@@ -36,7 +73,7 @@ public:
                 .load_frag("src/shaders/TextureMaterialObject.frag")
                 .get()
         }
-        , backpack_model_{
+        , model_{
             AssimpModelLoader<>()
                 .add_flags(
                     aiProcess_OptimizeMeshes |
@@ -51,6 +88,8 @@ public:
         }
         , cam_{ {0.0f, 0.0f, 3.0f}, {0.0f, 0.0f, -1.0f} }
         , input_{ window_, cam_ }
+        , imgui_{ window_ }
+        , gui_{ model_ }
     {
         input_.bind_callbacks();
     }
@@ -63,9 +102,15 @@ public:
 
     void render() {
         using namespace gl;
+        imgui_.new_frame();
+
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         draw_scene_objects();
+
+        gui_.process();
+
+        imgui_.render();
     }
 
 
@@ -96,7 +141,7 @@ private:
         asp.uniform("lightColor", light_.color);
         asp.uniform("lightPos", light_.position);
 
-        backpack_model_.draw(asp);
+        model_.draw(asp);
 
     }
 
