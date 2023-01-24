@@ -30,7 +30,12 @@ private:
 public:
     ModelScene(glfw::Window& window)
         : window_{ window }
-        , shader_{ load_shader() }
+        , shader_{
+            ShaderBuilder()
+                .load_vert("src/shaders/VertexShader.vert")
+                .load_frag("src/shaders/TextureMaterialObject.frag")
+                .get()
+        }
         , backpack_model_{
             AssimpModelLoader<>()
                 .add_flags(
@@ -47,23 +52,6 @@ public:
         , cam_{ {0.0f, 0.0f, 3.0f}, {0.0f, 0.0f, -1.0f} }
         , input_{ window_, cam_ }
     {
-        input_.set_keybind(
-            glfw::KeyCode::R,
-            [this](const KeyCallbackArgs& args) {
-                if (args.state == glfw::KeyState::Release) {
-                    shader_ = load_shader();
-                }
-            }
-        );
-        input_.set_keybind(
-            glfw::KeyCode::T,
-            [this](const KeyCallbackArgs& args) {
-                if (args.state == glfw::KeyState::Release) {
-                    shader_ = load_shader_and_mangle();
-                }
-            }
-        );
-
         input_.bind_callbacks();
     }
 
@@ -108,35 +96,8 @@ private:
         asp.uniform("lightColor", light_.color);
         asp.uniform("lightPos", light_.position);
 
-        asp.uniform("time", static_cast<float>(globals::frame_timer.current()));
-
         backpack_model_.draw(asp);
 
-    }
-
-    static ShaderProgram load_shader_and_mangle() {
-        ShaderSource vert_src = ShaderSource::from_file("src/shaders/VertexShader.vert");
-        vert_src.find_and_insert_as_next_line(
-            "uniform",
-            "uniform float time;"
-        );
-
-        vert_src.find_and_replace(
-            "texCoord = aTexCoord;",
-            "texCoord = cos(time) * aTexCoord;"
-        );
-
-        return ShaderBuilder()
-            .add_vert(vert_src)
-            .load_frag("src/shaders/TextureMaterialObject.frag")
-            .get();
-    }
-
-    static ShaderProgram load_shader() {
-        return ShaderBuilder()
-            .load_vert("src/shaders/VertexShader.vert")
-            .load_frag("src/shaders/TextureMaterialObject.frag")
-            .get();
     }
 
 };
