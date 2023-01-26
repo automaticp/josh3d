@@ -120,7 +120,7 @@ private:
     };
 
 
-    learn::BasicRebindableInput input_;
+    learn::BasicRebindableInput<> input_;
 
     struct ControlState {
         bool left{ false };
