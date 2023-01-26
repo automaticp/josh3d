@@ -1,14 +1,16 @@
 #pragma once
-#include <functional>
-#include <utility>
-#include <unordered_map>
-#include <concepts>
+#include "Basis.hpp"
+#include "Camera.hpp"
+#include "Globals.hpp"
+#include "glfwpp/window.h"
+
 #include <glbinding/gl/gl.h>
 #include <glfwpp/glfwpp.h>
 #include <glm/glm.hpp>
-#include "Camera.hpp"
-#include "Basis.hpp"
-#include "Globals.hpp"
+#include <concepts>
+#include <functional>
+#include <unordered_map>
+#include <utility>
 
 namespace learn {
 
@@ -38,105 +40,163 @@ struct ScrollCallbackArgs {
 
 
 
+// This little 'blocker' incident is a direct consequence
+// of me trying to integrate dear-imgui into the input stack.
+//
+// I also do this thing where I define a whole static interface
+// with concepts and consume the blocker class as a template parameter.
+// I really don't want to mix the imgui code with glfw code as much as possible.
+//
+// Future me may forgive me for overcomplicating things this much.
+//
+// Maybe just use a simple virtual interface class instead, jees...
+
+
+template<typename BlockerT>
+concept input_key_blocker = requires(const BlockerT& blocker, const KeyCallbackArgs& key_args) {
+    { blocker.is_key_blocked(key_args) } -> std::same_as<bool>;
+};
+
+template<typename BlockerT>
+concept input_cursor_blocker = requires(const BlockerT& blocker, const CursorPosCallbackArgs& key_args) {
+    { blocker.is_cursor_blocked(key_args) } -> std::same_as<bool>;
+};
+
+template<typename BlockerT>
+concept input_scroll_blocker = requires(const BlockerT& blocker, const ScrollCallbackArgs& key_args) {
+    { blocker.is_scroll_blocked(key_args) } -> std::same_as<bool>;
+};
+
+template<typename BlockerT>
+concept input_kbm_blocker =
+    input_key_blocker<BlockerT> &&
+    input_cursor_blocker<BlockerT> &&
+    input_scroll_blocker<BlockerT>;
+
+
+// Input blocker that does not block, duh.
+class NonBlockingInputBlocker {
+public:
+    // Compiler-sama, you're smart sometimes, optimize it out pls
+    constexpr bool is_key_blocked(const KeyCallbackArgs&) const noexcept { return false; }
+    constexpr bool is_cursor_blocked(const CursorPosCallbackArgs&) const noexcept { return false; }
+    constexpr bool is_scroll_blocked(const ScrollCallbackArgs&) const noexcept { return false; }
+};
+
+
+
+
+// Simple input class with a map: key -> function.
+// Limited in a sense that multi-key inputs are not reasonable
+// to implement. But works okay for testing and demos.
+template<input_kbm_blocker BlockerT = NonBlockingInputBlocker>
 class BasicRebindableInput {
 public:
     using key_t = decltype(glfw::KeyCode::A);
     using keymap_t = std::unordered_map<key_t, std::function<void(const KeyCallbackArgs&)>>;
 
 private:
-    keymap_t keymap_;
-
-protected:
     glfw::Window& window_;
 
+    // One of the many fewerish ideas I had, sorry again
+    BlockerT blocker_;
+
+    keymap_t keymap_;
 
 public:
     explicit BasicRebindableInput(glfw::Window& window) : window_{ window } {}
 
-    BasicRebindableInput(glfw::Window& window, keymap_t keymap)
-        : window_{ window }, keymap_{ std::move(keymap) } {}
+    BasicRebindableInput(glfw::Window& window, BlockerT input_blocker)
+        : window_{ window }
+        , blocker_{ std::move(input_blocker) }
+    {}
 
 
     void set_keybind(key_t key, std::function<void(const KeyCallbackArgs&)> callback) {
         keymap_.insert_or_assign(key, std::move(callback));
     }
 
+    void enable_key_callback() {
+        window_.keyEvent.setCallback(
+            [this](auto&&... args) {
+                invoke_on_key({ std::forward<decltype(args)>(args)... });
+            }
+        );
+    }
 
+
+    // Ok, this is dense.
+    //
+    // We set the glfw callback to an internal lambda
+    // that forwards the callback to the 'invoke_on_*' function
+    // AND packs the arguments into a struct at the same time.
+    // The 'invoke_on_*' function actually invokes the callback.
+    //
+    // The callback is captured by value in the lambda due to
+    // potential lifetime concerns.
     template<std::invocable<const CursorPosCallbackArgs&> CallbackT>
     void set_cursor_pos_callback(CallbackT&& callback) {
 
-        set_glfw_callback<CursorPosCallbackArgs>(
-            window_.cursorPosEvent, std::forward<CallbackT>(callback)
-        );
+        window_.cursorPosEvent.setCallback(
+            [this, callback=std::forward<CallbackT>(callback)](auto&&... args) {
 
+                invoke_on_cursor_pos(
+                    std::forward<CallbackT>(callback),
+                    { std::forward<decltype(args)>(args)... }
+                );
+
+            }
+        );
     }
 
     template<std::invocable<const ScrollCallbackArgs&> CallbackT>
     void set_scroll_callback(CallbackT&& callback) {
 
-        set_glfw_callback<ScrollCallbackArgs>(
-            window_.scrollEvent, std::forward<CallbackT>(callback)
-        );
+        window_.scrollEvent.setCallback(
+            [this, callback=std::forward<CallbackT>(callback)](auto&&... args) {
 
-    }
+                invoke_on_scroll(
+                    std::forward<CallbackT>(callback),
+                    { std::forward<decltype(args)>(args)... }
+                );
 
-    // For keys we set our own special callback, that
-    // indexes into a keymap with KeyCallbackArgs::key
-    // and calls the corresponding used-defined callback,
-    // if it exists.
-    //
-    // This method was private. Why?
-    void enable_key_callback() {
-        window_.keyEvent.setCallback(
-            [this]<typename ...Args>(Args&&... args) {
-                respond_to_key({ std::forward<Args>(args)... });
             }
         );
     }
 
-    // Updates referenced members (or global state)
-    // depending on the state of the input instance.
-    // Must be called after each glfwPollEvents().
-    virtual void process_input() {}
 
-    virtual ~BasicRebindableInput() = default;
+
+    void reset_keymap(const keymap_t& new_keymap) noexcept(noexcept(keymap_ = new_keymap)) {
+        keymap_ = new_keymap;
+    }
+
+    void reset_keymap(keymap_t&& new_keymap) noexcept(noexcept(keymap_ = std::move(new_keymap))) {
+        keymap_ = std::move(new_keymap);
+    }
+
+
 
 private:
-    // We use a templated setter to basically 'emplace' arbitrary callable
-    // into the glfwpp callback (implemented as std::function) for corresponding event.
-    //
-    // However, we also want to pack the arguments in one of the 'CallbackArgs' structs,
-    // and force the user-specified callback to the signature compatible with:
-    //     void(const CallbackArgs&)
-    //
-    // So we first pack arguments via a proxy 'respond_to' function,
-    // and then inside that function actually invoke the callback.
-    //
-    template<typename CallbackArgsT, typename CallbackT, typename ...EventArgs>
-    void set_glfw_callback(glfw::Event<EventArgs...>& event, CallbackT&& callback) {
+    template<typename CallbackT>
+    void invoke_on_cursor_pos(CallbackT& callback, const CursorPosCallbackArgs& args) {
+        if (!blocker_.is_cursor_blocked(args)) {
+            callback(args);
+        }
+    }
 
-        event.setCallback(
-            [this, &callback]<typename ...Args>(Args&&... args) {
-                respond_to<CallbackArgsT>(
-                    std::forward<CallbackT>(callback), { std::forward<Args>(args)... }
-                );
+    template<typename CallbackT>
+    void invoke_on_scroll(CallbackT& callback, const ScrollCallbackArgs& args) {
+        if (!blocker_.is_scroll_blocked(args)) {
+            callback(args);
+        }
+    }
+
+    void invoke_on_key(const KeyCallbackArgs& args) {
+        if (!blocker_.is_key_blocked(args)) {
+            auto it = keymap_.find(args.key);
+            if (it != keymap_.end()) {
+                std::invoke(it->second, args);
             }
-        );
-
-    }
-
-    template<typename CallbackArgsT, typename CallbackT>
-    void respond_to(CallbackT&& callback, const CallbackArgsT& args) {
-        callback(args);
-    }
-
-
-
-    void respond_to_key(const KeyCallbackArgs& args) {
-        // Maybe better to just use [] to avoid branching?
-        auto it = keymap_.find(args.key);
-        if ( it != keymap_.end() ) {
-            std::invoke(it->second, args);
         }
     }
 
