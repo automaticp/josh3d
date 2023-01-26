@@ -15,6 +15,99 @@
 namespace learn {
 
 
+/*
+Ideally, any input system would be disconnected from the application
+logic, and instead, communicate by sending events.
+
+This implies that the key/axis events recieved from glfw have to
+be translated into other events that the end application understands.
+This translation layer is exactly what makes an input system.
+
+However, no tranformation can be fully abstracted, it's the application
+developer's responsibility to fill out the exact rules of this translation.
+
+This is what creates the binding.
+
+For an example, let's take a simple movement input.
+We want to support different input devices
+
+At the glfw event layer we have (simplified):
+
+struct KeyEvent {
+    KeyCode code;
+};
+
+struct JoyXYEvent {
+    float position_x;
+    float position_y;
+};
+
+Assume that we want from our application POV for these two input
+events to produce identical behavior:
+
+1. KeyEvent(KeyCode::W) && KeyEvent(KeyCode::D)
+2. JoyXYEvent{ sqrt(2.f), sqrt(2.f) }
+
+That is, us holding W and D at the same time should be
+equivalent to tilting the joystick north-east.
+
+Our application will process move events, abstracted away from the input methods
+
+struct MoveEvent {
+    float dx;
+    float dy;
+};
+
+The translation layer is responsible exactly for this
+
+KeyEvent(W) && KeyEvent(D)
+    ==> KeyInputTranslation
+        ==> MoveEvent{ sqrt(2.f), sqrt(2.f) }
+            ==> ApplicationEventQueue
+
+JoyXYEvent{ sqrt(2.f), sqrt(2.f) }
+    ==> JoyInputTranslation
+        ==> MoveEvent{ sqrt(2.f), sqrt(2.f) }
+            ==> ApplicationEventQueue
+
+
+But the exact rules of the translation are unknown to the InputTranslation classes.
+
+We have at least 2 requirements for the design of the InputTranslation:
+- The input events should be rebindable at runtime for different devices;
+- The translation rules must be definable by a client application at compile time.
+
+Note that the input events include their combinations, which serves as a source of
+additional complexity.
+
+Also note that the input events are rebindable to a fixed set of translation rules.
+Again, think of alternative keybindings and a single action performed.
+
+Also also note that there does not have to exist a single translation class,
+instead it would be much cleaner to have a translation class for each
+input device type. Again, all the device details are abstracted away
+because the application receives just a MoveEvent.
+
+If you really wish, you can even separate translation of
+controller buttons from axes, although think about it maybe...
+
+
+Anyways, this is supposed to be a recipe for a decent input system.
+
+You'll find none of it below, though.
+
+Below is only a primitive 'key -> callback' implementation, which treats
+input events as application events, so no abstraction. Sad.
+
+
+All written above is directed at the future me, that might one day try to actually do it.
+
+Input is deceivingly hard...
+
+*/
+
+
+
 struct KeyCallbackArgs {
     glfw::Window& window;
     glfw::KeyCode key;
