@@ -17,6 +17,7 @@ class ReloadModelGui {
 private:
     std::string filepath_;
     learn::Model<>& model_ref_;
+    ImVec2 window_scale_{ 55.f, 7.f };
 
 public:
     ReloadModelGui(learn::Model<>& model)
@@ -25,17 +26,31 @@ public:
 
     void process() {
 
+        static ImVec2 window_size{
+            window_scale_.x * ImGui::GetFontSize(),
+            window_scale_.y * ImGui::GetFontSize()
+        };
+
         ImGui::Begin("Load Model");
+
+
+        ImGui::SetWindowSize(window_size, ImGuiCond_Once);
+        ImGui::SetWindowPos({ 0, 0 }, ImGuiCond_Once);
 
         ImGui::InputText("Path", &filepath_);
         if (ImGui::Button("Load")) {
-            model_ref_ = learn::AssimpModelLoader<>()
-                .add_flags(aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph)
-                .load(filepath_)
-                .get();
+            try {
+                model_ref_ = learn::AssimpModelLoader<>()
+                    .add_flags(aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph)
+                    .load(filepath_)
+                    .get();
+            } catch (learn::error::AssimpLoaderError& e) {
+                ImGui::LogText("%s", e.what());
+            }
         }
 
         ImGui::End();
+
 
     }
 
@@ -95,7 +110,9 @@ public:
     }
 
     void process_input() {
-        input_.process_input();
+        if (!ImGui::GetIO().WantCaptureKeyboard) {
+            input_.process_input();
+        }
     }
 
     void update() {}
