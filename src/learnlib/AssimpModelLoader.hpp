@@ -113,9 +113,6 @@ public:
 
         const aiScene* new_scene{ importer_.ReadFile(path, flags_) };
 
-        global_logstream << "Trying to read " << path << '\n';
-        global_logstream << "New scene is at " << std::hex << reinterpret_cast<size_t>(new_scene) << '\n';
-
         if (!new_scene) {
             global_logstream << "[Assimp Error] " << importer_.GetErrorString() << '\n';
             throw error::AssimpLoaderIOError(importer_.GetErrorString());
