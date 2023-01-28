@@ -5,13 +5,9 @@
 #include <unordered_map>
 #include "DataPool.hpp"
 #include "GLObjects.hpp"
-
+#include "Shared.hpp"
 
 namespace learn {
-
-
-template<typename T>
-using Shared = std::shared_ptr<T>;
 
 
 

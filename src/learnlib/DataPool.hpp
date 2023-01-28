@@ -3,15 +3,11 @@
 #include <string>
 #include <unordered_map>
 #include "TextureData.hpp"
-
+#include "Shared.hpp"
 
 
 namespace learn {
 
-
-
-template<typename T>
-using Shared = std::shared_ptr<T>;
 
 
 template<typename T>
