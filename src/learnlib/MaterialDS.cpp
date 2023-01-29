@@ -21,26 +21,30 @@ void apply_material<MaterialDS>(ActiveShaderProgram& asp, const MaterialDS& mat,
 
 template<>
 void apply_material<MaterialDS>(ActiveShaderProgram& asp, const MaterialDS& mat) {
-    const auto& tps = MaterialTraits<MaterialDS>::texparams;
-    apply_material(
-        asp, mat,
-        MaterialDSLocations{
-            { asp.location_of(tps[0].name), asp.location_of(tps[1].name) },
-            asp.location_of("material.shininess")
-        }
-    );
+    apply_material(asp, mat, query_locations<MaterialDS>(asp));
 }
 
 
-
 template<>
-typename MaterialTraits<MaterialDS>::locations_type query_locations<MaterialDS>(ShaderProgram& sp) {
+MaterialDSLocations query_locations<MaterialDS>(ShaderProgram& sp) {
     return MaterialDSLocations{
         .textures = {
             sp.location_of("material.diffuse"),
             sp.location_of("material.specular")
         },
         .shininess = sp.location_of("material.shininess")
+    };
+}
+
+
+template<>
+MaterialDSLocations query_locations<MaterialDS>(ActiveShaderProgram& asp) {
+    return MaterialDSLocations{
+        .textures = {
+            asp.location_of("material.diffuse"),
+            asp.location_of("material.specular")
+        },
+        .shininess = asp.location_of("material.shininess")
     };
 }
 

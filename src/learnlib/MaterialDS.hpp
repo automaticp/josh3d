@@ -38,7 +38,11 @@ template<>
 void apply_material<MaterialDS>(ActiveShaderProgram& asp, const MaterialDS& mat);
 
 template<>
-typename MaterialTraits<MaterialDS>::locations_type query_locations<MaterialDS>(ShaderProgram& sp);
+MaterialDSLocations query_locations<MaterialDS>(ShaderProgram& sp);
+
+template<>
+MaterialDSLocations query_locations<MaterialDS>(ActiveShaderProgram& asp);
+
 
 
 

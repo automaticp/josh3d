@@ -53,6 +53,9 @@ void apply_material(ActiveShaderProgram& asp, const MaterialT& mat);
 template<typename M>
 typename MaterialTraits<M>::locations_type query_locations(ShaderProgram& sp);
 
+template<typename M>
+typename MaterialTraits<M>::locations_type query_locations(ActiveShaderProgram& sp);
+
 
 
 } // namespace learn
