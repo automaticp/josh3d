@@ -22,12 +22,12 @@ public:
 
     static CubemapData from_files(std::array<const char*, 6> filenames) {
         std::array<TextureData, 6> sides{
-            TextureData(StbImageData(filenames[0], false)),
-            TextureData(StbImageData(filenames[1], false)),
-            TextureData(StbImageData(filenames[2], false)),
-            TextureData(StbImageData(filenames[3], false)),
-            TextureData(StbImageData(filenames[4], false)),
-            TextureData(StbImageData(filenames[5], false))
+            TextureData::from_file(filenames[0], false),
+            TextureData::from_file(filenames[1], false),
+            TextureData::from_file(filenames[2], false),
+            TextureData::from_file(filenames[3], false),
+            TextureData::from_file(filenames[4], false),
+            TextureData::from_file(filenames[5], false)
         };
         return CubemapData{ std::move(sides) };
     }

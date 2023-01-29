@@ -161,7 +161,7 @@ void AsyncDataPool<T>::clear_unused() {
 
 template<>
 inline Shared<TextureData> AsyncDataPool<TextureData>::load_data_from(const std::string& path) {
-    return std::make_shared<TextureData>(StbImageData(path));
+    return std::make_shared<TextureData>(TextureData::from_file(path));
 }
 
 

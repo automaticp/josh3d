@@ -10,15 +10,14 @@ namespace learn::globals {
 
 
 static TextureData fill_default(std::array<unsigned char, 4> rgba) {
-    TextureData img{ ImageData(2, 2, 4) };
-    unsigned char* data = img.data();
-    size_t n_channels = img.n_channels();
-    for (size_t i{ 0 }; i < img.width() * img.height(); ++i) {
-        auto idx = i * n_channels;
-        data[idx + 0] = rgba[0];
-        data[idx + 1] = rgba[1];
-        data[idx + 2] = rgba[2];
-        data[idx + 3] = rgba[3];
+    TextureData img{ 2, 2, 4 };
+    const size_t n_channels = img.n_channels();
+    for (size_t i{ 0 }; i < img.n_pixels(); ++i) {
+        const size_t idx = i * n_channels;
+        img[idx + 0] = rgba[0];
+        img[idx + 1] = rgba[1];
+        img[idx + 2] = rgba[2];
+        img[idx + 3] = rgba[3];
     }
     return img;
 }
