@@ -779,7 +779,7 @@ public:
     // This enables calls like: shaderProgram.setUniform("viewMat", viewMat);
 	template<typename... Args>
 	ActiveShaderProgram& uniform(const GLchar* name, Args... args) {
-		const auto location = glGetUniformLocation(parent_id_, name);
+		const auto location = location_of(name);
         // FIXME: Replace with something less
         // intrusive later.
         #ifndef NDEBUG
@@ -795,7 +795,7 @@ public:
 
     template<typename... Args>
 	ActiveShaderProgram& uniform(const std::string& name, Args... args) {
-        const auto location = glGetUniformLocation(parent_id_, name.c_str());
+        const auto location = location_of(name.c_str());
         #ifndef NDEBUG
         if (location < 0) {
             global_logstream <<
@@ -803,7 +803,7 @@ public:
                 name << " at " << location << " location\n";
         }
         #endif
-		ActiveShaderProgram::uniform(glGetUniformLocation(parent_id_, name.c_str()), args...);
+		ActiveShaderProgram::uniform(location, args...);
         return *this;
 	}
 
@@ -817,6 +817,10 @@ public:
         ActiveShaderProgram::uniform(location, args...);
         return *this;
 	}
+
+    GLint location_of(const GLchar* uniform_name) const {
+        return glGetUniformLocation(parent_id_, uniform_name);
+    }
 
 
     // Values float
@@ -920,11 +924,11 @@ public:
         return { id_ };
     }
 
-    GLint uniform_location(const std::string& name) const {
+    GLint location_of(const std::string& name) const {
         return glGetUniformLocation(id_, name.c_str());
     }
 
-    GLint uniform_location(const GLchar* name) const {
+    GLint location_of(const GLchar* name) const {
         return glGetUniformLocation(id_, name);
     }
 
