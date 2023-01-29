@@ -1,54 +1,40 @@
-#include "MaterialTraits.hpp"
+#include "GLObjects.hpp"
 #include "MaterialDS.hpp"
+#include <glbinding/gl/gl.h>
 
 
 namespace learn {
 
 
-template<>
-void apply_material<MaterialDS>(ActiveShaderProgram& asp, const MaterialDS& mat,
-    const MaterialDSLocations& locations)
-{
-    size_t n_textures{ std::size(mat.textures) };
-    for (size_t i{ 0 }; i < n_textures; ++i) {
-        const MaterialParams& mp = MaterialTraits<MaterialDS>::texparams[i];
-        mat.textures[i]->bind_to_unit(mp.tex_unit);
-        asp.uniform(locations.textures[i], mp.sampler_uniform());
-    }
-    asp.uniform(locations.shininess, mat.shininess);
+
+void MaterialDS::apply(ActiveShaderProgram& asp) const {
+    apply(asp, query_locations(asp));
 }
 
-
-template<>
-void apply_material<MaterialDS>(ActiveShaderProgram& asp, const MaterialDS& mat) {
-    apply_material(asp, mat, query_locations<MaterialDS>(asp));
+void MaterialDS::apply(ActiveShaderProgram& asp, const MaterialDSLocations& locations) const {
+    using namespace gl;
+    diffuse->bind_to_unit(GL_TEXTURE0);
+    asp.uniform(locations.diffuse, 0);
+    specular->bind_to_unit(GL_TEXTURE1);
+    asp.uniform(locations.specular, 1);
+    asp.uniform(locations.shininess, this->shininess);
 }
 
-
-template<>
-MaterialDSLocations query_locations<MaterialDS>(ShaderProgram& sp) {
+MaterialDSLocations MaterialDS::query_locations(ActiveShaderProgram& asp) {
     return MaterialDSLocations{
-        .textures = {
-            sp.location_of("material.diffuse"),
-            sp.location_of("material.specular")
-        },
-        .shininess = sp.location_of("material.shininess")
-    };
-}
-
-
-template<>
-MaterialDSLocations query_locations<MaterialDS>(ActiveShaderProgram& asp) {
-    return MaterialDSLocations{
-        .textures = {
-            asp.location_of("material.diffuse"),
-            asp.location_of("material.specular")
-        },
+        .diffuse = asp.location_of("material.diffuse"),
+        .specular = asp.location_of("material.specular"),
         .shininess = asp.location_of("material.shininess")
     };
 }
 
-
+MaterialDSLocations MaterialDS::query_locations(ShaderProgram& sp) {
+    return MaterialDSLocations{
+        .diffuse = sp.location_of("material.diffuse"),
+        .specular = sp.location_of("material.specular"),
+        .shininess = sp.location_of("material.shininess")
+    };
+}
 
 
 

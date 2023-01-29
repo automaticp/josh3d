@@ -6,43 +6,28 @@
 namespace learn {
 
 
-struct MaterialDS {
-    std::array<Shared<TextureHandle>, 2> textures;
-    gl::GLfloat shininess{};
-};
-
 struct MaterialDSLocations {
-    std::array<gl::GLint, 2> textures;
-    gl::GLint shininess;
+    gl::GLint diffuse{ -1 };
+    gl::GLint specular{ -1 };
+    gl::GLint shininess{ -1 };
 };
 
-template<>
-struct MaterialTraits<MaterialDS> {
-    constexpr static std::array<MaterialParams, 2> texparams {{
-        { "material.diffuse", TextureType::diffuse,
-            gl::GL_TEXTURE_2D, gl::GL_TEXTURE0 },
-        { "material.specular", TextureType::specular,
-            gl::GL_TEXTURE_2D, gl::GL_TEXTURE1 }
-    }};
+
+struct MaterialDS {
+    Shared<TextureHandle> diffuse;
+    Shared<TextureHandle> specular;
+    gl::GLfloat shininess{};
 
     using locations_type = MaterialDSLocations;
+
+    void apply(ActiveShaderProgram& asp) const;
+    void apply(ActiveShaderProgram& asp, const MaterialDSLocations& locs) const;
+    static MaterialDSLocations query_locations(ActiveShaderProgram& asp);
+    static MaterialDSLocations query_locations(ShaderProgram& sp);
 };
 
 
-
-template<>
-void apply_material<MaterialDS>(ActiveShaderProgram& asp, const MaterialDS& mat,
-    const MaterialDSLocations& locations);
-
-template<>
-void apply_material<MaterialDS>(ActiveShaderProgram& asp, const MaterialDS& mat);
-
-template<>
-MaterialDSLocations query_locations<MaterialDS>(ShaderProgram& sp);
-
-template<>
-MaterialDSLocations query_locations<MaterialDS>(ActiveShaderProgram& asp);
-
+static_assert(material<MaterialDS>);
 
 
 

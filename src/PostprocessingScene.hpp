@@ -227,7 +227,7 @@ private:
         ActiveShaderProgram sasp{ solid_shader_.program().use() };
 
         auto& sp = solid_shader_;
-        MaterialDSLocations locations = query_locations<MaterialDS>(sp.program());
+        MaterialDSLocations locations = MaterialDS::query_locations(sp.program());
 
         sp.uniform("projection", projection);
         sp.uniform("view", view);

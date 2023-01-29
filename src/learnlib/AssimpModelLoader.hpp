@@ -267,7 +267,8 @@ private:
         if (!specular) { specular = globals::default_specular_texture; }
 
         return MaterialDS{
-            .textures = { std::move(diffuse), std::move(specular) },
+            .diffuse = std::move(diffuse),
+            .specular = std::move(specular),
             .shininess = 128.f
         };
 
