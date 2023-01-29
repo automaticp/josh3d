@@ -2,7 +2,6 @@
 #include <glbinding/glbinding.h>
 #include <glfwpp/glfwpp.h>
 
-#include "CubemapScene.hpp"
 #include "Globals.hpp"
 #include "Scenes.hpp"
 #include "All.hpp"
@@ -30,6 +29,7 @@ int main() {
 #ifndef NDEBUG
     enable_glbinding_logger();
 #endif
+    globals::init_all();
 
     globals::window_size.track(window);
 
