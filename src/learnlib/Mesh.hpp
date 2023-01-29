@@ -1,125 +1,62 @@
 #pragma once
-#include <glbinding/gl/types.h>
-#include <vector>
-#include <utility>
-#include <memory>
-#include <glbinding/gl/gl.h>
 #include "GLObjects.hpp"
-#include "Logging.hpp"
-#include "Vertex.hpp"
+#include "MeshData.hpp"
+#include "VertexTraits.hpp"
+
+#include <glbinding/gl/gl.h>
 
 
 namespace learn {
 
 
-
-template<typename V = Vertex>
 class Mesh {
-public:
-    using tex_handle_t = std::shared_ptr<TextureHandle>;
-
 private:
-    std::vector<V> vertices_;
-    std::vector<gl::GLuint> elements_;
-
-    tex_handle_t diffuse_;
-    tex_handle_t specular_;
-
     VBO vbo_;
     VAO vao_;
     EBO ebo_;
+    gl::GLsizei num_elements_;
 
 public:
-    Mesh(std::vector<V> vertices, std::vector<gl::GLuint> elements,
-         tex_handle_t diffuse, tex_handle_t specular)
-        : vertices_{ std::move(vertices) }, elements_{ std::move(elements) },
-        diffuse_{ std::move(diffuse) }, specular_{ std::move(specular) }
+    template<typename V>
+    Mesh(const MeshData<V>& data)
+        : num_elements_{ static_cast<gl::GLsizei>(data.elements().size()) }
     {
         using namespace gl;
 
-        auto bvao = vao_.bind();
+        // Ok, these 'and_then's are getting pretty ridiculous
+        vao_.bind()
+            .and_then_with_self([this, &data](BoundVAO& self) {
 
-        vbo_.bind()
-           .attach_data(vertices_.size(), vertices_.data(), GL_STATIC_DRAW)
-           .associate_with(bvao, VertexTraits<V>::aparams);
+                vbo_.bind()
+                    .attach_data(data.vertices().size(), data.vertices().data(), GL_STATIC_DRAW)
+                    .associate_with(self, VertexTraits<V>::aparams);
 
-        ebo_.bind(bvao)
-           .attach_data(elements_.size(), elements_.data(), GL_STATIC_DRAW);
+                ebo_.bind(self)
+                    .attach_data(num_elements_, data.elements().data(), GL_STATIC_DRAW);
 
+            })
+            .unbind();
     }
 
-    void draw(ActiveShaderProgram& sp) {
+    void draw() {
         using namespace gl;
 
-        sp.uniform("material.diffuse", 0);
-	    diffuse_->bind_to_unit(GL_TEXTURE0);
-
-        sp.uniform("material.specular", 1);
-	    specular_->bind_to_unit(GL_TEXTURE1);
-
-        sp.uniform("material.shininess", 128.0f);
-
-
         vao_.bind()
-           .draw_elements(GL_TRIANGLES, elements_.size(), GL_UNSIGNED_INT);
-
+           .draw_elements(GL_TRIANGLES, num_elements_, GL_UNSIGNED_INT);
     }
 
-    void draw(ActiveShaderProgram& sp, gl::GLint diffuse_loc, gl::GLint specular_loc, gl::GLint shininess_loc) {
+
+    void draw_instanced(gl::GLsizei count) {
         using namespace gl;
 
-        sp.uniform(diffuse_loc, 0);
-        diffuse_->bind_to_unit(GL_TEXTURE0);
-
-        sp.uniform(specular_loc, 1);
-        specular_->bind_to_unit(GL_TEXTURE1);
-
-        sp.uniform(shininess_loc, 128.0f);
-
         vao_.bind()
-           .draw_elements(GL_TRIANGLES, elements_.size(), GL_UNSIGNED_INT);
-
+            .draw_elements_instanced(GL_TRIANGLES, num_elements_, GL_UNSIGNED_INT, count);
     }
 
-
-    void draw_instanced(ActiveShaderProgram& asp, gl::GLsizei count) {
-        using namespace gl;
-
-        asp.uniform("material.diffuse", 0);
-	    diffuse_->bind_to_unit(GL_TEXTURE0);
-
-        asp.uniform("material.specular", 1);
-	    specular_->bind_to_unit(GL_TEXTURE1);
-
-        asp.uniform("material.shininess", 128.0f);
-
-        vao_.bind()
-            .draw_elements_instanced(GL_TRIANGLES, elements_.size(), GL_UNSIGNED_INT, count);
-
-    }
-
-
-
-    const std::vector<V>& vertices() const noexcept {
-        return vertices_;
-    }
-
-    std::vector<V>& vertices() noexcept {
-        return vertices_;
-    }
-
-    const std::vector<gl::GLuint>& elements() const noexcept {
-        return elements_;
-    }
-
-    std::vector<gl::GLuint>& elements() noexcept {
-        return elements_;
-    }
 
 
 };
 
 
 } // namespace learn
-
 
