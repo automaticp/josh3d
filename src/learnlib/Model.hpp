@@ -1,52 +1,57 @@
 #pragma once
-#include <vector>
-#include <utility>
-
-#include "Vertex.hpp"
-#include "Mesh.hpp"
+#include "DrawableMesh.hpp"
 #include "GLObjects.hpp"
 
+#include <glbinding/gl/types.h>
+#include <utility>
+#include <vector>
 
 
 
 namespace learn {
 
 
-
-template<typename V = Vertex>
+// Model is a collection of DrawableMeshes;
+// DrawableMesh is a pair of a Mesh and a Material;
+// Mesh is vertex data on the GPU;
+// Material is texture data on the GPU and material parameters.
 class Model {
 private:
-    std::vector<Mesh<V>> meshes_;
+    std::vector<DrawableMesh> meshes_;
 
 public:
-    explicit Model(std::vector<Mesh<V>> meshes) : meshes_{ std::move(meshes) } {}
+    explicit Model(std::vector<DrawableMesh> meshes) : meshes_{ std::move(meshes) } {}
 
-    void draw(ActiveShaderProgram& sp) {
-        for (auto&& mesh : meshes_) {
-            mesh.draw(sp);
+    const auto& drawable_meshes() const noexcept { return meshes_; }
+    auto& drawable_meshes() noexcept { return meshes_; }
+
+
+    void draw(ActiveShaderProgram& asp) {
+        for (DrawableMesh& drawable : meshes_) {
+            drawable.draw(asp);
         }
     }
 
-    void draw(ActiveShaderProgram& sp, gl::GLint diffuse_loc, gl::GLint specular_loc, gl::GLint shininess_loc) {
-        for (auto&& mesh : meshes_) {
-            mesh.draw(sp, diffuse_loc, specular_loc, shininess_loc);
+    void draw(ActiveShaderProgram& asp, const MaterialDSLocations& locations) {
+        for (DrawableMesh& drawable : meshes_) {
+            drawable.draw(asp, locations);
         }
     }
 
     void draw_instanced(ActiveShaderProgram& asp, gl::GLsizei count) {
-        for (auto& mesh : meshes_) {
-            mesh.draw_instanced(asp, count);
+        for (DrawableMesh& drawable : meshes_) {
+            drawable.draw_instanced(asp, count);
         }
     }
 
-
-    const std::vector<Mesh<V>>& mehses() const noexcept {
-        return meshes_;
+    void draw_instanced(ActiveShaderProgram& asp,
+        const MaterialDSLocations& locations, gl::GLsizei count)
+    {
+        for (DrawableMesh& drawable : meshes_) {
+            drawable.draw_instanced(asp, locations, count);
+        }
     }
 
-    std::vector<Mesh<V>>& mehses() noexcept {
-        return meshes_;
-    }
 };
 
 
