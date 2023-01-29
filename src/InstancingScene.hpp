@@ -22,7 +22,7 @@ private:
     SSBO instance_ssbo_;
     std::vector<Transform> instance_transforms_;
 
-    Model<> box_model_;
+    Model box_model_;
 
     light::Ambient ambient_;
     light::Point light_;

@@ -16,11 +16,11 @@
 class ReloadModelGui {
 private:
     std::string filepath_;
-    learn::Model<>& model_ref_;
+    learn::Model& model_ref_;
     ImVec2 window_scale_{ 55.f, 7.f };
 
 public:
-    ReloadModelGui(learn::Model<>& model)
+    ReloadModelGui(learn::Model& model)
         : model_ref_{ model }
     {}
 
@@ -41,7 +41,6 @@ public:
         if (ImGui::Button("Load")) {
             try {
                 model_ref_ = learn::AssimpModelLoader<>()
-                    .add_flags(aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph)
                     .load(filepath_)
                     .get();
             } catch (learn::error::AssimpLoaderError& e) {
@@ -68,7 +67,7 @@ private:
 
     ShaderProgram shader_;
 
-    Model<> model_;
+    Model model_;
 
     light::Point light_;
 
@@ -90,10 +89,6 @@ public:
         }
         , model_{
             AssimpModelLoader<>()
-                .add_flags(
-                    aiProcess_OptimizeMeshes |
-                    aiProcess_OptimizeGraph
-                )
                 .load("data/models/backpack/backpack.obj")
                 .get()
         }

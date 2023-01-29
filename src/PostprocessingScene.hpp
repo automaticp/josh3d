@@ -7,6 +7,8 @@
 #include "Input.hpp"
 #include "LightCasters.hpp"
 #include "Logging.hpp"
+#include "MaterialDS.hpp"
+#include "MaterialTraits.hpp"
 #include "PostprocessDoubleBuffer.hpp"
 #include "PostprocessStage.hpp"
 #include "ShaderBuilder.hpp"
@@ -28,8 +30,8 @@ class PostprocessingScene {
 private:
     glfw::Window& window_;
 
-    Model<> box_;
-    Model<> plane_;
+    Model box_;
+    Model plane_;
 
     BatchedShader solid_shader_;
 
@@ -224,7 +226,8 @@ private:
 
         ActiveShaderProgram sasp{ solid_shader_.program().use() };
 
-        const auto& sp = solid_shader_;
+        auto& sp = solid_shader_;
+        MaterialDSLocations locations = query_locations<MaterialDS>(sp.program());
 
         sp.uniform("projection", projection);
         sp.uniform("view", view);
@@ -249,26 +252,17 @@ private:
         sp.uniform("model", box1_transform.model());
         sp.uniform("normalModel", box1_transform.normal_model());
 
-        box_.draw(
-            sasp, sp.location_of("material.diffuse"),
-            sp.location_of("material.specular"), sp.location_of("material.shininess")
-        );
+        box_.draw(sasp, locations);
 
         sp.uniform("model", box2_transform.model());
         sp.uniform("normalModel", box2_transform.normal_model());
 
-        box_.draw(
-            sasp, sp.location_of("material.diffuse"),
-            sp.location_of("material.specular"), sp.location_of("material.shininess")
-        );
+        box_.draw(sasp, locations);
 
         sp.uniform("model", plane_transform.model());
         sp.uniform("normalModel", plane_transform.normal_model());
 
-        plane_.draw(
-            sasp, sp.location_of("material.diffuse"),
-            sp.location_of("material.specular"), sp.location_of("material.shininess")
-        );
+        plane_.draw(sasp, locations);
 
 
 
