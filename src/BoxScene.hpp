@@ -24,12 +24,7 @@ private:
     ShaderProgram sp_box_;
     ShaderProgram sp_light_;
 
-    Model<> box_;
-
-    std::vector<Vertex> box_vertices_;
-
-    VAO light_vao_;
-    VBO light_vbo_;
+    Model box_;
 
     static const std::array<glm::vec3, 10> initial_box_positions;
     std::array<Transform, 10> box_transforms_;
@@ -65,9 +60,6 @@ public:
             AssimpModelLoader<>()
                 .load("data/models/container/container.obj")
                 .get()
-        }
-        , box_vertices_{
-            box_.mehses().at(0).vertices()
         }
         , box_transforms_{
             [] {
@@ -124,11 +116,6 @@ public:
             }
         );
         input_.use();
-
-        using namespace gl;
-        light_vbo_.bind()
-            .attach_data(box_vertices_.size(), box_vertices_.data(),GL_STATIC_DRAW)
-            .associate_with<Vertex>(light_vao_.bind());
 
     }
 
@@ -225,7 +212,7 @@ private:
 
         ActiveShaderProgram asp_light{ sp_light_.use() };
 
-        auto bound_light_vao = light_vao_.bind();
+        Mesh& box_mesh = box_.drawable_meshes().at(0).mesh();
 
         asp_light.uniform("projection", projection);
         asp_light.uniform("view", view);
@@ -240,7 +227,7 @@ private:
 
             asp_light.uniform("lightColor", lp.color);
 
-            bound_light_vao.draw_arrays(GL_TRIANGLES, 0, box_vertices_.size());
+            box_mesh.draw();
         }
 
     }
