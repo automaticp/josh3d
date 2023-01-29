@@ -16,16 +16,15 @@ namespace learn {
 class StbImageData {
 private:
     struct StbImageDeleter {
-        void operator()(std::byte* data) {
+        void operator()(unsigned char* data) {
             if (data) { stbi_image_free(reinterpret_cast<stbi_uc*>(data)); }
         }
     };
-    using stb_image_owner_t = std::unique_ptr<std::byte[], StbImageDeleter>;
 
     size_t width_;
     size_t height_;
     size_t n_channels_;
-    stb_image_owner_t data_{};
+    std::unique_ptr<unsigned char[], StbImageDeleter> data_{};
 
 public:
     StbImageData(const std::string& path, bool flip_vertically = true, int num_desired_channels = 0)
@@ -38,7 +37,7 @@ public:
 
         int width, height, n_channels;
         data_.reset(
-            reinterpret_cast<std::byte*>(
+            reinterpret_cast<unsigned char*>(
                 stbi_load(path, &width, &height, &n_channels, num_desired_channels)
             )
         );
@@ -56,7 +55,7 @@ public:
 
 
     size_t size() const noexcept { return width_ * height_ * n_channels_; }
-    std::byte* data() const noexcept { return data_.get(); }
+    unsigned char* data() const noexcept { return data_.get(); }
     size_t width() const noexcept { return width_; }
     size_t height() const noexcept { return height_; }
     size_t n_channels() const noexcept { return n_channels_; }
@@ -69,18 +68,18 @@ private:
     size_t width_;
     size_t height_;
     size_t n_channels_;
-    std::unique_ptr<std::byte[]> data_;
+    std::unique_ptr<unsigned char[]> data_;
 
 public:
     ImageData(size_t width, size_t height, size_t n_channels)
         : width_{ width }, height_{ height }, n_channels_{ n_channels },
-        data_{ std::make_unique_for_overwrite<std::byte[]>(size()) } {}
+        data_{ std::make_unique_for_overwrite<unsigned char[]>(size()) } {}
 
-    ImageData(std::unique_ptr<std::byte[]> data, size_t width, size_t height, size_t n_channels)
+    ImageData(std::unique_ptr<unsigned char[]> data, size_t width, size_t height, size_t n_channels)
         : width_{ width }, height_{ height }, n_channels_{ n_channels }, data_{ std::move(data) } {}
 
     size_t size() const noexcept { return width_ * height_ * n_channels_; }
-    std::byte* data() const noexcept { return data_.get(); }
+    unsigned char* data() const noexcept { return data_.get(); }
     size_t width() const noexcept { return width_; }
     size_t height() const noexcept { return height_; }
     size_t n_channels() const noexcept { return n_channels_; }
@@ -98,7 +97,7 @@ private:
 public:
     explicit(false) TextureData(variant_t image_variant) : variant_{ std::move(image_variant) } {}
     size_t size() const noexcept { return std::visit([](auto&& v) { return v.size(); }, variant_); }
-    std::byte* data() const noexcept { return std::visit([](auto&& v) { return v.data(); }, variant_); }
+    unsigned char* data() const noexcept { return std::visit([](auto&& v) { return v.data(); }, variant_); }
     size_t width() const noexcept { return std::visit([](auto&& v) { return v.width(); }, variant_); }
     size_t height() const noexcept { return std::visit([](auto&& v) { return v.height(); }, variant_); }
     size_t n_channels() const noexcept { return std::visit([](auto&& v) { return v.n_channels(); }, variant_); }
