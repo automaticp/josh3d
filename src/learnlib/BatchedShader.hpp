@@ -342,6 +342,7 @@ public:
     }
 
     ShaderProgram& program() noexcept { return shader_; }
+    const ShaderProgram& program() const noexcept { return shader_; }
 
     gl::GLint location_of(const std::string& name) const {
         return uniform_info_.location_of(name);
