@@ -5,6 +5,7 @@
 #include "Globals.hpp"
 #include "Input.hpp"
 #include "LightCasters.hpp"
+#include "ShaderBuilder.hpp"
 #include "Transform.hpp"
 #include <glfwpp/window.h>
 
@@ -17,6 +18,7 @@ class InstancingScene {
 private:
     glfw::Window& window_;
 
+    ShaderProgram light_shader_;
     ShaderProgram instanced_shader_;
     ShaderProgram non_instanced_shader_;
     SSBO instance_ssbo_;
@@ -36,16 +38,22 @@ private:
 public:
     InstancingScene(glfw::Window& window)
         : window_{ window }
+        , light_shader_{
+            ShaderBuilder()
+                .load_vert("src/shaders/non_instanced.vert")
+                .load_frag("src/shaders/light_source.frag")
+                .get()
+        }
         , instanced_shader_{
             ShaderBuilder()
                 .load_vert("src/shaders/instanced.vert")
-                .load_frag("src/shaders/tex_ds_one_point_light.frag")
+                .load_frag("src/shaders/mat_ds_light_ap1.frag")
                 .get()
         }
         , non_instanced_shader_{
             ShaderBuilder()
                 .load_vert("src/shaders/non_instanced.vert")
-                .load_frag("src/shaders/tex_ds_one_point_light.frag")
+                .load_frag("src/shaders/mat_ds_light_ap1.frag")
                 .get()
         }
         , box_model_{
@@ -58,7 +66,7 @@ public:
         }
         , light_{
             .color = { 1.f, 1.0f, 0.8f },
-            .position = { 2.5f, 2.8f, 100.f },
+            .position = { 2.5f, 2.8f, 20.f },
             .attenuation = { 0.0f, 0.0f, 0.001f }
         }
         , cam_{ { 0.0f, 0.0f, 3.0f }, { 0.0f, 0.0f, -1.0f } }
@@ -101,7 +109,7 @@ public:
     }
 
     void update() {
-        update_transforms();
+        // update_transforms();
     }
 
     void render() {
@@ -116,33 +124,45 @@ public:
 private:
     void draw_scene_objects() {
 
+        auto [width, height] = learn::globals::window_size.size();
+
+        glm::mat4 projection = glm::perspective(
+            cam_.get_fov(),
+            static_cast<float>(width) / static_cast<float>(height),
+            0.1f, 100.0f
+        );
+
+        draw_light_source(projection);
+
         // I and N to switch between
         // Instanced and Non-instanced modes.
         if (is_instanced_) {
             update_ssbo();
-            draw_scene_instanced();
+            draw_scene_instanced(projection);
         }
         else {
-            draw_scene_non_instanced();
+            draw_scene_non_instanced(projection);
         }
 
     }
 
-    void draw_scene_instanced() {
+
+
+    void draw_scene_instanced(const glm::mat4& projection) {
 
         auto asp = instanced_shader_.use();
 
-        set_common_uniforms(asp);
+        set_common_uniforms(asp, projection);
 
         box_model_.draw_instanced(asp, instance_transforms_.size());
 
     }
 
 
-    void draw_scene_non_instanced() {
+    void draw_scene_non_instanced(const glm::mat4& projection) {
         auto asp = non_instanced_shader_.use();
 
-        set_common_uniforms(asp);
+        set_common_uniforms(asp, projection);
 
         for (const auto& transform : instance_transforms_) {
             asp.uniform("model", transform.model());
@@ -151,15 +171,7 @@ private:
         }
     }
 
-    void set_common_uniforms(ActiveShaderProgram& asp) {
-
-        auto [width, height] = learn::globals::window_size.size();
-
-        glm::mat4 projection = glm::perspective(
-            cam_.get_fov(),
-            static_cast<float>(width) / static_cast<float>(height),
-            0.1f, 100.0f
-        );
+    void set_common_uniforms(ActiveShaderProgram& asp, const glm::mat4& projection) {
 
         asp .uniform("projection", projection)
             .uniform("view", cam_.view_mat())
@@ -174,7 +186,29 @@ private:
             .uniform("point_light.attenuation.quadratic",
                 light_.attenuation.quadratic)
             .uniform("ambient_light.color", ambient_.color);
+
     }
+
+
+    void draw_light_source(const glm::mat4& projection) {
+
+        ActiveShaderProgram asp_light{ light_shader_.use() };
+
+        Mesh& box_mesh = box_model_.drawable_meshes().at(0).mesh();
+
+        asp_light.uniform("projection", projection);
+        asp_light.uniform("view", cam_.view_mat());
+
+        Transform light_transform = Transform()
+            .translate(light_.position)
+            .scale(glm::vec3{ 0.2f });
+
+        asp_light.uniform("model", light_transform.model());
+        asp_light.uniform("light_color", light_.color);
+        box_mesh.draw();
+
+    }
+
 
     void init_transforms() {
 
