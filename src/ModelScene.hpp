@@ -1,9 +1,12 @@
 #pragma once
 #include "All.hpp"
 #include "AssimpModelLoader.hpp"
+#include "GLObjects.hpp"
 #include "Globals.hpp"
 #include "Input.hpp"
+#include "CubemapData.hpp"
 #include "LightCasters.hpp"
+#include "SkyboxRenderer.hpp"
 #include "Transform.hpp"
 #include "ImGuiContextWrapper.hpp"
 #include <glfwpp/window.h>
@@ -69,6 +72,11 @@ private:
 
     Model model_;
 
+    SkyboxRenderer sky_renderer_;
+    Cubemap cubemap_;
+
+    light::Ambient ambient_;
+    light::Directional directional_;
     light::Point light_;
 
     Camera cam_;
@@ -83,14 +91,21 @@ public:
         : window_{ window }
         , shader_{
             ShaderBuilder()
-                .load_vert("src/shaders/VertexShader.vert")
-                .load_frag("src/shaders/TextureMaterialObject.frag")
+                .load_vert("src/shaders/non_instanced.vert")
+                .load_frag("src/shaders/mat_ds_light_ad.frag")
                 .get()
         }
         , model_{
             AssimpModelLoader<>()
                 .load("data/models/backpack/backpack.obj")
                 .get()
+        }
+        , ambient_{
+            .color = { 0.428f, 0.443f, 0.457f }
+        }
+        , directional_{
+            .color = { 0.545f, 0.545f, 0.490f },
+            .direction = { 0.45f, -0.45f, -0.77f }
         }
         , light_{
             .color = { 0.3f, 0.3f, 0.2f },
@@ -101,6 +116,29 @@ public:
         , imgui_{ window_ }
         , gui_{ model_ }
     {
+        CubemapData cubemap_data = CubemapData::from_files(
+            {
+                "data/textures/skybox/lake/right.png",
+                "data/textures/skybox/lake/left.png",
+                "data/textures/skybox/lake/top.png",
+                "data/textures/skybox/lake/bottom.png",
+                "data/textures/skybox/lake/front.png",
+                "data/textures/skybox/lake/back.png",
+            }
+        );
+
+        using namespace gl;
+        cubemap_.bind()
+            .attach_data(cubemap_data)
+            // It's broken without these.
+            // But why???
+            .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+            .set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+            .set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
+            .set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+            .set_parameter(GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE)
+            .unbind();
+
         input_.bind_callbacks();
     }
 
@@ -138,19 +176,21 @@ private:
         glm::vec3 cam_pos{ cam_.get_pos() };
 
 
-        auto backpack_transform = Transform();
+        sky_renderer_.draw(cubemap_, projection, view);
+
+        auto transform = Transform();
 
         auto asp = shader_.use();
         asp.uniform("projection", projection);
         asp.uniform("view", view);
-        asp.uniform("camPos", cam_pos);
+        asp.uniform("model", transform.model());
+        asp.uniform("normal_model", transform.normal_model());
 
-        asp.uniform("model", backpack_transform.model());
-        asp.uniform("normalModel", backpack_transform.normal_model());
+        asp.uniform("ambient_light.color", ambient_.color);
+        asp.uniform("dir_light.color", directional_.color);
+        asp.uniform("dir_light.direction", directional_.direction);
 
-
-        asp.uniform("lightColor", light_.color);
-        asp.uniform("lightPos", light_.position);
+        // asp.uniform("cam_pos", cam_pos);
 
         model_.draw(asp);
 
