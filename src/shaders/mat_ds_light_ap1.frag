@@ -34,68 +34,13 @@ uniform vec3 cam_pos;
 
 
 
-
-struct LightAlignmentDistanceFactors {
-    float diffuse_alignment;
-    float specular_alignment;
-    float distance_factor;
-};
-
-LightAlignmentDistanceFactors
-get_light_alignment_distance_factors(
-    vec3 normal_dir, vec3 light_vec, vec3 view_dir, Attenuation att)
-{
-
-    LightAlignmentDistanceFactors ladf;
-
-    vec3 light_dir = normalize(light_vec);
-    vec3 reflection_dir = reflect(-light_dir, normal_dir);
-    float light_distance = length(light_vec);
-
-    ladf.diffuse_alignment = max(dot(normal_dir, light_dir), 0.0);
-    ladf.specular_alignment = max(dot(view_dir, reflection_dir), 0.0);
-
-    ladf.distance_factor =
-        1.0 / (
-            att.constant +
-            att.linear * light_distance +
-            att.quadratic * (light_distance * light_distance)
-        );
-
-    return ladf;
+float get_distance_factor(float light_distance, Attenuation att) {
+    return 1.0 / (
+        att.constant +
+        att.linear * light_distance +
+        att.quadratic * (light_distance * light_distance)
+    );
 }
-
-
-// Strength after accounting for alignment and distance
-struct LightComponentStrength {
-    float diffuse;
-    float specular;
-};
-
-LightComponentStrength
-get_light_component_strength(const LightAlignmentDistanceFactors ladf) {
-
-    LightComponentStrength lcs;
-    lcs.diffuse = ladf.diffuse_alignment * ladf.distance_factor;
-    lcs.specular = pow(ladf.specular_alignment, material.shininess) * ladf.distance_factor;
-
-    return lcs;
-}
-
-
-
-vec3 apply_light(
-    vec3 light_color, const LightComponentStrength lcs,
-    vec3 tex_diffuse, vec3 tex_specular)
-{
-
-    vec3 diffuse = lcs.diffuse * tex_diffuse;
-    vec3 specular = lcs.specular * tex_specular;
-
-    return light_color * (diffuse + specular);
-}
-
-
 
 
 
@@ -105,19 +50,27 @@ void main() {
 
     vec3 normal_dir = normalize(normal);
     vec3 light_vec = point_light.position - frag_pos;
+    vec3 light_dir = normalize(light_vec);
     vec3 view_dir = normalize(cam_pos - frag_pos);
 
-    LightAlignmentDistanceFactors ladf =
-        get_light_alignment_distance_factors(
-            normal_dir, light_vec, view_dir, point_light.attenuation
-        );
+    vec3 reflection_dir = reflect(-light_dir, normal_dir);
+    float light_distance = length(light_vec);
 
-    LightComponentStrength lcs = get_light_component_strength(ladf);
+    float diffuse_alignment = max(dot(normal_dir, light_dir), 0.0);
+    float specular_alignment = max(dot(view_dir, reflection_dir), 0.0);
 
-    vec3 result_color =
-        apply_light(point_light.color, lcs, tex_diffuse, tex_specular);
+    float distance_factor = get_distance_factor(light_distance, point_light.attenuation);
+
+    float diffuse_strength = distance_factor * diffuse_alignment;
+    float specular_strength = distance_factor * pow(specular_alignment, material.shininess);
+
+
+    vec3 result_color = vec3(0.0);
 
     result_color += ambient_light.color * tex_diffuse;
+    result_color += point_light.color * diffuse_strength * tex_diffuse;
+    result_color += point_light.color * specular_strength * tex_specular;
+
 
     frag_color = vec4(result_color, 1.0);
 
