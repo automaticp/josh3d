@@ -359,7 +359,7 @@ public:
     // More testing
     void print_uniforms() const {
         for (auto& info : uniform_info_.map()) {
-            global_logstream
+            globals::logstream
                 << "[Uniform] name: " << info.first
                 << ", index: " << info.second.index
                 << ", type: " << static_cast<std::underlying_type_t<decltype(info.second.type)>>(info.second.type)

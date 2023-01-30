@@ -1,11 +1,11 @@
 #pragma once
+#include "Shared.hpp"
+#include "GLObjects.hpp"
+#include "DataPool.hpp"
 #include <memory>
 #include <string>
-#include <utility>
 #include <unordered_map>
-#include "DataPool.hpp"
-#include "GLObjects.hpp"
-#include "Shared.hpp"
+#include <utility>
 
 namespace learn {
 
@@ -17,8 +17,9 @@ template<typename T> struct default_upstream;
 template<typename T>
 using default_upstream_t = typename default_upstream<T>::type;
 
-template<> struct default_upstream<TextureHandle> { using type = DataPool<TextureData>; };
 
+
+template<> struct default_upstream<TextureHandle> { using type = DataPool<TextureData>; };
 
 
 
@@ -78,17 +79,6 @@ void GLObjectPool<T, UpstreamT>::clear_unused() {
 
 
 
-
-template<>
-inline Shared<TextureHandle>
-GLObjectPool<TextureHandle, DataPool<TextureData>>::load_data_from(const std::string& path) {
-    Shared<TextureData> tex_data{ upstream_.load(path) };
-
-    auto new_handle = std::make_shared<TextureHandle>();
-    new_handle->bind().attach_data(*tex_data);
-
-    return new_handle;
-}
 
 
 

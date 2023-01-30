@@ -15,13 +15,13 @@
 
 #include "GLObjects.hpp"
 #include "GLObjectPool.hpp"
-#include "Globals.hpp"
+#include "GlobalsGL.hpp"
+#include "GlobalsUtil.hpp"
 #include "MaterialDS.hpp"
 #include "MeshData.hpp"
 #include "DrawableMesh.hpp"
 #include "Vertex.hpp"
 #include "Model.hpp"
-#include "Logging.hpp"
 
 
 namespace learn {
@@ -157,7 +157,7 @@ public:
         const aiScene* new_scene{ importer_.ReadFile(path, flags_) };
 
         if (!new_scene) {
-            global_logstream << "[Assimp Error] " << importer_.GetErrorString() << '\n';
+            globals::logstream << "[Assimp Error] " << importer_.GetErrorString() << '\n';
             throw error::AssimpLoaderIOError(importer_.GetErrorString());
         }
 
@@ -217,7 +217,7 @@ public:
         const aiScene* new_scene{ importer_.ReadFile(path, flags_) };
 
         if (!new_scene) {
-            global_logstream << "[Assimp Error] " << importer_.GetErrorString() << '\n';
+            globals::logstream << "[Assimp Error] " << importer_.GetErrorString() << '\n';
             throw error::AssimpLoaderIOError(importer_.GetErrorString());
         }
 

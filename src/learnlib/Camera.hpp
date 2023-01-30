@@ -2,6 +2,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include "Basis.hpp"
+#include "GlobalsUtil.hpp"
 
 
 namespace learn {
@@ -20,8 +21,8 @@ public:
     Camera(const glm::vec3& pos, const glm::vec3& dir, float fov = glm::radians(60.0f)) :
             pos_{ pos },
             local_basis_{
-                glm::cross(glm::normalize(dir), global_basis.y()),
-                glm::orthonormalize(global_basis.y(), glm::normalize(dir)),
+                glm::cross(glm::normalize(dir), globals::basis.y()),
+                glm::orthonormalize(globals::basis.y(), glm::normalize(dir)),
                 true
             },
             fov_{ fov }
@@ -43,7 +44,7 @@ public:
     }
 
     float get_pitch() const noexcept {
-        return glm::sign(glm::dot(global_basis.y(), local_basis_.y())) * glm::asin(glm::length(glm::cross(global_basis.y(), local_basis_.y())));
+        return glm::sign(glm::dot(globals::basis.y(), local_basis_.y())) * glm::asin(glm::length(glm::cross(globals::basis.y(), local_basis_.y())));
     }
 
     const glm::vec3& get_pos() { return pos_; }

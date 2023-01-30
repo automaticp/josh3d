@@ -3,7 +3,7 @@
 #include "Collisions.hpp"
 #include "FrameTimer.hpp"
 #include "GLObjects.hpp"
-#include "Globals.hpp"
+#include "GlobalsGL.hpp"
 #include "Input.hpp"
 #include "Logging.hpp"
 #include "Paddle.hpp"
@@ -368,11 +368,11 @@ private:
                     // Apply effect...
                     apply_powerup(pup.type());
                     pup.destroy();
-                    learn::global_logstream << "Destroyed PowerUp Type " << size_t(pup.type()) << " On Player Collision\n";
+                    learn::globals::logstream << "Destroyed PowerUp Type " << size_t(pup.type()) << " On Player Collision\n";
                 } else if (!check_collision(pup.box(), global_canvas)) {
                     // Just destroy
                     pup.destroy();
-                    learn::global_logstream << "Destroyed PowerUp Type " << size_t(pup.type()) << " On Out-of-Bounds\n";
+                    learn::globals::logstream << "Destroyed PowerUp Type " << size_t(pup.type()) << " On Out-of-Bounds\n";
                 }
             }
         }

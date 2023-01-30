@@ -1,54 +1,39 @@
 #pragma once
-#include "DataPool.hpp"
-#include "FrameTimer.hpp"
-#include "GLObjectPool.hpp"
-#include "TextureData.hpp"
-#include "GLObjects.hpp"
-#include "WindowSizeCache.hpp"
-#include "Shared.hpp"
+
+
+
+// Declarations of globals are split between headers
+// to avoid circular dependencies that arise
+// when chucking a bunch of unrelated classes
+// into a single header, and when suddenly one of
+// them needs one of the globals.
+//
+// Include specific Globals* headers.
+
 
 namespace learn::globals {
 
-void clear_all();
-
-inline DataPool<TextureData> texture_data_pool;
-inline GLObjectPool<TextureHandle> texture_handle_pool{ texture_data_pool };
-
-inline FrameTimer frame_timer;
-
-// Only really usable for apps with one window.
-inline WindowSizeCache window_size;
-
-
-
-
-Shared<TextureHandle> init_default_diffuse_texture();
-Shared<TextureHandle> init_default_specular_texture();
-
-
-inline Shared<TextureHandle> default_diffuse_texture;
-inline Shared<TextureHandle> default_specular_texture;
-
-
 // Initialize the global defaults.
-// Must be done righ after creating the OpenGL context.
-inline void init_all() {
-    default_diffuse_texture = init_default_diffuse_texture();
-    default_specular_texture = init_default_specular_texture();
-}
-
+// Must be done right after creating the OpenGL context.
+void init_all();
 
 
 // Clear out all the global pools and textures.
 // Must be done before destroying the OpenGL context.
-inline void clear_all() {
-    texture_data_pool.clear();
-    texture_handle_pool.clear();
-    default_diffuse_texture = nullptr;
-    default_specular_texture = nullptr;
-}
+void clear_all();
 
 
+// RAII wrapper for initialization and cleanup of globals.
+// Must be constructed right after creating the OpenGL context.
+class RAIIContext {
+public:
+    RAIIContext() { init_all(); }
+    RAIIContext(const RAIIContext&) = delete;
+    RAIIContext(RAIIContext&&) = delete;
+    RAIIContext& operator=(const RAIIContext&) = delete;
+    RAIIContext& operator=(RAIIContext&&) = delete;
+    ~RAIIContext() { clear_all(); }
+};
 
 
 } // namespace learn::globals

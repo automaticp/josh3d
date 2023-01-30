@@ -111,7 +111,7 @@ public:
 };
 
 
-inline const OrthonormalBasis3D global_basis{ glm::vec3(1.0f, 0.0, 0.0), glm::vec3(0.0f, 1.0f, 0.0f), true };
+// inline const OrthonormalBasis3D globals::basis{ glm::vec3(1.0f, 0.0, 0.0), glm::vec3(0.0f, 1.0f, 0.0f), true };
 
 
 } // namespace learn

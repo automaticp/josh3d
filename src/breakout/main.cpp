@@ -25,6 +25,8 @@ int main() {
 	// window.setInputModeCursor(glfw::CursorMode::Disabled);
 
 	glbinding::initialize(glfwGetProcAddress);
+
+    learn::globals::RAIIContext global_context;
 #ifndef NDEBUG
 	learn::enable_glbinding_logger();
 #endif
@@ -63,7 +65,5 @@ int main() {
 
         window.swapBuffers();
     }
-
-    learn::globals::clear_all();
 
 }

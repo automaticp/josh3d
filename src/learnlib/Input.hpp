@@ -1,7 +1,7 @@
 #pragma once
 #include "Basis.hpp"
 #include "Camera.hpp"
-#include "Globals.hpp"
+#include "GlobalsUtil.hpp"
 #include "glfwpp/window.h"
 
 #include <glbinding/gl/gl.h>
@@ -539,7 +539,7 @@ protected:
         last_ypos_ = ypos;
 
         if ( !is_cursor_mode_ ) {
-            camera_.rotate(xoffset, -global_basis.y());
+            camera_.rotate(xoffset, -globals::basis.y());
             camera_.rotate(yoffset, -camera_.right_uv());
         }
     }

@@ -10,7 +10,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <array>
 #include "GLObjectAllocators.hpp"
-#include "Logging.hpp"
+#include "GlobalsUtil.hpp"
 #include "VertexTraits.hpp"
 
 
@@ -794,7 +794,7 @@ public:
         // intrusive later.
         #ifndef NDEBUG
         if (location < 0) {
-            global_logstream <<
+            globals::logstream <<
                 "[Warning] Setting uniform " <<
                 name << " at " << location << " location\n";
         }
@@ -808,7 +808,7 @@ public:
         const auto location = location_of(name.c_str());
         #ifndef NDEBUG
         if (location < 0) {
-            global_logstream <<
+            globals::logstream <<
                 "[Warning] Setting uniform " <<
                 name << " at " << location << " location\n";
         }
@@ -821,7 +821,7 @@ public:
 	ActiveShaderProgram& uniform(GLint location, Args... args) {
 		#ifndef NDEBUG
         if (location < 0) {
-            global_logstream << "[Warning] Setting uniform at -1 location\n";
+            globals::logstream << "[Warning] Setting uniform at -1 location\n";
         }
         #endif
         ActiveShaderProgram::uniform(location, args...);

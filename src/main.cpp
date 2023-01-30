@@ -2,7 +2,7 @@
 #include <glbinding/glbinding.h>
 #include <glfwpp/glfwpp.h>
 
-#include "Globals.hpp"
+#include "GlobalsUtil.hpp"
 #include "Scenes.hpp"
 #include "All.hpp"
 
@@ -26,10 +26,12 @@ int main() {
 
     // Init glbindings
     glbinding::initialize(glfwGetProcAddress);
+
+    globals::RAIIContext globals_context;
+
 #ifndef NDEBUG
     enable_glbinding_logger();
 #endif
-    globals::init_all();
 
     globals::window_size.track(window);
 
@@ -51,7 +53,6 @@ int main() {
     // render_generic_scene<InstancingScene>(window);
     // render_generic_scene<CubemapScene>(window);
 
-    learn::globals::clear_all();
     return 0;
 }
 

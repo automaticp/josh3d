@@ -1,6 +1,6 @@
 #pragma once
 #include "Circle2D.hpp"
-#include "Globals.hpp"
+#include "GlobalsGL.hpp"
 #include "Sprite.hpp"
 
 

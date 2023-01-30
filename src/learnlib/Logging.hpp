@@ -1,4 +1,5 @@
 #pragma once
+#include "GlobalsUtil.hpp"
 #include <iostream>
 #include <string_view>
 #include <sstream>
@@ -15,9 +16,6 @@
 
 
 namespace learn {
-
-
-inline std::ostream& global_logstream{ std::clog };
 
 
 namespace detail {
@@ -61,7 +59,7 @@ inline std::string_view get_error_name(const gl::GLenum error) {
 
 
 
-inline void enable_glbinding_logger(std::ostream& os = global_logstream) {
+inline void enable_glbinding_logger(std::ostream& os = globals::logstream) {
 
     using namespace gl;
     using namespace glbinding;
