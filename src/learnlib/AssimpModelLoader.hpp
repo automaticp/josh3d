@@ -94,7 +94,7 @@ protected:
     }
 
     static constexpr ai_flags_t default_flags =
-        aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_ImproveCacheLocality |
+        aiProcess_Triangulate | aiProcess_ImproveCacheLocality |
         aiProcess_OptimizeMeshes | aiProcess_OptimizeGraph;
 
     ai_flags_t flags_{ default_flags };
