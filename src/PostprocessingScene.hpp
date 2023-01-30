@@ -218,8 +218,9 @@ public:
 private:
     void draw_scene_objects() {
 
-        auto [width, height] = learn::globals::window_size.size();
-        auto projection = glm::perspective(cam_.get_fov(), static_cast<float>(width) / static_cast<float>(height), 0.1f, 100.0f);
+        auto [width, height] = learn::globals::window_size.size<float>();
+        auto projection = cam_.projection_mat(width, height);
+
         auto view = cam_.view_mat();
 
         glm::vec3 cam_pos{ cam_.get_pos() };

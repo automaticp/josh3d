@@ -32,6 +32,10 @@ public:
 
     glm::mat4 view_mat() const noexcept { return glm::lookAt(pos_, pos_ - local_basis_.z(), local_basis_.y()); }
 
+    glm::mat4 projection_mat(float width, float height, float z_near = 0.1f, float z_far = 100.f) const noexcept {
+        return glm::perspective(fov_, width/height, z_near, z_far);
+    }
+
     float get_fov() const noexcept { return fov_; }
     void set_fov(float fov) noexcept { fov_ = fov; }
 
