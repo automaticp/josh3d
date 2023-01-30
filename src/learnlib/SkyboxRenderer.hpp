@@ -42,7 +42,7 @@ public:
     {
         using namespace gl;
 
-        // glDepthMask(GL_FALSE);
+        glDepthMask(GL_FALSE);
 
         skybox_cubemap.bind_to_unit(GL_TEXTURE0);
         skybox_shader_.use()
@@ -55,7 +55,7 @@ public:
                     .unbind();
             });
 
-        // glDepthMask(GL_TRUE);
+        glDepthMask(GL_TRUE);
 
     }
 
