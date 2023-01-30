@@ -339,7 +339,7 @@ public:
 
     // Updates referenced members (or global state) depending on the state of the input instance.
     // Must be called after each glfwPollEvents().
-    virtual void process_input() = 0;
+    virtual void process_input(bool ignore = false) = 0;
 
     virtual ~IInput() = default;
 
@@ -377,8 +377,6 @@ protected:
 
 
 
-
-
 struct InputConfigFreeCamera {
     using key_t = decltype(glfw::KeyCode::A);
     key_t up            { key_t::Space };
@@ -408,7 +406,10 @@ protected:
 
     MoveState move_state_;
 
+    bool wants_toggle_line_{ false };
     bool is_line_mode_{ false };
+
+    bool wants_toggle_cursor_{ false };
     bool is_cursor_mode_{ false };
 
     float last_xpos_{ 0.0f };
@@ -420,8 +421,13 @@ public:
     InputFreeCamera(glfw::Window& window, Camera& camera, const InputConfigFreeCamera& input_config = {}) :
         IInput{ window }, camera_{ camera }, config{ input_config } {}
 
-    void process_input() override {
-        process_input_move();
+    void process_input(bool ignore = false) override {
+        if (!ignore) {
+            process_input_move();
+            process_input_toggle();
+        }
+        wants_toggle_cursor_ = false;
+        wants_toggle_line_ = false;
     }
 
 protected:
@@ -438,6 +444,22 @@ protected:
 
     void respond_to_scroll(const ScrollCallbackArgs& args) override {
         respond_camera_zoom(args);
+    }
+
+    void process_input_toggle() {
+        using namespace gl;
+
+        if (wants_toggle_line_) {
+            is_line_mode_ ^= true;
+            glPolygonMode(GL_FRONT_AND_BACK, is_line_mode_ ? GL_LINE : GL_FILL);
+        }
+
+        if (wants_toggle_cursor_) {
+            using glfw::CursorMode;
+            is_cursor_mode_ ^= true;
+            window_.setInputModeCursor(is_cursor_mode_ ? CursorMode::Normal : CursorMode::Disabled);
+        }
+
     }
 
 
@@ -472,8 +494,7 @@ protected:
         using namespace gl;
 
         if ( args.key == config.toggle_line && args.state == KeyState::Release ) {
-            is_line_mode_ ^= true;
-            glPolygonMode(GL_FRONT_AND_BACK, is_line_mode_ ? GL_LINE : GL_FILL);
+            wants_toggle_line_ = true;
         }
     }
 
@@ -481,8 +502,7 @@ protected:
         using namespace glfw;
 
         if ( args.key == config.toggle_cursor && args.state == KeyState::Release ) {
-            is_cursor_mode_ ^= true;
-            args.window.setInputModeCursor( is_cursor_mode_ ? CursorMode::Normal : CursorMode::Disabled );
+            wants_toggle_cursor_ = true;
         }
     }
 

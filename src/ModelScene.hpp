@@ -105,9 +105,8 @@ public:
     }
 
     void process_input() {
-        if (!ImGui::GetIO().WantCaptureKeyboard) {
-            input_.process_input();
-        }
+        const bool ignore = ImGui::GetIO().WantCaptureKeyboard;
+        input_.process_input(ignore);
     }
 
     void update() {}
