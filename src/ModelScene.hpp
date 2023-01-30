@@ -85,13 +85,6 @@ public:
         using namespace gl;
         cubemap_.bind()
             .attach_data(cubemap_data)
-            // It's broken without these.
-            // But why???
-            .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-            .set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-            .set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
-            .set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
-            .set_parameter(GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE)
             .unbind();
 
         input_.bind_callbacks();

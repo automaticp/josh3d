@@ -72,20 +72,10 @@ public:
 
         cubemap1_.bind_to_unit(GL_TEXTURE0)
             .attach_data(data1)
-            .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-            .set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-            .set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
-            .set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
-            .set_parameter(GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE)
             .unbind();
 
         cubemap2_.bind_to_unit(GL_TEXTURE0)
             .attach_data(data2)
-            .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-            .set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-            .set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
-            .set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
-            .set_parameter(GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE)
             .unbind();
 
     }
