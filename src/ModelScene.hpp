@@ -11,52 +11,9 @@
 #include "ImGuiContextWrapper.hpp"
 #include <glfwpp/window.h>
 #include <assimp/postprocess.h>
+#include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 #include <imgui_stdlib.h>
-
-
-
-class ReloadModelGui {
-private:
-    std::string filepath_;
-    learn::Model& model_ref_;
-    ImVec2 window_scale_{ 55.f, 7.f };
-
-public:
-    ReloadModelGui(learn::Model& model)
-        : model_ref_{ model }
-    {}
-
-    void process() {
-
-        static ImVec2 window_size{
-            window_scale_.x * ImGui::GetFontSize(),
-            window_scale_.y * ImGui::GetFontSize()
-        };
-
-        ImGui::Begin("Load Model");
-
-
-        ImGui::SetWindowSize(window_size, ImGuiCond_Once);
-        ImGui::SetWindowPos({ 0, 0 }, ImGuiCond_Once);
-
-        ImGui::InputText("Path", &filepath_);
-        if (ImGui::Button("Load")) {
-            try {
-                model_ref_ = learn::AssimpModelLoader<>()
-                    .load(filepath_)
-                    .get();
-            } catch (learn::error::AssimpLoaderError& e) {
-                ImGui::LogText("%s", e.what());
-            }
-        }
-
-        ImGui::End();
-
-
-    }
-
-};
 
 
 
@@ -84,7 +41,6 @@ private:
     RebindableInputFreeCamera input_;
 
     ImGuiContextWrapper imgui_;
-    ReloadModelGui gui_;
 
 public:
     ModelScene(glfw::Window& window)
@@ -114,7 +70,6 @@ public:
         , cam_{ {0.0f, 0.0f, 3.0f}, {0.0f, 0.0f, -1.0f} }
         , input_{ window_, cam_ }
         , imgui_{ window_ }
-        , gui_{ model_ }
     {
         CubemapData cubemap_data = CubemapData::from_files(
             {
@@ -157,7 +112,7 @@ public:
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         draw_scene_objects();
 
-        gui_.process();
+        draw_gui();
 
         imgui_.render();
     }
@@ -193,6 +148,48 @@ private:
         // asp.uniform("cam_pos", cam_pos);
 
         model_.draw(asp);
+
+    }
+
+
+
+    void draw_gui() {
+        static std::string filepath{ "data/models/backpack/backpack.obj" };
+        static ImVec2 window_scale{ 55.f, 15.f };
+        static ImVec2 window_size{
+            window_scale.x * ImGui::GetFontSize(),
+            window_scale.y * ImGui::GetFontSize()
+        };
+
+        ImGui::Begin("Debug");
+
+        ImGui::SetWindowSize(window_size, ImGuiCond_Once);
+        ImGui::SetWindowPos({ 0, 0 }, ImGuiCond_Once);
+
+        ImGui::InputText("Path", &filepath);
+        if (ImGui::Button("Load Model")) {
+            try {
+                model_ = learn::AssimpModelLoader<>()
+                    .load(filepath)
+                    .get();
+            } catch (learn::error::AssimpLoaderError& e) {
+                ImGui::LogText("%s", e.what());
+            }
+        }
+
+        ImGui::ColorEdit3("Amb Color", glm::value_ptr(ambient_.color));
+
+        ImGui::SliderFloat3("Dir Direction", glm::value_ptr(directional_.direction), -1.f, 1.f);
+        ImGui::ColorEdit3("Dir Color", glm::value_ptr(directional_.color));
+
+        glm::vec3 cam_dir = -cam_.back_uv();
+        ImGui::Text("Cam Direction: (%.2f, %.2f, %.2f)", cam_dir.x, cam_dir.y, cam_dir.z);
+
+        if (ImGui::Button("Face Light to Camera")) {
+            directional_.direction = -cam_dir;
+        }
+
+        ImGui::End();
 
     }
 
