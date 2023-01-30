@@ -1,6 +1,6 @@
 #pragma once
 #include "All.hpp"
-#include "TextureRenderTarget.hpp"
+#include "RenderTargetColor.hpp"
 #include <utility>
 #include <glbinding/gl/types.h>
 
@@ -23,7 +23,7 @@ The front buffer will contain the results ready for display.
 
 Usage example:
 
-    TextureRenderTarget primary_target{ width, height };
+    RenderTargetColor primary_target{ width, height };
     PostprocessDoubleBuffer pdb{ width, height };
 
     ...
@@ -81,11 +81,11 @@ without having a separate primary buffer.
 
 class PostprocessDoubleBuffer {
 private:
-    TextureRenderTarget buf1_;
-    TextureRenderTarget buf2_;
+    RenderTargetColor buf1_;
+    RenderTargetColor buf2_;
 
-    TextureRenderTarget* front_{ &buf1_ };
-    TextureRenderTarget* back_{ &buf2_ };
+    RenderTargetColor* front_{ &buf1_ };
+    RenderTargetColor* back_{ &buf2_ };
 
 public:
     PostprocessDoubleBuffer(gl::GLsizei width, gl::GLsizei height)
@@ -97,8 +97,8 @@ public:
     const TextureHandle& front_target() const noexcept { return front_->target_texture(); }
 
 
-    TextureRenderTarget& front() noexcept { return *front_; }
-    TextureRenderTarget& back() noexcept { return *back_; }
+    RenderTargetColor& front() noexcept { return *front_; }
+    RenderTargetColor& back() noexcept { return *back_; }
 
     void swap_buffers() {
         std::swap(front_, back_);

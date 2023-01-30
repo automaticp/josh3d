@@ -8,7 +8,7 @@
 namespace learn {
 
 
-class TextureMSRenderTarget {
+class RenderTargetColorMS {
 private:
     TextureMS tex_;
     Framebuffer fbo_;
@@ -20,7 +20,7 @@ private:
 
 
 public:
-    TextureMSRenderTarget(gl::GLsizei width, gl::GLsizei height, gl::GLsizei nsamples)
+    RenderTargetColorMS(gl::GLsizei width, gl::GLsizei height, gl::GLsizei nsamples)
         : width_{ width }
         , height_{ height }
         , nsamples_{ nsamples }

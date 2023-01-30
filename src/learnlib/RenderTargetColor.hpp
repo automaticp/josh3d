@@ -6,7 +6,7 @@
 namespace learn {
 
 
-class TextureRenderTarget {
+class RenderTargetColor {
 private:
     TextureHandle tex_;
     Framebuffer fb_;
@@ -17,7 +17,7 @@ private:
 
 
 public:
-    TextureRenderTarget(gl::GLsizei width, gl::GLsizei height)
+    RenderTargetColor(gl::GLsizei width, gl::GLsizei height)
         : width_{ width }
         , height_{ height }
     {

@@ -12,8 +12,8 @@
 #include "PostprocessDoubleBuffer.hpp"
 #include "PostprocessStage.hpp"
 #include "ShaderBuilder.hpp"
-#include "TextureMSRenderTarget.hpp"
-#include "TextureRenderTarget.hpp"
+#include "RenderTargetColorMS.hpp"
+#include "RenderTargetColor.hpp"
 #include "glfwpp/window.h"
 #include <array>
 #include <glbinding/gl/bitfield.h>
@@ -42,7 +42,7 @@ private:
     RebindableInputFreeCamera input_;
 
     PostprocessDoubleBuffer pdb_;
-    TextureMSRenderTarget tex_ms_target_;
+    RenderTargetColorMS tex_ms_target_;
 
     bool use_msaa_{ true };
     bool use_pp_{ true };

@@ -7,7 +7,7 @@
 namespace learn {
 
 
-class DepthRenderTarget {
+class RenderTargetDepth {
 private:
     TextureHandle tex_;
     Framebuffer fbo_;
@@ -17,7 +17,7 @@ private:
 
 
 public:
-    DepthRenderTarget(gl::GLsizei width, gl::GLsizei height)
+    RenderTargetDepth(gl::GLsizei width, gl::GLsizei height)
         : width_{ width }
         , height_{ height }
     {
