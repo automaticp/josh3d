@@ -53,12 +53,16 @@ public:
         height_ = height;
     }
 
-    std::tuple<int, int> size() const noexcept {
-        return { width_, height_ };
+    template<typename NumericT = int>
+    std::tuple<NumericT, NumericT> size() const noexcept {
+        return { static_cast<NumericT>(width_), static_cast<NumericT>(height_) };
     }
 
-    int width() const noexcept { return width_; }
-    int height() const noexcept { return height_; }
+    template<typename NumericT = int>
+    NumericT width() const noexcept { return static_cast<NumericT>(width_); }
+
+    template<typename NumericT = int>
+    NumericT height() const noexcept { return static_cast<NumericT>(height_); }
 
 };
 
