@@ -41,6 +41,9 @@ public:
 
     }
 
+    TextureMS& color_target() noexcept { return tex_; }
+    const TextureMS& color_target() const noexcept { return tex_; }
+
     Framebuffer& framebuffer() noexcept { return fbo_; }
 
     gl::GLsizei width() const noexcept { return width_; }

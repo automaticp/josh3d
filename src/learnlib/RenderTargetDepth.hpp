@@ -40,8 +40,8 @@ public:
 
     }
 
-    TextureHandle& target_texture() noexcept { return tex_; }
-    const TextureHandle& target_texture() const noexcept { return tex_; }
+    TextureHandle& depth_target() noexcept { return tex_; }
+    const TextureHandle& depth_target() const noexcept { return tex_; }
 
     Framebuffer& framebuffer() noexcept { return fbo_; }
 

@@ -93,8 +93,8 @@ public:
         , buf2_{ width, height }
     {}
 
-    TextureHandle& front_target() noexcept { return front_->target_texture(); }
-    const TextureHandle& front_target() const noexcept { return front_->target_texture(); }
+    TextureHandle& front_target() noexcept { return front_->color_target(); }
+    const TextureHandle& front_target() const noexcept { return front_->color_target(); }
 
 
     RenderTargetColor& front() noexcept { return *front_; }
