@@ -1,7 +1,5 @@
 #pragma once
-
 #include "GLObjects.hpp"
-#include <glbinding/gl/enum.h>
 #include <glbinding/gl/gl.h>
 
 
@@ -14,13 +12,19 @@ private:
     Framebuffer fb_;
     Renderbuffer rb_;
 
+    gl::GLsizei width_;
+    gl::GLsizei height_;
+
 
 public:
-    TextureRenderTarget(gl::GLsizei width, gl::GLsizei height) {
+    TextureRenderTarget(gl::GLsizei width, gl::GLsizei height)
+        : width_{ width }
+        , height_{ height }
+    {
         using namespace gl;
 
         tex_.bind_to_unit(GL_TEXTURE0)
-            .specify_image(width, height, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, nullptr)
+            .specify_image(width_, height_, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
             // Fixes edge overflow from kernel effects
@@ -28,7 +32,7 @@ public:
             .set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 
         rb_ .bind()
-            .create_storage(width, height, GL_DEPTH24_STENCIL8);
+            .create_storage(width_, height_, GL_DEPTH24_STENCIL8);
 
         fb_ .bind()
             .attach_texture(tex_, GL_COLOR_ATTACHMENT0)
@@ -42,13 +46,19 @@ public:
 
     Framebuffer& framebuffer() noexcept { return fb_; }
 
+    gl::GLsizei width() const noexcept { return width_; }
+    gl::GLsizei height() const noexcept { return height_; }
+
     void reset_size(gl::GLsizei width, gl::GLsizei height) {
         using namespace gl;
 
-        tex_.bind_to_unit(GL_TEXTURE0)
-            .specify_image(width, height, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+        width_ = width;
+        height_ = height;
 
-        rb_.bind().create_storage(width, height, GL_DEPTH24_STENCIL8);
+        tex_.bind_to_unit(GL_TEXTURE0)
+            .specify_image(width_, height_, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+
+        rb_.bind().create_storage(width_, height_, GL_DEPTH24_STENCIL8);
 
     }
 
