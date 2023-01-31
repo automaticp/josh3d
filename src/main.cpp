@@ -50,7 +50,8 @@ int main() {
     // render_generic_scene<BoxScene>(window);
     // render_generic_scene<PostprocessingScene>(window);
     // render_generic_scene<ModelScene>(window);
-    render_generic_scene<InstancingScene>(window);
+    render_generic_scene<DirShadowScene>(window);
+    // render_generic_scene<InstancingScene>(window);
     // render_generic_scene<CubemapScene>(window);
 
 
