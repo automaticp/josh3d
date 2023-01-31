@@ -574,6 +574,12 @@ public:
         glTexParameterf(GL_TEXTURE_2D, param_name, param_value);
         return *this;
     }
+
+    BoundTextureHandle& set_parameter(GLenum param_name, const GLfloat* param_values) {
+        glTexParameterfv(GL_TEXTURE_2D, param_name, param_values);
+        return *this;
+    }
+
 };
 
 
@@ -627,6 +633,11 @@ public:
 
     BoundTextureMS& set_parameter(GLenum param_name, GLfloat param_value) {
         glTexParameterf(GL_TEXTURE_2D_MULTISAMPLE, param_name, param_value);
+        return *this;
+    }
+
+    BoundTextureMS& set_parameter(GLenum param_name, const GLfloat* param_values) {
+        glTexParameterfv(GL_TEXTURE_2D_MULTISAMPLE, param_name, param_values);
         return *this;
     }
 
@@ -689,6 +700,11 @@ public:
 
     BoundCubemap& set_parameter(GLenum param_name, GLfloat param_value) {
         glTexParameterf(GL_TEXTURE_CUBE_MAP, param_name, param_value);
+        return *this;
+    }
+
+    BoundCubemap& set_parameter(GLenum param_name, const GLfloat* param_values) {
+        glTexParameterfv(GL_TEXTURE_CUBE_MAP, param_name, param_values);
         return *this;
     }
 
