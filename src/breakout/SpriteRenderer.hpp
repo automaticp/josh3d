@@ -40,11 +40,11 @@ public:
 
     learn::ShaderProgram& shader() noexcept { return sp_; }
 
-    void draw_sprite(const Sprite& sprite, const learn::Transform& transform) {
+    void draw_sprite(const Sprite& sprite, const learn::MTransform& transform) {
         draw_sprite(sprite, transform, sprite.color());
     }
 
-    void draw_sprite(const Sprite& sprite, const learn::Transform& transform, glm::vec4 color) {
+    void draw_sprite(const Sprite& sprite, const learn::MTransform& transform, glm::vec4 color) {
         auto asp = sp_.use();
 
         sprite.texture_->bind_to_unit(gl::GL_TEXTURE0);

@@ -239,14 +239,14 @@ private:
 
         sp.uniform("numPointLights", 0);
 
-        auto box1_transform = Transform()
+        auto box1_transform = MTransform()
             .translate({1.0f, 1.0f, 0.5f});
 
-        auto box2_transform = Transform()
+        auto box2_transform = MTransform()
             .translate({-1.0f, 1.0f, 0.5f})
             .rotate(glm::radians(45.f), { 0.f, 0.f, 1.f });
 
-        auto plane_transform = Transform()
+        auto plane_transform = MTransform()
             .scale({ 5.f, 5.f, 1.f });
 
 

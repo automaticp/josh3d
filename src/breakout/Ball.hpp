@@ -28,7 +28,7 @@ public:
     glm::vec2& velocity() noexcept { return velocity_; }
     const glm::vec2& velocity() const noexcept { return velocity_; }
 
-    learn::Transform get_transform() const noexcept { return circle_.get_transform(); }
+    learn::MTransform get_transform() const noexcept { return circle_.get_transform(); }
 
     const Sprite& sprite() const noexcept { return sprite_; }
 

@@ -35,7 +35,7 @@ private:
     RenderTargetDepth depth_target_;
 
     Model model_;
-    Transform model_transform_;
+    MTransform model_transform_;
 
     light::Ambient ambient_;
     light::Directional directional_;

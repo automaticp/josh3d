@@ -10,8 +10,8 @@ struct Particle2D {
     glm::vec4 color;
     float lifetime{ 0.f };
 
-    learn::Transform get_transform() const noexcept {
-        return learn::Transform()
+    learn::MTransform get_transform() const noexcept {
+        return learn::MTransform()
             .translate({ position, 0.f })
             .scale({scale, 1.f});
     }

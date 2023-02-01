@@ -33,7 +33,7 @@ public:
     glm::vec2& velocity() noexcept { return velocity_; }
     const glm::vec2& velocity() const noexcept { return velocity_; }
 
-    learn::Transform get_transform() noexcept { return box_.get_transform(); }
+    learn::MTransform get_transform() noexcept { return box_.get_transform(); }
 
     const Sprite& sprite() const noexcept { return sprite_; }
 

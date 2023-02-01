@@ -22,7 +22,7 @@ private:
     ShaderProgram instanced_shader_;
     ShaderProgram non_instanced_shader_;
     SSBO instance_ssbo_;
-    std::vector<Transform> instance_transforms_;
+    std::vector<MTransform> instance_transforms_;
 
     Model box_model_;
 
@@ -199,7 +199,7 @@ private:
         asp_light.uniform("projection", projection);
         asp_light.uniform("view", cam_.view_mat());
 
-        Transform light_transform = Transform()
+        MTransform light_transform = MTransform()
             .translate(light_.position)
             .scale(glm::vec3{ 0.2f });
 
@@ -222,7 +222,7 @@ private:
                 const float y_offset = j * 2.f;
 
                 instance_transforms_.emplace_back(
-                    Transform().translate(
+                    MTransform().translate(
                         { x_offset, y_offset, 0.f }
                     )
                 );

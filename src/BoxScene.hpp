@@ -27,7 +27,7 @@ private:
     Model box_;
 
     static const std::array<glm::vec3, 10> initial_box_positions;
-    std::array<Transform, 10> box_transforms_;
+    std::array<MTransform, 10> box_transforms_;
 
     static const std::array<glm::vec3, 5> initial_point_light_positions_;
     std::array<light::Point, 5> lps_;
@@ -63,9 +63,9 @@ public:
         }
         , box_transforms_{
             [] {
-                std::array<Transform, 10> ts;
+                std::array<MTransform, 10> ts;
                 for (size_t i{ 0 }; i < ts.size(); ++i) {
-                    ts[i] = Transform()
+                    ts[i] = MTransform()
                         .translate(initial_box_positions[i])
                         .rotate(glm::radians(20.0f * i), { 1.0f, 0.3f, 0.5f });
                 }
@@ -218,7 +218,7 @@ private:
         asp_light.uniform("view", view);
 
         for (const auto& lp : lps_) {
-            Transform lp_transform;
+            MTransform lp_transform;
             lp_transform.translate(lp.position).scale(glm::vec3{ 0.2f });
             asp_light.uniform("model", lp_transform.model());
 

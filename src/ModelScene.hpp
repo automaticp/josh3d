@@ -126,7 +126,7 @@ private:
 
         sky_renderer_.draw(cubemap_, projection, view);
 
-        auto transform = Transform();
+        auto transform = MTransform();
 
         auto asp = shader_.use();
         asp.uniform("projection", projection);

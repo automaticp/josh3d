@@ -312,7 +312,7 @@ private:
 
         renderer_.draw_sprite(
             background_,
-            learn::Transform()
+            learn::MTransform()
                 .translate({ global_canvas.center.x, global_canvas.center.y, 0.f })
                 .scale({ global_canvas.width(), global_canvas.height(), 1.f })
         );

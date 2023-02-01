@@ -42,8 +42,8 @@ struct Rect2D {
         return glm::all(glm::lessThanEqual(dxdy, half_size()));
     }
 
-    learn::Transform get_transform() const noexcept {
-        return learn::Transform()
+    learn::MTransform get_transform() const noexcept {
+        return learn::MTransform()
             .translate({ center.x, center.y, 0.f })
             .scale({ size.x, size.y, 1.f });
     }

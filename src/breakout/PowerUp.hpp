@@ -36,7 +36,7 @@ public:
     {}
 
 
-    learn::Transform get_transform() const noexcept { return box_.get_transform(); }
+    learn::MTransform get_transform() const noexcept { return box_.get_transform(); }
 
     const Sprite& sprite() const noexcept { return sprite_; }
 
