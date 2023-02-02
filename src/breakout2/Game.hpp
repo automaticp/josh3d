@@ -1,6 +1,7 @@
 #pragma once
 #include "Input.hpp"
 #include "SpriteRenderSystem.hpp"
+#include "GameLevel.hpp"
 #include <entt/entity/fwd.hpp>
 #include <glfwpp/window.h>
 #include <entt/entt.hpp>
