@@ -83,9 +83,15 @@ public:
         auto asp = sp_.use();
         auto bvao = vao_.bind();
 
+        const learn::TextureHandle* last_texture{ nullptr };
+
         for (auto [ent, sprite, transform] : view.each()) {
 
-            sprite.texture->bind_to_unit(GL_TEXTURE0);
+            // Pointless optimizations are my forte...
+            if (last_texture != sprite.texture.get()) {
+                last_texture = sprite.texture.get();
+                sprite.texture->bind_to_unit(GL_TEXTURE0);
+            }
 
             asp .uniform(ulocs_.color, sprite.color)
                 .uniform(ulocs_.model, transform.mtransform().translate({ 0.f, 0.f, sprite.depth }).model());
