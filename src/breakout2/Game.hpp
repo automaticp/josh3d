@@ -6,6 +6,7 @@
 #include <entt/entt.hpp>
 #include <glm/glm.hpp>
 #include <queue>
+#include <vector>
 
 
 struct Velocity2D {
@@ -31,6 +32,9 @@ private:
     learn::BasicRebindableInput<> input_;
     std::queue<InputEvent> input_queue_;
 
+    std::vector<GameLevel> levels_;
+    size_t current_level_{ 0 };
+
     entt::entity player_;
     entt::entity ball_;
 
@@ -48,6 +52,8 @@ public:
 private:
     void hook_inputs();
     void init_registry();
+
+    GameLevel& current_level() noexcept { return levels_[current_level_]; }
 
     void launch_ball();
 };

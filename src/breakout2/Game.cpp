@@ -10,7 +10,8 @@ Game::Game(glfw::Window& window)
 {
     hook_inputs();
     init_registry();
-
+    levels_.emplace_back(GameLevel::from_file("src/breakout2/levels/one.lvl"));
+    current_level().build_level_entities(registry_);
 }
 
 
