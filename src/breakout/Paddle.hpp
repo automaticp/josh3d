@@ -1,5 +1,5 @@
 #pragma once
-#include "Globals.hpp"
+#include "GlobalsGL.hpp"
 #include "Rect2D.hpp"
 #include "Sprite.hpp"
 #include "Transform.hpp"
