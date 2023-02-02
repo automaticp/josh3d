@@ -353,7 +353,7 @@ public:
     // This is mostly for testing.
     // Make sure the current program is active.
     void uniform(const std::string& name, auto... args) const {
-        ActiveShaderProgram::uniform(uniform_info_.location_of(name), args...);
+        ActiveShaderProgram::set_uniform(uniform_info_.location_of(name), args...);
 	}
 
     // More testing
