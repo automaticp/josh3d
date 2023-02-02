@@ -87,7 +87,6 @@ public:
 
             sprite.texture->bind_to_unit(GL_TEXTURE0);
 
-            // FIXME: Add color to sprites?
             asp .uniform(ulocs_.color, sprite.color)
                 .uniform(ulocs_.model, transform.mtransform().translate({ 0.f, 0.f, sprite.depth }).model());
 

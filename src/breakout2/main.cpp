@@ -1,5 +1,6 @@
 #include "Game.hpp"
 #include "All.hpp"
+#include "GlobalsUtil.hpp"
 
 #include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/enum.h>
@@ -29,7 +30,7 @@ int main() {
 	}.apply();
 	glfw::Window window{ 1600, 900, "Breakout2" };
 	glfw::makeContextCurrent(window);
-	// glfw::swapInterval(0);
+	// glfw::swapInterval(1);
 	// window.setInputModeCursor(glfw::CursorMode::Disabled);
 
 	glbinding::initialize(glfwGetProcAddress);
@@ -57,13 +58,21 @@ int main() {
 
     Game game{ window };
 
+    float time_overflow{ 0.f };
+
     while (!window.shouldClose()) {
         globals::frame_timer.update();
 
-        glfw::pollEvents();
-        game.process_input();
+        time_overflow += globals::frame_timer.delta<float>();
 
-        game.update();
+        while (time_overflow >= Game::update_time_step) {
+
+            glfw::pollEvents();
+            game.process_input();
+            game.update();
+
+            time_overflow -= Game::update_time_step;
+        }
 
         glClearColor(0.5, 0.0, 0.5, 1.0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

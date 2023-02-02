@@ -1,10 +1,8 @@
 #pragma once
-#include "All.hpp"
+#include "GlobalsGL.hpp"
 #include "Matrix2D.hpp"
 #include "Transform2D.hpp"
 #include "SpriteRenderSystem.hpp"
-// #include "Tile.hpp"
-// #include "Transform.hpp"
 #include "Canvas.hpp"
 
 #include <algorithm>

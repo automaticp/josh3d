@@ -44,6 +44,9 @@ private:
     static constexpr float ball_base_speed{ 1000.f };
 
 public:
+    // Fixed time step chosen for the game logic update rate.
+    static constexpr float update_time_step{ 1.f / 240.f };
+
     Game(glfw::Window& window);
 
     void process_input();

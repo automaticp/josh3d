@@ -1,5 +1,4 @@
 #include "Game.hpp"
-#include "GlobalsUtil.hpp"
 #include "GlobalsGL.hpp"
 #include "Input.hpp"
 
@@ -63,7 +62,7 @@ void Game::update() {
     auto view = registry_.view<Transform2D, const Velocity2D>();
 
     view.each([](Transform2D& t, const Velocity2D& v) {
-        t.position += v.velocity * learn::globals::frame_timer.delta<float>();
+        t.position += v.velocity * update_time_step;
     });
 }
 
