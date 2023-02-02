@@ -114,6 +114,10 @@ struct KeyCallbackArgs {
     int scancode;
     glfw::KeyState state;
     glfw::ModifierKeyBit mods;
+
+    bool is_pressed() const noexcept { return state == glfw::KeyState::Press; }
+    bool is_released() const noexcept { return state == glfw::KeyState::Release; }
+    bool is_repeated() const noexcept { return state == glfw::KeyState::Release; }
 };
 
 struct CursorPosCallbackArgs {
