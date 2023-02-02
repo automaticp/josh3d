@@ -1,8 +1,6 @@
 #pragma once
 #include "Input.hpp"
-#include "Shared.hpp"
-#include "SpriteRenderer.hpp"
-#include "Transform.hpp"
+#include "SpriteRenderSystem.hpp"
 #include <entt/entity/fwd.hpp>
 #include <glfwpp/window.h>
 #include <entt/entt.hpp>
@@ -29,7 +27,7 @@ class Game {
 private:
     glfw::Window& window_;
     entt::registry registry_;
-    learn::SpriteRenderer renderer_;
+    SpriteRenderSystem renderer_;
     learn::BasicRebindableInput<> input_;
     std::queue<InputEvent> input_queue_;
 

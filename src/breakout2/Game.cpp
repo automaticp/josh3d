@@ -68,11 +68,7 @@ void Game::update() {
 
 
 void Game::render() {
-    auto view = registry_.view<const Transform2D, Sprite>();
-
-    view.each([this](const Transform2D& t, Sprite& s) {
-        renderer_.draw_sprite(*s.texture, t.mtransform().translate({ 0.f, 0.f, s.depth }));
-    });
+    renderer_.draw_sprites(registry_);
 }
 
 
