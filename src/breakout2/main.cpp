@@ -1,6 +1,8 @@
 #include "Game.hpp"
 #include "All.hpp"
 
+#include <glbinding/gl/bitfield.h>
+#include <glbinding/gl/enum.h>
 #include <glfwpp/glfwpp.h>
 #include <glbinding/gl/gl.h>
 #include <glbinding/glbinding.h>
@@ -12,6 +14,7 @@
 // Fixed tick based timing and physics
 // Better collision resolution
 // Event-based input handling
+// Event-driven game logic
 
 
 
@@ -24,7 +27,7 @@ int main() {
 	glfw::WindowHints{
 		.contextVersionMajor=4, .contextVersionMinor=3, .openglProfile=glfw::OpenGlProfile::Core
 	}.apply();
-	glfw::Window window{ 800, 600, "Breakout2" };
+	glfw::Window window{ 1600, 900, "Breakout2" };
 	glfw::makeContextCurrent(window);
 	// glfw::swapInterval(0);
 	// window.setInputModeCursor(glfw::CursorMode::Disabled);
@@ -50,6 +53,7 @@ int main() {
     glViewport(0, 0, width, height);
 	glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_DEPTH_TEST);
 
     Game game{ window };
 
@@ -62,7 +66,7 @@ int main() {
         game.update();
 
         glClearColor(0.5, 0.0, 0.5, 1.0);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         game.render();
 
