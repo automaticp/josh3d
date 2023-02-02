@@ -1,5 +1,4 @@
 #pragma once
-#include "GLObjects.hpp"
 #include "Input.hpp"
 #include "Shared.hpp"
 #include "SpriteRenderer.hpp"
@@ -13,17 +12,6 @@
 
 struct Velocity2D {
     glm::vec2 velocity;
-};
-
-namespace ZDepth {
-    static constexpr float background{ -0.5f };
-    static constexpr float foreground{ +0.5f };
-};
-
-struct Sprite {
-    learn::Shared<learn::TextureHandle> texture;
-    // glm::vec4 color;
-    float depth{ ZDepth::foreground };
 };
 
 struct InputMoveComponent {
