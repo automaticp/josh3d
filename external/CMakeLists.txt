@@ -5,6 +5,13 @@ set_target_properties(assimp::assimp PROPERTIES IMPORTED_GLOBAL TRUE)
 
 
 
+# === entt ===
+
+find_package(EnTT CONFIG REQUIRED)
+set_target_properties(EnTT::EnTT PROPERTIES IMPORTED_GLOBAL TRUE)
+
+
+
 # === glbinding ===
 
 find_package(glbinding CONFIG REQUIRED)
