@@ -1,6 +1,7 @@
 #pragma once
 #include "Input.hpp"
 #include "SpriteRenderSystem.hpp"
+#include "PhysicsSystem.hpp"
 #include "GameLevel.hpp"
 #include <entt/entity/fwd.hpp>
 #include <glfwpp/window.h>
@@ -10,9 +11,6 @@
 #include <vector>
 
 
-struct Velocity2D {
-    glm::vec2 velocity;
-};
 
 struct InputMoveComponent {
     float max_velocity;
@@ -30,6 +28,7 @@ private:
     glfw::Window& window_;
     entt::registry registry_;
     SpriteRenderSystem renderer_;
+    PhysicsSystem physics_;
     learn::BasicRebindableInput<> input_;
     std::queue<InputEvent> input_queue_;
 
@@ -41,7 +40,7 @@ private:
 
 
     static constexpr float player_base_speed{ 1000.f };
-    static constexpr float ball_base_speed{ 1000.f };
+    static constexpr float ball_base_speed{ 700.f };
 
 public:
     // Fixed time step chosen for the game logic update rate.
@@ -56,6 +55,7 @@ public:
 private:
     void hook_inputs();
     void init_registry();
+    void init_walls();
 
     GameLevel& current_level() noexcept { return levels_[current_level_]; }
 

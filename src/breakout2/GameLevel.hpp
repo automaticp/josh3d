@@ -1,9 +1,11 @@
 #pragma once
 #include "GlobalsGL.hpp"
 #include "Matrix2D.hpp"
+#include "PhysicsSystem.hpp"
 #include "Transform2D.hpp"
 #include "SpriteRenderSystem.hpp"
 #include "Canvas.hpp"
+#include "Tile.hpp"
 
 #include <algorithm>
 #include <glm/glm.hpp>
@@ -16,15 +18,6 @@
 #include <stdexcept>
 
 
-
-enum class TileType : size_t {
-    empty = 0,
-    solid = 1,
-    brick_blue = 2,
-    brick_green = 3,
-    brick_gold = 4,
-    brick_red = 5,
-};
 
 
 class GameLevel {
@@ -58,7 +51,7 @@ public:
         return num_alive_ == 0;
     }
 
-    void build_level_entities(entt::registry& registry) {
+    void build_level_entities(entt::registry& registry, PhysicsSystem& physics) {
 
         const glm::vec2 tile_scale{ scale_tiles_to_grid() };
 
@@ -85,9 +78,12 @@ public:
                                 ZDepth::foreground,
                                 tile_color(current_type)
                             );
-                            // FIXME: Add Tile component
-                            ++max_num_alive_;
-                            ++num_alive_;
+                            registry.emplace<PhysicsComponent>(tile, physics.create_tile(tile, current_center, tile_scale));
+                            registry.emplace<TileComponent>(tile, current_type);
+                            if (current_type != TileType::solid) {
+                                ++max_num_alive_;
+                                ++num_alive_;
+                            }
                         }
                         break;
                     case TileType::empty:
