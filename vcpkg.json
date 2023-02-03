@@ -12,6 +12,7 @@
             "name": "imgui",
             "features": [ "glfw-binding", "opengl3-binding" ]
         },
-        "entt"
+        "entt",
+        "box2d"
     ]
 }
