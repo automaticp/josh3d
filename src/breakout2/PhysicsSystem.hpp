@@ -2,6 +2,7 @@
 #include "Tile.hpp"
 #include "GlobalsUtil.hpp"
 #include "Transform2D.hpp"
+#include "Events.hpp"
 #include <box2d/b2_body.h>
 #include <box2d/b2_circle_shape.h>
 #include <box2d/b2_fixture.h>
@@ -67,16 +68,12 @@ struct PhysicsComponent {
 
 class ContactListener final : public b2ContactListener {
 private:
-    std::vector<entt::entity> tiles_to_destroy_;
     entt::registry& registry_;
 
 public:
     ContactListener(entt::registry& registry)
         : registry_{ registry }
-    {
-        // No way this many actually collide in a single step.
-        tiles_to_destroy_.reserve(8);
-    }
+    {}
     // void BeginContact(b2Contact* contact) final {}
 
     void EndContact(b2Contact* contact) final {
@@ -84,22 +81,16 @@ public:
         auto ent_b = get_entity(contact->GetFixtureB()->GetBody());
 
         TileComponent* tile_a = registry_.try_get<TileComponent>(ent_a);
-        if (tile_a && tile_a->type != TileType::solid) {
-            tiles_to_destroy_.push_back(ent_a);
+        if (tile_a) {
+            events.push_tile_collision_event({ ent_a });
         }
 
         TileComponent* tile_b = registry_.try_get<TileComponent>(ent_b);
-        if (tile_b && tile_b->type != TileType::solid) {
-            tiles_to_destroy_.push_back(ent_b);
+        if (tile_b) {
+            events.push_tile_collision_event({ ent_b });
         }
     }
 
-    void remove_destroyed_tiles() noexcept {
-        if (!tiles_to_destroy_.empty()) {
-            registry_.destroy(tiles_to_destroy_.begin(), tiles_to_destroy_.end());
-            tiles_to_destroy_.clear();
-        }
-    }
     // void PreSolve(b2Contact* contact, const b2Manifold* oldManifold) final { /* handle pre-solve event */ }
     // void PostSolve(b2Contact* contact, const b2ContactImpulse* impulse) final { /* handle post-solve event */ }
 
@@ -161,13 +152,7 @@ public:
 
 
     void update(entt::registry& registry, float time_step) {
-
         world_.Step(time_step, 8, 3);
-
-        // FIXME: This is probably better to be implemented as a game event...
-        // Especially later, when powerups come into play.
-        contact_listener_.remove_destroyed_tiles();
-
     }
 
 
