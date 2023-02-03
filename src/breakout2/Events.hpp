@@ -1,9 +1,11 @@
 #pragma once
+#include <entt/entity/fwd.hpp>
 #include <algorithm>
 #include <queue>
 #include <utility>
 
-
+// A wrapper around a queue which is a wrapper around a deque...
+// Less functions, less trouble?
 template<typename T>
 class EventQueue {
 private:
@@ -31,3 +33,32 @@ enum class InputEvent {
     lmove, lstop, rmove, rstop, launch_ball, exit
 };
 
+
+struct TileCollisionEvent {
+    entt::entity tile_entity;
+};
+
+
+// TF is this name though?
+class EventBus {
+private:
+    EventQueue<InputEvent> input;
+    EventQueue<TileCollisionEvent> tile_collision;
+
+    friend class Game;
+
+public:
+    void push_input_event(InputEvent event) {
+        input.push(event);
+    }
+
+    void push_tile_collision_event(TileCollisionEvent event) {
+        tile_collision.push(event);
+    }
+};
+
+// Event queues are global and are exposed to all the classes.
+// ANYONE can push an event, but it's the responsibility of
+// the Game, namely Game::process_events(), to process them.
+// This is enforced through the power of **friendship**.
+inline EventBus events;

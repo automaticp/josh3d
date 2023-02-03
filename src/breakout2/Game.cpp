@@ -1,6 +1,7 @@
 #include "Game.hpp"
 #include "GlobalsGL.hpp"
 #include "Input.hpp"
+#include "Events.hpp"
 #include "PhysicsSystem.hpp"
 #include <glm/geometric.hpp>
 
@@ -22,6 +23,7 @@ Game::Game(glfw::Window& window)
 
 void Game::process_events() {
     process_input_events();
+    process_tile_collision_events();
 }
 
 
@@ -39,8 +41,8 @@ void Game::process_input_events() {
         );
     };
 
-    while (!input_queue_.empty()) {
-        auto event = input_queue_.pop();
+    while (!events.input.empty()) {
+        auto event = events.input.pop();
 
         switch (event) {
             using enum InputEvent;
@@ -65,6 +67,14 @@ void Game::process_input_events() {
             default:
                 break;
         }
+    }
+}
+
+void Game::process_tile_collision_events() {
+    while (!events.tile_collision.empty()) {
+        auto event = events.tile_collision.pop();
+
+        registry_.destroy(event.tile_entity);
     }
 }
 
@@ -201,34 +211,35 @@ void Game::init_walls() {
 void Game::hook_inputs() {
     using glfw::KeyCode;
     using learn::KeyCallbackArgs;
+    using enum InputEvent;
 
     input_.set_keybind(KeyCode::A, [this](const KeyCallbackArgs& args) {
         if (args.is_pressed()) {
-            input_queue_.push(InputEvent::lmove);
+            events.push_input_event(lmove);
         }
         if (args.is_released()) {
-            input_queue_.push(InputEvent::lstop);
+            events.push_input_event(lstop);
         }
     });
 
     input_.set_keybind(KeyCode::D, [this](const KeyCallbackArgs& args) {
         if (args.is_pressed()) {
-            input_queue_.push(InputEvent::rmove);
+            events.push_input_event(rmove);
         }
         if (args.is_released()) {
-            input_queue_.push(InputEvent::rstop);
+            events.push_input_event(rstop);
         }
     });
 
     input_.set_keybind(KeyCode::Escape, [this](const KeyCallbackArgs& args) {
         if (args.is_released()) {
-            input_queue_.push(InputEvent::exit);
+            events.push_input_event(exit);
         }
     });
 
     input_.set_keybind(KeyCode::Space, [this](const KeyCallbackArgs& args) {
         if (args.is_pressed()) {
-            input_queue_.push(InputEvent::launch_ball);
+            events.push_input_event(launch_ball);
         }
     });
 }
