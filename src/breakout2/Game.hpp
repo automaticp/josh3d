@@ -38,6 +38,7 @@ private:
     entt::entity player_;
     entt::entity ball_;
 
+    b2Joint* sticky_joint_;
 
     static constexpr float player_base_speed{ 1000.f };
     static constexpr float ball_base_speed{ 700.f };

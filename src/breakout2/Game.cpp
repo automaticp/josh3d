@@ -15,6 +15,8 @@ Game::Game(glfw::Window& window)
     levels_.emplace_back(GameLevel::from_file("src/breakout2/levels/one.lvl"));
     current_level().build_level_entities(registry_, physics_);
     init_walls();
+    // Ewww, sticky
+    sticky_joint_ = physics_.weld(player_, ball_);
 }
 
 
@@ -67,6 +69,37 @@ void Game::process_input() {
 void Game::update() {
     physics_.update(registry_, update_time_step);
 
+
+    // void correct_paddle_position();
+
+    // This is bad for at least 2 reasons:
+    // One of them is that the paddle will still transfer momentum
+    // to the ball even when 'stuck' against the wall, since it
+    // will still have nonzero velocity.
+
+    // auto [p, t] = registry_.get<PhysicsComponent, const Transform2D>(player_);
+    // const glm::vec2 p_pos = p.get_position();
+    // const float lim_right = canvas.bound_right() - t.scale.x / 2.f;
+    // const float lim_left  = canvas.bound_left()  + t.scale.x / 2.f;
+
+    // if (p_pos.x > lim_right) {
+    //     p.set_position({ lim_right, p_pos.y });
+    // }
+
+    // if (p_pos.x < lim_left) {
+    //     p.set_position({ lim_left, p_pos.y });
+    // }
+
+    // void update_transforms();
+    auto view = registry_.view<const PhysicsComponent, Transform2D>();
+
+    for (auto [entity, phys, trans] : view.each()) {
+        trans.position = to_screen(phys.body->GetPosition());
+    }
+
+
+
+
     // This does not work...
     // auto& p = registry_.get<PhysicsComponent>(ball_);
     // p.set_velocity(ball_base_speed * glm::normalize(p.get_velocity()));
@@ -80,8 +113,10 @@ void Game::render() {
 
 
 void Game::launch_ball() {
-    // This is scuffed in a way, but sort of makes sense.
-    if (registry_.remove<InputMoveComponent>(ball_)) {
+    // TODO: move the joint into something better than a raw ptr member var
+    if (sticky_joint_) {
+        physics_.unweld(sticky_joint_);
+        sticky_joint_ = nullptr;
 
         auto& player_p = registry_.get<const PhysicsComponent>(player_);
 
@@ -113,7 +148,7 @@ void Game::init_registry() {
 
     ball_ = registry_.create();
     const glm::vec2 ball_scale{ 30.f, 30.f };
-    const glm::vec2 ball_pos{ player_pos + glm::vec2{ 0.f, ball_scale.y / 2.f } };
+    const glm::vec2 ball_pos{ player_pos + glm::vec2{ 0.f, player_scale.y / 2.f + ball_scale.y / 2.f } };
 
     registry_.emplace<Transform2D>(ball_, ball_pos, ball_scale, 0.f);
     registry_.emplace<PhysicsComponent>(ball_, physics_.create_ball(ball_, ball_pos, ball_scale.x / 2.f));
@@ -121,7 +156,7 @@ void Game::init_registry() {
         learn::globals::texture_handle_pool.load("src/breakout2/sprites/awesomeface.png"),
         ZDepth::foreground
     );
-    registry_.emplace<InputMoveComponent>(ball_, player_base_speed);
+    // registry_.emplace<InputMoveComponent>(ball_, player_base_speed);
 
     auto background = registry_.create();
     registry_.emplace<Transform2D>(background, glm::vec2{ 800.f, 450.f }, glm::vec2( 1600.f, 900.f ), 0.f);

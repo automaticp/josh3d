@@ -5,6 +5,7 @@
 #include <box2d/b2_body.h>
 #include <box2d/b2_circle_shape.h>
 #include <box2d/b2_fixture.h>
+#include <box2d/b2_joint.h>
 #include <box2d/b2_math.h>
 #include <box2d/b2_polygon_shape.h>
 #include <box2d/b2_settings.h>
@@ -48,6 +49,14 @@ struct PhysicsComponent {
 
     void set_velocity(const glm::vec2& v) noexcept {
         body->SetLinearVelocity(to_world(v));
+    }
+
+    glm::vec2 get_position() const noexcept {
+        return to_screen(body->GetPosition());
+    }
+
+    void set_position(const glm::vec2& pos) noexcept {
+        body->SetTransform(to_world(pos), body->GetAngle());
     }
 
 };
@@ -104,12 +113,14 @@ private:
 
 class PhysicsSystem {
 private:
+    entt::registry& registry_;
     b2World world_;
     ContactListener contact_listener_;
 
 public:
     PhysicsSystem(entt::registry& registry)
-        : world_{ b2Vec2{ 0.f, 0.f } }
+        : registry_{ registry }
+        , world_{ b2Vec2{ 0.f, 0.f } }
         , contact_listener_{ registry }
     {
         world_.SetContactListener(&contact_listener_);
@@ -120,6 +131,20 @@ public:
         registry.on_destroy<PhysicsComponent>().connect<&PhysicsSystem::destroy_body>(*this);
     }
 
+
+    [[nodiscard]] b2Joint* weld(entt::entity ent1, entt::entity ent2) {
+        b2WeldJointDef def;
+        auto& p1 = registry_.get<PhysicsComponent>(ent1);
+        auto& p2 = registry_.get<PhysicsComponent>(ent2);
+        def.bodyA = p1.body;
+        def.bodyB = p2.body;
+        def.localAnchorA = p2.body->GetPosition() - p1.body->GetPosition();
+        return world_.CreateJoint(&def);
+    }
+
+    void unweld(b2Joint* joint) {
+        world_.DestroyJoint(joint);
+    }
 
 
     [[nodiscard]] PhysicsComponent create_wall(
@@ -143,11 +168,6 @@ public:
         // Especially later, when powerups come into play.
         contact_listener_.remove_destroyed_tiles();
 
-        auto view = registry.view<PhysicsComponent, Transform2D>();
-
-        for (auto [entity, phys, trans] : view.each()) {
-            trans.position = to_screen(phys.body->GetPosition());
-        }
     }
 
 
