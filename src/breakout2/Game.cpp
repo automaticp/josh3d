@@ -20,7 +20,12 @@ Game::Game(glfw::Window& window)
 }
 
 
-void Game::process_input() {
+void Game::process_events() {
+    process_input_events();
+}
+
+
+void Game::process_input_events() {
 
     auto view = registry_.view<const InputMoveComponent, PhysicsComponent>();
 
@@ -35,7 +40,7 @@ void Game::process_input() {
     };
 
     while (!input_queue_.empty()) {
-        auto event = input_queue_.front();
+        auto event = input_queue_.pop();
 
         switch (event) {
             using enum InputEvent;
@@ -60,8 +65,6 @@ void Game::process_input() {
             default:
                 break;
         }
-
-        input_queue_.pop();
     }
 }
 

@@ -68,7 +68,7 @@ int main() {
         while (time_overflow >= Game::update_time_step) {
 
             glfw::pollEvents();
-            game.process_input();
+            game.process_events();
             game.update();
 
             time_overflow -= Game::update_time_step;

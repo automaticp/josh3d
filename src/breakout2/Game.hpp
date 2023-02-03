@@ -3,6 +3,8 @@
 #include "SpriteRenderSystem.hpp"
 #include "PhysicsSystem.hpp"
 #include "GameLevel.hpp"
+#include "Events.hpp"
+#include <box2d/b2_joint.h>
 #include <entt/entity/fwd.hpp>
 #include <glfwpp/window.h>
 #include <entt/entt.hpp>
@@ -17,11 +19,6 @@ struct InputMoveComponent {
 };
 
 
-enum class InputEvent {
-    lmove, lstop, rmove, rstop, launch_ball, exit
-};
-
-
 
 class Game {
 private:
@@ -30,7 +27,7 @@ private:
     SpriteRenderSystem renderer_;
     PhysicsSystem physics_;
     learn::BasicRebindableInput<> input_;
-    std::queue<InputEvent> input_queue_;
+    EventQueue<InputEvent> input_queue_;
 
     std::vector<GameLevel> levels_;
     size_t current_level_{ 0 };
@@ -49,11 +46,13 @@ public:
 
     Game(glfw::Window& window);
 
-    void process_input();
+    void process_events();
     void update();
     void render();
 
 private:
+    void process_input_events();
+
     void hook_inputs();
     void init_registry();
     void init_walls();
