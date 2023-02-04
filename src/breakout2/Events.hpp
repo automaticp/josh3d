@@ -1,4 +1,5 @@
 #pragma once
+#include "FXType.hpp"
 #include <entt/entity/fwd.hpp>
 #include <algorithm>
 #include <queue>
@@ -39,11 +40,24 @@ struct TileCollisionEvent {
 };
 
 
+enum class FXToggleType : bool {
+    disable, enable
+};
+
+struct FXToggleEvent {
+    FXType type;
+    FXToggleType toggle_type;
+};
+
+
+
+
 // TF is this name though?
 class EventBus {
 private:
     EventQueue<InputEvent> input;
     EventQueue<TileCollisionEvent> tile_collision;
+    EventQueue<FXToggleEvent> fx_toggle;
 
     friend class Game;
 
@@ -54,6 +68,10 @@ public:
 
     void push_tile_collision_event(TileCollisionEvent event) {
         tile_collision.push(event);
+    }
+
+    void push_fx_toggle_event(FXToggleEvent event) {
+        fx_toggle.push(event);
     }
 };
 

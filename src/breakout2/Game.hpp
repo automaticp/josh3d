@@ -1,4 +1,5 @@
 #pragma once
+#include "FXStateManager.hpp"
 #include "Input.hpp"
 #include "SpriteRenderSystem.hpp"
 #include "PhysicsSystem.hpp"
@@ -32,6 +33,8 @@ private:
 
     learn::ImGuiContextWrapper imgui_;
 
+    FXStateManager fx_manager_;
+
     std::vector<GameLevel> levels_;
     size_t current_level_{ 0 };
 
@@ -49,6 +52,8 @@ public:
 
     Game(glfw::Window& window);
 
+    // TODO: Maybe process some events before update
+    // and some after?
     void process_events();
     void update();
     void render();
@@ -56,9 +61,11 @@ public:
 private:
     void process_input_events();
     void process_tile_collision_events();
+    void process_fx_state_updates();
 
     void update_transforms();
     void update_player_velocity();
+    void update_fx_state();
 
     void update_gui();
 

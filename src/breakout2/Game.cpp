@@ -1,5 +1,6 @@
 #include "Game.hpp"
 #include "Canvas.hpp"
+#include "FXType.hpp"
 #include "GlobalsGL.hpp"
 #include "Input.hpp"
 #include "Events.hpp"
@@ -36,6 +37,7 @@ Game::Game(glfw::Window& window)
 void Game::process_events() {
     process_input_events();
     process_tile_collision_events();
+    process_fx_state_updates();
 }
 
 
@@ -84,6 +86,30 @@ void Game::process_tile_collision_events() {
 }
 
 
+void Game::process_fx_state_updates() {
+    while (!events.fx_toggle.empty()) {
+        auto event = events.fx_toggle.pop();
+
+
+        switch (event.type) {
+            case FXType::speed:
+                {
+                    auto& imc = registry_.get<InputMoveComponent>(player_);
+                    if (event.toggle_type == FXToggleType::enable) {
+                        imc.max_velocity = player_base_speed * 1.3f;
+                    } else {
+                        imc.max_velocity = player_base_speed;
+                    }
+                }
+                break;
+            default:
+                break;
+        }
+    }
+
+}
+
+
 void Game::update() {
 
     update_player_velocity();
@@ -95,10 +121,12 @@ void Game::update() {
     // This does not work...
     // auto& p = registry_.get<PhysicsComponent>(ball_);
     // p.set_velocity(ball_base_speed * glm::normalize(p.get_velocity()));
+
+    update_fx_state();
 }
 
 void Game::update_player_velocity() {
-    auto [phys, trans, imc] = registry_.get<PhysicsComponent, Transform2D, InputMoveComponent>(player_);
+    auto [phys, trans, imc] = registry_.get<PhysicsComponent, Transform2D, const InputMoveComponent>(player_);
 
     float input_speed{ 0.f };
 
@@ -151,6 +179,10 @@ void Game::update_transforms() {
     }
 }
 
+
+void Game::update_fx_state() {
+    fx_manager_.update(update_time_step);
+}
 
 
 void Game::update_gui() {
@@ -290,6 +322,13 @@ void Game::hook_inputs() {
     input_.set_keybind(KeyCode::Space, [](const KeyCallbackArgs& args) {
         if (args.is_pressed()) {
             events.push_input_event(launch_ball);
+        }
+    });
+
+    // FIXME: Remove later
+    input_.set_keybind(KeyCode::H, [this](const KeyCallbackArgs& args) {
+        if (args.is_pressed()) {
+            fx_manager_.enable(FXType::speed, 15.f);
         }
     });
 }
