@@ -21,4 +21,5 @@ target_link_libraries(breakout2
         range-v3::concepts
         EnTT::EnTT
         box2d::box2d
+        imgui::imgui
 )

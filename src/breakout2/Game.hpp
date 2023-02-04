@@ -3,6 +3,7 @@
 #include "SpriteRenderSystem.hpp"
 #include "PhysicsSystem.hpp"
 #include "GameLevel.hpp"
+#include "ImGuiContextWrapper.hpp"
 #include <box2d/b2_joint.h>
 #include <entt/entity/fwd.hpp>
 #include <glfwpp/window.h>
@@ -27,7 +28,9 @@ private:
     entt::registry registry_;
     SpriteRenderSystem renderer_;
     PhysicsSystem physics_;
-    learn::BasicRebindableInput<> input_;
+    learn::BasicRebindableInput<learn::ImGuiInputBlocker> input_;
+
+    learn::ImGuiContextWrapper imgui_;
 
     std::vector<GameLevel> levels_;
     size_t current_level_{ 0 };
@@ -56,6 +59,8 @@ private:
 
     void update_transforms();
     void update_player_velocity();
+
+    void update_gui();
 
     void hook_inputs();
     void init_registry();
