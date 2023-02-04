@@ -29,17 +29,7 @@ void Game::process_events() {
 
 void Game::process_input_events() {
 
-    auto view = registry_.view<const InputMoveComponent, PhysicsComponent>();
-
-    auto move_func = [&](float velocity_x_sign) {
-        view.each(
-            [=](const InputMoveComponent& imc, PhysicsComponent& p) {
-                p.set_velocity(
-                    { p.get_velocity().x + velocity_x_sign * imc.max_velocity, 0.f }
-                );
-            }
-        );
-    };
+    auto& imc = registry_.get<InputMoveComponent>(player_);
 
     while (!events.input.empty()) {
         auto event = events.input.pop();
@@ -47,16 +37,16 @@ void Game::process_input_events() {
         switch (event) {
             using enum InputEvent;
             case lmove:
-                move_func(-1.f);
+                imc.wants_move_left = true;
                 break;
             case lstop:
-                move_func(1.f);
+                imc.wants_move_left = false;
                 break;
             case rmove:
-                move_func(1.f);
+                imc.wants_move_right = true;
                 break;
             case rstop:
-                move_func(-1.f);
+                imc.wants_move_right = false;
                 break;
             case launch_ball:
                 this->launch_ball();
@@ -80,43 +70,74 @@ void Game::process_tile_collision_events() {
 
 
 void Game::update() {
-    physics_.update(registry_, update_time_step);
 
+    update_player_velocity();
 
-    // void correct_paddle_position();
+    physics_.update(update_time_step);
 
-    // This is bad for at least 2 reasons:
-    // One of them is that the paddle will still transfer momentum
-    // to the ball even when 'stuck' against the wall, since it
-    // will still have nonzero velocity.
-
-    // auto [p, t] = registry_.get<PhysicsComponent, const Transform2D>(player_);
-    // const glm::vec2 p_pos = p.get_position();
-    // const float lim_right = canvas.bound_right() - t.scale.x / 2.f;
-    // const float lim_left  = canvas.bound_left()  + t.scale.x / 2.f;
-
-    // if (p_pos.x > lim_right) {
-    //     p.set_position({ lim_right, p_pos.y });
-    // }
-
-    // if (p_pos.x < lim_left) {
-    //     p.set_position({ lim_left, p_pos.y });
-    // }
-
-    // void update_transforms();
-    auto view = registry_.view<const PhysicsComponent, Transform2D>();
-
-    for (auto [entity, phys, trans] : view.each()) {
-        trans.position = to_screen(phys.body->GetPosition());
-    }
-
-
-
+    update_transforms();
 
     // This does not work...
     // auto& p = registry_.get<PhysicsComponent>(ball_);
     // p.set_velocity(ball_base_speed * glm::normalize(p.get_velocity()));
 }
+
+void Game::update_player_velocity() {
+    auto [phys, trans, imc] = registry_.get<PhysicsComponent, Transform2D, InputMoveComponent>(player_);
+
+    float input_speed{ 0.f };
+
+    if (imc.wants_move_left) {
+        input_speed -= imc.max_velocity;
+    }
+
+    if (imc.wants_move_right) {
+        input_speed += imc.max_velocity;
+    }
+
+    // The pushback velocity is the most sane way I've found to handle
+    // paddle collision with the canvas borders.
+    //
+    // Resetting position when alredy OOB will definetly break the physics
+    // as you will appear stationary at the edge but with a nonzero velocity.
+    // (Do not 'teleport' objects if you want to work *together* with the
+    // physics engine)
+    //
+    // Multiplicatively dampening current velocity also breaks down
+    // when you're not moving and the (1 / step) blows up to infinity.
+
+    const float lim_right = canvas.bound_right() - trans.scale.x / 2.f;
+    const float lim_left  = canvas.bound_left()  + trans.scale.x / 2.f;
+
+    const float current_pos{ trans.position.x };
+    const float next_pos{ current_pos + input_speed * update_time_step };
+
+    // Push back when close to the borders to not penetrate.
+    // This will also push you back even if you're not pressing move
+    // and will get you unstuck if the paddle grows in size near the border.
+    float pushback_speed{ 0.0f };
+
+    if (next_pos > lim_right) {
+        pushback_speed = (lim_right - next_pos) / update_time_step;
+    } else if (next_pos < lim_left) {
+        pushback_speed = (lim_left - next_pos) / update_time_step;
+    }
+
+    phys.set_velocity({ pushback_speed + input_speed, 0.f });
+
+}
+
+
+void Game::update_transforms() {
+    auto view = registry_.view<const PhysicsComponent, Transform2D>();
+
+    for (auto [entity, phys, trans] : view.each()) {
+        trans.position = to_screen(phys.body->GetPosition());
+    }
+}
+
+
+
 
 
 void Game::render() {
@@ -213,7 +234,7 @@ void Game::hook_inputs() {
     using learn::KeyCallbackArgs;
     using enum InputEvent;
 
-    input_.set_keybind(KeyCode::A, [this](const KeyCallbackArgs& args) {
+    input_.set_keybind(KeyCode::A, [](const KeyCallbackArgs& args) {
         if (args.is_pressed()) {
             events.push_input_event(lmove);
         }
@@ -222,7 +243,7 @@ void Game::hook_inputs() {
         }
     });
 
-    input_.set_keybind(KeyCode::D, [this](const KeyCallbackArgs& args) {
+    input_.set_keybind(KeyCode::D, [](const KeyCallbackArgs& args) {
         if (args.is_pressed()) {
             events.push_input_event(rmove);
         }
@@ -231,13 +252,13 @@ void Game::hook_inputs() {
         }
     });
 
-    input_.set_keybind(KeyCode::Escape, [this](const KeyCallbackArgs& args) {
+    input_.set_keybind(KeyCode::Escape, [](const KeyCallbackArgs& args) {
         if (args.is_released()) {
             events.push_input_event(exit);
         }
     });
 
-    input_.set_keybind(KeyCode::Space, [this](const KeyCallbackArgs& args) {
+    input_.set_keybind(KeyCode::Space, [](const KeyCallbackArgs& args) {
         if (args.is_pressed()) {
             events.push_input_event(launch_ball);
         }

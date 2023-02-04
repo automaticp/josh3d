@@ -151,7 +151,7 @@ public:
         entt::entity entity, const glm::vec2& pos, float radius_screen);
 
 
-    void update(entt::registry& registry, float time_step) {
+    void update(float time_step) {
         world_.Step(time_step, 8, 3);
     }
 

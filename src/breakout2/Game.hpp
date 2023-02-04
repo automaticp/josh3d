@@ -15,6 +15,8 @@
 
 struct InputMoveComponent {
     float max_velocity;
+    bool wants_move_left{ false };
+    bool wants_move_right{ false };
 };
 
 
@@ -51,6 +53,9 @@ public:
 private:
     void process_input_events();
     void process_tile_collision_events();
+
+    void update_transforms();
+    void update_player_velocity();
 
     void hook_inputs();
     void init_registry();
