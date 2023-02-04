@@ -1,16 +1,24 @@
 #include "Game.hpp"
+#include "Canvas.hpp"
 #include "GlobalsGL.hpp"
 #include "Input.hpp"
 #include "Events.hpp"
 #include "PhysicsSystem.hpp"
 #include "ImGuiContextWrapper.hpp"
+#include "SpriteRenderSystem.hpp"
 #include "Tile.hpp"
 #include <glm/geometric.hpp>
 #include <imgui.h>
 
 Game::Game(glfw::Window& window)
     : window_{ window }
-    , renderer_{ glm::ortho(0.f, 1600.f, 0.f, 900.f, -1.f, 1.f) }
+    , renderer_{
+        glm::ortho(
+            canvas.bound_left(), canvas.bound_right(),
+            canvas.bound_bottom(), canvas.bound_top(),
+            ZDepth::near, ZDepth::far
+        )
+    }
     , physics_{ registry_ }
     , input_{ window_ }
     , imgui_{ window_ }
@@ -146,13 +154,10 @@ void Game::update_transforms() {
 
 
 void Game::update_gui() {
-    Sprite& s = registry_.get<Sprite>(player_);
-
-    ImGui::Begin("Debug");
-
-    ImGui::SliderFloat("Paddle Depth", &s.depth, -2.f, 2.f);
-
-    ImGui::End();
+    // Sprite& s = registry_.get<Sprite>(player_);
+    // ImGui::Begin("Debug");
+    // ImGui::SliderFloat("Paddle Depth", &s.depth, -2.f, 2.f);
+    // ImGui::End();
 }
 
 

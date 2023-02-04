@@ -9,6 +9,8 @@
 #include <entt/entt.hpp>
 
 namespace ZDepth {
+    static constexpr float near{ -1.0f };
+    static constexpr float far { +1.0f };
     static constexpr float background{ -0.5f };
     static constexpr float foreground{ +0.5f };
 };
