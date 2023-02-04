@@ -254,7 +254,7 @@ void Game::init_registry() {
     // registry_.emplace<InputMoveComponent>(ball_, player_base_speed);
 
     auto background = registry_.create();
-    registry_.emplace<Transform2D>(background, glm::vec2{ 800.f, 450.f }, glm::vec2( 1600.f, 900.f ), 0.f);
+    registry_.emplace<Transform2D>(background, canvas.center, canvas.size, 0.f);
     registry_.emplace<Sprite>(background,
         learn::globals::texture_handle_pool.load("src/breakout2/sprites/background.jpg"),
         ZDepth::background
