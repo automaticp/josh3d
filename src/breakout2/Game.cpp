@@ -3,6 +3,7 @@
 #include "Input.hpp"
 #include "Events.hpp"
 #include "PhysicsSystem.hpp"
+#include "Tile.hpp"
 #include <glm/geometric.hpp>
 
 Game::Game(glfw::Window& window)
@@ -64,7 +65,10 @@ void Game::process_tile_collision_events() {
     while (!events.tile_collision.empty()) {
         auto event = events.tile_collision.pop();
 
-        registry_.destroy(event.tile_entity);
+        const TileType type = registry_.get<TileComponent>(event.tile_entity).type;
+        if (type != TileType::solid) {
+            registry_.destroy(event.tile_entity);
+        }
     }
 }
 
