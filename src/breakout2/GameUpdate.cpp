@@ -66,6 +66,11 @@ void Game::update_player_velocity() {
 
 
 void Game::update_transforms() {
+    // Tranform2D is used primarily for drawing the sprites, but also
+    // for some other things and is the standard way of expressing
+    // the transformation in screen space.
+    // So we update the Transform2D component from the world coordiantes
+    // of physics objects every tick to keep things consistent.
     auto view = registry_.view<const PhysicsComponent, Transform2D>();
 
     for (auto [entity, phys, trans] : view.each()) {

@@ -1,7 +1,7 @@
 #include "Game.hpp"
 #include "Canvas.hpp"
 #include "SpriteRenderSystem.hpp"
-#include "GameLevel.hpp"
+#include "Levels.hpp"
 #include "PhysicsSystem.hpp"
 #include "Transform2D.hpp"
 #include "GlobalsGL.hpp"
@@ -23,8 +23,8 @@ Game::Game(glfw::Window& window)
 {
     hook_inputs();
     init_registry();
-    levels_.emplace_back(GameLevel::from_file("src/breakout2/levels/one.lvl"));
-    current_level().build_level_entities(registry_, physics_);
+    levels_.emplace(GameLevel::from_file("src/breakout2/levels/one.lvl"));
+    levels_.current().build_level_entities(registry_, physics_);
     init_walls();
     // Ewww, sticky
     sticky_joint_ = physics_.weld(player_, ball_);

@@ -3,7 +3,7 @@
 #include "Input.hpp"
 #include "SpriteRenderSystem.hpp"
 #include "PhysicsSystem.hpp"
-#include "GameLevel.hpp"
+#include "Levels.hpp"
 #include "ImGuiContextWrapper.hpp"
 #include <box2d/b2_joint.h>
 #include <entt/entity/fwd.hpp>
@@ -35,8 +35,9 @@ private:
 
     FXStateManager fx_manager_;
 
-    std::vector<GameLevel> levels_;
-    size_t current_level_{ 0 };
+    Levels levels_;
+    // std::vector<GameLevel> levels_;
+    // size_t current_level_{ 0 };
 
     entt::entity player_;
     entt::entity ball_;
@@ -63,6 +64,8 @@ private:
     void process_tile_collision_events();
     void process_fx_state_updates();
 
+    void launch_ball();
+
     void update_transforms();
     void update_player_velocity();
     void update_fx_state();
@@ -73,9 +76,6 @@ private:
     void init_registry();
     void init_walls();
 
-    GameLevel& current_level() noexcept { return levels_[current_level_]; }
-
-    void launch_ball();
 };
 
 
