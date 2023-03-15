@@ -150,6 +150,9 @@ public:
     [[nodiscard]] PhysicsComponent create_ball(
         entt::entity entity, const glm::vec2& pos, float radius_screen);
 
+    [[nodiscard]] PhysicsComponent create_powerup(
+        entt::entity entity, const glm::vec2& pos, const glm::vec2& scale);
+
 
     void update(float time_step) {
         world_.Step(time_step, 8, 3);

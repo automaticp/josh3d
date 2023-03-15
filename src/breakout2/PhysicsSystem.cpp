@@ -1,4 +1,5 @@
 #include "PhysicsSystem.hpp"
+#include <box2d/b2_body.h>
 #include <box2d/box2d.h>
 
 
@@ -94,4 +95,22 @@ PhysicsComponent PhysicsSystem::create_ball(
 }
 
 
+PhysicsComponent PhysicsSystem::create_powerup(
+    entt::entity entity, const glm::vec2& pos, const glm::vec2& scale) {
 
+    b2Body* body = make_body(entity, b2_kinematicBody, pos);
+
+    b2PolygonShape box_shape;
+    b2Vec2 half_scale = to_world(scale * 0.5f);
+    box_shape.SetAsBox(half_scale.x, half_scale.y);
+
+    b2FixtureDef fixture_def;
+    fixture_def.friction = 0.0f;
+    fixture_def.shape = &box_shape;
+
+    // TODO: Add a flag or something for collision resolution between powerups and player/floor
+
+    body->CreateFixture(&fixture_def);
+
+    return { body };
+}
