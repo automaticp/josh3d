@@ -1,5 +1,7 @@
 #include "Game.hpp"
 #include "Events.hpp"
+#include "Tile.hpp"
+#include "Transform2D.hpp"
 
 
 void Game::process_events() {
@@ -46,9 +48,16 @@ void Game::process_tile_collision_events() {
     while (!events.tile_collision.empty()) {
         auto event = events.tile_collision.pop();
 
-        const TileType type = registry_.get<TileComponent>(event.tile_entity).type;
+        auto tile_entity = event.tile_entity;
+
+        const TileType type = registry_.get<TileComponent>(tile_entity).type;
+
         if (type != TileType::solid) {
-            registry_.destroy(event.tile_entity);
+            const glm::vec2 position = registry_.get<Transform2D>(tile_entity).position;
+
+            registry_.destroy(tile_entity);
+
+            powerup_generator_.try_generate_random_at(registry_, physics_, position);
         }
     }
 }

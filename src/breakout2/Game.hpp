@@ -1,6 +1,7 @@
 #pragma once
 #include "FXStateManager.hpp"
 #include "Input.hpp"
+#include "PowerUpGenerator.hpp"
 #include "SpriteRenderSystem.hpp"
 #include "PhysicsSystem.hpp"
 #include "Levels.hpp"
@@ -29,6 +30,9 @@ private:
     entt::registry registry_;
     SpriteRenderSystem renderer_;
     PhysicsSystem physics_;
+
+    PowerUpGenerator powerup_generator_;
+
     learn::BasicRebindableInput<learn::ImGuiInputBlocker> input_;
 
     learn::ImGuiContextWrapper imgui_;
