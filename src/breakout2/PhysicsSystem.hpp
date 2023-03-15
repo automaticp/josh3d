@@ -13,6 +13,7 @@
 #include <box2d/b2_world.h>
 #include <box2d/b2_world_callbacks.h>
 #include <box2d/box2d.h>
+#include <cstdint>
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
 #include <vector>
@@ -39,6 +40,35 @@ inline float to_screen(float world_crds) noexcept {
 }
 
 
+
+namespace collision {
+
+// Each fixture 'belongs' to a category (or multiple).
+namespace category {
+
+constexpr uint16_t wall   { 1u << 0 };
+constexpr uint16_t paddle { 1u << 1 };
+constexpr uint16_t ball   { 1u << 2 };
+constexpr uint16_t tile   { 1u << 3 };
+constexpr uint16_t powerup{ 1u << 4 };
+
+}
+
+// Each fixture 'collides with' masked categories.
+// Kinematic and static bodies don't actually collide with each other,
+// so, for example, masking the paddle and the wall is redundant,
+// but is done regardless for symbolic reasons (is this a good idea, though?).
+namespace mask {
+
+constexpr uint16_t wall   { category::ball | category::powerup };
+constexpr uint16_t paddle { category::ball | category::wall | category::powerup };
+constexpr uint16_t ball   { category::wall | category::paddle | category::tile };
+constexpr uint16_t tile   { category::ball };
+constexpr uint16_t powerup{ category::wall | category::paddle };
+
+}
+
+} // namespace collision
 
 
 struct PhysicsComponent {

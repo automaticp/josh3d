@@ -21,6 +21,8 @@ void PhysicsSystem::destroy_body(entt::registry& reg, entt::entity ent) {
 
 
 
+using namespace collision;
+
 
 PhysicsComponent PhysicsSystem::create_wall(
     entt::entity entity, const glm::vec2& pos, const glm::vec2& scale) {
@@ -33,6 +35,9 @@ PhysicsComponent PhysicsSystem::create_wall(
     b2FixtureDef fixture_def;
     fixture_def.friction = 0.0f;
     fixture_def.shape = &box_shape;
+
+    fixture_def.filter.categoryBits = category::wall;
+    fixture_def.filter.maskBits = mask::wall;
 
     body->CreateFixture(&fixture_def);
 
@@ -52,6 +57,9 @@ PhysicsComponent PhysicsSystem::create_tile(
     fixture_def.friction = 0.0f;
     fixture_def.shape = &box_shape;
 
+    fixture_def.filter.categoryBits = category::tile;
+    fixture_def.filter.maskBits = mask::tile;
+
     body->CreateFixture(&fixture_def);
 
     return { body };
@@ -69,6 +77,9 @@ PhysicsComponent PhysicsSystem::create_paddle(
     b2FixtureDef fixture_def;
     fixture_def.friction = 0.3f;
     fixture_def.shape = &box_shape;
+
+    fixture_def.filter.categoryBits = category::paddle;
+    fixture_def.filter.maskBits = mask::paddle;
 
     body->CreateFixture(&fixture_def);
 
@@ -89,6 +100,9 @@ PhysicsComponent PhysicsSystem::create_ball(
     fixture_def.restitution = 1.0f;
     fixture_def.shape = &circle_shape;
 
+    fixture_def.filter.categoryBits = category::ball;
+    fixture_def.filter.maskBits = mask::ball;
+
     body->CreateFixture(&fixture_def);
 
     return { body };
@@ -108,7 +122,8 @@ PhysicsComponent PhysicsSystem::create_powerup(
     fixture_def.friction = 0.0f;
     fixture_def.shape = &box_shape;
 
-    // TODO: Add a flag or something for collision resolution between powerups and player/floor
+    fixture_def.filter.categoryBits = category::powerup;
+    fixture_def.filter.maskBits = mask::powerup;
 
     body->CreateFixture(&fixture_def);
 
