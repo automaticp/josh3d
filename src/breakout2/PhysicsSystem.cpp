@@ -1,6 +1,67 @@
 #include "PhysicsSystem.hpp"
+#include "Events.hpp"
+#include "PowerUp.hpp"
 #include <box2d/b2_body.h>
 #include <box2d/box2d.h>
+
+
+
+void ContactListener::BeginContact(b2Contact* contact) {
+
+    using namespace collision;
+    constexpr uint16_t ball_x_tile_collision_bits{ category::ball | category::tile };
+    constexpr uint16_t powerup_x_wall_collision_bits{ category::powerup | category::wall };
+    constexpr uint16_t powerup_x_paddle_collision_bits{ category::powerup | category::paddle };
+
+    b2Fixture* fixt_a = contact->GetFixtureA();
+    b2Fixture* fixt_b = contact->GetFixtureB();
+
+    const uint16_t category_bits_a{ fixt_a->GetFilterData().categoryBits };
+    const uint16_t category_bits_b{ fixt_b->GetFilterData().categoryBits };
+
+    const uint16_t collision_bits = category_bits_a | category_bits_b;
+
+
+    if (collision_bits == ball_x_tile_collision_bits) {
+
+        b2Fixture* const tile_fixt =
+            (category_bits_a & category::tile) ? fixt_a : fixt_b;
+
+        auto tile_ent = get_entity(tile_fixt->GetBody());
+
+        // Must be a better way than try_get() but whatever.
+        assert(registry_.try_get<TileComponent>(tile_ent));
+
+        events.push_tile_collision_event({ tile_ent });
+
+    } else if (collision_bits == powerup_x_wall_collision_bits) {
+
+        b2Fixture* const powerup_fixt =
+            (category_bits_a & category::powerup) ? fixt_a : fixt_b;
+
+        auto powerup_ent = get_entity(powerup_fixt->GetBody());
+
+        assert(registry_.try_get<PowerUpComponent>(powerup_ent));
+
+        events.push_powerup_collision_event({ powerup_ent, PowerUpCollisionType::with_wall });
+
+    } else if (collision_bits == powerup_x_paddle_collision_bits) {
+
+        b2Fixture* const powerup_fixt =
+            (category_bits_a & category::powerup) ? fixt_a : fixt_b;
+
+        auto powerup_ent = get_entity(powerup_fixt->GetBody());
+        PowerUpComponent* powerup = registry_.try_get<PowerUpComponent>(powerup_ent);
+
+        assert(powerup);
+        assert(powerup->type != PowerUpType::none);
+
+        events.push_powerup_collision_event({ powerup_ent, PowerUpCollisionType::with_paddle });
+
+    }
+}
+
+
 
 
 b2Body* PhysicsSystem::make_body(

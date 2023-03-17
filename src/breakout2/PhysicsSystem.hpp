@@ -104,25 +104,12 @@ public:
     ContactListener(entt::registry& registry)
         : registry_{ registry }
     {}
-    // void BeginContact(b2Contact* contact) final {}
 
-    void EndContact(b2Contact* contact) final {
-        auto ent_a = get_entity(contact->GetFixtureA()->GetBody());
-        auto ent_b = get_entity(contact->GetFixtureB()->GetBody());
+    void BeginContact(b2Contact* contact) final;
 
-        TileComponent* tile_a = registry_.try_get<TileComponent>(ent_a);
-        if (tile_a) {
-            events.push_tile_collision_event({ ent_a });
-        }
-
-        TileComponent* tile_b = registry_.try_get<TileComponent>(ent_b);
-        if (tile_b) {
-            events.push_tile_collision_event({ ent_b });
-        }
-    }
-
-    // void PreSolve(b2Contact* contact, const b2Manifold* oldManifold) final { /* handle pre-solve event */ }
-    // void PostSolve(b2Contact* contact, const b2ContactImpulse* impulse) final { /* handle post-solve event */ }
+    // void EndContact(b2Contact* contact) final {}
+    // void PreSolve(b2Contact* contact, const b2Manifold* oldManifold) final {}
+    // void PostSolve(b2Contact* contact, const b2ContactImpulse* impulse) final {}
 
 private:
     static entt::entity get_entity(b2Body* body) noexcept {
