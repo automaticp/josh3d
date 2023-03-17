@@ -1,6 +1,6 @@
 #pragma once
 #include "FXType.hpp"
-#include <entt/entity/fwd.hpp>
+#include <entt/entt.hpp>
 #include <algorithm>
 #include <queue>
 #include <utility>
@@ -39,6 +39,14 @@ struct TileCollisionEvent {
     entt::entity tile_entity;
 };
 
+enum class PowerUpCollisionType {
+    with_wall, with_paddle
+};
+
+struct PowerUpCollisionEvent {
+    entt::entity powerup_entity;
+    PowerUpCollisionType type;
+};
 
 enum class FXToggleType : bool {
     disable, enable
@@ -51,12 +59,13 @@ struct FXToggleEvent {
 
 
 
-
-// TF is this name though?
+// This Bus is 'bout to run you over, boy;
+// Brrrrrr, here it ~~comeeeees~~
 class EventBus {
 private:
     EventQueue<InputEvent> input;
     EventQueue<TileCollisionEvent> tile_collision;
+    EventQueue<PowerUpCollisionEvent> powerup_collision;
     EventQueue<FXToggleEvent> fx_toggle;
 
     friend class Game;
@@ -72,6 +81,10 @@ public:
 
     void push_fx_toggle_event(FXToggleEvent event) {
         fx_toggle.push(event);
+    }
+
+    void push_powerup_collision_event(PowerUpCollisionEvent event) {
+        powerup_collision.push(event);
     }
 };
 
