@@ -1,6 +1,6 @@
 #pragma once
-#include "PhysicsSystem.hpp"
 #include <cstddef>
+#include <glm/glm.hpp>
 #include <entt/entt.hpp>
 
 
@@ -20,4 +20,4 @@ struct PowerUpComponent {
 };
 
 
-void make_powerup(entt::registry& registry, PhysicsSystem& physics, PowerUpType type, glm::vec2 pos);
+void make_powerup(entt::registry& registry, class PhysicsSystem& physics, PowerUpType type, glm::vec2 pos);
