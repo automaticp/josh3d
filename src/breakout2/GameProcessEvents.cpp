@@ -55,8 +55,9 @@ void Game::process_tile_collision_events() {
         if (type != TileType::solid) {
             const glm::vec2 position = registry_.get<Transform2D>(tile_entity).position;
 
-            registry_.destroy(tile_entity);
+            trash_.destroy_later(tile_entity);
 
+            // FIXME: Maybe send a 'create powerup' event instead?
             powerup_generator_.try_generate_random_at(registry_, physics_, position);
         }
     }

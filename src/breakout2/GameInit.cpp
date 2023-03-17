@@ -20,6 +20,7 @@ Game::Game(glfw::Window& window)
     , physics_{ registry_ }
     , input_{ window_ }
     , imgui_{ window_ }
+    , trash_{ registry_ }
 {
     hook_inputs();
     init_registry();

@@ -17,6 +17,8 @@ void Game::update() {
     // p.set_velocity(ball_base_speed * glm::normalize(p.get_velocity()));
 
     update_fx_state();
+
+    trash_.clear_out();
 }
 
 void Game::update_player_velocity() {

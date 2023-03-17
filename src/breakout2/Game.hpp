@@ -12,6 +12,7 @@
 #include <entt/entt.hpp>
 #include <glm/glm.hpp>
 #include <queue>
+#include <unordered_set>
 #include <vector>
 
 
@@ -20,6 +21,38 @@ struct InputMoveComponent {
     float max_velocity;
     bool wants_move_left{ false };
     bool wants_move_right{ false };
+};
+
+/*
+It's like a Trash Bin for entities that's cleared on every update!
+
+Prefer the Trash Bin over destroying entities inplace, as other
+systems could still depend on the entity in the current frame.
+For example, the physics system could register multiple collisions
+in the same update and try to destroy the entity on every collision,
+resulting in double- and sometimes triple-free scenarios.
+
+I'm bringing this up as an example not because it's such an obvious
+observation and I definetly would never have this happen to me...
+*/
+class EntityTrashBin {
+private:
+    entt::registry& registry_;
+    std::unordered_set<entt::entity> entities_to_destroy_;
+
+public:
+    EntityTrashBin(entt::registry& registry) : registry_{ registry } {}
+
+    void destroy_later(entt::entity entity) {
+        entities_to_destroy_.emplace(entity);
+    }
+
+    void clear_out() {
+        for (auto ent : entities_to_destroy_) {
+            registry_.destroy(ent);
+        }
+        entities_to_destroy_.clear();
+    }
 };
 
 
@@ -40,11 +73,11 @@ private:
     FXStateManager fx_manager_;
 
     Levels levels_;
-    // std::vector<GameLevel> levels_;
-    // size_t current_level_{ 0 };
 
     entt::entity player_;
     entt::entity ball_;
+
+    EntityTrashBin trash_;
 
     b2Joint* sticky_joint_;
 
