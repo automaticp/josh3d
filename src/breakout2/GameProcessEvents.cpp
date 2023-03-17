@@ -1,12 +1,16 @@
 #include "Game.hpp"
 #include "Events.hpp"
+#include "PowerUp.hpp"
 #include "Tile.hpp"
 #include "Transform2D.hpp"
+#include <entt/entt.hpp>
+#include <type_traits>
 
 
 void Game::process_events() {
     process_input_events();
     process_tile_collision_events();
+    process_powerup_collision_events();
     process_fx_state_updates();
 }
 
@@ -64,10 +68,32 @@ void Game::process_tile_collision_events() {
 }
 
 
+
+
+void Game::process_powerup_collision_events() {
+    while (!events.powerup_collision.empty()) {
+        auto event = events.powerup_collision.pop();
+
+        if (event.type == PowerUpCollisionType::with_paddle) {
+
+            const PowerUpType powerup_type =
+                registry_.get<PowerUpComponent>(event.powerup_entity).type;
+
+            // FIXME: Fragile conversion depends on the underlying values.
+            const auto fx_type = FXType{ std::underlying_type_t<PowerUpType>(powerup_type) };
+
+            fx_manager_.enable(fx_type);
+        }
+
+        trash_.destroy_later(event.powerup_entity);
+    }
+
+}
+
+
 void Game::process_fx_state_updates() {
     while (!events.fx_toggle.empty()) {
         auto event = events.fx_toggle.pop();
-
 
         switch (event.type) {
             case FXType::speed:

@@ -99,6 +99,7 @@ public:
 private:
     void process_input_events();
     void process_tile_collision_events();
+    void process_powerup_collision_events();
     void process_fx_state_updates();
 
     void launch_ball();
