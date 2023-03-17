@@ -8,7 +8,7 @@
 #include <glbinding/gl/gl.h>
 #include <entt/entt.hpp>
 
-namespace ZDepth {
+namespace zdepth {
     static constexpr float near{ -1.0f };
     static constexpr float far { +1.0f };
     static constexpr float background{ -0.5f };
@@ -17,7 +17,7 @@ namespace ZDepth {
 
 struct Sprite {
     learn::Shared<learn::TextureHandle> texture;
-    float depth{ ZDepth::foreground };
+    float depth{ zdepth::foreground };
     glm::vec4 color{ 1.f, 1.f, 1.f, 1.f };
 };
 

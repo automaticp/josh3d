@@ -14,7 +14,7 @@ Game::Game(glfw::Window& window)
         glm::ortho(
             canvas.bound_left(), canvas.bound_right(),
             canvas.bound_bottom(), canvas.bound_top(),
-            ZDepth::near, ZDepth::far
+            zdepth::near, zdepth::far
         )
     }
     , physics_{ registry_ }
@@ -42,7 +42,7 @@ void Game::init_registry() {
     registry_.emplace<PhysicsComponent>(player_, physics_.create_paddle(player_, player_pos, player_scale));
     registry_.emplace<Sprite>(player_,
         learn::globals::texture_handle_pool.load("src/breakout2/sprites/paddle.png"),
-        ZDepth::foreground
+        zdepth::foreground
     );
     registry_.emplace<InputMoveComponent>(player_, player_base_speed);
 
@@ -54,7 +54,7 @@ void Game::init_registry() {
     registry_.emplace<PhysicsComponent>(ball_, physics_.create_ball(ball_, ball_pos, ball_scale.x / 2.f));
     registry_.emplace<Sprite>(ball_,
         learn::globals::texture_handle_pool.load("src/breakout2/sprites/awesomeface.png"),
-        ZDepth::foreground
+        zdepth::foreground
     );
     // registry_.emplace<InputMoveComponent>(ball_, player_base_speed);
 
@@ -62,7 +62,7 @@ void Game::init_registry() {
     registry_.emplace<Transform2D>(background, canvas.center, canvas.size, 0.f);
     registry_.emplace<Sprite>(background,
         learn::globals::texture_handle_pool.load("src/breakout2/sprites/background.jpg"),
-        ZDepth::background
+        zdepth::background
     );
 
 }

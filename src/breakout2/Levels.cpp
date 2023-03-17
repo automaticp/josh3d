@@ -32,7 +32,7 @@ void GameLevel::build_level_entities(entt::registry& registry, PhysicsSystem& ph
                     registry.emplace<Transform2D>(tile, current_center, tile_scale, 0.f);
                     registry.emplace<Sprite>(tile,
                         learn::globals::texture_handle_pool.load(tile_texture_path(current_type)),
-                        ZDepth::foreground, tile_color(current_type)
+                        zdepth::foreground, tile_color(current_type)
                     );
                     registry.emplace<PhysicsComponent>(tile,
                         physics.create_tile(tile, current_center, tile_scale)

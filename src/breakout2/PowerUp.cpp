@@ -38,37 +38,37 @@ static Sprite get_powerup_sprite(PowerUpType type) {
         case PowerUpType::speed:
             return {
                 pool.load("src/breakout2/sprites/powerup_speed.png"),
-                ZDepth::foreground,
+                zdepth::foreground,
                 color_good
             };
         case PowerUpType::sticky:
             return {
                 pool.load("src/breakout2/sprites/powerup_sticky.png"),
-                ZDepth::foreground,
+                zdepth::foreground,
                 color_good
             };
         case PowerUpType::pass_through:
             return {
                 pool.load("src/breakout2/sprites/powerup_passthrough.png"),
-                ZDepth::foreground,
+                zdepth::foreground,
                 color_good
             };
         case PowerUpType::pad_size_up:
             return {
                 pool.load("src/breakout2/sprites/powerup_increase.png"),
-                ZDepth::foreground,
+                zdepth::foreground,
                 color_good
             };
         case PowerUpType::confuse:
             return {
                 pool.load("src/breakout2/sprites/powerup_confuse.png"),
-                ZDepth::foreground,
+                zdepth::foreground,
                 color_bad
             };
         case PowerUpType::chaos:
             return {
                 pool.load("src/breakout2/sprites/powerup_chaos.png"),
-                ZDepth::foreground,
+                zdepth::foreground,
                 color_bad
             };
         default:
