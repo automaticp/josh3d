@@ -112,7 +112,9 @@ PhysicsComponent PhysicsSystem::create_ball(
 PhysicsComponent PhysicsSystem::create_powerup(
     entt::entity entity, const glm::vec2& pos, const glm::vec2& scale) {
 
-    b2Body* body = make_body(entity, b2_kinematicBody, pos);
+    // Powerups are made dynamic to participate
+    // in the collisions with the floor/paddle.
+    b2Body* body = make_body(entity, b2_dynamicBody, pos);
 
     b2PolygonShape box_shape;
     b2Vec2 half_scale = to_world(scale * 0.5f);
@@ -120,6 +122,8 @@ PhysicsComponent PhysicsSystem::create_powerup(
 
     b2FixtureDef fixture_def;
     fixture_def.friction = 0.0f;
+    fixture_def.density = 1.0f;
+    fixture_def.restitution = 1.0f;
     fixture_def.shape = &box_shape;
 
     fixture_def.filter.categoryBits = category::powerup;
