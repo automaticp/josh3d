@@ -132,7 +132,7 @@ void Game::hook_inputs() {
     // FIXME: Remove later
     input_.set_keybind(KeyCode::H, [this](const KeyCallbackArgs& args) {
         if (args.is_pressed()) {
-            fx_manager_.enable(FXType::speed, 15.f);
+            fx_manager_.enable_for(FXType::speed, 15.f);
         }
     });
 }

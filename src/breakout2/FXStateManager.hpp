@@ -41,12 +41,17 @@ public:
         }
     }
 
-    void enable(FXType type, float duration) {
+    void enable_for(FXType type, float duration) {
         const bool new_event = !at(type).is_active();
         if (new_event) {
             events.push_fx_toggle_event({ type, FXToggleType::enable });
         }
         at(type).enable(duration);
+    }
+
+    void enable(FXType type) {
+        // FIXME: Configure default durations.
+        enable_for(type, 15.f);
     }
 
 private:
