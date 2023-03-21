@@ -3,6 +3,7 @@
 #include "Input.hpp"
 #include "PowerUpGenerator.hpp"
 #include "SpriteRenderSystem.hpp"
+#include "VFXRenderer.hpp"
 #include "PhysicsSystem.hpp"
 #include "Levels.hpp"
 #include "ImGuiContextWrapper.hpp"
@@ -62,6 +63,7 @@ private:
     glfw::Window& window_;
     entt::registry registry_;
     SpriteRenderSystem renderer_;
+    VFXRenderer vfx_renderer_;
     PhysicsSystem physics_;
 
     PowerUpGenerator powerup_generator_;

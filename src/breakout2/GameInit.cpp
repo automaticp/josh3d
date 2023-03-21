@@ -1,5 +1,6 @@
 #include "Game.hpp"
 #include "Canvas.hpp"
+#include "GlobalsUtil.hpp"
 #include "SpriteRenderSystem.hpp"
 #include "Levels.hpp"
 #include "PhysicsSystem.hpp"
@@ -17,11 +18,23 @@ Game::Game(glfw::Window& window)
             zdepth::near, zdepth::far
         )
     }
+    , vfx_renderer_{
+        learn::globals::window_size.width(),
+        learn::globals::window_size.height()
+    }
     , physics_{ registry_ }
     , input_{ window_ }
     , imgui_{ window_ }
     , trash_{ registry_ }
 {
+    window_.framebufferSizeEvent.setCallback(
+        [this](glfw::Window&, int w, int h) {
+            learn::globals::window_size.set_to(w, h);
+            gl::glViewport(0, 0, w, h);
+            vfx_renderer_.reset_size(w, h);
+        }
+    );
+
     hook_inputs();
     init_registry();
     levels_.emplace(GameLevel::from_file("src/breakout2/levels/one.lvl"));
