@@ -100,15 +100,23 @@ void Game::process_fx_state_updates() {
 
         switch (event.type) {
             case FXType::speed:
-                {
-                    auto& imc = registry_.get<InputMoveComponent>(player_);
-                    if (event.toggle_type == FXToggleType::enable) {
-                        imc.max_velocity = player_base_speed * 1.3f;
-                    } else {
-                        imc.max_velocity = player_base_speed;
-                    }
+            {
+                auto& imc = registry_.get<InputMoveComponent>(player_);
+                if (event.toggle_type == FXToggleType::enable) {
+                    imc.max_velocity = player_base_speed * 1.3f;
+                } else {
+                    imc.max_velocity = player_base_speed;
                 }
-                break;
+            } break;
+            case FXType::pad_size_up: // TODO
+            case FXType::pass_through: // TODO
+            case FXType::sticky: // TODO
+            // Visual effect states are queried directly
+            // from FXStateManager in the render() call.
+            // So no updates here.
+            case FXType::shake:
+            case FXType::chaos:
+            case FXType::confuse:
             default:
                 break;
         }
