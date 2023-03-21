@@ -9,10 +9,10 @@
 #include <entt/entt.hpp>
 
 namespace zdepth {
-    static constexpr float near{ -1.0f };
+    static constexpr float near{ +0.0f };
     static constexpr float far { +1.0f };
-    static constexpr float background{ -0.5f };
-    static constexpr float foreground{ +0.5f };
+    static constexpr float background{ +0.8f };
+    static constexpr float foreground{ +0.2f };
 };
 
 struct Sprite {
@@ -85,6 +85,8 @@ public:
         auto asp = sp_.use();
         auto bvao = vao_.bind();
 
+        glEnable(GL_DEPTH_TEST);
+
         const learn::TextureHandle* last_texture{ nullptr };
 
         for (auto [ent, sprite, transform] : view.each()) {
@@ -95,8 +97,10 @@ public:
                 sprite.texture->bind_to_unit(GL_TEXTURE0);
             }
 
-            asp .uniform(ulocs_.color, sprite.color)
-                .uniform(ulocs_.model, transform.mtransform().translate({ 0.f, 0.f, sprite.depth }).model());
+            asp.uniform(ulocs_.color, sprite.color);
+
+            // See below for an explanation of '-sprite.depth'.
+            asp.uniform(ulocs_.model, transform.mtransform().translate({ 0.f, 0.f, -sprite.depth }).model());
 
             // TODO(maybe): Instanced draws on sprites with the same texture?
             bvao.draw_arrays(GL_TRIANGLES, 0, quad.size());
@@ -107,3 +111,34 @@ public:
 
 
 };
+
+/*
+We negate the sprite.depth when applying the Z transform for depth testing because
+our chosen coordinate system (X, Y, Z=depth) with the origin at the bottom left
+of the screen forms a Left-Handed (LH) coordinate system:
+
+Y
+|   Z
+|  /
+| /
+|/______ X
+
+where the larger values of Z (depth) represent objects further away (background).
+
+There are 2 things that you have to keep in mind:
+
+1. OpenGL (and GLM) expect the objects to be positioned in a Right-Handed (RH)
+coordinate system.
+
+2. The Normalized Device Coordinates (NDC) of clip space are actually using
+a Left-Handed coordinate system.
+
+What this means is that GLM, when forming a projection matrix with the
+glm::ortho call, will encode the transformation from a RH to a LH system
+in the projection matrix. You can see this by inspecting the matrix:
+element P[3,3] (1-indexed), which represents linear scaling of the Z coordinate
+will most likely be negative.
+
+Because, once again, GLM expects a RH system, we just invert the Z component
+to go from the LH to the RH coordinate system.
+*/
