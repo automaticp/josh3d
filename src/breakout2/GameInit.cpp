@@ -12,13 +12,6 @@
 Game::Game(glfw::Window& window)
     : window_{ window }
     , renderer_{
-        glm::ortho(
-            canvas.bound_left(), canvas.bound_right(),
-            canvas.bound_bottom(), canvas.bound_top(),
-            zdepth::near, zdepth::far
-        )
-    }
-    , vfx_renderer_{
         learn::globals::window_size.width(),
         learn::globals::window_size.height()
     }
@@ -31,7 +24,7 @@ Game::Game(glfw::Window& window)
         [this](glfw::Window&, int w, int h) {
             learn::globals::window_size.set_to(w, h);
             gl::glViewport(0, 0, w, h);
-            vfx_renderer_.reset_size(w, h);
+            renderer_.reset_size(w, h);
         }
     );
 

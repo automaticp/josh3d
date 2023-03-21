@@ -1,38 +1,54 @@
-#pragma once
+#include "GameRenderSystem.hpp"
+#include "ShaderBuilder.hpp"
+#include "SpriteRenderSystem.hpp"
+#include "Canvas.hpp"
 #include "GlobalsUtil.hpp"
-#include "PostprocessDoubleBuffer.hpp"
-#include "PostprocessRenderer.hpp"
-#include "GLObjects.hpp"
-#include "FXStateManager.hpp"
-#include <glbinding/gl/gl.h>
-#include <glbinding/gl/types.h>
+#include <glm/glm.hpp>
+#include <entt/entt.hpp>
+
+
+GameRenderSystem::GameRenderSystem(gl::GLsizei width, gl::GLsizei height)
+    : sprite_renderer_{
+        glm::ortho(
+            canvas.bound_left(), canvas.bound_right(),
+            canvas.bound_bottom(), canvas.bound_top(),
+            zdepth::near, zdepth::far
+        )
+    }
+    , ppdb_{ width, height }
+    , pp_shake_{
+        learn::ShaderBuilder()
+            .load_vert("src/breakout2/shaders/pp_shake.vert")
+            .load_frag("src/shaders/pp_kernel_blur.frag")
+            .get()
+    }
+    , pp_chaos_{
+        learn::ShaderBuilder()
+            .load_vert("src/breakout2/shaders/pp_chaos.vert")
+            .load_frag("src/shaders/pp_kernel_edge.frag")
+            .get()
+    }
+    , pp_confuse_{
+        learn::ShaderBuilder()
+            .load_vert("src/breakout2/shaders/pp_confuse.vert")
+            .load_frag("src/shaders/pp_invert.frag")
+            .get()
+    }
+{}
 
 
 
-class VFXRenderer {
-private:
-    learn::PostprocessRenderer pp_renderer_;
-    learn::PostprocessDoubleBuffer ppdb_;
 
-    learn::ShaderProgram pp_shake_;
-    learn::ShaderProgram pp_chaos_;
-    learn::ShaderProgram pp_confuse_;
-
-public:
-    VFXRenderer(gl::GLsizei width, gl::GLsizei height);
-
-    void draw(auto&& scene_draw_function, const FXStateManager& fx_manager);
-
-    void reset_size(gl::GLsizei width, gl::GLsizei height) { ppdb_.reset_size(width, height); }
-};
-
-
-
-inline void VFXRenderer::draw(auto&& scene_draw_fun, const FXStateManager& fx_manager) {
+void GameRenderSystem::draw(entt::registry& registry, const FXStateManager& fx_manager) {
     using namespace gl;
 
-    ppdb_.draw_and_swap(scene_draw_fun);
+    // Scene rendering.
+    ppdb_.draw_and_swap([&, this] {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        sprite_renderer_.draw_sprites(registry);
+    });
 
+    // Post-effects.
     if (fx_manager.is_active(FXType::confuse)) {
         ppdb_.draw_and_swap([this] {
             auto asp = pp_confuse_.use();
@@ -68,7 +84,7 @@ inline void VFXRenderer::draw(auto&& scene_draw_fun, const FXStateManager& fx_ma
         });
     }
 
-
+    // Blitting to the screen backbuffer.
     auto [w, h] = learn::globals::window_size.size();
 
     learn::BoundFramebuffer::unbind_as(GL_DRAW_FRAMEBUFFER);

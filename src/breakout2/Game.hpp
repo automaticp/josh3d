@@ -2,8 +2,7 @@
 #include "FXStateManager.hpp"
 #include "Input.hpp"
 #include "PowerUpGenerator.hpp"
-#include "SpriteRenderSystem.hpp"
-#include "VFXRenderer.hpp"
+#include "GameRenderSystem.hpp"
 #include "PhysicsSystem.hpp"
 #include "Levels.hpp"
 #include "ImGuiContextWrapper.hpp"
@@ -62,8 +61,7 @@ class Game {
 private:
     glfw::Window& window_;
     entt::registry registry_;
-    SpriteRenderSystem renderer_;
-    VFXRenderer vfx_renderer_;
+    GameRenderSystem renderer_;
     PhysicsSystem physics_;
 
     PowerUpGenerator powerup_generator_;
