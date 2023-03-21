@@ -64,6 +64,9 @@ void Game::process_tile_collision_events() {
 
             // FIXME: Maybe send a 'create powerup' event instead?
             powerup_generator_.try_generate_random_at(registry_, physics_, position);
+
+        } else /* solid */ {
+            fx_manager_.enable_for(FXType::shake, 0.05f);
         }
     }
 }
