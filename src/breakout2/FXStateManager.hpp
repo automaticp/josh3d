@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <array>
 #include "Events.hpp"
+#include "FXType.hpp"
 
 // A simple manager that both updates the state of each FX,
 // and also sends out events whenever a certain effect
@@ -52,6 +53,10 @@ public:
     void enable(FXType type) {
         // FIXME: Configure default durations.
         enable_for(type, 15.f);
+    }
+
+    bool is_active(FXType type) const noexcept {
+        return at(type).is_active();
     }
 
 private:
