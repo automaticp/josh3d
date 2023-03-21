@@ -1,3 +1,4 @@
+#include "FXType.hpp"
 #include "Game.hpp"
 #include "Events.hpp"
 #include "PowerUp.hpp"
@@ -69,6 +70,11 @@ void Game::process_tile_collision_events() {
 
 
 
+static FXType powerup_to_fx(PowerUpType powerup_type) noexcept {
+    // FIXME: Fragile conversion depends on the underlying values.
+    return FXType{ std::underlying_type_t<PowerUpType>(powerup_type) };
+}
+
 
 void Game::process_powerup_collision_events() {
     while (!events.powerup_collision.empty()) {
@@ -79,10 +85,7 @@ void Game::process_powerup_collision_events() {
             const PowerUpType powerup_type =
                 registry_.get<PowerUpComponent>(event.powerup_entity).type;
 
-            // FIXME: Fragile conversion depends on the underlying values.
-            const auto fx_type = FXType{ std::underlying_type_t<PowerUpType>(powerup_type) };
-
-            fx_manager_.enable(fx_type);
+            fx_manager_.enable(powerup_to_fx(powerup_type));
         }
 
         trash_.destroy_later(event.powerup_entity);
