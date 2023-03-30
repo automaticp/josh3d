@@ -1,17 +1,22 @@
 #pragma once
 #include "TextureData.hpp"
 #include "Shared.hpp"
+#include "ThreadsafeQueue.hpp"
+#include <algorithm>
 #include <cassert>
 #include <condition_variable>
+#include <exception>
 #include <memory>
 #include <stop_token>
 #include <string>
 #include <unordered_map>
 #include <mutex>
+#include <shared_mutex>
 #include <thread>
 #include <future>
 #include <queue>
 #include <functional>
+#include <variant>
 
 namespace learn {
 
@@ -171,6 +176,8 @@ inline Shared<TextureData> AsyncDataPool<TextureData>::load_data_from(const std:
 
 
 /*
+(THIS COMMENT BLOCK IS OUTDATED)
+
 There are, technically, two AsyncPools, one is for Data, and the other
 is for GL Objects. Extra diffuculty arises because they have to work
 together to transfer data from the hard drive, to the vram.
@@ -300,133 +307,207 @@ condition_variable.notify_all() --> and return
 */
 
 
-// Can have other info attached, like entity id
-template<typename T>
-struct LoadResult {
-    std::string path;
-    Shared<T> resource;
-};
-
-// FOR DEMONSTRATION PURPOSES,
-// USE A BETTER IMPLEMENTATION!
-template<typename T>
-class ThreadSafeQueue {
-private:
-    std::queue<T> queue_;
-    mutable std::mutex mtx_;
-
-public:
-    void push(T element) {
-        std::lock_guard lk{ mtx_ };
-        queue_.push(std::move(element));
-    }
-
-
-    // What's below does not work,
-    // as a 'check empty and pop' combo is not atomic.
-    // Just assume that the recieving end of the queue
-    // is not implemented.
-    T pop() {
-        std::lock_guard lk{ mtx_ };
-        T value{ std::move(queue_.front()) };
-        queue_.pop();
-        return value;
-    }
-
-    bool empty() const noexcept {
-        std::lock_guard lk{ mtx_ };
-        return queue_.empty();
-    }
-
-};
-
-template<typename ResourceT>
-using OutQueue = ThreadSafeQueue<LoadResult<ResourceT>>;
-
-// Some output queue that recieves the results
-// and is consumed later by the interested party.
-template<typename ResourceT>
-inline OutQueue<ResourceT> out_queue;
 
 template<typename ResourceT>
 class AsyncDataPool2 {
 private:
     std::unordered_map<std::string, Shared<ResourceT>> pool_;
+    mutable std::shared_mutex pool_mutex_;
 
-    mutable std::mutex mutex_;
-    // This could be a map: string -> condition_variabe
-    // So that threads waiting on a particular resource
-    // would not be notified only when their resource is ready.
-    std::condition_variable cv_;
+    struct LoadRequest {
+        std::string path;
+        std::promise<Shared<ResourceT>> promise;
+    };
 
-public:
-    void load(const std::string& path) {
-        // WELCOME TO PAIN TOWN
-        std::lock_guard lk{ mutex_ };
+    ThreadsafeQueue<LoadRequest> load_requests_;
+    std::jthread load_request_handler_;
 
-        auto it = pool_.find(path);
-        if (it != pool_.end()) /* some entry at(path) exists */ {
+    // Could use some vector with SBO implementation.
+    // A more suitable map could also be used.
+    // But most likely it's not that big of a deal for performance
+    // in the average use case.
+    std::unordered_map<
+        std::string,
+        std::vector<std::promise<Shared<ResourceT>>>
+    > pending_requests_;
+    mutable std::mutex pending_requests_mutex_;
 
-            if (it->second) /* Shared<T> is not null */ {
 
-                out_queue<ResourceT>.push({ path, it->second });
-                return;
+    void handle_load_requests(std::stop_token stoken) {
+        while (true) {
+            std::optional<LoadRequest> request =
+                load_requests_.wait_and_pop(stoken);
 
-            } else /* another thread is loading the resource */ {
+            if (stoken.stop_requested()) { break; }
 
-                // FIXME: Use thread pool.
-                std::jthread waiting_thread{
-                    [this](const std::string& path) {
+            assert(request.has_value());
+            handle_single_load_request(std::move(request.value()));
+        }
+    }
 
-                        std::unique_lock lk{ mutex_ };
-                        typename decltype(pool_)::iterator it;
-                        cv_.wait(lk, [&] {
-                            it = pool_.find(path);
-                            return it != pool_.end()
-                                && it->second;
-                        });
-                        out_queue<ResourceT>.push({ path, it->second });
+    void handle_single_load_request(LoadRequest&& request) {
+        // First we check for the common case of a resource
+        // being already in the pool under a Read lock.
+        {
+            std::shared_lock read_lock{ pool_mutex_ };
+            const auto& pool = pool_;
 
-                    },
-                    // std::unordered_map guarantees that references
-                    // to keys/values are not invalidated.
-                    std::cref(it->first)
-                };
-                waiting_thread.detach();
-                return;
-
+            auto it = pool.find(request.path);
+            if (it != pool.end()) /* at(path) exists */ {
+                if (it->second) /* at(path) is not null */ {
+                    request.promise.set_value(it->second);
+                    return;
+                }
             }
+        }
+        // If that is not true, then we acquire Write locks
+        // for the pool and for the set of pending requests
+        // and recheck the state again because it could have
+        // changed between releasing and acquiring the lock.
+        //
+        // Locking the pending requests mutex synchronizes with
+        // any loading thread in order to avoid pushing a pending
+        // request when the loading thread already finished resolving
+        // all visible to it pending requests, which would effectively
+        // 'leak' the request as a result.
+        std::scoped_lock write_locks{ pool_mutex_, pending_requests_mutex_ };
+        auto& pool = pool_;
 
+        auto it = pool.find(request.path);
+        if (it != pool.end()) /* at(path) exists */ {
+            if (it->second) /* at(path) is not null */ {
+                // Some other thread might have loaded the resource
+                // while we were trying to reacquire the lock.
+                request.promise.set_value(it->second);
+                return;
+            } else /* another thread is already loading the resource */ {
+                // The loading thread will resolve all pending requests
+                // once it's done loading.
+                pending_requests_[std::move(request.path)].emplace_back(std::move(request.promise));
+                return;
+            }
         } else /* no resource found and no one is currently loading it */ {
 
+            // Emplace a nullptr to signal that one thread is
+            // already working on loading the resource.
             [[maybe_unused]]
             auto [it, was_emplaced] =
-                pool_.emplace(path, Shared<ResourceT>());
+                pool.emplace(request.path, nullptr);
+
+            assert(was_emplaced);
 
             // FIXME: Use thread pool.
             std::jthread loading_thread{
-                [&, this](const std::string& path) {
+                [this](LoadRequest request) {
+                    try {
+                        Shared<ResourceT> data{ load_data_from(request.path) };
+                        request.promise.set_value(data);
 
-                    Shared<ResourceT> data = load_data_from(path);
-                    out_queue<ResourceT>.push({ path, data });
+                        // Lock the pending requests and resolve them.
+                        std::lock_guard pending_lock{ pending_requests_mutex_ };
 
-                    std::lock_guard lk{ mutex_ };
+                        auto pending_it = pending_requests_.find(request.path);
+                        if (pending_it != pending_requests_.end()) {
+                            for (std::promise<Shared<ResourceT>>& promise : pending_it->second) {
+                                promise.set_value(data);
+                            }
+                            pending_requests_.erase(pending_it);
+                        }
 
-                    assert(!pool_.at(path));
-                    pool_.insert_or_assign(path, std::move(data));
+                        // We cannot release the pending requests mutex yet because we haven't updated
+                        // the signalling nullptr value at(path), which can be misinterpreted
+                        // by the request handler thread as if we're still 'loading' the resource.
+                        // It would then push the another pending request here even though we are
+                        // already done processing them, therefore 'leaking' that request.
+                        //
+                        // So we hold onto the pending requests mutex until nullptr is updated.
 
-                    cv_.notify_all();
+                        // Now acquire the Write lock on the pool and emplace the result.
+                        // This will have 2 mutexes locked by the same thread, but it should
+                        // be fine since any other loading thread will lock them in the same
+                        // order, and the request handler thread will lock them at the same time
+                        // with std::scoped_lock.
+                        std::unique_lock write_pool_lock{ pool_mutex_ };
+
+                        auto it = pool_.find(request.path);
+                        // The loading thread should find the pool entry in exactly this state:
+                        assert((it != pool_.end() && it->second == nullptr));
+
+                        it->second = std::move(data);
+
+                        // Done, release both locks and return.
+                    } catch (...) {
+                        request.promise.set_exception(std::current_exception());
+
+                        // Lock the pending requests and propagate the exception.
+                        std::lock_guard pending_lock{ pending_requests_mutex_ };
+
+                        auto pending_it = pending_requests_.find(request.path);
+                        if (pending_it != pending_requests_.end()) {
+                            for (std::promise<Shared<ResourceT>>& promise : pending_it->second) {
+                                promise.set_exception(std::current_exception());
+                            }
+                            pending_requests_.erase(pending_it);
+                        }
+
+                        // Erase the entry from the pool - no longer loading.
+                        std::unique_lock write_pool_lock{ pool_mutex_ };
+
+                        auto it = pool_.find(request.path);
+
+                        assert((it != pool_.end() && it->second == nullptr));
+
+                        pool_.erase(it);
+
+                    }
                 },
-                std::cref(path)
+                std::move(request)
             };
+            // Detaching the thread creates a lot of questions
+            // about lifetimes. Because it's detached, it can
+            // try to modify an already destroyed data pool. Bad.
+            //
+            // Use a thread pool to have minimal control over
+            // lifetime of threads.
+            loading_thread.detach();
+
         }
-
-
-
-
-
     }
 
+public:
+    AsyncDataPool2()
+        : load_request_handler_{ &AsyncDataPool2::handle_load_requests, *this }
+    {}
+
+    template<typename PathT>
+    std::future<Shared<ResourceT>> load_async(PathT&& path) {
+
+        std::promise<Shared<ResourceT>> promise;
+        auto future = promise.get_future();
+
+        load_requests_.emplace(std::forward<PathT>(path), std::move(promise));
+
+        return future;
+    }
+
+    // Tries to load a cached value directly as Shared<ResourceT>.
+    // Returns future<Shared<ResourceT>> and loads asynchronously
+    // if an attempt to lock the cache pool failed or if the requested
+    // resource is not in cache.
+    template<typename PathT>
+    std::variant<Shared<ResourceT>, std::future<Shared<ResourceT>>>
+    try_load_from_cache_or_load_async(PathT&& path) {
+        std::shared_lock lock{ pool_mutex_, std::try_to_lock };
+        if (lock.owns_lock()) {
+            auto it = pool_.find(path);
+            if (it != pool_.end() && it->second) {
+                return it->second;
+            }
+        }
+        return load_async(std::forward<PathT>(path));
+    }
+
+private:
     // To be specialized externally for each ResourceT.
     Shared<ResourceT> load_data_from(const std::string& path);
 };
