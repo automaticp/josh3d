@@ -109,6 +109,15 @@ public:
         buf2_.reset_size(width, height);
     }
 
+    // Implements the Bind-Draw-Unbind-Swap chain.
+    void draw_and_swap(auto&& draw_function) {
+        using namespace gl;
+        back().framebuffer()
+            .bind_as(GL_DRAW_FRAMEBUFFER)
+            .and_then(draw_function)
+            .unbind();
+        swap_buffers();
+    }
 
 };
 

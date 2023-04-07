@@ -17,8 +17,9 @@ namespace learn {
 // possibly modified but never queried for position,
 // rotation or scale.
 //
-// Transformations are order-dependent, scale->rotate->translate
-// for most sane results.
+// Transformations are order-dependent,
+// translate->rotate->scale for most sane results.
+// Read matrix multiplication left-to-right: T * R * S.
 //
 // Primarily used for rendering, use plain Transform in other cases.
 class MTransform {
@@ -142,9 +143,9 @@ public:
 
     operator MTransform() const noexcept {
         return MTransform()
-            .scale(scale_)
+            .translate(position_)
             .rotate(rotation_)
-            .translate(position_);
+            .scale(scale_);
     }
 
 };

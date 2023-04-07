@@ -114,6 +114,10 @@ struct KeyCallbackArgs {
     int scancode;
     glfw::KeyState state;
     glfw::ModifierKeyBit mods;
+
+    bool is_pressed() const noexcept { return state == glfw::KeyState::Press; }
+    bool is_released() const noexcept { return state == glfw::KeyState::Release; }
+    bool is_repeated() const noexcept { return state == glfw::KeyState::Release; }
 };
 
 struct CursorPosCallbackArgs {
@@ -197,12 +201,16 @@ private:
     keymap_t keymap_;
 
 public:
-    explicit BasicRebindableInput(glfw::Window& window) : window_{ window } {}
+    explicit BasicRebindableInput(glfw::Window& window) : window_{ window } {
+        enable_key_callback();
+    }
 
     BasicRebindableInput(glfw::Window& window, BlockerT input_blocker)
         : window_{ window }
         , blocker_{ std::move(input_blocker) }
-    {}
+    {
+        enable_key_callback();
+    }
 
 
     void set_keybind(key_t key, std::function<void(const KeyCallbackArgs&)> callback) {
