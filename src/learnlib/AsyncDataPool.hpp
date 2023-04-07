@@ -23,9 +23,7 @@
 namespace learn {
 
 
-
 /*
-(THIS COMMENT BLOCK IS OUTDATED)
 
 There are, technically, two AsyncPools, one is for Data, and the other
 is for GL Objects. Extra diffuculty arises because they have to work
@@ -35,7 +33,7 @@ For example, a simple load request done by the rendering system
 would have to go through both of the Pools:
 
 1. Rendering System calls AsyncGLObjectPool::load(path) from Main Thread
-to load a Resource (Texture/Model/etc.).
+to load a Resource (Texture/Model/etc.) and recieves a future to the resource.
 
 2. AsyncGLObjectPool checks the cache for an existing instance
 and finds none. Dispatches some Thread A to load raw data for the Resource.
@@ -54,31 +52,29 @@ a shared handle of the raw data for the Resource to Thread A.
 
 (The exact details of how Thread B returns the result to Thread A
 are yet unclear to me. I imagine it could be done with std::future,
-another output queue, or even by never dispatching Thread B at all)
+or even by never dispatching Thread B at all)
 
 7. Thread A takes the raw data and creates a GLObject from it
 by calling make_object_from_data(raw_data).
 
 8. Thread A caches the newly created object into AsyncGLObjectPool
-and returns a shared handle to it by enqueing it into some
-thread-safe OutQueue<Resource>.
+and returns a shared handle to it through the promise object.
 
-9. Rendering System periodiacally (every frame) checks if
-there are any resources avaliable in the OutQueue<Resource>
-and if there are, retrieves them for later rendering.
+9. Rendering System periodiacally (every frame) checks if any futures
+have been fulfilled and if there are, retrieves them for later rendering.
 
 
-Slightly inaccurate pic for dummies (like me):
+Slightly inaccurate pic for demonstation:
 
 
-        [process every frame]
-RenderSystem --------> OutQueue<Resource>
+       [check periodically]
+RenderSystem --------> future<Resource>
     |                    ^
-    | [request load]     | [make gl object and return handle]
+    | [request load]     | [make gl object, cache, and return handle]
     v                    |
 AsyncGLObjectPool   AsyncGLObjectPool
     |                    ^
-    | [request load]     | [make data resource and return handle]
+    | [request load]     | [make data resource, cache, and return handle]
     v                    |
 AsyncDataPool        AsyncDataPool
     \                    /
@@ -86,72 +82,53 @@ AsyncDataPool        AsyncDataPool
       \                /
        raw data on disk
 
-Another thing is that the AsyncPool can act as an Active Object
-in its public interface, so that the main thread would not
-be blocked by the pool mutex.
+*/
+
+/*
+
+AsyncDataPool works like an Active Object if the load is submitted
+through AsyncDataPool::load_async(), so there's minimal blocking
+on the calling thread.
 
 
+Current implementation of AsyncDataPool primarily consists of these components:
 
-Below is an approximate logic for an AsyncPool::load function,
-that doesn't yet consider communication between AsyncGLObjectPool
-and AsyncDataPool.
+- A single 'incoming request queue' that recieves requests through
+  the calls to AsyncDataPool::load_async(). Part of Active Object.
 
-The return of the result is done by emplacing the result into a
-result queue, that will later be checked by the interested party.
-The way the result is returned might be changed, however, to whatever
-fits best for a particular use case. Keep in mind the asynchrony.
+- A single 'request handler' thread that dispatches the load requests
+  based on the current state of the resource. Part of Active Object.
+
+- A shared cache pool protected by a single mutex.
+  Stores shared handles to the resources.
+
+- A shared pending requests pool protected by a single mutex.
+  Stores repeated load requests for the resource that's already being loaded.
 
 
+For the purposes of concretely defining transactional logic of the
+AsyncDataPool and clearly outlinig required synchronization points,
+each resource in a shared pool is expected to exist in one
+of the three possible states:
 
-pool.load(path, ...)
-    |
-lock the pool
-    |
-check if at(path) is already present
-(find(path) != pool.end())
-    |   \
-    no   yes --> check if the shared pointer is null
-    |                   |                   \
-    |                  yes                  no --> enque the result and return
-    |                   |
-    |           then another thread is
-    |           already loading the resource
-    |                   |
-    |           launch a task (thread/async)
-    |           to wait until the resource is avaliable --> and return
-    |                   |
-    |                   v
-    |           go to sleep (use condition variable)
-    |           until some resource is avaliable
-    |                   |
-    |           if the avaliable resource is not the one
-    |           that you were looking for, then go back to sleep,
-    |           otherwise:
-    |                   |
-    |           lock the pool (will be locked from cv wakeup)
-    |                   |
-    |           copy the pointer from the pool --> enque the result and return
-    |
-    |
-emplace a nullptr at(path) to signal that
-the resource is alread being loaded by one thread
-    |
-launch a task (thread/async)
-to load the resource from memory --> and return
-    |
-    v
-load the resource (will block the thread)
-    |
-enque the result by copy of Shared<T>
-(do as early as possible)
-    |
-lock the pool
-    |
-emplace (insert_or_assign) the result into the pool
-by moving a local copy of Shared<T>
-(assert that the previous value was null (can this fail the ABA test?))
-    |
-condition_variable.notify_all() --> and return
+1. Not cached and not being loaded by another thread.
+   This corresponds to the pool not having an entry for the resource
+   (pool.find(resource_key) == pool.end()).
+
+2. Not cached but is currently being loaded by another thread.
+   This corresponds to the pool having a null entry for the resource
+   (pool.at(resource_key) == nullptr).
+
+   Additional load requests on this resource during this state
+   are redirected to the 'pending requests pool', and will be
+   fullfilled once the loading thread completes the load.
+   An entry for the resource MUST NOT EXIST in the pending requests
+   pool outside of the loading state. Failure to comply can lead
+   to potentially 'leaking' the load requests.
+
+3. Cached.
+   This corresponds to the pool having a valid entry for the resource
+   (pool.at(resource_key) is a valid shared handle to the resource).
 
 */
 
