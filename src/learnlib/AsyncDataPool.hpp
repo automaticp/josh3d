@@ -2,6 +2,7 @@
 #include "TextureData.hpp"
 #include "Shared.hpp"
 #include "ThreadsafeQueue.hpp"
+#include "ThreadPool.hpp"
 #include <algorithm>
 #include <cassert>
 #include <condition_variable>
@@ -334,6 +335,10 @@ private:
     mutable std::mutex pending_requests_mutex_;
 
 
+    // TODO: Can be stored as shared_ptr<ThreadPool>,
+    // will have to think about this. Might be unneccessary.
+    ThreadPool& thread_pool_;
+
     void handle_load_requests(std::stop_token stoken) {
         while (true) {
             std::optional<LoadRequest> request =
@@ -397,8 +402,16 @@ private:
 
             assert(was_emplaced);
 
-            // FIXME: Use thread pool.
-            std::jthread loading_thread{
+            // FIXME: The thread dispatched by the ThreadPool can try to access
+            // an already destroyed AsyncDataPool. We need a way to defer destruction
+            // until all submitted load requests are complete.
+            //
+            // Might collect futures in a std::vector<std::future<void(LoadRequest)>>
+            // and wait on all of them in the destructor.
+            //
+            // Will have to think about it a bit more.
+
+            thread_pool_.emplace(
                 [this](LoadRequest request) {
                     try {
                         Shared<ResourceT> data{ load_data_from(request.path) };
@@ -463,21 +476,15 @@ private:
                     }
                 },
                 std::move(request)
-            };
-            // Detaching the thread creates a lot of questions
-            // about lifetimes. Because it's detached, it can
-            // try to modify an already destroyed data pool. Bad.
-            //
-            // Use a thread pool to have minimal control over
-            // lifetime of threads.
-            loading_thread.detach();
+            );
 
         }
     }
 
 public:
-    AsyncDataPool2()
+    AsyncDataPool2(ThreadPool& thread_pool)
         : load_request_handler_{ &AsyncDataPool2::handle_load_requests, *this }
+        , thread_pool_{ thread_pool }
     {}
 
     // Submits the requested resource for an asynchronous load and returns a future to it.
