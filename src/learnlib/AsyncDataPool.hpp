@@ -7,6 +7,7 @@
 #include <condition_variable>
 #include <exception>
 #include <memory>
+#include <optional>
 #include <stop_token>
 #include <string>
 #include <unordered_map>
@@ -479,24 +480,21 @@ public:
         : load_request_handler_{ &AsyncDataPool2::handle_load_requests, *this }
     {}
 
-    template<typename PathT>
-    std::future<Shared<ResourceT>> load_async(PathT&& path) {
+    // Submits the requested resource for an asynchronous load and returns a future to it.
+    std::future<Shared<ResourceT>> load_async(auto&& path) {
 
         std::promise<Shared<ResourceT>> promise;
         auto future = promise.get_future();
 
-        load_requests_.emplace(std::forward<PathT>(path), std::move(promise));
+        load_requests_.emplace(std::forward<decltype(path)>(path), std::move(promise));
 
         return future;
     }
 
     // Tries to load a cached value directly as Shared<ResourceT>.
-    // Returns future<Shared<ResourceT>> and loads asynchronously
-    // if an attempt to lock the cache pool failed or if the requested
-    // resource is not in cache.
-    template<typename PathT>
-    std::variant<Shared<ResourceT>, std::future<Shared<ResourceT>>>
-    try_load_from_cache_or_load_async(PathT&& path) {
+    // Returns nullopt if an attempt to lock the cache pool failed
+    // or if the requested resource is not in cache.
+    std::optional<Shared<ResourceT>> try_load_from_cache(const std::string& path) {
         std::shared_lock lock{ pool_mutex_, std::try_to_lock };
         if (lock.owns_lock()) {
             auto it = pool_.find(path);
@@ -504,7 +502,7 @@ public:
                 return it->second;
             }
         }
-        return load_async(std::forward<PathT>(path));
+        return std::nullopt;
     }
 
 private:
