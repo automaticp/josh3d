@@ -236,74 +236,77 @@ private:
             // Will have to think about it a bit more.
 
             thread_pool_.emplace(
-                [this](LoadRequest request) {
-                    try {
-                        Shared<ResourceT> data{ load_data_from(request.path) };
-                        request.promise.set_value(data);
-
-                        // Lock the pending requests and resolve them.
-                        std::lock_guard pending_lock{ pending_requests_mutex_ };
-
-                        auto pending_it = pending_requests_.find(request.path);
-                        if (pending_it != pending_requests_.end()) {
-                            for (std::promise<Shared<ResourceT>>& promise : pending_it->second) {
-                                promise.set_value(data);
-                            }
-                            pending_requests_.erase(pending_it);
-                        }
-
-                        // We cannot release the pending requests mutex yet because we haven't updated
-                        // the signalling nullptr value at(path), which can be misinterpreted
-                        // by the request handler thread as if we're still 'loading' the resource.
-                        // It would then push the another pending request here even though we are
-                        // already done processing them, therefore 'leaking' that request.
-                        //
-                        // So we hold onto the pending requests mutex until nullptr is updated.
-
-                        // Now acquire the Write lock on the pool and emplace the result.
-                        // This will have 2 mutexes locked by the same thread, but it should
-                        // be fine since any other loading thread will lock them in the same
-                        // order, and the request handler thread will lock them at the same time
-                        // with std::scoped_lock.
-                        std::unique_lock write_pool_lock{ pool_mutex_ };
-
-                        auto it = pool_.find(request.path);
-                        // The loading thread should find the pool entry in exactly this state:
-                        assert((it != pool_.end() && it->second == nullptr));
-
-                        it->second = std::move(data);
-
-                        // Done, release both locks and return.
-                    } catch (...) {
-                        request.promise.set_exception(std::current_exception());
-
-                        // Lock the pending requests and propagate the exception.
-                        std::lock_guard pending_lock{ pending_requests_mutex_ };
-
-                        auto pending_it = pending_requests_.find(request.path);
-                        if (pending_it != pending_requests_.end()) {
-                            for (std::promise<Shared<ResourceT>>& promise : pending_it->second) {
-                                promise.set_exception(std::current_exception());
-                            }
-                            pending_requests_.erase(pending_it);
-                        }
-
-                        // Erase the entry from the pool - no longer loading.
-                        std::unique_lock write_pool_lock{ pool_mutex_ };
-
-                        auto it = pool_.find(request.path);
-
-                        assert((it != pool_.end() && it->second == nullptr));
-
-                        pool_.erase(it);
-
-                    }
-                },
-                std::move(request)
+                &AsyncDataPool::fulfill_direct_load_request, this, std::move(request)
             );
 
         }
     }
+
+
+    void fulfill_direct_load_request(LoadRequest request) {
+        try {
+            Shared<ResourceT> data{ load_data_from(request.path) };
+            request.promise.set_value(data);
+
+            // Lock the pending requests and resolve them.
+            std::lock_guard pending_lock{ pending_requests_mutex_ };
+
+            auto pending_it = pending_requests_.find(request.path);
+            if (pending_it != pending_requests_.end()) {
+                for (std::promise<Shared<ResourceT>>& promise : pending_it->second) {
+                    promise.set_value(data);
+                }
+                pending_requests_.erase(pending_it);
+            }
+
+            // We cannot release the pending requests mutex yet because we haven't updated
+            // the signalling nullptr value at(path), which can be misinterpreted
+            // by the request handler thread as if we're still 'loading' the resource.
+            // It would then push the another pending request here even though we are
+            // already done processing them, therefore 'leaking' that request.
+            //
+            // So we hold onto the pending requests mutex until nullptr is updated.
+
+            // Now acquire the Write lock on the pool and emplace the result.
+            // This will have 2 mutexes locked by the same thread, but it should
+            // be fine since any other loading thread will lock them in the same
+            // order, and the request handler thread will lock them at the same time
+            // with std::scoped_lock.
+            std::unique_lock write_pool_lock{ pool_mutex_ };
+
+            auto it = pool_.find(request.path);
+            // The loading thread should find the pool entry in exactly this state:
+            assert((it != pool_.end() && it->second == nullptr));
+
+            it->second = std::move(data);
+
+            // Done, release both locks and return.
+        } catch (...) {
+            request.promise.set_exception(std::current_exception());
+
+            // Lock the pending requests and propagate the exception.
+            std::lock_guard pending_lock{ pending_requests_mutex_ };
+
+            auto pending_it = pending_requests_.find(request.path);
+            if (pending_it != pending_requests_.end()) {
+                for (std::promise<Shared<ResourceT>>& promise : pending_it->second) {
+                    promise.set_exception(std::current_exception());
+                }
+                pending_requests_.erase(pending_it);
+            }
+
+            // Erase the entry from the pool - no longer loading.
+            std::unique_lock write_pool_lock{ pool_mutex_ };
+
+            auto it = pool_.find(request.path);
+
+            assert((it != pool_.end() && it->second == nullptr));
+
+            pool_.erase(it);
+
+        }
+    }
+
 
 public:
     AsyncDataPool(ThreadPool& thread_pool)
