@@ -8,6 +8,10 @@
 #include <cassert>
 
 
+namespace learn {
+
+
+
 template<typename T>
 class ThreadsafeQueue {
 private:
@@ -236,3 +240,6 @@ decltype(auto) ThreadsafeQueue<T>::lock_and(CallableT&& callable) const {
     return callable(que_);
 }
 
+
+
+} // namespace learn

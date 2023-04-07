@@ -15,6 +15,10 @@
 #include <latch>
 
 
+namespace learn {
+
+
+
 /*
 "Do not write your own thread pool. Use an existing tasking system."
 
@@ -224,3 +228,5 @@ private:
 };
 
 
+
+} // namespace learn
