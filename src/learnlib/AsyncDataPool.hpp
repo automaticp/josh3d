@@ -310,7 +310,7 @@ private:
 
 public:
     AsyncDataPool(ThreadPool& thread_pool)
-        : load_request_handler_{ &AsyncDataPool::handle_load_requests, *this }
+        : load_request_handler_{ [this](std::stop_token stoken) { handle_load_requests(stoken); } }
         , thread_pool_{ thread_pool }
     {}
 
