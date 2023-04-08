@@ -158,6 +158,15 @@ private:
     > pending_requests_;
     mutable std::mutex pending_requests_mutex_;
 
+    // Used for synchronizing the destruction of the AsyncDataPool
+    // until all loading threads complete their full routines.
+    std::condition_variable_any destructor_cv_;
+    // Loading thread counter synchronizes the destructor to block until
+    // the number of active loading threads is zero.
+    // Currently only modified under full write locks, so atomic is unnecessary.
+    std::atomic<size_t> n_loading_threads_{ 0 };
+    // Not going to try doing any fancy memory_order optimizations, not worth it.
+
 
     // TODO: Can be stored as shared_ptr<ThreadPool>,
     // will have to think about this. Might be unneccessary.
@@ -226,6 +235,10 @@ private:
 
             assert(was_emplaced);
 
+            // Increment the number of loading threads while the write lock
+            // on the pool is still held.
+            n_loading_threads_.fetch_add(1);
+
             // FIXME: The thread dispatched by the ThreadPool can try to access
             // an already destroyed AsyncDataPool. We need a way to defer destruction
             // until all submitted load requests are complete.
@@ -280,6 +293,11 @@ private:
 
             it->second = std::move(data);
 
+            // Only decrement loading thread count under a full write lock.
+            // Release of a write lock serves as a synchronization with
+            // the destructor of AsyncDataPool.
+            n_loading_threads_.fetch_sub(1);
+
             // Done, release both locks and return.
         } catch (...) {
             request.promise.set_exception(std::current_exception());
@@ -304,7 +322,9 @@ private:
 
             pool_.erase(it);
 
+            n_loading_threads_.fetch_sub(1);
         }
+        destructor_cv_.notify_one();
     }
 
 
@@ -328,6 +348,10 @@ public:
     // Tries to load a cached value directly as Shared<ResourceT>.
     // Returns nullopt if an attempt to lock the cache pool failed
     // or if the requested resource is not in cache.
+    //
+    // Note: Succesfully retrieving the result from the future returned
+    // by load_async() does not guarantee that the same resource
+    // will be in cache right after.
     std::optional<Shared<ResourceT>> try_load_from_cache(const std::string& path) {
         std::shared_lock lock{ pool_mutex_, std::try_to_lock };
         if (lock.owns_lock()) {
@@ -337,6 +361,12 @@ public:
             }
         }
         return std::nullopt;
+    }
+
+
+    ~AsyncDataPool() noexcept {
+        std::unique_lock write_lock{ pool_mutex_ };
+        destructor_cv_.wait(write_lock, [this] { return n_loading_threads_.load() == 0; });
     }
 
 private:
