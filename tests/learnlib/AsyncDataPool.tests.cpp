@@ -2,6 +2,7 @@
 #include "ThreadPool.hpp"
 #include <doctest/doctest.h>
 #include <limits>
+#include <range/v3/algorithm/all_of.hpp>
 #include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/all.hpp>
 #include <algorithm>
@@ -12,16 +13,21 @@
 #include <numeric>
 #include <optional>
 #include <random>
+#include <range/v3/iterator/operations.hpp>
 #include <range/v3/numeric/accumulate.hpp>
+#include <range/v3/utility/box.hpp>
 #include <range/v3/view/generate.hpp>
 #include <range/v3/view/generate_n.hpp>
 #include <string>
 #include <thread>
+#include <tuple>
 #include <type_traits>
 #include <vector>
 
 
 using namespace learn;
+// It takes ELEVEN SECONDS to compile this translation unit
+// THANK YOU, RANGES
 namespace views = ranges::views;
 
 static std::string random_string(size_t min_size, size_t max_size) {
@@ -203,7 +209,27 @@ TEST_CASE_TEMPLATE("Loading correctness", T, TestResourceHashed, TestResourceHas
 
 
         SUBCASE("Load async all at once then immediately try to load from cache") {
-            // TODO
+            std::vector<std::future<Shared<T>>> futures =
+                map(paths, [&](const std::string& path) { return data_pool.load_async(path); });
+
+            std::vector<Shared<T>> results =
+                map(futures, [](std::future<Shared<T>>& future) { return future.get(); });
+
+            std::vector<std::optional<Shared<T>>> opt_results =
+                map(paths, [&](const std::string& path) { return data_pool.try_load_from_cache(path); });
+
+            // No guarantee that the opt_results will contain any values.
+            // If any do, compare against expected.
+
+            auto r = views::zip(results, opt_results)
+                | views::filter([](const auto& tuple) { return ranges::get<1>(tuple).has_value(); });
+
+            CHECK_MESSAGE(
+                ranges::all_of(r, [](const auto& tuple) {
+                    return ranges::get<0>(tuple).get() == ranges::get<1>(tuple).value().get();
+                }),
+                "Number of try_load_from_cache() that succeded: " << ranges::distance(r) << "/" << paths.size()
+            );
         }
     }
 
