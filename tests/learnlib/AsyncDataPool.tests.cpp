@@ -1,6 +1,7 @@
 #include "AsyncDataPool.hpp"
 #include "ThreadPool.hpp"
 #include <doctest/doctest.h>
+#include <limits>
 #include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/all.hpp>
 #include <algorithm>
@@ -13,6 +14,7 @@
 #include <random>
 #include <range/v3/numeric/accumulate.hpp>
 #include <range/v3/view/generate.hpp>
+#include <range/v3/view/generate_n.hpp>
 #include <string>
 #include <thread>
 #include <type_traits>
@@ -24,17 +26,13 @@ namespace views = ranges::views;
 
 static std::string random_string(size_t min_size, size_t max_size) {
     thread_local std::mt19937 rng{ std::random_device{}() };
-    thread_local std::uniform_int_distribution<char> char_dist{};
+    thread_local std::uniform_int_distribution<char> char_dist{ char{} + 1, std::numeric_limits<char>::max() };
 
     std::uniform_int_distribution<size_t> size_dist{ min_size, max_size };
 
     const size_t size = size_dist(rng);
 
-    std::string result;
-    result.reserve(size);
-    std::generate_n(std::back_inserter(result), size, [] { return char_dist(rng); });
-
-    return result;
+    return views::generate_n([] { return char_dist(rng); }, size) | ranges::to<std::string>();
 }
 
 
@@ -42,20 +40,12 @@ template<typename U, typename Proj>
 auto map(const std::vector<U>& from, Proj&& proj) {
     using result_t = std::remove_cvref_t<std::invoke_result_t<Proj, const U&>>;
     return from | views::transform(proj) | ranges::to<std::vector<result_t>>();
-    // std::vector<result_t> results;
-    // results.reserve(from.size());
-    // for (const U& element : from) { results.emplace_back(std::forward<Proj>(proj)(element)); }
-    // return results;
 };
 
 template<typename U, typename Proj>
 auto map(std::vector<U>& from, Proj&& proj) {
     using result_t = std::remove_cvref_t<std::invoke_result_t<Proj, U&>>;
     return from | views::transform(proj) | ranges::to<std::vector<result_t>>();
-    // std::vector<result_t> results;
-    // results.reserve(from.size());
-    // for (U& element : from) { results.emplace_back(std::forward<Proj>(proj)(element)); }
-    // return results;
 };
 
 
@@ -124,11 +114,21 @@ TEST_CASE_TEMPLATE("Loading correctness", T, TestResourceHashed, TestResourceHas
         }
 
         SUBCASE("Load async, wait until avaliable, then try load from cache") {
+            // This subcase is mostly here as a form of documentation of what
+            // can happen when you don't read the documentation.
+
             data_pool.load_async(path).wait();
+
+            // This might fail, the loading thread is still running,
+            // and might have not yet emplaced a resource or is holding a write lock.
             std::optional<Shared<T>> opt_res = data_pool.try_load_from_cache(path);
-            REQUIRE(opt_res.has_value());
-            CHECK(opt_res.value()->value == expected.value);
-            CHECK(opt_res.value().use_count() == 2); // Me and pool
+
+            INFO("try_load_from_cache() succeded: " << opt_res.has_value() << ". "
+                << "The value is not guaranteed to be avaliable right after load_async() succeeds.");
+            if (opt_res.has_value()) {
+                CHECK(opt_res.value()->value == expected.value);
+                CHECK(opt_res.value().use_count() == 2); // Me and pool
+            }
         }
 
         SUBCASE("Load async then immediately try to load from cache; do not wait") {
@@ -151,6 +151,11 @@ TEST_CASE_TEMPLATE("Loading correctness", T, TestResourceHashed, TestResourceHas
         }
 
         SUBCASE("Load async the same resource multiple times") {
+            // This can easily crash the program if AsyncDataPool goes out of scope early.
+            // If AsyncDataPool can be destroyed before all of the loading threads are complete
+            // then this will UB on trying to emplace/cache a Shared<T> into the pool after it's
+            // destroyed. Waiting on futures returned from AsyncDataPool is not enough
+            // as they are fulfilled before caching happens.
             std::vector<std::future<Shared<T>>> futures = views::repeat(path)
                 | views::take(1024)
                 | views::transform([&](const std::string& path) { return data_pool.load_async(path); })
@@ -163,6 +168,11 @@ TEST_CASE_TEMPLATE("Loading correctness", T, TestResourceHashed, TestResourceHas
             REQUIRE(ranges::all_of(results, [](auto& elem) { return elem != nullptr; }));
             CHECK(ranges::all_of(results, [&](auto& elem) { return elem.get() == results[0].get(); }));
             CHECK(results[0].use_count() == results.size() + 1);
+            // Adding a delay before destruction will probably make the test pass.
+            // std::this_thread::sleep_for(std::chrono::seconds(1));
+            // DO NOT DO THIS.
+            // AsyncDataPool should instead properly synchronize on destruction until
+            // all of the loading threads are complete.
         }
 
     }
@@ -173,10 +183,10 @@ TEST_CASE_TEMPLATE("Loading correctness", T, TestResourceHashed, TestResourceHas
 
         std::vector<T> expected = map(paths, &make_expected<T>);
 
-        SUBCASE("Why would I even test this?") {
+        SUBCASE("Try load from cache when there is no resource") {
             std::vector<std::optional<Shared<T>>> fails =
                 map(paths, [&](const std::string& path) { return data_pool.try_load_from_cache(path); });
-            CHECK(std::none_of(fails.begin(), fails.end(), [](auto& elem) { return elem.has_value(); }));
+            CHECK(ranges::none_of(fails, [](auto& elem) { return elem.has_value(); }));
             // Do something more useful next time
         }
 
@@ -187,7 +197,7 @@ TEST_CASE_TEMPLATE("Loading correctness", T, TestResourceHashed, TestResourceHas
             std::vector<Shared<T>> results =
                 map(futures, [](std::future<Shared<T>>& future) { return future.get(); });
 
-            REQUIRE(std::all_of(results.begin(), results.end(), [](auto& elem) { return elem != nullptr; }));
+            REQUIRE(ranges::all_of(results, [](auto& elem) { return elem != nullptr; }));
             CHECK(ranges::equal(results, expected, {}, [](Shared<T>& e) { return e->value; }, &T::value));
         }
 
