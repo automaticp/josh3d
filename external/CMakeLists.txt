@@ -1,3 +1,9 @@
+# === doctest ===
+
+find_package(doctest CONFIG REQUIRED)
+set_target_properties(doctest::doctest PROPERTIES IMPORTED_GLOBAL TRUE)
+
+
 # === Assimp ===
 
 find_package(assimp CONFIG REQUIRED)

@@ -4,6 +4,7 @@
     "dependencies": [
         "glbinding",
         "glfw3",
+        "doctest",
         "glm",
         "stb",
         "assimp",

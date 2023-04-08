@@ -6,3 +6,6 @@ add_subdirectory(external)
 
 # add main executable
 add_subdirectory(src)
+
+# add tests
+add_subdirectory(tests)
