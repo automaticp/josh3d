@@ -32,7 +32,7 @@ namespace views = ranges::views;
 
 static std::string random_string(size_t min_size, size_t max_size) {
     thread_local std::mt19937 rng{ std::random_device{}() };
-    thread_local std::uniform_int_distribution<char> char_dist{ char{} + 1, std::numeric_limits<char>::max() };
+    thread_local std::uniform_int_distribution<char> char_dist{ '0', 'z' };
 
     std::uniform_int_distribution<size_t> size_dist{ min_size, max_size };
 
@@ -56,19 +56,16 @@ auto map(std::vector<U>& from, Proj&& proj) {
 
 
 
+template<typename ResourceT>
+static ResourceT make_expected(const std::string& path);
+
+
+
 
 struct TestResourceHashed {
     size_t value;
     bool operator==(const TestResourceHashed& other) const noexcept { return value == other.value; }
 };
-
-struct TestResourceHashedSleepy {
-    size_t value;
-    bool operator==(const TestResourceHashed& other) const noexcept { return value == other.value; }
-};
-
-template<typename ResourceT>
-static ResourceT make_expected(const std::string& path);
 
 template<>
 auto make_expected<TestResourceHashed>(const std::string& path) -> TestResourceHashed {
@@ -76,14 +73,21 @@ auto make_expected<TestResourceHashed>(const std::string& path) -> TestResourceH
 }
 
 template<>
-auto make_expected<TestResourceHashedSleepy>(const std::string& path) -> TestResourceHashedSleepy {
-    return { std::hash<std::string>{}(path) };
+Shared<TestResourceHashed> AsyncDataPool<TestResourceHashed>::load_data_from(const std::string& path) {
+    return std::make_shared<TestResourceHashed>(make_expected<TestResourceHashed>(path));
 }
 
 
+
+
+struct TestResourceHashedSleepy {
+    size_t value;
+    bool operator==(const TestResourceHashed& other) const noexcept { return value == other.value; }
+};
+
 template<>
-Shared<TestResourceHashed> AsyncDataPool<TestResourceHashed>::load_data_from(const std::string& path) {
-    return std::make_shared<TestResourceHashed>(make_expected<TestResourceHashed>(path));
+auto make_expected<TestResourceHashedSleepy>(const std::string& path) -> TestResourceHashedSleepy {
+    return { std::hash<std::string>{}(path) };
 }
 
 template<>
@@ -91,6 +95,26 @@ Shared<TestResourceHashedSleepy> AsyncDataPool<TestResourceHashedSleepy>::load_d
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
     return std::make_shared<TestResourceHashedSleepy>(make_expected<TestResourceHashedSleepy>(path));
 }
+
+
+
+
+struct TestException { std::string what; };
+struct TestResourceThrowing {};
+
+template<>
+auto make_expected<TestResourceThrowing>(const std::string&) -> TestResourceThrowing {
+    return {};
+}
+
+template<>
+Shared<TestResourceThrowing> AsyncDataPool<TestResourceThrowing>::load_data_from(const std::string& path) {
+    throw TestException{ path };
+    return std::make_shared<TestResourceThrowing>(make_expected<TestResourceThrowing>(path));
+}
+
+
+
 
 
 
@@ -240,8 +264,68 @@ TEST_CASE("Loading from multiple threads") {
     // TODO
 }
 
+
+REGISTER_EXCEPTION_TRANSLATOR(TestException& ex) {
+    return doctest::String(ex.what.c_str());
+}
+
+
 TEST_CASE("Exception propagation") {
-    // TODO
+    using T = TestResourceThrowing;
+    ThreadPool thread_pool{};
+    AsyncDataPool<T> data_pool{ thread_pool };
+
+    SUBCASE("Single resource load failure") {
+        const std::string path = random_string(1, 64);
+
+        SUBCASE("Load async once; expect to throw") {
+            auto future = data_pool.load_async(path);
+
+            CHECK_THROWS_WITH_AS(future.get(), path.c_str(), TestException);
+        }
+
+        SUBCASE("Load async multiple times; expect all to throw") {
+            auto futures = views::generate_n([&] { return data_pool.load_async(path); }, 6)
+                | ranges::to<std::vector>();
+
+            for (auto& future : futures) {
+                CHECK_THROWS_WITH_AS(future.get(), path.c_str(), TestException);
+            }
+        }
+    }
+
+    SUBCASE("Multiple resource load failures") {
+        auto paths = views::generate_n([] { return random_string(1, 64); }, 6)
+            | ranges::to<std::vector<std::string>>();
+
+        SUBCASE("Load all async; expect to throw") {
+            auto futures = map(paths, [&](const auto& path) { return data_pool.load_async(path); });
+
+            for (auto [future, path] : views::zip(futures, paths)) {
+                CHECK_THROWS_WITH_AS(future.get(), path.c_str(), TestException);
+            }
+        }
+
+        SUBCASE("Load all async; expect to throw; expect none to be cached") {
+            auto futures = map(paths, [&](const auto& path) { return data_pool.load_async(path); });
+
+            for (auto [future, path] : views::zip(futures, paths)) {
+                CHECK_THROWS_WITH_AS(future.get(), path.c_str(), TestException);
+            }
+
+            // WARN: This part of the test is flaky. There's no way to synchronize
+            // the calling thread with completion of the loading thread in the current
+            // interface of AsyncDataPool. But it's very unrealistic to take more
+            // than 100 ms for a simple task of removing the entry from the pool.
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+            auto opt_results = map(paths, [&](const auto& path) { return data_pool.try_load_from_cache(path); });
+
+            CHECK(ranges::none_of(opt_results, [](auto& elem) { return elem.has_value(); }));
+        }
+
+    }
 }
 
 
