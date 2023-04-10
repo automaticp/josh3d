@@ -297,6 +297,9 @@ private:
             // Release of a write lock serves as a synchronization with
             // the destructor of AsyncDataPool.
             n_loading_threads_.fetch_sub(1);
+            // Also notify under a lock, else a data race can happen
+            // between notification and destruction of cv (thanks, tsan).
+            destructor_cv_.notify_one();
 
             // Done, release both locks and return.
         } catch (...) {
@@ -323,8 +326,8 @@ private:
             pool_.erase(it);
 
             n_loading_threads_.fetch_sub(1);
+            destructor_cv_.notify_one();
         }
-        destructor_cv_.notify_one();
     }
 
 
