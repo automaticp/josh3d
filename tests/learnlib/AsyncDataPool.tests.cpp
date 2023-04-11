@@ -109,6 +109,7 @@ auto make_expected<TestResourceThrowing>(const std::string&) -> TestResourceThro
 
 template<>
 Shared<TestResourceThrowing> AsyncDataPool<TestResourceThrowing>::load_data_from(const std::string& path) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     throw TestException{ path };
     return std::make_shared<TestResourceThrowing>(make_expected<TestResourceThrowing>(path));
 }
@@ -274,6 +275,24 @@ TEST_CASE("Exception propagation") {
     using T = TestResourceThrowing;
     ThreadPool thread_pool{};
     AsyncDataPool<T> data_pool{ thread_pool };
+
+    // WARN: Exception propagation tests can trigger false positives from
+    // ThreadSanitizer because of noninstrumented parts of STL.
+    // A data race warning in the destructor/release of std::exception_ptr
+    // is known and should be treated as a false positive.
+    //
+    // Similar to: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=92731
+    //
+    // Warnings from noninstrumented libs can be disabled through
+    // an environment variable:
+    // TSAN_OPTIONS="ignore_noninstrumented_modules=1"
+    // Note that this can also suppress actual data races.
+
+    // TODO: Make a more accurate suppression rule for TSan that targets
+    // only this particular issue.
+
+    // TODO: Rebuild GCC with TSan to check that I'm not an idiot
+    // and this is actually a false positive.
 
     SUBCASE("Single resource load failure") {
         const std::string path = random_string(1, 64);
