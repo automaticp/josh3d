@@ -13,6 +13,24 @@ struct MaterialDSLocations {
 };
 
 
+/*
+Diffuse-specular material for a classic workflow.
+
+Requires shader uniforms:
+
+sampler2D material.diffuse;
+sampler2D material.specular;
+float     material.shininess;
+
+Implement as:
+
+uniform struct Material {
+    sampler2D diffuse;
+    sampler2D specular;
+    float shininess;
+} material;
+
+*/
 struct MaterialDS {
     Shared<TextureHandle> diffuse;
     Shared<TextureHandle> specular;
