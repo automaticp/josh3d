@@ -1,5 +1,5 @@
 #pragma once
-#include "MaterialTraits.hpp"
+#include "MaterialConcept.hpp"
 #include "GLObjects.hpp"
 #include "Shared.hpp"
 

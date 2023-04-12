@@ -8,7 +8,7 @@
 #include "LightCasters.hpp"
 #include "Logging.hpp"
 #include "MaterialDS.hpp"
-#include "MaterialTraits.hpp"
+#include "MaterialConcept.hpp"
 #include "PostprocessDoubleBuffer.hpp"
 #include "PostprocessStage.hpp"
 #include "ShaderBuilder.hpp"

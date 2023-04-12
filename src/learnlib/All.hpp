@@ -19,7 +19,7 @@
 #include "Input.hpp"
 #include "LightCasters.hpp"
 #include "Logging.hpp"
-#include "MaterialTraits.hpp"
+#include "MaterialConcept.hpp"
 #include "MaterialDS.hpp"
 #include "Mesh.hpp"
 #include "MeshData.hpp"
