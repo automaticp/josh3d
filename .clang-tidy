@@ -14,6 +14,7 @@ Checks: 'boost-*,
     -modernize-use-nodiscard,
     -modernize-avoid-c-arrays,
     -modernize-return-braced-init-list,
+    -modernize-concat-nested-namespaces,
     performance-*,
     portability-*'
 ...
