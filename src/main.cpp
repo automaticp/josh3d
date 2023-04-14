@@ -2,6 +2,7 @@
 #include <glbinding/glbinding.h>
 #include <glfwpp/glfwpp.h>
 
+#include "BoxScene.hpp"
 #include "GlobalsUtil.hpp"
 #include "Scenes.hpp"
 #include "All.hpp"
@@ -48,9 +49,10 @@ int main() {
     // glEnable(GL_CULL_FACE);
 
     // render_generic_scene<BoxScene>(window);
+    render_generic_scene<BoxScene2>(window);
     // render_generic_scene<PostprocessingScene>(window);
     // render_generic_scene<ModelScene>(window);
-    render_generic_scene<DirShadowScene>(window);
+    // render_generic_scene<DirShadowScene>(window);
     // render_generic_scene<InstancingScene>(window);
     // render_generic_scene<CubemapScene>(window);
 
