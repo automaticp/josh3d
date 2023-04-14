@@ -1,6 +1,6 @@
 #pragma once
+#include "Layout.hpp"
 #include <glm/glm.hpp>
-
 
 namespace learn {
 
@@ -9,33 +9,34 @@ namespace light {
 
 
 struct Ambient {
-    glm::vec3 color;
+    alignas(layout::base_alignment_of_vec3) glm::vec3 color;
 };
 
 struct Directional {
-    glm::vec3 color;
-    glm::vec3 direction;
+    alignas(layout::base_alignment_of_vec3) glm::vec3 color;
+
+    alignas(layout::base_alignment_of_vec3) glm::vec3 direction;
 };
 
 struct Attenuation {
-    float constant;
-    float linear;
-    float quadratic;
+    alignas(layout::base_alignment_of_float) float constant;
+    alignas(layout::base_alignment_of_float) float linear;
+    alignas(layout::base_alignment_of_float) float quadratic;
 };
 
 struct Point {
-    glm::vec3 color;
-    glm::vec3 position;
+    alignas(layout::base_alignment_of_vec3) glm::vec3 color;
+    alignas(layout::base_alignment_of_vec3) glm::vec3 position;
     Attenuation attenuation;
 };
 
 struct Spotlight {
-    glm::vec3 color;
-    glm::vec3 position;
-    glm::vec3 direction;
+    alignas(layout::base_alignment_of_vec3) glm::vec3 color;
+    alignas(layout::base_alignment_of_vec3) glm::vec3 position;
+    alignas(layout::base_alignment_of_vec3) glm::vec3 direction;
     Attenuation attenuation;
-    float inner_cutoff_radians;
-    float outer_cutoff_radians;
+    alignas(layout::base_alignment_of_float) float inner_cutoff_radians;
+    alignas(layout::base_alignment_of_float) float outer_cutoff_radians;
 };
 
 
