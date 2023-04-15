@@ -1,4 +1,5 @@
 #pragma once
+#include "WindowSize.hpp"
 #include <glfwpp/window.h>
 #include <cassert>
 #include <tuple>
@@ -18,8 +19,7 @@ namespace learn {
 class WindowSizeCache {
 private:
     glfw::Window* window_{ nullptr };
-    int width_;
-    int height_;
+    WindowSize<int> size_;
 
 public:
     // Doesn't track any window by default.
@@ -42,27 +42,25 @@ public:
     void update_from_tracked() {
         assert(window_);
         auto [w, h] = window_->getSize();
-        width_ = w;
-        height_ = h;
+        size_ = { w, h };
     }
 
     // Manually sets the size of the window.
     // Can be used within window size or framebuffer size callbacks.
     void set_to(int width, int height) noexcept {
-        width_ = width;
-        height_ = height;
+        size_ = { width, height };
     }
 
     template<typename NumericT = int>
-    std::tuple<NumericT, NumericT> size() const noexcept {
-        return { static_cast<NumericT>(width_), static_cast<NumericT>(height_) };
+    WindowSize<NumericT> size() const noexcept {
+        return size_;
     }
 
     template<typename NumericT = int>
-    NumericT width() const noexcept { return static_cast<NumericT>(width_); }
+    NumericT width() const noexcept { return static_cast<NumericT>(size_.width); }
 
     template<typename NumericT = int>
-    NumericT height() const noexcept { return static_cast<NumericT>(height_); }
+    NumericT height() const noexcept { return static_cast<NumericT>(size_.height); }
 
 };
 
