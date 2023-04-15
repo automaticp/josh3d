@@ -418,7 +418,7 @@ protected:
     bool is_line_mode_{ false };
 
     bool wants_toggle_cursor_{ false };
-    bool is_cursor_mode_{ false };
+    bool is_cursor_mode_{ window_.getInputModeCursor() == glfw::CursorMode::Normal };
 
     float last_xpos_{ 0.0f };
     float last_ypos_{ 0.0f };
