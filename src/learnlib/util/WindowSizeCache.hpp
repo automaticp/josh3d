@@ -56,6 +56,9 @@ public:
         return size_;
     }
 
+    WindowSize<int>& size_ref() noexcept { return size_; }
+    const WindowSize<int>& size_ref() const noexcept { return size_; }
+
     template<typename NumericT = int>
     NumericT width() const noexcept { return static_cast<NumericT>(size_.width); }
 
