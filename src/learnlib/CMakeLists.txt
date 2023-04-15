@@ -22,4 +22,5 @@ target_link_libraries(learnlib
         glbinding::glbinding-aux
         stb::stb
         assimp::assimp
+        EnTT::EnTT
 )
