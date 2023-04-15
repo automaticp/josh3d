@@ -9,6 +9,7 @@ target_include_directories(learnlib
         ./render/
         ./resource/
         ./util/
+        ./engine/
 )
 target_compile_features(learnlib PUBLIC cxx_std_20)
 
