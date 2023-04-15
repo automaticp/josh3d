@@ -32,8 +32,8 @@ public:
 
     glm::mat4 view_mat() const noexcept { return glm::lookAt(pos_, pos_ - local_basis_.z(), local_basis_.y()); }
 
-    glm::mat4 projection_mat(float width, float height, float z_near = 0.1f, float z_far = 100.f) const noexcept {
-        return glm::perspective(fov_, width/height, z_near, z_far);
+    glm::mat4 perspective_projection_mat(float aspect_ratio, float z_near = 0.1f, float z_far = 100.f) const noexcept {
+        return glm::perspective(fov_, aspect_ratio, z_near, z_far);
     }
 
     float get_fov() const noexcept { return fov_; }
@@ -51,7 +51,7 @@ public:
         return glm::sign(glm::dot(globals::basis.y(), local_basis_.y())) * glm::asin(glm::length(glm::cross(globals::basis.y(), local_basis_.y())));
     }
 
-    const glm::vec3& get_pos() { return pos_; }
+    const glm::vec3& get_pos() const noexcept { return pos_; }
 
     const glm::vec3& back_uv() const noexcept { return local_basis_.z(); }
     const glm::vec3& right_uv() const noexcept { return local_basis_.x(); }

@@ -146,7 +146,7 @@ private:
         using namespace gl;
 
         auto [width, height] = globals::window_size.size<float>();
-        glm::mat4 projection = cam_.projection_mat(width, height);
+        glm::mat4 projection = cam_.perspective_projection_mat(width / height);
         glm::mat4 view = cam_.view_mat();
 
         auto asp = shader_.use();

@@ -219,7 +219,7 @@ private:
     void draw_scene_objects() {
 
         auto [width, height] = learn::globals::window_size.size<float>();
-        auto projection = cam_.projection_mat(width, height);
+        auto projection = cam_.perspective_projection_mat(width / height);
 
         auto view = cam_.view_mat();
 
