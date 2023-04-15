@@ -23,7 +23,7 @@ int main() {
     glfw::Window window{ 800, 600, "WindowName" };
     glfw::makeContextCurrent(window);
     glfw::swapInterval(1);
-    window.setInputModeCursor(glfw::CursorMode::Disabled);
+    window.setInputModeCursor(glfw::CursorMode::Normal);
 
     // Init glbindings
     glbinding::initialize(glfwGetProcAddress);
@@ -49,7 +49,8 @@ int main() {
     // glEnable(GL_CULL_FACE);
 
     // render_generic_scene<BoxScene>(window);
-    render_generic_scene<BoxScene2>(window);
+    // render_generic_scene<BoxScene2>(window);
+    render_generic_scene<BoxScene3>(window);
     // render_generic_scene<PostprocessingScene>(window);
     // render_generic_scene<ModelScene>(window);
     // render_generic_scene<DirShadowScene>(window);
