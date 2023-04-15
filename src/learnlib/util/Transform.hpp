@@ -53,12 +53,12 @@ public:
 
 
     MTransform& rotate(const glm::quat& quaternion) & noexcept {
-        model_ = glm::mat4_cast(quaternion) * model_;
+        model_ = model_ * glm::mat4_cast(quaternion);
         return *this;
     }
 
     MTransform rotate(const glm::quat& quaternion) && noexcept {
-        return glm::mat4_cast(quaternion) * model_;
+        return model_ * glm::mat4_cast(quaternion);
     }
 
     MTransform& rotate(float angle_rad, const glm::vec3& axis) & noexcept {
@@ -95,7 +95,7 @@ public:
 class Transform {
 private:
     glm::vec3 position_{ 0.f };
-    glm::quat rotation_{ 0.f, 0.f, 0.f, 0.f };
+    glm::quat rotation_{ 1.f, 0.f, 0.f, 0.f };
     glm::vec3 scale_{ 1.f };
 
 public:
