@@ -156,7 +156,7 @@ private:
             .uniform("model", model_transform_.model())
             .uniform("normal_model", model_transform_.normal_model());
 
-        asp .uniform("dir_light_mvp", light_projection * light_view);
+        asp .uniform("dir_light_pv", light_projection * light_view);
 
         depth_target_.depth_target().bind_to_unit(GL_TEXTURE2);
         asp .uniform("shadow_map", 2);
