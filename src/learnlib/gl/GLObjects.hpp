@@ -835,7 +835,7 @@ public:
 	}
 
     template<typename... Args>
-	ActiveShaderProgram& uniform(GLint location, Args... args) {
+	ActiveShaderProgram& uniform(ULocation location, Args... args) {
 		#ifndef NDEBUG
         if (location < 0) {
             globals::logstream << "[Warning] Setting uniform at -1 location\n";
@@ -849,85 +849,88 @@ public:
         return glGetUniformLocation(parent_id_, uniform_name);
     }
 
+    ULocation location_of(const std::string& name) const {
+        return glGetUniformLocation(parent_id_, name.c_str());
+    }
 
     // Values float
-	static void set_uniform(int location, float val0) {
+	static void set_uniform(ULocation location, GLfloat val0) {
 		glUniform1f(location, val0);
 	}
 
-    static void set_uniform(int location, float val0, float val1) {
+    static void set_uniform(ULocation location, GLfloat val0, GLfloat val1) {
 		glUniform2f(location, val0, val1);
 	}
 
-    static void set_uniform(int location, float val0, float val1, float val2) {
+    static void set_uniform(ULocation location, GLfloat val0, GLfloat val1, GLfloat val2) {
 		glUniform3f(location, val0, val1, val2);
 	}
 
-    static void set_uniform(int location, float val0, float val1, float val2, float val3) {
+    static void set_uniform(ULocation location, GLfloat val0, GLfloat val1, GLfloat val2, GLfloat val3) {
 		glUniform4f(location, val0, val1, val2, val3);
 	}
 
     // Values int
-    static void set_uniform(int location, int val0) {
+    static void set_uniform(ULocation location, GLint val0) {
 		glUniform1i(location, val0);
 	}
 
-    static void set_uniform(int location, int val0, int val1) {
+    static void set_uniform(ULocation location, GLint val0, GLint val1) {
 		glUniform2i(location, val0, val1);
 	}
 
-    static void set_uniform(int location, int val0, int val1, int val2) {
+    static void set_uniform(ULocation location, GLint val0, GLint val1, GLint val2) {
 		glUniform3i(location, val0, val1, val2);
 	}
 
-    static void set_uniform(int location, int val0, int val1, int val2, int val3) {
+    static void set_uniform(ULocation location, GLint val0, GLint val1, GLint val2, GLint val3) {
 		glUniform4i(location, val0, val1, val2, val3);
 	}
 
     // Values uint
-    static void set_uniform(int location, unsigned int val0) {
+    static void set_uniform(ULocation location, GLuint val0) {
 		glUniform1ui(location, val0);
 	}
 
-    static void set_uniform(int location, unsigned int val0, unsigned int val1) {
+    static void set_uniform(ULocation location, GLuint val0, GLuint val1) {
 		glUniform2ui(location, val0, val1);
 	}
 
-    static void set_uniform(int location, unsigned int val0, unsigned int val1, unsigned int val2) {
+    static void set_uniform(ULocation location, GLuint val0, GLuint val1, GLuint val2) {
 		glUniform3ui(location, val0, val1, val2);
 	}
 
-    static void set_uniform(int location, unsigned int val0, unsigned int val1, unsigned int val2, unsigned int val3) {
+    static void set_uniform(ULocation location, GLuint val0, GLuint val1, GLuint val2, GLuint val3) {
 		glUniform4ui(location, val0, val1, val2, val3);
 	}
 
     // Vector float
-	static void set_uniform(int location, const glm::vec1& v, GLsizei count = 1) {
+	static void set_uniform(ULocation location, const glm::vec1& v, GLsizei count = 1) {
 		glUniform1fv(location, count, glm::value_ptr(v));
 	}
 
-    static void set_uniform(int location, const glm::vec2& v, GLsizei count = 1) {
+    static void set_uniform(ULocation location, const glm::vec2& v, GLsizei count = 1) {
 		glUniform2fv(location, count, glm::value_ptr(v));
 	}
 
-    static void set_uniform(int location, const glm::vec3& v, GLsizei count = 1) {
+    static void set_uniform(ULocation location, const glm::vec3& v, GLsizei count = 1) {
 		glUniform3fv(location, count, glm::value_ptr(v));
 	}
 
-    static void set_uniform(int location, const glm::vec4& v, GLsizei count = 1) {
+    static void set_uniform(ULocation location, const glm::vec4& v, GLsizei count = 1) {
 		glUniform4fv(location, count, glm::value_ptr(v));
 	}
 
     // Matrix float
-	static void set_uniform(int location, const glm::mat2& m, GLsizei count = 1, GLboolean transpose = GL_FALSE) {
+	static void set_uniform(ULocation location, const glm::mat2& m, GLsizei count = 1, GLboolean transpose = GL_FALSE) {
 		glUniformMatrix2fv(location, count, transpose, glm::value_ptr(m));
 	}
 
-    static void set_uniform(int location, const glm::mat3& m, GLsizei count = 1, GLboolean transpose = GL_FALSE) {
+    static void set_uniform(ULocation location, const glm::mat3& m, GLsizei count = 1, GLboolean transpose = GL_FALSE) {
 		glUniformMatrix3fv(location, count, transpose, glm::value_ptr(m));
 	}
 
-    static void set_uniform(int location, const glm::mat4& m, GLsizei count = 1, GLboolean transpose = GL_FALSE ) {
+    static void set_uniform(ULocation location, const glm::mat4& m, GLsizei count = 1, GLboolean transpose = GL_FALSE ) {
 		glUniformMatrix4fv(location, count, transpose, glm::value_ptr(m));
 	}
 
