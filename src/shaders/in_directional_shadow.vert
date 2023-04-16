@@ -20,7 +20,8 @@ void main() {
 
     frag_pos = vec3(model * vec4(in_pos, 1.0));
 
-    frag_pos_light_space = dir_light_mvp * vec4(in_pos, 1.0);
+    // FIXME: Not an MVP, but a VP. Rename.
+    frag_pos_light_space = dir_light_mvp * vec4(frag_pos, 1.0);
 
     gl_Position = projection * view * vec4(frag_pos, 1.0);
 
