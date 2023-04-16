@@ -11,6 +11,7 @@
 #include <array>
 #include "GLObjectAllocators.hpp"
 #include "GlobalsUtil.hpp"
+#include "ULocation.hpp"
 #include "VertexTraits.hpp"
 
 
@@ -844,7 +845,7 @@ public:
         return *this;
 	}
 
-    GLint location_of(const GLchar* uniform_name) const {
+    ULocation location_of(const GLchar* uniform_name) const {
         return glGetUniformLocation(parent_id_, uniform_name);
     }
 
@@ -950,11 +951,11 @@ public:
         return { id_ };
     }
 
-    GLint location_of(const std::string& name) const {
+    ULocation location_of(const std::string& name) const {
         return glGetUniformLocation(id_, name.c_str());
     }
 
-    GLint location_of(const GLchar* name) const {
+    ULocation location_of(const GLchar* name) const {
         return glGetUniformLocation(id_, name);
     }
 
