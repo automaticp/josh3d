@@ -2,14 +2,15 @@
 #include "MaterialConcept.hpp"
 #include "GLObjects.hpp"
 #include "Shared.hpp"
+#include "ULocation.hpp"
 
 namespace learn {
 
 
 struct MaterialDSLocations {
-    gl::GLint diffuse{ -1 };
-    gl::GLint specular{ -1 };
-    gl::GLint shininess{ -1 };
+    ULocation diffuse;
+    ULocation specular;
+    ULocation shininess;
 };
 
 

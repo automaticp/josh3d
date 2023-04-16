@@ -1,6 +1,7 @@
 #pragma once
 #include "GLObjects.hpp"
 #include "MaterialConcept.hpp"
+#include "ULocation.hpp"
 #include <glm/glm.hpp>
 #include <glbinding/gl/types.h>
 
@@ -24,7 +25,7 @@ struct MaterialLightSource {
     glm::vec3 light_color;
 
     struct Locations {
-        gl::GLint light_color{ -1 };
+        ULocation light_color;
     };
     using locations_type = Locations;
 

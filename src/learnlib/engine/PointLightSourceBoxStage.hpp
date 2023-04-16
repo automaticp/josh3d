@@ -6,6 +6,7 @@
 #include "ShaderBuilder.hpp"
 #include "Transform.hpp"
 #include "AssimpModelLoader.hpp"
+#include "ULocation.hpp"
 #include <entt/entt.hpp>
 
 
@@ -30,10 +31,10 @@ private:
     };
 
     struct Locations {
-        gl::GLint projection{ -1 };
-        gl::GLint view{ -1 };
-        gl::GLint model{ -1 };
-        gl::GLint normal_model{ -1 };
+        ULocation projection;
+        ULocation view;
+        ULocation model;
+        ULocation normal_model;
         MaterialLightSource::Locations mat_light_source{};
     };
 

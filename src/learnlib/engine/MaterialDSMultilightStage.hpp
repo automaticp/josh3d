@@ -7,6 +7,7 @@
 #include "Shared.hpp"
 #include "Transform.hpp"
 #include "Model.hpp"
+#include "ULocation.hpp"
 #include <entt/entt.hpp>
 #include <glbinding/gl/gl.h>
 
@@ -26,21 +27,21 @@ private:
     std::vector<light::Point> temp_storage_;
 
     struct AmbientLightLocations {
-        gl::GLint color{ -1 };
+        ULocation color;
     };
 
     struct DirectionalLightLocations {
-        gl::GLint color{ -1 };
-        gl::GLint direction{ -1 };
+        ULocation color;
+        ULocation direction;
     };
 
     // Eww
     struct Locations {
-        gl::GLint projection{ -1 };
-        gl::GLint view{ -1 };
-        gl::GLint model{ -1 };
-        gl::GLint normal_model{ -1 };
-        gl::GLint cam_pos{ -1 };
+        ULocation projection;
+        ULocation view;
+        ULocation model;
+        ULocation normal_model;
+        ULocation cam_pos;
         MaterialDSLocations mat_ds{};
         AmbientLightLocations ambient_light{};
         DirectionalLightLocations dir_light{};

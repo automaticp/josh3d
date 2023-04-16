@@ -8,6 +8,7 @@
 #include "LightCasters.hpp"
 #include "Shared.hpp"
 #include "Transform.hpp"
+#include "ULocation.hpp"
 #include <entt/entt.hpp>
 #include <glm/glm.hpp>
 #include <glbinding/gl/gl.h>
@@ -36,26 +37,26 @@ private:
 
 
     struct AmbientLightLocations {
-        gl::GLint color{ -1 };
+        ULocation color;
     };
 
     struct DirectionalLightLocations {
-        gl::GLint color{ -1 };
-        gl::GLint direction{ -1 };
+        ULocation color;
+        ULocation direction;
     };
 
     struct Locations {
-        gl::GLint projection{ -1 };
-        gl::GLint view{ -1 };
-        gl::GLint model{ -1 };
-        gl::GLint normal_model{ -1 };
-        gl::GLint dir_light_pv{ -1 };
-        gl::GLint cam_pos{ -1 };
+        ULocation projection;
+        ULocation view;
+        ULocation model;
+        ULocation normal_model;
+        ULocation dir_light_pv;
+        ULocation cam_pos;
         MaterialDSLocations mat_ds{};
         AmbientLightLocations ambient_light{};
         DirectionalLightLocations dir_light{};
-        gl::GLint shadow_map{ -1 };
-        gl::GLint shadow_bias_bounds{ -1 };
+        ULocation shadow_map;
+        ULocation shadow_bias_bounds;
     };
 
     Locations locs_{
@@ -79,9 +80,9 @@ private:
 
 
     struct LocationsDepth {
-        gl::GLint projection{ -1 };
-        gl::GLint view{ -1 };
-        gl::GLint model{ -1 };
+        ULocation projection;
+        ULocation view;
+        ULocation model;
     };
 
     LocationsDepth locs_depth_{
