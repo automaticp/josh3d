@@ -3,6 +3,7 @@
 #include <glfwpp/glfwpp.h>
 
 #include "BoxScene.hpp"
+#include "DirShadowScene.hpp"
 #include "GlobalsUtil.hpp"
 #include "Scenes.hpp"
 #include "All.hpp"
@@ -50,10 +51,11 @@ int main() {
 
     // render_generic_scene<BoxScene>(window);
     // render_generic_scene<BoxScene2>(window);
-    render_generic_scene<BoxScene3>(window);
+    // render_generic_scene<BoxScene3>(window);
     // render_generic_scene<PostprocessingScene>(window);
     // render_generic_scene<ModelScene>(window);
     // render_generic_scene<DirShadowScene>(window);
+    render_generic_scene<DirShadowScene2>(window);
     // render_generic_scene<InstancingScene>(window);
     // render_generic_scene<CubemapScene>(window);
 
