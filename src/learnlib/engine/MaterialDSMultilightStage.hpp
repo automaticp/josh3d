@@ -8,7 +8,9 @@
 #include "Transform.hpp"
 #include "Model.hpp"
 #include "ULocation.hpp"
+#include "SSBOWithIntermediateBuffer.hpp"
 #include <entt/entt.hpp>
+#include <range/v3/all.hpp>
 #include <glbinding/gl/gl.h>
 
 namespace learn {
@@ -23,8 +25,7 @@ private:
             .get()
     };
 
-    SSBO point_lights_ssbo_;
-    std::vector<light::Point> temp_storage_;
+    SSBOWithIntermediateBuffer<light::Point> plights_ssbo_{ 1 };
 
     struct AmbientLightLocations {
         ULocation color;
@@ -71,34 +72,13 @@ public:
 
         sp_.use().and_then_with_self([&, this](ActiveShaderProgram& ashp) {
 
-            // Update SSBO for point lights.
-            //
-            // FIXME: Figure out if entt can provide contigious storage by default.
-            auto point_light_view = registry.view<light::Point>();
+            auto plight_view = registry.view<const light::Point>();
 
-            point_lights_ssbo_.bind_to(1).and_then_with_self([&, this](BoundSSBO& ssbo) {
-                const bool needs_resize =
-                    point_light_view.size() != temp_storage_.size();
-
-                if (needs_resize) {
-                    temp_storage_.reserve(point_light_view.size());
-                }
-
-                // Copy into the temp storage
-                temp_storage_.clear();
-                for (auto [entity, light] : point_light_view.each()) {
-                    temp_storage_.emplace_back(light);
-                }
-
-                if (needs_resize) {
-                    ssbo.attach_data(
-                        temp_storage_.size(), temp_storage_.data(),
-                        GL_STATIC_DRAW
-                    );
-                } else {
-                    ssbo.sub_data(temp_storage_.size(), 0, temp_storage_.data());
-                }
-            });
+            plights_ssbo_.update(
+                plight_view | ranges::views::transform([&](entt::entity e) {
+                    return plight_view.get<const light::Point>(e);
+                })
+            );
 
             ashp.uniform(locs_.projection,
                 engine.camera().perspective_projection_mat(
