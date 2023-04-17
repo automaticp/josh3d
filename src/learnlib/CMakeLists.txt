@@ -24,4 +24,6 @@ target_link_libraries(learnlib
         stb::stb
         assimp::assimp
         EnTT::EnTT
+        range-v3::range-v3
+        range-v3::concepts
 )
