@@ -463,6 +463,11 @@ public:
         return *this;
     }
 
+    BoundFramebuffer& attach_cubemap(GLuint cubemap, GLenum attachment, GLint mipmap_level = 0) {
+        glFramebufferTexture(target_, attachment, cubemap, mipmap_level);
+        return *this;
+    }
+
     // FIXME: might be a good idea to make 2 separate child classes for
     // DRAW and READ framebuffers and establish a blit_to() and blit_from()
     // methods with clear DRAW/READ bound state dependency. Something like:
@@ -679,12 +684,28 @@ public:
 
     BoundCubemap& specify_image(GLenum target, GLsizei width, GLsizei height,
         GLenum internal_format, GLenum format, GLenum type,
-        const void* data, GLint mipmap_level = 0) {
+        const void* data, GLint mipmap_level = 0)
+    {
 
         glTexImage2D(
             target, mipmap_level, static_cast<GLint>(internal_format),
             width, height, 0, format, type, data
         );
+        return *this;
+    }
+
+    BoundCubemap& specify_all_images(GLsizei width, GLsizei height,
+        GLenum internal_format, GLenum format, GLenum type,
+        const void* data, GLint mipmap_level = 0)
+    {
+        for (size_t i{ 0 }; i < 6; ++i) {
+            specify_image(
+                GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                width, height,
+                internal_format, format,
+                type, data, mipmap_level
+            );
+        }
         return *this;
     }
 
