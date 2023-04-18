@@ -29,9 +29,10 @@ class SSBOWithIntermediateBuffer {
 private:
     SSBO ssbo_;
     std::vector<T> storage_;
+    gl::GLenum usage_{ gl::GL_STATIC_DRAW };
+
 public:
     gl::GLint binding;
-    gl::GLenum usage{ gl::GL_STATIC_DRAW };
 
 public:
     explicit SSBOWithIntermediateBuffer(gl::GLint binding_index) noexcept
@@ -40,7 +41,7 @@ public:
 
     SSBOWithIntermediateBuffer(gl::GLint binding_index, gl::GLenum usage) noexcept
         : binding{ binding_index }
-        , usage{ usage }
+        , usage_{ usage }
     {}
 
 
@@ -57,7 +58,7 @@ public:
 
         ssbo_.bind_to(binding).and_then_with_self([&, this](BoundSSBO& ssbo) {
             if (was_resized) {
-                ssbo.attach_data(storage_.size(), storage_.data(), usage);
+                ssbo.attach_data(storage_.size(), storage_.data(), usage_);
             } else [[likely]] {
                 ssbo.sub_data(storage_.size(), 0, storage_.data());
             }
