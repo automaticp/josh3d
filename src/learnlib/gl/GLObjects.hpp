@@ -468,6 +468,11 @@ public:
         return *this;
     }
 
+    BoundFramebuffer& attach_texture_layer(GLuint texture, GLenum attachment, GLint layer, GLint mipmap_level = 0) {
+        glFramebufferTextureLayer(target_, attachment, texture, mipmap_level, layer);
+        return *this;
+    }
+
     // FIXME: might be a good idea to make 2 separate child classes for
     // DRAW and READ framebuffers and establish a blit_to() and blit_from()
     // methods with clear DRAW/READ bound state dependency. Something like:
@@ -688,7 +693,7 @@ public:
     {
 
         glTexImage2D(
-            target, mipmap_level, static_cast<GLint>(internal_format),
+            target, mipmap_level, internal_format,
             width, height, 0, format, type, data
         );
         return *this;
@@ -767,6 +772,79 @@ public:
         glActiveTexture(tex_unit);
     }
 };
+
+
+
+
+
+class BoundCubemapArray : public detail::AndThen<BoundCubemapArray> {
+private:
+    friend class CubemapArray;
+    BoundCubemapArray() = default;
+public:
+    static void unbind() {
+        glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, 0);
+    }
+
+    BoundCubemapArray& specify_all_images(GLsizei width, GLsizei height, GLsizei depth,
+        GLenum internal_format, GLenum format, GLenum type,
+        const void* data, GLint mipmap_level = 0)
+    {
+        glTexImage3D(
+            GL_TEXTURE_CUBE_MAP_ARRAY, mipmap_level, internal_format,
+            width, height, 6 * depth, 0, format, type, data
+        );
+        return *this;
+    }
+
+
+    BoundCubemapArray& set_parameter(GLenum param_name, GLint param_value) {
+        glTexParameteri(GL_TEXTURE_CUBE_MAP_ARRAY, param_name, param_value);
+        return *this;
+    }
+
+    BoundCubemapArray& set_parameter(GLenum param_name, GLenum param_value) {
+        glTexParameteri(GL_TEXTURE_CUBE_MAP_ARRAY, param_name, param_value);
+        return *this;
+    }
+
+    BoundCubemapArray& set_parameter(GLenum param_name, GLfloat param_value) {
+        glTexParameterf(GL_TEXTURE_CUBE_MAP_ARRAY, param_name, param_value);
+        return *this;
+    }
+
+    BoundCubemapArray& set_parameter(GLenum param_name, const GLfloat* param_values) {
+        glTexParameterfv(GL_TEXTURE_CUBE_MAP_ARRAY, param_name, param_values);
+        return *this;
+    }
+
+};
+
+
+
+class CubemapArray : public TextureAllocator {
+public:
+    BoundCubemapArray bind() {
+        glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, id_);
+        return {};
+    }
+
+    BoundCubemapArray bind_to_unit(GLenum tex_unit) {
+        set_active_unit(tex_unit);
+        bind();
+        return {};
+    }
+
+    static void set_active_unit(GLenum tex_unit) {
+        glActiveTexture(tex_unit);
+    }
+};
+
+
+
+
+
+
 
 
 
@@ -1005,6 +1083,7 @@ using leaksgl::BoundRenderbuffer, leaksgl::Renderbuffer;
 using leaksgl::BoundTextureHandle, leaksgl::TextureHandle;
 using leaksgl::BoundTextureMS, leaksgl::TextureMS;
 using leaksgl::BoundCubemap, leaksgl::Cubemap;
+using leaksgl::BoundCubemapArray, leaksgl::CubemapArray;
 using leaksgl::Shader, leaksgl::VertexShader, leaksgl::FragmentShader;
 using leaksgl::ActiveShaderProgram, leaksgl::ShaderProgram;
 
