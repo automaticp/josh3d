@@ -44,9 +44,11 @@ public:
         , usage_{ usage }
     {}
 
+    size_t size() const noexcept { return storage_.size(); }
 
+    // Returns true if the size of the storage changed on update.
     template<typename InputIt>
-    void update(InputIt begin, InputIt end) {
+    bool update(InputIt begin, InputIt end) {
         const size_t old_size = storage_.size();
 
         storage_.clear();
@@ -63,10 +65,11 @@ public:
                 ssbo.sub_data(storage_.size(), 0, storage_.data());
             }
         });
+        return was_resized;
     }
 
-    void update(std::ranges::input_range auto&& range) {
-        update(std::begin(range), std::end(range));
+    bool update(std::ranges::input_range auto&& range) {
+        return update(std::begin(range), std::end(range));
     }
 
 };
