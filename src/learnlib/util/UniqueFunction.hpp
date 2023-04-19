@@ -59,11 +59,7 @@ public:
                 UFConcrete<std::remove_reference_t<CallableT>>
             >(std::forward<CallableT>(callable))
         }
-    {
-        using value_type = std::remove_cvref_t<CallableT>;
-        static_assert(std::is_nothrow_move_constructible_v<value_type>);
-        static_assert(std::is_nothrow_move_assignable_v<value_type>);
-    }
+    {}
 
     ResT operator()(ArgTs... args) {
         assert(target_ptr_ && "UniqueFunction with no target has been invoked");
