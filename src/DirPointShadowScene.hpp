@@ -83,6 +83,59 @@ private:
     void update_gui() {
         ImGui::Begin("Debug");
 
+
+        auto make_plight_with_shadow = [](entt::registry& r,
+            glm::vec3 pos)
+        {
+            auto plight = r.create();
+            r.emplace<light::Point>(plight, light::Point{
+                .color = glm::vec3(1.0f, 1.f, 0.8f),
+                .position = pos,
+                .attenuation = light::Attenuation{
+                    .constant = 1.f,
+                    .linear = 0.4f,
+                    .quadratic = 0.2f
+                }
+            });
+            r.emplace<ShadowComponent>(plight);
+            return plight;
+        };
+
+        auto make_plight_no_shadow = [](entt::registry& r,
+            glm::vec3 pos)
+        {
+            auto plight = r.create();
+            r.emplace<light::Point>(plight, light::Point{
+                .color = glm::vec3(1.0f, 0.8f, 0.8f),
+                .position = pos,
+                .attenuation = light::Attenuation{
+                    .constant = 1.f,
+                    .linear = 0.4f,
+                    .quadratic = 0.2f
+                }
+            });
+            return plight;
+        };
+
+
+        static glm::vec3 new_light_pos{ 0.f };
+
+        ImGui::Text("Make Point Light:");
+        if (ImGui::Button("Shadow")) {
+            make_plight_with_shadow(registry_, new_light_pos);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("No Shadow")) {
+            make_plight_no_shadow(registry_, new_light_pos);
+        }
+
+        ImGui::SameLine();
+        ImGui::DragFloat3(
+            "Position", glm::value_ptr(new_light_pos),
+            0.1f, -30.f, 30.f
+        );
+
+
         for (auto [entity, plight] : registry_.view<light::Point>().each()) {
             ImGui::PushID(static_cast<int>(entity));
             ImGui::DragFloat3(
@@ -91,6 +144,9 @@ private:
             );
             ImGui::PopID();
         }
+
+
+
 
         ImGui::End();
     }
@@ -112,18 +168,6 @@ private:
             .color = { 0.15f, 0.15f, 0.1f }
         });
 
-        auto plight = r.create();
-        r.emplace<light::Point>(plight, light::Point{
-                .color = glm::vec3(1.0f, 1.f, 0.8f),
-                .position = { 0.f, 1.f, 0.f },
-                .attenuation = light::Attenuation{
-                    .constant = 1.f,
-                    .linear = 0.4f,
-                    .quadratic = 0.2f
-                }
-            }
-        );
-        r.emplace<RenderTargetDepthCubemap>(plight, 4096, 4096);
 
     }
 
