@@ -8,6 +8,7 @@
 #include "AssimpModelLoader.hpp"
 #include "ULocation.hpp"
 #include <entt/entt.hpp>
+#include <imgui.h>
 
 
 
@@ -46,7 +47,8 @@ private:
         .mat_light_source = MaterialLightSource::query_locations(sp_)
     };
 
-
+public:
+    float light_box_scale{ 0.2f };
 
 public:
     PointLightSourceBoxStage() = default;
@@ -68,7 +70,7 @@ public:
 
                 const auto t = Transform()
                     .translate(plight.position)
-                    .scale(glm::vec3{ 0.2f });
+                    .scale(glm::vec3{ light_box_scale });
 
                 ashp.uniform(locs_.model, t.mtransform().model());
 
@@ -84,5 +86,26 @@ public:
 
 };
 
+
+
+
+
+class PointLightSourceBoxStageImGuiHook {
+private:
+    PointLightSourceBoxStage& stage_;
+
+public:
+    PointLightSourceBoxStageImGuiHook(PointLightSourceBoxStage& stage)
+        : stage_{ stage }
+    {}
+
+    void operator()() {
+        ImGui::SliderFloat(
+            "Light Box Scale", &stage_.light_box_scale,
+            0.001f, 10.f, "%.3f", ImGuiSliderFlags_Logarithmic
+        );
+    }
+
+};
 
 } // namespace learn

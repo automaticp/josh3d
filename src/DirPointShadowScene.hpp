@@ -1,5 +1,6 @@
 #pragma once
 #include "AssimpModelLoader.hpp"
+#include "ImGuiStageHooks.hpp"
 #include "LightCasters.hpp"
 #include "Model.hpp"
 #include "PointLightSourceBoxStage.hpp"
@@ -29,18 +30,32 @@ private:
 
     RenderEngine rengine_{ registry_, cam_, globals::window_size.size_ref() };
     ImGuiContextWrapper imgui_{ window_ };
+    ImGuiStageHooks imgui_hooks_;
 
-    MaterialDSMultilightShadowStage* stage_;
 public:
     DirPointShadowScene(glfw::Window& window)
         : window_{ window }
     {
         input_.use();
+
         rengine_.stages()
             .emplace_back(MaterialDSMultilightShadowStage());
+
+        imgui_hooks_.add_hook(
+            MaterialDSMultilightShadowStageImGuiHook(
+                *rengine_.stages().back().target<MaterialDSMultilightShadowStage>()
+            )
+        );
+
         rengine_.stages()
             .emplace_back(PointLightSourceBoxStage());
-        stage_ = rengine_.stages()[0].target<MaterialDSMultilightShadowStage>();
+
+        imgui_hooks_.add_hook(
+            PointLightSourceBoxStageImGuiHook(
+                *rengine_.stages().back().target<PointLightSourceBoxStage>()
+            )
+        );
+
         init_registry();
     }
 
@@ -59,24 +74,14 @@ public:
         rengine_.render();
 
         update_gui();
+        imgui_hooks_.display();
+
         imgui_.render();
     }
 
 private:
     void update_gui() {
-        auto& s = *stage_;
-
         ImGui::Begin("Debug");
-
-        ImGui::SliderFloat2(
-            "Z Near/Far", glm::value_ptr(s.plight_z_near_far),
-            0.01f, 500.f, "%.3f", ImGuiSliderFlags_Logarithmic
-        );
-
-        ImGui::SliderFloat2(
-            "Shadow Bias", glm::value_ptr(s.point_shadow_bias_bounds),
-            0.00001f, 0.1f, "%.5f", ImGuiSliderFlags_Logarithmic
-        );
 
         for (auto [entity, plight] : registry_.view<light::Point>().each()) {
             ImGui::PushID(static_cast<int>(entity));

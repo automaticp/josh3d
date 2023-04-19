@@ -14,7 +14,7 @@
 #include <entt/entt.hpp>
 #include <glbinding/gl/gl.h>
 #include <glm/glm.hpp>
-
+#include <imgui.h>
 
 
 
@@ -251,6 +251,48 @@ public:
 
 
 };
+
+
+
+
+
+
+
+
+
+
+
+
+class MaterialDSMultilightShadowStageImGuiHook {
+private:
+    MaterialDSMultilightShadowStage& stage_;
+
+public:
+    MaterialDSMultilightShadowStageImGuiHook(MaterialDSMultilightShadowStage& stage)
+        : stage_{ stage }
+    {}
+
+
+    void operator()() {
+        auto& s = stage_;
+
+        ImGui::SliderFloat2(
+            "Z Near/Far", glm::value_ptr(s.plight_z_near_far),
+            0.01f, 500.f, "%.3f", ImGuiSliderFlags_Logarithmic
+        );
+
+        ImGui::SliderFloat2(
+            "Shadow Bias", glm::value_ptr(s.point_shadow_bias_bounds),
+            0.00001f, 0.1f, "%.5f", ImGuiSliderFlags_Logarithmic
+        );
+
+    }
+
+};
+
+
+
+
 
 
 } // namespace learn
