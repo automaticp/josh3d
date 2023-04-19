@@ -1,8 +1,8 @@
 #version 330 core
 
 in vec4 frag_pos;
+in vec3 light_pos;
 
-uniform vec3 light_pos;
 uniform float z_far;
 
 
