@@ -1,5 +1,6 @@
 #pragma once
 #include "AssimpModelLoader.hpp"
+#include "ImGuiRegistryHooks.hpp"
 #include "ImGuiStageHooks.hpp"
 #include "LightCasters.hpp"
 #include "Model.hpp"
@@ -30,18 +31,26 @@ private:
 
     RenderEngine rengine_{ registry_, cam_, globals::window_size.size_ref() };
     ImGuiContextWrapper imgui_{ window_ };
-    ImGuiStageHooks imgui_hooks_;
+    ImGuiStageHooks imgui_stage_hooks_;
+    ImGuiRegistryHooks imgui_registry_hooks_{ registry_ };
 
 public:
     DirPointShadowScene(glfw::Window& window)
         : window_{ window }
     {
+        input_.set_keybind(glfw::KeyCode::T, [this](const KeyCallbackArgs& args) {
+            if (args.is_released()) {
+                imgui_stage_hooks_.hidden ^= true;
+                imgui_registry_hooks_.hidden ^= true;
+            }
+        });
+
         input_.use();
 
         rengine_.stages()
             .emplace_back(MaterialDSMultilightShadowStage());
 
-        imgui_hooks_.add_hook(
+        imgui_stage_hooks_.add_hook("Multilight Shadows",
             MaterialDSMultilightShadowStageImGuiHook(
                 *rengine_.stages().back().target<MaterialDSMultilightShadowStage>()
             )
@@ -50,7 +59,7 @@ public:
         rengine_.stages()
             .emplace_back(PointLightSourceBoxStage());
 
-        imgui_hooks_.add_hook(
+        imgui_stage_hooks_.add_hook("Point Light Boxes",
             PointLightSourceBoxStageImGuiHook(
                 *rengine_.stages().back().target<PointLightSourceBoxStage>()
             )
@@ -74,15 +83,17 @@ public:
         rengine_.render();
 
         update_gui();
-        imgui_hooks_.display();
+        imgui_registry_hooks_.display();
+        imgui_stage_hooks_.display();
 
         imgui_.render();
     }
 
 private:
     void update_gui() {
+        ImGui::SetNextWindowSize({ 600.f, 100.f });
+        ImGui::SetNextWindowPos({ 600.f, 0.f });
         ImGui::Begin("Debug");
-
 
         auto make_plight_with_shadow = [](entt::registry& r,
             glm::vec3 pos)
@@ -134,19 +145,6 @@ private:
             "Position", glm::value_ptr(new_light_pos),
             0.1f, -30.f, 30.f
         );
-
-
-        for (auto [entity, plight] : registry_.view<light::Point>().each()) {
-            ImGui::PushID(static_cast<int>(entity));
-            ImGui::DragFloat3(
-                "Point Light Position", glm::value_ptr(plight.position),
-                0.1f, -30.f, 30.f
-            );
-            ImGui::PopID();
-        }
-
-
-
 
         ImGui::End();
     }
