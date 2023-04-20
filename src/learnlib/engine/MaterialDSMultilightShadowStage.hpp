@@ -1,13 +1,11 @@
 #pragma once
 #include "GLObjects.hpp"
 #include "GlobalsUtil.hpp"
-#include "Layout.hpp"
 #include "LightCasters.hpp"
 #include "MaterialDS.hpp"
 #include "Model.hpp"
 #include "RenderEngine.hpp"
-#include "RenderTargetColorCubemapArray.hpp"
-#include "RenderTargetDepthCubemap.hpp"
+#include "RenderTargetDepth.hpp"
 #include "RenderTargetDepthCubemapArray.hpp"
 #include "SSBOWithIntermediateBuffer.hpp"
 #include "ShaderBuilder.hpp"
@@ -36,7 +34,7 @@ class MaterialDSMultilightShadowStage {
 private:
     ShaderProgram sp_{
         ShaderBuilder()
-            .load_vert("src/shaders/non_instanced.vert")
+            .load_vert("src/shaders/in_directional_shadow.vert")
             .load_frag("src/shaders/mat_ds_light_apn_shadow.frag")
             .get()
     };
@@ -123,6 +121,13 @@ private:
         .z_far      = sp_plight_depth_.location_of("z_far")
     } };
 
+    ShaderProgram sp_dir_depth_{
+        ShaderBuilder()
+            .load_vert("src/shaders/depth_map.vert")
+            .load_frag("src/shaders/depth_map.frag")
+            .get()
+    };
+
 
     SSBOWithIntermediateBuffer<light::Point> plights_with_shadows_ssbo_{ 1 };
     SSBOWithIntermediateBuffer<light::Point> plights_no_shadows_ssbo_{ 2 };
@@ -134,11 +139,28 @@ public:
     glm::vec2 plight_z_near_far{ 0.05f, 150.f };
     glm::vec2 point_shadow_bias_bounds{ 0.0001f, 0.03f };
 
+    RenderTargetDepth dir_light_shadow_map{ 4096, 4096 };
+    glm::vec2 dir_shadow_bias_bounds{ 0.0001f, 0.0015f };
+    float dir_light_projection_scale{ 50.f };
+    glm::vec2 dir_light_z_near_far{ 15.f, 150.f };
+    float dir_light_cam_offset{ 100.f };
 
 public:
     MaterialDSMultilightShadowStage() = default;
 
     void operator()(const RenderEngine& engine, entt::registry& registry) {
+        using namespace gl;
+
+        prepare_point_lights(engine, registry);
+
+        glm::mat4 dir_light_pv =
+            prepare_dir_light(engine, registry);
+
+        draw_scene(engine, registry, dir_light_pv);
+    }
+
+private:
+    void prepare_point_lights(const RenderEngine&, entt::registry& registry) {
 
         using namespace gl;
 
@@ -172,76 +194,35 @@ public:
 
         // Draw the depth cubemaps for Point lights with the ShadowComponent.
 
-        sp_plight_depth_.use().and_then_with_self([&, this](ActiveShaderProgram& ashp) {
+        sp_plight_depth_.use()
+            .and_then_with_self([&, this](ActiveShaderProgram& ashp) {
 
             glViewport(0, 0, plight_shadow_maps.width(), plight_shadow_maps.height());
 
-            plight_shadow_maps.framebuffer().bind().and_then_with_self([&, this](BoundFramebuffer& fbo) {
+            plight_shadow_maps.framebuffer().bind()
+                .and_then([&, this] {
 
+                    for (GLint layer{ 0 }; auto [_, plight]
+                        : plights_with_shadow_view.each())
+                    {
+                        if (layer == 0) /* first time */ {
+                            glClear(GL_DEPTH_BUFFER_BIT);
+                        }
 
-                for (GLint layer{ 0 }; auto [_, plight] : plights_with_shadow_view.each()) {
+                        draw_scene_depth_cubemap(ashp, registry, plight.position, layer);
 
-                    if (layer == 0) /* first time */ {
-                        glClear(GL_DEPTH_BUFFER_BIT);
+                        // Layer as an index of a cubemap in the array, not as a 'layer-face'
+                        ++layer;
                     }
 
-                    draw_scene_depth_onto_cubemap(ashp, registry, plight.position, layer);
-
-                    // Layer as an index of a cubemap in the array, not as a 'layer-face'
-                    ++layer;
-                }
-
-
-            })
-            .unbind();
-        });
-
-
-        auto [w, h] = engine.window_size();
-        glViewport(0, 0, w, h);
-
-        // Then draw the scene itself.
-
-        sp_.use().and_then_with_self([&, this](ActiveShaderProgram& ashp) {
-
-            ashp.uniform(locs_.projection,
-                engine.camera().perspective_projection_mat(
-                    engine.window_size().aspect_ratio()
-                )
-            );
-            ashp.uniform(locs_.view, engine.camera().view_mat())
-                .uniform(locs_.cam_pos, engine.camera().get_pos());
-
-            // Ambient light.
-            for (auto [_, ambi] : registry.view<const light::Ambient>().each()) {
-                ashp.uniform(locs_.ambient_light.color, ambi.color);
-            }
-
-            // Point light properties are sent through SSBOs.
-            // Send the depth cubemap array for point light shadow calculation.
-            ashp.uniform(locs_.point_light_shadow_maps, 2);
-            plight_shadow_maps.depth_taget().bind_to_unit(GL_TEXTURE2);
-
-            // Extra settings for point light shadows.
-            ashp.uniform(locs_.point_light_z_far, plight_z_near_far.y)
-                .uniform(locs_.point_shadow_bias_bounds, point_shadow_bias_bounds);
-
-            for (auto [_, transform, model]
-                : registry.view<const Transform, const Shared<Model>>().each())
-            {
-                auto model_transform = transform.mtransform();
-                ashp.uniform(locs_.model, model_transform.model())
-                    .uniform(locs_.normal_model, model_transform.normal_model());
-
-                model->draw(ashp, locs_.mat_ds);
-            }
-
-        });
+                })
+                .unbind();
+            });
 
     }
 
-private:
-    void draw_scene_depth_onto_cubemap(ActiveShaderProgram& ashp,
+
+    void draw_scene_depth_cubemap(ActiveShaderProgram& ashp,
         entt::registry& registry, const glm::vec3& position, gl::GLint cubemap_id)
     {
         glm::mat4 projection = glm::perspective(
@@ -283,6 +264,120 @@ private:
     }
 
 
+    glm::mat4 prepare_dir_light(const RenderEngine& engine, entt::registry& registry) {
+
+        using namespace gl;
+
+        glm::mat4 light_pv{};
+
+        glViewport(0, 0, dir_light_shadow_map.width(), dir_light_shadow_map.height());
+
+        for (auto [_, dir_light]
+            : registry.view<const light::Directional>().each())
+        {
+            glm::mat4 light_projection = glm::ortho(
+                -dir_light_projection_scale, dir_light_projection_scale,
+                -dir_light_projection_scale, dir_light_projection_scale,
+                dir_light_z_near_far.x, dir_light_z_near_far.y
+            );
+
+            glm::mat4 light_view = glm::lookAt(
+                engine.camera().get_pos() - dir_light_cam_offset * glm::normalize(dir_light.direction),
+                engine.camera().get_pos(),
+                globals::basis.y()
+            );
+
+            light_pv = light_projection * light_view;
+
+            sp_dir_depth_.use()
+                .and_then_with_self([&, this] (ActiveShaderProgram& ashp) {
+
+                    dir_light_shadow_map.framebuffer().bind()
+                        .and_then([&, this] {
+                            glClear(GL_DEPTH_BUFFER_BIT);
+
+                            ashp.uniform("projection", light_projection)
+                                .uniform("view", light_view);
+
+                            auto view = registry.view<Transform, Shared<Model>>();
+
+                            for (auto [_, transform, model] : view.each()) {
+
+                                ashp.uniform("model", transform.mtransform().model());
+
+                                for (auto& drawable : model->drawable_meshes()) {
+                                    drawable.mesh().draw();
+                                }
+                            }
+                        })
+                        .unbind();
+
+                });
+
+        }
+        return light_pv;
+
+    }
+
+
+    void draw_scene(const RenderEngine& engine,
+        entt::registry& registry, const glm::mat4& dir_light_pv)
+    {
+        using namespace gl;
+
+        auto [w, h] = engine.window_size();
+        glViewport(0, 0, w, h);
+
+        sp_.use().and_then_with_self([&, this](ActiveShaderProgram& ashp) {
+
+            ashp.uniform(locs_.projection,
+                engine.camera().perspective_projection_mat(
+                    engine.window_size().aspect_ratio()
+                )
+            );
+            ashp.uniform(locs_.view, engine.camera().view_mat())
+                .uniform(locs_.cam_pos, engine.camera().get_pos());
+
+            // Ambient light.
+            for (auto [_, ambi] : registry.view<const light::Ambient>().each()) {
+                ashp.uniform(locs_.ambient_light.color, ambi.color);
+            }
+
+            // Dir light.
+            // FIXME: I stopped caring about Locations here...
+            for (auto [_, dir] : registry.view<const light::Directional>().each()) {
+                ashp.uniform("dir_light.color", dir.color)
+                    .uniform("dir_light.direction", dir.direction);
+            }
+            ashp.uniform("dir_light_pv", dir_light_pv)
+                .uniform("dir_shadow_bias_bounds", dir_shadow_bias_bounds)
+                .uniform("dir_light_shadow_map", 2);
+            dir_light_shadow_map.depth_target().bind_to_unit(GL_TEXTURE2);
+
+            // Point light properties are sent through SSBOs.
+            // Send the depth cubemap array for point light shadow calculation.
+            ashp.uniform(locs_.point_light_shadow_maps, 3);
+            plight_shadow_maps.depth_taget().bind_to_unit(GL_TEXTURE3);
+
+            // Extra settings for point light shadows.
+            ashp.uniform(locs_.point_light_z_far, plight_z_near_far.y)
+                .uniform(locs_.point_shadow_bias_bounds, point_shadow_bias_bounds);
+
+            for (auto [_, transform, model]
+                : registry.view<const Transform, const Shared<Model>>().each())
+            {
+                auto model_transform = transform.mtransform();
+                ashp.uniform(locs_.model, model_transform.model())
+                    .uniform(locs_.normal_model, model_transform.normal_model());
+
+                model->draw(ashp, locs_.mat_ds);
+            }
+
+        });
+    }
+
+
+
 };
 
 
@@ -299,13 +394,17 @@ private:
 class MaterialDSMultilightShadowStageImGuiHook {
 private:
     MaterialDSMultilightShadowStage& stage_;
-    int shadow_res_;
+    int point_shadow_res_;
+    int dir_shadow_res_;
 
 public:
     MaterialDSMultilightShadowStageImGuiHook(MaterialDSMultilightShadowStage& stage)
         : stage_{ stage }
-        , shadow_res_{
+        , point_shadow_res_{
             stage_.plight_shadow_maps.width()
+        }
+        , dir_shadow_res_{
+            stage_.dir_light_shadow_map.width()
         }
     {}
 
@@ -313,24 +412,88 @@ public:
     void operator()() {
         auto& s = stage_;
 
-        if (ImGui::Button("Apply")) {
-            s.plight_shadow_maps.reset_size(shadow_res_, shadow_res_, s.plight_shadow_maps.depth());
+        if (ImGui::TreeNode("Point Shadows")) {
+            const bool unconfirmed_changes =
+                s.plight_shadow_maps.width() != point_shadow_res_;
+
+            const char* label =
+                unconfirmed_changes ? "*Apply" : " Apply";
+
+            if (ImGui::Button(label)) {
+                s.plight_shadow_maps.reset_size(point_shadow_res_, point_shadow_res_, s.plight_shadow_maps.depth());
+            }
+            ImGui::SameLine();
+            ImGui::SliderInt(
+                "Resolution", &point_shadow_res_,
+                128, 8192, "%d", ImGuiSliderFlags_Logarithmic
+            );
+
+            ImGui::SliderFloat2(
+                "Z Near/Far", glm::value_ptr(s.plight_z_near_far),
+                0.01f, 500.f, "%.3f", ImGuiSliderFlags_Logarithmic
+            );
+
+            ImGui::SliderFloat2(
+                "Shadow Bias", glm::value_ptr(s.point_shadow_bias_bounds),
+                0.00001f, 0.1f, "%.5f", ImGuiSliderFlags_Logarithmic
+            );
+
+            ImGui::TreePop();
         }
-        ImGui::SameLine();
-        ImGui::SliderInt(
-            "Point Shadow Resolution", &shadow_res_,
-            128, 8192, "%d", ImGuiSliderFlags_Logarithmic
-        );
 
-        ImGui::SliderFloat2(
-            "Z Near/Far", glm::value_ptr(s.plight_z_near_far),
-            0.01f, 500.f, "%.3f", ImGuiSliderFlags_Logarithmic
-        );
+        if (ImGui::TreeNode("Directional Shadows")) {
+            if (ImGui::TreeNode("Shadow Map")) {
 
-        ImGui::SliderFloat2(
-            "Shadow Bias", glm::value_ptr(s.point_shadow_bias_bounds),
-            0.00001f, 0.1f, "%.5f", ImGuiSliderFlags_Logarithmic
-        );
+                ImGui::Image(
+                    reinterpret_cast<ImTextureID>(
+                        s.dir_light_shadow_map.depth_target().id()
+                    ),
+                    ImVec2{ 300.f, 300.f }
+                );
+
+                ImGui::TreePop();
+            }
+
+            const bool unconfirmed_changes =
+                s.dir_light_shadow_map.width() != dir_shadow_res_;
+
+            const char* label =
+                unconfirmed_changes ? "*Apply" : " Apply";
+
+            if (ImGui::Button(label)) {
+                s.dir_light_shadow_map.reset_size(
+                    dir_shadow_res_, dir_shadow_res_
+                );
+            }
+            ImGui::SameLine();
+            ImGui::SliderInt(
+                "Resolution", &dir_shadow_res_,
+                128, 8192, "%d", ImGuiSliderFlags_Logarithmic
+            );
+
+            ImGui::SliderFloat2(
+                "Bias", glm::value_ptr(s.dir_shadow_bias_bounds),
+                0.0001f, 0.1f, "%.4f", ImGuiSliderFlags_Logarithmic
+            );
+
+            ImGui::SliderFloat(
+                "Proj Scale", &s.dir_light_projection_scale,
+                0.1f, 10000.f, "%.1f", ImGuiSliderFlags_Logarithmic
+            );
+
+            ImGui::SliderFloat2(
+                "Z Near/Far", glm::value_ptr(s.dir_light_z_near_far),
+                0.001f, 10000.f, "%.3f", ImGuiSliderFlags_Logarithmic
+            );
+
+            ImGui::SliderFloat(
+                "Cam Offset", &s.dir_light_cam_offset,
+                0.1f, 10000.f, "%.1f", ImGuiSliderFlags_Logarithmic
+            );
+
+
+            ImGui::TreePop();
+        }
 
     }
 
