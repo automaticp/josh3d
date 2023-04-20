@@ -1,6 +1,7 @@
 #pragma once
 #include "GlobalsUtil.hpp"
 #include "UniqueFunction.hpp"
+#include <string>
 #include <utility>
 #include <imgui.h>
 
@@ -17,9 +18,9 @@ a general Render Stages debug window.
 
 [Render Stages]
   [Primary]
-    [Stage 1]
+    [Stage Name 1]
       <Your hook here>
-    [Stage 2]
+    [Stage Name 2]
       <Your hook here>
     ...
   [Postprocessing]
@@ -28,33 +29,47 @@ a general Render Stages debug window.
     ...
 */
 class ImGuiStageHooks {
-public:
-    using hook_t = UniqueFunction<void()>;
-
 private:
+    struct HookEntry {
+        HookEntry(UniqueFunction<void()> hook, std::string name)
+            : hook(std::move(hook)), name(std::move(name))
+        {}
+
+        UniqueFunction<void()> hook;
+        std::string name;
+    };
+
+
     // FIXME: Multimap with typeid as key?
-    std::vector<hook_t> hooks_;
+    std::vector<HookEntry> hooks_;
+public:
+    bool hidden{ false };
 
 public:
-    void add_hook(hook_t stage_hook) {
-        hooks_.emplace_back(std::move(stage_hook));
+    void add_hook(std::string name, UniqueFunction<void()> stage_hook) {
+        hooks_.emplace_back(std::move(stage_hook), std::move(name));
     }
 
     void display() {
+        if (hidden) { return; }
 
         ImGui::SetNextWindowCollapsed(true, ImGuiCond_Once);
+        ImGui::SetNextWindowSize({ 600.f, 400.f }, ImGuiCond_Once);
+        ImGui::SetNextWindowPos({ 0.f, 600.f }, ImGuiCond_Once);
         if (ImGui::Begin("Render Stages", nullptr)) {
             ImGui::Text("FPS: %.1f", 1.f / globals::frame_timer.delta<float>());
 
             if (ImGui::CollapsingHeader("Primary")) {
                 for (size_t i{ 0 }; i < hooks_.size(); ++i) {
 
-                    if (ImGui::TreeNode(reinterpret_cast<void*>(i), "Stage %zu", i)) {
+                    ImGui::PushID(int(i));
+                    if (ImGui::TreeNode(hooks_[i].name.c_str())) {
 
-                        hooks_[i]();
+                        hooks_[i].hook();
 
                         ImGui::TreePop();
                     }
+                    ImGui::PopID();
 
                 }
             }
