@@ -1,4 +1,5 @@
 #pragma once
+#include "AmbientBackgroundStage.hpp"
 #include "AssimpModelLoader.hpp"
 #include "ImGuiRegistryHooks.hpp"
 #include "ImGuiStageHooks.hpp"
@@ -45,6 +46,9 @@ public:
         });
 
         input_.use();
+
+        rengine_.stages()
+            .emplace_back(AmbientBackgroundStage());
 
         rengine_.stages()
             .emplace_back(MaterialDSMultilightShadowStage());
