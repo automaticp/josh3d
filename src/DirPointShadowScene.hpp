@@ -10,7 +10,6 @@
 #include "Input.hpp"
 #include "ImGuiContextWrapper.hpp"
 #include "Camera.hpp"
-#include "RenderTargetDepthCubemap.hpp"
 #include "Shared.hpp"
 #include <glfwpp/window.h>
 #include <entt/entt.hpp>
@@ -164,6 +163,11 @@ private:
 
         r.emplace<light::Ambient>(r.create(), light::Ambient{
             .color = { 0.15f, 0.15f, 0.1f }
+        });
+
+        r.emplace<light::Directional>(r.create(), light::Directional{
+            .color = { 0.15f, 0.15f, 0.1f },
+            .direction = { -0.2f, -1.0f, -0.3f }
         });
 
 
