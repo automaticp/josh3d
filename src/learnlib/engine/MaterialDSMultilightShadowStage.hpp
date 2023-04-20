@@ -35,7 +35,7 @@ private:
     ShaderProgram sp_{
         ShaderBuilder()
             .load_vert("src/shaders/in_directional_shadow.vert")
-            .load_frag("src/shaders/mat_ds_light_apn_shadow.frag")
+            .load_frag("src/shaders/mat_ds_light_adpn_shadow.frag")
             .get()
     };
 
