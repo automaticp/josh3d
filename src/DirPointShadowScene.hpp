@@ -68,6 +68,9 @@ public:
             )
         );
 
+        imgui_registry_hooks_.add_hook("Lights", ImGuiRegistryLightComponentsHook());
+        imgui_registry_hooks_.add_hook("Models", ImGuiRegistryModelComponentsHook());
+
         init_registry();
     }
 
