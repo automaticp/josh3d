@@ -155,7 +155,7 @@ void main() {
 
         result_color +=
             dir_light.color * specular_strength *
-            tex_specular * illumination_factor;
+            tex_specular.r * illumination_factor;
     }
 
 
@@ -225,7 +225,7 @@ vec3 add_point_light_illumination(vec3 in_color,
         distance_factor * pow(specular_alignment, material.shininess);
 
     in_color += plight.color * diffuse_strength * tex_diffuse;
-    in_color += plight.color * specular_strength * tex_specular;
+    in_color += plight.color * specular_strength * tex_specular.r;
 
     return in_color;
 }
