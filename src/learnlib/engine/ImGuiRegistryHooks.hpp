@@ -76,6 +76,19 @@ public:
 
 
 class ImGuiRegistryLightComponentsHook {
+private:
+    light::Point plight_template_{ light::Point{
+        .color = { 1.f, 1.f, 0.8f },
+        .position = { 0.0f, 1.f, 0.f },
+        .attenuation = light::Attenuation{
+            .constant = 1.f,
+            .linear = 0.4f,
+            .quadratic = 0.2f
+        }
+    }};
+
+    bool plight_has_shadow_{ true };
+
 public:
     void operator()(entt::registry& registry) {
 
@@ -104,8 +117,53 @@ public:
 
         if (ImGui::TreeNode("Point")) {
 
+
+            bool display_node = ImGui::TreeNode("Configure New");
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Create")) {
+                auto e = registry.create();
+                registry.emplace<light::Point>(e, plight_template_);
+                if (plight_has_shadow_) {
+                    registry.emplace<ShadowComponent>(e);
+                }
+            }
+
+            if (display_node) {
+                ImGui::DragFloat3("Position", glm::value_ptr(plight_template_.position), 0.2f);
+                ImGui::ColorEdit3("Color", glm::value_ptr(plight_template_.color));
+                ImGui::SameLine();
+                ImGui::Checkbox("Shadow", &plight_has_shadow_);
+                ImGui::DragFloat3(
+                    "Atten. (c/l/q)", &plight_template_.attenuation.constant,
+                    0.1f, 0.f, 100.f, "%.4f", ImGuiSliderFlags_Logarithmic
+                );
+
+                ImGui::TreePop();
+            }
+            ImGui::Separator();
+
+            entt::entity to_duplicate{ entt::null };
+            entt::entity to_remove{ entt::null };
+
             for (auto [e, plight] : registry.view<light::Point>().each()) {
-                if (ImGui::TreeNode(reinterpret_cast<void*>(e), "Id %d", static_cast<entt::id_type>(e))) {
+                bool display_node =
+                    ImGui::TreeNode(reinterpret_cast<void*>(e), "Id %d", static_cast<entt::id_type>(e));
+
+                ImGui::PushID(reinterpret_cast<void*>(e));
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Duplicate")) {
+                    to_duplicate = e;
+                }
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Remove")) {
+                    to_remove = e;
+                }
+                ImGui::PopID();
+
+                if (display_node) {
+
+                    ImGui::DragFloat3("Position", glm::value_ptr(plight.position), 0.2f);
+
                     ImGui::ColorEdit3("Color", glm::value_ptr(plight.color));
 
                     ImGui::SameLine();
@@ -118,12 +176,25 @@ public:
                         }
                     }
 
-                    ImGui::DragFloat3("Position", glm::value_ptr(plight.position), 0.2f);
                     ImGui::DragFloat3(
                         "Atten. (c/l/q)", &plight.attenuation.constant,
                         0.1f, 0.f, 100.f, "%.4f", ImGuiSliderFlags_Logarithmic
                     );
                     ImGui::TreePop();
+
+                }
+
+            }
+
+            if (to_remove != entt::null) {
+                registry.destroy(to_remove);
+            }
+
+            if (to_duplicate != entt::null) {
+                auto new_e = registry.create();
+                registry.emplace<light::Point>(new_e, registry.get<light::Point>(to_duplicate));
+                if (registry.all_of<ShadowComponent>(to_duplicate)) {
+                    registry.emplace<ShadowComponent>(new_e);
                 }
             }
 
@@ -165,6 +236,8 @@ public:
         ImGui::InputText("Path", &load_path);
 
         ImGui::TextUnformatted(last_load_error_message.c_str());
+
+        ImGui::Separator();
 
         for (auto [e, transform, model] : registry.view<Transform, Shared<Model>>().each()) {
             if (ImGui::TreeNode(reinterpret_cast<void*>(e), "Id %d", static_cast<entt::id_type>(e))) {
