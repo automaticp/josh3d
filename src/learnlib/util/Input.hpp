@@ -117,7 +117,7 @@ struct KeyCallbackArgs {
 
     bool is_pressed() const noexcept { return state == glfw::KeyState::Press; }
     bool is_released() const noexcept { return state == glfw::KeyState::Release; }
-    bool is_repeated() const noexcept { return state == glfw::KeyState::Release; }
+    bool is_repeated() const noexcept { return state == glfw::KeyState::Repeat; }
 };
 
 struct CursorPosCallbackArgs {
@@ -136,57 +136,49 @@ struct ScrollCallbackArgs {
 
 
 
+/*
+This little 'blocker' incident is a direct consequence
+of me trying to integrate dear-imgui into the input stack.
 
-// This little 'blocker' incident is a direct consequence
-// of me trying to integrate dear-imgui into the input stack.
-//
-// I also do this thing where I define a whole static interface
-// with concepts and consume the blocker class as a template parameter.
-// I really don't want to mix the imgui code with glfw code as much as possible.
-//
-// Future me may forgive me for overcomplicating things this much.
-//
-// Maybe just use a simple virtual interface class instead, jees...
+You can implement imgui blocker by wrapping ImGui::GetIO().WantCapture* values,
+or you can manually update the blocking state with SimpleInputBlocker.
 
-
-template<typename BlockerT>
-concept input_key_blocker = requires(const BlockerT& blocker, const KeyCallbackArgs& key_args) {
-    { blocker.is_key_blocked(key_args) } -> std::same_as<bool>;
-};
-
-template<typename BlockerT>
-concept input_cursor_blocker = requires(const BlockerT& blocker, const CursorPosCallbackArgs& key_args) {
-    { blocker.is_cursor_blocked(key_args) } -> std::same_as<bool>;
-};
-
-template<typename BlockerT>
-concept input_scroll_blocker = requires(const BlockerT& blocker, const ScrollCallbackArgs& key_args) {
-    { blocker.is_scroll_blocked(key_args) } -> std::same_as<bool>;
-};
-
-template<typename BlockerT>
-concept input_kbm_blocker =
-    input_key_blocker<BlockerT> &&
-    input_cursor_blocker<BlockerT> &&
-    input_scroll_blocker<BlockerT>;
-
-
-// Input blocker that does not block, duh.
-class NonBlockingInputBlocker {
+A more fine-grained blocking that depends on the exact keys pressed / cursor updates
+can also be implemented, although the practical usefullness of that is so far unconfirmed.
+*/
+class IInputBlocker {
 public:
-    // Compiler-sama, you're smart sometimes, optimize it out pls
-    constexpr bool is_key_blocked(const KeyCallbackArgs&) const noexcept { return false; }
-    constexpr bool is_cursor_blocked(const CursorPosCallbackArgs&) const noexcept { return false; }
-    constexpr bool is_scroll_blocked(const ScrollCallbackArgs&) const noexcept { return false; }
+    virtual bool is_key_blocked(const KeyCallbackArgs&) const = 0;
+    virtual bool is_cursor_blocked(const CursorPosCallbackArgs&) const = 0;
+    virtual bool is_scroll_blocked(const ScrollCallbackArgs&) const = 0;
+    virtual ~IInputBlocker() = default;
+};
+
+class NonBlockingInputBlocker : public IInputBlocker {
+public:
+    bool is_key_blocked(const KeyCallbackArgs&) const override { return false; }
+    bool is_cursor_blocked(const CursorPosCallbackArgs&) const override { return false; };
+    bool is_scroll_blocked(const ScrollCallbackArgs&) const override { return false; };
+};
+
+class SimpleInputBlocker : public IInputBlocker {
+public:
+    bool block_keys  { false };
+    bool block_cursor{ false };
+    bool block_scroll{ false };
+
+    bool is_key_blocked(const KeyCallbackArgs&) const override { return block_keys; }
+    bool is_cursor_blocked(const CursorPosCallbackArgs&) const override { return block_cursor; };
+    bool is_scroll_blocked(const ScrollCallbackArgs&) const override { return block_scroll; };
 };
 
 
 
-
-// Simple input class with a map: key -> function.
-// Limited in a sense that multi-key inputs are not reasonable
-// to implement. But works okay for testing and demos.
-template<input_kbm_blocker BlockerT = NonBlockingInputBlocker>
+/*
+Simple input class with a map: key -> function.
+Limited in a sense that multi-key inputs are not reasonable
+to implement. But works okay for testing and demos.
+*/
 class BasicRebindableInput {
 public:
     using key_t = decltype(glfw::KeyCode::A);
@@ -195,23 +187,34 @@ public:
 private:
     glfw::Window& window_;
 
-    // One of the many fewerish ideas I had, sorry again
-    BlockerT blocker_;
+    // Non-owning.
+    IInputBlocker* blocker_;
 
     keymap_t keymap_;
 
 public:
-    explicit BasicRebindableInput(glfw::Window& window) : window_{ window } {
-        enable_key_callback();
-    }
-
-    BasicRebindableInput(glfw::Window& window, BlockerT input_blocker)
+    explicit BasicRebindableInput(glfw::Window& window)
         : window_{ window }
-        , blocker_{ std::move(input_blocker) }
+        , blocker_{
+            []() -> IInputBlocker*  {
+                static NonBlockingInputBlocker non_blocker;
+                return &non_blocker;
+            }()
+        }
     {
         enable_key_callback();
     }
 
+    BasicRebindableInput(glfw::Window& window, IInputBlocker& input_blocker)
+        : window_{ window }
+        , blocker_{ &input_blocker }
+    {
+        enable_key_callback();
+    }
+
+
+    glfw::Window& window() noexcept { return window_; }
+    const glfw::Window& window() const noexcept { return window_; }
 
     void set_keybind(key_t key, std::function<void(const KeyCallbackArgs&)> callback) {
         keymap_.insert_or_assign(key, std::move(callback));
@@ -239,10 +242,10 @@ public:
     void set_cursor_pos_callback(CallbackT&& callback) {
 
         window_.cursorPosEvent.setCallback(
-            [this, callback=std::forward<CallbackT>(callback)](auto&&... args) {
+            [this, callback=std::forward<CallbackT>(callback)](auto&&... args) mutable {
 
                 invoke_on_cursor_pos(
-                    std::forward<CallbackT>(callback),
+                    callback,
                     { std::forward<decltype(args)>(args)... }
                 );
 
@@ -254,10 +257,10 @@ public:
     void set_scroll_callback(CallbackT&& callback) {
 
         window_.scrollEvent.setCallback(
-            [this, callback=std::forward<CallbackT>(callback)](auto&&... args) {
+            [this, callback=std::forward<CallbackT>(callback)](auto&&... args) mutable {
 
                 invoke_on_scroll(
-                    std::forward<CallbackT>(callback),
+                    callback,
                     { std::forward<decltype(args)>(args)... }
                 );
 
@@ -280,20 +283,20 @@ public:
 private:
     template<typename CallbackT>
     void invoke_on_cursor_pos(CallbackT& callback, const CursorPosCallbackArgs& args) {
-        if (!blocker_.is_cursor_blocked(args)) {
+        if (!blocker_->is_cursor_blocked(args)) {
             callback(args);
         }
     }
 
     template<typename CallbackT>
     void invoke_on_scroll(CallbackT& callback, const ScrollCallbackArgs& args) {
-        if (!blocker_.is_scroll_blocked(args)) {
+        if (!blocker_->is_scroll_blocked(args)) {
             callback(args);
         }
     }
 
     void invoke_on_key(const KeyCallbackArgs& args) {
-        if (!blocker_.is_key_blocked(args)) {
+        if (!blocker_->is_key_blocked(args)) {
             auto it = keymap_.find(args.key);
             if (it != keymap_.end()) {
                 std::invoke(it->second, args);
@@ -304,7 +307,7 @@ private:
 };
 
 
-
+// Everything below this line should be nuked.
 
 
 class IInput {

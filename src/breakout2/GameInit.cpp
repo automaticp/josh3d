@@ -16,7 +16,7 @@ Game::Game(glfw::Window& window)
         learn::globals::window_size.height()
     }
     , physics_{ registry_ }
-    , input_{ window_ }
+    , input_{ window_, input_blocker_ }
     , imgui_{ window_ }
     , trash_{ registry_ }
 {

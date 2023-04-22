@@ -9,6 +9,7 @@
 #include "RenderEngine.hpp"
 #include "MaterialDSMultilightShadowStage.hpp"
 #include "Input.hpp"
+#include "InputFreeCamera.hpp"
 #include "ImGuiContextWrapper.hpp"
 #include "Camera.hpp"
 #include "Shared.hpp"
@@ -26,8 +27,11 @@ private:
     glfw::Window& window_;
 
     entt::registry registry_;
-    Camera cam_{ { 0.0f, 0.0f, 3.0f }, { 0.0f, 0.0f, -1.0f } };
-    RebindableInputFreeCamera input_{ window_, cam_ };
+
+    Camera cam_{ { 0.0f, 1.0f, 3.0f }, { 0.0f, 0.0f, -1.0f } };
+    SimpleInputBlocker input_blocker_;
+    BasicRebindableInput input_{ window_, input_blocker_ };
+    InputFreeCameraButActuallyGood input_freecam_{ cam_ };
 
     RenderEngine rengine_{ registry_, cam_, globals::window_size.size_ref() };
     ImGuiContextWrapper imgui_{ window_ };
@@ -38,6 +42,8 @@ public:
     DirPointShadowScene(glfw::Window& window)
         : window_{ window }
     {
+        input_freecam_.configure(input_);
+
         input_.set_keybind(glfw::KeyCode::T, [this](const KeyCallbackArgs& args) {
             if (args.is_released()) {
                 imgui_stage_hooks_.hidden ^= true;
@@ -45,7 +51,6 @@ public:
             }
         });
 
-        input_.use();
 
         rengine_.stages()
             .emplace_back(AmbientBackgroundStage());
@@ -74,12 +79,11 @@ public:
         init_registry();
     }
 
-    void process_input() {
-        const bool ignore =
-            ImGui::GetIO().WantCaptureKeyboard;
-        input_.process_input(ignore);
+    void process_input() {}
+
+    void update() {
+        input_freecam_.update();
     }
-    void update() {}
     void render() {
         using namespace gl;
         imgui_.new_frame();
@@ -92,6 +96,7 @@ public:
         imgui_stage_hooks_.display();
 
         imgui_.render();
+        update_input_blocker_from_imgui_io_state();
     }
 
 private:
@@ -121,9 +126,18 @@ private:
 
     }
 
+    void update_input_blocker_from_imgui_io_state() {
+        // FIXME: Need a way to stop the ImGui window from recieving
+        // mouse events when I'm in free cam.
+        input_blocker_.block_keys = ImGui::GetIO().WantCaptureKeyboard;
+        input_blocker_.block_scroll =
+            ImGui::GetIO().WantCaptureMouse &&
+            input_freecam_.state().is_cursor_mode;
+    }
+
 };
 
 
-};
+} // namespace leakslearn
 
 using leakslearn::DirPointShadowScene;

@@ -36,8 +36,9 @@ public:
         return glm::perspective(fov_, aspect_ratio, z_near, z_far);
     }
 
+    // Field of view in radians.
     float get_fov() const noexcept { return fov_; }
-    void set_fov(float fov) noexcept { fov_ = fov; }
+    void set_fov(float fov_rad) noexcept { fov_ = fov_rad; }
 
     void rotate(float angle_rad, const glm::vec3& axis) noexcept {
         local_basis_.rotate(angle_rad, axis);

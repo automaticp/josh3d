@@ -6,6 +6,7 @@
 #include "PhysicsSystem.hpp"
 #include "Levels.hpp"
 #include "ImGuiContextWrapper.hpp"
+#include "ImGuiInputBlocker.hpp"
 #include <box2d/b2_joint.h>
 #include <entt/entity/fwd.hpp>
 #include <glfwpp/window.h>
@@ -66,7 +67,8 @@ private:
 
     PowerUpGenerator powerup_generator_;
 
-    learn::BasicRebindableInput<learn::ImGuiInputBlocker> input_;
+    learn::ImGuiInputBlocker input_blocker_;
+    learn::BasicRebindableInput input_;
 
     learn::ImGuiContextWrapper imgui_;
 

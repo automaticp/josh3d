@@ -35,17 +35,4 @@ ImGuiContextWrapper::~ImGuiContextWrapper() noexcept {
 }
 
 
-bool ImGuiInputBlocker::is_key_blocked(const KeyCallbackArgs&) const noexcept {
-    return ImGui::GetIO().WantCaptureKeyboard;
-}
-
-bool ImGuiInputBlocker::is_cursor_blocked(const CursorPosCallbackArgs&) const noexcept {
-    return ImGui::GetIO().WantCaptureMouse;
-}
-
-bool ImGuiInputBlocker::is_scroll_blocked(const ScrollCallbackArgs&) const noexcept {
-    return ImGui::GetIO().WantCaptureMouse;
-}
-
-
 } // namespace learn
