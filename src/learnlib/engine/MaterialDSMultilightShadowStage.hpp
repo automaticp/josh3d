@@ -135,15 +135,20 @@ private:
     using views_mat_array_t = std::array<glm::mat4, 6>;
 
 public:
-    RenderTargetDepthCubemapArray plight_shadow_maps{ 2048, 2048, 0 };
+    RenderTargetDepthCubemapArray plight_shadow_maps{ 1024, 1024, 0 };
     glm::vec2 plight_z_near_far{ 0.05f, 150.f };
-    glm::vec2 point_shadow_bias_bounds{ 0.0001f, 0.03f };
+    glm::vec2 point_shadow_bias_bounds{ 0.0001f, 0.08f };
+    gl::GLint point_light_pcf_samples{ 1 };
+    bool point_light_use_fixed_pcf_samples{ true };
+    float point_light_pcf_offset{ 0.01f };
+
 
     RenderTargetDepth dir_light_shadow_map{ 4096, 4096 };
     glm::vec2 dir_shadow_bias_bounds{ 0.0001f, 0.0015f };
-    float dir_light_projection_scale{ 50.f };
+    float     dir_light_projection_scale{ 50.f };
     glm::vec2 dir_light_z_near_far{ 15.f, 150.f };
-    float dir_light_cam_offset{ 100.f };
+    float     dir_light_cam_offset{ 100.f };
+    gl::GLint dir_light_pcf_samples{ 1 };
 
 public:
     MaterialDSMultilightShadowStage() = default;
@@ -351,6 +356,7 @@ private:
             }
             ashp.uniform("dir_light_pv", dir_light_pv)
                 .uniform("dir_shadow_bias_bounds", dir_shadow_bias_bounds)
+                .uniform("dir_light_pcf_samples", dir_light_pcf_samples)
                 .uniform("dir_light_shadow_map", 2);
             dir_light_shadow_map.depth_target().bind_to_unit(GL_TEXTURE2);
 
@@ -361,7 +367,10 @@ private:
 
             // Extra settings for point light shadows.
             ashp.uniform(locs_.point_light_z_far, plight_z_near_far.y)
-                .uniform(locs_.point_shadow_bias_bounds, point_shadow_bias_bounds);
+                .uniform(locs_.point_shadow_bias_bounds, point_shadow_bias_bounds)
+                .uniform("point_light_pcf_samples", point_light_pcf_samples)
+                .uniform("point_light_pcf_offset", point_light_pcf_offset)
+                .uniform("point_light_use_fixed_pcf_samples", point_light_use_fixed_pcf_samples);
 
             for (auto [_, transform, model]
                 : registry.view<const Transform, const Shared<Model>>().each())
@@ -435,7 +444,20 @@ public:
 
             ImGui::SliderFloat2(
                 "Shadow Bias", glm::value_ptr(s.point_shadow_bias_bounds),
-                0.00001f, 0.1f, "%.5f", ImGuiSliderFlags_Logarithmic
+                0.00001f, 0.5f, "%.5f", ImGuiSliderFlags_Logarithmic
+            );
+
+            ImGui::Checkbox("Use Fixed PCF Samples", &s.point_light_use_fixed_pcf_samples);
+
+            ImGui::BeginDisabled(s.point_light_use_fixed_pcf_samples);
+            ImGui::SliderInt(
+                "PCF Samples", &s.point_light_pcf_samples, 0, 6
+            );
+            ImGui::EndDisabled();
+
+            ImGui::SliderFloat(
+                "PCF Offset", &s.point_light_pcf_offset,
+                0.001f, 1.0f, "%.3f", ImGuiSliderFlags_Logarithmic
             );
 
             ImGui::TreePop();
@@ -489,6 +511,10 @@ public:
             ImGui::SliderFloat(
                 "Cam Offset", &s.dir_light_cam_offset,
                 0.1f, 10000.f, "%.1f", ImGuiSliderFlags_Logarithmic
+            );
+
+            ImGui::SliderInt(
+                "PCF Samples", &s.dir_light_pcf_samples, 0, 12
             );
 
 
