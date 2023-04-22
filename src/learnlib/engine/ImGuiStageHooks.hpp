@@ -53,7 +53,6 @@ public:
     void display() {
         if (hidden) { return; }
 
-        ImGui::SetNextWindowCollapsed(true, ImGuiCond_Once);
         ImGui::SetNextWindowSize({ 600.f, 400.f }, ImGuiCond_Once);
         ImGui::SetNextWindowPos({ 0.f, 600.f }, ImGuiCond_Once);
         if (ImGui::Begin("Render Stages", nullptr)) {
