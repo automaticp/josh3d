@@ -74,6 +74,7 @@ uniform bool point_light_use_fixed_pcf_samples;
 uniform sampler2D dir_light_shadow_map;
 uniform vec2 dir_shadow_bias_bounds;
 uniform int dir_light_pcf_samples;
+uniform bool dir_light_cast_shadows;
 
 uniform vec3 cam_pos;
 
@@ -149,8 +150,8 @@ void main() {
         const float specular_strength =
             pow(specular_alignment, material.shininess);
 
-        const float illumination_factor =
-            1.0 - dir_light_shadow_yield(frag_pos_dir_light_space);
+        const float illumination_factor = dir_light_cast_shadows ?
+            (1.0 - dir_light_shadow_yield(frag_pos_dir_light_space)) : 1.0;
 
         result_color +=
             dir_light.color * diffuse_strength *

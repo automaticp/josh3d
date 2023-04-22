@@ -112,11 +112,12 @@ private:
             .color = { 0.15f, 0.15f, 0.1f }
         });
 
-        r.emplace<light::Directional>(r.create(), light::Directional{
+        e = r.create();
+        r.emplace<light::Directional>(e, light::Directional{
             .color = { 0.15f, 0.15f, 0.1f },
             .direction = { -0.2f, -1.0f, -0.3f }
         });
-
+        r.emplace<ShadowComponent>(e);
 
     }
 

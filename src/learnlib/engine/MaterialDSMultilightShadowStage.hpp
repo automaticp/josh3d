@@ -275,11 +275,12 @@ private:
 
         glm::mat4 light_pv{};
 
-        glViewport(0, 0, dir_light_shadow_map.width(), dir_light_shadow_map.height());
 
         for (auto [_, dir_light]
-            : registry.view<const light::Directional>().each())
+            : registry.view<const light::Directional, ShadowComponent>().each())
         {
+            glViewport(0, 0, dir_light_shadow_map.width(), dir_light_shadow_map.height());
+
             glm::mat4 light_projection = glm::ortho(
                 -dir_light_projection_scale, dir_light_projection_scale,
                 -dir_light_projection_scale, dir_light_projection_scale,
@@ -320,8 +321,8 @@ private:
                 });
 
         }
-        return light_pv;
 
+        return light_pv;
     }
 
 
@@ -350,9 +351,10 @@ private:
 
             // Dir light.
             // FIXME: I stopped caring about Locations here...
-            for (auto [_, dir] : registry.view<const light::Directional>().each()) {
+            for (auto [e, dir] : registry.view<const light::Directional>().each()) {
                 ashp.uniform("dir_light.color", dir.color)
-                    .uniform("dir_light.direction", dir.direction);
+                    .uniform("dir_light.direction", dir.direction)
+                    .uniform("dir_light_cast_shadows", registry.all_of<ShadowComponent>(e));
             }
             ashp.uniform("dir_light_pv", dir_light_pv)
                 .uniform("dir_shadow_bias_bounds", dir_shadow_bias_bounds)

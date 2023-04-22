@@ -108,6 +108,15 @@ public:
             for (auto [e, dir] : registry.view<light::Directional>().each()) {
                 ImGui::PushID(int(e));
                 ImGui::ColorEdit3("Color", glm::value_ptr(dir.color));
+                ImGui::SameLine();
+                bool has_shadow = registry.all_of<ShadowComponent>(e);
+                if (ImGui::Checkbox("Shadow", &has_shadow)) {
+                    if (has_shadow) {
+                        registry.emplace<ShadowComponent>(e);
+                    } else {
+                        registry.remove<ShadowComponent>(e);
+                    }
+                }
                 ImGui::SliderFloat3("Direction", glm::value_ptr(dir.direction), -1.f, 1.f);
                 ImGui::PopID();
             }
