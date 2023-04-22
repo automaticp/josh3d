@@ -120,8 +120,6 @@ public:
             glm::mat4 light_view = glm::lookAt(
                 engine.camera().get_pos() - camera_offset * glm::normalize(dir_light.direction),
                 engine.camera().get_pos(),
-                // -directional_.direction,
-                // glm::vec3(0.f),
                 globals::basis.y()
             );
 

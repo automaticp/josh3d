@@ -20,7 +20,6 @@
 namespace learn {
 
 
-// Just hardcoded for now bc components are not finalized.
 class ImGuiRegistryHooks {
 private:
     entt::registry& registry_;

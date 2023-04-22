@@ -198,14 +198,6 @@ float point_light_shadow_yield(vec3 frag_pos,
     PointLight plight, int shadow_map_idx)
 {
     const vec3 frag_to_light = frag_pos - plight.position;
-    // Normalized depth value in [0, 1]
-    // float closest_depth = texture(
-    //     point_light_shadow_maps,
-    //     vec4(frag_to_light, shadow_map_idx)
-    // ).r;
-    // Transofrm back to [0, z_far]
-    // FIXME: Isn't this supposed to be z_far - z_near as the coefficient?
-    // closest_depth *= point_light_z_far;
 
     const float frag_depth = length(frag_to_light);
 
@@ -225,13 +217,16 @@ float point_light_shadow_yield(vec3 frag_pos,
             const vec3 sample_dir =
                 frag_to_light + pcf_offset * fixed_sample_offset_directions[i];
 
+            // Normalized depth value in [0, 1]
             float pcf_depth =
                 texture (
                     point_light_shadow_maps,
                     vec4(sample_dir, shadow_map_idx)
                 ).r;
 
+            // Transofrm back to [0, z_far]
             pcf_depth *= point_light_z_far;
+
             yield +=
                 frag_depth - total_bias > pcf_depth ? 1.0 : 0.0;
         }
