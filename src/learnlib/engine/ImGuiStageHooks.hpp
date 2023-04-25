@@ -42,6 +42,7 @@ private:
 
     // FIXME: Multimap with typeid as key?
     std::vector<HookEntry> hooks_;
+    std::vector<HookEntry> pp_hooks_;
 public:
     bool hidden{ false };
 
@@ -50,12 +51,16 @@ public:
         hooks_.emplace_back(std::move(stage_hook), std::move(name));
     }
 
+    void add_postprocess_hook(std::string name, UniqueFunction<void()> postprocess_hook) {
+        pp_hooks_.emplace_back(std::move(postprocess_hook), std::move(name));
+    }
+
     void display() {
         if (hidden) { return; }
 
         ImGui::SetNextWindowSize({ 600.f, 400.f }, ImGuiCond_Once);
         ImGui::SetNextWindowPos({ 0.f, 600.f }, ImGuiCond_Once);
-        if (ImGui::Begin("Render Stages", nullptr)) {
+        if (ImGui::Begin("Render Stages")) {
             ImGui::Text("FPS: %.1f", 1.f / globals::frame_timer.delta<float>());
 
             if (ImGui::CollapsingHeader("Primary")) {
@@ -74,7 +79,18 @@ public:
             }
 
             if (ImGui::CollapsingHeader("Postprocessing")) {
-                ImGui::Text("Not Implemented!");
+                for (size_t i{ 0 }; i < pp_hooks_.size(); ++i) {
+
+                    ImGui::PushID(int(i));
+                    if (ImGui::TreeNode(pp_hooks_[i].name.c_str())) {
+
+                        pp_hooks_[i].hook();
+
+                        ImGui::TreePop();
+                    }
+                    ImGui::PopID();
+
+                }
             }
 
         } ImGui::End();
