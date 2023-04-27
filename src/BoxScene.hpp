@@ -1,9 +1,13 @@
 #pragma once
+#include "AmbientBackgroundStage.hpp"
 #include "AssimpModelLoader.hpp"
 #include "Camera.hpp"
 #include "GlobalsUtil.hpp"
 #include "ImGuiContextWrapper.hpp"
+#include "ImGuiRegistryHooks.hpp"
+#include "ImGuiStageHooks.hpp"
 #include "Input.hpp"
+#include "InputFreeCamera.hpp"
 #include "LightCasters.hpp"
 #include "Model.hpp"
 #include "MaterialDSMultilightStage.hpp"
@@ -31,55 +35,75 @@ private:
     glfw::Window& window_;
 
     entt::registry registry_;
+
     Camera cam_{ { 0.0f, 0.0f, 3.0f }, { 0.0f, 0.0f, -1.0f } };
-    RebindableInputFreeCamera input_{ window_, cam_ };
+
+    SimpleInputBlocker input_blocker_;
+    BasicRebindableInput input_{ window_, input_blocker_ };
+    InputFreeCameraButActuallyGood input_freecam_{ cam_ };
 
     RenderEngine rengine_{ registry_, cam_, globals::window_size.size_ref() };
     ImGuiContextWrapper imgui_{ window_ };
+    ImGuiStageHooks imgui_stage_hooks_;
+    ImGuiRegistryHooks imgui_registry_hooks_{ registry_ };
 
 public:
     BoxScene3(glfw::Window& window)
         : window_{ window }
     {
-        input_.use();
+        input_freecam_.configure(input_);
+
+        input_.set_keybind(glfw::KeyCode::T, [this](const KeyCallbackArgs& args) {
+            if (args.is_released()) {
+                imgui_stage_hooks_.hidden ^= true;
+                imgui_registry_hooks_.hidden ^= true;
+            }
+        });
+
+        window_.framebufferSizeEvent.setCallback(
+            [this](glfw::Window& window, int w, int h) {
+                using namespace gl;
+                globals::window_size.set_to(w, h);
+                glViewport(0, 0, w, h);
+                rengine_.reset_size(w, h);
+            }
+        );
+        rengine_.stages().emplace_back(AmbientBackgroundStage());
         rengine_.stages().emplace_back(MaterialDSMultilightStage());
         rengine_.stages().emplace_back(PointLightSourceBoxStage());
+
+        imgui_stage_hooks_.add_hook("Point Light Boxes",
+            PointLightSourceBoxStageImGuiHook(
+                *rengine_.stages().back().target<PointLightSourceBoxStage>()
+            )
+        );
+
+        imgui_registry_hooks_.add_hook("Lights", ImGuiRegistryLightComponentsHook());
+        imgui_registry_hooks_.add_hook("Models", ImGuiRegistryModelComponentsHook());
+
+
         init_registry();
     }
 
-    void process_input() { input_.process_input(); }
-    void update() {}
+    void process_input() {}
+
+    void update() {
+        input_freecam_.update();
+    }
+
     void render() {
-        using namespace gl;
         imgui_.new_frame();
-        glClearColor(0.15f, 0.15f, 0.1f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         rengine_.render();
 
-        update_gui();
+        imgui_registry_hooks_.display();
+        imgui_stage_hooks_.display();
+
         imgui_.render();
+        update_input_blocker_from_imgui_io_state();
     }
 
 private:
-    void update_gui() {
-        // static float angle_degree{};
-        // static glm::vec3 axis{ 0.f, 0.f, 1.f };
-        // static glm::quat initial_quat{ 1.f, 0.f, 0.f, 0.f };
-
-        // ImGui::Begin("Debug");
-
-        // auto [_, t] = *registry_.view<Transform>().each().begin();
-
-        // ImGui::SliderFloat4("Quat", glm::value_ptr(initial_quat), 0.f, 1.f);
-        // ImGui::SliderFloat("Angle, deg", &angle_degree, -180.f, 180.f);
-
-        // t.rotation() = glm::rotate(initial_quat, glm::radians(angle_degree), axis);
-
-        // ImGui::End();
-    }
-
-
     static const std::array<glm::vec3, 10> initial_box_positions;
     static const std::array<glm::vec3, 5> initial_point_light_positions;
 
@@ -124,6 +148,15 @@ private:
             });
         }
 
+    }
+
+    void update_input_blocker_from_imgui_io_state() {
+        // FIXME: Need a way to stop the ImGui window from recieving
+        // mouse events when I'm in free cam.
+        input_blocker_.block_keys = ImGui::GetIO().WantCaptureKeyboard;
+        input_blocker_.block_scroll =
+            ImGui::GetIO().WantCaptureMouse &&
+            input_freecam_.state().is_cursor_mode;
     }
 
 };
