@@ -52,7 +52,11 @@ private:
 
 public:
     template<typename CallableT>
-        requires (!std::same_as<std::remove_cvref_t<CallableT>, self_type>)
+        requires (
+            !std::same_as<std::remove_cvref_t<CallableT>, self_type> &&
+            std::invocable<CallableT, ArgTs...> &&
+            std::same_as<std::invoke_result_t<CallableT, ArgTs...>, ResT>
+        )
     UniqueFunction(CallableT&& callable)
         : target_ptr_{
             std::make_unique<
