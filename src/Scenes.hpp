@@ -1,11 +1,7 @@
 #pragma once
 #include "GlobalsUtil.hpp"
 #include "BoxScene.hpp"
-#include "InstancingScene.hpp"
-#include "PostprocessingScene.hpp"
-#include "ModelScene.hpp"
-#include "CubemapScene.hpp"
-#include "DirShadowScene.hpp"
+#include "DirPointShadowScene.hpp"
 #include <glfwpp/window.h>
 
 
