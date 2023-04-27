@@ -29,8 +29,15 @@ public:
         quad_vao_.bind().draw_arrays(GL_TRIANGLES, 0, quad.size());
     }
 
+    // Emit a draw call of a simple quad covering the entire screen.
+    // Make sure all the shader uniforms and buffers are set up before calling this.
+    void draw() {
+        using namespace gl;
+        // FIXME: Whose job it is to disable depth testing?
+        glDisable(GL_DEPTH_TEST);
 
-
+        quad_vao_.bind().draw_arrays(GL_TRIANGLES, 0, quad.size());
+    }
 
 
 private:
