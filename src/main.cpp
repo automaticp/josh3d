@@ -49,8 +49,6 @@ int main() {
 
     render_generic_scene<BoxScene3>(window);
     // render_generic_scene<DirPointShadowScene>(window);
-    // render_generic_scene<InstancingScene>(window);
-
 
     return 0;
 }
