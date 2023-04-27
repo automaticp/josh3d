@@ -25,9 +25,7 @@ struct InputFreeCameraConfig {
 };
 
 
-// Might actually be pretty bad.
-// Rename this later...
-class InputFreeCameraButActuallyGood {
+class InputFreeCamera {
 private:
     Camera& camera_;
     InputFreeCameraConfig config_;
@@ -60,7 +58,7 @@ public:
     // In degrees.
     glm::vec2 zoom_bounds{ 5.0f, 135.0f };
 
-    InputFreeCameraButActuallyGood(Camera& camera, InputFreeCameraConfig config = {})
+    InputFreeCamera(Camera& camera, InputFreeCameraConfig config = {})
         : camera_{ camera }
         , config_{ config }
     {}

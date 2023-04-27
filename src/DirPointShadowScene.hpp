@@ -33,7 +33,7 @@ private:
     Camera cam_{ { 0.0f, 1.0f, 3.0f }, { 0.0f, 0.0f, -1.0f } };
     SimpleInputBlocker input_blocker_;
     BasicRebindableInput input_{ window_, input_blocker_ };
-    InputFreeCameraButActuallyGood input_freecam_{ cam_ };
+    InputFreeCamera input_freecam_{ cam_ };
 
     RenderEngine rengine_{ registry_, cam_, globals::window_size.size_ref() };
     ImGuiContextWrapper imgui_{ window_ };
