@@ -67,7 +67,7 @@ private:
 public:
     MaterialDSMultilightStage() = default;
 
-    void operator()(const RenderEngine& engine, entt::registry& registry) {
+    void operator()(const RenderEngine::PrimaryInterface& engine, const entt::registry& registry) {
         using namespace gl;
 
         sp_.use().and_then_with_self([&, this](ActiveShaderProgram& ashp) {
@@ -102,17 +102,22 @@ public:
                     .uniform(locs_.dir_light.direction, dir.direction);
             }
 
-            auto view = registry.view<const Transform, const Shared<Model>>();
 
-            for (auto [entity, transform, model] : view.each()) {
+            engine.draw([&, this] {
 
-                auto model_matrix = transform.mtransform();
-                ashp.uniform(locs_.model, model_matrix.model())
-                    .uniform(locs_.normal_model, model_matrix.normal_model());
+                auto view = registry.view<const Transform, const Shared<Model>>();
 
-                model->draw(ashp, locs_.mat_ds);
+                for (auto [entity, transform, model] : view.each()) {
 
-            }
+                    auto model_matrix = transform.mtransform();
+                    ashp.uniform(locs_.model, model_matrix.model())
+                        .uniform(locs_.normal_model, model_matrix.normal_model());
+
+                    model->draw(ashp, locs_.mat_ds);
+
+                }
+
+            });
         });
 
     }

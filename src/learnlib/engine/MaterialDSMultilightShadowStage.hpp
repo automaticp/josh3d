@@ -153,7 +153,7 @@ public:
 public:
     MaterialDSMultilightShadowStage() = default;
 
-    void operator()(const RenderEngine& engine, entt::registry& registry) {
+    void operator()(const RenderEngine::PrimaryInterface& engine, const entt::registry& registry) {
         using namespace gl;
 
         prepare_point_lights(engine, registry);
@@ -161,11 +161,13 @@ public:
         glm::mat4 dir_light_pv =
             prepare_dir_light(engine, registry);
 
-        draw_scene(engine, registry, dir_light_pv);
+        engine.draw([&, this] {
+            draw_scene(engine, registry, dir_light_pv);
+        });
     }
 
 private:
-    void prepare_point_lights(const RenderEngine&, entt::registry& registry) {
+    void prepare_point_lights(const RenderEngine::PrimaryInterface&, const entt::registry& registry) {
 
         using namespace gl;
 
@@ -228,7 +230,7 @@ private:
 
 
     void draw_scene_depth_cubemap(ActiveShaderProgram& ashp,
-        entt::registry& registry, const glm::vec3& position, gl::GLint cubemap_id)
+        const entt::registry& registry, const glm::vec3& position, gl::GLint cubemap_id)
     {
         glm::mat4 projection = glm::perspective(
             glm::radians(90.f),
@@ -269,7 +271,7 @@ private:
     }
 
 
-    glm::mat4 prepare_dir_light(const RenderEngine& engine, entt::registry& registry) {
+    glm::mat4 prepare_dir_light(const RenderEngine::PrimaryInterface& engine, const entt::registry& registry) {
 
         using namespace gl;
 
@@ -326,8 +328,8 @@ private:
     }
 
 
-    void draw_scene(const RenderEngine& engine,
-        entt::registry& registry, const glm::mat4& dir_light_pv)
+    void draw_scene(const RenderEngine::PrimaryInterface& engine,
+        const entt::registry& registry, const glm::mat4& dir_light_pv)
     {
         using namespace gl;
 

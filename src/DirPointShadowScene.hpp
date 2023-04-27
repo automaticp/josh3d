@@ -1,6 +1,7 @@
 #pragma once
 #include "AmbientBackgroundStage.hpp"
 #include "AssimpModelLoader.hpp"
+#include "GlobalsUtil.hpp"
 #include "ImGuiRegistryHooks.hpp"
 #include "ImGuiStageHooks.hpp"
 #include "LightCasters.hpp"
@@ -51,6 +52,17 @@ public:
             }
         });
 
+        window_.framebufferSizeEvent.setCallback(
+            [this](glfw::Window& window, int w, int h) {
+                using namespace gl;
+
+                globals::window_size.set_to(w, h);
+                glViewport(0, 0, w, h);
+                rengine_.reset_size(w, h);
+                // or
+                // rengine_.reset_size_from_window_size();
+            }
+        );
 
         rengine_.stages()
             .emplace_back(AmbientBackgroundStage());

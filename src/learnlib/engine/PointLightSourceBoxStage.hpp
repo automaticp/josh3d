@@ -53,7 +53,7 @@ public:
 public:
     PointLightSourceBoxStage() = default;
 
-    void operator()(const RenderEngine& engine, entt::registry& registry) {
+    void operator()(const RenderEngine::PrimaryInterface& engine, const entt::registry& registry) {
         using namespace gl;
 
         sp_.use().and_then_with_self([&, this](ActiveShaderProgram& ashp) {
@@ -65,21 +65,24 @@ public:
             );
             ashp.uniform(locs_.view, engine.camera().view_mat());
 
-            auto view = registry.view<light::Point>();
-            for (auto [entity, plight] : view.each()) {
+            engine.draw([&, this] {
 
-                const auto t = Transform()
-                    .translate(plight.position)
-                    .scale(glm::vec3{ light_box_scale });
+                auto view = registry.view<light::Point>();
+                for (auto [entity, plight] : view.each()) {
 
-                ashp.uniform(locs_.model, t.mtransform().model());
+                    const auto t = Transform()
+                        .translate(plight.position)
+                        .scale(glm::vec3{ light_box_scale });
 
-                MaterialLightSource mat{ plight.color };
-                mat.apply(ashp, locs_.mat_light_source);
+                    ashp.uniform(locs_.model, t.mtransform().model());
 
-                box_.draw();
-            }
+                    MaterialLightSource mat{ plight.color };
+                    mat.apply(ashp, locs_.mat_light_source);
 
+                    box_.draw();
+                }
+
+            });
         });
 
     }

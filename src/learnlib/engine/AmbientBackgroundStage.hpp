@@ -16,13 +16,17 @@ namespace learn {
 // Peak rendering.
 class AmbientBackgroundStage {
 public:
-    void operator()(const RenderEngine& engine, entt::registry& registry) {
+    void operator()(const RenderEngine::PrimaryInterface& engine, const entt::registry& registry) {
         using namespace gl;
 
-        for (auto [_, ambi] : registry.view<const light::Ambient>().each()) {
-            glClearColor(ambi.color.r, ambi.color.g, ambi.color.b, 1.0);
-            glClear(GL_COLOR_BUFFER_BIT);
-        }
+        engine.draw([&, this] {
+
+            for (auto [_, ambi] : registry.view<const light::Ambient>().each()) {
+                glClearColor(ambi.color.r, ambi.color.g, ambi.color.b, 1.0);
+                glClear(GL_COLOR_BUFFER_BIT);
+            }
+
+        });
     }
 
 

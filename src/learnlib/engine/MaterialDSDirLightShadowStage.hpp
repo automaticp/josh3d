@@ -101,7 +101,7 @@ public:
     float camera_offset{ 100.f };
 
 
-    void operator()(const RenderEngine& engine, entt::registry& registry) {
+    void operator()(const RenderEngine::PrimaryInterface& engine, const entt::registry& registry) {
         using namespace gl;
 
         for (
@@ -132,17 +132,19 @@ public:
                 })
                 .unbind();
 
-            auto [w, h] = engine.window_size();
-            glViewport(0, 0, w, h);
+            engine.draw([&, this] {
+                auto [w, h] = engine.window_size();
+                glViewport(0, 0, w, h);
 
-            draw_scene_objects(engine, registry, light_projection * light_view);
+                draw_scene_objects(engine, registry, light_projection * light_view);
+            });
         }
     }
 
 
 private:
-    void draw_scene_objects(const RenderEngine& engine,
-        entt::registry& registry, const glm::mat4& light_mvp)
+    void draw_scene_objects(const RenderEngine::PrimaryInterface& engine,
+        const entt::registry& registry, const glm::mat4& light_mvp)
     {
         using namespace gl;
 
@@ -188,7 +190,7 @@ private:
     }
 
 
-    void draw_scene_depth(entt::registry& registry,
+    void draw_scene_depth(const entt::registry& registry,
         const glm::mat4& projection, const glm::mat4& view)
     {
         sp_depth_.use().and_then_with_self([&, this](ActiveShaderProgram& ashp) {
