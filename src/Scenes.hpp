@@ -3,7 +3,7 @@
 #include "BoxScene.hpp"
 #include "InstancingScene.hpp"
 #include "CubemapScene.hpp"
-#include "DirShadowScene.hpp"
+#include "DirPointShadowScene.hpp"
 #include <glfwpp/window.h>
 
 
