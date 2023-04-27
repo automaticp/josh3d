@@ -2,7 +2,6 @@
 #include "GlobalsUtil.hpp"
 #include "BoxScene.hpp"
 #include "InstancingScene.hpp"
-#include "ModelScene.hpp"
 #include "CubemapScene.hpp"
 #include "DirShadowScene.hpp"
 #include <glfwpp/window.h>

@@ -2,9 +2,6 @@
 #include <glbinding/glbinding.h>
 #include <glfwpp/glfwpp.h>
 
-#include "BoxScene.hpp"
-#include "DirPointShadowScene.hpp"
-#include "DirShadowScene.hpp"
 #include "GlobalsUtil.hpp"
 #include "Scenes.hpp"
 #include "All.hpp"
@@ -51,7 +48,6 @@ int main() {
     // glEnable(GL_CULL_FACE);
 
     render_generic_scene<BoxScene3>(window);
-    // render_generic_scene<ModelScene>(window);
     // render_generic_scene<DirShadowScene>(window);
     // render_generic_scene<DirShadowScene2>(window);
     // render_generic_scene<DirPointShadowScene>(window);
