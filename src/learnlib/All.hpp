@@ -2,7 +2,6 @@
 #include "AssimpModelLoader.hpp"
 #include "AsyncDataPool.hpp"
 #include "Basis.hpp"
-#include "BatchedShader.hpp"
 #include "Camera.hpp"
 #include "CubemapData.hpp"
 #include "DataPool.hpp"
