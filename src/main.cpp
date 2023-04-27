@@ -47,8 +47,8 @@ int main() {
     glEnable(GL_DEPTH_TEST);
     // glEnable(GL_CULL_FACE);
 
-    render_generic_scene<BoxScene3>(window);
-    // render_generic_scene<DirPointShadowScene>(window);
+    // render_generic_scene<BoxScene3>(window);
+    render_generic_scene<DirPointShadowScene>(window);
 
     return 0;
 }
