@@ -25,7 +25,6 @@
 #include "Model.hpp"
 #include "PostprocessDoubleBuffer.hpp"
 #include "PostprocessRenderer.hpp"
-#include "PostprocessStage.hpp"
 #include "RenderTargetColor.hpp"
 #include "RenderTargetColorMS.hpp"
 #include "RenderTargetDepth.hpp"
