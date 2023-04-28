@@ -29,6 +29,10 @@ There are multiple modes of operation in terms of render targets and framebuffer
     Primary draws are made to the backbuffer of PPDB (no swapping).
     The postprocessing draw is made directly to the default backbuffer.
 
+    FIXME: this is actually wrong because PPDB has no depth buffer
+    that can be sampled later. The color can be overwritten there,
+    but we need the scene depth to be preserved after primary stages.
+
 3. Multiple postprocessing stages:
     Primary draws are made to the backbuffer of PPDB (no swapping).
     The postprocessing draws are made to the PPDB backbuffers, until
@@ -156,12 +160,14 @@ private:
     size_t current_stage_{};
 
     mutable RenderTargetColorAndDepth main_target_{
-        window_size_.width, window_size_.height
+        window_size_.width, window_size_.height,
+        gl::GL_RGBA, gl::GL_RGBA16F, gl::GL_FLOAT
     };
 
     PostprocessRenderer pp_renderer_;
     PostprocessDoubleBuffer ppdb_{
-        window_size_.width, window_size_.height
+        window_size_.width, window_size_.height,
+        gl::GL_RGBA, gl::GL_RGBA16F, gl::GL_FLOAT
     };
     size_t current_pp_stage_{};
     std::vector<postprocess_stage_t> pp_stages_;
