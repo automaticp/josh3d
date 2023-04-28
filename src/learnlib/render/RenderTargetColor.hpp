@@ -16,22 +16,25 @@ private:
     gl::GLsizei height_;
 
     gl::GLenum color_format_;
+    gl::GLenum color_internal_format_;
     gl::GLenum color_type_;
 
 public:
     RenderTargetColor(gl::GLsizei width, gl::GLsizei height,
         gl::GLenum color_format = gl::GL_RGBA,
+        gl::GLenum color_internal_format = gl::GL_RGBA,
         gl::GLenum color_type = gl::GL_UNSIGNED_BYTE
     )
         : width_{ width }
         , height_{ height }
         , color_format_{ color_format }
+        , color_internal_format_{ color_internal_format }
         , color_type_{ color_type }
     {
         using namespace gl;
 
         tex_.bind_to_unit(GL_TEXTURE0)
-            .specify_image(width_, height_, color_format_, color_format_, color_type_, nullptr)
+            .specify_image(width_, height_, color_internal_format_, color_format_, color_type_, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
             // Fixes edge overflow from kernel effects
@@ -64,7 +67,7 @@ public:
 
         tex_.bind_to_unit(GL_TEXTURE0)
             .specify_image(
-                width_, height_, color_format_,
+                width_, height_, color_internal_format_,
                 color_format_, color_type_, nullptr
             );
 

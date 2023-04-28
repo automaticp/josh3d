@@ -18,23 +18,26 @@ private:
     gl::GLsizei height_;
 
     gl::GLenum color_format_;
+    gl::GLenum color_internal_format_;
     gl::GLenum color_type_;
 
 public:
     RenderTargetColorAndDepth(
         gl::GLsizei width, gl::GLsizei height,
         gl::GLenum color_format = gl::GL_RGBA,
+        gl::GLenum color_internal_format = gl::GL_RGBA,
         gl::GLenum color_type = gl::GL_UNSIGNED_BYTE
     )
         : width_{ width }
         , height_{ height }
         , color_format_{ color_format }
+        , color_internal_format_{ color_internal_format }
         , color_type_{ color_type }
     {
         using namespace gl;
 
         color_.bind()
-            .specify_image(width_, height_, color_format_,
+            .specify_image(width_, height_, color_internal_format_,
                 color_format_, color_type_, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
@@ -75,7 +78,7 @@ public:
         height_ = height;
 
         color_.bind()
-            .specify_image(width_, height_, color_format_,
+            .specify_image(width_, height_, color_internal_format_,
                 color_format_, color_type_, nullptr);
 
         depth_.bind()

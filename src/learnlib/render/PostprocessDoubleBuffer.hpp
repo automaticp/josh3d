@@ -90,10 +90,11 @@ private:
 public:
     PostprocessDoubleBuffer(gl::GLsizei width, gl::GLsizei height,
         gl::GLenum color_format = gl::GL_RGBA,
+        gl::GLenum color_internal_format = gl::GL_RGBA,
         gl::GLenum color_type = gl::GL_UNSIGNED_BYTE
     )
-        : buf1_{ width, height, color_format, color_type }
-        , buf2_{ width, height, color_format, color_type }
+        : buf1_{ width, height, color_format, color_internal_format, color_type }
+        , buf2_{ width, height, color_format, color_internal_format, color_type }
     {}
 
     TextureHandle& front_target() noexcept { return front_->color_target(); }

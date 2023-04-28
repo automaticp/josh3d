@@ -18,22 +18,22 @@ private:
     gl::GLsizei height_;
     gl::GLsizei nsamples_;
 
-    gl::GLenum color_format_;
+    gl::GLenum color_internal_format_;
 
 
 public:
     RenderTargetColorMS(gl::GLsizei width, gl::GLsizei height,
-        gl::GLsizei nsamples, gl::GLenum color_format = gl::GL_RGBA
+        gl::GLsizei nsamples, gl::GLenum color_internal_format = gl::GL_RGBA
     )
         : width_{ width }
         , height_{ height }
         , nsamples_{ nsamples }
-        , color_format_{ color_format }
+        , color_internal_format_{ color_internal_format }
     {
         using namespace gl;
 
         tex_.bind_to_unit(GL_TEXTURE0)
-            .specify_image(width_, height_, nsamples_, color_format_);
+            .specify_image(width_, height_, nsamples_, color_internal_format_);
         //  .set_parameter(...) ???
 
         rbo_.bind()
@@ -63,7 +63,7 @@ public:
         nsamples_ = nsamples;
 
         tex_.bind_to_unit(GL_TEXTURE0)
-            .specify_image(width_, height_, nsamples_, color_format_);
+            .specify_image(width_, height_, nsamples_, color_internal_format_);
 
         rbo_.bind()
             .create_multisample_storage(width_, height_, nsamples_, GL_DEPTH24_STENCIL8);
