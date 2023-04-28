@@ -8,6 +8,7 @@
 #include "Model.hpp"
 #include "PointLightSourceBoxStage.hpp"
 #include "PostprocessGammaCorrectionStage.hpp"
+#include "PostprocessHDRStage.hpp"
 #include "RenderEngine.hpp"
 #include "MaterialDSMultilightShadowStage.hpp"
 #include "Input.hpp"
@@ -89,6 +90,15 @@ public:
         imgui_registry_hooks_.add_hook("Lights", ImGuiRegistryLightComponentsHook());
         imgui_registry_hooks_.add_hook("Models", ImGuiRegistryModelComponentsHook());
 
+        rengine_.postprocess_stages()
+            .emplace_back(PostprocessHDRStage());
+
+        imgui_stage_hooks_.add_postprocess_hook("HDR",
+            PostprocessHDRStageImGuiHook(
+                *rengine_.postprocess_stages().back()
+                    .target<PostprocessHDRStage>()
+            )
+        );
 
         rengine_.postprocess_stages()
             .emplace_back(PostprocessGammaCorrectionStage());
@@ -98,6 +108,7 @@ public:
                 *rengine_.postprocess_stages().back().target<PostprocessGammaCorrectionStage>()
             )
         );
+
 
         init_registry();
     }
