@@ -17,16 +17,18 @@ private:
     gl::GLsizei width_;
     gl::GLsizei height_;
 
-    gl::GLenum color_format_;
-    gl::GLenum color_internal_format_;
-    gl::GLenum color_type_;
+    gl::GLenum color_format_{ gl::GL_RGBA };
+    gl::GLenum color_internal_format_{ gl::GL_RGBA };
+    gl::GLenum color_type_{ gl::GL_UNSIGNED_BYTE };
 
 public:
-    RenderTargetColorAndDepth(
-        gl::GLsizei width, gl::GLsizei height,
-        gl::GLenum color_format = gl::GL_RGBA,
-        gl::GLenum color_internal_format = gl::GL_RGBA,
-        gl::GLenum color_type = gl::GL_UNSIGNED_BYTE
+    RenderTargetColorAndDepth(gl::GLsizei width, gl::GLsizei height)
+        : RenderTargetColorAndDepth(width, height, gl::GL_RGBA, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE)
+    {}
+
+    RenderTargetColorAndDepth(gl::GLsizei width, gl::GLsizei height,
+        gl::GLenum color_format, gl::GLenum color_internal_format,
+        gl::GLenum color_type
     )
         : width_{ width }
         , height_{ height }

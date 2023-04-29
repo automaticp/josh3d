@@ -1,5 +1,6 @@
 #pragma once
 #include "GLObjects.hpp"
+#include <glbinding/gl/enum.h>
 #include <glbinding/gl/gl.h>
 
 
@@ -15,15 +16,18 @@ private:
     gl::GLsizei width_;
     gl::GLsizei height_;
 
-    gl::GLenum color_format_;
-    gl::GLenum color_internal_format_;
-    gl::GLenum color_type_;
+    gl::GLenum color_format_{ gl::GL_RGBA };
+    gl::GLenum color_internal_format_{ gl::GL_RGBA };
+    gl::GLenum color_type_{ gl::GL_UNSIGNED_BYTE };
 
 public:
+    RenderTargetColor(gl::GLsizei width, gl::GLsizei height)
+        : RenderTargetColor(width, height, gl::GL_RGBA, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE)
+    {}
+
     RenderTargetColor(gl::GLsizei width, gl::GLsizei height,
-        gl::GLenum color_format = gl::GL_RGBA,
-        gl::GLenum color_internal_format = gl::GL_RGBA,
-        gl::GLenum color_type = gl::GL_UNSIGNED_BYTE
+        gl::GLenum color_format, gl::GLenum color_internal_format,
+        gl::GLenum color_type
     )
         : width_{ width }
         , height_{ height }

@@ -1,6 +1,7 @@
 #pragma once
 #include "All.hpp"
 #include "RenderTargetColor.hpp"
+#include <glbinding/gl/enum.h>
 #include <utility>
 #include <glbinding/gl/types.h>
 
@@ -88,10 +89,13 @@ private:
     RenderTargetColor* back_{ &buf2_ };
 
 public:
+    PostprocessDoubleBuffer(gl::GLsizei width, gl::GLsizei height)
+        : PostprocessDoubleBuffer(width, height, gl::GL_RGBA, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE)
+    {}
+
     PostprocessDoubleBuffer(gl::GLsizei width, gl::GLsizei height,
-        gl::GLenum color_format = gl::GL_RGBA,
-        gl::GLenum color_internal_format = gl::GL_RGBA,
-        gl::GLenum color_type = gl::GL_UNSIGNED_BYTE
+        gl::GLenum color_format, gl::GLenum color_internal_format,
+        gl::GLenum color_type
     )
         : buf1_{ width, height, color_format, color_internal_format, color_type }
         , buf2_{ width, height, color_format, color_internal_format, color_type }

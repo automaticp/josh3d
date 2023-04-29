@@ -16,18 +16,28 @@ private:
     gl::GLsizei width_;
     gl::GLsizei height_;
     gl::GLsizei depth_;
-    gl::GLenum format_;
-    gl::GLenum type_;
+
+    gl::GLenum format_{ gl::GL_RGBA };
+    gl::GLenum internal_format_{ gl::GL_RGBA };
+    gl::GLenum type_{ gl::GL_UNSIGNED_BYTE };
 
 public:
+    RenderTargetColorCubemapArray(gl::GLsizei width, gl::GLsizei height, gl::GLsizei depth)
+        : RenderTargetColorCubemapArray(
+            width, height, depth,
+            gl::GL_RGBA, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE
+        )
+    {}
+
     RenderTargetColorCubemapArray(
         gl::GLsizei width, gl::GLsizei height, gl::GLsizei depth,
-        gl::GLenum format = gl::GL_RGBA, gl::GLenum type = gl::GL_UNSIGNED_BYTE
+        gl::GLenum format, gl::GLenum internal_format, gl::GLenum type
     )
         : width_{ width }
         , height_{ height }
         , depth_{ depth }
         , format_{ format }
+        , internal_format_{ internal_format }
         , type_{ type }
     {
         using namespace gl;
@@ -35,7 +45,7 @@ public:
         cubemaps_.bind()
             .specify_all_images(
                 width_, height_, depth_,
-                format_, format_, type_,
+                internal_format_, format_, type_,
                 nullptr
             )
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
@@ -71,7 +81,7 @@ public:
         depth_ = depth;
 
         cubemaps_.bind()
-            .specify_all_images(width_, height_, depth_, format_, format_, type_, nullptr)
+            .specify_all_images(width_, height_, depth_, internal_format_, format_, type_, nullptr)
             .unbind();
     }
 
