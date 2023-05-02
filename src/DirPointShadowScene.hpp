@@ -7,6 +7,7 @@
 #include "LightCasters.hpp"
 #include "Model.hpp"
 #include "PointLightSourceBoxStage.hpp"
+#include "PostprocessBloomStage.hpp"
 #include "PostprocessGammaCorrectionStage.hpp"
 #include "PostprocessHDRStage.hpp"
 #include "RenderEngine.hpp"
@@ -89,6 +90,17 @@ public:
 
         imgui_registry_hooks_.add_hook("Lights", ImGuiRegistryLightComponentsHook());
         imgui_registry_hooks_.add_hook("Models", ImGuiRegistryModelComponentsHook());
+
+
+        rengine_.postprocess_stages()
+            .emplace_back(PostprocessBloomStage());
+
+        imgui_stage_hooks_.add_postprocess_hook("Bloom",
+            PostprocessBloomStageImGuiHook(
+                *rengine_.postprocess_stages().back()
+                    .target<PostprocessBloomStage>()
+            )
+        );
 
         rengine_.postprocess_stages()
             .emplace_back(PostprocessHDRStage());
