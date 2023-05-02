@@ -3,7 +3,7 @@
 #include "PostprocessDoubleBuffer.hpp"
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
-#include <entt/entity/fwd.hpp>
+#include <glm/glm.hpp>
 #include <entt/entt.hpp>
 #include <imgui.h>
 
@@ -40,9 +40,13 @@ private:
 
 
 public:
-    float threshold{ 1.f };
+    glm::vec2 threshold_bounds{ 0.4f, 1.0f };
     size_t blur_iterations{ 2 };
     float offset_scale{ 1.f };
+
+    const TextureHandle& blur_front_target() const noexcept {
+        return blur_ppdb_.front_target();
+    }
 
 
     void operator()(const RenderEngine::PostprocessInterface& engine, const entt::registry&) {
@@ -59,7 +63,7 @@ public:
         blur_ppdb_.draw_and_swap([&, this] {
             sp_extract_.use().and_then_with_self([&, this](ActiveShaderProgram& ashp) {
 
-                ashp.uniform("threshold", threshold)
+                ashp.uniform("threshold_bounds", threshold_bounds)
                     .uniform("screen_color", 0);
                 engine.screen_color().bind_to_unit(GL_TEXTURE0);
 
@@ -118,9 +122,9 @@ public:
 
     void operator()() {
 
-        ImGui::SliderFloat(
-            "Threshold", &stage_.threshold,
-            0.f, 100.f, "%.3f", ImGuiSliderFlags_Logarithmic
+        ImGui::SliderFloat2(
+            "Threshold", glm::value_ptr(stage_.threshold_bounds),
+            0.f, 10.f, "%.3f", ImGuiSliderFlags_Logarithmic
         );
 
         ImGui::SliderFloat(
@@ -134,6 +138,18 @@ public:
             ))
         {
             stage_.blur_iterations = num_iterations_as_int_because_imgui_likes_ints_;
+        }
+
+        if (ImGui::TreeNode("Bloom Texture")) {
+
+            ImGui::Image(
+                reinterpret_cast<ImTextureID>(
+                    stage_.blur_front_target().id()
+                ),
+                { 300, 300 }
+            );
+
+            ImGui::TreePop();
         }
 
     }
