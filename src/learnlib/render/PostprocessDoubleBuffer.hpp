@@ -127,6 +127,37 @@ public:
         swap_buffers();
     }
 
+    PostprocessDoubleBuffer(PostprocessDoubleBuffer&& other) noexcept
+        : buf1_{ std::move(other.buf1_) }
+        , buf2_{ std::move(other.buf2_) }
+    {
+        const bool buf1_is_front = other.front_ == &other.buf1_;
+        if (buf1_is_front) {
+            front_ = &buf1_;
+            back_ = &buf2_;
+        } else /* buf2_is_front */ {
+            front_ = &buf2_;
+            back_ = &buf1_;
+        }
+    }
+
+    PostprocessDoubleBuffer& operator=(PostprocessDoubleBuffer&& other) noexcept {
+        buf1_ = std::move(other.buf1_);
+        buf2_ = std::move(other.buf2_);
+        const bool buf1_is_front = other.front_ == &other.buf1_;
+        if (buf1_is_front) {
+            front_ = &buf1_;
+            back_ = &buf2_;
+        } else /* buf2_is_front */ {
+            front_ = &buf2_;
+            back_ = &buf1_;
+        }
+        return *this;
+    }
+
+    PostprocessDoubleBuffer(const PostprocessDoubleBuffer&) = delete;
+    PostprocessDoubleBuffer& operator=(const PostprocessDoubleBuffer& other) = delete;
+
 };
 
 } // namespace learn
