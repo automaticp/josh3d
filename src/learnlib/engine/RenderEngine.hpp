@@ -78,6 +78,10 @@ public:
 
 
     public:
+        PostprocessRenderer& postprocess_renderer() const {
+            return engine_.pp_renderer_;
+        }
+
         // FIXME: const?
         TextureHandle& screen_color() const {
             return engine_.ppdb_.front_target();
