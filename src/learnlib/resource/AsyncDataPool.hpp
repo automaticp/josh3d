@@ -236,17 +236,11 @@ private:
             assert(was_emplaced);
 
             // Increment the number of loading threads while the write lock
-            // on the pool is still held.
-            n_loading_threads_.fetch_add(1);
+            // on the pool is still held. The AsyncDataPool will not be
+            // destroyed until n_loading_threads_ is zero to prevent data
+            // races from loading threads.
 
-            // FIXME: The thread dispatched by the ThreadPool can try to access
-            // an already destroyed AsyncDataPool. We need a way to defer destruction
-            // until all submitted load requests are complete.
-            //
-            // Might collect futures in a std::vector<std::future<void(LoadRequest)>>
-            // and wait on all of them in the destructor.
-            //
-            // Will have to think about it a bit more.
+            n_loading_threads_.fetch_add(1);
 
             thread_pool_.emplace(
                 &AsyncDataPool::fulfill_direct_load_request, this, std::move(request)
