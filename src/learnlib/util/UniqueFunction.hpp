@@ -80,6 +80,17 @@ public:
         return try_get_target<CallableT>();
     }
 
+    template<typename CallableT>
+    CallableT& target_unchecked() noexcept {
+        return get_unchecked<CallableT>();
+    }
+
+    template<typename CallableT>
+    const CallableT& target_unchecked() const noexcept {
+        return get_unchecked<CallableT>();
+    }
+
+
     const std::type_info& target_type() const noexcept {
         if (!target_ptr_) { return typeid(void); }
         return target_ptr_->type();
@@ -104,6 +115,14 @@ private:
     CallableT* try_get_target() const noexcept {
         auto* wrapper_ptr = dynamic_cast<UFConcrete<CallableT>*>(target_ptr_.get());
         return wrapper_ptr ? &wrapper_ptr->target : nullptr;
+    }
+
+    template<typename CallableT>
+    CallableT& get_unchecked() const noexcept {
+        assert(target_ptr_ && "Requested the target of UniqueFunction with no target.");
+        assert(target_ptr_->type() == typeid(CallableT) &&
+            "Requested type does not match the type of the target.");
+        return static_cast<UFConcrete<CallableT>&>(*target_ptr_).target;
     }
 };
 
