@@ -1,4 +1,4 @@
-#version 330 core
+#version 430 core
 
 in vec2 tex_coords;
 
@@ -8,12 +8,10 @@ uniform sampler2D screen_color;
 uniform bool blur_horizontally; // or vertically
 uniform float offset_scale; // in pixels/texels?
 
+layout (std430, binding = 0) restrict readonly buffer weights_buffer {
+    float weights[];
+};
 
-float weights[9] = float[] (
-    0.016216, 0.054054, 0.1216216, 0.1945946,
-    0.227027,
-    0.1945946, 0.1216216, 0.054054, 0.016216
-);
 
 void main() {
     vec2 texel_size = 1.0 / textureSize(screen_color, 0);
