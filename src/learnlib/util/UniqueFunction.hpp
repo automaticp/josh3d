@@ -32,7 +32,7 @@ private:
     };
 
     template<typename CallableT>
-    class UFConcrete : public UFBase {
+    class UFConcrete final : public UFBase {
     public:
         CallableT target;
 
@@ -82,7 +82,7 @@ public:
 
     const std::type_info& target_type() const noexcept {
         if (!target_ptr_) { return typeid(void); }
-        return typeid(target_ptr_->type());
+        return target_ptr_->type();
     }
 
     operator bool() const noexcept { return bool(target_ptr_); }
