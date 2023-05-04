@@ -11,7 +11,7 @@ void ImGuiRegistryLightComponentsHook::operator()(entt::registry& registry) {
 
         for (auto [e, ambi] : registry.view<light::Ambient>().each()) {
             ImGui::PushID(int(e));
-            ImGui::ColorEdit3("Color", glm::value_ptr(ambi.color));
+            ImGui::ColorEdit3("Color", glm::value_ptr(ambi.color), ImGuiColorEditFlags_DisplayHSV);
             ImGui::PopID();
         }
 
@@ -22,7 +22,7 @@ void ImGuiRegistryLightComponentsHook::operator()(entt::registry& registry) {
 
         for (auto [e, dir] : registry.view<light::Directional>().each()) {
             ImGui::PushID(int(e));
-            ImGui::ColorEdit3("Color", glm::value_ptr(dir.color));
+            ImGui::ColorEdit3("Color", glm::value_ptr(dir.color), ImGuiColorEditFlags_DisplayHSV);
             ImGui::SameLine();
             bool has_shadow = registry.all_of<ShadowComponent>(e);
             if (ImGui::Checkbox("Shadow", &has_shadow)) {
@@ -54,7 +54,7 @@ void ImGuiRegistryLightComponentsHook::operator()(entt::registry& registry) {
 
         if (display_node) {
             ImGui::DragFloat3("Position", glm::value_ptr(plight_template_.position), 0.2f);
-            ImGui::ColorEdit3("Color", glm::value_ptr(plight_template_.color));
+            ImGui::ColorEdit3("Color", glm::value_ptr(plight_template_.color), ImGuiColorEditFlags_DisplayHSV);
             ImGui::SameLine();
             ImGui::Checkbox("Shadow", &plight_has_shadow_);
             ImGui::DragFloat3(
@@ -88,7 +88,7 @@ void ImGuiRegistryLightComponentsHook::operator()(entt::registry& registry) {
 
                 ImGui::DragFloat3("Position", glm::value_ptr(plight.position), 0.2f);
 
-                ImGui::ColorEdit3("Color", glm::value_ptr(plight.color));
+                ImGui::ColorEdit3("Color", glm::value_ptr(plight.color), ImGuiColorEditFlags_DisplayHSV);
 
                 ImGui::SameLine();
                 bool has_shadow = registry.all_of<ShadowComponent>(e);
