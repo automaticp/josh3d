@@ -75,7 +75,8 @@ public:
 
         imgui_stage_hooks_.add_hook("Multilight Shadows",
             MaterialDSMultilightShadowStageImGuiHook(
-                *rengine_.stages().back().target<MaterialDSMultilightShadowStage>()
+                rengine_.stages().back()
+                    .target_unchecked<MaterialDSMultilightShadowStage>()
             )
         );
 
@@ -84,7 +85,8 @@ public:
 
         imgui_stage_hooks_.add_hook("Point Light Boxes",
             PointLightSourceBoxStageImGuiHook(
-                *rengine_.stages().back().target<PointLightSourceBoxStage>()
+                rengine_.stages().back()
+                    .target_unchecked<PointLightSourceBoxStage>()
             )
         );
 
@@ -97,8 +99,8 @@ public:
 
         imgui_stage_hooks_.add_postprocess_hook("Bloom",
             PostprocessBloomStageImGuiHook(
-                *rengine_.postprocess_stages().back()
-                    .target<PostprocessBloomStage>()
+                rengine_.postprocess_stages().back()
+                    .target_unchecked<PostprocessBloomStage>()
             )
         );
 
@@ -107,8 +109,8 @@ public:
 
         imgui_stage_hooks_.add_postprocess_hook("HDR",
             PostprocessHDRStageImGuiHook(
-                *rengine_.postprocess_stages().back()
-                    .target<PostprocessHDRStage>()
+                rengine_.postprocess_stages().back()
+                    .target_unchecked<PostprocessHDRStage>()
             )
         );
 
@@ -117,7 +119,8 @@ public:
 
         imgui_stage_hooks_.add_postprocess_hook("Gamma Correction",
             PostprocessGammaCorrectionStageImGuiHook(
-                *rengine_.postprocess_stages().back().target<PostprocessGammaCorrectionStage>()
+                rengine_.postprocess_stages().back()
+                    .target_unchecked<PostprocessGammaCorrectionStage>()
             )
         );
 
