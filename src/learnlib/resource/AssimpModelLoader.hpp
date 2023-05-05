@@ -1,4 +1,5 @@
 #pragma once
+#include <assimp/material.h>
 #include <stdexcept>
 #include <vector>
 #include <span>
@@ -14,6 +15,7 @@
 #include <assimp/Exceptional.h>
 
 #include "GLObjects.hpp"
+#include "TextureHandlePool.hpp"
 #include "GLObjectPool.hpp"
 #include "GlobalsGL.hpp"
 #include "GlobalsUtil.hpp"
@@ -287,8 +289,17 @@ private:
 
         std::string full_path{ directory_ + filename.C_Str() };
 
+        TextureType tex_type{};
+        switch (type) {
+            case aiTextureType_DIFFUSE: tex_type = TextureType::diffuse; break;
+            case aiTextureType_SPECULAR: tex_type = TextureType::specular; break;
+            default: tex_type = TextureType::specular;
+        }
+
         // FIXME: pool should be a c-tor parameter of something
-        return globals::texture_handle_pool.load(full_path);
+        return globals::texture_handle_pool.load(
+            full_path, TextureHandleLoadContext{ tex_type }
+        );
     }
 
 };
