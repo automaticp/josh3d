@@ -2,10 +2,12 @@
 #include "DataPool.hpp"
 #include "FrameTimer.hpp"
 #include "GLObjectPool.hpp"
+#include "TextureHandlePool.hpp"
 #include "GLObjects.hpp"
 #include "TextureData.hpp"
 #include "Shared.hpp"
 #include "WindowSizeCache.hpp"
+#include <glbinding/gl/enum.h>
 #include <iostream>
 #include <array>
 #include <memory>
@@ -15,7 +17,7 @@
 namespace learn::globals {
 
 DataPool<TextureData> texture_data_pool;
-GLObjectPool<TextureHandle> texture_handle_pool{ texture_data_pool };
+TextureHandlePool texture_handle_pool{ texture_data_pool };
 
 std::ostream& logstream{ std::clog };
 
@@ -42,14 +44,14 @@ static TextureData fill_default(std::array<unsigned char, 4> rgba) {
 static Shared<TextureHandle> init_default_diffuse_texture() {
     auto tex = fill_default({ 0xB0, 0xB0, 0xB0, 0xFF });
     auto handle = std::make_shared<TextureHandle>();
-    handle->bind().attach_data(tex).unbind();
+    handle->bind().attach_data(tex, gl::GL_SRGB_ALPHA).unbind();
     return handle;
 }
 
 static Shared<TextureHandle> init_default_specular_texture() {
     auto tex = fill_default({ 0x00, 0x00, 0x00, 0xFF });
     auto handle = std::make_shared<TextureHandle>();
-    handle->bind().attach_data(tex).unbind();
+    handle->bind().attach_data(tex, gl::GL_RGBA).unbind();
     return handle;
 }
 
