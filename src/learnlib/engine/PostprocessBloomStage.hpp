@@ -54,7 +54,7 @@ public:
     }
 
 
-    glm::vec2 threshold_bounds{ 0.4f, 1.0f };
+    glm::vec2 threshold_bounds{ 0.05f, 1.0f };
     size_t blur_iterations{ 1 };
     float offset_scale{ 1.f };
 

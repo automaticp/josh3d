@@ -20,8 +20,8 @@ private:
     };
 
 public:
-    bool use_reinhard{ true };
-    bool use_exposure{ false };
+    bool use_reinhard{ false };
+    bool use_exposure{ true };
     float exposure{ 1.0f };
 
     void operator()(const RenderEngine::PostprocessInterface& engine, const entt::registry&) {
