@@ -13,6 +13,7 @@
 #include "Transform.hpp"
 #include "ULocation.hpp"
 #include <array>
+#include <glbinding/gl/enum.h>
 #include <range/v3/all.hpp>
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
@@ -129,8 +130,12 @@ private:
     };
 
 
-    SSBOWithIntermediateBuffer<light::Point> plights_with_shadows_ssbo_{ 1 };
-    SSBOWithIntermediateBuffer<light::Point> plights_no_shadows_ssbo_{ 2 };
+    SSBOWithIntermediateBuffer<light::Point> plights_with_shadows_ssbo_{
+        1, gl::GL_DYNAMIC_DRAW
+    };
+    SSBOWithIntermediateBuffer<light::Point> plights_no_shadows_ssbo_{
+        2, gl::GL_DYNAMIC_DRAW
+    };
 
     using views_mat_array_t = std::array<glm::mat4, 6>;
 

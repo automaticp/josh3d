@@ -10,6 +10,7 @@
 #include "ULocation.hpp"
 #include "SSBOWithIntermediateBuffer.hpp"
 #include <entt/entt.hpp>
+#include <glbinding/gl/enum.h>
 #include <range/v3/all.hpp>
 #include <glbinding/gl/gl.h>
 
@@ -25,7 +26,9 @@ private:
             .get()
     };
 
-    SSBOWithIntermediateBuffer<light::Point> plights_ssbo_{ 1 };
+    SSBOWithIntermediateBuffer<light::Point> plights_ssbo_{
+        1, gl::GL_DYNAMIC_DRAW
+    };
 
     struct AmbientLightLocations {
         ULocation color;
