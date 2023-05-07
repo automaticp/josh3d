@@ -1,6 +1,7 @@
 #pragma once
 #include "AmbientBackgroundStage.hpp"
 #include "AssimpModelLoader.hpp"
+#include "CubemapData.hpp"
 #include "GlobalsUtil.hpp"
 #include "ImGuiRegistryHooks.hpp"
 #include "ImGuiStageHooks.hpp"
@@ -10,6 +11,7 @@
 #include "PostprocessBloomStage.hpp"
 #include "PostprocessGammaCorrectionStage.hpp"
 #include "PostprocessHDRStage.hpp"
+#include "RenderComponents.hpp"
 #include "RenderEngine.hpp"
 #include "MaterialDSMultilightShadowStage.hpp"
 #include "Input.hpp"
@@ -17,6 +19,9 @@
 #include "ImGuiContextWrapper.hpp"
 #include "Camera.hpp"
 #include "Shared.hpp"
+#include "SkyboxStage.hpp"
+#include <entt/entity/fwd.hpp>
+#include <glbinding/gl/enum.h>
 #include <glfwpp/window.h>
 #include <entt/entt.hpp>
 #include <imgui.h>
@@ -69,6 +74,9 @@ public:
 
         rengine_.stages()
             .emplace_back(AmbientBackgroundStage());
+
+        rengine_.stages()
+            .emplace_back(SkyboxStage());
 
         rengine_.stages()
             .emplace_back(MaterialDSMultilightShadowStage());
@@ -172,6 +180,21 @@ private:
             .direction = { -0.2f, -1.0f, -0.3f }
         });
         r.emplace<ShadowComponent>(e);
+
+        components::Skybox skybox{ std::make_shared<Cubemap>() };
+        skybox.cubemap->bind().attach_data(
+            CubemapData::from_files(
+                {
+                    "data/textures/skybox/lake/right.png",
+                    "data/textures/skybox/lake/left.png",
+                    "data/textures/skybox/lake/top.png",
+                    "data/textures/skybox/lake/bottom.png",
+                    "data/textures/skybox/lake/front.png",
+                    "data/textures/skybox/lake/back.png",
+                }
+            ), gl::GL_SRGB_ALPHA
+        );
+        r.emplace<components::Skybox>(r.create(), std::move(skybox));
 
     }
 
