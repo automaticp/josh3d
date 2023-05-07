@@ -20,6 +20,7 @@
 #include "Camera.hpp"
 #include "Shared.hpp"
 #include "SkyboxStage.hpp"
+#include "RenderComponents.hpp"
 #include <entt/entity/fwd.hpp>
 #include <glbinding/gl/enum.h>
 #include <glfwpp/window.h>
@@ -179,7 +180,7 @@ private:
             .color = { 0.15f, 0.15f, 0.1f },
             .direction = { -0.2f, -1.0f, -0.3f }
         });
-        r.emplace<ShadowComponent>(e);
+        r.emplace<components::ShadowCasting>(e);
 
         components::Skybox skybox{ std::make_shared<Cubemap>() };
         skybox.cubemap->bind().attach_data(

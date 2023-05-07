@@ -12,6 +12,7 @@
 #include "Shared.hpp"
 #include "Transform.hpp"
 #include "ULocation.hpp"
+#include "RenderComponents.hpp"
 #include <array>
 #include <glbinding/gl/enum.h>
 #include <range/v3/all.hpp>
@@ -25,10 +26,6 @@
 
 
 namespace learn {
-
-
-// Tag component that enables shadow rendering for point lights.
-struct ShadowComponent {};
 
 
 class MaterialDSMultilightShadowStage {
@@ -178,7 +175,7 @@ private:
 
         // Update SSBOs for point lights.
 
-        auto plights_with_shadow_view = registry.view<const light::Point, const ShadowComponent>();
+        auto plights_with_shadow_view = registry.view<const light::Point, const components::ShadowCasting>();
 
         const bool num_plights_with_shadows_changed =
             plights_with_shadows_ssbo_.update(
@@ -195,7 +192,7 @@ private:
         }
 
 
-        auto plights_no_shadow_view = registry.view<const light::Point>(entt::exclude<ShadowComponent>);
+        auto plights_no_shadow_view = registry.view<const light::Point>(entt::exclude<components::ShadowCasting>);
 
         plights_no_shadows_ssbo_.update(
             plights_no_shadow_view | ranges::views::transform([&](entt::entity e) {
@@ -204,7 +201,7 @@ private:
         );
 
 
-        // Draw the depth cubemaps for Point lights with the ShadowComponent.
+        // Draw the depth cubemaps for Point lights with the components::ShadowCasting.
 
         sp_plight_depth_.use()
             .and_then_with_self([&, this](ActiveShaderProgram& ashp) {
@@ -284,7 +281,7 @@ private:
 
 
         for (auto [_, dir_light]
-            : registry.view<const light::Directional, ShadowComponent>().each())
+            : registry.view<const light::Directional, components::ShadowCasting>().each())
         {
             glViewport(0, 0, dir_light_shadow_map.width(), dir_light_shadow_map.height());
 
@@ -361,7 +358,7 @@ private:
             for (auto [e, dir] : registry.view<const light::Directional>().each()) {
                 ashp.uniform("dir_light.color", dir.color)
                     .uniform("dir_light.direction", dir.direction)
-                    .uniform("dir_light_cast_shadows", registry.all_of<ShadowComponent>(e));
+                    .uniform("dir_light_cast_shadows", registry.all_of<components::ShadowCasting>(e));
             }
             ashp.uniform("dir_light_pv", dir_light_pv)
                 .uniform("dir_shadow_bias_bounds", dir_shadow_bias_bounds)

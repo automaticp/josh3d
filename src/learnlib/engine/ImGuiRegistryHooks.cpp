@@ -1,4 +1,5 @@
 #include "ImGuiRegistryHooks.hpp"
+#include "RenderComponents.hpp"
 #include <glm/gtc/quaternion.hpp>
 #include <imgui.h>
 
@@ -26,12 +27,12 @@ void ImGuiRegistryLightComponentsHook::operator()(entt::registry& registry) {
             ImGui::PushID(int(e));
             ImGui::ColorEdit3("Color", glm::value_ptr(dir.color), ImGuiColorEditFlags_DisplayHSV);
             ImGui::SameLine();
-            bool has_shadow = registry.all_of<ShadowComponent>(e);
+            bool has_shadow = registry.all_of<components::ShadowCasting>(e);
             if (ImGui::Checkbox("Shadow", &has_shadow)) {
                 if (has_shadow) {
-                    registry.emplace<ShadowComponent>(e);
+                    registry.emplace<components::ShadowCasting>(e);
                 } else {
-                    registry.remove<ShadowComponent>(e);
+                    registry.remove<components::ShadowCasting>(e);
                 }
             }
             ImGui::SliderFloat3("Direction", glm::value_ptr(dir.direction), -1.f, 1.f);
@@ -50,7 +51,7 @@ void ImGuiRegistryLightComponentsHook::operator()(entt::registry& registry) {
             auto e = registry.create();
             registry.emplace<light::Point>(e, plight_template_);
             if (plight_has_shadow_) {
-                registry.emplace<ShadowComponent>(e);
+                registry.emplace<components::ShadowCasting>(e);
             }
         }
 
@@ -93,12 +94,12 @@ void ImGuiRegistryLightComponentsHook::operator()(entt::registry& registry) {
                 ImGui::ColorEdit3("Color", glm::value_ptr(plight.color), ImGuiColorEditFlags_DisplayHSV);
 
                 ImGui::SameLine();
-                bool has_shadow = registry.all_of<ShadowComponent>(e);
+                bool has_shadow = registry.all_of<components::ShadowCasting>(e);
                 if (ImGui::Checkbox("Shadow", &has_shadow)) {
                     if (has_shadow) {
-                        registry.emplace<ShadowComponent>(e);
+                        registry.emplace<components::ShadowCasting>(e);
                     } else {
-                        registry.remove<ShadowComponent>(e);
+                        registry.remove<components::ShadowCasting>(e);
                     }
                 }
 
@@ -119,8 +120,8 @@ void ImGuiRegistryLightComponentsHook::operator()(entt::registry& registry) {
         if (to_duplicate != entt::null) {
             auto new_e = registry.create();
             registry.emplace<light::Point>(new_e, registry.get<light::Point>(to_duplicate));
-            if (registry.all_of<ShadowComponent>(to_duplicate)) {
-                registry.emplace<ShadowComponent>(new_e);
+            if (registry.all_of<components::ShadowCasting>(to_duplicate)) {
+                registry.emplace<components::ShadowCasting>(new_e);
             }
         }
 
