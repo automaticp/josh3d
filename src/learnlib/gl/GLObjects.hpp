@@ -267,6 +267,19 @@ public:
         return *this;
     }
 
+    template<typename T>
+    BoundAbstractBuffer& get_sub_data(size_t size,
+        size_t offset, T* data)
+    {
+        glGetBufferSubData(
+            type_,
+            static_cast<GLintptr>(offset * sizeof(T)),
+            static_cast<GLsizeiptr>(size * sizeof(T)),
+            reinterpret_cast<void*>(data)
+        );
+        return *this;
+    }
+
 
 
     void unbind() {
@@ -315,6 +328,20 @@ public:
         );
         return *this;
     }
+
+    template<typename T>
+    BoundSSBO& get_sub_data(size_t size,
+        size_t offset, T* data)
+    {
+        glGetBufferSubData(
+            GL_SHADER_STORAGE_BUFFER,
+            static_cast<GLintptr>(offset * sizeof(T)),
+            static_cast<GLsizeiptr>(size * sizeof(T)),
+            reinterpret_cast<void*>(data)
+        );
+        return *this;
+    }
+
 
     static void unbind() {
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0u);
