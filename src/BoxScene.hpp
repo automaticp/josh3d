@@ -42,7 +42,10 @@ private:
     BasicRebindableInput input_{ window_, input_blocker_ };
     InputFreeCamera input_freecam_{ cam_ };
 
-    RenderEngine rengine_{ registry_, cam_, globals::window_size.size_ref() };
+    RenderEngine rengine_{
+        registry_, cam_,
+        globals::window_size.size_ref(), globals::frame_timer
+    };
     ImGuiContextWrapper imgui_{ window_ };
     ImGuiStageHooks imgui_stage_hooks_;
     ImGuiRegistryHooks imgui_registry_hooks_{ registry_ };

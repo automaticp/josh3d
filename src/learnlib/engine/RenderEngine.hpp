@@ -1,5 +1,6 @@
 #pragma once
 #include "Camera.hpp"
+#include "FrameTimer.hpp"
 #include "GLObjects.hpp"
 #include "PostprocessDoubleBuffer.hpp"
 #include "PostprocessRenderer.hpp"
@@ -64,6 +65,8 @@ private:
         const Camera& camera() const noexcept { return engine_.cam_; }
 
         const WindowSize<int>& window_size() const noexcept { return engine_.window_size_; }
+
+        const FrameTimer& frame_timer() const noexcept { return engine_.frame_timer_; }
     };
 
 public:
@@ -159,6 +162,7 @@ private:
 
     Camera& cam_;
     const WindowSize<int>& window_size_;
+    const FrameTimer& frame_timer_;
 
     std::vector<primary_stage_t> stages_;
     size_t current_stage_{};
@@ -178,10 +182,12 @@ private:
 
 
 public:
-    RenderEngine(entt::registry& registry, Camera& cam, const WindowSize<int>& window_size)
+    RenderEngine(entt::registry& registry, Camera& cam,
+        const WindowSize<int>& window_size, const FrameTimer& frame_timer)
         : registry_{ registry }
         , cam_{ cam }
         , window_size_{ window_size }
+        , frame_timer_{ frame_timer }
     {}
 
     void render() {
@@ -239,6 +245,7 @@ public:
     const auto& camera() const noexcept { return cam_; }
 
     const WindowSize<int>& window_size() const noexcept { return window_size_; }
+    const FrameTimer& frame_timer() const noexcept { return frame_timer_; }
 
     void reset_size(gl::GLsizei width, gl::GLsizei height) {
         main_target_.reset_size(width, height);
