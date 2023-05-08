@@ -10,6 +10,7 @@
 #include "PointLightSourceBoxStage.hpp"
 #include "PostprocessBloomStage.hpp"
 #include "PostprocessGammaCorrectionStage.hpp"
+#include "PostprocessHDREyeAdaptationStage.hpp"
 #include "PostprocessHDRStage.hpp"
 #include "RenderComponents.hpp"
 #include "RenderEngine.hpp"
@@ -116,15 +117,28 @@ public:
             )
         );
 
-        rengine_.postprocess_stages()
-            .emplace_back(PostprocessHDRStage());
+        // rengine_.postprocess_stages()
+        //     .emplace_back(PostprocessHDRStage());
 
-        imgui_stage_hooks_.add_postprocess_hook("HDR",
-            PostprocessHDRStageImGuiHook(
+        // imgui_stage_hooks_.add_postprocess_hook("HDR",
+        //     PostprocessHDRStageImGuiHook(
+        //         rengine_.postprocess_stages().back()
+        //             .target_unchecked<PostprocessHDRStage>()
+        //     )
+        // );
+
+
+        rengine_.postprocess_stages()
+            .emplace_back(PostprocessHDREyeAdaptationStage());
+
+        imgui_stage_hooks_.add_postprocess_hook(
+            "HDR Eye Adaptation",
+            PostprocessHDREyeAdaptationStageImGuiHook(
                 rengine_.postprocess_stages().back()
-                    .target_unchecked<PostprocessHDRStage>()
+                    .target_unchecked<PostprocessHDREyeAdaptationStage>()
             )
         );
+
 
         rengine_.postprocess_stages()
             .emplace_back(PostprocessGammaCorrectionStage());
