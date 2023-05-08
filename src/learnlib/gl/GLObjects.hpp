@@ -886,7 +886,16 @@ public:
 };
 
 
+class GeometryShader : public Shader {
+public:
+    GeometryShader() : Shader(GL_GEOMETRY_SHADER) {}
+};
 
+
+class ComputeShader : public Shader {
+public:
+    ComputeShader() : Shader(GL_COMPUTE_SHADER) {}
+};
 
 
 

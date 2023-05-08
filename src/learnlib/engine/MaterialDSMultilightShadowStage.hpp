@@ -88,7 +88,7 @@ private:
     ShaderProgram sp_plight_depth_{
         ShaderBuilder()
             .load_vert("src/shaders/depth_cubemap.vert")
-            .load_shader("src/shaders/depth_cubemap_array.geom", gl::GL_GEOMETRY_SHADER)
+            .load_geom("src/shaders/depth_cubemap_array.geom")
             .load_frag("src/shaders/depth_cubemap.frag")
             .get()
     };

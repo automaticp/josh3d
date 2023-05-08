@@ -16,7 +16,7 @@ private:
 
 public:
     ShaderBuilder& load_shader(const std::string& path, gl::GLenum type) {
-        compile_from_source_and_attach(read_file(path), type);
+        compile_from_source_and_attach(ShaderSource::from_file(path), type);
         return *this;
     }
 
@@ -27,6 +27,16 @@ public:
     ShaderBuilder& load_vert(const std::string& path) {
         return load_shader(path, gl::GL_VERTEX_SHADER);
     }
+
+    ShaderBuilder& load_geom(const std::string& path) {
+        return load_shader(path, gl::GL_GEOMETRY_SHADER);
+    }
+
+    ShaderBuilder& load_comp(const std::string& path) {
+        return load_shader(path, gl::GL_COMPUTE_SHADER);
+    }
+
+
 
     ShaderBuilder& add_shader(const ShaderSource& source, gl::GLenum type) {
         compile_from_source_and_attach(source, type);
@@ -40,6 +50,16 @@ public:
     ShaderBuilder& add_vert(const ShaderSource& source) {
         return add_shader(source, gl::GL_VERTEX_SHADER);
     }
+
+    ShaderBuilder& add_geom(const ShaderSource& source) {
+        return add_shader(source, gl::GL_GEOMETRY_SHADER);
+    }
+
+    ShaderBuilder& add_comp(const ShaderSource& source) {
+        return add_shader(source, gl::GL_COMPUTE_SHADER);
+    }
+
+
 
     [[nodiscard]]
     ShaderProgram get() {
