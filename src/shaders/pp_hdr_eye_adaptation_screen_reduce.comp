@@ -1,9 +1,13 @@
 #version 430 core
 
-layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+#define LOCAL_SIZE_X 8
+#define LOCAL_SIZE_Y 8
 
+layout (local_size_x = LOCAL_SIZE_X, local_size_y = LOCAL_SIZE_Y, local_size_z = 1) in;
 
-// uniform layout (rgba16f, binding = 0) restrict readonly image2D screen_color;
+const uint flat_local_size = gl_WorkGroupSize.x * gl_WorkGroupSize.y * gl_WorkGroupSize.z;
+
+shared float local_value_samples[flat_local_size];
 
 uniform sampler2D screen_color;
 
@@ -16,34 +20,58 @@ float color_value(vec3 color) {
     return dot(color, vec3(0.2126, 0.7152, 0.0722));
 }
 
-// So this is really bad but it is okay as a first step.
-// We just sample the screen at equally spaced points and write pixel
-// values at those points into the output buffer. Aspect ratio be damned.
+
+float compute_mean_of_local_values();
+
+// This is slightly better then my previous attempt.
+// Now we sample a local_size_x * local_size_y rectangle
+// for each work group and make one of the invocations
+// reduce (compute the mean of) the samples.
 //
-// As you can probably guess, this is not a reduction, but rather is
-// a sampling operation, but close enough for large sample sizes.
+// I'm still using a simple sampler2D and texture()
+// and not image2D as it saves me the headache of
+// correctly rounding the texel indices.
+// I'm not trying to be super accurate, and the
+// floating point [0, 1] texture coordinate space is
+// really nice to work with when the number of texels is
+// not a multiple of the local size.
 //
-// Either way, I'm obviously redoing this to do proper reduction
-// once I figure out what is local size and how tf to reduce in chunks.
+// The XY sampling uniformity with respect to aspect ratio
+// should probably be accounted for by the number of work groups
+// at the dispatch call.
 void main() {
-    // In terms of work groups. Will break if any local_size > 1.
-    vec2 step_size = 1.0 / gl_NumWorkGroups.xy;
-    vec2 tex_coords = gl_WorkGroupID.xy * step_size;
+    // Find our tex_coord position for this invocation.
+    const vec2 group_step_size = 1.0 / gl_NumWorkGroups.xy;
+    const vec2 group_tex_coords = gl_WorkGroupID.xy * group_step_size;
 
-    const uvec3 id = gl_WorkGroupID;
-    const uvec3 num_groups = gl_NumWorkGroups;
+    const vec2 local_step_size = group_step_size / gl_WorkGroupSize.xy;
+    const vec2 tex_coords = group_tex_coords + local_step_size * gl_LocalInvocationID.xy;
 
-/*
-gl_LocalInvocationIndex =
-          gl_LocalInvocationID.z * gl_WorkGroupSize.x * gl_WorkGroupSize.y +
-          gl_LocalInvocationID.y * gl_WorkGroupSize.x +
-          gl_LocalInvocationID.x;
-*/
+    // Make a local independent sample and write to the shared buffer.
+    local_value_samples[gl_LocalInvocationIndex] =
+        color_value(texture(screen_color, tex_coords).xyz);
 
-    uint global_id =
-        id.z * num_groups.x * num_groups.y +
-        id.y * num_groups.x +
-        id.x;
+    // Synchronize execution because abstract machine requires this.
+    barrier();
 
-    color_values[global_id] = color_value(texture(screen_color, tex_coords).xyz);
+    // Branch one of the invocations to do the final reduction.
+    if (gl_LocalInvocationIndex == 0) {
+        const uint group_index =
+            gl_WorkGroupID.z * gl_NumWorkGroups.x * gl_NumWorkGroups.y +
+            gl_WorkGroupID.y * gl_NumWorkGroups.x +
+            gl_WorkGroupID.x;
+
+        memoryBarrierShared();
+
+        color_values[group_index] = compute_mean_of_local_values();
+    }
+}
+
+
+float compute_mean_of_local_values() {
+    float sum = 0.0;
+    for (int i = 0; i < local_value_samples.length(); ++i) {
+        sum += local_value_samples[i];
+    }
+    return sum / local_value_samples.length();
 }
