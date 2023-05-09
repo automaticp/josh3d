@@ -35,8 +35,8 @@ private:
 
 public:
     float current_screen_value{ 1.0f };
-    float exposure_factor{ 1.f };
-    float adaptation_rate{ 10.f };
+    float exposure_factor{ 0.35f };
+    float adaptation_rate{ 1.f };
     size_t num_samples{ old_num_samples_ };
     bool use_adaptation{ true };
 
@@ -160,14 +160,10 @@ public:
     void operator()() {
 
         ImGui::Checkbox("Use Adaptation", &stage_.use_adaptation);
-        ImGui::DragFloat(
+        ImGui::SliderFloat(
             "Adaptation Rate", &stage_.adaptation_rate,
-            1.f, 1.f, 1080.f, "%.3f", ImGuiSliderFlags_Logarithmic
+            0.001f, 1000.f, "%.3f", ImGuiSliderFlags_Logarithmic
         );
-        // ImGui::DragFloat(
-        //     "Exposure", &stage_.current_exposure,
-        //     0.5f, 0.0f, 1000.f, "%.3f", ImGuiSliderFlags_Logarithmic
-        // );
         ImGui::DragFloat(
             "Screen Value", &stage_.current_screen_value,
             0.5f, 0.0f, 1000.f, "%.3f", ImGuiSliderFlags_Logarithmic
