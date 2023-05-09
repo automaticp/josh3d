@@ -10,7 +10,7 @@
 #include <glbinding/gl/functions.h>
 #include <imgui.h>
 #include <numeric>
-
+#include <cmath>
 
 
 namespace learn {
@@ -115,8 +115,17 @@ private:
                 ashp.uniform("screen_color", 0);
 
                 reduced_ssbo_.bind()
-                    .and_then([this] {
-                        glDispatchCompute(num_samples, num_samples, 1);
+                    .and_then([&, this] {
+                        auto aspect_ratio = engine.window_size().aspect_ratio<float>();
+
+                        size_t num_x_samples =
+                            std::ceil(float(num_samples) * aspect_ratio);
+
+                        glDispatchCompute(num_x_samples, num_samples, 1);
+
+                        // I could maybe put a barrier and read on the next frame,
+                        // but from my simple fps estimations
+                        // all that does is pretty much nothing.
                         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
                     })
                     .read_to_storage();

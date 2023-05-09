@@ -21,7 +21,7 @@ int main() {
     }.apply();
     glfw::Window window{ 800, 600, "WindowName" };
     glfw::makeContextCurrent(window);
-    glfw::swapInterval(1);
+    glfw::swapInterval(0);
     window.setInputModeCursor(glfw::CursorMode::Normal);
 
     // Init glbindings
