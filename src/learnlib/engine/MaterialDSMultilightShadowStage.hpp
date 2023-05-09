@@ -177,12 +177,16 @@ private:
 
         auto plights_with_shadow_view = registry.view<const light::Point, const components::ShadowCasting>();
 
+        const size_t old_size = plights_with_shadows_ssbo_.size();
+
+        plights_with_shadows_ssbo_.bind().update(
+            plights_with_shadow_view | ranges::views::transform([&](entt::entity e) {
+                return plights_with_shadow_view.get<const light::Point>(e);
+            })
+        );
+
         const bool num_plights_with_shadows_changed =
-            plights_with_shadows_ssbo_.update(
-                plights_with_shadow_view | ranges::views::transform([&](entt::entity e) {
-                    return plights_with_shadow_view.get<const light::Point>(e);
-                })
-            );
+            old_size != plights_with_shadows_ssbo_.size();
 
         if (num_plights_with_shadows_changed) {
             plight_shadow_maps.reset_size(
@@ -194,7 +198,7 @@ private:
 
         auto plights_no_shadow_view = registry.view<const light::Point>(entt::exclude<components::ShadowCasting>);
 
-        plights_no_shadows_ssbo_.update(
+        plights_no_shadows_ssbo_.bind().update(
             plights_no_shadow_view | ranges::views::transform([&](entt::entity e) {
                 return plights_with_shadow_view.get<const light::Point>(e);
             })

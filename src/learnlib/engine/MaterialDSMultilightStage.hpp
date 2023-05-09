@@ -77,7 +77,7 @@ public:
 
             auto plight_view = registry.view<const light::Point>();
 
-            plights_ssbo_.update(
+            plights_ssbo_.bind().update(
                 plight_view | ranges::views::transform([&](entt::entity e) {
                     return plight_view.get<const light::Point>(e);
                 })

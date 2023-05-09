@@ -1,12 +1,12 @@
 #pragma once
-
-
-
 #include "GLObjects.hpp"
 #include "RenderEngine.hpp"
+#include "SSBOWithIntermediateBuffer.hpp"
 #include "ShaderBuilder.hpp"
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
+#include <glbinding/gl/bitfield.h>
+#include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
 #include <imgui.h>
 #include <numeric>
@@ -30,8 +30,7 @@ private:
             .get()
     };
 
-    SSBO reduced_screen_value_ssbo_;
-    std::vector<float> half_reduced_storage_;
+    SSBOWithIntermediateBuffer<float> reduced_ssbo_{ 0, gl::GL_DYNAMIC_READ };
     size_t old_num_samples_{ 64 };
 
 public:
@@ -115,27 +114,20 @@ private:
                 engine.screen_color().bind_to_unit(GL_TEXTURE0);
                 ashp.uniform("screen_color", 0);
 
-                reduced_screen_value_ssbo_.bind_to(0)
-                    .and_then_with_self([&, this](BoundSSBO& ssbo) {
-
+                reduced_ssbo_.bind()
+                    .and_then([this] {
                         glDispatchCompute(num_samples, num_samples, 1);
-
                         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-
-                        ssbo.get_sub_data(
-                            half_reduced_storage_.size(), 0,
-                            half_reduced_storage_.data()
-                        );
-
-                    });
-
+                    })
+                    .read_to_storage();
 
             });
 
         // Do the rest of the reduction on CPU.
+        const auto& storage = reduced_ssbo_.storage();
+
         const float screen_value =
-            std::reduce(half_reduced_storage_.begin(), half_reduced_storage_.end()) /
-                float(half_reduced_storage_.size());
+            std::reduce(storage.begin(), storage.end()) / float(storage.size());
 
         return screen_value;
     }
@@ -146,10 +138,8 @@ private:
     }
 
     void resize_output_storage() {
-        using namespace gl;
-        reduced_screen_value_ssbo_.bind_to(0)
-            .attach_data<float>(num_samples * num_samples, nullptr, GL_DYNAMIC_READ);
-        half_reduced_storage_.resize(num_samples * num_samples);
+        reduced_ssbo_.bind().create_storage(num_samples * num_samples);
+        old_num_samples_ = num_samples;
     }
 
 };

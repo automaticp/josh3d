@@ -99,22 +99,24 @@ public:
             });
         });
 
-        weights_ssbo_.bind();
-
         // Blur
-        for (size_t i{ 0 }; i < (2 * blur_iterations); ++i) {
-            blur_ppdb_.draw_and_swap([&, this] {
-                sp_twopass_gaussian_blur_.use().and_then_with_self([&, this](ActiveShaderProgram& ashp) {
+        weights_ssbo_.bind().and_then([&, this] {
 
-                    ashp.uniform("blur_horizontally", bool(i % 2))
-                        .uniform("offset_scale", offset_scale)
-                        .uniform("screen_color", 0);
-                    blur_ppdb_.front_target().bind_to_unit(GL_TEXTURE0);
+            for (size_t i{ 0 }; i < (2 * blur_iterations); ++i) {
+                blur_ppdb_.draw_and_swap([&, this] {
+                    sp_twopass_gaussian_blur_.use().and_then_with_self([&, this](ActiveShaderProgram& ashp) {
 
-                    engine.postprocess_renderer().draw();
+                        ashp.uniform("blur_horizontally", bool(i % 2))
+                            .uniform("offset_scale", offset_scale)
+                            .uniform("screen_color", 0);
+                        blur_ppdb_.front_target().bind_to_unit(GL_TEXTURE0);
+
+                        engine.postprocess_renderer().draw();
+                    });
                 });
-            });
-        }
+            }
+
+        });
 
         // Blend
         sp_blend_.use().and_then_with_self([&, this](ActiveShaderProgram& ashp) {
@@ -166,7 +168,7 @@ inline void PostprocessBloomStage::update_gaussian_blur_weights()
     // FIXME: The weights are not normalized over the range of x
     // leading to a noticable loss of color yield when
     // the range is too high. Is this okay?
-    weights_ssbo_.update(
+    weights_ssbo_.bind().update(
         generate_binned_gaussian_no_tails(
             -gaussian_sample_range, gaussian_sample_range,
             (gaussian_samples * 2) + 1
