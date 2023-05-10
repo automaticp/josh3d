@@ -110,6 +110,8 @@ A helper used for cases where you have a non-contiguous view
 over elements that need to be submitted to an SSBO, whereas that
 can only be done from a contiguous storage.
 
+Also can be used for reading data back from the SSBO into the storage.
+
 Manages an internal contiguous storage that can be updated from
 a view and resizes appropriately.
 
@@ -118,6 +120,9 @@ for cases where instancing is desired, or that it is your only option anyway
 for cases where it's not.
 
 Requires T to be trivially copyable for obvious reasons (SSBO does memcpy).
+
+Perhaps a mapped buffer would be a more fitting solution here, but I don't
+have much experience with them to fully say that.
 */
 template<typename T> requires (std::is_trivially_copyable_v<T>)
 class SSBOWithIntermediateBuffer {

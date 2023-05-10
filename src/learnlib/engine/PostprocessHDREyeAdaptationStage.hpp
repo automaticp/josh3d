@@ -121,6 +121,14 @@ private:
                         size_t num_x_samples =
                             std::ceil(float(num_samples) * aspect_ratio);
 
+                        // From limited testing on my hardware, this dispatch
+                        // call has a hard 1ms cost associated with it even when
+                        // all the compute shader does is effectively:
+                        //     void main() { return; }
+                        // Makes me wonder if reading all pixels directly and
+                        // doing the reduction on CPU would be faster...
+                        // I am, however, running on an integrated GPU, so
+                        // no clue how it behaves on dedicated hardware.
                         glDispatchCompute(num_x_samples, num_samples, 1);
 
                         // I could maybe put a barrier and read on the next frame,
