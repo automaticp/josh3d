@@ -21,8 +21,6 @@ float color_value(vec3 color) {
 }
 
 
-float compute_mean_of_local_values();
-
 // This is slightly better then my previous attempt.
 // Now we sample a local_size_x * local_size_y rectangle
 // for each work group and make one of the invocations
@@ -51,27 +49,34 @@ void main() {
     local_value_samples[gl_LocalInvocationIndex] =
         color_value(texture(screen_color, tex_coords).xyz);
 
-    // Synchronize execution because abstract machine requires this.
-    barrier();
+    // Run parallel reduction on the shared samples.
+    uint active_threads = flat_local_size;
 
-    // Branch one of the invocations to do the final reduction.
+    while (active_threads > 1) {
+
+        active_threads /= 2;
+
+        // Synchronize execution because abstract machine requires this.
+        // Do not put the barrier under a non dynamically uniform condition
+        // as the one below, or things might explode.
+        barrier();
+
+        if (gl_LocalInvocationIndex < active_threads) {
+            memoryBarrierShared();
+            local_value_samples[gl_LocalInvocationIndex] +=
+                local_value_samples[gl_LocalInvocationIndex + active_threads];
+        }
+
+    }
+
+
     if (gl_LocalInvocationIndex == 0) {
         const uint group_index =
             gl_WorkGroupID.z * gl_NumWorkGroups.x * gl_NumWorkGroups.y +
             gl_WorkGroupID.y * gl_NumWorkGroups.x +
             gl_WorkGroupID.x;
 
-        memoryBarrierShared();
-
-        color_values[group_index] = compute_mean_of_local_values();
+        color_values[group_index] = local_value_samples[0] / local_value_samples.length();
     }
 }
 
-
-float compute_mean_of_local_values() {
-    float sum = 0.0;
-    for (int i = 0; i < local_value_samples.length(); ++i) {
-        sum += local_value_samples[i];
-    }
-    return sum / local_value_samples.length();
-}
