@@ -3,6 +3,7 @@
 #include "AndThen.hpp"
 #include "VertexTraits.hpp"
 #include <glbinding/gl/gl.h>
+#include <array>
 
 
 
