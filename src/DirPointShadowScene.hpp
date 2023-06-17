@@ -5,6 +5,7 @@
 #include "GlobalsUtil.hpp"
 #include "ImGuiRegistryHooks.hpp"
 #include "ImGuiStageHooks.hpp"
+#include "ImGuiWindowSettings.hpp"
 #include "LightCasters.hpp"
 #include "Model.hpp"
 #include "PointLightSourceBoxStage.hpp"
@@ -49,6 +50,7 @@ private:
         globals::window_size.size_ref(), globals::frame_timer
     };
     ImGuiContextWrapper imgui_{ window_ };
+    ImGuiWindowSettings imgui_window_settings_{ window_ };
     ImGuiStageHooks imgui_stage_hooks_;
     ImGuiRegistryHooks imgui_registry_hooks_{ registry_ };
 
@@ -60,6 +62,7 @@ public:
 
         input_.set_keybind(glfw::KeyCode::T, [this](const KeyCallbackArgs& args) {
             if (args.is_released()) {
+                imgui_window_settings_.hidden ^= true;
                 imgui_stage_hooks_.hidden ^= true;
                 imgui_registry_hooks_.hidden ^= true;
             }
@@ -167,6 +170,7 @@ public:
 
         rengine_.render();
 
+        imgui_window_settings_.display();
         imgui_registry_hooks_.display();
         imgui_stage_hooks_.display();
 
