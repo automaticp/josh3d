@@ -13,9 +13,9 @@ private:
 
 public:
     void update() noexcept {
+        previous_ = current_;
         current_ = glfw::getTime();
         delta_ = current_ - previous_;
-        previous_ = current_;
     }
 
     template<typename FloatT = double>
