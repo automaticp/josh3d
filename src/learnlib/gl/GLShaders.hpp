@@ -271,6 +271,10 @@ public:
 };
 
 
+inline bool ActiveShaderProgram::validate() {
+    return ShaderProgram::validate(parent_id_);
+}
+
 
 
 

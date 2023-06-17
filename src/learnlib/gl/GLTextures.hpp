@@ -17,6 +17,11 @@ and then reexpose the symbols back to this namespace at the end
 with 'using leaksgl::Type' declarations.
 */
 
+
+class TextureData;
+class CubemapData;
+
+
 namespace leaksgl {
 
 using namespace gl;
@@ -34,7 +39,7 @@ public:
         glBindTexture(GL_TEXTURE_2D, 0);
     }
 
-    BoundTextureHandle& attach_data(const class TextureData& tex_data,
+    BoundTextureHandle& attach_data(const TextureData& tex_data,
         GLenum internal_format = GL_RGBA, GLenum format = GL_NONE);
 
     BoundTextureHandle& specify_image(GLsizei width, GLsizei height,
@@ -228,7 +233,7 @@ public:
     }
 
 
-    BoundCubemap& attach_data(const class CubemapData& tex_data,
+    BoundCubemap& attach_data(const CubemapData& tex_data,
         GLenum internal_format = GL_RGB, GLenum format = GL_NONE);
 
 
