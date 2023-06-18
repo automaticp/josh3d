@@ -1,8 +1,8 @@
 #pragma once
-#include "GLBuffers.hpp"
-#include "GLShaders.hpp"
-#include "GLTextures.hpp"
-#include "GLFramebuffers.hpp"
+#include "GLBuffers.hpp"      // IWYU pragma: export
+#include "GLShaders.hpp"      // IWYU pragma: export
+#include "GLTextures.hpp"     // IWYU pragma: export
+#include "GLFramebuffers.hpp" // IWYU pragma: export
 
 /*
 These files define thin wrappers around various OpenGL objects:
