@@ -1,19 +1,19 @@
-#include "GLObjects.hpp"
-#include <glbinding/gl/gl.h>
+#include "GLTextures.hpp"
 #include "CubemapData.hpp"
 #include "TextureData.hpp"
 
 
 
-namespace learn {
 
-namespace leaksgl {
+namespace learn::leaksgl {
 
 using namespace gl;
 
 
-BoundTextureHandle& BoundTextureHandle::attach_data(const TextureData& tex_data,
-    GLenum internal_format, GLenum format) {
+BoundTextureHandle& BoundTextureHandle::attach_data(
+    const TextureData& tex_data,
+    GLenum internal_format, GLenum format)
+{
 
     if (format == GL_NONE) {
         switch (tex_data.n_channels()) {
@@ -38,7 +38,8 @@ BoundTextureHandle& BoundTextureHandle::attach_data(const TextureData& tex_data,
 }
 
 
-BoundCubemap& BoundCubemap::attach_data(const CubemapData &cubemap_data,
+BoundCubemap& BoundCubemap::attach_data(
+    const CubemapData &cubemap_data,
     GLenum internal_format, GLenum format)
 {
 
@@ -73,12 +74,4 @@ BoundCubemap& BoundCubemap::attach_data(const CubemapData &cubemap_data,
 }
 
 
-
-bool ActiveShaderProgram::validate() {
-    return ShaderProgram::validate(parent_id_);
-}
-
-
-} // namespace leaksgl
-
-} // namespace learn
+} // namespace learn::leaksgl
