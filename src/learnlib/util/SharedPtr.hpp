@@ -5,6 +5,10 @@
 #include <type_traits>
 
 
+// TODO: This is not used anywhere. It's not even properly namespaced.
+// I copy-pasted it from another repo, because I _thought_ I had
+// a good use case for this. I don't, for now. Remove?
+
 // Shared pointer that always stores the control block next to the data.
 // This makes the memory footprint equal to sizeof(void*)
 // at the cost of inability to take ownership from raw T*.

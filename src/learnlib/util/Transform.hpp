@@ -10,88 +10,18 @@
 
 namespace learn {
 
+class MTransform;
 
-// Transform expressed as a model matrix.
-//
-// Can be used when the tranform has to be set and
-// possibly modified but never queried for position,
-// rotation or scale.
-//
-// Transformations are order-dependent,
-// translate->rotate->scale for most sane results.
-// Read matrix multiplication left-to-right: T * R * S.
-//
-// Primarily used for rendering, use plain Transform in other cases.
-class MTransform {
-private:
-    glm::mat4 model_{ 1.0f };
+/*
+Transform expressed as postion, rotation and scale.
 
-public:
-    MTransform() = default;
+Can be used when the transforms have to be changed frequently
+and also queried at the same time.
 
-    explicit(false) MTransform(const glm::mat4& model) : model_{ model } {}
+Transformations are order-independent.
 
-    glm::mat4 model() const noexcept {
-        return model_;
-    }
-
-    glm::mat3 normal_model() const noexcept {
-        return glm::transpose(glm::inverse(model_));
-    }
-
-
-    // Why do these && overloads even exist, eh?
-
-    MTransform& translate(const glm::vec3& delta) & noexcept {
-        model_ = glm::translate(model_, delta);
-        return *this;
-    }
-
-    MTransform translate(const glm::vec3& delta) && noexcept {
-        return glm::translate(model_, delta);
-    }
-
-
-    MTransform& rotate(const glm::quat& quaternion) & noexcept {
-        model_ = model_ * glm::mat4_cast(quaternion);
-        return *this;
-    }
-
-    MTransform rotate(const glm::quat& quaternion) && noexcept {
-        return model_ * glm::mat4_cast(quaternion);
-    }
-
-    MTransform& rotate(float angle_rad, const glm::vec3& axis) & noexcept {
-        model_ = glm::rotate(model_, angle_rad, axis);
-        return *this;
-    }
-
-    MTransform rotate(float angle_rad, const glm::vec3& axis) && noexcept {
-        return glm::rotate(model_, angle_rad, axis);
-    }
-
-
-    MTransform& scale(const glm::vec3& xyz_scaling) & noexcept {
-        model_ = glm::scale(model_, xyz_scaling);
-        return *this;
-    }
-
-    MTransform scale(const glm::vec3& xyz_scaling) && noexcept {
-        return glm::scale(model_, xyz_scaling);
-    }
-
-};
-
-
-
-// Transform expressed as postion, rotation and scale.
-//
-// Can be used when the transforms have to be changed frequently
-// and also queried at the same time.
-//
-// Transformations are order-independent.
-//
-// Should be the default choice.
+Should be the default choice.
+*/
 class Transform {
 private:
     glm::vec3 position_{ 0.f };
@@ -137,15 +67,84 @@ public:
         return *this;
     }
 
-    MTransform mtransform() const noexcept {
+    MTransform mtransform() const noexcept;
+
+    operator MTransform() const noexcept;
+
+
+};
+
+
+
+
+/*
+Transform expressed as a model matrix.
+
+Can be used when the tranform has to be set and possibly
+modified but never queried for position, rotation or scale.
+
+Transformations are order-dependent,
+translate->rotate->scale for most sane results.
+
+Read matrix multiplication left-to-right: T * R * S.
+Primarily used for rendering, use plain Transform in other cases.
+*/
+class MTransform {
+private:
+    glm::mat4 model_{ 1.0f };
+
+public:
+    MTransform() = default;
+
+    explicit(false) MTransform(const glm::mat4& model) : model_{ model } {}
+
+    glm::mat4 model() const noexcept {
+        return model_;
+    }
+
+    glm::mat3 normal_model() const noexcept {
+        return glm::transpose(glm::inverse(model_));
+    }
+
+
+    // FIXME: Why do these && overloads even exist, eh?
+
+    MTransform& translate(const glm::vec3& delta) & noexcept {
+        model_ = glm::translate(model_, delta);
         return *this;
     }
 
-    operator MTransform() const noexcept {
-        return MTransform()
-            .translate(position_)
-            .rotate(rotation_)
-            .scale(scale_);
+    MTransform translate(const glm::vec3& delta) && noexcept {
+        return glm::translate(model_, delta);
+    }
+
+
+    MTransform& rotate(const glm::quat& quaternion) & noexcept {
+        model_ = model_ * glm::mat4_cast(quaternion);
+        return *this;
+    }
+
+    MTransform rotate(const glm::quat& quaternion) && noexcept {
+        return model_ * glm::mat4_cast(quaternion);
+    }
+
+    MTransform& rotate(float angle_rad, const glm::vec3& axis) & noexcept {
+        model_ = glm::rotate(model_, angle_rad, axis);
+        return *this;
+    }
+
+    MTransform rotate(float angle_rad, const glm::vec3& axis) && noexcept {
+        return glm::rotate(model_, angle_rad, axis);
+    }
+
+
+    MTransform& scale(const glm::vec3& xyz_scaling) & noexcept {
+        model_ = glm::scale(model_, xyz_scaling);
+        return *this;
+    }
+
+    MTransform scale(const glm::vec3& xyz_scaling) && noexcept {
+        return glm::scale(model_, xyz_scaling);
     }
 
 };
@@ -153,7 +152,19 @@ public:
 
 
 
+inline MTransform Transform::mtransform() const noexcept {
+    return *this;
+}
 
+
+
+
+inline Transform::operator MTransform() const noexcept {
+    return MTransform()
+        .translate(position_)
+        .rotate(rotation_)
+        .scale(scale_);
+}
 
 
 
