@@ -45,54 +45,6 @@ private:
             .get()
     };
 
-    struct AmbientLightLocations {
-        ULocation color;
-    };
-
-    struct AttenuationLocations {
-        ULocation constant;
-        ULocation linear;
-        ULocation quadratic;
-    };
-
-    struct PointLightLocations {
-        ULocation color;
-        ULocation position;
-        AttenuationLocations attenuation;
-    };
-
-    struct Locations {
-        ULocation projection;
-        ULocation view;
-        ULocation model;
-        ULocation normal_model;
-        ULocation cam_pos;
-        ULocation point_light_z_far;
-        ULocation point_shadow_bias_bounds;
-        ULocation point_light_shadow_maps;
-        MaterialDSLocations mat_ds{};
-        AmbientLightLocations ambient_light{};
-        PointLightLocations point_light{};
-    };
-
-    Locations locs_{ Locations{
-        .projection   = sp_.location_of("projection"),
-        .view         = sp_.location_of("view"),
-        .model        = sp_.location_of("model"),
-        .normal_model = sp_.location_of("normal_model"),
-        .cam_pos      = sp_.location_of("cam_pos"),
-        .point_light_z_far =
-            sp_.location_of("point_light_z_far"),
-        .point_shadow_bias_bounds =
-            sp_.location_of("point_shadow_bias_bounds"),
-        .point_light_shadow_maps =
-            sp_.location_of("point_light_shadow_maps"),
-        .mat_ds = MaterialDS::query_locations(sp_),
-        .ambient_light = {
-            .color = sp_.location_of("ambient_light.color")
-        },
-    } };
-
     ShaderProgram sp_plight_depth_{
         ShaderBuilder()
             .load_vert("src/shaders/depth_cubemap.vert")
@@ -100,32 +52,6 @@ private:
             .load_frag("src/shaders/depth_cubemap.frag")
             .get()
     };
-
-
-    struct LocationsPLight {
-        ULocation projection;
-        std::array<ULocation, 6> views;
-        ULocation cubemap_id;
-        ULocation model;
-        ULocation light_pos;
-        ULocation z_far;
-    };
-
-    LocationsPLight locs_plight_{ LocationsPLight{
-        .projection = sp_plight_depth_.location_of("projection"),
-        .views = {
-            sp_plight_depth_.location_of("views[0]"),
-            sp_plight_depth_.location_of("views[1]"),
-            sp_plight_depth_.location_of("views[2]"),
-            sp_plight_depth_.location_of("views[3]"),
-            sp_plight_depth_.location_of("views[4]"),
-            sp_plight_depth_.location_of("views[5]"),
-        },
-        .cubemap_id = sp_plight_depth_.location_of("cubemap_id"),
-        .model      = sp_plight_depth_.location_of("model"),
-        .light_pos  = sp_plight_depth_.location_of("light_pos"),
-        .z_far      = sp_plight_depth_.location_of("z_far")
-    } };
 
     ShaderProgram sp_dir_depth_{
         ShaderBuilder()
@@ -281,7 +207,7 @@ inline void MaterialDSMultilightShadowStage::draw_scene_depth_cubemap(
         plight_z_near_far.x, plight_z_near_far.y
     );
 
-    ashp.uniform(locs_plight_.projection, projection);
+    ashp.uniform("projection", projection);
 
     const auto& basis = globals::basis;
     views_mat_array_t views{
@@ -293,18 +219,22 @@ inline void MaterialDSMultilightShadowStage::draw_scene_depth_cubemap(
         glm::lookAt(position, position - basis.z(), -basis.y()),
     };
 
+    ashp.uniform("views[0]", views[0]);
+    ashp.uniform("views[1]", views[1]);
+    ashp.uniform("views[2]", views[2]);
+    ashp.uniform("views[3]", views[3]);
+    ashp.uniform("views[4]", views[4]);
+    ashp.uniform("views[5]", views[5]);
 
-    for (size_t i{ 0 }; i < views.size(); ++i) {
-        ashp.uniform(locs_plight_.views[i], views[i]);
-    }
-    ashp.uniform(locs_plight_.cubemap_id, cubemap_id);
 
-    ashp.uniform(locs_plight_.z_far, plight_z_near_far.y);
+    ashp.uniform("cubemap_id", cubemap_id);
+
+    ashp.uniform("z_far", plight_z_near_far.y);
 
     for (auto [_, transform, model]
         : registry.view<const Transform, const Shared<Model>>().each())
     {
-        ashp.uniform(locs_plight_.model, transform.mtransform().model());
+        ashp.uniform("model", transform.mtransform().model());
         for (auto& drawable : model->drawable_meshes()) {
             drawable.mesh().draw();
         }
@@ -388,17 +318,17 @@ inline void MaterialDSMultilightShadowStage::draw_scene(
 
     sp_.use().and_then_with_self([&, this](ActiveShaderProgram& ashp) {
 
-        ashp.uniform(locs_.projection,
+        ashp.uniform("projection",
             engine.camera().perspective_projection_mat(
                 engine.window_size().aspect_ratio()
             )
         );
-        ashp.uniform(locs_.view, engine.camera().view_mat())
-            .uniform(locs_.cam_pos, engine.camera().get_pos());
+        ashp.uniform("view", engine.camera().view_mat())
+            .uniform("cam_pos", engine.camera().get_pos());
 
         // Ambient light.
         for (auto [_, ambi] : registry.view<const light::Ambient>().each()) {
-            ashp.uniform(locs_.ambient_light.color, ambi.color);
+            ashp.uniform("ambient_light.color", ambi.color);
         }
 
         // Dir light.
@@ -416,12 +346,12 @@ inline void MaterialDSMultilightShadowStage::draw_scene(
 
         // Point light properties are sent through SSBOs.
         // Send the depth cubemap array for point light shadow calculation.
-        ashp.uniform(locs_.point_light_shadow_maps, 3);
+        ashp.uniform("point_light_shadow_maps", 3);
         plight_shadow_maps.depth_taget().bind_to_unit(GL_TEXTURE3);
 
         // Extra settings for point light shadows.
-        ashp.uniform(locs_.point_light_z_far, plight_z_near_far.y)
-            .uniform(locs_.point_shadow_bias_bounds, point_shadow_bias_bounds)
+        ashp.uniform("point_light_z_far", plight_z_near_far.y)
+            .uniform("point_shadow_bias_bounds", point_shadow_bias_bounds)
             .uniform("point_light_pcf_samples", point_light_pcf_samples)
             .uniform("point_light_pcf_offset", point_light_pcf_offset)
             .uniform("point_light_use_fixed_pcf_samples", point_light_use_fixed_pcf_samples);
@@ -430,10 +360,10 @@ inline void MaterialDSMultilightShadowStage::draw_scene(
             : registry.view<const Transform, const Shared<Model>>().each())
         {
             auto model_transform = transform.mtransform();
-            ashp.uniform(locs_.model, model_transform.model())
-                .uniform(locs_.normal_model, model_transform.normal_model());
+            ashp.uniform("model", model_transform.model())
+                .uniform("normal_model", model_transform.normal_model());
 
-            model->draw(ashp, locs_.mat_ds);
+            model->draw(ashp);
         }
 
     });
