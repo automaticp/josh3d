@@ -2,6 +2,7 @@
 #include "AmbientBackgroundStage.hpp"
 #include "AssimpModelLoader.hpp"
 #include "CubemapData.hpp"
+#include "ForwardRenderingStage.hpp"
 #include "GlobalsUtil.hpp"
 #include "ImGuiRegistryHooks.hpp"
 #include "ImGuiStageHooks.hpp"
@@ -12,14 +13,13 @@
 #include "PostprocessBloomStage.hpp"
 #include "PostprocessGammaCorrectionStage.hpp"
 #include "PostprocessHDREyeAdaptationStage.hpp"
-#include "PostprocessHDRStage.hpp"
 #include "RenderComponents.hpp"
 #include "RenderEngine.hpp"
-#include "MaterialDSMultilightShadowStage.hpp"
 #include "Input.hpp"
 #include "InputFreeCamera.hpp"
 #include "ImGuiContextWrapper.hpp"
 #include "Camera.hpp"
+#include "ShadowMappingStage.hpp"
 #include "Shared.hpp"
 #include "SkyboxStage.hpp"
 #include "RenderComponents.hpp"
@@ -69,7 +69,7 @@ public:
         });
 
         window_.framebufferSizeEvent.setCallback(
-            [this](glfw::Window& window, int w, int h) {
+            [this](glfw::Window& /* window */ , int w, int h) {
                 using namespace gl;
 
                 globals::window_size.set_to(w, h);
@@ -86,15 +86,32 @@ public:
         rengine_.stages()
             .emplace_back(SkyboxStage());
 
-        rengine_.stages()
-            .emplace_back(MaterialDSMultilightShadowStage());
 
-        imgui_stage_hooks_.add_hook("Multilight Shadows",
-            MaterialDSMultilightShadowStageImGuiHook(
+
+        ShadowMappingStage shmapping{};
+        auto output_view = shmapping.view_mapping_output();
+
+        rengine_.stages()
+            .emplace_back(std::move(shmapping));
+
+        imgui_stage_hooks_.add_hook("Shadow Mapping",
+            ShadowMappingStageImGuiHook(
                 rengine_.stages().back()
-                    .target_unchecked<MaterialDSMultilightShadowStage>()
+                    .target_unchecked<ShadowMappingStage>()
             )
         );
+
+        rengine_.stages()
+            .emplace_back(ForwardRenderingStage(std::move(output_view)));
+
+        imgui_stage_hooks_.add_hook("Forward Rendering",
+            ForwardRenderingStageImGuiHook(
+                rengine_.stages().back()
+                    .target_unchecked<ForwardRenderingStage>()
+            )
+        );
+
+
 
         rengine_.stages()
             .emplace_back(PointLightSourceBoxStage());
@@ -106,8 +123,11 @@ public:
             )
         );
 
+
+
         imgui_registry_hooks_.add_hook("Lights", ImGuiRegistryLightComponentsHook());
         imgui_registry_hooks_.add_hook("Models", ImGuiRegistryModelComponentsHook());
+
 
 
         rengine_.postprocess_stages()
@@ -120,15 +140,6 @@ public:
             )
         );
 
-        // rengine_.postprocess_stages()
-        //     .emplace_back(PostprocessHDRStage());
-
-        // imgui_stage_hooks_.add_postprocess_hook("HDR",
-        //     PostprocessHDRStageImGuiHook(
-        //         rengine_.postprocess_stages().back()
-        //             .target_unchecked<PostprocessHDRStage>()
-        //     )
-        // );
 
 
         rengine_.postprocess_stages()
@@ -141,6 +152,7 @@ public:
                     .target_unchecked<PostprocessHDREyeAdaptationStage>()
             )
         );
+
 
 
         rengine_.postprocess_stages()
