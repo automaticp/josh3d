@@ -85,13 +85,11 @@ public:
             return engine_.pp_renderer_;
         }
 
-        // FIXME: const?
-        Texture2D& screen_color() const {
+        const Texture2D& screen_color() const {
             return engine_.ppdb_.front_target();
         }
 
-        // FIXME: const?
-        Texture2D& screen_depth() const {
+        const Texture2D& screen_depth() const {
             return engine_.main_target_.depth_target();
         }
 
