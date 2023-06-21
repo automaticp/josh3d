@@ -21,8 +21,8 @@ TextureHandlePool texture_handle_pool{ texture_data_pool };
 
 std::ostream& logstream{ std::clog };
 
-Shared<TextureHandle> default_diffuse_texture;
-Shared<TextureHandle> default_specular_texture;
+Shared<Texture2D> default_diffuse_texture;
+Shared<Texture2D> default_specular_texture;
 
 
 
@@ -41,16 +41,16 @@ static TextureData fill_default(std::array<unsigned char, 4> rgba) {
 }
 
 
-static Shared<TextureHandle> init_default_diffuse_texture() {
+static Shared<Texture2D> init_default_diffuse_texture() {
     auto tex = fill_default({ 0xB0, 0xB0, 0xB0, 0xFF });
-    auto handle = std::make_shared<TextureHandle>();
+    auto handle = std::make_shared<Texture2D>();
     handle->bind().attach_data(tex, gl::GL_SRGB_ALPHA).unbind();
     return handle;
 }
 
-static Shared<TextureHandle> init_default_specular_texture() {
+static Shared<Texture2D> init_default_specular_texture() {
     auto tex = fill_default({ 0x00, 0x00, 0x00, 0xFF });
-    auto handle = std::make_shared<TextureHandle>();
+    auto handle = std::make_shared<Texture2D>();
     handle->bind().attach_data(tex, gl::GL_RGBA).unbind();
     return handle;
 }

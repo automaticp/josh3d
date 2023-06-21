@@ -86,12 +86,12 @@ public:
         }
 
         // FIXME: const?
-        TextureHandle& screen_color() const {
+        Texture2D& screen_color() const {
             return engine_.ppdb_.front_target();
         }
 
         // FIXME: const?
-        TextureHandle& screen_depth() const {
+        Texture2D& screen_depth() const {
             return engine_.main_target_.depth_target();
         }
 

@@ -18,7 +18,7 @@ public:
             .associate_with<Vertex2D>(quad_vao_.bind());
     }
 
-    void draw(ActiveShaderProgram& pp_shader, TextureHandle& screen_color_texture) {
+    void draw(ActiveShaderProgram& pp_shader, Texture2D& screen_color_texture) {
         using namespace gl;
         glDisable(GL_DEPTH_TEST);
 

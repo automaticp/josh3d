@@ -61,7 +61,7 @@ public:
     float gaussian_sample_range{ old_gaussian_sample_range_ };
     size_t gaussian_samples{ old_gaussian_samples_ };
 
-    const TextureHandle& blur_front_target() const noexcept {
+    const Texture2D& blur_front_target() const noexcept {
         return blur_ppdb_.front_target();
     }
 

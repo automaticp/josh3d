@@ -8,7 +8,7 @@ namespace learn {
 
 class RenderTargetDepth {
 private:
-    TextureHandle tex_;
+    Texture2D tex_;
     Framebuffer fbo_;
 
     gl::GLsizei width_;
@@ -43,8 +43,8 @@ public:
 
     }
 
-    TextureHandle& depth_target() noexcept { return tex_; }
-    const TextureHandle& depth_target() const noexcept { return tex_; }
+    Texture2D& depth_target() noexcept { return tex_; }
+    const Texture2D& depth_target() const noexcept { return tex_; }
 
     Framebuffer& framebuffer() noexcept { return fbo_; }
 

@@ -207,11 +207,11 @@ using namespace gl;
 //
 // "Friendship is not inherited" - thanks C++.
 // Makes it real easy to write implementation traits...
-using BindableTextureHandle =
-    detail::BindableTexture<class TextureHandle, class BoundTextureHandle, class BoundConstTextureHandle, GL_TEXTURE_2D>;
+using BindableTexture2D =
+    detail::BindableTexture<class Texture2D, class BoundTexture2D, class BoundConstTexture2D, GL_TEXTURE_2D>;
 
-using BindableTextureMS =
-    detail::BindableTexture<class TextureMS, class BoundTextureMS, class BoundConstTextureMS, GL_TEXTURE_2D_MULTISAMPLE>;
+using BindableTexture2DMS =
+    detail::BindableTexture<class Texture2DMS, class BoundTexture2DMS, class BoundConstTexture2DMS, GL_TEXTURE_2D_MULTISAMPLE>;
 
 using BindableCubemap =
     detail::BindableTexture<class Cubemap, class BoundCubemap, class BoundConstCubemap, GL_TEXTURE_CUBE_MAP>;
@@ -222,12 +222,12 @@ using BindableCubemapArray =
 
 // I am writing extra const classes for now,
 // until a better solution is mature enough.
-class BoundConstTextureHandle
-    : public detail::AndThen<BoundConstTextureHandle>
+class BoundConstTexture2D
+    : public detail::AndThen<BoundConstTexture2D>
 {
 private:
-    friend BindableTextureHandle;
-    BoundConstTextureHandle() = default;
+    friend BindableTexture2D;
+    BoundConstTexture2D() = default;
 public:
     static void unbind() {
         glBindTexture(GL_TEXTURE_2D, 0);
@@ -235,23 +235,23 @@ public:
 };
 
 
-class BoundTextureHandle
-    : public detail::AndThen<BoundTextureHandle>
-    , public detail::SetParameter<BoundTextureHandle, GL_TEXTURE_2D>
+class BoundTexture2D
+    : public detail::AndThen<BoundTexture2D>
+    , public detail::SetParameter<BoundTexture2D, GL_TEXTURE_2D>
 {
 private:
-    friend BindableTextureHandle;
-    BoundTextureHandle() = default;
+    friend BindableTexture2D;
+    BoundTexture2D() = default;
 
 public:
     static void unbind() {
         glBindTexture(GL_TEXTURE_2D, 0);
     }
 
-    BoundTextureHandle& attach_data(const TextureData& tex_data,
+    BoundTexture2D& attach_data(const TextureData& tex_data,
         GLenum internal_format = GL_RGBA, GLenum format = GL_NONE);
 
-    BoundTextureHandle& specify_image(GLsizei width, GLsizei height,
+    BoundTexture2D& specify_image(GLsizei width, GLsizei height,
         GLenum internal_format, GLenum format, GLenum type,
         const void* data, GLint mipmap_level = 0)
     {
@@ -265,9 +265,9 @@ public:
 };
 
 
-class TextureHandle
+class Texture2D
     : public TextureAllocator
-    , public BindableTextureHandle
+    , public BindableTexture2D
 {};
 
 
@@ -275,12 +275,12 @@ class TextureHandle
 
 
 
-class BoundConstTextureMS
-    : public detail::AndThen<BoundConstTextureMS>
+class BoundConstTexture2DMS
+    : public detail::AndThen<BoundConstTexture2DMS>
 {
 private:
-    friend BindableTextureMS;
-    BoundConstTextureMS() = default;
+    friend BindableTexture2DMS;
+    BoundConstTexture2DMS() = default;
 
 public:
     static void unbind() {
@@ -289,20 +289,20 @@ public:
 };
 
 
-class BoundTextureMS
-    : public detail::AndThen<BoundTextureMS>
-    , public detail::SetParameter<BoundTextureMS, GL_TEXTURE_2D_MULTISAMPLE>
+class BoundTexture2DMS
+    : public detail::AndThen<BoundTexture2DMS>
+    , public detail::SetParameter<BoundTexture2DMS, GL_TEXTURE_2D_MULTISAMPLE>
 {
 private:
-    friend BindableTextureMS;
-    BoundTextureMS() = default;
+    friend BindableTexture2DMS;
+    BoundTexture2DMS() = default;
 
 public:
     static void unbind() {
         glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
     }
 
-    BoundTextureMS& specify_image(GLsizei width, GLsizei height,
+    BoundTexture2DMS& specify_image(GLsizei width, GLsizei height,
         GLsizei nsamples, GLenum internal_format = GL_RGB,
         GLboolean fixed_sample_locations = GL_TRUE)
     {
@@ -313,9 +313,9 @@ public:
 };
 
 
-class TextureMS
+class Texture2DMS
     : public TextureAllocator
-    , public BindableTextureMS
+    , public BindableTexture2DMS
 {};
 
 
@@ -456,8 +456,8 @@ class CubemapArray
 
 } // namespace leaksgl
 
-using leaksgl::BoundConstTextureHandle, leaksgl::BoundTextureHandle, leaksgl::TextureHandle;
-using leaksgl::BoundConstTextureMS, leaksgl::BoundTextureMS, leaksgl::TextureMS;
+using leaksgl::BoundConstTexture2D, leaksgl::BoundTexture2D, leaksgl::Texture2D;
+using leaksgl::BoundConstTexture2DMS, leaksgl::BoundTexture2DMS, leaksgl::Texture2DMS;
 using leaksgl::BoundConstCubemap, leaksgl::BoundCubemap, leaksgl::Cubemap;
 using leaksgl::BoundConstCubemapArray, leaksgl::BoundCubemapArray, leaksgl::CubemapArray;
 

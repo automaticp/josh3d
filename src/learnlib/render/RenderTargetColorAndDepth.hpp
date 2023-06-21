@@ -10,8 +10,8 @@ namespace learn {
 
 class RenderTargetColorAndDepth {
 private:
-    TextureHandle color_;
-    TextureHandle depth_;
+    Texture2D color_;
+    Texture2D depth_;
     Framebuffer fbo_;
 
     gl::GLsizei width_;
@@ -61,11 +61,11 @@ public:
 
     }
 
-    TextureHandle& color_target() noexcept { return color_; }
-    const TextureHandle& color_target() const noexcept { return color_; }
+    Texture2D& color_target() noexcept { return color_; }
+    const Texture2D& color_target() const noexcept { return color_; }
 
-    TextureHandle& depth_target() noexcept { return depth_; }
-    const TextureHandle& depth_target() const noexcept { return depth_; }
+    Texture2D& depth_target() noexcept { return depth_; }
+    const Texture2D& depth_target() const noexcept { return depth_; }
 
     Framebuffer& framebuffer() noexcept { return fbo_; }
 

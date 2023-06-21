@@ -16,7 +16,7 @@ namespace zdepth {
 };
 
 struct Sprite {
-    learn::Shared<learn::TextureHandle> texture;
+    learn::Shared<learn::Texture2D> texture;
     float depth{ zdepth::foreground };
     glm::vec4 color{ 1.f, 1.f, 1.f, 1.f };
 };
@@ -87,7 +87,7 @@ public:
 
         glEnable(GL_DEPTH_TEST);
 
-        const learn::TextureHandle* last_texture{ nullptr };
+        const learn::Texture2D* last_texture{ nullptr };
 
         for (auto [ent, sprite, transform] : view.each()) {
 

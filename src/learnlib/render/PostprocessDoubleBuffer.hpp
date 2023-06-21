@@ -101,8 +101,8 @@ public:
         , buf2_{ width, height, color_format, color_internal_format, color_type }
     {}
 
-    TextureHandle& front_target() noexcept { return front_->color_target(); }
-    const TextureHandle& front_target() const noexcept { return front_->color_target(); }
+    Texture2D& front_target() noexcept { return front_->color_target(); }
+    const Texture2D& front_target() const noexcept { return front_->color_target(); }
 
 
     RenderTargetColor& front() noexcept { return *front_; }

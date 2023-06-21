@@ -33,8 +33,8 @@ uniform struct Material {
 
 */
 struct MaterialDS {
-    Shared<TextureHandle> diffuse;
-    Shared<TextureHandle> specular;
+    Shared<Texture2D> diffuse;
+    Shared<Texture2D> specular;
     gl::GLfloat shininess{};
 
     using locations_type = MaterialDSLocations;

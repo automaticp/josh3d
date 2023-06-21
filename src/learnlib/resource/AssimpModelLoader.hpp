@@ -259,10 +259,10 @@ private:
 
         aiMaterial* material{ scene_->mMaterials[mesh->mMaterialIndex] };
 
-        Shared<TextureHandle> diffuse =
+        Shared<Texture2D> diffuse =
             get_texture_from_material(material, aiTextureType_DIFFUSE);
 
-        Shared<TextureHandle> specular =
+        Shared<Texture2D> specular =
             get_texture_from_material(material, aiTextureType_SPECULAR);
 
         if (!diffuse) { diffuse = globals::default_diffuse_texture; }
@@ -276,7 +276,7 @@ private:
 
     }
 
-    Shared<TextureHandle> get_texture_from_material(
+    Shared<Texture2D> get_texture_from_material(
         const aiMaterial* material, aiTextureType type)
     {
 

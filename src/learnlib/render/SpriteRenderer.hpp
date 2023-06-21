@@ -44,7 +44,7 @@ public:
 
 
 
-    void draw_sprite(TextureHandle& texture, const MTransform& transform,
+    void draw_sprite(Texture2D& texture, const MTransform& transform,
         const glm::vec4& color = glm::vec4{ 1.f })
     {
         using namespace gl;

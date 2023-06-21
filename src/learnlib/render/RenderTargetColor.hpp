@@ -9,7 +9,7 @@ namespace learn {
 
 class RenderTargetColor {
 private:
-    TextureHandle tex_;
+    Texture2D tex_;
     Framebuffer fb_;
     Renderbuffer rb_;
 
@@ -55,8 +55,8 @@ public:
 
     }
 
-    TextureHandle& color_target() noexcept { return tex_; }
-    const TextureHandle& color_target() const noexcept { return tex_; }
+    Texture2D& color_target() noexcept { return tex_; }
+    const Texture2D& color_target() const noexcept { return tex_; }
 
     Framebuffer& framebuffer() noexcept { return fb_; }
 

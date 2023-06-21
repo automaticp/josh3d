@@ -10,7 +10,7 @@ namespace learn::leaksgl {
 using namespace gl;
 
 
-BoundTextureHandle& BoundTextureHandle::attach_data(
+BoundTexture2D& BoundTexture2D::attach_data(
     const TextureData& tex_data,
     GLenum internal_format, GLenum format)
 {

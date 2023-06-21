@@ -25,17 +25,17 @@ struct TextureHandleLoadContext {
 
 
 using TextureHandlePool =
-    GLObjectPool<TextureHandle, DataPool<TextureData>, TextureHandleLoadContext>;
+    GLObjectPool<Texture2D, DataPool<TextureData>, TextureHandleLoadContext>;
 
 
 template<>
-Shared<TextureHandle>
+Shared<Texture2D>
 inline TextureHandlePool::load_data_from(const std::string& path,
     const TextureHandleLoadContext& context)
 {
     Shared<TextureData> tex_data{ upstream_.load(path) };
 
-    auto new_handle = std::make_shared<TextureHandle>();
+    auto new_handle = std::make_shared<Texture2D>();
 
     gl::GLenum internal_format;
     switch (context.type) {
