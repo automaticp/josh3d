@@ -1,5 +1,5 @@
 #pragma once
-#include "GLObjectAllocators.hpp"
+#include "GLObjectHandles.hpp"
 #include "AndThen.hpp"
 #include <glbinding/gl/gl.h>
 
@@ -103,7 +103,7 @@ public:
 };
 
 
-class Framebuffer : public FramebufferAllocator {
+class Framebuffer : public FramebufferHandle {
 public:
     BoundFramebuffer bind() {
         return bind_as(GL_FRAMEBUFFER);
@@ -152,7 +152,7 @@ public:
 
 
 
-class Renderbuffer : public RenderbufferAllocator {
+class Renderbuffer : public RenderbufferHandle {
 public:
     BoundRenderbuffer bind() {
         glBindRenderbuffer(GL_RENDERBUFFER, id_);

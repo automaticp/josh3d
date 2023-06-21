@@ -1,5 +1,5 @@
 #pragma once
-#include "GLObjectAllocators.hpp"
+#include "GLObjectHandles.hpp"
 #include "AndThen.hpp"
 #include "VertexTraits.hpp"
 #include <glbinding/gl/gl.h>
@@ -115,7 +115,7 @@ public:
 };
 
 
-class VAO : public VAOAllocator {
+class VAO : public VAOHandle {
 public:
     BoundVAO bind() {
         glBindVertexArray(id_);
@@ -188,7 +188,7 @@ public:
 };
 
 
-class AbstractBuffer : public BufferAllocator {
+class AbstractBuffer : public BufferHandle {
 public:
     BoundAbstractBuffer bind_as(GLenum type) {
         glBindBuffer(type, id_);
@@ -258,7 +258,7 @@ public:
 };
 
 
-class SSBO : public BufferAllocator {
+class SSBO : public BufferHandle {
 public:
     BoundSSBO bind() {
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, id_);
@@ -332,7 +332,7 @@ public:
 };
 
 
-class VBO : public BufferAllocator {
+class VBO : public BufferHandle {
 public:
     BoundVBO bind() {
         glBindBuffer(GL_ARRAY_BUFFER, id_);
@@ -373,7 +373,7 @@ public:
 };
 
 
-class EBO : public BufferAllocator {
+class EBO : public BufferHandle {
 public:
     BoundEBO bind(const BoundVAO& vao) {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id_);

@@ -1,5 +1,5 @@
 #pragma once
-#include "GLObjectAllocators.hpp"
+#include "GLObjectHandles.hpp"
 #include "AndThen.hpp"
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/gl.h>
@@ -266,7 +266,7 @@ public:
 
 
 class Texture2D
-    : public TextureAllocator
+    : public TextureHandle
     , public BindableTexture2D
 {};
 
@@ -314,7 +314,7 @@ public:
 
 
 class Texture2DMS
-    : public TextureAllocator
+    : public TextureHandle
     , public BindableTexture2DMS
 {};
 
@@ -384,7 +384,7 @@ public:
 
 
 class Cubemap
-    : public TextureAllocator
+    : public TextureHandle
     , public BindableCubemap
 {
 public:
@@ -447,7 +447,7 @@ public:
 
 
 class CubemapArray
-    : public TextureAllocator
+    : public TextureHandle
     , public BindableCubemapArray
 {};
 

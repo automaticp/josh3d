@@ -1,5 +1,5 @@
 #pragma once
-#include "GLObjectAllocators.hpp"
+#include "GLObjectHandles.hpp"
 #include "AndThen.hpp"
 #include "ULocation.hpp"
 #include "GlobalsUtil.hpp"
@@ -34,9 +34,9 @@ using namespace gl;
 
 
 
-class Shader : public ShaderAllocator {
+class Shader : public ShaderHandle {
 public:
-    explicit Shader(GLenum type) : ShaderAllocator(type) {};
+    explicit Shader(GLenum type) : ShaderHandle(type) {};
 
     Shader& set_source(const std::string& src) {
         const GLchar* csrc{ src.c_str() };
@@ -236,7 +236,7 @@ public:
 };
 
 
-class ShaderProgram : public ShaderProgramAllocator {
+class ShaderProgram : public ShaderProgramHandle {
 public:
     ShaderProgram& attach_shader(GLuint shader) {
         glAttachShader(id_, shader);
