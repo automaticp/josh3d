@@ -2,6 +2,7 @@
 #include "AmbientBackgroundStage.hpp"
 #include "AssimpModelLoader.hpp"
 #include "Camera.hpp"
+#include "ForwardRenderingStage.hpp"
 #include "GlobalsUtil.hpp"
 #include "ImGuiContextWrapper.hpp"
 #include "ImGuiRegistryHooks.hpp"
@@ -10,9 +11,10 @@
 #include "InputFreeCamera.hpp"
 #include "LightCasters.hpp"
 #include "Model.hpp"
-#include "MaterialDSMultilightStage.hpp"
 #include "PointLightSourceBoxStage.hpp"
+#include "PostprocessGammaCorrectionStage.hpp"
 #include "RenderEngine.hpp"
+#include "ShadowMappingStage.hpp"
 #include "Transform.hpp"
 #include <glfwpp/window.h>
 #include <entt/entity/fwd.hpp>
@@ -72,7 +74,13 @@ public:
             }
         );
         rengine_.stages().emplace_back(AmbientBackgroundStage());
-        rengine_.stages().emplace_back(MaterialDSMultilightStage());
+
+        ShadowMappingStage shmapping;
+        auto shmapping_info = shmapping.view_mapping_output();
+        rengine_.stages().emplace_back(std::move(shmapping));
+
+        rengine_.stages().emplace_back(ForwardRenderingStage(std::move(shmapping_info)));
+
         rengine_.stages().emplace_back(PointLightSourceBoxStage());
 
         imgui_stage_hooks_.add_hook("Point Light Boxes",
@@ -83,6 +91,8 @@ public:
 
         imgui_registry_hooks_.add_hook("Lights", ImGuiRegistryLightComponentsHook());
         imgui_registry_hooks_.add_hook("Models", ImGuiRegistryModelComponentsHook());
+
+        rengine_.postprocess_stages().emplace_back(PostprocessGammaCorrectionStage());
 
 
         init_registry();
