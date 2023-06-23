@@ -1,10 +1,10 @@
 #pragma once
 #include "AssimpModelLoader.hpp"
 #include "LightCasters.hpp"
-#include "MaterialDSMultilightShadowStage.hpp"
 #include "Model.hpp"
 #include "Shared.hpp"
 #include "Transform.hpp"
+#include "UniqueFunction.hpp"
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
 #include <glm/common.hpp>
