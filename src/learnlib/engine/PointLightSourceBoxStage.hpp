@@ -53,7 +53,7 @@ public:
 public:
     PointLightSourceBoxStage() = default;
 
-    void operator()(const RenderEngine::PrimaryInterface& engine, const entt::registry& registry) {
+    void operator()(const RenderEnginePrimaryInterface& engine, const entt::registry& registry) {
         using namespace gl;
 
         sp_.use().and_then_with_self([&, this](ActiveShaderProgram& ashp) {

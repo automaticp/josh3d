@@ -16,7 +16,7 @@ namespace learn {
 // Peak rendering.
 class AmbientBackgroundStage {
 public:
-    void operator()(const RenderEngine::PrimaryInterface& engine, const entt::registry& registry) {
+    void operator()(const RenderEnginePrimaryInterface& engine, const entt::registry& registry) {
         using namespace gl;
 
         engine.draw([&, this] {

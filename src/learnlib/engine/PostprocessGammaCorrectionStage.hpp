@@ -24,7 +24,7 @@ public:
     float gamma{ 2.2f };
     bool use_srgb{ true };
 
-    void operator()(const RenderEngine::PostprocessInterface& engine, const entt::registry&) {
+    void operator()(const RenderEnginePostprocessInterface& engine, const entt::registry&) {
 
         using namespace gl;
 

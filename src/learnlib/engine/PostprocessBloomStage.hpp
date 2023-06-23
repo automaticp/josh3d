@@ -72,7 +72,7 @@ public:
             gaussian_samples != old_gaussian_samples_;
     }
 
-    void operator()(const RenderEngine::PostprocessInterface& engine, const entt::registry&) {
+    void operator()(const RenderEnginePostprocessInterface& engine, const entt::registry&) {
         using namespace gl;
 
         if (engine.window_size().width  != blur_ppdb_.back().width() ||

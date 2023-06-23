@@ -62,14 +62,14 @@ void RenderEngine::render() {
 
 void RenderEngine::render_primary_stages() {
     for (current_stage_ = 0; current_stage_ < stages_.size(); ++current_stage_) {
-        stages_[current_stage_](PrimaryInterface{ *this }, registry_);
+        stages_[current_stage_](RenderEnginePrimaryInterface{ *this }, registry_);
     }
 }
 
 
 void RenderEngine::render_postprocess_stages() {
     for (current_pp_stage_ = 0; current_pp_stage_ < pp_stages_.size(); ++current_pp_stage_) {
-        pp_stages_[current_pp_stage_](PostprocessInterface{ *this }, registry_);
+        pp_stages_[current_pp_stage_](RenderEnginePostprocessInterface{ *this }, registry_);
     }
 }
 

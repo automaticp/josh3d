@@ -59,11 +59,11 @@ public:
         : shadow_info_{ std::move(shadow_info) }
     {}
 
-    void operator()(const RenderEngine::PrimaryInterface& engine,
+    void operator()(const RenderEnginePrimaryInterface& engine,
         const entt::registry& registry);
 
 private:
-    void draw_scene(const RenderEngine::PrimaryInterface& engine,
+    void draw_scene(const RenderEnginePrimaryInterface& engine,
         const entt::registry& registry);
 
     void update_point_light_buffers(const entt::registry& registry);

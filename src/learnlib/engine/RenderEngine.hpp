@@ -7,11 +7,13 @@
 #include "RenderTargetColorAndDepth.hpp"
 #include "UniqueFunction.hpp"
 #include "WindowSize.hpp"
+#include "RenderStage.hpp"
 #include <entt/fwd.hpp>
 #include <glbinding/gl/gl.h>
 #include <cassert>
 #include <concepts>
 #include <functional>
+#include <utility>
 #include <vector>
 
 
@@ -20,6 +22,31 @@
 
 
 namespace learn {
+
+
+/*
+Implementation base for wrapper types that constrain the actions avaliable
+to be done with the engine during primary and postprocessing stages.
+*/
+class RenderEngineCommonInterface;
+
+
+/*
+A wrapper object that constrains the set of actions avaliable
+during primary stages. Passed to the primary stages
+as a proxy for RenderEngine.
+*/
+class RenderEnginePrimaryInterface;
+
+
+/*
+A wrapper object that constrains the set of actions avaliable
+during postprocessing stages. Passed to the postprocessing stages
+as a proxy for RenderEngine.
+*/
+class RenderEnginePostprocessInterface;
+
+
 /*
 
 There are multiple modes of operation in terms of render targets and framebuffers:
@@ -53,34 +80,10 @@ above.
 
 */
 class RenderEngine {
-private:
-    /*
-    Implementation base for wrapper types that constrain the actions avaliable
-    to be done with the engine during primary and postprocessing stages.
-    */
-    class InterfaceCommon;
-
 public:
-    /*
-    A wrapper object that constrains the set of actions avaliable
-    during primary stages. Passed to the primary stages
-    as a proxy for RenderEngine.
-    */
-    class PrimaryInterface;
-
-    /*
-    A wrapper object that constrains the set of actions avaliable
-    during postprocessing stages. Passed to the postprocessing stages
-    as a proxy for RenderEngine.
-    */
-    class PostprocessInterface;
-
-
-    using primary_stage_t =
-        UniqueFunction<void(const RenderEngine::PrimaryInterface&, const entt::registry&)>;
-
-    using postprocess_stage_t =
-        UniqueFunction<void(const RenderEngine::PostprocessInterface&, const entt::registry&)>;
+    friend RenderEngineCommonInterface;
+    friend RenderEnginePrimaryInterface;
+    friend RenderEnginePostprocessInterface;
 
 private:
     entt::registry& registry_;
@@ -89,7 +92,7 @@ private:
     const WindowSize<int>& window_size_;
     const FrameTimer& frame_timer_;
 
-    std::vector<primary_stage_t> stages_;
+    std::vector<detail::AnyPrimaryStage> stages_;
     size_t current_stage_{};
 
     mutable RenderTargetColorAndDepth main_target_{
@@ -103,7 +106,7 @@ private:
         gl::GL_RGBA, gl::GL_RGBA16F, gl::GL_FLOAT
     };
     size_t current_pp_stage_{};
-    std::vector<postprocess_stage_t> pp_stages_;
+    std::vector<detail::AnyPostprocessStage> pp_stages_;
 
 
 public:
@@ -117,11 +120,30 @@ public:
 
     void render();
 
-    auto& stages() noexcept { return stages_; }
-    const auto& stages() const noexcept { return stages_; }
+    template<primary_render_stage StageT, typename ...Args>
+    [[nodiscard]] PrimaryStage<StageT> make_primary_stage(Args&&... args) {
+        return PrimaryStage<StageT>(StageT(std::forward<Args>(args)...));
+    }
 
-    auto& postprocess_stages() noexcept { return pp_stages_; }
-    const auto& postprocess_stages() const noexcept { return pp_stages_; }
+    template<postprocess_render_stage StageT, typename ...Args>
+    [[nodiscard]] PostprocessStage<StageT> make_postprocess_stage(Args&&... args) {
+        return PostprocessStage<StageT>(StageT(std::forward<Args>(args)...));
+    }
+
+    template<typename StageT>
+    StageT& add_next_primary_stage(PrimaryStage<StageT>&& stage) {
+        // A lot of this relies on pointer/storage stability of UniqueFunction.
+        StageT& ref = stage.target();
+        stages_.emplace_back(detail::AnyPrimaryStage(std::move(stage.stage_)));
+        return ref;
+    }
+
+    template<typename StageT>
+    StageT& add_next_postprocess_stage(PostprocessStage<StageT>&& stage) {
+        StageT& ref = stage.target();
+        pp_stages_.emplace_back(detail::AnyPostprocessStage(std::move(stage.stage_)));
+        return ref;
+    }
 
     auto& camera() noexcept { return cam_; }
     const auto& camera() const noexcept { return cam_; }
@@ -147,25 +169,16 @@ private:
 
 
 
-template<typename StageT>
-concept primary_render_stage = std::invocable<StageT, const RenderEngine::PrimaryInterface&, const entt::registry&>;
-
-template<typename StageT>
-concept postprocess_render_stage = std::invocable<StageT, const RenderEngine::PostprocessInterface&, const entt::registry&>;
 
 
 
 
-
-
-
-
-class RenderEngine::InterfaceCommon {
+class RenderEngineCommonInterface {
 protected:
     RenderEngine& engine_;
 
 public:
-    InterfaceCommon(RenderEngine& engine) : engine_{ engine } {}
+    RenderEngineCommonInterface(RenderEngine& engine) : engine_{ engine } {}
 
     const Camera& camera() const noexcept { return engine_.cam_; }
     const WindowSize<int>& window_size() const noexcept { return engine_.window_size_; }
@@ -179,10 +192,12 @@ public:
 
 
 
-class RenderEngine::PrimaryInterface : public InterfaceCommon {
+class RenderEnginePrimaryInterface : public RenderEngineCommonInterface {
 private:
     friend class RenderEngine;
-    PrimaryInterface(RenderEngine& engine) : InterfaceCommon(engine) {}
+    RenderEnginePrimaryInterface(RenderEngine& engine)
+        : RenderEngineCommonInterface(engine)
+    {}
 
 public:
     // Effectively binds the main render target as the Draw framebuffer
@@ -210,11 +225,13 @@ public:
 
 
 
-class RenderEngine::PostprocessInterface : public InterfaceCommon {
+class RenderEnginePostprocessInterface : public RenderEngineCommonInterface {
 private:
     mutable size_t draw_call_budget_{ 1 };
     friend class RenderEngine;
-    PostprocessInterface(RenderEngine& engine) : InterfaceCommon(engine) {}
+    RenderEnginePostprocessInterface(RenderEngine& engine)
+        : RenderEngineCommonInterface(engine)
+    {}
 
 
 public:

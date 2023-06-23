@@ -24,7 +24,7 @@ public:
     bool use_exposure{ true };
     float exposure{ 1.0f };
 
-    void operator()(const RenderEngine::PostprocessInterface& engine, const entt::registry&) {
+    void operator()(const RenderEnginePostprocessInterface& engine, const entt::registry&) {
         using namespace gl;
 
         sp_.use().and_then_with_self([&, this](ActiveShaderProgram& ashp) {

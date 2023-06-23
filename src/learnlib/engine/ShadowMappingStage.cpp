@@ -19,7 +19,7 @@ namespace learn {
 
 
 void ShadowMappingStage::operator()(
-    const RenderEngine::PrimaryInterface& engine,
+    const RenderEnginePrimaryInterface& engine,
     const entt::registry& registry)
 {
 
@@ -81,7 +81,7 @@ void ShadowMappingStage::resize_point_light_cubemap_array_if_needed(
 
 
 void ShadowMappingStage::map_point_light_shadows(
-    const RenderEngine::PrimaryInterface& /* engine */,
+    const RenderEnginePrimaryInterface& /* engine */,
     const entt::registry& registry)
 {
 
@@ -172,7 +172,7 @@ void ShadowMappingStage::draw_scene_depth_onto_cubemap(
 
 
 void ShadowMappingStage::map_dir_light_shadows(
-    const RenderEngine::PrimaryInterface& engine,
+    const RenderEnginePrimaryInterface& engine,
     const entt::registry& registry)
 {
 

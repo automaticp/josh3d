@@ -44,7 +44,7 @@ public:
         resize_output_storage();
     }
 
-    void operator()(const RenderEngine::PostprocessInterface& engine, const entt::registry&) {
+    void operator()(const RenderEnginePostprocessInterface& engine, const entt::registry&) {
         using namespace gl;
 
         if (use_adaptation) {
@@ -101,7 +101,7 @@ private:
     }
 
 
-    float compute_avg_screen_value(const RenderEngine::PostprocessInterface& engine) {
+    float compute_avg_screen_value(const RenderEnginePostprocessInterface& engine) {
         using namespace gl;
 
         if (needs_storage_resize()) {

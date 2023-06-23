@@ -18,7 +18,7 @@ private:
 
 public:
 
-    void operator()(const RenderEngine::PrimaryInterface& engine,
+    void operator()(const RenderEnginePrimaryInterface& engine,
         const entt::registry& registry)
     {
         using namespace gl;

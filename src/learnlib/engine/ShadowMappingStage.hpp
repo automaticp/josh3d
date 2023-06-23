@@ -73,7 +73,7 @@ public:
     const DirShadowParams& dir_params() const noexcept;
     DirShadowParams& dir_params() noexcept;
 
-    void operator()(const RenderEngine::PrimaryInterface& engine,
+    void operator()(const RenderEnginePrimaryInterface& engine,
         const entt::registry& registry);
 
 
@@ -89,11 +89,11 @@ private:
         const entt::registry& registry);
 
     void map_point_light_shadows(
-        const RenderEngine::PrimaryInterface& engine,
+        const RenderEnginePrimaryInterface& engine,
         const entt::registry& registry);
 
     void map_dir_light_shadows(
-        const RenderEngine::PrimaryInterface& engine,
+        const RenderEnginePrimaryInterface& engine,
         const entt::registry& registry);
 
 

@@ -16,7 +16,7 @@ namespace learn {
 
 
 void ForwardRenderingStage::operator()(
-    const RenderEngine::PrimaryInterface& engine,
+    const RenderEnginePrimaryInterface& engine,
     const entt::registry& registry)
 {
     update_point_light_buffers(registry);
@@ -58,7 +58,7 @@ void ForwardRenderingStage::update_point_light_buffers(
 
 
 void ForwardRenderingStage::draw_scene(
-    const RenderEngine::PrimaryInterface& engine,
+    const RenderEnginePrimaryInterface& engine,
     const entt::registry& registry)
 {
 
