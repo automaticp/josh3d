@@ -1,4 +1,8 @@
 #include "ImGuiRegistryHooks.hpp"
+#include "AssimpModelLoader.hpp"
+#include "Model.hpp"
+#include "Shared.hpp"
+#include "Transform.hpp"
 #include "RenderComponents.hpp"
 #include <glm/gtc/quaternion.hpp>
 #include <imgui.h>
