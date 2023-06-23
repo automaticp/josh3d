@@ -34,7 +34,7 @@ namespace leakslearn {
 using namespace learn;
 
 
-class DirPointShadowScene {
+class DemoScene {
 private:
     glfw::Window& window_;
 
@@ -55,7 +55,7 @@ private:
     ImGuiRegistryHooks imgui_registry_hooks_{ registry_ };
 
 public:
-    DirPointShadowScene(glfw::Window& window)
+    DemoScene(glfw::Window& window)
         : window_{ window }
     {
         input_freecam_.configure(input_);
@@ -246,4 +246,4 @@ private:
 
 } // namespace leakslearn
 
-using leakslearn::DirPointShadowScene;
+using leakslearn::DemoScene;

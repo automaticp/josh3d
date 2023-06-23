@@ -4,7 +4,7 @@
 
 #include "GlobalsUtil.hpp"
 #include "Scenes.hpp"
-#include "All.hpp"
+
 
 
 int main() {
@@ -48,7 +48,7 @@ int main() {
     // glEnable(GL_CULL_FACE);
 
     // render_generic_scene<BoxScene3>(window);
-    render_generic_scene<DirPointShadowScene>(window);
+    render_generic_scene<DemoScene>(window);
 
     return 0;
 }
