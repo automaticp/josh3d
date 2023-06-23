@@ -61,7 +61,7 @@ int main() {
 
 
     window.framebufferSizeEvent.setCallback(
-        [](glfw::Window& window, int w, int h) {
+        [](glfw::Window& /* window */, int w, int h) {
             globals::window_size.set_to(w, h);
             glViewport(0, 0, w, h);
         }

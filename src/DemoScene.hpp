@@ -80,91 +80,47 @@ public:
             }
         );
 
-        rengine_.stages()
-            .emplace_back(AmbientBackgroundStage());
+        auto ambickground = rengine_.make_primary_stage<AmbientBackgroundStage>();
+        auto skyboxing    = rengine_.make_primary_stage<SkyboxStage>();
+        auto shmapping    = rengine_.make_primary_stage<ShadowMappingStage>();
+        auto frendering   = rengine_.make_primary_stage<ForwardRenderingStage>(shmapping.target().view_mapping_output());
+        auto plightboxes  = rengine_.make_primary_stage<PointLightSourceBoxStage>();
 
-        rengine_.stages()
-            .emplace_back(SkyboxStage());
+        auto blooming     = rengine_.make_postprocess_stage<PostprocessBloomStage>();
+        auto hdreyeing    = rengine_.make_postprocess_stage<PostprocessHDREyeAdaptationStage>();
+        auto whatsgamma   = rengine_.make_postprocess_stage<PostprocessGammaCorrectionStage>();
 
 
+        imgui_stage_hooks_.add_hook("Shadow Mapping",    ShadowMappingStageImGuiHook(shmapping));
+        imgui_stage_hooks_.add_hook("Forward Rendering", ForwardRenderingStageImGuiHook(frendering));
+        imgui_stage_hooks_.add_hook("Point Light Boxes", PointLightSourceBoxStageImGuiHook(plightboxes));
 
-        ShadowMappingStage shmapping{};
-        auto output_view = shmapping.view_mapping_output();
 
-        rengine_.stages()
-            .emplace_back(std::move(shmapping));
+        imgui_stage_hooks_.add_postprocess_hook("Bloom",
+            PostprocessBloomStageImGuiHook(blooming));
 
-        imgui_stage_hooks_.add_hook("Shadow Mapping",
-            ShadowMappingStageImGuiHook(
-                rengine_.stages().back()
-                    .target_unchecked<ShadowMappingStage>()
-            )
-        );
+        imgui_stage_hooks_.add_postprocess_hook("HDR Eye Adaptation",
+            PostprocessHDREyeAdaptationStageImGuiHook(hdreyeing));
 
-        rengine_.stages()
-            .emplace_back(ForwardRenderingStage(std::move(output_view)));
-
-        imgui_stage_hooks_.add_hook("Forward Rendering",
-            ForwardRenderingStageImGuiHook(
-                rengine_.stages().back()
-                    .target_unchecked<ForwardRenderingStage>()
-            )
-        );
+        imgui_stage_hooks_.add_postprocess_hook("Gamma Correction",
+            PostprocessGammaCorrectionStageImGuiHook(whatsgamma));
 
 
 
-        rengine_.stages()
-            .emplace_back(PointLightSourceBoxStage());
+        rengine_.add_next_primary_stage(std::move(ambickground));
+        rengine_.add_next_primary_stage(std::move(skyboxing));
+        rengine_.add_next_primary_stage(std::move(shmapping));
+        rengine_.add_next_primary_stage(std::move(frendering));
+        rengine_.add_next_primary_stage(std::move(plightboxes));
 
-        imgui_stage_hooks_.add_hook("Point Light Boxes",
-            PointLightSourceBoxStageImGuiHook(
-                rengine_.stages().back()
-                    .target_unchecked<PointLightSourceBoxStage>()
-            )
-        );
+        rengine_.add_next_postprocess_stage(std::move(blooming));
+        rengine_.add_next_postprocess_stage(std::move(hdreyeing));
+        rengine_.add_next_postprocess_stage(std::move(whatsgamma));
 
 
 
         imgui_registry_hooks_.add_hook("Lights", ImGuiRegistryLightComponentsHook());
         imgui_registry_hooks_.add_hook("Models", ImGuiRegistryModelComponentsHook());
-
-
-
-        rengine_.postprocess_stages()
-            .emplace_back(PostprocessBloomStage());
-
-        imgui_stage_hooks_.add_postprocess_hook("Bloom",
-            PostprocessBloomStageImGuiHook(
-                rengine_.postprocess_stages().back()
-                    .target_unchecked<PostprocessBloomStage>()
-            )
-        );
-
-
-
-        rengine_.postprocess_stages()
-            .emplace_back(PostprocessHDREyeAdaptationStage());
-
-        imgui_stage_hooks_.add_postprocess_hook(
-            "HDR Eye Adaptation",
-            PostprocessHDREyeAdaptationStageImGuiHook(
-                rengine_.postprocess_stages().back()
-                    .target_unchecked<PostprocessHDREyeAdaptationStage>()
-            )
-        );
-
-
-
-        rengine_.postprocess_stages()
-            .emplace_back(PostprocessGammaCorrectionStage());
-
-        imgui_stage_hooks_.add_postprocess_hook("Gamma Correction",
-            PostprocessGammaCorrectionStageImGuiHook(
-                rengine_.postprocess_stages().back()
-                    .target_unchecked<PostprocessGammaCorrectionStage>()
-            )
-        );
-
 
         init_registry();
     }

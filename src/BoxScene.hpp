@@ -66,34 +66,33 @@ public:
         });
 
         window_.framebufferSizeEvent.setCallback(
-            [this](glfw::Window& window, int w, int h) {
+            [this](glfw::Window& /* window */, int w, int h) {
                 using namespace gl;
                 globals::window_size.set_to(w, h);
                 glViewport(0, 0, w, h);
                 rengine_.reset_size(w, h);
             }
         );
-        rengine_.stages().emplace_back(AmbientBackgroundStage());
 
-        ShadowMappingStage shmapping;
-        auto shmapping_info = shmapping.view_mapping_output();
-        rengine_.stages().emplace_back(std::move(shmapping));
+        rengine_.add_next_primary_stage(rengine_.make_primary_stage<AmbientBackgroundStage>());
 
-        rengine_.stages().emplace_back(ForwardRenderingStage(std::move(shmapping_info)));
+        auto shmapping    = rengine_.make_primary_stage<ShadowMappingStage>();
+        auto frendering   = rengine_.make_primary_stage<ForwardRenderingStage>(shmapping.target().view_mapping_output());
+        auto plightboxing = rengine_.make_primary_stage<PointLightSourceBoxStage>();
 
-        rengine_.stages().emplace_back(PointLightSourceBoxStage());
+        imgui_stage_hooks_.add_hook("Shadow Mapping", ShadowMappingStageImGuiHook(shmapping));
+        imgui_stage_hooks_.add_hook("Forward Rendering", ForwardRenderingStageImGuiHook(frendering));
+        imgui_stage_hooks_.add_hook("Point Light Boxes", PointLightSourceBoxStageImGuiHook(plightboxing));
 
-        imgui_stage_hooks_.add_hook("Point Light Boxes",
-            PointLightSourceBoxStageImGuiHook(
-                *rengine_.stages().back().target<PointLightSourceBoxStage>()
-            )
-        );
+        rengine_.add_next_primary_stage(std::move(shmapping));
+        rengine_.add_next_primary_stage(std::move(frendering));
+        rengine_.add_next_primary_stage(std::move(plightboxing));
+
+        rengine_.add_next_postprocess_stage(rengine_.make_postprocess_stage<PostprocessGammaCorrectionStage>());
+
 
         imgui_registry_hooks_.add_hook("Lights", ImGuiRegistryLightComponentsHook());
         imgui_registry_hooks_.add_hook("Models", ImGuiRegistryModelComponentsHook());
-
-        rengine_.postprocess_stages().emplace_back(PostprocessGammaCorrectionStage());
-
 
         init_registry();
     }
