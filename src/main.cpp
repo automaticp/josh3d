@@ -3,7 +3,31 @@
 #include <glfwpp/glfwpp.h>
 
 #include "GlobalsUtil.hpp"
-#include "Scenes.hpp"
+#include "BoxScene.hpp"
+#include "DemoScene.hpp"
+
+
+
+template<typename SceneT>
+void render_generic_scene(glfw::Window& window) {
+
+    SceneT scene{ window };
+
+    while (!window.shouldClose()) {
+        learn::globals::frame_timer.update();
+
+        glfw::pollEvents();
+        scene.process_input();
+
+        scene.update();
+
+        scene.render();
+
+        window.swapBuffers();
+    }
+
+}
+
 
 
 
@@ -11,7 +35,7 @@ int main() {
     using namespace gl;
     using namespace learn;
 
-    // Init GLFW and create a window
+
     auto glfw_instance{ glfw::init() };
 
     glfw::WindowHints{
@@ -19,21 +43,22 @@ int main() {
         .contextVersionMajor=4, .contextVersionMinor=3,
         .openglProfile=glfw::OpenGlProfile::Core
     }.apply();
+
     glfw::Window window{ 800, 600, "WindowName" };
     glfw::makeContextCurrent(window);
     glfw::swapInterval(0);
     window.setInputModeCursor(glfw::CursorMode::Normal);
 
-    // Init glbindings
+
     glbinding::initialize(glfwGetProcAddress);
-
-    globals::RAIIContext globals_context;
-
 #ifndef NDEBUG
     enable_glbinding_logger();
 #endif
 
+
+    globals::RAIIContext globals_context;
     globals::window_size.track(window);
+
 
     window.framebufferSizeEvent.setCallback(
         [](glfw::Window& window, int w, int h) {
@@ -42,13 +67,14 @@ int main() {
         }
     );
 
-    auto [width, height] { globals::window_size.size() };
+    auto [width, height] = globals::window_size.size();
     glViewport(0, 0, width, height);
     glEnable(GL_DEPTH_TEST);
-    // glEnable(GL_CULL_FACE);
+
 
     // render_generic_scene<BoxScene3>(window);
     render_generic_scene<DemoScene>(window);
+
 
     return 0;
 }
