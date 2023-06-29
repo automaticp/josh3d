@@ -76,7 +76,7 @@ namespace detail {
 
 
 /*
-Type erased primary stage stored inside the RenderingEngine stages container.
+Type erased primary stage stored inside the RenderEngine stages container.
 */
 class AnyPrimaryStage {
 private:
@@ -99,7 +99,7 @@ public:
 
 
 /*
-Type erased postfx stage stored inside the RenderingEngine stages container.
+Type erased postfx stage stored inside the RenderEngine stages container.
 */
 class AnyPostprocessStage {
 private:

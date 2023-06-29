@@ -41,44 +41,26 @@ private:
     entt::registry registry_;
 
     Camera cam_{ { 0.0f, 1.0f, 3.0f }, { 0.0f, 0.0f, -1.0f } };
-    SimpleInputBlocker input_blocker_;
+
+    SimpleInputBlocker   input_blocker_;
     BasicRebindableInput input_{ window_, input_blocker_ };
-    InputFreeCamera input_freecam_{ cam_ };
+    InputFreeCamera      input_freecam_{ cam_ };
 
     RenderEngine rengine_{
         registry_, cam_,
         globals::window_size.size_ref(), globals::frame_timer
     };
+
     ImGuiContextWrapper imgui_{ window_ };
     ImGuiWindowSettings imgui_window_settings_{ window_ };
-    ImGuiStageHooks imgui_stage_hooks_;
-    ImGuiRegistryHooks imgui_registry_hooks_{ registry_ };
+    ImGuiStageHooks     imgui_stage_hooks_;
+    ImGuiRegistryHooks  imgui_registry_hooks_{ registry_ };
 
 public:
     DemoScene(glfw::Window& window)
         : window_{ window }
     {
-        input_freecam_.configure(input_);
-
-        input_.set_keybind(glfw::KeyCode::T, [this](const KeyCallbackArgs& args) {
-            if (args.is_released()) {
-                imgui_window_settings_.hidden ^= true;
-                imgui_stage_hooks_.hidden ^= true;
-                imgui_registry_hooks_.hidden ^= true;
-            }
-        });
-
-        window_.framebufferSizeEvent.setCallback(
-            [this](glfw::Window& /* window */ , int w, int h) {
-                using namespace gl;
-
-                globals::window_size.set_to(w, h);
-                glViewport(0, 0, w, h);
-                rengine_.reset_size(w, h);
-                // or
-                // rengine_.reset_size_from_window_size();
-            }
-        );
+        configure_input();
 
         auto ambickground = rengine_.make_primary_stage<AmbientBackgroundStage>();
         auto skyboxing    = rengine_.make_primary_stage<SkyboxStage>();
@@ -130,11 +112,9 @@ public:
     void update() {
         input_freecam_.update();
     }
+
     void render() {
-        using namespace gl;
         imgui_.new_frame();
-        glClearColor(0.15f, 0.15f, 0.1f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         rengine_.render();
 
@@ -143,61 +123,104 @@ public:
         imgui_stage_hooks_.display();
 
         imgui_.render();
+
         update_input_blocker_from_imgui_io_state();
     }
 
 private:
-    void init_registry() {
-        auto& r = registry_;
-
-        auto loader = AssimpModelLoader<>();
-
-        Shared<Model> model = std::make_shared<Model>(
-            loader.load("data/models/shadow_scene/shadow_scene.obj").get()
-        );
-
-        auto e = r.create();
-        r.emplace<Shared<Model>>(e, std::move(model));
-        r.emplace<Transform>(e);
-
-        r.emplace<light::Ambient>(r.create(), light::Ambient{
-            .color = { 0.15f, 0.15f, 0.1f }
-        });
-
-        e = r.create();
-        r.emplace<light::Directional>(e, light::Directional{
-            .color = { 0.15f, 0.15f, 0.1f },
-            .direction = { -0.2f, -1.0f, -0.3f }
-        });
-        r.emplace<components::ShadowCasting>(e);
-
-        components::Skybox skybox{ std::make_shared<Cubemap>() };
-        skybox.cubemap->bind().attach_data(
-            CubemapData::from_files(
-                {
-                    "data/textures/skybox/lake/right.png",
-                    "data/textures/skybox/lake/left.png",
-                    "data/textures/skybox/lake/top.png",
-                    "data/textures/skybox/lake/bottom.png",
-                    "data/textures/skybox/lake/front.png",
-                    "data/textures/skybox/lake/back.png",
-                }
-            ), gl::GL_SRGB_ALPHA
-        );
-        r.emplace<components::Skybox>(r.create(), std::move(skybox));
-
-    }
-
-    void update_input_blocker_from_imgui_io_state() {
-        // FIXME: Need a way to stop the ImGui window from recieving
-        // mouse events when I'm in free cam.
-        input_blocker_.block_keys = ImGui::GetIO().WantCaptureKeyboard;
-        input_blocker_.block_scroll =
-            ImGui::GetIO().WantCaptureMouse &&
-            input_freecam_.state().is_cursor_mode;
-    }
+    void configure_input();
+    void init_registry();
+    void update_input_blocker_from_imgui_io_state();
 
 };
+
+
+
+
+
+inline void DemoScene::configure_input() {
+
+    input_freecam_.configure(input_);
+
+    input_.set_keybind(glfw::KeyCode::T, [this](const KeyCallbackArgs& args) {
+        if (args.is_released()) {
+            imgui_window_settings_.hidden ^= true;
+            imgui_stage_hooks_.hidden ^= true;
+            imgui_registry_hooks_.hidden ^= true;
+        }
+    });
+
+    window_.framebufferSizeEvent.setCallback(
+        [this](glfw::Window& /* window */ , int w, int h) {
+            using namespace gl;
+
+            globals::window_size.set_to(w, h);
+            glViewport(0, 0, w, h);
+            rengine_.reset_size(w, h);
+            // or
+            // rengine_.reset_size_from_window_size();
+        }
+    );
+
+}
+
+
+
+
+inline void DemoScene::init_registry() {
+    auto& r = registry_;
+
+    auto loader = AssimpModelLoader<>();
+
+    Shared<Model> model = std::make_shared<Model>(
+        loader.load("data/models/shadow_scene/shadow_scene.obj").get()
+    );
+
+    auto e = r.create();
+    r.emplace<Shared<Model>>(e, std::move(model));
+    r.emplace<Transform>(e);
+
+    r.emplace<light::Ambient>(r.create(), light::Ambient{
+        .color = { 0.15f, 0.15f, 0.1f }
+    });
+
+    e = r.create();
+    r.emplace<light::Directional>(e, light::Directional{
+        .color = { 0.15f, 0.15f, 0.1f },
+        .direction = { -0.2f, -1.0f, -0.3f }
+    });
+    r.emplace<components::ShadowCasting>(e);
+
+    components::Skybox skybox{ std::make_shared<Cubemap>() };
+    skybox.cubemap->bind().attach_data(
+        CubemapData::from_files(
+            {
+                "data/textures/skybox/lake/right.png",
+                "data/textures/skybox/lake/left.png",
+                "data/textures/skybox/lake/top.png",
+                "data/textures/skybox/lake/bottom.png",
+                "data/textures/skybox/lake/front.png",
+                "data/textures/skybox/lake/back.png",
+            }
+        ), gl::GL_SRGB_ALPHA
+    );
+    r.emplace<components::Skybox>(r.create(), std::move(skybox));
+
+}
+
+
+
+
+inline void DemoScene::update_input_blocker_from_imgui_io_state() {
+    // FIXME: Need a way to stop the ImGui window from recieving
+    // mouse events when I'm in free cam.
+    input_blocker_.block_keys = ImGui::GetIO().WantCaptureKeyboard;
+    input_blocker_.block_scroll =
+        ImGui::GetIO().WantCaptureMouse &&
+        input_freecam_.state().is_cursor_mode;
+}
+
+
 
 
 } // namespace leakslearn
