@@ -11,13 +11,6 @@ set_target_properties(assimp::assimp PROPERTIES IMPORTED_GLOBAL TRUE)
 
 
 
-# === box2d ===
-
-find_package(box2d CONFIG REQUIRED)
-set_target_properties(box2d::box2d PROPERTIES IMPORTED_GLOBAL TRUE)
-
-
-
 # === entt ===
 
 find_package(EnTT CONFIG REQUIRED)
