@@ -145,6 +145,13 @@ public:
         return ref;
     }
 
+    // Please don't do anything stupid with this.
+    // Only smart things are supported. This is the main framebuffer
+    // the RenderEngine draws to, handle it with care.
+    RenderTargetColorAndDepth& main_target() noexcept { return main_target_; }
+    const RenderTargetColorAndDepth& main_target() const noexcept { return main_target_; }
+
+
     auto& camera() noexcept { return cam_; }
     const auto& camera() const noexcept { return cam_; }
 
@@ -216,6 +223,12 @@ public:
             .unbind();
 
     }
+
+    // The RenderEngine's main framebuffer is not exposed here because
+    // there's a high chance you'll be reading from it, as you're writing
+    // to it. Hear me? You! Yes, you. Think twice before implementing it again.
+    //
+    // I didn't allow it initially for a reason.
 };
 
 
