@@ -19,19 +19,19 @@ GameRenderSystem::GameRenderSystem(gl::GLsizei width, gl::GLsizei height)
     , pp_shake_{
         learn::ShaderBuilder()
             .load_vert("src/breakout2/shaders/pp_shake.vert")
-            .load_frag("src/shaders/pp_kernel_blur.frag")
+            .load_frag("src/breakout/shaders/pp_kernel_blur.frag")
             .get()
     }
     , pp_chaos_{
         learn::ShaderBuilder()
             .load_vert("src/breakout2/shaders/pp_chaos.vert")
-            .load_frag("src/shaders/pp_kernel_edge.frag")
+            .load_frag("src/breakout/shaders/pp_kernel_edge.frag")
             .get()
     }
     , pp_confuse_{
         learn::ShaderBuilder()
             .load_vert("src/breakout2/shaders/pp_confuse.vert")
-            .load_frag("src/shaders/pp_invert.frag")
+            .load_frag("src/breakout/shaders/pp_invert.frag")
             .get()
     }
 {}

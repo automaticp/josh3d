@@ -56,14 +56,14 @@ private:
     learn::ShaderProgram pp_shake_{
         learn::ShaderBuilder()
             .load_vert("src/breakout/shaders/pp_shake.vert")
-            .load_frag("src/shaders/pp_kernel_blur.frag")
+            .load_frag("src/breakout/shaders/pp_kernel_blur.frag")
             .get()
     };
 
     learn::ShaderProgram pp_chaos_{
         learn::ShaderBuilder()
             .load_vert("src/breakout/shaders/pp_chaos.vert")
-            .load_frag("src/shaders/pp_kernel_edge.frag")
+            .load_frag("src/breakout/shaders/pp_kernel_edge.frag")
             .get()
     };
 
@@ -71,7 +71,7 @@ private:
     learn::ShaderProgram pp_confuse_{
         learn::ShaderBuilder()
             .load_vert("src/breakout/shaders/pp_confuse.vert")
-            .load_frag("src/shaders/pp_invert.frag")
+            .load_frag("src/breakout/shaders/pp_invert.frag")
             .get()
     };
 

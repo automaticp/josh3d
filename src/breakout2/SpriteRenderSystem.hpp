@@ -52,8 +52,8 @@ public:
     SpriteRenderSystem(const glm::mat4& projection)
         : sp_{
             learn::ShaderBuilder()
-                .load_vert("src/shaders/sprite.vert")
-                .load_frag("src/shaders/sprite.frag")
+                .load_vert("src/breakout/shaders/sprite.vert")
+                .load_frag("src/breakout/shaders/sprite.frag")
                 .get()
         }
         , ulocs_{
