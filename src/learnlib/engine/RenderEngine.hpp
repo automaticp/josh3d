@@ -216,7 +216,7 @@ public:
     void draw(CallableT&& draw_func, Args&&... args) const {
         using namespace gl;
 
-        engine_.main_target_.framebuffer().bind_as(GL_DRAW_FRAMEBUFFER)
+        engine_.main_target_.framebuffer().bind_draw()
             .and_then([&] {
                 std::invoke(std::forward<CallableT>(draw_func), std::forward<Args>(args)...);
             })
@@ -282,7 +282,7 @@ public:
             });
         } else /* last stage */ {
             // Draw to the screen directly.
-            BoundFramebuffer::unbind_as(GL_DRAW_FRAMEBUFFER);
+            BoundDrawFramebuffer::unbind();
             engine_.pp_renderer_.draw();
         }
 

@@ -15,11 +15,11 @@ creation of bound dummies as lvalues in certain cases.
 
 Example 1:
 
-dst_framebuffer.bind_as(GL_DRAW_FRAMEBUFFER)
-    .and_then([&] {
+dst_framebuffer.bind_draw()
+    .and_then_with_self([&](BoundDrawFramebuffer& dfbo) {
         auto [w, h] = window_.getSize();
-        src_framebuffer.bind_as(GL_READ_FRAMEBUFFER)
-            .blit(0, 0, w, h, 0, 0, w, h, GL_COLOR_BUFFER_BIT, GL_NEAREST)
+        src_framebuffer.bind_read()
+            .blit_to(dfbo, 0, 0, w, h, 0, 0, w, h, GL_COLOR_BUFFER_BIT, GL_NEAREST)
             .unbind();
     })
     .unbind();

@@ -54,7 +54,7 @@ public:
             .set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER)
             .set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 
-        fbo_.bind()
+        fbo_.bind_draw()
             .attach_texture(color_, GL_COLOR_ATTACHMENT0)
             .attach_texture(depth_, GL_DEPTH_ATTACHMENT)
             .unbind();

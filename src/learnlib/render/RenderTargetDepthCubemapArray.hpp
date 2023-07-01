@@ -36,7 +36,7 @@ public:
             .set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
             .set_parameter(GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
-        fbo_.bind()
+        fbo_.bind_draw()
             .attach_cubemap(cubemaps_, GL_DEPTH_ATTACHMENT)
             .and_then([] {
                 glDrawBuffer(GL_NONE);

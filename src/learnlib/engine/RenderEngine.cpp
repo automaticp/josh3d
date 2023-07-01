@@ -15,7 +15,7 @@ void RenderEngine::render() {
     using namespace gl;
 
     main_target_.framebuffer()
-        .bind_as(GL_DRAW_FRAMEBUFFER)
+        .bind_draw()
         .and_then([] { glClear(GL_DEPTH_BUFFER_BIT); });
 
     glEnable(GL_DEPTH_TEST);
@@ -26,14 +26,16 @@ void RenderEngine::render() {
     if (pp_stages_.empty()) {
 
         main_target_.framebuffer()
-            .bind_as(GL_READ_FRAMEBUFFER)
-            .and_then_with_self([this](BoundFramebuffer& fbo) {
+            .bind_read()
+            .and_then_with_self([this](BoundReadFramebuffer& fbo) {
 
-                BoundFramebuffer::unbind_as(GL_DRAW_FRAMEBUFFER);
-                fbo.blit(0, 0, main_target_.width(), main_target_.height(),
+                BoundDrawFramebuffer::unbind();
+
+                glBlitFramebuffer(
+                    0, 0, main_target_.width(), main_target_.height(),
                     0, 0, window_size().width, window_size().height,
-                    GL_COLOR_BUFFER_BIT, GL_NEAREST);
-
+                    GL_COLOR_BUFFER_BIT, GL_NEAREST
+                );
             })
             .unbind();
 
@@ -41,12 +43,16 @@ void RenderEngine::render() {
 
         ppdb_.draw_and_swap([this] {
             main_target_.framebuffer()
-                .bind_as(GL_READ_FRAMEBUFFER)
-                .and_then_with_self([this](BoundFramebuffer& fbo) {
+                .bind_read()
+                .and_then_with_self([this](BoundReadFramebuffer& fbo) {
 
-                    fbo.blit(0, 0, main_target_.width(), main_target_.height(),
+                    // FIXME: Here I can pass the BoundDrawFramebuffer through the
+                    // draw_and_swap() callback. PPDB backbuffer is bound implicitly otherwise.
+                    glBlitFramebuffer(
+                        0, 0, main_target_.width(), main_target_.height(),
                         0, 0, ppdb_.back().width(), ppdb_.back().height(),
-                        GL_COLOR_BUFFER_BIT, GL_NEAREST);
+                        GL_COLOR_BUFFER_BIT, GL_NEAREST
+                    );
 
                 })
                 .unbind();

@@ -32,7 +32,7 @@ Usage example:
     // Render the scene to some kind of primary buffer
 
     primary_target.framebuffer()
-        .bind_as(GL_DRAW_FRAMEBUFFER)
+        .bind_draw()
         .and_then([&] {
 
             // Draw the scene here
@@ -45,10 +45,10 @@ Usage example:
     // with the Bind-Draw-Unbind-Swap idiom.
 
     pdb.back().framebuffer()
-        .bind_as(GL_DRAW_FRAMEBUFFER)
+        .bind_draw()
         .and_then([&] {
             primary_target
-                .bind_as(GL_READ_FRAMEBUFFER)
+                .bind_read()
                 .blit(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST)
                 .unbind();
         })
@@ -61,7 +61,7 @@ Usage example:
 
     for (auto&& pp : std::span(pp_stages.begin(), pp_stages.end() - 1)) {
         pdb.back().framebuffer()
-            .bind_as(GL_DRAW_FRAMEBUFFER)
+            .bind_draw()
             .and_then([&] {
                 pp.draw(pdb.front_target());
             })
@@ -121,7 +121,7 @@ public:
     void draw_and_swap(auto&& draw_function) {
         using namespace gl;
         back().framebuffer()
-            .bind_as(GL_DRAW_FRAMEBUFFER)
+            .bind_draw()
             .and_then(draw_function)
             .unbind();
         swap_buffers();

@@ -93,7 +93,7 @@ void ShadowMappingStage::map_point_light_shadows(
         auto& maps = mapping_output_->point_light_maps;
         glViewport(0, 0, maps.width(), maps.height());
 
-        maps.framebuffer().bind().and_then([&, this] {
+        maps.framebuffer().bind_draw().and_then([&, this] {
 
             GLint cubemap_id{ 0 };
 
@@ -211,7 +211,7 @@ void ShadowMappingStage::map_dir_light_shadows(
         auto& map = mapping_output_->dir_light_map;
         glViewport(0, 0, map.width(), map.height());
 
-        map.framebuffer().bind().and_then([&, this] {
+        map.framebuffer().bind_draw().and_then([&, this] {
 
             glClear(GL_DEPTH_BUFFER_BIT);
 

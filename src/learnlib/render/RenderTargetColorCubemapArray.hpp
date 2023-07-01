@@ -57,7 +57,7 @@ public:
         rbo_.bind()
             .create_storage(width_, height_, GL_DEPTH24_STENCIL8);
 
-        fbo_.bind()
+        fbo_.bind_draw()
             .attach_texture(cubemaps_, GL_COLOR_ATTACHMENT0)
             .attach_renderbuffer(rbo_, GL_DEPTH_STENCIL_ATTACHMENT)
             .unbind();

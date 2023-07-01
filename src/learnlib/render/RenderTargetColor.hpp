@@ -48,7 +48,7 @@ public:
         rb_ .bind()
             .create_storage(width_, height_, GL_DEPTH24_STENCIL8);
 
-        fb_ .bind()
+        fb_ .bind_draw()
             .attach_texture(tex_, GL_COLOR_ATTACHMENT0)
             .attach_renderbuffer(rb_, GL_DEPTH_STENCIL_ATTACHMENT)
             .unbind();

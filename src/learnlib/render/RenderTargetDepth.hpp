@@ -33,7 +33,7 @@ public:
             // Maybe don't do this in the render target though?
             .set_parameter(GL_TEXTURE_BORDER_COLOR, border_color);
 
-        fbo_.bind()
+        fbo_.bind_draw()
             .attach_texture(tex_, GL_DEPTH_ATTACHMENT)
             .and_then([] {
                 glDrawBuffer(GL_NONE);
