@@ -70,6 +70,8 @@ public:
 
         // auto ambickground = rengine_.make_primary_stage<AmbientBackgroundStage>();
         auto skyboxing    = rengine_.make_primary_stage<SkyboxStage>();
+
+        auto shmapping    = rengine_.make_primary_stage<ShadowMappingStage>();
         auto gbuffer      = rengine_.make_primary_stage<GBufferStage>(w, h);
 
         // This is me sharing the depth target between the GBuffer and the
@@ -79,9 +81,14 @@ public:
 
         gbuffer_write_handle->attach_external_depth_buffer(rengine_.main_target().depth_target());
 
-        auto defgeom      = rengine_.make_primary_stage<DeferredGeometryStage>(std::move(gbuffer_write_handle));
-        auto defshad      = rengine_.make_primary_stage<DeferredShadingStage>(gbuffer.target().get_read_view());
-        // auto shmapping    = rengine_.make_primary_stage<ShadowMappingStage>();
+        auto defgeom = rengine_.make_primary_stage<DeferredGeometryStage>(std::move(gbuffer_write_handle));
+
+
+        auto defshad =
+            rengine_.make_primary_stage<DeferredShadingStage>(
+                gbuffer.target().get_read_view(), shmapping.target().view_mapping_output()
+            );
+
         // auto frendering   = rengine_.make_primary_stage<ForwardRenderingStage>(shmapping.target().view_mapping_output());
         auto plightboxes  = rengine_.make_primary_stage<PointLightSourceBoxStage>();
 
@@ -90,9 +97,10 @@ public:
         auto whatsgamma   = rengine_.make_postprocess_stage<PostprocessGammaCorrectionStage>();
 
 
-        // imgui_stage_hooks_.add_hook("Shadow Mapping",    ShadowMappingStageImGuiHook(shmapping));
+        imgui_stage_hooks_.add_hook("Shadow Mapping",    ShadowMappingStageImGuiHook(shmapping));
         // imgui_stage_hooks_.add_hook("Forward Rendering", ForwardRenderingStageImGuiHook(frendering));
         imgui_stage_hooks_.add_hook("GBuffer", GBufferStageImGuiHook(gbuffer));
+        imgui_stage_hooks_.add_hook("Deferred Rendering", DeferredShadingStageImGuiHook(defshad));
         imgui_stage_hooks_.add_hook("Point Light Boxes", PointLightSourceBoxStageImGuiHook(plightboxes));
 
 
@@ -108,10 +116,10 @@ public:
 
         // rengine_.add_next_primary_stage(std::move(ambickground));
         rengine_.add_next_primary_stage(std::move(skyboxing));
+        rengine_.add_next_primary_stage(std::move(shmapping));
         rengine_.add_next_primary_stage(std::move(gbuffer));
         rengine_.add_next_primary_stage(std::move(defgeom));
         rengine_.add_next_primary_stage(std::move(defshad));
-        // rengine_.add_next_primary_stage(std::move(shmapping));
         // rengine_.add_next_primary_stage(std::move(frendering));
         rengine_.add_next_primary_stage(std::move(plightboxes));
 

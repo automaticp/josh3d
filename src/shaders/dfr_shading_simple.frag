@@ -9,7 +9,6 @@ uniform sampler2D tex_position_draw;
 uniform sampler2D tex_normals;
 uniform sampler2D tex_albedo_spec;
 
-// uniform sampler2D tex_previous_color;
 
 uniform struct AmbientLight {
     vec3 color;
