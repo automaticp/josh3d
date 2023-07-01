@@ -88,7 +88,7 @@ void ShadowMappingStage::map_point_light_shadows(
     auto plights_with_shadow_view =
         registry.view<const light::Point, const components::ShadowCasting>();
 
-    sp_plight_depth_.use().and_then_with_self([&, this](ActiveShaderProgram& ashp) {
+    sp_plight_depth_.use().and_then([&, this](ActiveShaderProgram& ashp) {
 
         auto& maps = mapping_output_->point_light_maps;
         glViewport(0, 0, maps.width(), maps.height());
@@ -206,7 +206,7 @@ void ShadowMappingStage::map_dir_light_shadows(
     mapping_output_->dir_light_projection_view = light_projection * light_view;
 
 
-    sp_dir_depth_.use().and_then_with_self([&, this] (ActiveShaderProgram& ashp) {
+    sp_dir_depth_.use().and_then([&, this] (ActiveShaderProgram& ashp) {
 
         auto& map = mapping_output_->dir_light_map;
         glViewport(0, 0, map.width(), map.height());

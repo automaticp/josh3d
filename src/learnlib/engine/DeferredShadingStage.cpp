@@ -20,7 +20,7 @@ void DeferredShadingStage::operator()(
     update_point_light_buffers(registry);
 
 
-    sp_.use().and_then_with_self([&, this](ActiveShaderProgram& ashp) {
+    sp_.use().and_then([&, this](ActiveShaderProgram& ashp) {
 
         gbuffer_->position_target().bind_to_unit_index(0);
         gbuffer_->normals_target().bind_to_unit_index(1);

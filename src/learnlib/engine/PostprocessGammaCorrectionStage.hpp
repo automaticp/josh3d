@@ -28,7 +28,7 @@ public:
 
         using namespace gl;
 
-        sp_.use().and_then_with_self([&, this](ActiveShaderProgram& ashp) {
+        sp_.use().and_then([&, this](ActiveShaderProgram& ashp) {
             engine.screen_color().bind_to_unit(GL_TEXTURE0);
             ashp.uniform("color", 0);
 

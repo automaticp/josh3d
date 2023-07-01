@@ -62,7 +62,7 @@ void ForwardRenderingStage::draw_scene(
     const entt::registry& registry)
 {
 
-    sp_.use().and_then_with_self([&, this](ActiveShaderProgram& ashp) {
+    sp_.use().and_then([&, this](ActiveShaderProgram& ashp) {
 
         ashp.uniform("projection",
             engine.camera().perspective_projection_mat(

@@ -60,7 +60,7 @@ public:
                     avg_screen_value, frame_weight, adaptation_rate);
         }
 
-        sp_.use().and_then_with_self([&, this](ActiveShaderProgram& ashp) {
+        sp_.use().and_then([&, this](ActiveShaderProgram& ashp) {
             engine.screen_color().bind_to_unit(GL_TEXTURE0);
             ashp.uniform("color", 0)
                 .uniform("use_reinhard", false)
@@ -109,7 +109,7 @@ private:
         }
 
         reduce_sp_.use()
-            .and_then_with_self([&, this](ActiveShaderProgram& ashp) {
+            .and_then([&, this](ActiveShaderProgram& ashp) {
 
                 engine.screen_color().bind_to_unit(GL_TEXTURE0);
                 ashp.uniform("screen_color", 0);

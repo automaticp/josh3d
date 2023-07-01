@@ -56,7 +56,7 @@ public:
     void operator()(const RenderEnginePrimaryInterface& engine, const entt::registry& registry) {
         using namespace gl;
 
-        sp_.use().and_then_with_self([&, this](ActiveShaderProgram& ashp) {
+        sp_.use().and_then([&, this](ActiveShaderProgram& ashp) {
 
             ashp.uniform(locs_.projection,
                 engine.camera().perspective_projection_mat(

@@ -30,7 +30,7 @@ in terms of these wrappes looks like this:
 or like this:
 
     vao.bind()
-        .and_then_with_self([&](BoundVAO& bvao) {
+        .and_then([&](BoundVAO& bvao) {
             vbo.bind()
                 .associate_with(bvao, attribute_layout)
                 .attach_data(...);

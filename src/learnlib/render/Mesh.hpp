@@ -25,7 +25,7 @@ public:
 
         // Ok, these 'and_then's are getting pretty ridiculous
         vao_.bind()
-            .and_then_with_self([this, &data](BoundVAO& self) {
+            .and_then([this, &data](BoundVAO& self) {
 
                 vbo_.bind()
                     .attach_data(data.vertices().size(), data.vertices().data(), GL_STATIC_DRAW)

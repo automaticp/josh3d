@@ -27,7 +27,7 @@ void RenderEngine::render() {
 
         main_target_.framebuffer()
             .bind_read()
-            .and_then_with_self([this](BoundReadFramebuffer& fbo) {
+            .and_then([this](BoundReadFramebuffer& fbo) {
 
                 BoundDrawFramebuffer::unbind();
 
@@ -44,7 +44,7 @@ void RenderEngine::render() {
         ppdb_.draw_and_swap([this] {
             main_target_.framebuffer()
                 .bind_read()
-                .and_then_with_self([this](BoundReadFramebuffer& fbo) {
+                .and_then([this](BoundReadFramebuffer& fbo) {
 
                     // FIXME: Here I can pass the BoundDrawFramebuffer through the
                     // draw_and_swap() callback. PPDB backbuffer is bound implicitly otherwise.

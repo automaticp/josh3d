@@ -17,7 +17,7 @@ void DeferredGeometryStage::operator()(
 
     gbuffer_->framebuffer().bind_draw().and_then([&, this] {
 
-        sp_.use().and_then_with_self([&, this](ActiveShaderProgram& ashp) {
+        sp_.use().and_then([&, this](ActiveShaderProgram& ashp) {
             ashp.uniform("projection",
                     engine.camera().perspective_projection_mat(
                         engine.window_size().aspect_ratio()

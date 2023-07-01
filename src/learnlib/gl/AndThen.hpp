@@ -16,7 +16,7 @@ creation of bound dummies as lvalues in certain cases.
 Example 1:
 
 dst_framebuffer.bind_draw()
-    .and_then_with_self([&](BoundDrawFramebuffer& dfbo) {
+    .and_then([&](BoundDrawFramebuffer& dfbo) {
         auto [w, h] = window_.getSize();
         src_framebuffer.bind_read()
             .blit_to(dfbo, 0, 0, w, h, 0, 0, w, h, GL_COLOR_BUFFER_BIT, GL_NEAREST)
@@ -28,7 +28,7 @@ dst_framebuffer.bind_draw()
 Example 2:
 
 vao_.bind()
-    .and_then_with_self([&](BoundVAO& self) {
+    .and_then([&](BoundVAO& self) {
 
         vbo_.bind()
             .attach_data(data.vertices().size(), data.vertices().data(), GL_STATIC_DRAW)
@@ -44,14 +44,14 @@ vao_.bind()
 template<typename CRTP>
 class AndThen {
 public:
-    // FIXME: should this only work on rvalues, perhaps?
-    template<typename CallableT>
+
+    template<std::invocable CallableT>
     CRTP& and_then(CallableT&& f) noexcept(noexcept(f())) {
         f();
         return static_cast<CRTP&>(*this);
     }
 
-    template<typename CallableT>
+    template<std::invocable CallableT>
     const CRTP& and_then(CallableT&& f) const noexcept(noexcept(f())) {
         f();
         return static_cast<const CRTP&>(*this);
@@ -59,7 +59,7 @@ public:
 
 
     template<std::invocable<CRTP&> CallableT>
-    CRTP& and_then_with_self(CallableT&& f)
+    CRTP& and_then(CallableT&& f)
         noexcept(noexcept(f(static_cast<CRTP&>(*this))))
     {
         f(static_cast<CRTP&>(*this));
@@ -67,7 +67,7 @@ public:
     }
 
     template<std::invocable<const CRTP&> CallableT>
-    const CRTP& and_then_with_self(CallableT&& f) const
+    const CRTP& and_then(CallableT&& f) const
         noexcept(noexcept(f(static_cast<const CRTP&>(*this))))
     {
         f(static_cast<const CRTP&>(*this));
