@@ -34,7 +34,7 @@ public:
         mesh_.draw();
     }
 
-    void draw(ActiveShaderProgram& asp, const MaterialDSLocations& locations) {
+    void draw(ActiveShaderProgram& asp, const MaterialDS::locations_type& locations) {
         material_.apply(asp, locations);
         mesh_.draw();
     }
@@ -45,7 +45,7 @@ public:
     }
 
     void draw_instanced(ActiveShaderProgram& asp,
-        const MaterialDSLocations& locations, gl::GLsizei count)
+        const MaterialDS::locations_type& locations, gl::GLsizei count)
     {
         material_.apply(asp, locations);
         mesh_.draw_instanced(count);

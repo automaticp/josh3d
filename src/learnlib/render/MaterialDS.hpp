@@ -7,13 +7,6 @@
 namespace learn {
 
 
-struct MaterialDSLocations {
-    ULocation diffuse;
-    ULocation specular;
-    ULocation shininess;
-};
-
-
 /*
 Diffuse-specular material for a classic workflow.
 
@@ -37,12 +30,20 @@ struct MaterialDS {
     Shared<Texture2D> specular;
     gl::GLfloat shininess{};
 
-    using locations_type = MaterialDSLocations;
+
+    struct Locations {
+        ULocation diffuse;
+        ULocation specular;
+        ULocation shininess;
+    };
+
+    using locations_type = MaterialDS::Locations;
+
 
     void apply(ActiveShaderProgram& asp) const;
-    void apply(ActiveShaderProgram& asp, const MaterialDSLocations& locs) const;
-    static MaterialDSLocations query_locations(ActiveShaderProgram& asp);
-    static MaterialDSLocations query_locations(ShaderProgram& sp);
+    void apply(ActiveShaderProgram& asp, const MaterialDS::locations_type& locs) const;
+    static MaterialDS::locations_type query_locations(ActiveShaderProgram& asp);
+    static MaterialDS::locations_type query_locations(ShaderProgram& sp);
 };
 
 

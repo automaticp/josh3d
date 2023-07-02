@@ -11,7 +11,7 @@ void MaterialDS::apply(ActiveShaderProgram& asp) const {
     apply(asp, query_locations(asp));
 }
 
-void MaterialDS::apply(ActiveShaderProgram& asp, const MaterialDSLocations& locations) const {
+void MaterialDS::apply(ActiveShaderProgram& asp, const MaterialDS::locations_type& locations) const {
     using namespace gl;
     diffuse->bind_to_unit(GL_TEXTURE0);
     asp.uniform(locations.diffuse, 0);
@@ -20,16 +20,16 @@ void MaterialDS::apply(ActiveShaderProgram& asp, const MaterialDSLocations& loca
     asp.uniform(locations.shininess, this->shininess);
 }
 
-MaterialDSLocations MaterialDS::query_locations(ActiveShaderProgram& asp) {
-    return MaterialDSLocations{
+MaterialDS::locations_type MaterialDS::query_locations(ActiveShaderProgram& asp) {
+    return MaterialDS::locations_type{
         .diffuse = asp.location_of("material.diffuse"),
         .specular = asp.location_of("material.specular"),
         .shininess = asp.location_of("material.shininess")
     };
 }
 
-MaterialDSLocations MaterialDS::query_locations(ShaderProgram& sp) {
-    return MaterialDSLocations{
+MaterialDS::locations_type MaterialDS::query_locations(ShaderProgram& sp) {
+    return MaterialDS::locations_type{
         .diffuse = sp.location_of("material.diffuse"),
         .specular = sp.location_of("material.specular"),
         .shininess = sp.location_of("material.shininess")
