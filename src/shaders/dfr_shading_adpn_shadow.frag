@@ -48,16 +48,20 @@ layout (std430, binding = 2) restrict readonly buffer point_light_no_shadows_blo
 
 struct DirShadow {
     sampler2D map;
-    vec2 bias_bounds;
-    mat4 projection_view;
-    bool do_cast;
+    vec2  bias_bounds;
+    mat4  projection_view;
+    bool  do_cast;
+    int   pcf_samples;
+    float pcf_offset;
 };
 
 
 struct PointShadow {
     samplerCubeArray maps;
-    vec2 bias_bounds;
+    vec2  bias_bounds;
     float z_far;
+    int   pcf_samples;
+    float pcf_offset;
 };
 
 
@@ -206,24 +210,45 @@ float point_light_shadow_yield(vec3 frag_pos, vec3 normal,
 
     const float frag_depth = length(frag_to_light);
 
-    // Normalized depth value in [0, 1]
-    float shadow_depth =
-        texture(point_shadow.maps,
-            vec4(frag_to_light, shadow_map_idx)).r;
-
-    // Transofrm back to [0, z_far]
-    shadow_depth *= point_shadow.z_far;
-
     const float total_bias = max(
-        point_shadow.bias_bounds.x,
-        point_shadow.bias_bounds.y * (1.0 - dot(normal, normalize(frag_to_light)))
+        point_shadow.bias_bounds[0],
+        point_shadow.bias_bounds[1] *
+            (1.0 - dot(normal, normalize(frag_to_light)))
     );
 
-    const float shadow_yield =
-        frag_depth - total_bias > shadow_depth ? 1.0 : 0.0;
 
-    return shadow_yield;
+    // Do PCF sampling.
 
+    float yield = 0.0;
+
+    const int pcf_samples = point_shadow.pcf_samples;
+    const float pcf_offset = point_shadow.pcf_offset;
+
+    for (int x = -pcf_samples; x <= pcf_samples; ++x) {
+        for (int y = -pcf_samples; y <= pcf_samples; ++y) {
+            for (int z = -pcf_samples; z <= pcf_samples; ++z) {
+
+                const vec3 sample_dir = frag_to_light +
+                    pcf_offset * vec3(x, y, z) / pcf_samples;
+
+                // Normalized depth value in [0, 1]
+                float pcf_depth = texture(point_shadow.maps,
+                    vec4(sample_dir, shadow_map_idx)).r;
+
+                // Transofrm back to [0, z_far]
+                pcf_depth *= point_shadow.z_far;
+
+
+                yield +=
+                    frag_depth - total_bias > pcf_depth ? 1.0 : 0.0;
+
+            }
+        }
+    }
+
+    const int pcf_width = 1 + 2 * pcf_samples;
+
+    return yield / (pcf_width * pcf_width * pcf_width);
 }
 
 
@@ -282,16 +307,38 @@ float dir_light_shadow_yield(vec3 frag_pos, vec3 normal) {
     const float frag_depth = proj_coords.z;
 
     const float total_bias = max(
-        dir_shadow.bias_bounds.x,
-        dir_shadow.bias_bounds.y * (1.0 - dot(normal, normalize(dir_light.direction)))
+        dir_shadow.bias_bounds[0],
+        dir_shadow.bias_bounds[1] *
+            (1.0 - dot(normal, normalize(dir_light.direction)))
     );
 
-    const float shadow_depth =
-        texture(dir_shadow.map, proj_coords.xy).r;
 
+    // Do PCF sampling.
 
-    return frag_depth - total_bias > shadow_depth ? 1.0 : 0.0;
+    float yield = 0.0;
 
+    const vec2 texel_size = 1.0 / textureSize(dir_shadow.map, 0);
+    const int pcf_samples = dir_shadow.pcf_samples;
+
+    for (int x = -pcf_samples; x <= pcf_samples; ++x) {
+        for (int y = -pcf_samples; y <= pcf_samples; ++y) {
+
+            const vec2 offset =
+                vec2(x, y) * texel_size * dir_shadow.pcf_offset;
+
+            const float pcf_depth =
+                texture(dir_shadow.map, proj_coords.xy + offset).r;
+
+            yield +=
+                frag_depth - total_bias > pcf_depth ? 1.0 : 0.0;
+        }
+    }
+
+    // Size of N dimension for NxN PCF kernel.
+    const int pcf_width = 1 + 2 * pcf_samples;
+
+    // Normalize and return.
+    return yield / (pcf_width * pcf_width);
 }
 
 

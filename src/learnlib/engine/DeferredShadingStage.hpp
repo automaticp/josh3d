@@ -1,5 +1,6 @@
 #pragma once
 #include "GLShaders.hpp"
+#include "GLScalars.hpp"
 #include "LightCasters.hpp"
 #include "PostprocessRenderer.hpp"
 #include "QuadRenderer.hpp"
@@ -20,14 +21,14 @@ class DeferredShadingStage {
 public:
     struct PointShadowParams {
         glm::vec2 bias_bounds{ 0.0001f, 0.08f };
-        // gl::GLint pcf_samples{ 1 };
-        // float     pcf_offset{ 0.01f };
-        // bool      use_fixed_pcf_samples{ true };
+        GLint   pcf_samples{ 1 };
+        GLfloat pcf_offset{ 0.01f };
     };
 
     struct DirShadowParams {
         glm::vec2 bias_bounds{ 0.0001f, 0.0015f };
-        // gl::GLint pcf_samples{ 1 };
+        GLint   pcf_samples{ 1 };
+        GLfloat pcf_offset{ 1.0f };
     };
 
 private:
