@@ -120,7 +120,7 @@ void ForwardRenderingStage::draw_scene(
         for (auto [e, transform, mesh, material]
             : registry.view<Transform, Mesh, MaterialDS>().each())
         {
-            const ChildMesh* as_child = registry.try_get<ChildMesh>(e);
+            const components::ChildMesh* as_child = registry.try_get<components::ChildMesh>(e);
 
             auto model_transform = [&]() -> MTransform {
                 if (as_child) {

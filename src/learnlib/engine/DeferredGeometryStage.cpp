@@ -27,7 +27,7 @@ void DeferredGeometryStage::operator()(
 
 
             for (auto [_, transform, mesh, material]
-                : registry.view<Transform, Mesh, MaterialDS>(entt::exclude<ChildMesh>).each())
+                : registry.view<Transform, Mesh, MaterialDS>(entt::exclude<components::ChildMesh>).each())
             {
                 auto model_transform = transform.mtransform();
                 ashp.uniform("model", model_transform.model())
@@ -39,7 +39,7 @@ void DeferredGeometryStage::operator()(
 
 
             for (auto [_, transform, mesh, material, as_child]
-                : registry.view<Transform, Mesh, MaterialDS, ChildMesh>().each())
+                : registry.view<Transform, Mesh, MaterialDS, components::ChildMesh>().each())
             {
                 auto model_transform =
                     registry.get<Transform>(as_child.parent).mtransform() *

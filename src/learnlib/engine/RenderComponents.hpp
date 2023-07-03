@@ -1,6 +1,8 @@
 #pragma once
 #include "GLObjects.hpp"
+#include "Model.hpp"
 #include "Shared.hpp"
+#include <entt/entity/entity.hpp>
 #include <string>
 
 
@@ -36,6 +38,20 @@ struct Name {
 struct Path {
     std::string path;
 };
+
+
+struct ChildMesh {
+    entt::entity parent;
+
+    ChildMesh(entt::entity parent_entity)
+        : parent{ parent_entity }
+    {
+        assert(parent != entt::null);
+    }
+};
+
+
+using Model = ModelComponent;
 
 
 } // namespace learn::components

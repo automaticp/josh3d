@@ -319,7 +319,7 @@ private:
 
 
             // Link ModelComponent and Mesh.
-            r.emplace<ChildMesh>(new_entity, ecs_context.model_entity);
+            r.emplace<components::ChildMesh>(new_entity, ecs_context.model_entity);
             output.meshes.emplace_back(new_entity);
 
             // FIXME: Transform Component?

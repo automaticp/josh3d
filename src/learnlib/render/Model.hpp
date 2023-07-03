@@ -18,7 +18,7 @@ Mesh entity:
 Mesh
 Transform
 Material (optional)
-ChildMesh (optional)
+components::ChildMesh (optional)
 
 Model entity:
 
@@ -38,16 +38,6 @@ public:
     const std::vector<entt::entity>& meshes() const noexcept { return meshes_; }
 };
 
-
-struct ChildMesh {
-    entt::entity parent;
-
-    ChildMesh(entt::entity parent_entity)
-        : parent{ parent_entity }
-    {
-        assert(parent != entt::null);
-    }
-};
 
 
 

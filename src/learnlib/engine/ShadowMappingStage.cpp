@@ -131,7 +131,7 @@ static void draw_all_world_geometry(ActiveShaderProgram& ashp,
 {
 
     for (auto [_, transform, mesh]
-        : registry.view<Transform, Mesh>(entt::exclude<ChildMesh>).each())
+        : registry.view<Transform, Mesh>(entt::exclude<components::ChildMesh>).each())
     {
         ashp.uniform("model", transform.mtransform().model());
         mesh.draw();
@@ -139,7 +139,7 @@ static void draw_all_world_geometry(ActiveShaderProgram& ashp,
 
 
     for (auto [_, transform, mesh, as_child]
-        : registry.view<Transform, Mesh, ChildMesh>().each())
+        : registry.view<Transform, Mesh, components::ChildMesh>().each())
     {
         const Transform& parent_transform =
             registry.get<Transform>(as_child.parent);
