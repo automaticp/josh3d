@@ -1,29 +1,29 @@
 #pragma once
+#include "GLObjects.hpp"
+#include "GLScalars.hpp"
+#include "GlobalsUtil.hpp"
+#include "Mesh.hpp"
+#include "MeshData.hpp"
+#include "Model.hpp"
+#include "RenderComponents.hpp"
+#include "Transform.hpp"
+#include "Vertex.hpp"
+#include <assimp/Exceptional.h>
+#include <assimp/Importer.hpp>
 #include <assimp/material.h>
-#include <stdexcept>
-#include <vector>
-#include <span>
-#include <string>
-#include <utility>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
+#include <entt/entity/fwd.hpp>
+#include <entt/entt.hpp>
+#include <glbinding/gl/gl.h>
+#include <cassert>
 #include <cstddef>
 #include <memory>
-#include <cassert>
-#include <glbinding/gl/gl.h>
-#include <assimp/Importer.hpp>
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
-#include <assimp/Exceptional.h>
-
-#include "GLObjects.hpp"
-#include "TextureHandlePool.hpp"
-#include "GLObjectPool.hpp"
-#include "GlobalsGL.hpp"
-#include "GlobalsUtil.hpp"
-#include "MaterialDS.hpp"
-#include "MeshData.hpp"
-#include "DrawableMesh.hpp"
-#include "Vertex.hpp"
-#include "Model.hpp"
+#include <span>
+#include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
 
 
 namespace learn {
@@ -31,8 +31,7 @@ namespace learn {
 
 
 
-inline std::vector<gl::GLuint> get_element_data(const aiMesh* mesh) {
-    using namespace gl;
+inline std::vector<GLuint> get_element_data(const aiMesh* mesh) {
     std::vector<GLuint> indices;
     indices.reserve(mesh->mNumFaces * 3ull);
 
@@ -45,12 +44,15 @@ inline std::vector<gl::GLuint> get_element_data(const aiMesh* mesh) {
 }
 
 
-// Provide specialization for your own Vertex layout
-template<typename V>
-std::vector<V> get_vertex_data(const aiMesh* mesh);
+// Provide specialization for your own Vertex layout.
+template<typename VertexT>
+std::vector<VertexT> get_vertex_data(const aiMesh* mesh);
 
 
-
+// Provide specialization for you own Material type.
+template<typename MaterialT>
+MaterialT get_material(const struct ModelLoadingContext& context,
+    const aiMesh* mesh);
 
 
 namespace error {
@@ -77,9 +79,14 @@ public:
 
 
 
+namespace detail {
 
-// Base component that deals with flags
-// and other common things.
+
+
+/*
+Base implementation component that deals with flags
+and other common things.
+*/
 template<typename CRTP>
 class AssimpLoaderBase {
 public:
@@ -132,13 +139,25 @@ public:
 };
 
 
+} // namespace detail
 
-// Simple loader that aggregates mesh data
-// and skips materials.
+
+
+
+
+/*
+Simple loader that aggregates mesh data
+and skips materials.
+
+TODO: Still used in PointLightBoxStage but should
+be deprecated otherwise.
+*/
 template<typename V = Vertex>
-class AssimpMeshDataLoader : public AssimpLoaderBase<AssimpMeshDataLoader<V>> {
+class AssimpMeshDataLoader
+    : public detail::AssimpLoaderBase<AssimpMeshDataLoader<V>>
+{
 private:
-    using Base = AssimpLoaderBase<AssimpMeshDataLoader<V>>;
+    using Base = detail::AssimpLoaderBase<AssimpMeshDataLoader<V>>;
     using Base::importer_;
     using Base::flags_;
 
@@ -192,118 +211,136 @@ private:
 
 
 
-template<typename V = Vertex>
-class AssimpModelLoader : public AssimpLoaderBase<AssimpModelLoader<V>> {
+
+
+
+
+
+struct ModelLoadingContext {
+    const aiScene* scene{};
+    std::string path;
+    std::string directory;
+};
+
+
+
+
+class ModelComponentLoader
+    : public detail::AssimpLoaderBase<ModelComponentLoader>
+{
 private:
-    using Base = AssimpLoaderBase<AssimpModelLoader<V>>;
+    using Base = AssimpLoaderBase<ModelComponentLoader>;
     using Base::importer_;
     using Base::flags_;
 
-    // Per-load state.
-    std::vector<DrawableMesh> meshes_;
-    std::vector<MeshData<V>> mesh_data_;
-    const aiScene* scene_;
-    std::string path_;
-    std::string directory_;
+    template<typename VertexT, typename MaterialT>
+    struct Output {
+        std::vector<entt::entity> meshes;
+    };
+
+    struct ECSContext {
+        entt::registry& registry;
+        entt::entity model_entity;
+
+        ECSContext(entt::registry& registry,
+            entt::entity model_entity)
+            : registry{ registry }
+            , model_entity{ model_entity }
+        {}
+    };
 
 public:
     using Base::Base;
 
-    [[nodiscard]]
-    Model get() {
-        return Model{ std::move(meshes_) };
-    }
 
-    AssimpModelLoader& load(const std::string& path) {
-
+    // For cases where VertexT and MaterialT are known.
+    template<typename VertexT, typename MaterialT>
+    ModelComponent& load_into(entt::registry& registry,
+        entt::entity model_entity, const char* path)
+    {
         const aiScene* new_scene{ importer_.ReadFile(path, flags_) };
 
         if (!new_scene) {
-            globals::logstream << "[Assimp Error] " << importer_.GetErrorString() << '\n';
             throw error::AssimpLoaderIOError(importer_.GetErrorString());
         }
 
-        scene_ = new_scene;
-        path_ = path;
-        directory_ = path.substr(0ull, path.find_last_of('/') + 1);
 
-        // THIS IS I/O, WHAT GODDAMN ASSERTS ARE WE TALKING ABOUT???
-        // assert(scene_->mNumMeshes);
+        Output<VertexT, MaterialT> output{};
 
-        meshes_.reserve(scene_->mNumMeshes);
-        mesh_data_.reserve(scene_->mNumMeshes);
-        process_node(scene_->mRootNode);
+        ModelLoadingContext context{
+            .scene=new_scene
+        };
 
-        return *this;
+        context.path = path;
+        context.directory =
+            context.path.substr(0ull, context.path.find_last_of('/') + 1);
+
+        output.meshes.reserve(context.scene->mNumMeshes);
+
+        ECSContext ecs_context{ registry, model_entity };
+
+        process_node(
+            output, ecs_context, context, context.scene->mRootNode
+        );
+
+        return registry.emplace<ModelComponent>(model_entity, std::move(output.meshes));
     }
 
 
 private:
-    void process_node(aiNode* node) {
-
-        for (auto mesh_id : std::span(node->mMeshes, node->mNumMeshes)) {
-            aiMesh* mesh{ scene_->mMeshes[mesh_id] };
-            mesh_data_.emplace_back(
-                get_vertex_data<V>(mesh), get_element_data(mesh)
-            );
-            meshes_.emplace_back(mesh_data_.back(), get_material(mesh));
-        }
-
-        for (auto child : std::span(node->mChildren, node->mNumChildren)) {
-            process_node(child);
-        }
-    }
-
-    // Could be a template of MaterialT with the user providing an implementation.
-    MaterialDS get_material(const aiMesh* mesh) {
-
-        aiMaterial* material{ scene_->mMaterials[mesh->mMaterialIndex] };
-
-        Shared<Texture2D> diffuse =
-            get_texture_from_material(material, aiTextureType_DIFFUSE);
-
-        Shared<Texture2D> specular =
-            get_texture_from_material(material, aiTextureType_SPECULAR);
-
-        if (!diffuse) { diffuse = globals::default_diffuse_texture; }
-        if (!specular) { specular = globals::default_specular_texture; }
-
-        return MaterialDS{
-            .diffuse = std::move(diffuse),
-            .specular = std::move(specular),
-            .shininess = 128.f
-        };
-
-    }
-
-    Shared<Texture2D> get_texture_from_material(
-        const aiMaterial* material, aiTextureType type)
+    template<typename VertexT, typename MaterialT>
+    void process_node(
+        Output<VertexT, MaterialT>& output,
+        ECSContext& ecs_context,
+        const ModelLoadingContext& context,
+        aiNode* node)
     {
 
-        if (material->GetTextureCount(type) == 0) {
-            return nullptr;
+        for (auto mesh_id
+            : std::span(node->mMeshes, node->mNumMeshes))
+        {
+            aiMesh* mesh = context.scene->mMeshes[mesh_id];
+
+            MeshData mesh_data{
+                get_vertex_data<VertexT>(mesh),
+                get_element_data(mesh)
+            };
+
+            // TODO: Maybe cache mesh_data here.
+
+            auto& r = ecs_context.registry;
+            auto new_entity = r.create();
+
+            r.emplace<Mesh>(new_entity, mesh_data);
+
+
+            // Point of type erasure for MaterialT.
+            r.emplace<MaterialT>(new_entity, get_material<MaterialT>(context, mesh));
+
+
+            // Link ModelComponent and Mesh.
+            r.emplace<ChildMesh>(new_entity, ecs_context.model_entity);
+            output.meshes.emplace_back(new_entity);
+
+            // FIXME: Transform Component?
+            r.emplace<Transform>(new_entity);
+
+            r.emplace<components::Name>(new_entity, mesh->mName.C_Str());
+
         }
 
-        aiString filename;
-        material->GetTexture(type, 0ull, &filename);
 
-        std::string full_path{ directory_ + filename.C_Str() };
-
-        TextureType tex_type{};
-        switch (type) {
-            case aiTextureType_DIFFUSE: tex_type = TextureType::diffuse; break;
-            case aiTextureType_SPECULAR: tex_type = TextureType::specular; break;
-            default: tex_type = TextureType::specular;
+        for (auto child
+            : std::span(node->mChildren, node->mNumChildren))
+        {
+            process_node(output, ecs_context, context, child);
         }
-
-        // FIXME: pool should be a c-tor parameter of something
-        return globals::texture_handle_pool.load(
-            full_path, TextureHandleLoadContext{ tex_type }
-        );
     }
 
-};
 
+
+
+};
 
 
 
