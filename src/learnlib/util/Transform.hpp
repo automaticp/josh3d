@@ -147,6 +147,10 @@ public:
         return glm::scale(model_, xyz_scaling);
     }
 
+    MTransform operator*(const MTransform& other) const noexcept {
+        return { this->model() * other.model() };
+    }
+
 };
 
 
