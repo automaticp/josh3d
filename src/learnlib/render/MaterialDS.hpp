@@ -1,6 +1,7 @@
 #pragma once
 #include "MaterialConcept.hpp"
 #include "GLObjects.hpp"
+#include "GLScalars.hpp"
 #include "Shared.hpp"
 #include "ULocation.hpp"
 
@@ -28,7 +29,7 @@ uniform struct Material {
 struct MaterialDS {
     Shared<Texture2D> diffuse;
     Shared<Texture2D> specular;
-    gl::GLfloat shininess{};
+    GLfloat shininess{};
 
 
     struct Locations {
@@ -41,9 +42,9 @@ struct MaterialDS {
 
 
     void apply(ActiveShaderProgram& asp) const;
-    void apply(ActiveShaderProgram& asp, const MaterialDS::locations_type& locs) const;
-    static MaterialDS::locations_type query_locations(ActiveShaderProgram& asp);
-    static MaterialDS::locations_type query_locations(ShaderProgram& sp);
+    void apply(ActiveShaderProgram& asp, const locations_type& locs) const;
+    static locations_type query_locations(ActiveShaderProgram& asp);
+    static locations_type query_locations(ShaderProgram& sp);
 };
 
 
