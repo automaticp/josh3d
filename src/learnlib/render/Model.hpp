@@ -1,8 +1,9 @@
 #pragma once
-#include "DrawableMesh.hpp"
 #include "GLObjects.hpp"
-
+#include <entt/entity/entity.hpp>
+#include <entt/entity/registry.hpp>
 #include <glbinding/gl/types.h>
+#include <cassert>
 #include <utility>
 #include <vector>
 
@@ -11,49 +12,42 @@
 namespace learn {
 
 
-// Model is a collection of DrawableMeshes;
-// DrawableMesh is a pair of a Mesh and a Material;
-// Mesh is vertex data on the GPU;
-// Material is texture data on the GPU and material parameters.
-class Model {
+/*
+Mesh entity:
+
+Mesh
+Transform
+Material (optional)
+ChildMesh (optional)
+
+Model entity:
+
+set<Mesh>
+Transform
+
+*/
+class ModelComponent {
 private:
-    std::vector<DrawableMesh> meshes_;
+    std::vector<entt::entity> meshes_;
 
 public:
-    explicit Model(std::vector<DrawableMesh> meshes) : meshes_{ std::move(meshes) } {}
+    explicit ModelComponent(std::vector<entt::entity> meshes)
+        : meshes_{ std::move(meshes) }
+    {}
 
-    const auto& drawable_meshes() const noexcept { return meshes_; }
-    auto& drawable_meshes() noexcept { return meshes_; }
-
-
-    void draw(ActiveShaderProgram& asp) {
-        for (DrawableMesh& drawable : meshes_) {
-            drawable.draw(asp);
-        }
-    }
-
-    void draw(ActiveShaderProgram& asp, const MaterialDS::locations_type& locations) {
-        for (DrawableMesh& drawable : meshes_) {
-            drawable.draw(asp, locations);
-        }
-    }
-
-    void draw_instanced(ActiveShaderProgram& asp, gl::GLsizei count) {
-        for (DrawableMesh& drawable : meshes_) {
-            drawable.draw_instanced(asp, count);
-        }
-    }
-
-    void draw_instanced(ActiveShaderProgram& asp,
-        const MaterialDS::locations_type& locations, gl::GLsizei count)
-    {
-        for (DrawableMesh& drawable : meshes_) {
-            drawable.draw_instanced(asp, locations, count);
-        }
-    }
-
+    const std::vector<entt::entity>& meshes() const noexcept { return meshes_; }
 };
 
+
+struct ChildMesh {
+    entt::entity parent;
+
+    ChildMesh(entt::entity parent_entity)
+        : parent{ parent_entity }
+    {
+        assert(parent != entt::null);
+    }
+};
 
 
 
