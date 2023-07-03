@@ -5,7 +5,6 @@
 #include "Camera.hpp"
 #include "CubemapData.hpp"
 #include "DataPool.hpp"
-#include "DrawableMesh.hpp"
 #include "FrameTimer.hpp"
 #include "Globals.hpp"
 #include "GlobalsData.hpp"
