@@ -1,6 +1,9 @@
 #include "ShadowMappingStage.hpp"
+#include "GLShaders.hpp"
 #include "LightCasters.hpp"
+#include "MaterialDS.hpp"
 #include "RenderComponents.hpp"
+#include "Mesh.hpp"
 #include "Model.hpp"
 #include "RenderComponents.hpp"
 #include "Shared.hpp"
@@ -119,6 +122,44 @@ void ShadowMappingStage::map_point_light_shadows(
 
 
 
+
+
+
+
+static void draw_all_world_geometry(ActiveShaderProgram& ashp,
+    const entt::registry& registry)
+{
+
+    for (auto [_, transform, mesh]
+        : registry.view<Transform, Mesh>(entt::exclude<ChildMesh>).each())
+    {
+        ashp.uniform("model", transform.mtransform().model());
+        mesh.draw();
+    }
+
+
+    for (auto [_, transform, mesh, as_child]
+        : registry.view<Transform, Mesh, ChildMesh>().each())
+    {
+        const Transform& parent_transform =
+            registry.get<Transform>(as_child.parent);
+
+        const MTransform full_model_matrix =
+            parent_transform.mtransform() * transform.mtransform();
+
+        ashp.uniform("model", full_model_matrix.model());
+        mesh.draw();
+    }
+
+}
+
+
+
+
+
+
+
+
 void ShadowMappingStage::draw_scene_depth_onto_cubemap(
     ActiveShaderProgram& ashp, const entt::registry& registry,
     const glm::vec3& position, gl::GLint cubemap_id)
@@ -157,15 +198,8 @@ void ShadowMappingStage::draw_scene_depth_onto_cubemap(
 
     ashp.uniform("z_far", point_params().z_near_far.y);
 
-    for (auto [_, transform, model]
-        : registry.view<Transform, Shared<Model>>().each())
-    {
-        ashp.uniform("model", transform.mtransform().model());
-        for (auto& drawable : model->drawable_meshes()) {
-            drawable.mesh().draw();
-        }
-    }
 
+    draw_all_world_geometry(ashp, registry);
 }
 
 
@@ -233,16 +267,7 @@ void ShadowMappingStage::draw_scene_depth_onto_texture(
     ashp.uniform("projection", projection)
         .uniform("view",       view);
 
-    for (auto [_, transform, model]
-        : registry.view<Transform, Shared<Model>>().each())
-    {
-        ashp.uniform("model", transform.mtransform().model());
-
-        for (auto& drawable : model->drawable_meshes()) {
-            drawable.mesh().draw();
-        }
-    }
-
+    draw_all_world_geometry(ashp, registry);
 }
 
 

@@ -1,7 +1,7 @@
 #include "DeferredGeometryStage.hpp"
 #include "GLShaders.hpp"
+#include "MaterialDS.hpp"
 #include "RenderEngine.hpp"
-#include "Shared.hpp"
 #include "Model.hpp"
 #include <entt/entt.hpp>
 
@@ -25,15 +25,33 @@ void DeferredGeometryStage::operator()(
                 )
                 .uniform("view", engine.camera().view_mat());
 
-            for (auto [_, transform, model]
-                : registry.view<Transform, Shared<Model>>().each())
+
+            for (auto [_, transform, mesh, material]
+                : registry.view<Transform, Mesh, MaterialDS>(entt::exclude<ChildMesh>).each())
             {
                 auto model_transform = transform.mtransform();
                 ashp.uniform("model", model_transform.model())
                     .uniform("normal_model", model_transform.normal_model());
 
-                model->draw(ashp);
+                material.apply(ashp);
+                mesh.draw();
             }
+
+
+            for (auto [_, transform, mesh, material, as_child]
+                : registry.view<Transform, Mesh, MaterialDS, ChildMesh>().each())
+            {
+                auto model_transform =
+                    registry.get<Transform>(as_child.parent).mtransform() *
+                        transform.mtransform();
+
+                ashp.uniform("model", model_transform.model())
+                    .uniform("normal_model", model_transform.normal_model());
+
+                material.apply(ashp);
+                mesh.draw();
+            }
+
 
         });
 

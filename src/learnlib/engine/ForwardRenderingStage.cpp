@@ -3,6 +3,7 @@
 #include "LightCasters.hpp"
 #include "RenderComponents.hpp"
 #include "RenderEngine.hpp"
+#include "Transform.hpp"
 #include <entt/entt.hpp>
 #include <imgui.h>
 #include <range/v3/all.hpp>
@@ -115,15 +116,27 @@ void ForwardRenderingStage::draw_scene(
             .uniform("point_light_use_fixed_pcf_samples", point_params.use_fixed_pcf_samples);
 
 
-        // Now for the actual models.
-        for (auto [_, transform, model]
-            : registry.view<Transform, Shared<Model>>().each())
+        // Now for the actual meshes.
+        for (auto [e, transform, mesh, material]
+            : registry.view<Transform, Mesh, MaterialDS>().each())
         {
-            auto model_transform = transform.mtransform();
+            const ChildMesh* as_child = registry.try_get<ChildMesh>(e);
+
+            auto model_transform = [&]() -> MTransform {
+                if (as_child) {
+                    return registry.get<Transform>(as_child->parent).mtransform() *
+                        transform.mtransform();
+                } else {
+                    return transform.mtransform();
+                }
+            }();
+
             ashp.uniform("model",        model_transform.model())
                 .uniform("normal_model", model_transform.normal_model());
 
-            model->draw(ashp);
+            material.apply(ashp);
+            mesh.draw();
+            // model->draw(ashp);
         }
 
 
