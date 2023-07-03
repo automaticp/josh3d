@@ -23,12 +23,13 @@ std::ostream& logstream{ std::clog };
 
 Shared<Texture2D> default_diffuse_texture;
 Shared<Texture2D> default_specular_texture;
+Shared<Texture2D> default_normal_texture;
 
 
 
 
 static TextureData fill_default(std::array<unsigned char, 4> rgba) {
-    TextureData img{ 2, 2, 4 };
+    TextureData img{ 1, 1, 4 };
     const size_t n_channels = img.n_channels();
     for (size_t i{ 0 }; i < img.n_pixels(); ++i) {
         const size_t idx = i * n_channels;
@@ -55,18 +56,26 @@ static Shared<Texture2D> init_default_specular_texture() {
     return handle;
 }
 
+static Shared<Texture2D> init_default_normal_texture() {
+    auto tex = fill_default({ 0x00, 0xFF, 0x00, 0xFF });
+    auto handle = std::make_shared<Texture2D>();
+    handle->bind().attach_data(tex, gl::GL_RGBA).unbind();
+    return handle;
+}
 
 
 void init_all() {
     default_diffuse_texture = init_default_diffuse_texture();
     default_specular_texture = init_default_specular_texture();
+    default_normal_texture = init_default_normal_texture();
 }
 
 void clear_all() {
     texture_data_pool.clear();
     texture_handle_pool.clear();
-    default_diffuse_texture = nullptr;
-    default_specular_texture = nullptr;
+    default_diffuse_texture.reset();
+    default_specular_texture.reset();
+    default_normal_texture.reset();
 }
 
 

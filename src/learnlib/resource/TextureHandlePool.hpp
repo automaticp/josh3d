@@ -2,8 +2,8 @@
 #include "GLObjects.hpp"
 #include "TextureData.hpp"
 #include "GLObjectPool.hpp"
-#include <concepts>
 #include <glbinding/gl/enum.h>
+#include <concepts>
 #include <type_traits>
 
 
@@ -14,7 +14,8 @@ namespace learn {
 enum class TextureType {
     default_,
     diffuse,
-    specular
+    specular,
+    normal
     // Extend later
 };
 
@@ -39,8 +40,9 @@ inline TextureHandlePool::load_data_from(const std::string& path,
 
     gl::GLenum internal_format;
     switch (context.type) {
-        case TextureType::diffuse: internal_format = gl::GL_SRGB_ALPHA; break;
+        case TextureType::diffuse:  internal_format = gl::GL_SRGB_ALPHA; break;
         case TextureType::specular: internal_format = gl::GL_RGBA; break;
+        case TextureType::normal:   internal_format = gl::GL_RGBA; break;
         default: internal_format = gl::GL_RGBA;
     }
 

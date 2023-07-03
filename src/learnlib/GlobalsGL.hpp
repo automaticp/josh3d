@@ -12,6 +12,7 @@ extern TextureHandlePool texture_handle_pool;
 
 extern Shared<Texture2D> default_diffuse_texture;
 extern Shared<Texture2D> default_specular_texture;
+extern Shared<Texture2D> default_normal_texture;
 
 
 }
