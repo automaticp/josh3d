@@ -1,5 +1,6 @@
 #pragma once
 #include "GLObjectHandles.hpp"
+#include "GLScalars.hpp"
 #include "AndThen.hpp"
 #include "VertexTraits.hpp"
 #include <glbinding/gl/gl.h>
@@ -19,6 +20,49 @@ and then reexpose the symbols back to this namespace at the end
 with 'using leaksgl::Type' declarations.
 */
 
+
+namespace detail {
+
+
+template<typename CRTP>
+class VAODraw {
+public:
+    CRTP& draw_arrays(GLenum mode, GLint first, GLsizei count) {
+        gl::glDrawArrays(mode, first, count);
+        return as_self();
+    }
+
+    CRTP& draw_elements(GLenum mode, GLsizei count, GLenum type,
+        const void* indices_buffer = nullptr)
+    {
+        glDrawElements(mode, count, type, indices_buffer);
+        return as_self();
+    }
+
+    CRTP& draw_arrays_instanced(GLenum mode, GLint first,
+        GLsizei count, GLsizei instance_count)
+    {
+        glDrawArraysInstanced(mode, first, count, instance_count);
+        return as_self();
+    }
+
+    CRTP& draw_elements_instanced(GLenum mode,
+        GLsizei elem_count, GLenum type, GLsizei instance_count,
+        const void* indices_buffer = nullptr)
+    {
+        glDrawElementsInstanced(mode, elem_count, type, indices_buffer, instance_count);
+        return as_self();
+    }
+
+private:
+    CRTP& as_self() noexcept { return static_cast<CRTP&>(*this); }
+};
+
+
+} // namespace detail
+
+
+
 namespace leaksgl {
 
 using namespace gl;
@@ -28,12 +72,27 @@ using namespace gl;
 
 
 
+class BoundConstVAO
+    : public detail::AndThen<BoundConstVAO>
+    , public detail::VAODraw<BoundConstVAO>
+{
+private:
+    friend class VAO;
+    BoundConstVAO() = default;
+
+public:
+    static void unbind() {
+        glBindVertexArray(0u);
+    }
+};
 
 
 
 
-
-class BoundVAO : public detail::AndThen<BoundVAO> {
+class BoundVAO
+    : public detail::AndThen<BoundVAO>
+    , public detail::VAODraw<BoundVAO>
+{
 private:
     friend class VAO;
     BoundVAO() = default;
@@ -46,33 +105,6 @@ public:
 
     BoundVAO& disable_array_access(GLuint attrib_index) {
         glDisableVertexAttribArray(attrib_index);
-        return *this;
-    }
-
-    BoundVAO& draw_arrays(GLenum mode, GLint first, GLsizei count) {
-        glDrawArrays(mode, first, count);
-        return *this;
-    }
-
-    BoundVAO& draw_elements(GLenum mode, GLsizei count, GLenum type,
-        const void* indices_buffer = nullptr)
-    {
-        glDrawElements(mode, count, type, indices_buffer);
-        return *this;
-    }
-
-    BoundVAO& draw_arrays_instanced(GLenum mode, GLint first,
-        GLsizei count, GLsizei instance_count)
-    {
-        glDrawArraysInstanced(mode, first, count, instance_count);
-        return *this;
-    }
-
-    BoundVAO& draw_elements_instanced(GLenum mode,
-        GLsizei elem_count, GLenum type, GLsizei instance_count,
-        const void* indices_buffer = nullptr)
-    {
-        glDrawElementsInstanced(mode, elem_count, type, indices_buffer, instance_count);
         return *this;
     }
 
@@ -115,9 +147,16 @@ public:
 };
 
 
+
+
 class VAO : public VAOHandle {
 public:
     BoundVAO bind() {
+        glBindVertexArray(id_);
+        return {};
+    }
+
+    BoundConstVAO bind() const {
         glBindVertexArray(id_);
         return {};
     }
