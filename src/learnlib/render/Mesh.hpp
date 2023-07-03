@@ -1,5 +1,6 @@
 #pragma once
 #include "GLObjects.hpp"
+#include "GLScalars.hpp"
 #include "MeshData.hpp"
 #include "VertexTraits.hpp"
 
@@ -14,14 +15,14 @@ private:
     VBO vbo_;
     VAO vao_;
     EBO ebo_;
-    gl::GLsizei num_elements_;
+    GLsizei num_elements_;
 
 public:
     template<typename V>
     Mesh(const MeshData<V>& data)
         : num_elements_{ static_cast<gl::GLsizei>(data.elements().size()) }
     {
-        using namespace gl;
+        using enum GLenum;
 
         // Ok, these 'and_then's are getting pretty ridiculous
         vao_.bind()
@@ -38,16 +39,16 @@ public:
             .unbind();
     }
 
-    void draw() {
-        using namespace gl;
+    void draw() const {
+        using enum GLenum;
 
         vao_.bind()
            .draw_elements(GL_TRIANGLES, num_elements_, GL_UNSIGNED_INT);
     }
 
 
-    void draw_instanced(gl::GLsizei count) {
-        using namespace gl;
+    void draw_instanced(GLsizei count) const {
+        using enum GLenum;
 
         vao_.bind()
             .draw_elements_instanced(GL_TRIANGLES, num_elements_, GL_UNSIGNED_INT, count);

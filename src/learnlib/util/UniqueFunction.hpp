@@ -13,9 +13,18 @@
 namespace learn {
 
 
-// Simplified move_only_function implementation because I JUST CANNOT.
-// TODO: Most likely broken in some way, so check later.
+/*
+A type-erased function wrapper similar to std::move_only_function
+and std::function with key features:
 
+  - Guaranteed stable storage of the target callable accessed
+    through target()/target_unchecked() member functions.
+    It follows that there's no small buffer/object optimisation.
+
+  - RTTI-enabled queries of the callable via target_type() and
+    dynamic_cast-like target() function.
+
+*/
 template<typename Signature>
 class UniqueFunction;
 

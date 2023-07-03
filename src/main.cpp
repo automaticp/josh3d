@@ -3,7 +3,6 @@
 #include <glfwpp/glfwpp.h>
 
 #include "GlobalsUtil.hpp"
-#include "BoxScene.hpp"
 #include "DemoScene.hpp"
 
 
