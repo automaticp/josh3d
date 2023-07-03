@@ -11,6 +11,7 @@
 #include "ImGuiStageHooks.hpp"
 #include "ImGuiWindowSettings.hpp"
 #include "LightCasters.hpp"
+#include "MaterialDS.hpp"
 #include "Model.hpp"
 #include "PointLightSourceBoxStage.hpp"
 #include "PostprocessBloomStage.hpp"
@@ -26,6 +27,7 @@
 #include "Shared.hpp"
 #include "SkyboxStage.hpp"
 #include "RenderComponents.hpp"
+#include "Vertex.hpp"
 #include <entt/entity/fwd.hpp>
 #include <glbinding/gl/enum.h>
 #include <glfwpp/window.h>
@@ -198,21 +200,24 @@ inline void DemoScene::configure_input() {
 inline void DemoScene::init_registry() {
     auto& r = registry_;
 
-    auto loader = AssimpModelLoader<>();
 
-    Shared<Model> model = std::make_shared<Model>(
-        loader.load("data/models/shadow_scene/shadow_scene.obj").get()
-    );
+    constexpr const char* path = "data/models/shadow_scene/shadow_scene.obj";
 
-    auto e = r.create();
-    r.emplace<Shared<Model>>(e, std::move(model));
-    r.emplace<Transform>(e);
+    const auto model_entity = r.create();
+
+    ModelComponentLoader()
+        .load_into<Vertex, MaterialDS>(r, model_entity, path);
+
+    r.emplace<Transform>(model_entity);
+    r.emplace<components::Path>(model_entity, path);
+
+
 
     r.emplace<light::Ambient>(r.create(), light::Ambient{
         .color = { 0.15f, 0.15f, 0.1f }
     });
 
-    e = r.create();
+    auto e = r.create();
     r.emplace<light::Directional>(e, light::Directional{
         .color = { 0.15f, 0.15f, 0.1f },
         .direction = { -0.2f, -1.0f, -0.3f }
