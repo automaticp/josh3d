@@ -2,6 +2,7 @@
 #include "AmbientBackgroundStage.hpp"
 #include "AssimpModelLoader.hpp"
 #include "CubemapData.hpp"
+#include "DeferredGeometryAnyMaterialStage.hpp"
 #include "DeferredGeometryStage.hpp"
 #include "DeferredShadingStage.hpp"
 #include "ForwardRenderingStage.hpp"
@@ -12,6 +13,7 @@
 #include "ImGuiWindowSettings.hpp"
 #include "LightCasters.hpp"
 #include "MaterialDS.hpp"
+#include "MaterialDSN.hpp"
 #include "Model.hpp"
 #include "PointLightSourceBoxStage.hpp"
 #include "PostprocessBloomStage.hpp"
@@ -83,8 +85,14 @@ public:
 
         gbuffer_write_handle->attach_external_depth_buffer(rengine_.main_target().depth_target());
 
-        auto defgeom = rengine_.make_primary_stage<DeferredGeometryStage>(std::move(gbuffer_write_handle));
-
+        auto defgeom     = rengine_.make_primary_stage<DeferredGeometryStage>(std::move(gbuffer_write_handle));
+        auto defgeom_dsn =
+            rengine_.make_primary_stage<DeferredGeometryAnyMaterialStage<MaterialDSN>>(
+                gbuffer.target().get_write_view(),
+                ShaderBuilder()
+                    .load_vert("src/shaders/dfr_geometry_mat_dsn.vert")
+                    .load_frag("src/shaders/dfr_geometry_mat_dsn.frag").get()
+            );
 
         auto defshad =
             rengine_.make_primary_stage<DeferredShadingStage>(
@@ -121,6 +129,7 @@ public:
         rengine_.add_next_primary_stage(std::move(shmapping));
         rengine_.add_next_primary_stage(std::move(gbuffer));
         rengine_.add_next_primary_stage(std::move(defgeom));
+        rengine_.add_next_primary_stage(std::move(defgeom_dsn));
         rengine_.add_next_primary_stage(std::move(defshad));
         // rengine_.add_next_primary_stage(std::move(frendering));
         rengine_.add_next_primary_stage(std::move(plightboxes));
