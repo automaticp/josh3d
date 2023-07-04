@@ -23,9 +23,22 @@ void main() {
 
     gl_Position = projection * view * vec4(frag_pos, 1.0);
 
-    TBN = mat3(
-        vec3(normal_model * in_tangent),
-        vec3(normal_model * in_bitangent),
-        vec3(normal_model * in_normal)
-    );
+    // Gram-Schmidt renormalization.
+
+    vec3 T = normalize(normal_model * in_tangent);
+    vec3 N = normalize(normal_model * in_normal);
+
+    T = normalize(T - dot(T, N) * N);
+
+    vec3 B = cross(N, T);
+
+    TBN = mat3(T, B, N);
+
+    // Is this snake oil?
+
+    // TBN = mat3(
+    //     normalize(vec3(normal_model * in_tangent)),
+    //     normalize(vec3(normal_model * in_bitangent)),
+    //     normalize(vec3(normal_model * in_normal))
+    // );
 }
