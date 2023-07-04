@@ -2,9 +2,12 @@
 #include "AssimpModelLoader.hpp"
 #include "Model.hpp"
 #include "MaterialDS.hpp"
+#include "MaterialDSN.hpp"
 #include "Transform.hpp"
 #include "RenderComponents.hpp"
-#include "Vertex.hpp"
+#include "VertexPNT.hpp"
+#include "VertexPNTT.hpp"
+#include <assimp/postprocess.h>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/polar_coordinates.hpp>
 #include <imgui.h>
@@ -201,29 +204,46 @@ static void display_transform_widget(Transform& transform) noexcept {
 
 
 
+static ImTextureID to_image(const Texture2D& image) noexcept {
+    return reinterpret_cast<ImTextureID>(image.id());
+}
+
+
 
 
 
 void ImGuiRegistryModelComponentsHook::operator()(entt::registry& registry) {
 
-    if (ImGui::Button("Load (DS)")) {
+
+    const bool load_ds = ImGui::Button("Load (DS)");
+    ImGui::SameLine();
+    const bool load_dsn = ImGui::Button("Load (DSN)");
+
+    if (load_ds || load_dsn) {
         entt::entity new_model;
         try {
-            // Bit wasteful, but whatever for now
-
             new_model = registry.create();
-            ModelComponentLoader().load_into<Vertex, MaterialDS>(registry, new_model, load_path.c_str());
+
+            ModelComponentLoader loader;
+            if (load_ds) {
+                loader.load_into<VertexPNT, MaterialDS>(registry, new_model, load_path.c_str());
+            } else if (load_dsn) {
+                loader.add_flags(aiProcess_CalcTangentSpace)
+                    .load_into<VertexPNTT, MaterialDSN>(registry, new_model, load_path.c_str());
+            }
 
             registry.emplace<Transform>(new_model);
             registry.emplace<components::Path>(new_model, load_path);
 
             last_load_error_message = {};
+
         } catch (const error::AssimpLoaderError& e) {
             registry.destroy(new_model);
             last_load_error_message = e.what();
         }
     }
-    ImGui::SameLine();
+
+
     ImGui::InputText("Path", &load_path);
 
     ImGui::TextUnformatted(last_load_error_message.c_str());
@@ -251,29 +271,47 @@ void ImGuiRegistryModelComponentsHook::operator()(entt::registry& registry) {
 
                     display_transform_widget(registry.get<Transform>(mesh_entity));
 
-                    MaterialDS* material = registry.try_get<MaterialDS>(mesh_entity);
+                    // MaterialDS
+                    {
+                        MaterialDS* material = registry.try_get<MaterialDS>(mesh_entity);
 
-                    if (material) {
-                        if (ImGui::TreeNode("Material (DS)")) {
+                        if (material) {
+                            if (ImGui::TreeNode("Material (DS)")) {
 
-                            ImGui::Image(
-                                reinterpret_cast<ImTextureID>(material->diffuse->id()),
-                                { 256.f, 256.f }
-                            );
+                                ImGui::Image(to_image(*material->diffuse), { 256.f, 256.f });
+                                ImGui::Image(to_image(*material->specular), { 256.f, 256.f });
 
-                            ImGui::Image(
-                                reinterpret_cast<ImTextureID>(material->specular->id()),
-                                { 256.f, 256.f }
-                            );
+                                ImGui::DragFloat(
+                                    "Shininess", &material->shininess,
+                                    1.0f, 0.1f, 1.e4f, "%.3f", ImGuiSliderFlags_Logarithmic
+                                );
 
-                            ImGui::DragFloat(
-                                "Shininess", &material->shininess,
-                                1.0f, 0.1f, 1.e4f, "%.3f", ImGuiSliderFlags_Logarithmic
-                            );
+                                ImGui::TreePop();
+                            }
 
-                            ImGui::TreePop();
                         }
+                    }
 
+                    // MaterialDSN
+                    {
+                        MaterialDSN* material = registry.try_get<MaterialDSN>(mesh_entity);
+
+                        if (material) {
+                            if (ImGui::TreeNode("Material (DSN)")) {
+
+                                ImGui::Image(to_image(*material->diffuse), { 256.f, 256.f });
+                                ImGui::Image(to_image(*material->specular), { 256.f, 256.f });
+                                ImGui::Image(to_image(*material->normal), { 256.f, 256.f });
+
+                                ImGui::DragFloat(
+                                    "Shininess", &material->shininess,
+                                    1.0f, 0.1f, 1.e4f, "%.3f", ImGuiSliderFlags_Logarithmic
+                                );
+
+                                ImGui::TreePop();
+                            }
+
+                        }
                     }
 
                     ImGui::TreePop();
