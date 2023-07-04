@@ -1,6 +1,7 @@
 #pragma once
 #include "GLObjects.hpp"
 #include "ShaderBuilder.hpp"
+#include "AttributeParams.hpp"
 #include <glbinding/gl/gl.h>
 
 namespace learn {
@@ -25,15 +26,15 @@ public:
     {
         using namespace gl;
 
+        AttributeParams aparams[1]{{ 0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), 0 }};
+
         auto bvao = cube_vao_.bind();
+
         cube_vbo_.bind()
-            .attach_data(skybox_vertices.size(), skybox_vertices.data(),GL_STATIC_DRAW)
-            .associate_with<1>(bvao, {
-                AttributeParams{
-                    0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), 0
-                }
-            })
+            .attach_data(skybox_vertices.size(), skybox_vertices.data(), GL_STATIC_DRAW)
+            .associate_with(bvao, aparams)
             .unbind();
+
         bvao.unbind();
     }
 

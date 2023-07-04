@@ -18,6 +18,7 @@ using gl::GLboolean;
 using gl::GLbitfield;
 using gl::GLvoid;
 using gl::GLint, gl::GLuint;
+using gl::GLint64, gl::GLuint64;
 using gl::GLsizei;
 using gl::GLfloat, gl::GLdouble;
 using gl::GLchar;

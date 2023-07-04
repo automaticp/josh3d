@@ -32,7 +32,7 @@ vao_.bind()
 
         vbo_.bind()
             .attach_data(data.vertices().size(), data.vertices().data(), GL_STATIC_DRAW)
-            .associate_with(self, VertexTraits<V>::aparams);
+            .associate_with<VertexT>(self);
 
         ebo_.bind(self)
             .attach_data(data.elements().size(), data.elements().data(), GL_STATIC_DRAW);

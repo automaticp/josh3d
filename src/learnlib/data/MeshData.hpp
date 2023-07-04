@@ -1,28 +1,28 @@
 #pragma once
-#include "Vertex.hpp"
+#include "GLScalars.hpp"
 #include <glbinding/gl/gl.h>
 #include <vector>
 #include <utility>
 
 namespace learn {
 
-template<typename V = Vertex>
+template<typename VertexT>
 class MeshData {
 private:
-    std::vector<V> vertices_;
-    std::vector<gl::GLuint> elements_;
+    std::vector<VertexT> vertices_;
+    std::vector<GLuint> elements_;
 
 public:
-    MeshData(std::vector<V> vertices, std::vector<gl::GLuint> elements)
+    MeshData(std::vector<VertexT> vertices, std::vector<GLuint> elements)
         : vertices_{ std::move(vertices) }
         , elements_{ std::move(elements) }
     {}
 
-    std::vector<V>& vertices() noexcept { return vertices_; }
-    const std::vector<V>& vertices() const noexcept { return vertices_; }
+    std::vector<VertexT>& vertices() noexcept { return vertices_; }
+    const std::vector<VertexT>& vertices() const noexcept { return vertices_; }
 
-    std::vector<gl::GLuint>& elements() noexcept { return elements_; }
-    const std::vector<gl::GLuint>& elements() const noexcept { return elements_; }
+    std::vector<GLuint>& elements() noexcept { return elements_; }
+    const std::vector<GLuint>& elements() const noexcept { return elements_; }
 };
 
 

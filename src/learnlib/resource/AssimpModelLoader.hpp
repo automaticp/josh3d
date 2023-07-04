@@ -7,7 +7,7 @@
 #include "Model.hpp"
 #include "RenderComponents.hpp"
 #include "Transform.hpp"
-#include "Vertex.hpp"
+#include "VertexPNT.hpp"
 #include <assimp/Exceptional.h>
 #include <assimp/Importer.hpp>
 #include <assimp/material.h>
@@ -152,7 +152,7 @@ and skips materials.
 TODO: Still used in PointLightBoxStage but should
 be deprecated otherwise.
 */
-template<typename V = Vertex>
+template<typename V = VertexPNT>
 class AssimpMeshDataLoader
     : public detail::AssimpLoaderBase<AssimpMeshDataLoader<V>>
 {

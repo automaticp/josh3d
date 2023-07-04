@@ -2,7 +2,7 @@
 #include "GLObjectHandles.hpp"
 #include "GLScalars.hpp"
 #include "AndThen.hpp"
-#include "VertexTraits.hpp"
+#include "VertexConcept.hpp"
 #include <glbinding/gl/gl.h>
 #include <array>
 
@@ -108,31 +108,37 @@ public:
         return *this;
     }
 
-    template<size_t N>
+    template<vertex_attribute_container AttrsT>
     BoundVAO& set_many_attribute_params(
-        const std::array<AttributeParams, N>& aparams)
+        const AttrsT& aparams)
     {
-
-        for (const auto& ap : aparams) {
+        for (const AttributeParams& ap : aparams) {
             set_attribute_params(ap);
             this->enable_array_access(ap.index);
         }
         return *this;
     }
 
-    template<size_t N>
+
+    // Use this overload when the type of VertexT is known.
+    template<vertex VertexT>
+    BoundVAO& associate_with(const class BoundVBO& vbo) {
+        this->set_many_attribute_params(VertexT::get_attributes());
+        return *this;
+    }
+
+
+    // Use this overload when the layout specification is custom
+    // and does not depend on the vertex type,
+    // or the attributes have to be specified manually.
+    template<vertex_attribute_container AttrsT>
     BoundVAO& associate_with(const class BoundVBO& vbo,
-        const std::array<AttributeParams, N>& aparams)
+        const AttrsT& aparams)
     {
         this->set_many_attribute_params(aparams);
         return *this;
     }
 
-    template<typename VertexT>
-    BoundVAO& associate_with(const class BoundVBO& vbo) {
-        this->set_many_attribute_params(learn::VertexTraits<VertexT>::aparams);
-        return *this;
-    }
 
     static void set_attribute_params(const AttributeParams& ap) {
         glVertexAttribPointer(
@@ -337,28 +343,32 @@ public:
         return *this;
     }
 
-    template<size_t N>
+
+    template<vertex_attribute_container AttrsT>
     BoundVBO& associate_with(BoundVAO& vao,
-        const std::array<AttributeParams, N>& aparams)
+        const AttrsT& aparams)
     {
         vao.associate_with(*this, aparams);
         return *this;
     }
 
-    template<size_t N>
+
+    template<vertex_attribute_container AttrsT>
     BoundVBO& associate_with(BoundVAO&& vao,
-        const std::array<AttributeParams, N>& aparams)
+        const AttrsT& aparams)
     {
         return this->associate_with(vao, aparams);
     }
 
-    template<typename VertexT>
+
+    template<vertex VertexT>
     BoundVBO& associate_with(BoundVAO& vao) {
         vao.associate_with<VertexT>(*this);
         return *this;
     }
 
-    template<typename VertexT>
+
+    template<vertex VertexT>
     BoundVBO& associate_with(BoundVAO&& vao) {
         return this->associate_with<VertexT>(vao);
     }
@@ -414,7 +424,7 @@ public:
 
 class EBO : public BufferHandle {
 public:
-    BoundEBO bind(const BoundVAO& vao) {
+    BoundEBO bind(BoundVAO& vao) {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id_);
         return {};
     }

@@ -27,7 +27,7 @@
 #include "Shared.hpp"
 #include "SkyboxStage.hpp"
 #include "RenderComponents.hpp"
-#include "Vertex.hpp"
+#include "VertexPNT.hpp"
 #include <entt/entity/fwd.hpp>
 #include <glbinding/gl/enum.h>
 #include <glfwpp/window.h>
@@ -206,7 +206,7 @@ inline void DemoScene::init_registry() {
     const auto model_entity = r.create();
 
     ModelComponentLoader()
-        .load_into<Vertex, MaterialDS>(r, model_entity, path);
+        .load_into<VertexPNT, MaterialDS>(r, model_entity, path);
 
     r.emplace<Transform>(model_entity);
     r.emplace<components::Path>(model_entity, path);

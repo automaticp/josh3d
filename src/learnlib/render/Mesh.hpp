@@ -2,8 +2,7 @@
 #include "GLObjects.hpp"
 #include "GLScalars.hpp"
 #include "MeshData.hpp"
-#include "VertexTraits.hpp"
-
+#include "VertexConcept.hpp"
 #include <glbinding/gl/gl.h>
 
 
@@ -18,7 +17,7 @@ private:
     GLsizei num_elements_;
 
 public:
-    template<typename V>
+    template<vertex V>
     Mesh(const MeshData<V>& data)
         : num_elements_{ static_cast<gl::GLsizei>(data.elements().size()) }
     {
@@ -30,7 +29,7 @@ public:
 
                 vbo_.bind()
                     .attach_data(data.vertices().size(), data.vertices().data(), GL_STATIC_DRAW)
-                    .associate_with(self, VertexTraits<V>::aparams);
+                    .template associate_with<V>(self);
 
                 ebo_.bind(self)
                     .attach_data(num_elements_, data.elements().data(), GL_STATIC_DRAW);
