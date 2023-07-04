@@ -35,7 +35,7 @@
 #include "TextureData.hpp"
 #include "Transform.hpp"
 #include "VertexPNT.hpp"
-#include "VertexPNTT.hpp"
+#include "VertexPNTTB.hpp"
 #include "Vertex2D.hpp"
 #include "VertexConcept.hpp"
 #include "WindowSizeCache.hpp"

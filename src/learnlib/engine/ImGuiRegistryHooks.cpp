@@ -6,7 +6,7 @@
 #include "Transform.hpp"
 #include "RenderComponents.hpp"
 #include "VertexPNT.hpp"
-#include "VertexPNTT.hpp"
+#include "VertexPNTTB.hpp"
 #include <assimp/postprocess.h>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/polar_coordinates.hpp>
@@ -229,7 +229,7 @@ void ImGuiRegistryModelComponentsHook::operator()(entt::registry& registry) {
                 loader.load_into<VertexPNT, MaterialDS>(registry, new_model, load_path.c_str());
             } else if (load_dsn) {
                 loader.add_flags(aiProcess_CalcTangentSpace)
-                    .load_into<VertexPNTT, MaterialDSN>(registry, new_model, load_path.c_str());
+                    .load_into<VertexPNTTB, MaterialDSN>(registry, new_model, load_path.c_str());
             }
 
             registry.emplace<Transform>(new_model);
