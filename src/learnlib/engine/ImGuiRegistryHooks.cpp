@@ -60,6 +60,10 @@ void ImGuiRegistryLightComponentsHook::operator()(entt::registry& registry) {
                 dir.direction = glm::vec3{ swapped_dir.y, swapped_dir.x, swapped_dir.z };
             }
 
+            ImGui::BeginDisabled();
+            ImGui::InputFloat3("Direction XYZ", glm::value_ptr(dir.direction));
+            ImGui::EndDisabled();
+
             ImGui::PopID();
         }
 
