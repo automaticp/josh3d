@@ -137,7 +137,7 @@ void main() {
     // Directional light.
     {
         const vec3 light_dir = normalize(dir_light.direction);
-        const vec3 reflection_dir = reflect(-light_dir, normal_dir);
+        const vec3 reflection_dir = reflect(light_dir, normal_dir);
 
         const float diffuse_alignment =
             max(dot(normal_dir, -light_dir), 0.0);
@@ -272,7 +272,6 @@ vec3 add_point_light_illumination(vec3 in_color,
 {
     vec3 light_vec = plight.position - frag_pos;
     vec3 light_dir = normalize(light_vec);
-    vec3 reflection_dir = reflect(-light_dir, normal_dir);
 
     vec3 halfway_dir = normalize(light_dir + view_dir);
 
