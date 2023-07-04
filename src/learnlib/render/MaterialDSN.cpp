@@ -73,6 +73,8 @@ static Shared<Texture2D> get_texture_from_material(
             tex_type = TextureType::specular; break;
         case aiTextureType_NORMALS:
             tex_type = TextureType::normal; break;
+        case aiTextureType_HEIGHT: // FIXME: This is a hack to make .obj load normals.
+            tex_type = TextureType::normal; break;
         default:
             tex_type = TextureType::specular;
     }
@@ -107,11 +109,17 @@ MaterialDSN get_material<MaterialDSN>(
         get_texture_from_material(context, material, aiTextureType_SPECULAR);
 
     Shared<Texture2D> normal =
-        get_texture_from_material(context, material, aiTextureType_SPECULAR);
+        get_texture_from_material(context, material, aiTextureType_NORMALS);
 
     if (!diffuse) { diffuse = globals::default_diffuse_texture; }
     if (!specular) { specular = globals::default_specular_texture; }
-    if (!normal) { normal = globals::default_normal_texture; }
+    if (!normal) {
+        // Try again but from height map (.obj).
+        normal = get_texture_from_material(context, material, aiTextureType_HEIGHT);
+        if (!normal) {
+            normal = globals::default_normal_texture;
+        }
+    }
 
     return MaterialDSN{
         .diffuse   = std::move(diffuse),
