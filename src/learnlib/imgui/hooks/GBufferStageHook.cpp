@@ -1,14 +1,11 @@
-#include "GBufferStage.hpp"
+#include "GBufferStageHook.hpp"
 #include <imgui.h>
 
 
+namespace learn::imguihooks {
 
 
-namespace learn {
-
-
-
-void GBufferStageImGuiHook::operator()() {
+void GBufferStageHook::operator()() {
 
 
     if (ImGui::TreeNode("Position/Draw")) {
@@ -52,6 +49,4 @@ void GBufferStageImGuiHook::operator()() {
 
 
 
-
-
-} // namespace learn
+} // namespace learn::imguihooks

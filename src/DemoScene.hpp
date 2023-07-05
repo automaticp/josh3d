@@ -1,11 +1,9 @@
 #pragma once
-#include "AmbientBackgroundStage.hpp"
 #include "AssimpModelLoader.hpp"
 #include "CubemapData.hpp"
 #include "DeferredGeometryAnyMaterialStage.hpp"
 #include "DeferredGeometryStage.hpp"
 #include "DeferredShadingStage.hpp"
-#include "ForwardRenderingStage.hpp"
 #include "GBufferStage.hpp"
 #include "GlobalsUtil.hpp"
 #include "ImGuiRegistryHooks.hpp"
@@ -30,6 +28,15 @@
 #include "SkyboxStage.hpp"
 #include "RenderComponents.hpp"
 #include "VertexPNT.hpp"
+#include "hooks/GBufferStageHook.hpp"
+#include "hooks/DeferredShadingStageHook.hpp"
+#include "hooks/LightComponentsRegistryHook.hpp"
+#include "hooks/ModelComponentsRegistryHook.hpp"
+#include "hooks/PointLightSourceBoxStageHook.hpp"
+#include "hooks/PostprocessBloomStageHook.hpp"
+#include "hooks/PostprocessGammaCorrectionStageHook.hpp"
+#include "hooks/PostprocessHDREyeAdaptationStageHook.hpp"
+#include "hooks/ShadowMappingStageHook.hpp"
 #include <entt/entity/fwd.hpp>
 #include <glbinding/gl/enum.h>
 #include <glfwpp/window.h>
@@ -72,7 +79,6 @@ public:
         auto [w, h] = rengine_.window_size();
 
 
-        // auto ambickground = rengine_.make_primary_stage<AmbientBackgroundStage>();
         auto skyboxing    = rengine_.make_primary_stage<SkyboxStage>();
 
         auto shmapping    = rengine_.make_primary_stage<ShadowMappingStage>();
@@ -99,7 +105,6 @@ public:
                 gbuffer.target().get_read_view(), shmapping.target().view_mapping_output()
             );
 
-        // auto frendering   = rengine_.make_primary_stage<ForwardRenderingStage>(shmapping.target().view_mapping_output());
         auto plightboxes  = rengine_.make_primary_stage<PointLightSourceBoxStage>();
 
         auto blooming     = rengine_.make_postprocess_stage<PostprocessBloomStage>();
@@ -107,31 +112,28 @@ public:
         auto whatsgamma   = rengine_.make_postprocess_stage<PostprocessGammaCorrectionStage>();
 
 
-        imgui_stage_hooks_.add_hook("Shadow Mapping",    ShadowMappingStageImGuiHook(shmapping));
-        // imgui_stage_hooks_.add_hook("Forward Rendering", ForwardRenderingStageImGuiHook(frendering));
-        imgui_stage_hooks_.add_hook("GBuffer", GBufferStageImGuiHook(gbuffer));
-        imgui_stage_hooks_.add_hook("Deferred Rendering", DeferredShadingStageImGuiHook(defshad));
-        imgui_stage_hooks_.add_hook("Point Light Boxes", PointLightSourceBoxStageImGuiHook(plightboxes));
+        imgui_stage_hooks_.add_hook("Shadow Mapping",     imguihooks::ShadowMappingStageHook(shmapping));
+        imgui_stage_hooks_.add_hook("GBuffer",            imguihooks::GBufferStageHook(gbuffer));
+        imgui_stage_hooks_.add_hook("Deferred Rendering", imguihooks::DeferredShadingStageHook(defshad));
+        imgui_stage_hooks_.add_hook("Point Light Boxes",  imguihooks::PointLightSourceBoxStageHook(plightboxes));
 
 
         imgui_stage_hooks_.add_postprocess_hook("Bloom",
-            PostprocessBloomStageImGuiHook(blooming));
+            imguihooks::PostprocessBloomStageHook(blooming));
 
         imgui_stage_hooks_.add_postprocess_hook("HDR Eye Adaptation",
-            PostprocessHDREyeAdaptationStageImGuiHook(hdreyeing));
+            imguihooks::PostprocessHDREyeAdaptationStageHook(hdreyeing));
 
         imgui_stage_hooks_.add_postprocess_hook("Gamma Correction",
-            PostprocessGammaCorrectionStageImGuiHook(whatsgamma));
+            imguihooks::PostprocessGammaCorrectionStageHook(whatsgamma));
 
 
-        // rengine_.add_next_primary_stage(std::move(ambickground));
         rengine_.add_next_primary_stage(std::move(skyboxing));
         rengine_.add_next_primary_stage(std::move(shmapping));
         rengine_.add_next_primary_stage(std::move(gbuffer));
         rengine_.add_next_primary_stage(std::move(defgeom));
         rengine_.add_next_primary_stage(std::move(defgeom_dsn));
         rengine_.add_next_primary_stage(std::move(defshad));
-        // rengine_.add_next_primary_stage(std::move(frendering));
         rengine_.add_next_primary_stage(std::move(plightboxes));
 
         rengine_.add_next_postprocess_stage(std::move(blooming));
@@ -140,8 +142,8 @@ public:
 
 
 
-        imgui_registry_hooks_.add_hook("Lights", ImGuiRegistryLightComponentsHook());
-        imgui_registry_hooks_.add_hook("Models", ImGuiRegistryModelComponentsHook());
+        imgui_registry_hooks_.add_hook("Lights", imguihooks::LightComponentsRegistryHook());
+        imgui_registry_hooks_.add_hook("Models", imguihooks::ModelComponentsRegistryHook());
 
         init_registry();
     }

@@ -3,12 +3,10 @@
 #include "RenderEngine.hpp"
 #include "SSBOWithIntermediateBuffer.hpp"
 #include "ShaderBuilder.hpp"
-#include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
 #include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
-#include <imgui.h>
 #include <numeric>
 #include <cmath>
 
@@ -163,43 +161,5 @@ private:
 
 
 
-class PostprocessHDREyeAdaptationStageImGuiHook {
-private:
-    PostprocessHDREyeAdaptationStage& stage_;
-
-public:
-    PostprocessHDREyeAdaptationStageImGuiHook(
-        PostprocessHDREyeAdaptationStage& stage)
-        : stage_{ stage }
-    {}
-
-
-    void operator()() {
-
-        ImGui::Checkbox("Use Adaptation", &stage_.use_adaptation);
-        ImGui::SliderFloat(
-            "Adaptation Rate", &stage_.adaptation_rate,
-            0.001f, 1000.f, "%.3f", ImGuiSliderFlags_Logarithmic
-        );
-        ImGui::DragFloat(
-            "Screen Value", &stage_.current_screen_value,
-            0.5f, 0.0f, 1000.f, "%.3f", ImGuiSliderFlags_Logarithmic
-        );
-        ImGui::DragFloat(
-            "Exposure Factor", &stage_.exposure_factor,
-            0.5f, 0.0, 100.f, "%.3f", ImGuiSliderFlags_Logarithmic
-        );
-        int num_samples = static_cast<int>(stage_.num_samples);
-        if (ImGui::SliderInt(
-            "Num Samples", &num_samples,
-            1, 1024, "%d", ImGuiSliderFlags_Logarithmic))
-        {
-            stage_.num_samples = num_samples;
-        }
-
-    }
-
-
-};
 
 } // namespace learn

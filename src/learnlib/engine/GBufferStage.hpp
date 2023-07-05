@@ -70,27 +70,4 @@ public:
 
 
 
-
-
-
-class GBufferStageImGuiHook {
-private:
-    GBufferStage& stage_;
-    SharedStorageView<GBuffer> gbuffer_;
-
-public:
-    GBufferStageImGuiHook(GBufferStage& stage)
-        : stage_{ stage }
-        , gbuffer_{ stage_.get_read_view() }
-    {}
-
-    void operator()();
-};
-
-
-
-
-
-
-
 } // namespace learn

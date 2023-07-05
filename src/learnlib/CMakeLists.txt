@@ -6,6 +6,7 @@ target_include_directories(learnlib
         ./
         ./data/
         ./gl/
+        ./imgui/
         ./render/
         ./resource/
         ./util/

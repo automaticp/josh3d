@@ -2,9 +2,8 @@
 #include "GLObjects.hpp"
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
-#include <entt/entt.hpp>
+#include <entt/fwd.hpp>
 #include <glbinding/gl/gl.h>
-#include <imgui.h>
 
 
 
@@ -47,29 +46,6 @@ public:
 
     }
 
-};
-
-
-
-class PostprocessGammaCorrectionStageImGuiHook {
-private:
-    PostprocessGammaCorrectionStage& stage_;
-
-public:
-    PostprocessGammaCorrectionStageImGuiHook(PostprocessGammaCorrectionStage& stage)
-        : stage_{ stage }
-    {}
-
-    void operator()() {
-        ImGui::Checkbox("Use sRGB", &stage_.use_srgb);
-
-        ImGui::BeginDisabled(stage_.use_srgb);
-        ImGui::SliderFloat(
-            "Gamma", &stage_.gamma,
-            0.0f, 10.f, "%.1f"
-        );
-        ImGui::EndDisabled();
-    }
 };
 
 

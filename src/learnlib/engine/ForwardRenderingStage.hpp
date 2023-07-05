@@ -74,24 +74,4 @@ private:
 
 
 
-
-
-class ForwardRenderingStageImGuiHook {
-private:
-    ForwardRenderingStage& stage_;
-
-public:
-    ForwardRenderingStageImGuiHook(ForwardRenderingStage& stage)
-        : stage_{ stage }
-    {}
-
-    void operator()();
-};
-
-
-
-
-
-
-
 } // namespace learn
