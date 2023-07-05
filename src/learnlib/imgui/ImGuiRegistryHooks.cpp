@@ -1,19 +1,52 @@
 #include "ImGuiRegistryHooks.hpp"
 #include "AssimpModelLoader.hpp"
 #include "Model.hpp"
-#include "MaterialDS.hpp"
-#include "MaterialDSN.hpp"
 #include "Transform.hpp"
 #include "RenderComponents.hpp"
+#include "MaterialDS.hpp"
+#include "MaterialDSN.hpp"
 #include "VertexPNT.hpp"
 #include "VertexPNTTB.hpp"
 #include <assimp/postprocess.h>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/polar_coordinates.hpp>
 #include <imgui.h>
+#include <imgui_stdlib.h>
+#include <entt/entt.hpp>
 
 
 namespace learn {
+
+
+
+
+void ImGuiRegistryHooks::display() {
+
+    if (hidden) { return; }
+
+    ImGui::SetNextWindowSize({ 600.f, 600.f }, ImGuiCond_Once);
+    ImGui::SetNextWindowPos({ 0.f, 0.f }, ImGuiCond_Once);
+    if (ImGui::Begin("Registry")) {
+
+        for (size_t i{ 0 }; i < hooks_.size(); ++i) {
+
+            ImGui::PushID(int(i));
+            if (ImGui::CollapsingHeader(hooks_[i].name.c_str())) {
+
+                hooks_[i].hook(registry_);
+
+            }
+            ImGui::PopID();
+
+        }
+    } ImGui::End();
+
+}
+
+
+
+
+
 
 
 
