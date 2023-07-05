@@ -1,5 +1,4 @@
 #pragma once
-#include "LightCasters.hpp"
 #include "UniqueFunction.hpp"
 #include <entt/entity/fwd.hpp>
 #include <string>
@@ -10,7 +9,17 @@ namespace learn {
 
 
 
+/*
+ImGui container for hooks that interact with the registry.
 
+[Registry]
+  [Lights]
+    <Your hook here>
+  [Models]
+    <Your hook here>
+  ...
+
+*/
 class ImGuiRegistryHooks {
 private:
     entt::registry& registry_;
@@ -40,42 +49,6 @@ public:
 
     void display();
 };
-
-
-
-
-class ImGuiRegistryLightComponentsHook {
-private:
-    light::Point plight_template_{ light::Point{
-        .color = { 1.f, 1.f, 0.8f },
-        .position = { 0.0f, 1.f, 0.f },
-        .attenuation = light::Attenuation{
-            .constant = 0.05f,
-            .linear = 0.0f,
-            .quadratic = 0.2f
-        }
-    }};
-
-    bool plight_has_shadow_{ true };
-
-public:
-    void operator()(entt::registry& registry);
-};
-
-
-
-
-class ImGuiRegistryModelComponentsHook {
-private:
-    std::string load_path;
-    std::string last_load_error_message;
-
-public:
-    void operator()(entt::registry& registry);
-};
-
-
-
 
 
 
