@@ -1,12 +1,10 @@
 #pragma once
 #include "GLObjects.hpp"
 #include "LightCasters.hpp"
-#include "MaterialLightSource.hpp"
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
 #include "Transform.hpp"
 #include "AssimpModelLoader.hpp"
-#include "ULocation.hpp"
 #include <entt/entt.hpp>
 
 
@@ -30,22 +28,6 @@ private:
             .get()[0]
     };
 
-    struct Locations {
-        ULocation projection;
-        ULocation view;
-        ULocation model;
-        ULocation normal_model;
-        MaterialLightSource::Locations mat_light_source{};
-    };
-
-    Locations locs_{
-        .projection   = sp_.location_of("projection"),
-        .view         = sp_.location_of("view"),
-        .model        = sp_.location_of("model"),
-        .normal_model = sp_.location_of("normal_model"),
-        .mat_light_source = MaterialLightSource::query_locations(sp_)
-    };
-
 public:
     float light_box_scale{ 0.2f };
 
@@ -57,12 +39,12 @@ public:
 
         sp_.use().and_then([&, this](ActiveShaderProgram& ashp) {
 
-            ashp.uniform(locs_.projection,
+            ashp.uniform("projection",
                 engine.camera().perspective_projection_mat(
                     engine.window_size().aspect_ratio()
                 )
             );
-            ashp.uniform(locs_.view, engine.camera().view_mat());
+            ashp.uniform("view", engine.camera().view_mat());
 
             engine.draw([&, this] {
 
@@ -73,10 +55,8 @@ public:
                         .translate(plight.position)
                         .scale(glm::vec3{ light_box_scale });
 
-                    ashp.uniform(locs_.model, t.mtransform().model());
-
-                    MaterialLightSource mat{ plight.color };
-                    mat.apply(ashp, locs_.mat_light_source);
+                    ashp.uniform("model", t.mtransform().model())
+                        .uniform("light_color", plight.color);
 
                     box_.draw();
                 }
