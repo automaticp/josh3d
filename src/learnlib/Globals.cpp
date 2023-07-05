@@ -5,8 +5,12 @@
 #include "TextureHandlePool.hpp"
 #include "GLObjects.hpp"
 #include "TextureData.hpp"
+#include "MeshData.hpp"
+#include "VertexPNTTB.hpp"
+#include "AssimpModelLoader.hpp"
 #include "Shared.hpp"
 #include "WindowSizeCache.hpp"
+#include <assimp/postprocess.h>
 #include <glbinding/gl/enum.h>
 #include <iostream>
 #include <array>
@@ -24,6 +28,16 @@ std::ostream& logstream{ std::clog };
 Shared<Texture2D> default_diffuse_texture;
 Shared<Texture2D> default_specular_texture;
 Shared<Texture2D> default_normal_texture;
+
+
+static MeshData<VertexPNTTB> plane_primitive_;
+static MeshData<VertexPNTTB> box_primitive_;
+static MeshData<VertexPNTTB> sphere_primitive_;
+
+
+const MeshData<VertexPNTTB>& plane_primitive() noexcept { return plane_primitive_; }
+const MeshData<VertexPNTTB>& box_primitive() noexcept { return box_primitive_;  }
+const MeshData<VertexPNTTB>& sphere_primitive() noexcept{ return sphere_primitive_; };
 
 
 
@@ -65,10 +79,18 @@ static Shared<Texture2D> init_default_normal_texture() {
 
 
 void init_all() {
-    default_diffuse_texture = init_default_diffuse_texture();
+    default_diffuse_texture  = init_default_diffuse_texture();
     default_specular_texture = init_default_specular_texture();
-    default_normal_texture = init_default_normal_texture();
+    default_normal_texture   = init_default_normal_texture();
+
+    AssimpMeshDataLoader<VertexPNTTB> loader;
+    loader.add_flags(aiProcess_CalcTangentSpace);
+
+    box_primitive_    = loader.load("data/primitives/box.obj").get()[0];
+    plane_primitive_  = loader.load("data/primitives/plane.obj").get()[0];
+    sphere_primitive_ = loader.load("data/primitives/sphere.obj").get()[0];
 }
+
 
 void clear_all() {
     texture_data_pool.clear();

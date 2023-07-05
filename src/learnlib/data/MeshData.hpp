@@ -13,6 +13,8 @@ private:
     std::vector<GLuint> elements_;
 
 public:
+    MeshData() = default;
+
     MeshData(std::vector<VertexT> vertices, std::vector<GLuint> elements)
         : vertices_{ std::move(vertices) }
         , elements_{ std::move(elements) }
