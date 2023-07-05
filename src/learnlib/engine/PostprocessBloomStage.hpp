@@ -6,7 +6,6 @@
 #include "ShaderBuilder.hpp"
 #include <glm/glm.hpp>
 #include <entt/entt.hpp>
-#include <imgui.h>
 #include <cmath>
 #include <range/v3/view/generate_n.hpp>
 #include <cassert>
@@ -179,73 +178,5 @@ inline void PostprocessBloomStage::update_gaussian_blur_weights()
 }
 
 
-
-
-class PostprocessBloomStageImGuiHook {
-private:
-    PostprocessBloomStage& stage_;
-
-public:
-    PostprocessBloomStageImGuiHook(PostprocessBloomStage& stage)
-        : stage_{ stage }
-    {}
-
-    void operator()() {
-
-        ImGui::SliderFloat2(
-            "Threshold", glm::value_ptr(stage_.threshold_bounds),
-            0.f, 10.f, "%.3f", ImGuiSliderFlags_Logarithmic
-        );
-
-        ImGui::SliderFloat(
-            "Offset Scale", &stage_.offset_scale,
-            0.01f, 100.f, "%.3f", ImGuiSliderFlags_Logarithmic
-        );
-
-
-        auto num_iterations = static_cast<int>(stage_.blur_iterations);
-        if (ImGui::SliderInt(
-                "Num Iterations", &num_iterations,
-                1, 128, "%d", ImGuiSliderFlags_Logarithmic
-            ))
-        {
-            stage_.blur_iterations = num_iterations;
-        }
-
-        if (ImGui::TreeNode("Gaussian Blur")) {
-
-            ImGui::DragFloat(
-                "Range [-x, +x]", &stage_.gaussian_sample_range,
-                0.1f, 0.0f, 100.0f, "%.2f", ImGuiSliderFlags_Logarithmic
-            );
-
-            auto num_samples = static_cast<int>(stage_.gaussian_samples);
-            if (ImGui::SliderInt(
-                    "Num Samples", &num_samples,
-                    0, 15, "%d", ImGuiSliderFlags_Logarithmic
-                ))
-            {
-                stage_.gaussian_samples = num_samples;
-            }
-
-            ImGui::TreePop();
-        }
-
-
-        if (ImGui::TreeNode("Bloom Texture")) {
-
-            ImGui::Image(
-                reinterpret_cast<ImTextureID>(
-                    stage_.blur_front_target().id()
-                ),
-                { 300, 300 }
-            );
-
-            ImGui::TreePop();
-        }
-
-    }
-
-};
 
 } // namespace learn

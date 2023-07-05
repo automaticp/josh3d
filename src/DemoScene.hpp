@@ -30,6 +30,13 @@
 #include "SkyboxStage.hpp"
 #include "RenderComponents.hpp"
 #include "VertexPNT.hpp"
+#include "hooks/GBufferStageHook.hpp"
+#include "hooks/DeferredShadingStageHook.hpp"
+#include "hooks/PointLightSourceBoxStageHook.hpp"
+#include "hooks/PostprocessBloomStageHook.hpp"
+#include "hooks/PostprocessGammaCorrectionStageHook.hpp"
+#include "hooks/PostprocessHDREyeAdaptationStageHook.hpp"
+#include "hooks/ShadowMappingStageHook.hpp"
 #include <entt/entity/fwd.hpp>
 #include <glbinding/gl/enum.h>
 #include <glfwpp/window.h>
@@ -107,21 +114,21 @@ public:
         auto whatsgamma   = rengine_.make_postprocess_stage<PostprocessGammaCorrectionStage>();
 
 
-        imgui_stage_hooks_.add_hook("Shadow Mapping",    ShadowMappingStageImGuiHook(shmapping));
+        imgui_stage_hooks_.add_hook("Shadow Mapping",     imguihooks::ShadowMappingStageHook(shmapping));
         // imgui_stage_hooks_.add_hook("Forward Rendering", ForwardRenderingStageImGuiHook(frendering));
-        imgui_stage_hooks_.add_hook("GBuffer", GBufferStageImGuiHook(gbuffer));
-        imgui_stage_hooks_.add_hook("Deferred Rendering", DeferredShadingStageImGuiHook(defshad));
-        imgui_stage_hooks_.add_hook("Point Light Boxes", PointLightSourceBoxStageImGuiHook(plightboxes));
+        imgui_stage_hooks_.add_hook("GBuffer",            imguihooks::GBufferStageHook(gbuffer));
+        imgui_stage_hooks_.add_hook("Deferred Rendering", imguihooks::DeferredShadingStageHook(defshad));
+        imgui_stage_hooks_.add_hook("Point Light Boxes",  imguihooks::PointLightSourceBoxStageHook(plightboxes));
 
 
         imgui_stage_hooks_.add_postprocess_hook("Bloom",
-            PostprocessBloomStageImGuiHook(blooming));
+            imguihooks::PostprocessBloomStageHook(blooming));
 
         imgui_stage_hooks_.add_postprocess_hook("HDR Eye Adaptation",
-            PostprocessHDREyeAdaptationStageImGuiHook(hdreyeing));
+            imguihooks::PostprocessHDREyeAdaptationStageHook(hdreyeing));
 
         imgui_stage_hooks_.add_postprocess_hook("Gamma Correction",
-            PostprocessGammaCorrectionStageImGuiHook(whatsgamma));
+            imguihooks::PostprocessGammaCorrectionStageHook(whatsgamma));
 
 
         // rengine_.add_next_primary_stage(std::move(ambickground));

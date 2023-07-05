@@ -73,24 +73,4 @@ private:
 
 
 
-
-
-
-
-class DeferredShadingStageImGuiHook {
-private:
-    DeferredShadingStage& stage_;
-
-public:
-    DeferredShadingStageImGuiHook(DeferredShadingStage& stage)
-        : stage_{ stage }
-    {}
-
-    void operator()();
-};
-
-
-
-
-
 } // namespace learn

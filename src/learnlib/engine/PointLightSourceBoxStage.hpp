@@ -8,7 +8,6 @@
 #include "AssimpModelLoader.hpp"
 #include "ULocation.hpp"
 #include <entt/entt.hpp>
-#include <imgui.h>
 
 
 
@@ -91,24 +90,5 @@ public:
 
 
 
-
-
-class PointLightSourceBoxStageImGuiHook {
-private:
-    PointLightSourceBoxStage& stage_;
-
-public:
-    PointLightSourceBoxStageImGuiHook(PointLightSourceBoxStage& stage)
-        : stage_{ stage }
-    {}
-
-    void operator()() {
-        ImGui::SliderFloat(
-            "Light Box Scale", &stage_.light_box_scale,
-            0.001f, 10.f, "%.3f", ImGuiSliderFlags_Logarithmic
-        );
-    }
-
-};
 
 } // namespace learn
