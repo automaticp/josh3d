@@ -1,10 +1,10 @@
 #pragma once
 #include "GLObjects.hpp"
+#include "GlobalsData.hpp"
 #include "LightCasters.hpp"
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
 #include "Transform.hpp"
-#include "AssimpModelLoader.hpp"
 #include <entt/entt.hpp>
 
 
@@ -22,14 +22,10 @@ private:
     };
 
 
-    Mesh box_{
-        AssimpMeshDataLoader<>()
-            .load("data/models/container/container.obj")
-            .get()[0]
-    };
+    Mesh box_{ globals::box_primitive() };
 
 public:
-    float light_box_scale{ 0.2f };
+    float light_box_scale{ 0.1f };
 
 public:
     PointLightSourceBoxStage() = default;
