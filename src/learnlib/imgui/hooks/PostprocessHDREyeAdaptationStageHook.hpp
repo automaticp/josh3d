@@ -1,5 +1,5 @@
 #pragma once
-#include "PostprocessHDREyeAdaptationStage.hpp"
+#include "stages/PostprocessHDREyeAdaptationStage.hpp"
 
 
 

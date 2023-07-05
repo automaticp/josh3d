@@ -1,5 +1,5 @@
 #pragma once
-#include "GBufferStage.hpp"
+#include "stages/GBufferStage.hpp"
 
 
 namespace learn::imguihooks {

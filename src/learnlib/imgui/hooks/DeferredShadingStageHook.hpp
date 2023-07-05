@@ -1,5 +1,5 @@
 #pragma once
-#include "DeferredShadingStage.hpp"
+#include "stages/DeferredShadingStage.hpp"
 
 
 namespace learn::imguihooks {

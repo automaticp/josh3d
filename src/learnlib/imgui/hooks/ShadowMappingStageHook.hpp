@@ -1,5 +1,5 @@
 #pragma once
-#include "ShadowMappingStage.hpp"
+#include "stages/ShadowMappingStage.hpp"
 #include "SharedStorage.hpp"
 #include "GLScalars.hpp"
 

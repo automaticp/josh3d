@@ -1,5 +1,5 @@
 #pragma once
-#include "PostprocessGammaCorrectionStage.hpp"
+#include "stages/PostprocessGammaCorrectionStage.hpp"
 
 
 namespace learn::imguihooks {

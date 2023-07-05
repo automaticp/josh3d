@@ -1,35 +1,24 @@
 #pragma once
 #include "AssimpModelLoader.hpp"
+#include "Camera.hpp"
 #include "CubemapData.hpp"
-#include "DeferredGeometryAnyMaterialStage.hpp"
-#include "DeferredGeometryStage.hpp"
-#include "DeferredShadingStage.hpp"
-#include "GBufferStage.hpp"
 #include "GlobalsUtil.hpp"
+#include "ImGuiContextWrapper.hpp"
 #include "ImGuiRegistryHooks.hpp"
 #include "ImGuiStageHooks.hpp"
 #include "ImGuiWindowSettings.hpp"
+#include "Input.hpp"
+#include "InputFreeCamera.hpp"
 #include "LightCasters.hpp"
 #include "MaterialDS.hpp"
 #include "MaterialDSN.hpp"
 #include "Model.hpp"
-#include "PointLightSourceBoxStage.hpp"
-#include "PostprocessBloomStage.hpp"
-#include "PostprocessGammaCorrectionStage.hpp"
-#include "PostprocessHDREyeAdaptationStage.hpp"
 #include "RenderComponents.hpp"
 #include "RenderEngine.hpp"
-#include "Input.hpp"
-#include "InputFreeCamera.hpp"
-#include "ImGuiContextWrapper.hpp"
-#include "Camera.hpp"
-#include "ShadowMappingStage.hpp"
 #include "Shared.hpp"
-#include "SkyboxStage.hpp"
-#include "RenderComponents.hpp"
 #include "VertexPNT.hpp"
-#include "hooks/GBufferStageHook.hpp"
 #include "hooks/DeferredShadingStageHook.hpp"
+#include "hooks/GBufferStageHook.hpp"
 #include "hooks/LightComponentsRegistryHook.hpp"
 #include "hooks/ModelComponentsRegistryHook.hpp"
 #include "hooks/PointLightSourceBoxStageHook.hpp"
@@ -37,11 +26,22 @@
 #include "hooks/PostprocessGammaCorrectionStageHook.hpp"
 #include "hooks/PostprocessHDREyeAdaptationStageHook.hpp"
 #include "hooks/ShadowMappingStageHook.hpp"
+#include "stages/DeferredGeometryAnyMaterialStage.hpp"
+#include "stages/DeferredGeometryStage.hpp"
+#include "stages/DeferredShadingStage.hpp"
+#include "stages/GBufferStage.hpp"
+#include "stages/PointLightSourceBoxStage.hpp"
+#include "stages/PostprocessBloomStage.hpp"
+#include "stages/PostprocessGammaCorrectionStage.hpp"
+#include "stages/PostprocessHDREyeAdaptationStage.hpp"
+#include "stages/ShadowMappingStage.hpp"
+#include "stages/SkyboxStage.hpp"
 #include <entt/entity/fwd.hpp>
+#include <entt/entt.hpp>
 #include <glbinding/gl/enum.h>
 #include <glfwpp/window.h>
-#include <entt/entt.hpp>
 #include <imgui.h>
+
 
 namespace leakslearn {
 

@@ -1,5 +1,5 @@
 #pragma once
-#include "PostprocessBloomStage.hpp"
+#include "stages/PostprocessBloomStage.hpp"
 
 
 
