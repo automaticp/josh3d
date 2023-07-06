@@ -239,12 +239,12 @@ inline void DemoScene::init_registry() {
     skybox.cubemap->bind().attach_data(
         CubemapData::from_files(
             {
-                "data/textures/skybox/lake/right.png",
-                "data/textures/skybox/lake/left.png",
-                "data/textures/skybox/lake/top.png",
-                "data/textures/skybox/lake/bottom.png",
-                "data/textures/skybox/lake/front.png",
-                "data/textures/skybox/lake/back.png",
+                "data/skyboxes/lake/right.png",
+                "data/skyboxes/lake/left.png",
+                "data/skyboxes/lake/top.png",
+                "data/skyboxes/lake/bottom.png",
+                "data/skyboxes/lake/front.png",
+                "data/skyboxes/lake/back.png",
             }
         ), gl::GL_SRGB_ALPHA
     );
