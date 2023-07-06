@@ -1,5 +1,7 @@
 #include "LightComponentsRegistryHook.hpp"
 #include "RenderComponents.hpp"
+#include "ImGuiHelpers.hpp"
+#include <entt/core/fwd.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/polar_coordinates.hpp>
 #include <imgui.h>
@@ -18,7 +20,7 @@ void LightComponentsRegistryHook::operator()(
     if (ImGui::TreeNode("Ambient")) {
 
         for (auto [e, ambi] : registry.view<light::Ambient>().each()) {
-            ImGui::PushID(int(e));
+            ImGui::PushID(void_id(e));
             ImGui::ColorEdit3("Color", glm::value_ptr(ambi.color), ImGuiColorEditFlags_DisplayHSV);
             ImGui::PopID();
         }
@@ -29,7 +31,7 @@ void LightComponentsRegistryHook::operator()(
     if (ImGui::TreeNode("Directional")) {
 
         for (auto [e, dir] : registry.view<light::Directional>().each()) {
-            ImGui::PushID(int(e));
+            ImGui::PushID(void_id(e));
             ImGui::ColorEdit3("Color", glm::value_ptr(dir.color), ImGuiColorEditFlags_DisplayHSV);
             ImGui::SameLine();
             bool has_shadow = registry.all_of<components::ShadowCasting>(e);
@@ -98,9 +100,9 @@ void LightComponentsRegistryHook::operator()(
 
         for (auto [e, plight] : registry.view<light::Point>().each()) {
             bool display_node =
-                ImGui::TreeNode(reinterpret_cast<void*>(e), "Id %d", static_cast<entt::id_type>(e));
+                ImGui::TreeNode(void_id(e), "Id %d", static_cast<entt::id_type>(e));
 
-            ImGui::PushID(reinterpret_cast<void*>(e));
+            ImGui::PushID(void_id(e));
             ImGui::SameLine();
             if (ImGui::SmallButton("Duplicate")) {
                 to_duplicate = e;

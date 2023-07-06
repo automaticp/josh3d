@@ -1,4 +1,5 @@
 #include "ModelComponentsRegistryHook.hpp"
+#include "ImGuiHelpers.hpp"
 #include "Transform.hpp"
 #include "GLTextures.hpp"
 #include "AssimpModelLoader.hpp"
@@ -60,11 +61,6 @@ static void display_transform_widget(Transform& transform) noexcept {
 
 
 
-static ImTextureID to_image(const Texture2D& image) noexcept {
-    return reinterpret_cast<ImTextureID>(image.id());
-}
-
-
 
 
 
@@ -110,7 +106,7 @@ void learn::imguihooks::ModelComponentsRegistryHook::operator()(entt::registry& 
         const char* path = registry.all_of<components::Path>(e) ?
             registry.get<components::Path>(e).path.c_str() : "(No Path)";
 
-        if (ImGui::TreeNode(reinterpret_cast<void*>(e), "Model [%d]: %s",
+        if (ImGui::TreeNode(void_id(e), "Model [%d]: %s",
             static_cast<entt::id_type>(e), path))
         {
 
@@ -121,7 +117,7 @@ void learn::imguihooks::ModelComponentsRegistryHook::operator()(entt::registry& 
                 const char* name = registry.all_of<components::Name>(mesh_entity) ?
                     registry.get<components::Name>(mesh_entity).name.c_str() : "(No Name)";
 
-                if (ImGui::TreeNode(reinterpret_cast<void*>(mesh_entity), "Mesh [%d]: %s",
+                if (ImGui::TreeNode(void_id(mesh_entity), "Mesh [%d]: %s",
                     static_cast<entt::id_type>(mesh_entity), name))
                 {
 
@@ -134,8 +130,8 @@ void learn::imguihooks::ModelComponentsRegistryHook::operator()(entt::registry& 
                         if (material) {
                             if (ImGui::TreeNode("Material (DS)")) {
 
-                                ImGui::Image(to_image(*material->diffuse), { 256.f, 256.f });
-                                ImGui::Image(to_image(*material->specular), { 256.f, 256.f });
+                                ImGui::ImageGL(void_id(material->diffuse->id()), { 256.f, 256.f });
+                                ImGui::ImageGL(void_id(material->specular->id()), { 256.f, 256.f });
 
                                 ImGui::DragFloat(
                                     "Shininess", &material->shininess,
@@ -155,9 +151,9 @@ void learn::imguihooks::ModelComponentsRegistryHook::operator()(entt::registry& 
                         if (material) {
                             if (ImGui::TreeNode("Material (DSN)")) {
 
-                                ImGui::Image(to_image(*material->diffuse), { 256.f, 256.f });
-                                ImGui::Image(to_image(*material->specular), { 256.f, 256.f });
-                                ImGui::Image(to_image(*material->normal), { 256.f, 256.f });
+                                ImGui::ImageGL(void_id(material->diffuse->id()), { 256.f, 256.f });
+                                ImGui::ImageGL(void_id(material->specular->id()), { 256.f, 256.f });
+                                ImGui::ImageGL(void_id(material->normal->id()), { 256.f, 256.f });
 
                                 ImGui::DragFloat(
                                     "Shininess", &material->shininess,

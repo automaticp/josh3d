@@ -1,4 +1,5 @@
 #include "PostprocessBloomStageHook.hpp"
+#include "ImGuiHelpers.hpp"
 #include <imgui.h>
 
 
@@ -46,12 +47,7 @@ void learn::imguihooks::PostprocessBloomStageHook::operator()() {
 
     if (ImGui::TreeNode("Bloom Texture")) {
 
-        ImGui::Image(
-            reinterpret_cast<ImTextureID>(
-                stage_.blur_front_target().id()
-            ),
-            { 300, 300 }
-        );
+        ImGui::ImageGL(void_id(stage_.blur_front_target().id()), { 300.f, 300.f });
 
         ImGui::TreePop();
     }

@@ -1,4 +1,5 @@
 #include "ShadowMappingStageHook.hpp"
+#include "ImGuiHelpers.hpp"
 #include <imgui.h>
 
 
@@ -41,13 +42,7 @@ void learn::imguihooks::ShadowMappingStageHook::operator()() {
     if (ImGui::TreeNode("Directional Shadows")) {
         if (ImGui::TreeNode("Shadow Map")) {
 
-            ImGui::Image(
-                reinterpret_cast<ImTextureID>(
-                    dir_light_map.depth_target().id()
-                ),
-                ImVec2{ 300.f, 300.f },
-                ImVec2{ 0.f, 1.f }, ImVec2{ 1.f, 0.f }
-            );
+            ImGui::ImageGL(void_id(dir_light_map.depth_target().id()), { 300.f, 300.f });
 
             ImGui::TreePop();
         }
