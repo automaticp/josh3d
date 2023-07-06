@@ -38,10 +38,8 @@ public:
 
         fbo_.bind_draw()
             .attach_cubemap(cubemaps_, GL_DEPTH_ATTACHMENT)
-            .and_then([] {
-                glDrawBuffer(GL_NONE);
-                glReadBuffer(GL_NONE);
-            })
+            .set_draw_buffer(GL_NONE)
+            .set_read_buffer(GL_NONE)
             .unbind();
     }
 

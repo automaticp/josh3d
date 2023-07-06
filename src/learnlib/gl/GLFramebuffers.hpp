@@ -4,6 +4,7 @@
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
 #include <glbinding/gl/gl.h>
+#include <concepts>
 
 
 
@@ -75,7 +76,7 @@ public:
         return *this;
     }
 
-    BoundDrawFramebuffer& blit_from(const BoundReadFramebuffer& src,
+    BoundDrawFramebuffer& blit_from(const BoundReadFramebuffer& src [[maybe_unused]],
         GLint src_x0, GLint src_y0, GLint src_x1, GLint src_y1,
         GLint dst_x0, GLint dst_y0, GLint dst_x1, GLint dst_y1,
         ClearBufferMask buffer_mask, GLenum interp_filter)
@@ -85,6 +86,24 @@ public:
             dst_x0, dst_y0, dst_x1, dst_y1,
             buffer_mask, interp_filter
         );
+        return *this;
+    }
+
+    BoundDrawFramebuffer& set_draw_buffer(GLenum buffer_attachment) {
+        glDrawBuffer(buffer_attachment);
+        return *this;
+    }
+
+    template<std::same_as<GLenum> ...EnumT>
+    BoundDrawFramebuffer& set_draw_buffers(EnumT... attachments) {
+        constexpr GLsizei n_slots = sizeof...(EnumT);
+        GLenum slots[n_slots]{ attachments... };
+        glDrawBuffers(n_slots, slots);
+        return *this;
+    }
+
+    BoundDrawFramebuffer& set_read_buffer(GLenum buffer_attachment) {
+        glReadBuffer(buffer_attachment);
         return *this;
     }
 
@@ -101,7 +120,7 @@ private:
 public:
     static void unbind() { glBindFramebuffer(GL_READ_FRAMEBUFFER, 0); }
 
-    BoundReadFramebuffer& blit_to(BoundDrawFramebuffer& dst,
+    BoundReadFramebuffer& blit_to(BoundDrawFramebuffer& dst [[maybe_unused]],
         GLint src_x0, GLint src_y0, GLint src_x1, GLint src_y1,
         GLint dst_x0, GLint dst_y0, GLint dst_x1, GLint dst_y1,
         ClearBufferMask buffer_mask, GLenum interp_filter)
@@ -111,6 +130,12 @@ public:
             dst_x0, dst_y0, dst_x1, dst_y1,
             buffer_mask, interp_filter
         );
+        return *this;
+    }
+
+
+    BoundReadFramebuffer& set_read_buffer(GLenum buffer_attachment) {
+        glReadBuffer(buffer_attachment);
         return *this;
     }
 

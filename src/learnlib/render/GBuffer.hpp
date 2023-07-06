@@ -51,12 +51,7 @@ public:
             .attach_texture(position_draw_, GL_COLOR_ATTACHMENT0)
             .attach_texture(normals_, GL_COLOR_ATTACHMENT1)
             .attach_texture(albedo_spec_, GL_COLOR_ATTACHMENT2)
-            .and_then([] {
-                GLenum attachments[3]{
-                    GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2
-                };
-                glDrawBuffers(3, attachments);
-            })
+            .set_draw_buffers(GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2)
             .attach_renderbuffer(depth_, GL_DEPTH_ATTACHMENT);
 
     }
