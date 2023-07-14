@@ -14,7 +14,7 @@
 
 
 
-namespace learn {
+namespace josh {
 
 class PostprocessBloomStage {
 private:
@@ -179,4 +179,4 @@ inline void PostprocessBloomStage::update_gaussian_blur_weights()
 
 
 
-} // namespace learn
+} // namespace josh

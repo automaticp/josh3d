@@ -5,7 +5,7 @@
 
 
 
-void learn::imguihooks::PostprocessHDREyeAdaptationStageHook::operator()() {
+void josh::imguihooks::PostprocessHDREyeAdaptationStageHook::operator()() {
 
     ImGui::Checkbox("Use Adaptation", &stage_.use_adaptation);
 

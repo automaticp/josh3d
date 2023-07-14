@@ -5,7 +5,7 @@
 
 
 
-namespace learn::leaksgl {
+namespace josh::leaksgl {
 
 using namespace gl;
 
@@ -74,4 +74,4 @@ BoundCubemap& BoundCubemap::attach_data(
 }
 
 
-} // namespace learn::leaksgl
+} // namespace josh::leaksgl

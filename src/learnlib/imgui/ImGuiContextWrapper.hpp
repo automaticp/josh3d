@@ -3,7 +3,7 @@
 
 namespace glfw { class Window; }
 
-namespace learn {
+namespace josh {
 
 
 class ImGuiContextWrapper {
@@ -21,4 +21,4 @@ public:
 };
 
 
-} // namespace learn
+} // namespace josh

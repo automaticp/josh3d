@@ -14,7 +14,7 @@
 
 
 
-namespace learn::imguihooks {
+namespace josh::imguihooks {
 
 
 
@@ -64,7 +64,7 @@ static void display_transform_widget(Transform& transform) noexcept {
 
 
 
-void learn::imguihooks::ModelComponentsRegistryHook::operator()(entt::registry& registry) {
+void josh::imguihooks::ModelComponentsRegistryHook::operator()(entt::registry& registry) {
 
 
     const bool load_ds = ImGui::Button("Load (DS)");
@@ -198,4 +198,4 @@ void learn::imguihooks::ModelComponentsRegistryHook::operator()(entt::registry& 
 
 
 
-} // namespace learn::imguihooks
+} // namespace josh::imguihooks

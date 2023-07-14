@@ -4,7 +4,7 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
-namespace learn {
+namespace josh {
 
 ImGuiContextWrapper::ImGuiContextWrapper(glfw::Window& window) {
     ImGui::CreateContext();
@@ -35,4 +35,4 @@ ImGuiContextWrapper::~ImGuiContextWrapper() noexcept {
 }
 
 
-} // namespace learn
+} // namespace josh

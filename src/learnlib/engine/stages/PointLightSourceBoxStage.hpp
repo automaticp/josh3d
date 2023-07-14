@@ -9,7 +9,7 @@
 
 
 
-namespace learn {
+namespace josh {
 
 
 class PointLightSourceBoxStage {
@@ -67,4 +67,4 @@ public:
 
 
 
-} // namespace learn
+} // namespace josh

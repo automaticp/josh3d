@@ -4,7 +4,7 @@
 
 
 
-namespace learn {
+namespace josh {
 
 
 /*
@@ -107,4 +107,4 @@ using leaksgl::FramebufferHandle;
 using leaksgl::RenderbufferHandle;
 
 
-} // namespace learn
+} // namespace josh

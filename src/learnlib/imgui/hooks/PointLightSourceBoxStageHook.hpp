@@ -3,7 +3,7 @@
 
 
 
-namespace learn::imguihooks {
+namespace josh::imguihooks {
 
 
 class PointLightSourceBoxStageHook {
@@ -19,4 +19,4 @@ public:
 };
 
 
-} // namespace learn::imguihooks
+} // namespace josh::imguihooks

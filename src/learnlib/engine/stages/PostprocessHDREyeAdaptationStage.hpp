@@ -11,7 +11,7 @@
 #include <cmath>
 
 
-namespace learn {
+namespace josh {
 
 class PostprocessHDREyeAdaptationStage {
 private:
@@ -162,4 +162,4 @@ private:
 
 
 
-} // namespace learn
+} // namespace josh

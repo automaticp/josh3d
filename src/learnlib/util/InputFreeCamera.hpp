@@ -6,7 +6,7 @@
 #include <glfwpp/glfwpp.h>
 
 
-namespace learn {
+namespace josh {
 
 
 struct InputFreeCameraConfig {
@@ -216,4 +216,4 @@ inline void InputFreeCamera::configure(BasicRebindableInput& input) {
 
 
 
-} // namespace learn
+} // namespace josh

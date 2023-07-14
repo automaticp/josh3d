@@ -8,7 +8,7 @@
 
 
 
-namespace learn::components {
+namespace josh::components {
 
 /*
 WIP
@@ -54,4 +54,4 @@ struct ChildMesh {
 using Model = ModelComponent;
 
 
-} // namespace learn::components
+} // namespace josh::components

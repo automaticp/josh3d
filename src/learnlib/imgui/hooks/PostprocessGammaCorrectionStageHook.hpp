@@ -2,7 +2,7 @@
 #include "stages/PostprocessGammaCorrectionStage.hpp"
 
 
-namespace learn::imguihooks {
+namespace josh::imguihooks {
 
 
 class PostprocessGammaCorrectionStageHook {
@@ -18,4 +18,4 @@ public:
 };
 
 
-} // namespace learn::imguihooks
+} // namespace josh::imguihooks

@@ -5,7 +5,7 @@
 #include <tuple>
 
 
-namespace learn {
+namespace josh {
 
 // This exists because the normal glfw::Window::getSize() call
 // involves an expensive syscall. And even though you'd be tempted
@@ -68,4 +68,4 @@ public:
 };
 
 
-} // namespace learn
+} // namespace josh

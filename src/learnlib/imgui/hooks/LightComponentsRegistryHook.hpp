@@ -5,7 +5,7 @@
 
 
 
-namespace learn::imguihooks {
+namespace josh::imguihooks {
 
 
 class LightComponentsRegistryHook {
@@ -27,4 +27,4 @@ public:
 };
 
 
-} // namespace learn::imguihooks
+} // namespace josh::imguihooks

@@ -18,7 +18,7 @@
 
 
 
-namespace learn::globals {
+namespace josh::globals {
 
 DataPool<TextureData> texture_data_pool;
 TextureHandlePool texture_handle_pool{ texture_data_pool };
@@ -101,4 +101,4 @@ void clear_all() {
 }
 
 
-} // namespace learn::globals
+} // namespace josh::globals

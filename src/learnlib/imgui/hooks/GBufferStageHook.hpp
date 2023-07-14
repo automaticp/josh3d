@@ -2,7 +2,7 @@
 #include "stages/GBufferStage.hpp"
 
 
-namespace learn::imguihooks {
+namespace josh::imguihooks {
 
 
 class GBufferStageHook {
@@ -20,4 +20,4 @@ public:
 };
 
 
-} // namespace learn::imguihooks
+} // namespace josh::imguihooks

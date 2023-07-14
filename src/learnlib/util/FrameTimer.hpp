@@ -2,7 +2,7 @@
 #include <glfwpp/glfwpp.h>
 
 
-namespace learn {
+namespace josh {
 
 
 class FrameTimer {
@@ -27,4 +27,4 @@ public:
 };
 
 
-} // namespace learn
+} // namespace josh

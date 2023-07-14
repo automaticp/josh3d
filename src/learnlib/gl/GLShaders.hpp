@@ -9,7 +9,7 @@
 #include <string>
 
 
-namespace learn {
+namespace josh {
 
 
 /*
@@ -287,4 +287,4 @@ using leaksgl::VertexShader, leaksgl::FragmentShader;
 using leaksgl::ComputeShader, leaksgl::GeometryShader;
 using leaksgl::ActiveShaderProgram, leaksgl::ShaderProgram;
 
-} // namespace learn
+} // namespace josh

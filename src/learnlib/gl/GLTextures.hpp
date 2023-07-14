@@ -7,7 +7,7 @@
 
 
 
-namespace learn {
+namespace josh {
 
 
 /*
@@ -461,4 +461,4 @@ using leaksgl::BoundConstTexture2DMS, leaksgl::BoundTexture2DMS, leaksgl::Textur
 using leaksgl::BoundConstCubemap, leaksgl::BoundCubemap, leaksgl::Cubemap;
 using leaksgl::BoundConstCubemapArray, leaksgl::BoundCubemapArray, leaksgl::CubemapArray;
 
-} // namespace learn
+} // namespace josh

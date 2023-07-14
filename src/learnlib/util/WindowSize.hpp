@@ -1,7 +1,7 @@
 #pragma once
 
 
-namespace learn {
+namespace josh {
 
 
 template<typename NumericT = int>
@@ -21,4 +21,4 @@ struct WindowSize {
 };
 
 
-} // namespace learn
+} // namespace josh

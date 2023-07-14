@@ -4,7 +4,7 @@
 
 
 
-void learn::imguihooks::PostprocessHDRStageHook::operator()() {
+void josh::imguihooks::PostprocessHDRStageHook::operator()() {
 
     ImGui::Checkbox("Use Reinhard", &stage_.use_reinhard);
 

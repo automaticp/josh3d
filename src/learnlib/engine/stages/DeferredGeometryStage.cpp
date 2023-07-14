@@ -7,7 +7,7 @@
 
 using namespace gl;
 
-namespace learn {
+namespace josh {
 
 
 void DeferredGeometryStage::operator()(
@@ -60,4 +60,4 @@ void DeferredGeometryStage::operator()(
 
 
 
-} // namespace learn
+} // namespace josh

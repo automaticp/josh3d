@@ -10,7 +10,7 @@
 
 
 
-namespace learn {
+namespace josh {
 
 
 /*
@@ -213,4 +213,4 @@ public:
 using leaksgl::BoundDrawFramebuffer, leaksgl::BoundReadFramebuffer, leaksgl::Framebuffer;
 using leaksgl::BoundRenderbuffer, leaksgl::Renderbuffer;
 
-} // namespace learn
+} // namespace josh

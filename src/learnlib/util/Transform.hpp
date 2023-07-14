@@ -8,7 +8,7 @@
 #include <glm/ext.hpp>
 
 
-namespace learn {
+namespace josh {
 
 class MTransform;
 
@@ -173,4 +173,4 @@ inline Transform::operator MTransform() const noexcept {
 
 
 
-} // namespace learn
+} // namespace josh

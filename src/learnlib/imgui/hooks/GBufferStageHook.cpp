@@ -3,7 +3,7 @@
 #include <imgui.h>
 
 
-namespace learn::imguihooks {
+namespace josh::imguihooks {
 
 
 void GBufferStageHook::operator()() {
@@ -38,4 +38,4 @@ void GBufferStageHook::operator()() {
 
 
 
-} // namespace learn::imguihooks
+} // namespace josh::imguihooks

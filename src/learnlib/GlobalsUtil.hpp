@@ -6,7 +6,7 @@
 #include <iostream>
 
 
-namespace learn::globals {
+namespace josh::globals {
 
 
 inline FrameTimer frame_timer;
@@ -19,4 +19,4 @@ extern std::ostream& logstream;
 inline const OrthonormalBasis3D basis{ glm::vec3(1.0f, 0.0, 0.0), glm::vec3(0.0f, 1.0f, 0.0f), true };
 
 
-} // namespace learn::globals
+} // namespace josh::globals

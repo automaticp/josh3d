@@ -43,9 +43,9 @@
 #include <imgui.h>
 
 
-namespace leakslearn {
+namespace leaksjosh {
 
-using namespace learn;
+using namespace josh;
 
 
 class DemoScene {
@@ -267,6 +267,6 @@ inline void DemoScene::update_input_blocker_from_imgui_io_state() {
 
 
 
-} // namespace leakslearn
+} // namespace leaksjosh
 
-using leakslearn::DemoScene;
+using leaksjosh::DemoScene;

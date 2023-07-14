@@ -4,7 +4,7 @@
 
 
 
-namespace learn::imguihooks {
+namespace josh::imguihooks {
 
 
 class PostprocessHDRStageHook {
@@ -21,4 +21,4 @@ public:
 
 
 
-} // namespace learn::imguihooks
+} // namespace josh::imguihooks

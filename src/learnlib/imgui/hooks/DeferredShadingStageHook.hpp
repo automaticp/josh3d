@@ -2,7 +2,7 @@
 #include "stages/DeferredShadingStage.hpp"
 
 
-namespace learn::imguihooks {
+namespace josh::imguihooks {
 
 
 class DeferredShadingStageHook {
@@ -18,4 +18,4 @@ public:
 };
 
 
-} // namespace learn::imguihooks
+} // namespace josh::imguihooks

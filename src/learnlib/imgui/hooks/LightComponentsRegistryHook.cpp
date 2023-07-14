@@ -8,7 +8,7 @@
 
 
 
-namespace learn::imguihooks {
+namespace josh::imguihooks {
 
 
 
@@ -159,4 +159,4 @@ void LightComponentsRegistryHook::operator()(
 
 
 
-} // namespace learn::imguihooks
+} // namespace josh::imguihooks

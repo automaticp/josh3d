@@ -2,7 +2,7 @@
 #include "GLScalars.hpp"
 
 
-namespace learn {
+namespace josh {
 
 /*
 Attribute specification pack for attaching
@@ -18,4 +18,4 @@ struct AttributeParams {
 };
 
 
-} // namespace learn
+} // namespace josh

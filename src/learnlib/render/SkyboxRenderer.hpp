@@ -4,7 +4,7 @@
 #include "AttributeParams.hpp"
 #include <glbinding/gl/gl.h>
 
-namespace learn {
+namespace josh {
 
 
 // Pretty basic, one skybox at a time.
@@ -109,4 +109,4 @@ private:
 
 };
 
-} // namespace learn
+} // namespace josh

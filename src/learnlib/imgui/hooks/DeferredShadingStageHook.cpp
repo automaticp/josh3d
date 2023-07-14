@@ -3,7 +3,7 @@
 
 
 
-void learn::imguihooks::DeferredShadingStageHook::operator()() {
+void josh::imguihooks::DeferredShadingStageHook::operator()() {
 
 
     if (ImGui::TreeNode("Point Shadows")) {

@@ -15,7 +15,7 @@
 #include <glbinding-aux/Meta.h>
 
 
-namespace learn {
+namespace josh {
 
 
 namespace detail {
@@ -206,4 +206,4 @@ inline void enable_glbinding_logger(std::ostream& os = globals::logstream) {
 }
 
 
-} // namespace learn
+} // namespace josh

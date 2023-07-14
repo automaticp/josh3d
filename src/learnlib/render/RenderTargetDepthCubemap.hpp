@@ -3,7 +3,7 @@
 #include <glbinding/gl/gl.h>
 
 
-namespace learn {
+namespace josh {
 
 class RenderTargetDepthCubemap {
 private:
@@ -57,4 +57,4 @@ public:
 
 };
 
-} // namespace learn
+} // namespace josh

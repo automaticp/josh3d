@@ -2,7 +2,7 @@
 #include <numeric>
 #include <vector>
 
-namespace learn {
+namespace josh {
 
 
 /*
@@ -71,4 +71,4 @@ private:
 
 };
 
-} // namespace learn
+} // namespace josh

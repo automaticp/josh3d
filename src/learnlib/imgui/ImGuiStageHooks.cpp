@@ -2,7 +2,7 @@
 #include <imgui.h>
 
 
-namespace learn {
+namespace josh {
 
 
 
@@ -51,4 +51,4 @@ void ImGuiStageHooks::display() {
 
 
 
-} // namespace learn
+} // namespace josh

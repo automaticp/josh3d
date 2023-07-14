@@ -3,7 +3,7 @@
 #include <stdexcept>
 
 
-namespace learn {
+namespace josh {
 
 
 TextureData TextureData::from_file(const char* path,
@@ -29,4 +29,4 @@ TextureData TextureData::from_file(const char* path,
 }
 
 
-} // namespace learn
+} // namespace josh

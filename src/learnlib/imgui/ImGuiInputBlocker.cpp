@@ -1,7 +1,7 @@
 #include "ImGuiInputBlocker.hpp"
 #include <imgui.h>
 
-namespace learn {
+namespace josh {
 
 
 bool ImGuiInputBlocker::is_key_blocked(const KeyCallbackArgs&) const {
@@ -17,4 +17,4 @@ bool ImGuiInputBlocker::is_scroll_blocked(const ScrollCallbackArgs&) const {
 }
 
 
-} // namespace learn
+} // namespace josh

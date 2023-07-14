@@ -8,7 +8,7 @@
 
 
 
-namespace learn {
+namespace josh {
 
 
 
@@ -46,4 +46,4 @@ public:
 };
 
 
-} // namspace learn
+} // namspace josh

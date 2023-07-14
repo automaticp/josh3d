@@ -2,7 +2,7 @@
 #include <imgui.h>
 
 
-void learn::imguihooks::PostprocessGammaCorrectionStageHook::operator()() {
+void josh::imguihooks::PostprocessGammaCorrectionStageHook::operator()() {
 
     ImGui::Checkbox("Use sRGB", &stage_.use_srgb);
 

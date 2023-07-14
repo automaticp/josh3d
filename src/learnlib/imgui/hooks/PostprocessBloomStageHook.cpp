@@ -4,7 +4,7 @@
 
 
 
-void learn::imguihooks::PostprocessBloomStageHook::operator()() {
+void josh::imguihooks::PostprocessBloomStageHook::operator()() {
 
     ImGui::SliderFloat2(
         "Threshold", glm::value_ptr(stage_.threshold_bounds),

@@ -10,7 +10,7 @@
 
 
 
-namespace learn {
+namespace josh {
 
 
 /*
@@ -156,4 +156,4 @@ bool operator==(const UniqueFunction<ResT(ArgTs...)>& fun,
 
 
 
-} // namespace learn
+} // namespace josh

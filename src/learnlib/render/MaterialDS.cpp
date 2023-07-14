@@ -9,7 +9,7 @@
 #include <glbinding/gl/gl.h>
 
 
-namespace learn {
+namespace josh {
 
 
 
@@ -109,5 +109,5 @@ MaterialDS get_material<MaterialDS>(
 
 
 
-} // namespace learn
+} // namespace josh
 

@@ -6,7 +6,7 @@
 #include "ShaderSource.hpp"
 
 
-namespace learn {
+namespace josh {
 
 
 
@@ -77,4 +77,4 @@ private:
 };
 
 
-} // namespace learn
+} // namespace josh

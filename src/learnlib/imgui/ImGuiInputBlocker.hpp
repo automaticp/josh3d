@@ -2,7 +2,7 @@
 #include "Input.hpp"
 
 
-namespace learn {
+namespace josh {
 
 
 class ImGuiInputBlocker : public IInputBlocker {
@@ -13,4 +13,4 @@ public:
 };
 
 
-} // namespace learn
+} // namespace josh

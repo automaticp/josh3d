@@ -6,7 +6,7 @@
 #include "VertexPNTTB.hpp"
 
 
-namespace learn::globals {
+namespace josh::globals {
 
 extern DataPool<TextureData> texture_data_pool;
 

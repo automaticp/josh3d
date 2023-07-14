@@ -2,7 +2,7 @@
 #include "AssimpModelLoader.hpp"
 
 
-namespace learn {
+namespace josh {
 
 
 
@@ -39,4 +39,4 @@ std::vector<VertexPNT> get_vertex_data<VertexPNT>(const aiMesh* mesh) {
 }
 
 
-} // namespace learn
+} // namespace josh

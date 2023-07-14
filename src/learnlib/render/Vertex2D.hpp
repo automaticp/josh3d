@@ -6,7 +6,7 @@
 #include <cstddef>
 
 
-namespace learn {
+namespace josh {
 
 
 struct Vertex2D {
@@ -30,4 +30,4 @@ inline const Vertex2D::attributes_type Vertex2D::aparams{
 static_assert(vertex<Vertex2D>);
 
 
-} // namespace learn
+} // namespace josh

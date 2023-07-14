@@ -7,7 +7,7 @@
 
 
 
-namespace learn {
+namespace josh {
 
 class PostprocessHDRStage {
 private:
@@ -42,4 +42,4 @@ public:
 
 
 
-} // namespace learn
+} // namespace josh

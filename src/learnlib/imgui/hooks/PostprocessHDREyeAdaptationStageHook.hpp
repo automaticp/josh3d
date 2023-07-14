@@ -3,7 +3,7 @@
 
 
 
-namespace learn::imguihooks {
+namespace josh::imguihooks {
 
 
 class PostprocessHDREyeAdaptationStageHook {
@@ -20,4 +20,4 @@ public:
 };
 
 
-} // namespace learn::imguihooks
+} // namespace josh::imguihooks

@@ -17,7 +17,7 @@
 using namespace gl;
 
 
-namespace learn {
+namespace josh {
 
 
 
@@ -291,4 +291,4 @@ void ShadowMappingStage::resize_point_maps(
 
 
 
-} // namespace learn
+} // namespace josh

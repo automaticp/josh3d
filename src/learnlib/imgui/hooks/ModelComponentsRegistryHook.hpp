@@ -3,7 +3,7 @@
 #include <entt/fwd.hpp>
 
 
-namespace learn::imguihooks {
+namespace josh::imguihooks {
 
 
 class ModelComponentsRegistryHook {
@@ -16,4 +16,4 @@ public:
 };
 
 
-} // namespace learn::imguihooks
+} // namespace josh::imguihooks

@@ -4,7 +4,7 @@
 #include <vector>
 #include <utility>
 
-namespace learn {
+namespace josh {
 
 template<typename VertexT>
 class MeshData {
@@ -29,4 +29,4 @@ public:
 
 
 
-} // namespace learn
+} // namespace josh

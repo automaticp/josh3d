@@ -6,7 +6,7 @@
 
 
 
-void learn::imguihooks::ForwardRenderingStageHook::operator()() {
+void josh::imguihooks::ForwardRenderingStageHook::operator()() {
 
     auto& s = stage_;
 

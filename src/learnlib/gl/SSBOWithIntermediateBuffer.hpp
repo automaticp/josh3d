@@ -7,7 +7,7 @@
 #include <ranges>
 
 
-namespace learn {
+namespace josh {
 
 
 template<typename T> requires (std::is_trivially_copyable_v<T>)
@@ -159,5 +159,5 @@ public:
 
 
 
-} // namespace learn
+} // namespace josh
 

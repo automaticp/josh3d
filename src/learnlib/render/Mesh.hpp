@@ -6,7 +6,7 @@
 #include <glbinding/gl/gl.h>
 
 
-namespace learn {
+namespace josh {
 
 
 class Mesh {
@@ -58,5 +58,5 @@ public:
 };
 
 
-} // namespace learn
+} // namespace josh
 

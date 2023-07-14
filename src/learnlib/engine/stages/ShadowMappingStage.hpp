@@ -16,7 +16,7 @@
 
 
 
-namespace learn {
+namespace josh {
 
 
 class ShadowMappingStage {
@@ -133,4 +133,4 @@ inline auto ShadowMappingStage::dir_params() noexcept
 
 
 
-} // namespace learn
+} // namespace josh

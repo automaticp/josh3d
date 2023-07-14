@@ -8,7 +8,7 @@
 #include <cassert>
 
 
-namespace learn {
+namespace josh {
 
 
 
@@ -242,4 +242,4 @@ decltype(auto) ThreadsafeQueue<T>::lock_and(CallableT&& callable) const {
 
 
 
-} // namespace learn
+} // namespace josh

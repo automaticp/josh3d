@@ -4,7 +4,7 @@
 #include "Transform.hpp"
 #include "Vertex2D.hpp"
 
-namespace learn {
+namespace josh {
 
 
 class SpriteRenderer {
@@ -74,4 +74,4 @@ public:
 
 
 
-} // namespace learn
+} // namespace josh

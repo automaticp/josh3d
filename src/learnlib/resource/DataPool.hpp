@@ -6,7 +6,7 @@
 #include "Shared.hpp"
 
 
-namespace learn {
+namespace josh {
 
 
 
@@ -69,4 +69,4 @@ inline Shared<TextureData> DataPool<TextureData>::load_data_from(const std::stri
 
 
 
-} // namespace learn
+} // namespace josh

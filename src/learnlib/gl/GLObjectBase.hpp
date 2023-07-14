@@ -3,7 +3,7 @@
 #include <concepts>
 
 
-namespace learn {
+namespace josh {
 
 /*
 Implementation base class for OpenGL resources that
@@ -64,4 +64,4 @@ public:
 };
 
 
-} // namespace learn
+} // namespace josh

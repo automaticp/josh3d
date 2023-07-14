@@ -13,7 +13,7 @@ void render_generic_scene(glfw::Window& window) {
     SceneT scene{ window };
 
     while (!window.shouldClose()) {
-        learn::globals::frame_timer.update();
+        josh::globals::frame_timer.update();
 
         glfw::pollEvents();
         scene.process_input();
@@ -32,7 +32,7 @@ void render_generic_scene(glfw::Window& window) {
 
 int main() {
     using namespace gl;
-    using namespace learn;
+    using namespace josh;
 
 
     auto glfw_instance{ glfw::init() };

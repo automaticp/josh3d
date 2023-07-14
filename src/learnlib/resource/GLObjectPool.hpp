@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <utility>
 
-namespace learn {
+namespace josh {
 
 
 
@@ -77,4 +77,4 @@ void GLObjectPool<T, UpstreamT, LoadContextT>::clear_unused() {
 
 
 
-} // namespace learn
+} // namespace josh

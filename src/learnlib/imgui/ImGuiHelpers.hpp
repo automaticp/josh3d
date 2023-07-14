@@ -4,7 +4,7 @@
 #include <type_traits>
 
 
-namespace learn {
+namespace josh {
 
 
 inline void* void_id(std::integral auto value) noexcept {
@@ -18,7 +18,7 @@ inline void* void_id(EnumT value) noexcept {
 }
 
 
-} // namespace learn
+} // namespace josh
 
 
 namespace ImGui {

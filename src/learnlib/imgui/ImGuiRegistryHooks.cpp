@@ -3,7 +3,7 @@
 #include <entt/entt.hpp>
 
 
-namespace learn {
+namespace josh {
 
 
 
@@ -35,4 +35,4 @@ void ImGuiRegistryHooks::display() {
 
 
 
-} // namespace learn
+} // namespace josh

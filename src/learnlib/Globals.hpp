@@ -11,7 +11,7 @@
 // Include specific Globals* headers.
 
 
-namespace learn::globals {
+namespace josh::globals {
 
 // Initialize the global defaults.
 // Must be done right after creating the OpenGL context.
@@ -36,4 +36,4 @@ public:
 };
 
 
-} // namespace learn::globals
+} // namespace josh::globals

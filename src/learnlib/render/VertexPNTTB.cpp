@@ -5,7 +5,7 @@
 #include <glbinding/gl/gl.h>
 #include <vector>
 
-namespace learn {
+namespace josh {
 
 
 
@@ -62,4 +62,4 @@ std::vector<VertexPNTTB> get_vertex_data<VertexPNTTB>(const aiMesh* mesh) {
 
 
 
-} // namespace learn
+} // namespace josh

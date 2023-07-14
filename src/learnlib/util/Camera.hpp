@@ -5,7 +5,7 @@
 #include "GlobalsUtil.hpp"
 
 
-namespace learn {
+namespace josh {
 
 
 class Camera {
@@ -61,4 +61,4 @@ public:
 };
 
 
-} // namespace learn
+} // namespace josh

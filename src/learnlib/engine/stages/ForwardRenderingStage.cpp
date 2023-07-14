@@ -11,7 +11,7 @@
 using namespace gl;
 
 
-namespace learn {
+namespace josh {
 
 
 
@@ -147,4 +147,4 @@ void ForwardRenderingStage::draw_scene(
 
 
 
-} // namespace learn
+} // namespace josh

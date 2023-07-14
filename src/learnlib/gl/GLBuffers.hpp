@@ -9,7 +9,7 @@
 
 
 
-namespace learn {
+namespace josh {
 
 
 /*
@@ -446,4 +446,4 @@ using leaksgl::BoundSSBO, leaksgl::SSBO;
 using leaksgl::BoundEBO, leaksgl::EBO;
 
 
-} // namespace learn
+} // namespace josh

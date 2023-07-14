@@ -5,7 +5,7 @@
 #include <glbinding/gl/types.h>
 
 
-namespace learn {
+namespace josh {
 
 
 class RenderTargetColorMS {
@@ -74,6 +74,6 @@ public:
 
 
 
-} // namespace learn
+} // namespace josh
 
 

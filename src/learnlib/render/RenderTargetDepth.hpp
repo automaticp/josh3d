@@ -3,7 +3,7 @@
 #include <glbinding/gl/gl.h>
 
 
-namespace learn {
+namespace josh {
 
 
 class RenderTargetDepth {
@@ -67,4 +67,4 @@ public:
 
 
 
-} // namespace learn
+} // namespace josh

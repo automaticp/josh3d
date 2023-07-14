@@ -11,7 +11,7 @@ Do not expose types that appear rarely, only ones that are (or could be) commonl
 
 Extend as needed.
 */
-namespace learn {
+namespace josh {
 
 using gl::GLenum;
 using gl::GLboolean;
@@ -25,4 +25,4 @@ using gl::GLchar;
 using gl::GLintptr, gl::GLsizeiptr;
 
 
-} // namespace learn
+} // namespace josh

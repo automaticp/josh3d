@@ -6,7 +6,7 @@
 
 using namespace gl;
 
-namespace learn {
+namespace josh {
 
 
 
@@ -83,4 +83,4 @@ void RenderEngine::render_postprocess_stages() {
 
 
 
-} // namespace learn
+} // namespace josh

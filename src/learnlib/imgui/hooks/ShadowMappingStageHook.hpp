@@ -4,7 +4,7 @@
 #include "GLScalars.hpp"
 
 
-namespace learn::imguihooks {
+namespace josh::imguihooks {
 
 
 class ShadowMappingStageHook {
@@ -30,4 +30,4 @@ public:
 };
 
 
-} // namespace learn::imguihooks
+} // namespace josh::imguihooks

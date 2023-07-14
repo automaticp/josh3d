@@ -5,7 +5,7 @@
 
 
 
-namespace learn {
+namespace josh {
 
 
 class RenderTargetColorAndDepth {
@@ -93,4 +93,4 @@ public:
 };
 
 
-} // namespace learn
+} // namespace josh

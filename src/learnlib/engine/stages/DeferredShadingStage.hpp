@@ -14,7 +14,7 @@
 #include <utility>
 
 
-namespace learn {
+namespace josh {
 
 
 class DeferredShadingStage {
@@ -73,4 +73,4 @@ private:
 
 
 
-} // namespace learn
+} // namespace josh

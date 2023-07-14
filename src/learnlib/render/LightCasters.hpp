@@ -2,7 +2,7 @@
 #include "Layout.hpp"
 #include <glm/glm.hpp>
 
-namespace learn {
+namespace josh {
 
 
 namespace light {
@@ -43,4 +43,4 @@ struct Spotlight {
 } // namespace light
 
 
-} // namespace learn
+} // namespace josh

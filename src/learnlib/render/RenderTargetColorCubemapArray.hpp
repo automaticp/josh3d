@@ -4,7 +4,7 @@
 #include <glbinding/gl/gl.h>
 
 
-namespace learn {
+namespace josh {
 
 
 class RenderTargetColorCubemapArray {
@@ -93,4 +93,4 @@ public:
 
 
 
-} // namespace learn
+} // namespace josh

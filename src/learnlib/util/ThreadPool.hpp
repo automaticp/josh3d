@@ -15,7 +15,7 @@
 #include <latch>
 
 
-namespace learn {
+namespace josh {
 
 
 
@@ -259,4 +259,4 @@ inline void ThreadPool::drain_queue_until_empty(size_t thread_idx) {
 
 
 
-} // namespace learn
+} // namespace josh

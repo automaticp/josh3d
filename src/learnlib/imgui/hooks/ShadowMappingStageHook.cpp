@@ -6,7 +6,7 @@
 
 
 
-void learn::imguihooks::ShadowMappingStageHook::operator()() {
+void josh::imguihooks::ShadowMappingStageHook::operator()() {
     auto& s = stage_;
     auto& plight_maps = shadow_info_->point_light_maps;
     auto& dir_light_map = shadow_info_->dir_light_map;

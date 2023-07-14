@@ -4,7 +4,7 @@
 #include <utility>
 #include "TextureData.hpp"
 
-namespace learn {
+namespace josh {
 
 
 class CubemapData {
@@ -39,4 +39,4 @@ public:
 
 
 
-} //namespace learn
+} //namespace josh

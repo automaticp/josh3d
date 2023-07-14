@@ -6,7 +6,7 @@
 #include <glbinding/gl/gl.h>
 
 
-namespace learn {
+namespace josh {
 
 
 
@@ -110,4 +110,4 @@ public:
 
 
 
-} // namespace learn
+} // namespace josh

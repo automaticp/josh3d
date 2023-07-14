@@ -3,7 +3,7 @@
 #include <glbinding/gl/gl.h>
 
 
-namespace learn {
+namespace josh {
 
 
 class RenderTargetDepthCubemapArray {
@@ -73,4 +73,4 @@ public:
 
 
 
-} // namespace learn
+} // namespace josh

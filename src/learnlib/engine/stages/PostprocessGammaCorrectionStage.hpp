@@ -8,7 +8,7 @@
 
 
 
-namespace learn {
+namespace josh {
 
 class PostprocessGammaCorrectionStage {
 private:
@@ -51,4 +51,4 @@ public:
 
 
 
-} // namespace learn
+} // namespace josh

@@ -10,7 +10,7 @@
 
 
 
-namespace learn {
+namespace josh {
 
 // Clears the color buffer with the color of the ambient light.
 // Peak rendering.
@@ -34,4 +34,4 @@ public:
 };
 
 
-} // namespace learn
+} // namespace josh

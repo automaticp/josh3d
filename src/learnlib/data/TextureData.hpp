@@ -8,7 +8,7 @@
 
 
 
-namespace learn {
+namespace josh {
 
 
 class TextureData {
@@ -65,4 +65,4 @@ private:
 
 
 
-} // namespace learn
+} // namespace josh

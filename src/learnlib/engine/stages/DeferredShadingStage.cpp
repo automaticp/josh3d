@@ -9,7 +9,7 @@
 
 using namespace gl;
 
-namespace learn {
+namespace josh {
 
 
 
@@ -116,4 +116,4 @@ void DeferredShadingStage::update_point_light_buffers(
 
 
 
-} // namespace learn
+} // namespace josh

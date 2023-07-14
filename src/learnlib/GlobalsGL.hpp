@@ -5,7 +5,7 @@
 #include "TextureHandlePool.hpp"
 
 
-namespace learn::globals {
+namespace josh::globals {
 
 
 extern TextureHandlePool texture_handle_pool;

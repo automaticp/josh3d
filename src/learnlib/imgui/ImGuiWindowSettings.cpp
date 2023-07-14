@@ -5,7 +5,7 @@
 #include <string>
 
 
-namespace learn {
+namespace josh {
 
 
 void ImGuiWindowSettings::display() {
@@ -85,4 +85,4 @@ void ImGuiWindowSettings::display() {
 
 
 
-} // namespace learn
+} // namespace josh
