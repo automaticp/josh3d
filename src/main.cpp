@@ -43,7 +43,7 @@ int main() {
         .openglProfile=glfw::OpenGlProfile::Core
     }.apply();
 
-    glfw::Window window{ 800, 600, "WindowName" };
+    glfw::Window window{ 800, 600, "Josh3d Demo" };
     glfw::makeContextCurrent(window);
     glfw::swapInterval(0);
     window.setInputModeCursor(glfw::CursorMode::Normal);
@@ -70,8 +70,6 @@ int main() {
     glViewport(0, 0, width, height);
     glEnable(GL_DEPTH_TEST);
 
-
-    // render_generic_scene<BoxScene3>(window);
     render_generic_scene<DemoScene>(window);
 
 
