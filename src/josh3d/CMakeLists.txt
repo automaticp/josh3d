@@ -1,7 +1,7 @@
-add_library(learnlib STATIC)
+add_library(josh3d STATIC)
 file(GLOB_RECURSE LOCAL_SOURCES CONFIGURE_DEPENDS *.cpp)
-target_sources(learnlib PRIVATE "${LOCAL_SOURCES}")
-target_include_directories(learnlib
+target_sources(josh3d PRIVATE "${LOCAL_SOURCES}")
+target_include_directories(josh3d
     PUBLIC
         ./
         ./data/
@@ -12,11 +12,11 @@ target_include_directories(learnlib
         ./util/
         ./engine/
 )
-target_compile_features(learnlib PUBLIC cxx_std_20)
+target_compile_features(josh3d PUBLIC cxx_std_20)
 
 
 # external dependencies
-target_link_libraries(learnlib
+target_link_libraries(josh3d
     PUBLIC
         glm::glm
         glfwpp::glfwpp

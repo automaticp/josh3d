@@ -1,6 +1,6 @@
 {
-    "name": "ogl-learning",
-    "version": "0.3",
+    "name": "josh3d",
+    "version": "0.4",
     "dependencies": [
         "glbinding",
         "glfw3",
