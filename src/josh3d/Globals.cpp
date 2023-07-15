@@ -71,7 +71,7 @@ static Shared<Texture2D> init_default_specular_texture() {
 }
 
 static Shared<Texture2D> init_default_normal_texture() {
-    auto tex = fill_default({ 0x00, 0x00, 0xFF, 0xFF });
+    auto tex = fill_default({ 0x7F, 0x7F, 0xFF, 0xFF });
     auto handle = std::make_shared<Texture2D>();
     handle->bind().attach_data(tex, gl::GL_RGBA).unbind();
     return handle;
