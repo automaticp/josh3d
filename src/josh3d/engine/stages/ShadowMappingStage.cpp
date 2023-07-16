@@ -1,11 +1,8 @@
 #include "ShadowMappingStage.hpp"
 #include "GLShaders.hpp"
 #include "LightCasters.hpp"
-#include "MaterialDS.hpp"
 #include "RenderComponents.hpp"
 #include "Mesh.hpp"
-#include "Model.hpp"
-#include "RenderComponents.hpp"
 #include "Shared.hpp"
 #include "Transform.hpp"
 #include <cstddef>
@@ -35,6 +32,10 @@ void ShadowMappingStage::operator()(
     gl::glViewport(0, 0, engine.window_size().width, engine.window_size().height);
 
 }
+
+
+
+
 
 
 
@@ -83,71 +84,67 @@ void ShadowMappingStage::resize_point_light_cubemap_array_if_needed(
 
 
 
-void ShadowMappingStage::map_point_light_shadows(
-    const RenderEnginePrimaryInterface& /* engine */,
+
+
+
+
+static MTransform get_full_mtransform(entt::const_handle handle,
+    const Transform& transform)
+{
+    if (auto as_child = handle.try_get<components::ChildMesh>(); as_child) {
+        return handle.registry()->get<Transform>(as_child->parent).mtransform() *
+            transform.mtransform();
+    } else {
+        return transform.mtransform();
+    }
+}
+
+
+
+
+static void draw_all_world_geometry_with_alpha_test(ActiveShaderProgram& ashp,
     const entt::registry& registry)
 {
+    // Assumes that projection and view are already set.
 
-    auto plights_with_shadow_view =
-        registry.view<const light::Point, const components::ShadowCasting>();
+    ashp.uniform("material.diffuse", 0);
 
-    sp_plight_depth_.use().and_then([&, this](ActiveShaderProgram& ashp) {
+    // FIXME: To be removed once alpha test filtering is there
+    auto bind_diffuse_material = [&](entt::entity e) {
+        if (auto material = registry.try_get<components::MaterialDiffuse>(e); material) {
+            material->diffuse->bind_to_unit_index(0);
+        } else {
+            globals::default_diffuse_texture->bind_to_unit_index(0);
+        }
+    };
 
-        auto& maps = mapping_output_->point_light_maps;
-        glViewport(0, 0, maps.width(), maps.height());
+    auto meshes_with_alpha_view = registry.view<Transform, Mesh, components::AlphaTested>();
 
-        maps.framebuffer().bind_draw().and_then([&, this] {
-
-            GLint cubemap_id{ 0 };
-
-            for (auto [_, plight]
-                : plights_with_shadow_view.each())
-            {
-                if (cubemap_id == 0) /* first time */ {
-                    glClear(GL_DEPTH_BUFFER_BIT);
-                }
-
-                draw_scene_depth_onto_cubemap(ashp, registry, plight.position, cubemap_id);
-
-                ++cubemap_id;
-            }
-
-        })
-        .unbind();
-
-    });
+    for (auto [entity, transform, mesh]
+        : meshes_with_alpha_view.each())
+    {
+        bind_diffuse_material(entity);
+        ashp.uniform("model", get_full_mtransform({ registry, entity }, transform).model());
+        mesh.draw();
+    }
 
 }
 
 
 
 
-
-
-
-
-static void draw_all_world_geometry(ActiveShaderProgram& ashp,
+static void draw_all_world_geometry_no_alpha_test(ActiveShaderProgram& ashp,
     const entt::registry& registry)
 {
+    // Assumes that projection and view are already set.
 
-    for (auto [_, transform, mesh]
-        : registry.view<Transform, Mesh>(entt::exclude<components::ChildMesh>).each())
+    auto meshes_no_alpha_view =
+        registry.view<Transform, Mesh>(entt::exclude<components::AlphaTested>);
+
+    for (auto [entity, transform, mesh]
+        : meshes_no_alpha_view.each())
     {
-        ashp.uniform("model", transform.mtransform().model());
-        mesh.draw();
-    }
-
-
-    for (auto [_, transform, mesh, as_child]
-        : registry.view<Transform, Mesh, components::ChildMesh>().each())
-    {
-        const Transform& parent_transform =
-            registry.get<Transform>(as_child.parent);
-
-        const MTransform full_model_matrix =
-            parent_transform.mtransform() * transform.mtransform();
-
-        ashp.uniform("model", full_model_matrix.model());
+        ashp.uniform("model", get_full_mtransform({ registry, entity }, transform).model());
         mesh.draw();
     }
 
@@ -160,24 +157,22 @@ static void draw_all_world_geometry(ActiveShaderProgram& ashp,
 
 
 
-void ShadowMappingStage::draw_scene_depth_onto_cubemap(
-    ActiveShaderProgram& ashp, const entt::registry& registry,
-    const glm::vec3& position, gl::GLint cubemap_id)
+static void set_common_point_shadow_uniforms(
+    ActiveShaderProgram& ashp, const glm::vec3& position,
+    const ShadowMappingStage::PointShadowParams& params,
+    GLint cubemap_id)
 {
-    auto& maps = mapping_output_->point_light_maps;
 
     glm::mat4 projection = glm::perspective(
-        glm::radians(90.f),
-        static_cast<float>(maps.width()) /
-            static_cast<float>(maps.height()),
-        point_params().z_near_far.x, point_params().z_near_far.y
+        glm::radians(90.f), 1.0f,
+        params.z_near_far.x, params.z_near_far.y
     );
 
     ashp.uniform("projection", projection);
 
     const auto& basis = globals::basis;
 
-    const std::array<glm::mat4, 6> views{
+    const glm::mat4 views[6]{
         glm::lookAt(position, position + basis.x(), -basis.y()),
         glm::lookAt(position, position - basis.x(), -basis.y()),
         glm::lookAt(position, position + basis.y(),  basis.z()),
@@ -196,11 +191,78 @@ void ShadowMappingStage::draw_scene_depth_onto_cubemap(
 
     ashp.uniform("cubemap_id", cubemap_id);
 
-    ashp.uniform("z_far", point_params().z_near_far.y);
+    ashp.uniform("z_far", params.z_near_far.y);
 
-
-    draw_all_world_geometry(ashp, registry);
 }
+
+
+
+
+void ShadowMappingStage::map_point_light_shadows(
+    const RenderEnginePrimaryInterface& /* engine */,
+    const entt::registry& registry)
+{
+
+    auto plights_with_shadow_view =
+        registry.view<light::Point, components::ShadowCasting>();
+
+    auto& maps = mapping_output_->point_light_maps;
+    glViewport(0, 0, maps.width(), maps.height());
+
+
+    maps.framebuffer().bind_draw().and_then([&, this] {
+
+        if (maps.depth() /* (aka. cubemap array size) */ != 0) {
+            // glClear on an empty array render target will error out.
+            glClear(GL_DEPTH_BUFFER_BIT);
+        }
+
+
+        sp_plight_depth_with_alpha_.use().and_then([&, this](ActiveShaderProgram& ashp) {
+
+            for (GLint cubemap_id{ 0 };
+                auto [_, plight] : plights_with_shadow_view.each())
+            {
+
+                set_common_point_shadow_uniforms(
+                    ashp, plight.position, point_params(), cubemap_id
+                );
+
+                draw_all_world_geometry_with_alpha_test(ashp, registry);
+
+                ++cubemap_id;
+            }
+
+        });
+
+
+        sp_plight_depth_no_alpha_.use().and_then([&, this](ActiveShaderProgram& ashp) {
+
+            for (GLint cubemap_id{ 0 };
+                auto [_, plight] : plights_with_shadow_view.each())
+            {
+
+                set_common_point_shadow_uniforms(
+                    ashp, plight.position, point_params(), cubemap_id
+                );
+
+                draw_all_world_geometry_no_alpha_test(ashp, registry);
+
+                ++cubemap_id;
+            }
+
+        });
+
+
+    })
+    .unbind();
+
+}
+
+
+
+
+
 
 
 
@@ -240,35 +302,37 @@ void ShadowMappingStage::map_dir_light_shadows(
     mapping_output_->dir_light_projection_view = light_projection * light_view;
 
 
-    sp_dir_depth_.use().and_then([&, this] (ActiveShaderProgram& ashp) {
+    auto& map = mapping_output_->dir_light_map;
+    glViewport(0, 0, map.width(), map.height());
 
-        auto& map = mapping_output_->dir_light_map;
-        glViewport(0, 0, map.width(), map.height());
+    map.framebuffer().bind_draw().and_then([&, this] {
 
-        map.framebuffer().bind_draw().and_then([&, this] {
+        glClear(GL_DEPTH_BUFFER_BIT);
 
-            glClear(GL_DEPTH_BUFFER_BIT);
 
-            draw_scene_depth_onto_texture(ashp, registry, light_view, light_projection);
+        sp_dir_depth_with_alpha.use()
+            .uniform("projection", light_projection)
+            .uniform("view",       light_view)
+            .and_then([&](ActiveShaderProgram& ashp) {
+                draw_all_world_geometry_with_alpha_test(ashp, registry);
+            });
 
-        }).unbind();
 
-    });
+        sp_dir_depth_no_alpha.use()
+            .uniform("projection", light_projection)
+            .uniform("view",       light_view)
+            .and_then([&](ActiveShaderProgram& ashp) {
+                draw_all_world_geometry_no_alpha_test(ashp, registry);
+            });
+
+    })
+    .unbind();
 
 }
 
 
 
 
-void ShadowMappingStage::draw_scene_depth_onto_texture(
-    ActiveShaderProgram& ashp, const entt::registry& registry,
-    const glm::mat4& view, const glm::mat4& projection)
-{
-    ashp.uniform("projection", projection)
-        .uniform("view",       view);
-
-    draw_all_world_geometry(ashp, registry);
-}
 
 
 

@@ -7,6 +7,13 @@ uniform mat4 projection;
 uniform mat4 views[6];
 uniform int cubemap_id;
 
+#ifdef ENABLE_ALPHA_TESTING
+
+in vec2 in_geom_tex_coords[3];
+out vec2 tex_coords;
+
+#endif // ENABLE_ALPHA_TESTING
+
 out vec4 frag_pos;
 out vec3 light_pos;
 
@@ -22,6 +29,10 @@ void main() {
     for (int face_id = 0; face_id < views.length(); ++face_id) {
 
         for (int vertex_id = 0; vertex_id < 3; ++vertex_id) {
+
+#ifdef ENABLE_ALPHA_TESTING
+            tex_coords = in_geom_tex_coords[vertex_id];
+#endif // ENABLE_ALPHA_TESTING
 
             frag_pos = gl_in[vertex_id].gl_Position;
             light_pos = light_pos_value;
