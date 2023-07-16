@@ -92,24 +92,16 @@ public:
         gbuffer_write_handle->attach_external_depth_buffer(rengine_.main_target().depth_target());
 
         auto defgeom     = rengine_.make_primary_stage<DeferredGeometryStage>(std::move(gbuffer_write_handle));
-        auto defgeom_dsn =
-            rengine_.make_primary_stage<DeferredGeometryAnyMaterialStage<MaterialDSN>>(
-                gbuffer.target().get_write_view(),
-                ShaderBuilder()
-                    .load_vert("src/shaders/dfr_geometry_mat_dsn.vert")
-                    .load_frag("src/shaders/dfr_geometry_mat_dsn.frag").get()
-            );
 
-        auto defshad =
-            rengine_.make_primary_stage<DeferredShadingStage>(
-                gbuffer.target().get_read_view(), shmapping.target().view_mapping_output()
-            );
+        auto defshad     = rengine_.make_primary_stage<DeferredShadingStage>(
+            gbuffer.target().get_read_view(), shmapping.target().view_mapping_output()
+        );
 
-        auto plightboxes  = rengine_.make_primary_stage<PointLightSourceBoxStage>();
+        auto plightboxes = rengine_.make_primary_stage<PointLightSourceBoxStage>();
 
-        auto blooming     = rengine_.make_postprocess_stage<PostprocessBloomStage>();
-        auto hdreyeing    = rengine_.make_postprocess_stage<PostprocessHDREyeAdaptationStage>();
-        auto whatsgamma   = rengine_.make_postprocess_stage<PostprocessGammaCorrectionStage>();
+        auto blooming    = rengine_.make_postprocess_stage<PostprocessBloomStage>();
+        auto hdreyeing   = rengine_.make_postprocess_stage<PostprocessHDREyeAdaptationStage>();
+        auto whatsgamma  = rengine_.make_postprocess_stage<PostprocessGammaCorrectionStage>();
 
 
         imgui_stage_hooks_.add_hook("Shadow Mapping",     imguihooks::ShadowMappingStageHook(shmapping));
@@ -132,7 +124,6 @@ public:
         rengine_.add_next_primary_stage(std::move(shmapping));
         rengine_.add_next_primary_stage(std::move(gbuffer));
         rengine_.add_next_primary_stage(std::move(defgeom));
-        rengine_.add_next_primary_stage(std::move(defgeom_dsn));
         rengine_.add_next_primary_stage(std::move(defshad));
         rengine_.add_next_primary_stage(std::move(plightboxes));
 
@@ -214,14 +205,13 @@ inline void DemoScene::init_registry() {
 
     constexpr const char* path = "data/models/shadow_scene/shadow_scene.obj";
 
-    const auto model_entity = r.create();
+    entt::handle model{ r, r.create() };
 
-    ModelComponentLoader()
-        .load_into<VertexPNT, MaterialDS>(r, model_entity, path);
+    ModelComponentLoader2()
+        .load_into(model, path);
 
-    r.emplace<Transform>(model_entity);
-    r.emplace<components::Path>(model_entity, path);
-
+    model.emplace<Transform>();
+    model.emplace<components::Path>(path);
 
 
     r.emplace<light::Ambient>(r.create(), light::Ambient{
