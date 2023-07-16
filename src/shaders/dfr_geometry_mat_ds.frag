@@ -17,12 +17,17 @@ uniform struct Material {
 
 
 void main() {
+    vec4 tex_diffuse = texture(material.diffuse, tex_coords);
+
+#ifdef ENABLE_ALPHA_TESTING
+    if (tex_diffuse.a < 0.5) discard;
+#endif // ENABLE_ALPHA_TESTING
+
+    out_albedo_spec.rgb = tex_diffuse.rgb;
+    out_albedo_spec.a   = texture(material.specular, tex_coords).r;
 
     out_position_draw = vec4(frag_pos, 1.0);
 
     out_normal = vec4(normal, 1.0);
-
-    out_albedo_spec.rgb = texture(material.diffuse, tex_coords).rgb;
-    out_albedo_spec.a   = texture(material.specular, tex_coords).r;
 
 }
