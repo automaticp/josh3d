@@ -1,16 +1,13 @@
 #include "ModelComponentsRegistryHook.hpp"
 #include "ImGuiHelpers.hpp"
+#include "RenderComponents.hpp"
 #include "Transform.hpp"
 #include "GLTextures.hpp"
 #include "AssimpModelLoader.hpp"
-#include "MaterialDS.hpp"
-#include "MaterialDSN.hpp"
-#include "VertexPNT.hpp"
-#include "VertexPNTTB.hpp"
-#include <assimp/postprocess.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 #include <imgui_stdlib.h>
+#include <stdexcept>
 
 
 
@@ -66,31 +63,20 @@ static void display_transform_widget(Transform& transform) noexcept {
 
 void josh::imguihooks::ModelComponentsRegistryHook::operator()(entt::registry& registry) {
 
-
-    const bool load_ds = ImGui::Button("Load (DS)");
-    ImGui::SameLine();
-    const bool load_dsn = ImGui::Button("Load (DSN)");
-
-    if (load_ds || load_dsn) {
-        entt::entity new_model;
+    if (ImGui::Button("Load")) {
+        entt::handle model_handle{ registry, registry.create() };
         try {
-            new_model = registry.create();
 
-            ModelComponentLoader loader;
-            if (load_ds) {
-                loader.load_into<VertexPNT, MaterialDS>(registry, new_model, load_path.c_str());
-            } else if (load_dsn) {
-                loader.add_flags(aiProcess_CalcTangentSpace)
-                    .load_into<VertexPNTTB, MaterialDSN>(registry, new_model, load_path.c_str());
-            }
+            ModelComponentLoader2()
+                .load_into(model_handle, load_path.c_str());
 
-            registry.emplace<Transform>(new_model);
-            registry.emplace<components::Path>(new_model, load_path);
+            model_handle.emplace<Transform>();
+            model_handle.emplace<components::Path>(load_path);
 
             last_load_error_message = {};
 
-        } catch (const error::AssimpLoaderError& e) {
-            registry.destroy(new_model);
+        } catch (const std::runtime_error& e) {
+            model_handle.destroy();
             last_load_error_message = e.what();
         }
     }
@@ -114,57 +100,50 @@ void josh::imguihooks::ModelComponentsRegistryHook::operator()(entt::registry& r
 
 
             for (auto mesh_entity : model.meshes()) {
-                const char* name = registry.all_of<components::Name>(mesh_entity) ?
-                    registry.get<components::Name>(mesh_entity).name.c_str() : "(No Name)";
+                entt::handle mesh{ registry, mesh_entity };
+
+                const char* name = mesh.all_of<components::Name>() ?
+                    mesh.get<components::Name>().name.c_str() : "(No Name)";
 
                 if (ImGui::TreeNode(void_id(mesh_entity), "Mesh [%d]: %s",
-                    static_cast<entt::id_type>(mesh_entity), name))
+                    entt::id_type(mesh_entity), name))
                 {
 
-                    display_transform_widget(registry.get<Transform>(mesh_entity));
+                    display_transform_widget(mesh.get<Transform>());
 
-                    // MaterialDS
-                    {
-                        MaterialDS* material = registry.try_get<MaterialDS>(mesh_entity);
-
-                        if (material) {
-                            if (ImGui::TreeNode("Material (DS)")) {
-
-                                ImGui::ImageGL(void_id(material->diffuse->id()), { 256.f, 256.f });
-                                ImGui::ImageGL(void_id(material->specular->id()), { 256.f, 256.f });
-
-                                ImGui::DragFloat(
-                                    "Shininess", &material->shininess,
-                                    1.0f, 0.1f, 1.e4f, "%.3f", ImGuiSliderFlags_Logarithmic
-                                );
-
-                                ImGui::TreePop();
-                            }
-
+                    bool is_alpha_tested = mesh.all_of<components::AlphaTested>();
+                    if (ImGui::Checkbox("Alpha-Testing", &is_alpha_tested)) {
+                        if (is_alpha_tested) {
+                            mesh.emplace<components::AlphaTested>();
+                        } else {
+                            mesh.remove<components::AlphaTested>();
                         }
                     }
 
-                    // MaterialDSN
-                    {
-                        MaterialDSN* material = registry.try_get<MaterialDSN>(mesh_entity);
+                    if (ImGui::TreeNode("Material")) {
 
-                        if (material) {
-                            if (ImGui::TreeNode("Material (DSN)")) {
-
-                                ImGui::ImageGL(void_id(material->diffuse->id()), { 256.f, 256.f });
-                                ImGui::ImageGL(void_id(material->specular->id()), { 256.f, 256.f });
-                                ImGui::ImageGL(void_id(material->normal->id()), { 256.f, 256.f });
-
-                                ImGui::DragFloat(
-                                    "Shininess", &material->shininess,
-                                    1.0f, 0.1f, 1.e4f, "%.3f", ImGuiSliderFlags_Logarithmic
-                                );
-
-                                ImGui::TreePop();
-                            }
-
+                        if (auto material = mesh.try_get<components::MaterialDiffuse>(); material) {
+                            ImGui::TextUnformatted("Diffuse");
+                            ImGui::ImageGL(void_id(material->diffuse->id()), { 256.f, 256.f });
                         }
+
+                        if (auto material = mesh.try_get<components::MaterialSpecular>(); material) {
+                            ImGui::TextUnformatted("Specular");
+                            ImGui::ImageGL(void_id(material->specular->id()), { 256.f, 256.f });
+                            ImGui::DragFloat(
+                                "Shininess", &material->shininess,
+                                1.0f, 0.1f, 1.e4f, "%.3f", ImGuiSliderFlags_Logarithmic
+                            );
+                        }
+
+                        if (auto material = mesh.try_get<components::MaterialNormal>(); material) {
+                            ImGui::TextUnformatted("Normal");
+                            ImGui::ImageGL(void_id(material->normal->id()), { 256.f, 256.f });
+                        }
+
+                        ImGui::TreePop();
                     }
+
 
                     ImGui::TreePop();
                 }
