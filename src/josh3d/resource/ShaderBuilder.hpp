@@ -1,9 +1,11 @@
 #pragma once
-#include <utility>
-#include <string>
-
 #include "GLObjects.hpp"
+#include "GLScalars.hpp"
+#include "GLShaders.hpp"
 #include "ShaderSource.hpp"
+#include <string>
+#include <utility>
+#include <vector>
 
 
 namespace josh {
@@ -12,11 +14,26 @@ namespace josh {
 
 class ShaderBuilder {
 private:
-    ShaderProgram sp_{};
+    struct UnevaluatedShader {
+        ShaderSource source;
+        GLenum type;
+    };
+
+    struct ShaderDefine {
+        std::string name;
+        std::string value;
+
+        std::string get_define_string() const {
+            return "#define " + name + " " + value;
+        }
+    };
+
+    std::vector<UnevaluatedShader> shaders_;
+    std::vector<ShaderDefine> defines_;
 
 public:
-    ShaderBuilder& load_shader(const std::string& path, gl::GLenum type) {
-        compile_from_source_and_attach(ShaderSource::from_file(path), type);
+    ShaderBuilder& load_shader(const std::string& path, GLenum type) {
+        shaders_.emplace_back(ShaderSource::from_file(path), type);
         return *this;
     }
 
@@ -38,8 +55,8 @@ public:
 
 
 
-    ShaderBuilder& add_shader(const ShaderSource& source, gl::GLenum type) {
-        compile_from_source_and_attach(source, type);
+    ShaderBuilder& add_shader(const ShaderSource& source, GLenum type) {
+        shaders_.emplace_back(source, type);
         return *this;
     }
 
@@ -61,17 +78,43 @@ public:
 
 
 
+    ShaderBuilder& define(std::string name) {
+        return define(std::move(name), "1");
+    }
+
+    ShaderBuilder& define(std::string name, std::string value) {
+        defines_.emplace_back(std::move(name), std::move(value));
+        return *this;
+    }
+
+
     [[nodiscard]]
     ShaderProgram get() {
-        sp_.link();
-        return std::move(sp_);
+
+        ShaderProgram sp;
+
+        for (auto& shader : shaders_) {
+
+            for (auto& define : defines_) {
+                const bool was_found =
+                    shader.source.find_and_insert_as_next_line("#version", define.get_define_string());
+
+                assert(was_found);
+            }
+            compile_from_source_and_attach_to(sp, shader);
+
+        }
+
+        sp.link();
+
+        return sp;
     }
 
 private:
-    void compile_from_source_and_attach(const std::string& source, gl::GLenum type) {
-        Shader s{ type };
-        s.set_source(source).compile();
-        sp_.attach_shader(s);
+    static void compile_from_source_and_attach_to(ShaderProgram& sp, const UnevaluatedShader& shader_info) {
+        Shader new_shader{ shader_info.type };
+        new_shader.set_source(shader_info.source).compile();
+        sp.attach_shader(new_shader);
     }
 
 };
