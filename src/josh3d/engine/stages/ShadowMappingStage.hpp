@@ -44,7 +44,24 @@ public:
 
 
 private:
-    ShaderProgram sp_plight_depth_{
+    ShaderProgram sp_plight_depth_with_alpha_{
+        ShaderBuilder()
+            .load_vert("src/shaders/depth_cubemap.vert")
+            .load_geom("src/shaders/depth_cubemap_array.geom")
+            .load_frag("src/shaders/depth_cubemap.frag")
+            .define("ENABLE_ALPHA_TESTING")
+            .get()
+    };
+
+    ShaderProgram sp_dir_depth_with_alpha{
+        ShaderBuilder()
+            .load_vert("src/shaders/depth_map.vert")
+            .load_frag("src/shaders/depth_map.frag")
+            .define("ENABLE_ALPHA_TESTING")
+            .get()
+    };
+
+    ShaderProgram sp_plight_depth_no_alpha_{
         ShaderBuilder()
             .load_vert("src/shaders/depth_cubemap.vert")
             .load_geom("src/shaders/depth_cubemap_array.geom")
@@ -52,7 +69,7 @@ private:
             .get()
     };
 
-    ShaderProgram sp_dir_depth_{
+    ShaderProgram sp_dir_depth_no_alpha{
         ShaderBuilder()
             .load_vert("src/shaders/depth_map.vert")
             .load_frag("src/shaders/depth_map.frag")
@@ -95,15 +112,6 @@ private:
     void map_dir_light_shadows(
         const RenderEnginePrimaryInterface& engine,
         const entt::registry& registry);
-
-
-    void draw_scene_depth_onto_cubemap(
-        ActiveShaderProgram& ashp, const entt::registry& registry,
-        const glm::vec3& position, gl::GLint cubemap_id);
-
-    void draw_scene_depth_onto_texture(
-        ActiveShaderProgram& ashp, const entt::registry& registry,
-        const glm::mat4& view, const glm::mat4& projection);
 
 
 };

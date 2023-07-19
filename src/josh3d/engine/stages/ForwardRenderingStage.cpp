@@ -115,27 +115,52 @@ void ForwardRenderingStage::draw_scene(
             .uniform("point_light_use_fixed_pcf_samples", point_params.use_fixed_pcf_samples);
 
 
-        // Now for the actual meshes.
-        for (auto [e, transform, mesh, material]
-            : registry.view<Transform, Mesh, MaterialDS>().each())
+
+        const auto get_mtransform = [&](entt::entity e, const Transform& transform)
+            -> MTransform
         {
-            const components::ChildMesh* as_child = registry.try_get<components::ChildMesh>(e);
+            if (auto as_child = registry.try_get<components::ChildMesh>(e); as_child) {
+                return registry.get<Transform>(as_child->parent).mtransform() * transform.mtransform();
+            } else {
+                return transform.mtransform();
+            }
+        };
 
-            auto model_transform = [&]() -> MTransform {
-                if (as_child) {
-                    return registry.get<Transform>(as_child->parent).mtransform() *
-                        transform.mtransform();
-                } else {
-                    return transform.mtransform();
-                }
-            }();
 
-            ashp.uniform("model",        model_transform.model())
-                .uniform("normal_model", model_transform.normal_model());
+        ashp.uniform("material.diffuse",  0)
+            .uniform("material.specular", 1);
 
-            material.apply(ashp);
+        const auto apply_ds_materials = [&](entt::entity e, ActiveShaderProgram& ashp) {
+
+            if (auto mat_d = registry.try_get<components::MaterialDiffuse>(e); mat_d) {
+                mat_d->diffuse->bind_to_unit_index(0);
+            } else {
+                globals::default_diffuse_texture->bind_to_unit_index(0);
+            }
+
+            if (auto mat_s = registry.try_get<components::MaterialSpecular>(e); mat_s) {
+                mat_s->specular->bind_to_unit_index(1);
+                ashp.uniform("material.shininess", mat_s->shininess);
+            } else {
+                globals::default_specular_texture->bind_to_unit_index(1);
+                ashp.uniform("material.shininess", 128.f);
+            }
+
+        };
+
+
+        // Now for the actual meshes.
+        for (auto [e, transform, mesh]
+            : registry.view<Transform, Mesh>().each())
+        {
+            auto mtransform = get_mtransform(e, transform);
+
+            ashp.uniform("model",        mtransform.model())
+                .uniform("normal_model", mtransform.normal_model());
+
+            apply_ds_materials(e, ashp);
+
             mesh.draw();
-            // model->draw(ashp);
         }
 
 

@@ -1,6 +1,6 @@
 #pragma once
+#include "AssimpLoaderTemplates.hpp"
 #include "GLObjects.hpp"
-#include "GLScalars.hpp"
 #include "GlobalsUtil.hpp"
 #include "Mesh.hpp"
 #include "MeshData.hpp"
@@ -27,32 +27,6 @@
 
 
 namespace josh {
-
-
-
-
-inline std::vector<GLuint> get_element_data(const aiMesh* mesh) {
-    std::vector<GLuint> indices;
-    indices.reserve(mesh->mNumFaces * 3ull);
-
-    for (const auto& face : std::span<aiFace>(mesh->mFaces, mesh->mNumFaces)) {
-        for (auto index : std::span<GLuint>(face.mIndices, face.mNumIndices)) {
-            indices.emplace_back(index);
-        }
-    }
-    return indices;
-}
-
-
-// Provide specialization for your own Vertex layout.
-template<typename VertexT>
-std::vector<VertexT> get_vertex_data(const aiMesh* mesh);
-
-
-// Provide specialization for you own Material type.
-template<typename MaterialT>
-MaterialT get_material(const struct ModelLoadingContext& context,
-    const aiMesh* mesh);
 
 
 namespace error {
@@ -238,16 +212,6 @@ private:
         std::vector<entt::entity> meshes;
     };
 
-    struct ECSContext {
-        entt::registry& registry;
-        entt::entity model_entity;
-
-        ECSContext(entt::registry& registry,
-            entt::entity model_entity)
-            : registry{ registry }
-            , model_entity{ model_entity }
-        {}
-    };
 
 public:
     using Base::Base;
@@ -255,8 +219,7 @@ public:
 
     // For cases where VertexT and MaterialT are known.
     template<typename VertexT, typename MaterialT>
-    ModelComponent& load_into(entt::registry& registry,
-        entt::entity model_entity, const char* path)
+    ModelComponent& load_into(entt::handle model_handle, const char* path)
     {
         const aiScene* new_scene{ importer_.ReadFile(path, flags_) };
 
@@ -277,13 +240,11 @@ public:
 
         output.meshes.reserve(context.scene->mNumMeshes);
 
-        ECSContext ecs_context{ registry, model_entity };
-
         process_node(
-            output, ecs_context, context, context.scene->mRootNode
+            output, model_handle, context, context.scene->mRootNode
         );
 
-        return registry.emplace<ModelComponent>(model_entity, std::move(output.meshes));
+        return model_handle.emplace<ModelComponent>(std::move(output.meshes));
     }
 
 
@@ -291,7 +252,7 @@ private:
     template<typename VertexT, typename MaterialT>
     void process_node(
         Output<VertexT, MaterialT>& output,
-        ECSContext& ecs_context,
+        entt::handle& model_handle,
         const ModelLoadingContext& context,
         aiNode* node)
     {
@@ -308,7 +269,7 @@ private:
 
             // TODO: Maybe cache mesh_data here.
 
-            auto& r = ecs_context.registry;
+            auto& r = *model_handle.registry();
             auto new_entity = r.create();
 
             r.emplace<Mesh>(new_entity, mesh_data);
@@ -317,9 +278,8 @@ private:
             // Point of type erasure for MaterialT.
             r.emplace<MaterialT>(new_entity, get_material<MaterialT>(context, mesh));
 
-
             // Link ModelComponent and Mesh.
-            r.emplace<components::ChildMesh>(new_entity, ecs_context.model_entity);
+            r.emplace<components::ChildMesh>(new_entity, model_handle.entity());
             output.meshes.emplace_back(new_entity);
 
             // FIXME: Transform Component?
@@ -333,7 +293,7 @@ private:
         for (auto child
             : std::span(node->mChildren, node->mNumChildren))
         {
-            process_node(output, ecs_context, context, child);
+            process_node(output, model_handle, context, child);
         }
     }
 
@@ -341,6 +301,68 @@ private:
 
 
 };
+
+
+
+
+
+class ModelComponentLoader2
+    : public detail::AssimpLoaderBase<ModelComponentLoader2>
+{
+private:
+    using Base = AssimpLoaderBase<ModelComponentLoader2>;
+    using Base::importer_;
+    using Base::flags_;
+
+    struct Output {
+        std::vector<entt::entity> meshes;
+    };
+
+public:
+    using Base::Base;
+
+    ModelComponent& load_into(entt::handle model_handle, const char* path)
+    {
+        // FIXME: Who specifies this?
+        add_flags(aiProcess_CalcTangentSpace);
+
+        const aiScene* new_scene{ importer_.ReadFile(path, flags_) };
+
+        if (!new_scene) {
+            throw error::AssimpLoaderIOError(importer_.GetErrorString());
+        }
+
+        ModelLoadingContext context{
+            .scene=new_scene
+        };
+
+        context.path = path;
+        context.directory =
+            context.path.substr(0ull, context.path.find_last_of('/') + 1);
+
+
+        std::vector<entt::entity> output_meshes;
+        output_meshes.reserve(context.scene->mNumMeshes);
+
+        for (aiMesh* mesh : std::span(context.scene->mMeshes, context.scene->mNumMeshes)) {
+            emplace_mesh(output_meshes, mesh, model_handle, context);
+        }
+
+        return model_handle.emplace<ModelComponent>(std::move(output_meshes));
+    }
+
+private:
+    void emplace_mesh(std::vector<entt::entity>& output_meshes,
+        aiMesh* mesh, entt::handle model_handle,
+        const ModelLoadingContext& context);
+
+    void emplace_material_components(entt::handle mesh_handle,
+        aiMaterial* material, const ModelLoadingContext& context);
+
+
+};
+
+
 
 
 
