@@ -1,8 +1,12 @@
 #include "AssimpModelLoader.hpp"
 #include "RenderComponents.hpp"
+#include "Mesh.hpp"
+#include "RenderComponents.hpp"
+#include "Transform.hpp"
 #include "VertexPNTTB.hpp"
 #include "TextureHandlePool.hpp"
 #include "GlobalsGL.hpp"
+#include <entt/entt.hpp>
 
 
 namespace josh {

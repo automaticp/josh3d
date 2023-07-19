@@ -2,11 +2,8 @@
 #include "AssimpLoaderTemplates.hpp"
 #include "GLObjects.hpp"
 #include "GlobalsUtil.hpp"
-#include "Mesh.hpp"
 #include "MeshData.hpp"
 #include "Model.hpp"
-#include "RenderComponents.hpp"
-#include "Transform.hpp"
 #include "VertexPNT.hpp"
 #include <assimp/Exceptional.h>
 #include <assimp/Importer.hpp>
@@ -195,113 +192,6 @@ struct ModelLoadingContext {
     std::string path;
     std::string directory;
 };
-
-
-
-
-class ModelComponentLoader
-    : public detail::AssimpLoaderBase<ModelComponentLoader>
-{
-private:
-    using Base = AssimpLoaderBase<ModelComponentLoader>;
-    using Base::importer_;
-    using Base::flags_;
-
-    template<typename VertexT, typename MaterialT>
-    struct Output {
-        std::vector<entt::entity> meshes;
-    };
-
-
-public:
-    using Base::Base;
-
-
-    // For cases where VertexT and MaterialT are known.
-    template<typename VertexT, typename MaterialT>
-    ModelComponent& load_into(entt::handle model_handle, const char* path)
-    {
-        const aiScene* new_scene{ importer_.ReadFile(path, flags_) };
-
-        if (!new_scene) {
-            throw error::AssimpLoaderIOError(importer_.GetErrorString());
-        }
-
-
-        Output<VertexT, MaterialT> output{};
-
-        ModelLoadingContext context{
-            .scene=new_scene
-        };
-
-        context.path = path;
-        context.directory =
-            context.path.substr(0ull, context.path.find_last_of('/') + 1);
-
-        output.meshes.reserve(context.scene->mNumMeshes);
-
-        process_node(
-            output, model_handle, context, context.scene->mRootNode
-        );
-
-        return model_handle.emplace<ModelComponent>(std::move(output.meshes));
-    }
-
-
-private:
-    template<typename VertexT, typename MaterialT>
-    void process_node(
-        Output<VertexT, MaterialT>& output,
-        entt::handle& model_handle,
-        const ModelLoadingContext& context,
-        aiNode* node)
-    {
-
-        for (auto mesh_id
-            : std::span(node->mMeshes, node->mNumMeshes))
-        {
-            aiMesh* mesh = context.scene->mMeshes[mesh_id];
-
-            MeshData mesh_data{
-                get_vertex_data<VertexT>(mesh),
-                get_element_data(mesh)
-            };
-
-            // TODO: Maybe cache mesh_data here.
-
-            auto& r = *model_handle.registry();
-            auto new_entity = r.create();
-
-            r.emplace<Mesh>(new_entity, mesh_data);
-
-
-            // Point of type erasure for MaterialT.
-            r.emplace<MaterialT>(new_entity, get_material<MaterialT>(context, mesh));
-
-            // Link ModelComponent and Mesh.
-            r.emplace<components::ChildMesh>(new_entity, model_handle.entity());
-            output.meshes.emplace_back(new_entity);
-
-            // FIXME: Transform Component?
-            r.emplace<Transform>(new_entity);
-
-            r.emplace<components::Name>(new_entity, mesh->mName.C_Str());
-
-        }
-
-
-        for (auto child
-            : std::span(node->mChildren, node->mNumChildren))
-        {
-            process_node(output, model_handle, context, child);
-        }
-    }
-
-
-
-
-};
-
 
 
 

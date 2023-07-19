@@ -26,11 +26,5 @@ template<typename VertexT>
 std::vector<VertexT> get_vertex_data(const aiMesh* mesh);
 
 
-// Provide specialization for you own Material type.
-template<typename MaterialT>
-MaterialT get_material(const struct ModelLoadingContext& context,
-    const aiMesh* mesh);
-
-
 
 } // namespace josh
