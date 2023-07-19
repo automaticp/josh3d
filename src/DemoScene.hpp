@@ -23,6 +23,7 @@
 #include "hooks/PostprocessGammaCorrectionStageHook.hpp"
 #include "hooks/PostprocessHDREyeAdaptationStageHook.hpp"
 #include "hooks/ShadowMappingStageHook.hpp"
+#include "hooks/SkyboxRegistryHook.hpp"
 #include "stages/DeferredGeometryStage.hpp"
 #include "stages/DeferredShadingStage.hpp"
 #include "stages/GBufferStage.hpp"
@@ -131,6 +132,7 @@ public:
 
         imgui_registry_hooks_.add_hook("Lights", imguihooks::LightComponentsRegistryHook());
         imgui_registry_hooks_.add_hook("Models", imguihooks::ModelComponentsRegistryHook());
+        imgui_registry_hooks_.add_hook("Skybox", imguihooks::SkyboxRegistryHook());
 
         init_registry();
     }

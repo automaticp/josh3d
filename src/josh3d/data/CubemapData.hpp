@@ -20,6 +20,7 @@ public:
         : sides_{ std::move(sides) }
     {}
 
+    [[nodiscard]]
     static CubemapData from_files(std::array<const char*, 6> filenames) {
         std::array<TextureData, 6> sides{
             TextureData::from_file(filenames[0], false),
