@@ -67,7 +67,7 @@ void josh::imguihooks::ModelComponentsRegistryHook::operator()(entt::registry& r
         entt::handle model_handle{ registry, registry.create() };
         try {
 
-            ModelComponentLoader2()
+            ModelComponentLoader()
                 .load_into(model_handle, load_path.c_str());
 
             model_handle.emplace<Transform>();

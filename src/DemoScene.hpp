@@ -203,7 +203,7 @@ inline void DemoScene::init_registry() {
 
     entt::handle model{ r, r.create() };
 
-    ModelComponentLoader2()
+    ModelComponentLoader()
         .load_into(model, path);
 
     model.emplace<Transform>();

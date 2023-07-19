@@ -12,7 +12,7 @@
 namespace josh {
 
 
-void ModelComponentLoader2::emplace_mesh(std::vector<entt::entity>& output_meshes,
+void ModelComponentLoader::emplace_mesh(std::vector<entt::entity>& output_meshes,
     aiMesh* mesh, entt::handle model_handle,
     const ModelLoadingContext& context)
 {
@@ -46,7 +46,7 @@ void ModelComponentLoader2::emplace_mesh(std::vector<entt::entity>& output_meshe
 
 
 
-void ModelComponentLoader2::emplace_material_components(
+void ModelComponentLoader::emplace_material_components(
     entt::handle mesh_handle, aiMaterial* material,
     const ModelLoadingContext& context)
 {

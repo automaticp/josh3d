@@ -196,11 +196,11 @@ struct ModelLoadingContext {
 
 
 
-class ModelComponentLoader2
-    : public detail::AssimpLoaderBase<ModelComponentLoader2>
+class ModelComponentLoader
+    : public detail::AssimpLoaderBase<ModelComponentLoader>
 {
 private:
-    using Base = AssimpLoaderBase<ModelComponentLoader2>;
+    using Base = AssimpLoaderBase<ModelComponentLoader>;
     using Base::importer_;
     using Base::flags_;
 
