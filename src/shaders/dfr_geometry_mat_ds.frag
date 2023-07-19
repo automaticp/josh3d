@@ -28,6 +28,6 @@ void main() {
 
     out_position_draw = vec4(frag_pos, 1.0);
 
-    out_normal = vec4(normal, 1.0);
+    out_normal = gl_FrontFacing ? vec4(normal, 1.0) : vec4(-normal, 1.0);
 
 }

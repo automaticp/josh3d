@@ -1,6 +1,5 @@
 #include "DeferredGeometryStage.hpp"
 #include "GLShaders.hpp"
-#include "MaterialDS.hpp"
 #include "RenderComponents.hpp"
 #include "RenderEngine.hpp"
 #include "Transform.hpp"

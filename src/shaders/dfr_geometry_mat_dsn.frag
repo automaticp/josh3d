@@ -29,6 +29,7 @@ void main() {
     out_position_draw = vec4(frag_pos, 1.0);
 
     vec3 tangent_space_normal = texture(material.normal, tex_coords).rgb * 2.0 - 1.0;
-    out_normal = vec4(normalize(TBN * tangent_space_normal), 1.0);
+    vec3 normal = normalize(TBN * tangent_space_normal);
+    out_normal = gl_FrontFacing ? vec4(normal, 1.0) : vec4(-normal, 1.0);
 
 }
