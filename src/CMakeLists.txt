@@ -1,17 +1,17 @@
-add_executable(ogllearn main.cpp)
-target_include_directories(ogllearn PRIVATE .)
-target_compile_features(ogllearn PRIVATE cxx_std_20)
+add_executable(josh3d-demo main.cpp)
+target_include_directories(josh3d-demo PRIVATE .)
+target_compile_features(josh3d-demo PRIVATE cxx_std_20)
 
-add_subdirectory(learnlib)
+add_subdirectory(josh3d)
 
 # internal dependencies
-target_link_libraries(ogllearn
+target_link_libraries(josh3d-demo
     PRIVATE
-        learnlib
+        josh3d
 )
 
 # external depenencies
-target_link_libraries(ogllearn
+target_link_libraries(josh3d-demo
     PRIVATE
         stb::stb
         glm::glm

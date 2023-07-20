@@ -13,7 +13,7 @@ void render_generic_scene(glfw::Window& window) {
     SceneT scene{ window };
 
     while (!window.shouldClose()) {
-        learn::globals::frame_timer.update();
+        josh::globals::frame_timer.update();
 
         glfw::pollEvents();
         scene.process_input();
@@ -32,7 +32,7 @@ void render_generic_scene(glfw::Window& window) {
 
 int main() {
     using namespace gl;
-    using namespace learn;
+    using namespace josh;
 
 
     auto glfw_instance{ glfw::init() };
@@ -43,7 +43,7 @@ int main() {
         .openglProfile=glfw::OpenGlProfile::Core
     }.apply();
 
-    glfw::Window window{ 800, 600, "WindowName" };
+    glfw::Window window{ 800, 600, "Josh3d Demo" };
     glfw::makeContextCurrent(window);
     glfw::swapInterval(0);
     window.setInputModeCursor(glfw::CursorMode::Normal);
@@ -70,8 +70,6 @@ int main() {
     glViewport(0, 0, width, height);
     glEnable(GL_DEPTH_TEST);
 
-
-    // render_generic_scene<BoxScene3>(window);
     render_generic_scene<DemoScene>(window);
 
 
