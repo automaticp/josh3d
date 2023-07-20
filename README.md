@@ -1,13 +1,14 @@
-# Josh3d
+# josh3d
 
 Josh3d (pronounced as "joe shed") is a small 3D rendering engine written in OpenGL 4.3 and C++20.
 
-<!--- TODO: BLAH-BLAH, HOBBY ENGIN, DONT JUJ --->
+It's mainly a hobby project and is a constant work in progress so there's no stable version. The scope is limited by my abilities and the free time that I have, but I do try to keep everything clean and even write comments sometimes, so you're welcome to poke around in code if you want. It also serves as the prototyping grounds for trying different techniques, thanks to the extendable and hook-able architecture the engine has.
 
+Here's some pictures because you probably like to look at things:
 
 ![tree_pic](pics/some_tree_and_grass_1.png)
 ![imgui_vomit](pics/imgui_vomit.png)
-(Tree asset by [SomeKevin on sketchfab](https://sketchfab.com/3d-models/tree-66a8d0ef9b49415a9eaf6af216cb9bce), Grass by [3dhdscan on sketchfab](https://sketchfab.com/3d-models/simple-grass-chunks-eb4f6dc9d4e3455ea3435385faf58b60), Skybox by [Emil Persson (aka. Humus) from humus.name](https://www.humus.name/index.php?page=Textures))
+> Tree asset by [SomeKevin on sketchfab](https://sketchfab.com/3d-models/tree-66a8d0ef9b49415a9eaf6af216cb9bce), Grass by [3dhdscan on sketchfab](https://sketchfab.com/3d-models/simple-grass-chunks-eb4f6dc9d4e3455ea3435385faf58b60), Skybox by [Emil Persson (aka. Humus) from humus.name](https://www.humus.name/index.php?page=Textures)
 
 
 ## Currently Implemented Features:
@@ -28,7 +29,7 @@ Josh3d (pronounced as "joe shed") is a small 3D rendering engine written in Open
 
 
 
-## Road Ahead:
+## Road Ahead (TODOs):
 
 (items in each section are listed in order of priority)
 
@@ -49,7 +50,7 @@ Josh3d (pronounced as "joe shed") is a small 3D rendering engine written in Open
 
 ### Assets and IO:
 
-- Virtual filesystem with multiple-root support;
+- Virtual filesystem with multiple-root and overriding support;
 - Asynchronous asset loading with caching;
 - High-level asset management system;
 - Serialization (binary ECS dump + custom schema)
