@@ -1,4 +1,5 @@
 #pragma once
+#include "CommonConcepts.hpp"
 #include <concepts>
 #include <cstddef>
 #include <memory>
@@ -62,7 +63,7 @@ private:
 public:
     template<typename CallableT>
         requires (
-            !std::same_as<std::remove_cvref_t<CallableT>, self_type> &&
+            not_move_or_copy_constructor_of<UniqueFunction, CallableT> &&
             std::invocable<CallableT, ArgTs...> &&
             std::same_as<std::invoke_result_t<CallableT, ArgTs...>, ResT>
         )
