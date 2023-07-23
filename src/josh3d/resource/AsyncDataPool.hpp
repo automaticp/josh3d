@@ -134,14 +134,17 @@ of the three possible states:
 
 
 
-template<typename ResourceT>
+template<
+    typename KeyT,
+    typename ResourceT
+>
 class AsyncDataPool {
 private:
-    std::unordered_map<std::string, Shared<ResourceT>> pool_;
+    std::unordered_map<KeyT, Shared<ResourceT>> pool_;
     mutable std::shared_mutex pool_mutex_;
 
     struct LoadRequest {
-        std::string path;
+        KeyT file;
         std::promise<Shared<ResourceT>> promise;
     };
 
@@ -153,8 +156,7 @@ private:
     // But most likely it's not that big of a deal for performance
     // in the average use case.
     std::unordered_map<
-        std::string,
-        std::vector<std::promise<Shared<ResourceT>>>
+        KeyT, std::vector<std::promise<Shared<ResourceT>>>
     > pending_requests_;
     mutable std::mutex pending_requests_mutex_;
 
@@ -191,7 +193,7 @@ private:
             std::shared_lock read_lock{ pool_mutex_ };
             const auto& pool = pool_;
 
-            auto it = pool.find(request.path);
+            auto it = pool.find(request.file);
             if (it != pool.end()) /* at(path) exists */ {
                 if (it->second) /* at(path) is not null */ {
                     request.promise.set_value(it->second);
@@ -212,7 +214,7 @@ private:
         std::scoped_lock write_locks{ pool_mutex_, pending_requests_mutex_ };
         auto& pool = pool_;
 
-        auto it = pool.find(request.path);
+        auto it = pool.find(request.file);
         if (it != pool.end()) /* at(path) exists */ {
             if (it->second) /* at(path) is not null */ {
                 // Some other thread might have loaded the resource
@@ -222,7 +224,7 @@ private:
             } else /* another thread is already loading the resource */ {
                 // The loading thread will resolve all pending requests
                 // once it's done loading.
-                pending_requests_[std::move(request.path)].emplace_back(std::move(request.promise));
+                pending_requests_[std::move(request.file)].emplace_back(std::move(request.promise));
                 return;
             }
         } else /* no resource found and no one is currently loading it */ {
@@ -231,7 +233,7 @@ private:
             // already working on loading the resource.
             [[maybe_unused]]
             auto [it, was_emplaced] =
-                pool.emplace(request.path, nullptr);
+                pool.emplace(request.file, nullptr);
 
             assert(was_emplaced);
 
@@ -252,13 +254,13 @@ private:
 
     void fulfill_direct_load_request(LoadRequest request) {
         try {
-            Shared<ResourceT> data{ load_data_from(request.path) };
+            Shared<ResourceT> data{ load_data_from(request.file) };
             request.promise.set_value(data);
 
             // Lock the pending requests and resolve them.
             std::lock_guard pending_lock{ pending_requests_mutex_ };
 
-            auto pending_it = pending_requests_.find(request.path);
+            auto pending_it = pending_requests_.find(request.file);
             if (pending_it != pending_requests_.end()) {
                 for (std::promise<Shared<ResourceT>>& promise : pending_it->second) {
                     promise.set_value(data);
@@ -281,7 +283,7 @@ private:
             // with std::scoped_lock.
             std::unique_lock write_pool_lock{ pool_mutex_ };
 
-            auto it = pool_.find(request.path);
+            auto it = pool_.find(request.file);
             // The loading thread should find the pool entry in exactly this state:
             assert((it != pool_.end() && it->second == nullptr));
 
@@ -302,7 +304,7 @@ private:
             // Lock the pending requests and propagate the exception.
             std::lock_guard pending_lock{ pending_requests_mutex_ };
 
-            auto pending_it = pending_requests_.find(request.path);
+            auto pending_it = pending_requests_.find(request.file);
             if (pending_it != pending_requests_.end()) {
                 for (std::promise<Shared<ResourceT>>& promise : pending_it->second) {
                     promise.set_exception(std::current_exception());
@@ -313,7 +315,7 @@ private:
             // Erase the entry from the pool - no longer loading.
             std::unique_lock write_pool_lock{ pool_mutex_ };
 
-            auto it = pool_.find(request.path);
+            auto it = pool_.find(request.file);
 
             assert((it != pool_.end() && it->second == nullptr));
 
@@ -349,10 +351,10 @@ public:
     // Note: Succesfully retrieving the result from the future returned
     // by load_async() does not guarantee that the same resource
     // will be in cache right after.
-    std::optional<Shared<ResourceT>> try_load_from_cache(const std::string& path) {
+    std::optional<Shared<ResourceT>> try_load_from_cache(const KeyT& file) {
         std::shared_lock lock{ pool_mutex_, std::try_to_lock };
         if (lock.owns_lock()) {
-            auto it = pool_.find(path);
+            auto it = pool_.find(file);
             if (it != pool_.end() && it->second) {
                 return it->second;
             }
@@ -368,15 +370,15 @@ public:
 
 private:
     // To be specialized externally for each ResourceT.
-    Shared<ResourceT> load_data_from(const std::string& path);
+    Shared<ResourceT> load_data_from(const KeyT& file);
 };
 
 
 
 
 template<>
-inline Shared<TextureData> AsyncDataPool<TextureData>::load_data_from(const std::string& path) {
-    return std::make_shared<TextureData>(TextureData::from_file(path));
+inline Shared<TextureData> AsyncDataPool<File, TextureData>::load_data_from(const File& file) {
+    return std::make_shared<TextureData>(TextureData::from_file(file));
 }
 
 

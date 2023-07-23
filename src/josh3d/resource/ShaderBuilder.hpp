@@ -1,4 +1,5 @@
 #pragma once
+#include "Filesystem.hpp"
 #include "GLObjects.hpp"
 #include "GLScalars.hpp"
 #include "GLShaders.hpp"
@@ -32,25 +33,25 @@ private:
     std::vector<ShaderDefine> defines_;
 
 public:
-    ShaderBuilder& load_shader(const std::string& path, GLenum type) {
-        shaders_.emplace_back(ShaderSource::from_file(path), type);
+    ShaderBuilder& load_shader(const File& file, GLenum type) {
+        shaders_.emplace_back(ShaderSource::from_file(file), type);
         return *this;
     }
 
-    ShaderBuilder& load_frag(const std::string& path) {
-        return load_shader(path, gl::GL_FRAGMENT_SHADER);
+    ShaderBuilder& load_frag(const File& file) {
+        return load_shader(file, gl::GL_FRAGMENT_SHADER);
     }
 
-    ShaderBuilder& load_vert(const std::string& path) {
-        return load_shader(path, gl::GL_VERTEX_SHADER);
+    ShaderBuilder& load_vert(const File& file) {
+        return load_shader(file, gl::GL_VERTEX_SHADER);
     }
 
-    ShaderBuilder& load_geom(const std::string& path) {
-        return load_shader(path, gl::GL_GEOMETRY_SHADER);
+    ShaderBuilder& load_geom(const File& file) {
+        return load_shader(file, gl::GL_GEOMETRY_SHADER);
     }
 
-    ShaderBuilder& load_comp(const std::string& path) {
-        return load_shader(path, gl::GL_COMPUTE_SHADER);
+    ShaderBuilder& load_comp(const File& file) {
+        return load_shader(file, gl::GL_COMPUTE_SHADER);
     }
 
 

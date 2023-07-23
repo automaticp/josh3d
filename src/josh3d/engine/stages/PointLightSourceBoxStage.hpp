@@ -5,6 +5,7 @@
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
 #include "Transform.hpp"
+#include "VirtualFilesystem.hpp"
 #include <entt/entt.hpp>
 
 
@@ -16,8 +17,8 @@ class PointLightSourceBoxStage {
 private:
     ShaderProgram sp_{
         ShaderBuilder()
-            .load_vert("src/shaders/non_instanced.vert")
-            .load_frag("src/shaders/light_source.frag")
+            .load_vert(VPath("src/shaders/non_instanced.vert"))
+            .load_frag(VPath("src/shaders/light_source.frag"))
             .get()
     };
 

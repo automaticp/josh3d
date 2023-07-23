@@ -1,7 +1,7 @@
 #pragma once
 #include "AssimpLoaderTemplates.hpp"
+#include "Filesystem.hpp"
 #include "GLObjects.hpp"
-#include "GlobalsUtil.hpp"
 #include "MeshData.hpp"
 #include "Model.hpp"
 #include "VertexPNT.hpp"
@@ -134,7 +134,6 @@ private:
 
     std::vector<MeshData<V>> mesh_data_;
     const aiScene* scene_;
-    std::string path_;
 
 public:
     using Base::Base;
@@ -144,19 +143,15 @@ public:
         return std::move(mesh_data_);
     }
 
-    AssimpMeshDataLoader& load(const std::string& path) {
+    AssimpMeshDataLoader& load(const File& file) {
 
-        const aiScene* new_scene{ importer_.ReadFile(path, flags_) };
+        const aiScene* new_scene{ importer_.ReadFile(file.path(), flags_) };
 
         if (!new_scene) {
-            globals::logstream << "[Assimp Error] " << importer_.GetErrorString() << '\n';
             throw error::AssimpLoaderIOError(importer_.GetErrorString());
         }
 
         scene_ = new_scene;
-        path_ = path;
-
-        // assert(scene_->mNumMeshes);
 
         mesh_data_.reserve(scene_->mNumMeshes);
         process_node(scene_->mRootNode);
@@ -189,8 +184,8 @@ private:
 
 struct ModelLoadingContext {
     const aiScene* scene{};
-    std::string path;
-    std::string directory;
+    File file;
+    Directory directory;
 };
 
 
@@ -211,25 +206,22 @@ private:
 public:
     using Base::Base;
 
-    ModelComponent& load_into(entt::handle model_handle, const char* path)
+    ModelComponent& load_into(entt::handle model_handle, const File& file)
     {
         // FIXME: Who specifies this?
         add_flags(aiProcess_CalcTangentSpace);
 
-        const aiScene* new_scene{ importer_.ReadFile(path, flags_) };
+        const aiScene* new_scene{ importer_.ReadFile(file.path(), flags_) };
 
         if (!new_scene) {
             throw error::AssimpLoaderIOError(importer_.GetErrorString());
         }
 
         ModelLoadingContext context{
-            .scene=new_scene
+            .scene = new_scene,
+            .file  = file,
+            .directory = Directory{ file.path().parent_path() }
         };
-
-        context.path = path;
-        context.directory =
-            context.path.substr(0ull, context.path.find_last_of('/') + 1);
-
 
         std::vector<entt::entity> output_meshes;
         output_meshes.reserve(context.scene->mNumMeshes);

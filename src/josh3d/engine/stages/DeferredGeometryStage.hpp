@@ -4,6 +4,7 @@
 #include "RenderStage.hpp"
 #include "ShaderBuilder.hpp"
 #include "SharedStorage.hpp"
+#include "VirtualFilesystem.hpp"
 #include <entt/entity/fwd.hpp>
 
 
@@ -16,16 +17,16 @@ class DeferredGeometryStage {
 private:
     ShaderProgram sp_ds{
         ShaderBuilder()
-            .load_vert("src/shaders/non_instanced.vert")
-            .load_frag("src/shaders/dfr_geometry_mat_ds.frag")
+            .load_vert(VPath("src/shaders/non_instanced.vert"))
+            .load_frag(VPath("src/shaders/dfr_geometry_mat_ds.frag"))
             .define("ENABLE_ALPHA_TESTING")
             .get()
     };
 
     ShaderProgram sp_dsn{
         ShaderBuilder()
-            .load_vert("src/shaders/dfr_geometry_mat_dsn.vert")
-            .load_frag("src/shaders/dfr_geometry_mat_dsn.frag")
+            .load_vert(VPath("src/shaders/dfr_geometry_mat_dsn.vert"))
+            .load_frag(VPath("src/shaders/dfr_geometry_mat_dsn.frag"))
             .define("ENABLE_ALPHA_TESTING")
             .get()
         };

@@ -9,6 +9,7 @@
 #include "VertexPNTTB.hpp"
 #include "AssimpModelLoader.hpp"
 #include "Shared.hpp"
+#include "VirtualFilesystem.hpp"
 #include "WindowSizeCache.hpp"
 #include <assimp/postprocess.h>
 #include <glbinding/gl/enum.h>
@@ -86,9 +87,9 @@ void init_all() {
     AssimpMeshDataLoader<VertexPNTTB> loader;
     loader.add_flags(aiProcess_CalcTangentSpace);
 
-    box_primitive_    = loader.load("data/primitives/box.obj").get()[0];
-    plane_primitive_  = loader.load("data/primitives/plane.obj").get()[0];
-    sphere_primitive_ = loader.load("data/primitives/sphere.obj").get()[0];
+    box_primitive_    = loader.load(VPath("data/primitives/box.obj")).get()[0];
+    plane_primitive_  = loader.load(VPath("data/primitives/plane.obj")).get()[0];
+    sphere_primitive_ = loader.load(VPath("data/primitives/sphere.obj")).get()[0];
 }
 
 

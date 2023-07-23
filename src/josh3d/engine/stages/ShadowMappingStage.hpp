@@ -5,6 +5,7 @@
 #include "RenderTargetDepthCubemapArray.hpp"
 #include "ShaderBuilder.hpp"
 #include "SharedStorage.hpp"
+#include "VirtualFilesystem.hpp"
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
 #include <glbinding/gl/gl.h>
@@ -46,33 +47,33 @@ public:
 private:
     ShaderProgram sp_plight_depth_with_alpha_{
         ShaderBuilder()
-            .load_vert("src/shaders/depth_cubemap.vert")
-            .load_geom("src/shaders/depth_cubemap_array.geom")
-            .load_frag("src/shaders/depth_cubemap.frag")
+            .load_vert(VPath("src/shaders/depth_cubemap.vert"))
+            .load_geom(VPath("src/shaders/depth_cubemap_array.geom"))
+            .load_frag(VPath("src/shaders/depth_cubemap.frag"))
             .define("ENABLE_ALPHA_TESTING")
             .get()
     };
 
     ShaderProgram sp_dir_depth_with_alpha{
         ShaderBuilder()
-            .load_vert("src/shaders/depth_map.vert")
-            .load_frag("src/shaders/depth_map.frag")
+            .load_vert(VPath("src/shaders/depth_map.vert"))
+            .load_frag(VPath("src/shaders/depth_map.frag"))
             .define("ENABLE_ALPHA_TESTING")
             .get()
     };
 
     ShaderProgram sp_plight_depth_no_alpha_{
         ShaderBuilder()
-            .load_vert("src/shaders/depth_cubemap.vert")
-            .load_geom("src/shaders/depth_cubemap_array.geom")
-            .load_frag("src/shaders/depth_cubemap.frag")
+            .load_vert(VPath("src/shaders/depth_cubemap.vert"))
+            .load_geom(VPath("src/shaders/depth_cubemap_array.geom"))
+            .load_frag(VPath("src/shaders/depth_cubemap.frag"))
             .get()
     };
 
     ShaderProgram sp_dir_depth_no_alpha{
         ShaderBuilder()
-            .load_vert("src/shaders/depth_map.vert")
-            .load_frag("src/shaders/depth_map.frag")
+            .load_vert(VPath("src/shaders/depth_map.vert"))
+            .load_frag(VPath("src/shaders/depth_map.frag"))
             .get()
     };
 

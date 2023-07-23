@@ -6,6 +6,7 @@
 #include "LightCasters.hpp"
 #include "ShadowMappingStage.hpp"
 #include "SharedStorage.hpp"
+#include "VirtualFilesystem.hpp"
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
 #include <glbinding/gl/gl.h>
@@ -33,8 +34,8 @@ public:
 private:
     ShaderProgram sp_{
         ShaderBuilder()
-            .load_vert("src/shaders/in_directional_shadow.vert")
-            .load_frag("src/shaders/mat_ds_light_adpn_shadow.frag")
+            .load_vert(VPath("src/shaders/in_directional_shadow.vert"))
+            .load_frag(VPath("src/shaders/mat_ds_light_adpn_shadow.frag"))
             .get()
     };
 

@@ -10,6 +10,7 @@
 #include "ShadowMappingStage.hpp"
 #include "SharedStorage.hpp"
 #include "GBuffer.hpp"
+#include "VirtualFilesystem.hpp"
 #include <entt/entity/fwd.hpp>
 #include <utility>
 
@@ -34,8 +35,8 @@ public:
 private:
     ShaderProgram sp_{
         ShaderBuilder()
-            .load_vert("src/shaders/dfr_shading.vert")
-            .load_frag("src/shaders/dfr_shading_adpn_shadow.frag")
+            .load_vert(VPath("src/shaders/dfr_shading.vert"))
+            .load_frag(VPath("src/shaders/dfr_shading_adpn_shadow.frag"))
             .get()
     };
 

@@ -2,6 +2,7 @@
 #include "GLObjects.hpp"
 #include "ShaderBuilder.hpp"
 #include "AttributeParams.hpp"
+#include "VirtualFilesystem.hpp"
 #include <glbinding/gl/gl.h>
 
 namespace josh {
@@ -19,8 +20,8 @@ public:
     SkyboxRenderer()
         : skybox_shader_{
             ShaderBuilder()
-                .load_vert("src/shaders/skybox.vert")
-                .load_frag("src/shaders/skybox.frag")
+                .load_vert(VPath("src/shaders/skybox.vert"))
+                .load_frag(VPath("src/shaders/skybox.frag"))
                 .get()
         }
     {

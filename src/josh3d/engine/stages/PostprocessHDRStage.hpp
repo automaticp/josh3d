@@ -2,6 +2,7 @@
 #include "GLObjects.hpp"
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
+#include "VirtualFilesystem.hpp"
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
 
@@ -13,8 +14,8 @@ class PostprocessHDRStage {
 private:
     ShaderProgram sp_{
         ShaderBuilder()
-            .load_vert("src/shaders/postprocess.vert")
-            .load_frag("src/shaders/pp_hdr.frag")
+            .load_vert(VPath("src/shaders/postprocess.vert"))
+            .load_frag(VPath("src/shaders/pp_hdr.frag"))
             .get()
     };
 

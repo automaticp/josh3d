@@ -3,6 +3,7 @@
 #include "RenderEngine.hpp"
 #include "SSBOWithIntermediateBuffer.hpp"
 #include "ShaderBuilder.hpp"
+#include "VirtualFilesystem.hpp"
 #include <entt/entt.hpp>
 #include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/enum.h>
@@ -17,14 +18,14 @@ class PostprocessHDREyeAdaptationStage {
 private:
     ShaderProgram sp_{
         ShaderBuilder()
-            .load_vert("src/shaders/postprocess.vert")
-            .load_frag("src/shaders/pp_hdr.frag")
+            .load_vert(VPath("src/shaders/postprocess.vert"))
+            .load_frag(VPath("src/shaders/pp_hdr.frag"))
             .get()
     };
 
     ShaderProgram reduce_sp_{
         ShaderBuilder()
-            .load_comp("src/shaders/pp_hdr_eye_adaptation_screen_reduce.comp")
+            .load_comp(VPath("src/shaders/pp_hdr_eye_adaptation_screen_reduce.comp"))
             .get()
     };
 

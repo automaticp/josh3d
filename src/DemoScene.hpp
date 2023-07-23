@@ -14,6 +14,7 @@
 #include "RenderComponents.hpp"
 #include "RenderEngine.hpp"
 #include "Shared.hpp"
+#include "VirtualFilesystem.hpp"
 #include "hooks/DeferredShadingStageHook.hpp"
 #include "hooks/GBufferStageHook.hpp"
 #include "hooks/LightComponentsRegistryHook.hpp"
@@ -206,7 +207,7 @@ inline void DemoScene::init_registry() {
     entt::handle model{ r, r.create() };
 
     ModelComponentLoader()
-        .load_into(model, path);
+        .load_into(model, VPath(path));
 
     model.emplace<Transform>();
     model.emplace<components::Path>(path);
@@ -226,14 +227,12 @@ inline void DemoScene::init_registry() {
     components::Skybox skybox{ std::make_shared<Cubemap>() };
     skybox.cubemap->bind().attach_data(
         CubemapData::from_files(
-            {
-                "data/skyboxes/lake/right.png",
-                "data/skyboxes/lake/left.png",
-                "data/skyboxes/lake/top.png",
-                "data/skyboxes/lake/bottom.png",
-                "data/skyboxes/lake/front.png",
-                "data/skyboxes/lake/back.png",
-            }
+                VPath("data/skyboxes/lake/right.png"),
+                VPath("data/skyboxes/lake/left.png"),
+                VPath("data/skyboxes/lake/top.png"),
+                VPath("data/skyboxes/lake/bottom.png"),
+                VPath("data/skyboxes/lake/front.png"),
+                VPath("data/skyboxes/lake/back.png")
         ), gl::GL_SRGB_ALPHA
     );
     r.emplace<components::Skybox>(r.create(), std::move(skybox));

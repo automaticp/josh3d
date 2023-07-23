@@ -51,10 +51,10 @@ void ModelComponentLoader::emplace_material_components(
     const ModelLoadingContext& context)
 {
 
-    auto get_full_path = [&](aiTextureType type) -> std::string {
+    auto get_full_path = [&](aiTextureType type) -> File {
         aiString filename;
         material->GetTexture(type, 0u, &filename);
-        return context.directory + filename.C_Str();
+        return File{ context.directory.path() / filename.C_Str() };
     };
 
 

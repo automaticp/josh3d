@@ -3,6 +3,7 @@
 #include "ShaderBuilder.hpp"
 #include "Transform.hpp"
 #include "Vertex2D.hpp"
+#include "VirtualFilesystem.hpp"
 
 namespace josh {
 
@@ -27,8 +28,8 @@ public:
     SpriteRenderer(const glm::mat4& projection)
         : sp_{
             ShaderBuilder()
-                .load_vert("src/shaders/sprite.vert")
-                .load_frag("src/shaders/sprite.frag")
+                .load_vert(VPath("src/shaders/sprite.vert"))
+                .load_frag(VPath("src/shaders/sprite.frag"))
                 .get()
         }
     {

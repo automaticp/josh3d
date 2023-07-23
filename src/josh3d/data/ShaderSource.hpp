@@ -1,4 +1,5 @@
 #pragma once
+#include "Filesystem.hpp"
 #include <string>
 #include <stdexcept>
 #include <variant>
@@ -12,14 +13,15 @@ namespace josh {
 
 
 
-inline std::string read_file(const std::string& path) {
-    std::ifstream file{ path };
-    if ( file.fail() ) {
-        throw std::runtime_error("Cannot open file: " + path);
+inline std::string read_file(const File& file) {
+    std::ifstream ifs{ file.path() };
+    if (ifs.fail()) {
+        // FIXME: Replace with custom error.
+        throw std::runtime_error("Cannot open file: " + file.path().native());
     }
 
     return std::string{
-        std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()
+        std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>()
     };
 }
 
@@ -34,8 +36,8 @@ public:
 
     explicit ShaderSource(std::string text) : text_{ std::move(text) } {}
 
-    static ShaderSource from_file(const std::string& path) {
-        return ShaderSource{ read_file(path) };
+    static ShaderSource from_file(const File& file) {
+        return ShaderSource{ read_file(file) };
     }
 
     operator const std::string& () const noexcept {

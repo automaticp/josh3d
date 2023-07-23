@@ -68,7 +68,7 @@ void josh::imguihooks::ModelComponentsRegistryHook::operator()(entt::registry& r
         try {
 
             ModelComponentLoader()
-                .load_into(model_handle, load_path.c_str());
+                .load_into(model_handle, File(load_path));
 
             model_handle.emplace<Transform>();
             model_handle.emplace<components::Path>(load_path);
@@ -90,7 +90,7 @@ void josh::imguihooks::ModelComponentsRegistryHook::operator()(entt::registry& r
 
     for (auto [e, transform, model] : registry.view<Transform, ModelComponent>().each()) {
         const char* path = registry.all_of<components::Path>(e) ?
-            registry.get<components::Path>(e).path.c_str() : "(No Path)";
+            registry.get<components::Path>(e).c_str() : "(No Path)";
 
         if (ImGui::TreeNode(void_id(e), "Model [%d]: %s",
             static_cast<entt::id_type>(e), path))
