@@ -1,43 +1,85 @@
 #pragma once
 #include "CommonConcepts.hpp"
+#include "RuntimeError.hpp"
 #include <compare>
 #include <filesystem>
 #include <optional>
 #include <utility>
-#include <stdexcept>
 
 
 namespace josh {
 
 
+using Path = std::filesystem::path;
+class File;
+class Directory;
+
 
 namespace error {
 
-class FilesystemError : public std::runtime_error {
+
+class FilesystemError : public RuntimeError {
 public:
-    using std::runtime_error::runtime_error;
+    static constexpr auto prefix = "Filesystem Error: ";
+    FilesystemError(std::string msg)
+        : FilesystemError(prefix, std::move(msg))
+    {}
+protected:
+    FilesystemError(const char* prefix, std::string msg)
+        : RuntimeError(prefix, std::move(msg))
+    {}
 };
 
-// FIXME: Actually store reason in an error string
+
+
+
 class DirectoryDoesNotExist : public FilesystemError {
 public:
-    using FilesystemError::FilesystemError;
+    static constexpr auto prefix = "Directory Does Not Exist: ";
+    Path path;
+    DirectoryDoesNotExist(Path path)
+        : DirectoryDoesNotExist(prefix, std::move(path))
+    {}
+protected:
+    DirectoryDoesNotExist(const char* prefix, Path path)
+        : FilesystemError(prefix, path)
+        , path{ std::move(path) }
+    {}
 };
 
-class NotADirectory : public FilesystemError {
+
+class NotADirectory final : public DirectoryDoesNotExist {
 public:
-    using FilesystemError::FilesystemError;
+    static constexpr auto prefix = "Not A Directory: ";
+    NotADirectory(Path path)
+        : DirectoryDoesNotExist(prefix, std::move(path))
+    {}
 };
+
+
 
 
 class FileDoesNotExist : public FilesystemError {
 public:
-    using FilesystemError::FilesystemError;
+    static constexpr auto prefix = "File Does Not Exist: ";
+    Path path;
+    FileDoesNotExist(Path path)
+        : FileDoesNotExist(prefix, std::move(path))
+    {}
+protected:
+    FileDoesNotExist(const char* prefix, Path path)
+        : FilesystemError(prefix, path)
+        , path{ std::move(path) }
+    {}
 };
 
-class NotAFile : public FilesystemError {
+
+class NotAFile final : public FileDoesNotExist {
 public:
-    using FilesystemError::FilesystemError;
+    static constexpr auto prefix = "Not A File: ";
+    NotAFile(Path path)
+        : FileDoesNotExist(prefix, std::move(path))
+    {}
 };
 
 
@@ -46,13 +88,9 @@ public:
 
 
 
-
-using Path = std::filesystem::path;
-
-
 /*
 Directory and File classes are wrappers around std::filesystem::directory_entry
-that validate the entry to be either a directory or a file **at construction time**.
+that validate the entry to be either a directory or a file *at construction time*.
 
 Due to the asynchronous nature of the filesystem,
 there's no guarantee that the Directory and File objects represent
@@ -89,8 +127,8 @@ class File {
 private:
     std::filesystem::directory_entry file_;
 
-    struct UncheckedConstructorKey {};
-    File(const Path& path, UncheckedConstructorKey)
+    struct PrivateConstructorKey {};
+    File(const Path& path, PrivateConstructorKey)
         : file_{ path }
     {}
 
@@ -116,7 +154,7 @@ public:
         // FIXME: Is directory_entry constructor potentially expensive?
         // Should this be the other way around, where the check
         // comes first and the construction of Directory instance after?
-        File file{ path, UncheckedConstructorKey() };
+        File file{ path, PrivateConstructorKey() };
 
         if (file.is_valid()) {
             return { std::move(file) };
@@ -142,12 +180,16 @@ public:
 
 
 
+/*
+Directory and File classes are wrappers around std::filesystem::directory_entry
+that validate the entry to be either a directory or a file *at construction time*.
+*/
 class Directory {
 private:
     std::filesystem::directory_entry directory_;
 
-    struct UncheckedConstructorKey {};
-    Directory(const Path& path, UncheckedConstructorKey)
+    struct PrivateConstructorKey {};
+    Directory(const Path& path, PrivateConstructorKey)
         : directory_{ path }
     {}
 
@@ -168,7 +210,7 @@ public:
     static auto try_make(const Path& path)
         -> std::optional<Directory>
     {
-        Directory dir{ path, UncheckedConstructorKey() };
+        Directory dir{ path, PrivateConstructorKey() };
 
         if (dir.is_valid()) {
             return { std::move(dir) };

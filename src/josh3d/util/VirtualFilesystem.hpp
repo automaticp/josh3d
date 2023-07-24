@@ -1,8 +1,8 @@
 #pragma once
 #include "CommonConcepts.hpp"
 #include "Filesystem.hpp"
+#include "RuntimeError.hpp"
 #include <filesystem>
-#include <stdexcept>
 #include <utility>
 #include <optional>
 #include <list>
@@ -12,21 +12,41 @@ namespace josh {
 
 namespace error {
 
-class VirtualFilesystemError : public std::runtime_error {
+
+class VirtualFilesystemError : public RuntimeError {
 public:
-    using std::runtime_error::runtime_error;
+    static constexpr auto prefix = "Virtual Filesystem Error: ";
+    VirtualFilesystemError(std::string msg)
+        : VirtualFilesystemError(prefix, std::move(msg))
+    {}
+protected:
+    VirtualFilesystemError(const char* prefix, std::string msg)
+        : RuntimeError(prefix, std::move(msg))
+    {}
 };
 
 
-class VirtualPathIsNotRelative : public VirtualFilesystemError {
+
+
+class VirtualPathIsNotRelative final : public VirtualFilesystemError {
 public:
-    using VirtualFilesystemError::VirtualFilesystemError;
+    static constexpr auto prefix = "Virtual Path Is Not Relative: ";
+    Path path;
+    VirtualPathIsNotRelative(Path path)
+        : VirtualFilesystemError(prefix, path)
+        , path{ std::move(path) }
+    {}
 };
 
 
-class UnresolvedVirtualPath : public VirtualFilesystemError {
+class UnresolvedVirtualPath final : public VirtualFilesystemError {
 public:
-    using VirtualFilesystemError::VirtualFilesystemError;
+    static constexpr auto prefix = "Unresolved Virtual Path: ";
+    Path path;
+    UnresolvedVirtualPath(Path path)
+        : VirtualFilesystemError(prefix, path)
+        , path{ std::move(path) }
+    {}
 };
 
 

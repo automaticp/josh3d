@@ -4,6 +4,7 @@
 #include "GLObjects.hpp"
 #include "MeshData.hpp"
 #include "Model.hpp"
+#include "RuntimeError.hpp"
 #include "VertexPNT.hpp"
 #include <assimp/Exceptional.h>
 #include <assimp/Importer.hpp>
@@ -17,7 +18,6 @@
 #include <cstddef>
 #include <memory>
 #include <span>
-#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -30,20 +30,52 @@ namespace error {
 
 // TODO: Assimp has its own exceptions, I think, so look into that maybe.
 
-class AssimpLoaderError : public std::runtime_error {
+class AssimpLoaderError : public RuntimeError {
 public:
-    using std::runtime_error::runtime_error;
+    static constexpr auto prefix = "Assimp Loader Error: ";
+    AssimpLoaderError(std::string msg)
+        : AssimpLoaderError(prefix, std::move(msg))
+    {}
+protected:
+    AssimpLoaderError(const char* prefix, std::string msg)
+        : RuntimeError(prefix, std::move(msg))
+    {}
 };
 
-class AssimpLoaderIOError : public AssimpLoaderError {
+
+
+
+// TODO: Can this be classified more accurately?
+// Exact reasons why read fails? Do I need to?
+class AssimpLoaderReadFileFailure : public AssimpLoaderError {
 public:
-    using AssimpLoaderError::AssimpLoaderError;
+    static constexpr auto prefix = "Assimp Loader File Reading Failure: ";
+    Path path;
+    AssimpLoaderReadFileFailure(Path path, std::string error_string)
+        : AssimpLoaderReadFileFailure(prefix,
+            std::move(path), std::move(error_string))
+    {}
+protected:
+    AssimpLoaderReadFileFailure(const char* prefix,
+        Path path, std::string error_string)
+        : AssimpLoaderError(prefix, std::move(error_string))
+        , path{ std::move(path) }
+    {}
 };
+
 
 class AssimpLoaderSceneParseError : public AssimpLoaderError {
 public:
-    using AssimpLoaderError::AssimpLoaderError;
+    static constexpr auto prefix = "Assimp Loader Scene Parsing Error: ";
+    AssimpLoaderSceneParseError(std::string msg)
+        : AssimpLoaderSceneParseError(prefix, std::move(msg))
+    {}
+protected:
+    AssimpLoaderSceneParseError(const char* prefix, std::string msg)
+        : AssimpLoaderError(prefix, std::move(msg))
+    {}
 };
+
 
 } // namespace error
 
@@ -148,7 +180,7 @@ public:
         const aiScene* new_scene{ importer_.ReadFile(file.path(), flags_) };
 
         if (!new_scene) {
-            throw error::AssimpLoaderIOError(importer_.GetErrorString());
+            throw error::AssimpLoaderReadFileFailure{ file.path(), importer_.GetErrorString() };
         }
 
         scene_ = new_scene;
@@ -214,7 +246,7 @@ public:
         const aiScene* new_scene{ importer_.ReadFile(file.path(), flags_) };
 
         if (!new_scene) {
-            throw error::AssimpLoaderIOError(importer_.GetErrorString());
+            throw error::AssimpLoaderReadFileFailure{ file.path(), importer_.GetErrorString() };
         }
 
         ModelLoadingContext context{
