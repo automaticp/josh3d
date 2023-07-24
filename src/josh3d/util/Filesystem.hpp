@@ -85,7 +85,59 @@ within the ifstream constructor the file could have been erased
 and become inaccessible. You SHOULD still check the ifstream for failure
 because of this, else the TOCTOU condition becomes an actual bug.
 */
+class File {
+private:
+    std::filesystem::directory_entry file_;
 
+    struct UncheckedConstructorKey {};
+    File(const Path& path, UncheckedConstructorKey)
+        : file_{ path }
+    {}
+
+public:
+    explicit File(const Path& path)
+        : file_{ path }
+    {
+        if (!file_.exists()) {
+            throw error::FileDoesNotExist(file_.path());
+        }
+
+        if (!file_.is_regular_file()) {
+            throw error::NotAFile(file_.path());
+        }
+    }
+
+    // Non-throwing static constructor.
+    // Does not report the type of failure because I'm lazy to
+    // include a third party `expected` implementation.
+    static auto try_make(const Path& path)
+        -> std::optional<File>
+    {
+        // FIXME: Is directory_entry constructor potentially expensive?
+        // Should this be the other way around, where the check
+        // comes first and the construction of Directory instance after?
+        File file{ path, UncheckedConstructorKey() };
+
+        if (file.is_valid()) {
+            return { std::move(file) };
+        } else {
+            return std::nullopt;
+        }
+    }
+
+
+    const std::filesystem::path& path() const noexcept {
+        return file_.path();
+    }
+
+    // Vulnerable to TOCTOU, a hint, but no guarantees.
+    bool is_valid() const {
+        return file_.exists() && file_.is_regular_file();
+    }
+
+    bool operator==(const File&) const noexcept = default;
+    std::strong_ordering operator<=>(const File&) const noexcept = default;
+};
 
 
 
@@ -113,14 +165,9 @@ public:
     }
 
     // Non-throwing static constructor.
-    // Does not report the type of failure because I'm lazy to
-    // include a third party `expected` implementation.
     static auto try_make(const Path& path)
         -> std::optional<Directory>
     {
-        // FIXME: Is directory_entry constructor potentially expensive?
-        // Should this be the other way around, where the check
-        // comes first and the construction of Directory instance after?
         Directory dir{ path, UncheckedConstructorKey() };
 
         if (dir.is_valid()) {
@@ -142,56 +189,6 @@ public:
 
     bool operator==(const Directory&) const noexcept = default;
     std::strong_ordering operator<=>(const Directory&) const noexcept = default;
-};
-
-
-class File {
-private:
-    std::filesystem::directory_entry file_;
-
-    struct UncheckedConstructorKey {};
-    File(const Path& path, UncheckedConstructorKey)
-        : file_{ path }
-    {}
-
-public:
-    explicit File(const Path& path)
-        : file_{ path }
-    {
-        if (!file_.exists()) {
-            throw error::FileDoesNotExist(file_.path());
-        }
-
-        if (!file_.is_regular_file()) {
-            throw error::NotAFile(file_.path());
-        }
-    }
-
-    // Non-throwing static constructor.
-    static auto try_make(const Path& path)
-        -> std::optional<File>
-    {
-        File file{ path, UncheckedConstructorKey() };
-
-        if (file.is_valid()) {
-            return { std::move(file) };
-        } else {
-            return std::nullopt;
-        }
-    }
-
-
-    const std::filesystem::path& path() const noexcept {
-        return file_.path();
-    }
-
-    // Vulnerable to TOCTOU, a hint, but no guarantees.
-    bool is_valid() const {
-        return file_.exists() && file_.is_regular_file();
-    }
-
-    bool operator==(const File&) const noexcept = default;
-    std::strong_ordering operator<=>(const File&) const noexcept = default;
 };
 
 
