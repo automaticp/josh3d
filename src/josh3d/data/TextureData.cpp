@@ -1,7 +1,6 @@
 #include "TextureData.hpp"
 #include "Filesystem.hpp"
 #include <stb_image.h>
-#include <stdexcept>
 
 
 namespace josh {
@@ -17,11 +16,7 @@ TextureData TextureData::from_file(const File& file,
         stbi_load(file.path().c_str(), &width, &height, &n_channels, num_desired_channels);
 
     if (!data) {
-        // FIXME: Replace with custom error type.
-        throw std::runtime_error(
-            "Stb could not load the image at " + file.path().native() +
-            ". Reason: " + stbi_failure_reason()
-        );
+        throw error::ImageReadingError(file.path(), stbi_failure_reason());
     }
 
     return TextureData(

@@ -1,5 +1,6 @@
 #pragma once
 #include "Filesystem.hpp"
+#include "RuntimeError.hpp"
 #include <cstdlib>
 #include <memory>
 #include <string>
@@ -10,6 +11,25 @@
 
 
 namespace josh {
+
+
+namespace error {
+
+class ImageReadingError final : public RuntimeError {
+public:
+    static constexpr auto prefix = "Cannot Read Image: ";
+    Path path;
+    ImageReadingError(Path path, std::string reason)
+        : RuntimeError(prefix,
+            path.native() + "; Reason: " + std::move(reason))
+        , path{ std::move(path) }
+    {}
+};
+
+} // namespace error
+
+
+
 
 
 class TextureData {

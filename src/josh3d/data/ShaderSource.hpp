@@ -1,8 +1,7 @@
 #pragma once
 #include "Filesystem.hpp"
+#include "RuntimeError.hpp"
 #include <string>
-#include <stdexcept>
-#include <variant>
 #include <utility>
 #include <fstream>
 #include <string_view>
@@ -11,13 +10,25 @@
 
 namespace josh {
 
+namespace error {
+
+class FileReadingError final : public RuntimeError {
+public:
+    static constexpr auto prefix = "Cannot Read File: ";
+    Path path;
+    FileReadingError(Path path)
+        : RuntimeError(prefix, path)
+        , path{ std::move(path) }
+    {}
+};
+
+} // namespace error
 
 
 inline std::string read_file(const File& file) {
     std::ifstream ifs{ file.path() };
     if (ifs.fail()) {
-        // FIXME: Replace with custom error.
-        throw std::runtime_error("Cannot open file: " + file.path().native());
+        throw error::FileReadingError(file.path());
     }
 
     return std::string{
