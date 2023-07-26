@@ -153,7 +153,7 @@ public:
     {
         // FIXME: Is directory_entry constructor potentially expensive?
         // Should this be the other way around, where the check
-        // comes first and the construction of Directory instance after?
+        // comes first and the construction of File instance after?
         File file{ path, PrivateConstructorKey() };
 
         if (file.is_valid()) {
@@ -164,7 +164,7 @@ public:
     }
 
 
-    const std::filesystem::path& path() const noexcept {
+    const Path& path() const noexcept {
         return file_.path();
     }
 
@@ -220,7 +220,7 @@ public:
     }
 
 
-    const std::filesystem::path& path() const noexcept {
+    const Path& path() const noexcept {
         return directory_.path();
     }
 
@@ -238,7 +238,7 @@ public:
 
 namespace filesystem_literals {
 
-inline std::filesystem::path operator""_path(const char* str, size_t size) {
+inline Path operator""_path(const char* str, size_t size) {
     return { str, str + size };
 }
 
