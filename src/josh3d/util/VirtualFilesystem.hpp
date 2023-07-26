@@ -2,6 +2,8 @@
 #include "CommonConcepts.hpp"
 #include "Filesystem.hpp"
 #include "RuntimeError.hpp"
+#include <algorithm>
+#include <cassert>
 #include <filesystem>
 #include <utility>
 #include <optional>
@@ -104,8 +106,168 @@ inline VPath operator""_vpath(const char* str, size_t size) {
 
 
 
+/*
+The container of VFS that is responsible for storing and managing
+insertion/removal of roots.
+
+Behaves like a set based on the filesystem entry *equivalence*, not lexical equality of paths.
+
+Iterators are only invalidated on removal and only for removed
+elements.
+
+Is ordered by push operations, with newly pushed elements inserted
+at the front.
+*/
+class VFSRoots {
+private:
+    using list_type = std::list<Directory>;
+    list_type roots_;
+
+public:
+    VFSRoots() = default;
+
+    const list_type& list() const noexcept { return roots_; }
+
+    auto begin()  const noexcept { return roots_.cbegin(); }
+    auto cbegin() const noexcept { return roots_.cbegin(); }
+    auto end()    const noexcept { return roots_.cend();   }
+    auto cend()   const noexcept { return roots_.cend();   }
+
+
+    // Push the Directory to the front of the list.
+    // If the equivalent root already exists in the list,
+    // return the iterator referring to it instead.
+    // On succesful insertion return end() iterator.
+    //
+    // A shorthand for:
+    //   insert_before(list().begin(), dir);
+    auto push_front(const Directory& dir)
+        -> list_type::const_iterator
+    {
+        return insert_before(begin(), dir);
+    }
+
+
+    auto push_front(Directory&& dir)
+        -> list_type::const_iterator
+    {
+        return insert_before(begin(), std::move(dir));
+    }
+
+
+    // Insert the Directory before the element `pos`.
+    // If the equivalent root already exists in the list,
+    // return the iterator referring to it instead.
+    // On succesful insertion return end() iterator.
+    //
+    // Yeah, returning end() on success is weird, but
+    // this setup gives you the most information, while
+    // keeping the interface concise.
+    //
+    // Decrement the `pos` if you need your newly
+    // inserted element.
+    auto insert_before(list_type::const_iterator pos,
+        const Directory& dir)
+        -> list_type::const_iterator
+    {
+        auto existing_it =
+            find_equivalent_root(dir.path());
+
+        if (existing_it == roots_.end()) {
+            roots_.insert(pos, dir);
+        }
+
+        return existing_it;
+    }
+
+
+    auto insert_before(list_type::const_iterator pos,
+        Directory&& dir)
+        -> list_type::const_iterator
+    {
+        auto existing_it =
+            find_equivalent_root(dir.path());
+
+        if (existing_it == roots_.end()) {
+            roots_.insert(pos, std::move(dir));
+        }
+
+        return existing_it;
+    }
+
+
+    // Reorder an element to be placed before another one.
+    void order_before(
+        list_type::const_iterator before_this_element,
+        list_type::const_iterator element_to_reorder) noexcept
+    {
+        roots_.splice(before_this_element, roots_, element_to_reorder);
+    }
+
+
+    // Remove the root by equivalent path and return the
+    // removed Directory entry.
+    //
+    // FIXME: Technically does not force you to construct
+    // the Directory, thus avoiding the existence check,
+    // but wouldn't the equivalence check then fail
+    // anyways?
+    auto remove(const Path& path) noexcept
+        -> std::optional<Directory>
+    {
+        std::optional<Directory> removed_dir{ std::nullopt };
+
+        auto it = find_equivalent_root(path);
+        if (it != roots_.end()) {
+            Directory dir{ std::move(*it) };
+            roots_.erase(it);
+            return { std::move(dir) };
+        }
+
+        return removed_dir;
+    }
+
+
+    // Behaves like list::erase, except returns a const_iterator
+    // because you're not supposed to modify the elements.
+    //
+    // UB if `iter` does not refer to an element of VFSRoots.
+    //
+    // Returns iterator to the next element or the updated end()
+    // iterator if the erased element was last.
+    auto erase(list_type::const_iterator iter) noexcept
+        -> list_type::const_iterator
+    {
+        return roots_.erase(iter);
+    }
+
+
+private:
+    auto find_equivalent_root(const Path& path) noexcept
+        -> list_type::iterator
+    {
+        return std::find_if(roots_.begin(), roots_.end(),
+            [&](const Directory& root) {
+                return std::filesystem::equivalent(root.path(), path);
+            });
+    }
+
+    auto find_equivalent_root(const Path& path) const noexcept
+        -> list_type::const_iterator
+    {
+        return std::find_if(roots_.begin(), roots_.end(),
+            [&](const Directory& root) {
+                return std::filesystem::equivalent(root.path(), path);
+            });
+    }
+
+};
+
+
+
+
+
 // Point of access to a global (thread_local) VFS.
-// FIXME: How to transfer roots?
 class VirtualFilesystem& vfs() noexcept;
 
 
@@ -183,30 +345,23 @@ Once a ResourceManager is implemented, we'll rethink this.
 */
 class VirtualFilesystem {
 private:
-    std::list<Directory> roots_;
+    VFSRoots roots_;
 
     // We could do some caching even
 
 public:
     VirtualFilesystem() = default;
 
-    VirtualFilesystem(std::list<Directory> root_dirs)
+    VirtualFilesystem(VFSRoots root_dirs)
         : roots_{ std::move(root_dirs) }
     {}
 
-
-    // Part of the API that handles manipulation of the set of roots
-
-
-    void push_root(Directory directory) {
-        roots_.emplace_front(std::move(directory));
-    }
-
-    // ...
+    auto& roots() noexcept { return roots_; }
+    const auto& roots() const noexcept { return roots_; }
 
 
     // Part of the API that resolves paths to directory_entries
-
+    [[nodiscard]]
     auto try_resolve_file(const VPath& vpath) const
         -> std::optional<File>
     {
@@ -227,6 +382,7 @@ public:
     }
 
     // Hmm, two error handling schemes...
+    [[nodiscard]]
     auto resolve_file(const VPath& vpath) const
         -> File
     {
@@ -237,7 +393,7 @@ public:
         }
     }
 
-
+    [[nodiscard]]
     auto try_resolve_directory(const VPath& vpath) const
         -> std::optional<Directory>
     {
@@ -253,7 +409,7 @@ public:
         return std::nullopt;
     }
 
-
+    [[nodiscard]]
     auto resolve_directory(const VPath& vpath) const
         -> Directory
     {
