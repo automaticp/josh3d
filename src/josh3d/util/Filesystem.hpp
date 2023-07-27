@@ -125,7 +125,7 @@ because of this, else the TOCTOU condition becomes an actual bug.
 */
 class File {
 private:
-    std::filesystem::directory_entry file_;
+    mutable std::filesystem::directory_entry file_;
 
     struct PrivateConstructorKey {};
     File(const Path& path, PrivateConstructorKey)
@@ -170,6 +170,7 @@ public:
 
     // Vulnerable to TOCTOU, a hint, but no guarantees.
     bool is_valid() const {
+        file_.refresh();
         return file_.exists() && file_.is_regular_file();
     }
 
@@ -186,7 +187,7 @@ that validate the entry to be either a directory or a file *at construction time
 */
 class Directory {
 private:
-    std::filesystem::directory_entry directory_;
+    mutable std::filesystem::directory_entry directory_;
 
     struct PrivateConstructorKey {};
     Directory(const Path& path, PrivateConstructorKey)
@@ -226,6 +227,7 @@ public:
 
     // Vulnerable to TOCTOU, a hint, but no guarantees.
     bool is_valid() const {
+        directory_.refresh();
         return directory_.exists() && directory_.is_directory();
     }
 
