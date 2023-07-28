@@ -110,13 +110,19 @@ inline VPath operator""_vpath(const char* str, size_t size) {
 The container of VFS that is responsible for storing and managing
 insertion/removal of roots.
 
-Behaves like a set based on the filesystem entry *equivalence*, not lexical equality of paths.
-
 Iterators are only invalidated on removal and only for removed
 elements.
 
 Is ordered by push operations, with newly pushed elements inserted
 at the front.
+
+N.B. Originally planned to have set-like semantics based on the
+equivalence of the actual filesystem entries, but that carried
+too much trouble because the equivalence check can fail if
+the directory is no longer valid, which quickly cascaded into
+the game of "Who wants to handle invalid entries?", with unclear
+responsibilities and a mess overall. So now this is just
+a list wrapper, that disallows modification in-place.
 */
 class VFSRoots {
 private:
@@ -124,9 +130,9 @@ private:
     list_type roots_;
 
 public:
-    VFSRoots() = default;
+    using const_iterator = list_type::const_iterator;
 
-    const list_type& list() const noexcept { return roots_; }
+    VFSRoots() = default;
 
     auto begin()  const noexcept { return roots_.cbegin(); }
     auto cbegin() const noexcept { return roots_.cbegin(); }
@@ -135,96 +141,56 @@ public:
 
 
     // Push the Directory to the front of the list.
-    // If the equivalent root already exists in the list,
-    // return the iterator referring to it instead.
-    // On succesful insertion return end() iterator.
     //
     // A shorthand for:
-    //   insert_before(list().begin(), dir);
+    //   `insert_before(begin(), dir);`
     auto push_front(const Directory& dir)
-        -> list_type::const_iterator
+        -> const_iterator
     {
         return insert_before(begin(), dir);
     }
 
-
+    // Push the Directory to the front of the list.
     auto push_front(Directory&& dir)
-        -> list_type::const_iterator
+        -> const_iterator
     {
         return insert_before(begin(), std::move(dir));
     }
 
 
     // Insert the Directory before the element `pos`.
-    // If the equivalent root already exists in the list,
-    // return the iterator referring to it instead.
-    // On succesful insertion return end() iterator.
-    //
-    // Yeah, returning end() on success is weird, but
-    // this setup gives you the most information, while
-    // keeping the interface concise.
-    //
-    // Decrement the `pos` if you need your newly
-    // inserted element.
-    auto insert_before(list_type::const_iterator pos,
-        const Directory& dir)
-        -> list_type::const_iterator
+    // Returns iterator to the newly inserted element.
+    auto insert_before(const_iterator pos, const Directory& dir)
+        -> const_iterator
     {
-        auto existing_it =
-            find_equivalent_root(dir.path());
-
-        if (existing_it == roots_.end()) {
-            roots_.insert(pos, dir);
-        }
-
-        return existing_it;
+        return roots_.insert(pos, dir);
     }
 
 
-    auto insert_before(list_type::const_iterator pos,
-        Directory&& dir)
-        -> list_type::const_iterator
+    // Insert the Directory before the element `pos`.
+    // Returns iterator to the newly inserted element.
+    auto insert_before(const_iterator pos, Directory&& dir)
+        -> const_iterator
     {
-        auto existing_it =
-            find_equivalent_root(dir.path());
-
-        if (existing_it == roots_.end()) {
-            roots_.insert(pos, std::move(dir));
-        }
-
-        return existing_it;
+        return roots_.insert(pos, std::move(dir));
     }
 
 
     // Reorder an element to be placed before another one.
     void order_before(
-        list_type::const_iterator before_this_element,
-        list_type::const_iterator element_to_reorder) noexcept
+        const_iterator before_this_element,
+        const_iterator element_to_reorder) noexcept
     {
         roots_.splice(before_this_element, roots_, element_to_reorder);
     }
 
 
-    // Remove the root by equivalent path and return the
-    // removed Directory entry.
-    //
-    // FIXME: Technically does not force you to construct
-    // the Directory, thus avoiding the existence check,
-    // but wouldn't the equivalence check then fail
-    // anyways?
-    auto remove(const Path& path) noexcept
-        -> std::optional<Directory>
+    // Shorthand for `order_before(++target, to_reorder);`
+    void order_after(
+        const_iterator after_this_element,
+        const_iterator element_to_reorder) noexcept
     {
-        std::optional<Directory> removed_dir{ std::nullopt };
-
-        auto it = find_equivalent_root(path);
-        if (it != roots_.end()) {
-            Directory dir{ std::move(*it) };
-            roots_.erase(it);
-            return { std::move(dir) };
-        }
-
-        return removed_dir;
+        order_before(++after_this_element, element_to_reorder);
     }
 
 
@@ -235,34 +201,76 @@ public:
     //
     // Returns iterator to the next element or the updated end()
     // iterator if the erased element was last.
-    auto erase(list_type::const_iterator iter) noexcept
-        -> list_type::const_iterator
+    auto erase(const_iterator iter) noexcept
+        -> const_iterator
     {
         return roots_.erase(iter);
     }
 
 
-private:
-    auto find_equivalent_root(const Path& path) noexcept
-        -> list_type::iterator
-    {
-        return std::find_if(roots_.begin(), roots_.end(),
-            [&](const Directory& root) {
-                return std::filesystem::equivalent(root.path(), path);
-            });
+    // Removes currently stored root Directories for which
+    // is_valid() is no longer true.
+    // Returns the number of elements removed.
+    size_t remove_invalid() {
+        return remove_invalid(roots_.cbegin());
     }
 
-    auto find_equivalent_root(const Path& path) const noexcept
-        -> list_type::const_iterator
+
+    // Removes currently stored root Directories for which
+    // is_valid() is no longer true beginning with `start_from`.
+    // Returns the number of elements removed.
+    size_t remove_invalid(const_iterator start_from) {
+        size_t num_removed{ 0 };
+        for (auto it = start_from; it != roots_.end();) {
+            if (!it->is_valid()) {
+                it = roots_.erase(it);
+                ++num_removed;
+            } else {
+                ++it;
+            }
+        }
+        return num_removed;
+    }
+
+
+    // Removes currently stored root Directories for which
+    // is_valid() is no longer true.
+    // Returns the number of elements removed.
+    // Outputs invalidated Directory entries through `out_it`.
+    template<std::output_iterator<Directory> OutputIt>
+    size_t remove_invalid_into(OutputIt out_it) {
+        return remove_invalid_into(roots_.cbegin(), std::move(out_it));
+    }
+
+
+    // Removes currently stored root Directories for which
+    // is_valid() is no longer true beginning with `start_from`.
+    // Returns the number of elements removed.
+    // Outputs invalidated Directory entries through `out_it`.
+    template<std::output_iterator<Directory> OutputIt>
+    size_t remove_invalid_into(const_iterator start_from,
+        OutputIt out_it)
     {
-        return std::find_if(roots_.begin(), roots_.end(),
-            [&](const Directory& root) {
-                return std::filesystem::equivalent(root.path(), path);
-            });
+
+        auto remove_const_lmao = [this](const_iterator it) {
+            return roots_.erase(it, it);
+        };
+        auto nonconst_start = remove_const_lmao(start_from);
+
+        size_t num_removed{ 0 };
+        for (auto it = nonconst_start; it != roots_.end();) {
+            if (!it->is_valid()) {
+                *out_it++ = std::move(*it);
+                it = roots_.erase(it);
+                ++num_removed;
+            } else {
+                ++it;
+            }
+        }
+        return num_removed;
     }
 
 };
-
 
 
 
@@ -275,7 +283,7 @@ class VirtualFilesystem& vfs() noexcept;
 VirtualFilesystem (VFS) is an abstraction layer on top of the OS filesystem
 that is primarily responsible for two things:
 
-- Stores a set of root-directories ordered by priority.
+- Stores a list of root-directories ordered by priority.
 
 - Resolves *textual* paths specified as if relative to one of the root-directories
   to *real* directory entries. Validates that the entry actually exists.
