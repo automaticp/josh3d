@@ -326,7 +326,7 @@ three roots in store right now:
 
 and the file "/home/user/assets/data/models/josh/josh.obj" exists and can be loaded.
 
-Then if instead of trying to load from "data/models/josh/josh.obj"_file, we route
+Then if instead of trying to load from "./data/models/josh/josh.obj", we route
 the path through the VFS (or most likely in the end, ResourceManager), then
 the VFS layer will try matching
 [
@@ -355,7 +355,10 @@ class VirtualFilesystem {
 private:
     VFSRoots roots_;
 
-    // We could do some caching even
+    // We could do some caching even, however...
+    // Then the simple model of resolution becomes even more of a mess.
+    // Maybe useful, but very fragile. Even a simple reorder in VFSRoots
+    // invalidates the cache.
 
 public:
     VirtualFilesystem() = default;
@@ -368,39 +371,62 @@ public:
     const auto& roots() const noexcept { return roots_; }
 
 
-    // Part of the API that resolves paths to directory_entries
+    // Almost non-throwing file resolution*.
+    // Matches VPath against the roots in contained order
+    // until a valid file is found.
+    //
+    // * - Can throw underlying filesystem errors from is_valid()
+    // checks. Does not throw library-level exceptions.
     [[nodiscard]]
     auto try_resolve_file(const VPath& vpath) const
         -> std::optional<File>
     {
 
         for (auto&& root : roots_) {
+            // With the current design as is, having invalid roots
+            // during resolution does not invalidate the result
+            // of that resolution.
+            //
+            // So we don't bother to check.
+
             auto maybe_path = root.path() / vpath.path();
             auto maybe_file = File::try_make(maybe_path);
+
 
             if (maybe_file.has_value()) {
                 return maybe_file;
             }
-            // Failure here is not critical and we shouldn't throw,
-            // we *try* different roots and only if nothing works
-            // return nullopt.
+            // Failure to match a file is not critical and
+            // we shouldn't throw, we *try* different roots
+            // and only if nothing works return nullopt.
         }
 
         return std::nullopt;
     }
 
-    // Hmm, two error handling schemes...
+
+    // Throwing file resolution. Matches VPath against the
+    // roots in contained order until a valid file is found.
+    //
+    // Throws `error::UnresolvedVirtualPath` on failure.
     [[nodiscard]]
     auto resolve_file(const VPath& vpath) const
         -> File
     {
-        if (auto maybe_file = try_resolve_file(vpath); maybe_file.has_value()) {
+        if (auto maybe_file = try_resolve_file(vpath)) {
             return std::move(maybe_file.value());
         } else {
             throw error::UnresolvedVirtualPath(vpath.path());
         }
     }
 
+
+    // Almost non-throwing directory resolution*.
+    // Matches VPath against the roots in contained order
+    // until a valid directory is found.
+    //
+    // * - Can throw underlying filesystem errors from is_valid()
+    // checks. Does not throw library-level exceptions.
     [[nodiscard]]
     auto try_resolve_directory(const VPath& vpath) const
         -> std::optional<Directory>
@@ -417,24 +443,22 @@ public:
         return std::nullopt;
     }
 
+
+    // Throwing directory resolution. Matches VPath against the
+    // roots in contained order until a valid directory is found.
+    //
+    // Throws `error::UnresolvedVirtualPath` on failure.
     [[nodiscard]]
     auto resolve_directory(const VPath& vpath) const
         -> Directory
     {
-        if (auto maybe_dir = try_resolve_directory(vpath); maybe_dir.has_value()) {
+        if (auto maybe_dir = try_resolve_directory(vpath)) {
             return std::move(maybe_dir.value());
         } else {
             throw error::UnresolvedVirtualPath(vpath.path());
         }
     }
 
-
-
-    auto resolve_all()
-        /* -> ??? */
-    {
-
-    }
 
 };
 
