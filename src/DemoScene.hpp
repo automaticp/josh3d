@@ -14,6 +14,7 @@
 #include "RenderComponents.hpp"
 #include "RenderEngine.hpp"
 #include "Shared.hpp"
+#include "VPath.hpp"
 #include "VirtualFilesystem.hpp"
 #include "hooks/DeferredShadingStageHook.hpp"
 #include "hooks/GBufferStageHook.hpp"

@@ -1,6 +1,6 @@
 #pragma once
 #include "Filesystem.hpp"
-#include "VirtualFilesystem.hpp"
+#include "VPath.hpp"
 #include "GLObjects.hpp"
 #include "GLScalars.hpp"
 #include "Model.hpp"

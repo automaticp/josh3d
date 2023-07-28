@@ -3,7 +3,7 @@
 #include "ShaderBuilder.hpp"
 #include "Transform.hpp"
 #include "Vertex2D.hpp"
-#include "VirtualFilesystem.hpp"
+#include "VPath.hpp"
 
 namespace josh {
 

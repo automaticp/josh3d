@@ -2,7 +2,7 @@
 #include "GLObjects.hpp"
 #include "ShaderBuilder.hpp"
 #include "AttributeParams.hpp"
-#include "VirtualFilesystem.hpp"
+#include "VPath.hpp"
 #include <glbinding/gl/gl.h>
 
 namespace josh {

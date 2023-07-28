@@ -3,7 +3,7 @@
 #include "RenderEngine.hpp"
 #include "SSBOWithIntermediateBuffer.hpp"
 #include "ShaderBuilder.hpp"
-#include "VirtualFilesystem.hpp"
+#include "VPath.hpp"
 #include <entt/entt.hpp>
 #include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/enum.h>

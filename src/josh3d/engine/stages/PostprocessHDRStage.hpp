@@ -2,7 +2,7 @@
 #include "GLObjects.hpp"
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
-#include "VirtualFilesystem.hpp"
+#include "VPath.hpp"
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
 

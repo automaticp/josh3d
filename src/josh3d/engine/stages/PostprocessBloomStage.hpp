@@ -4,7 +4,7 @@
 #include "RenderEngine.hpp"
 #include "SSBOWithIntermediateBuffer.hpp"
 #include "ShaderBuilder.hpp"
-#include "VirtualFilesystem.hpp"
+#include "VPath.hpp"
 #include <glm/glm.hpp>
 #include <entt/entt.hpp>
 #include <cmath>

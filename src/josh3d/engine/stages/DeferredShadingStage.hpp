@@ -10,7 +10,7 @@
 #include "ShadowMappingStage.hpp"
 #include "SharedStorage.hpp"
 #include "GBuffer.hpp"
-#include "VirtualFilesystem.hpp"
+#include "VPath.hpp"
 #include <entt/entity/fwd.hpp>
 #include <utility>
 

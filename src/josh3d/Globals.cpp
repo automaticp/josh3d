@@ -9,7 +9,7 @@
 #include "VertexPNTTB.hpp"
 #include "AssimpModelLoader.hpp"
 #include "Shared.hpp"
-#include "VirtualFilesystem.hpp"
+#include "VPath.hpp"
 #include "WindowSizeCache.hpp"
 #include <assimp/postprocess.h>
 #include <glbinding/gl/enum.h>

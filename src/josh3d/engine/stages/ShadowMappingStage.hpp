@@ -5,7 +5,7 @@
 #include "RenderTargetDepthCubemapArray.hpp"
 #include "ShaderBuilder.hpp"
 #include "SharedStorage.hpp"
-#include "VirtualFilesystem.hpp"
+#include "VPath.hpp"
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
 #include <glbinding/gl/gl.h>
