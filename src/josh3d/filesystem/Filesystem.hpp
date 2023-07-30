@@ -1,5 +1,4 @@
 #pragma once
-#include "CommonConcepts.hpp"
 #include "RuntimeError.hpp"
 #include <compare>
 #include <filesystem>

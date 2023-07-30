@@ -1,5 +1,4 @@
 #pragma once
-#include "CommonConcepts.hpp"
 #include "Filesystem.hpp"
 #include "VirtualFilesystemError.hpp"
 #include "VFSRoots.hpp"

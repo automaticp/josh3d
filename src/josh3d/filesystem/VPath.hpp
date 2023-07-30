@@ -1,5 +1,5 @@
 #pragma once
-#include "CommonConcepts.hpp"
+#include "CommonConcepts.hpp" // IWYU pragma: keep
 #include "Filesystem.hpp"
 #include "VirtualFilesystemError.hpp"
 
