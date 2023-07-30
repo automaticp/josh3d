@@ -6,6 +6,7 @@
 #include "ImGuiContextWrapper.hpp"
 #include "ImGuiRegistryHooks.hpp"
 #include "ImGuiStageHooks.hpp"
+#include "ImGuiVFSControl.hpp"
 #include "ImGuiWindowSettings.hpp"
 #include "Input.hpp"
 #include "InputFreeCamera.hpp"
@@ -66,6 +67,7 @@ private:
 
     ImGuiContextWrapper imgui_{ window_ };
     ImGuiWindowSettings imgui_window_settings_{ window_ };
+    ImGuiVFSControl     imgui_vfs_control_{ vfs() };
     ImGuiStageHooks     imgui_stage_hooks_;
     ImGuiRegistryHooks  imgui_registry_hooks_{ registry_ };
 
@@ -151,6 +153,7 @@ public:
         rengine_.render();
 
         imgui_window_settings_.display();
+        imgui_vfs_control_.display();
         imgui_registry_hooks_.display();
         imgui_stage_hooks_.display();
 
@@ -177,6 +180,7 @@ inline void DemoScene::configure_input() {
     input_.set_keybind(glfw::KeyCode::T, [this](const KeyCallbackArgs& args) {
         if (args.is_released()) {
             imgui_window_settings_.hidden ^= true;
+            imgui_vfs_control_.hidden ^= true;
             imgui_stage_hooks_.hidden ^= true;
             imgui_registry_hooks_.hidden ^= true;
         }
