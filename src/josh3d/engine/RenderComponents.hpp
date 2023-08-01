@@ -1,4 +1,6 @@
 #pragma once
+#include "Filesystem.hpp"
+#include "VPath.hpp"
 #include "GLObjects.hpp"
 #include "GLScalars.hpp"
 #include "Model.hpp"
@@ -56,9 +58,9 @@ struct Name {
 };
 
 
-struct Path {
-    std::string path;
-};
+using josh::Path;
+
+using josh::VPath;
 
 
 struct ChildMesh {

@@ -1,7 +1,7 @@
 #pragma once
+#include "Filesystem.hpp"
 #include "Shared.hpp"
 #include "GLObjects.hpp"
-#include "DataPool.hpp"
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -20,7 +20,7 @@ template<
 >
 class GLObjectPool {
 private:
-    using pool_t = std::unordered_map<std::string, Shared<T>>;
+    using pool_t = std::unordered_map<File, Shared<T>>;
     pool_t pool_;
 
     using upstream_t = UpstreamT;
@@ -29,30 +29,30 @@ private:
 public:
     explicit GLObjectPool(UpstreamT& upstream) : upstream_{ upstream } {}
 
-    Shared<T> load(const std::string& path, const LoadContextT& = LoadContextT{});
+    Shared<T> load(const File& file, const LoadContextT& = LoadContextT{});
 
     void clear() { pool_.clear(); }
     void clear_unused();
 
 private:
-    Shared<T> load_data_from(const std::string& path, const LoadContextT&);
+    Shared<T> load_data_from(const File& file, const LoadContextT&);
 
 };
 
 
 template<typename T, typename UpstreamT, typename LoadContextT>
-Shared<T> GLObjectPool<T, UpstreamT, LoadContextT>::load(const std::string& path,
+Shared<T> GLObjectPool<T, UpstreamT, LoadContextT>::load(const File& file,
     const LoadContextT& context)
 {
-    auto it = pool_.find(path);
+    auto it = pool_.find(file);
 
     if ( it != pool_.end() ) {
         return it->second;
     } else {
         auto [emplaced_it, was_emplaced] =
             pool_.emplace(
-                path,
-                load_data_from(path, context)
+                file,
+                load_data_from(file, context)
             );
         return emplaced_it->second;
     }

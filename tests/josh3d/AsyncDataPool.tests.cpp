@@ -73,7 +73,8 @@ auto make_expected<TestResourceHashed>(const std::string& path) -> TestResourceH
 }
 
 template<>
-Shared<TestResourceHashed> AsyncDataPool<TestResourceHashed>::load_data_from(const std::string& path) {
+Shared<TestResourceHashed>
+AsyncDataPool<std::string, TestResourceHashed>::load_data_from(const std::string& path) {
     return std::make_shared<TestResourceHashed>(make_expected<TestResourceHashed>(path));
 }
 
@@ -91,7 +92,8 @@ auto make_expected<TestResourceHashedSleepy>(const std::string& path) -> TestRes
 }
 
 template<>
-Shared<TestResourceHashedSleepy> AsyncDataPool<TestResourceHashedSleepy>::load_data_from(const std::string& path) {
+Shared<TestResourceHashedSleepy>
+AsyncDataPool<std::string, TestResourceHashedSleepy>::load_data_from(const std::string& path) {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
     return std::make_shared<TestResourceHashedSleepy>(make_expected<TestResourceHashedSleepy>(path));
 }
@@ -108,7 +110,8 @@ auto make_expected<TestResourceThrowing>(const std::string&) -> TestResourceThro
 }
 
 template<>
-Shared<TestResourceThrowing> AsyncDataPool<TestResourceThrowing>::load_data_from(const std::string& path) {
+Shared<TestResourceThrowing>
+AsyncDataPool<std::string, TestResourceThrowing>::load_data_from(const std::string& path) {
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     throw TestException{ path };
     return std::make_shared<TestResourceThrowing>(make_expected<TestResourceThrowing>(path));
@@ -125,7 +128,7 @@ TEST_SUITE("AsyncDataPool") {
 
 TEST_CASE_TEMPLATE("Loading correctness", T, TestResourceHashed, TestResourceHashedSleepy) {
     ThreadPool thread_pool{};
-    AsyncDataPool<T> data_pool{ thread_pool };
+    AsyncDataPool<std::string, T> data_pool{ thread_pool };
 
     SUBCASE("Loading of a single resource") {
         const std::string path = random_string(1, 64);
@@ -274,7 +277,7 @@ REGISTER_EXCEPTION_TRANSLATOR(TestException& ex) {
 TEST_CASE("Exception propagation") {
     using T = TestResourceThrowing;
     ThreadPool thread_pool{};
-    AsyncDataPool<T> data_pool{ thread_pool };
+    AsyncDataPool<std::string, T> data_pool{ thread_pool };
 
     // WARN: Exception propagation tests can trigger false positives from
     // ThreadSanitizer because of noninstrumented parts of STL.

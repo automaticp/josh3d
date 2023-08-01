@@ -1,7 +1,9 @@
 #pragma once
 #include "GLObjects.hpp"
 #include "TextureData.hpp"
+#include "Filesystem.hpp"
 #include "GLObjectPool.hpp"
+#include "DataPool.hpp"
 #include <glbinding/gl/enum.h>
 #include <concepts>
 #include <type_traits>
@@ -31,10 +33,10 @@ using TextureHandlePool =
 
 template<>
 Shared<Texture2D>
-inline TextureHandlePool::load_data_from(const std::string& path,
+inline TextureHandlePool::load_data_from(const File& file,
     const TextureHandleLoadContext& context)
 {
-    Shared<TextureData> tex_data{ upstream_.load(path) };
+    Shared<TextureData> tex_data{ upstream_.load(file) };
 
     auto new_handle = std::make_shared<Texture2D>();
 

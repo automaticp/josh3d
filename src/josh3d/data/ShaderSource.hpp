@@ -1,7 +1,7 @@
 #pragma once
+#include "Filesystem.hpp"
+#include "RuntimeError.hpp"
 #include <string>
-#include <stdexcept>
-#include <variant>
 #include <utility>
 #include <fstream>
 #include <string_view>
@@ -10,16 +10,29 @@
 
 namespace josh {
 
+namespace error {
+
+class FileReadingError final : public RuntimeError {
+public:
+    static constexpr auto prefix = "Cannot Read File: ";
+    Path path;
+    FileReadingError(Path path)
+        : RuntimeError(prefix, path)
+        , path{ std::move(path) }
+    {}
+};
+
+} // namespace error
 
 
-inline std::string read_file(const std::string& path) {
-    std::ifstream file{ path };
-    if ( file.fail() ) {
-        throw std::runtime_error("Cannot open file: " + path);
+inline std::string read_file(const File& file) {
+    std::ifstream ifs{ file.path() };
+    if (ifs.fail()) {
+        throw error::FileReadingError(file.path());
     }
 
     return std::string{
-        std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()
+        std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>()
     };
 }
 
@@ -34,8 +47,8 @@ public:
 
     explicit ShaderSource(std::string text) : text_{ std::move(text) } {}
 
-    static ShaderSource from_file(const std::string& path) {
-        return ShaderSource{ read_file(path) };
+    static ShaderSource from_file(const File& file) {
+        return ShaderSource{ read_file(file) };
     }
 
     operator const std::string& () const noexcept {

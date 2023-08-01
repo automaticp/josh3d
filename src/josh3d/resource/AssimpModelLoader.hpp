@@ -1,9 +1,10 @@
 #pragma once
 #include "AssimpLoaderTemplates.hpp"
+#include "Filesystem.hpp"
 #include "GLObjects.hpp"
-#include "GlobalsUtil.hpp"
 #include "MeshData.hpp"
 #include "Model.hpp"
+#include "RuntimeError.hpp"
 #include "VertexPNT.hpp"
 #include <assimp/Exceptional.h>
 #include <assimp/Importer.hpp>
@@ -17,7 +18,6 @@
 #include <cstddef>
 #include <memory>
 #include <span>
-#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -30,20 +30,52 @@ namespace error {
 
 // TODO: Assimp has its own exceptions, I think, so look into that maybe.
 
-class AssimpLoaderError : public std::runtime_error {
+class AssimpLoaderError : public RuntimeError {
 public:
-    using std::runtime_error::runtime_error;
+    static constexpr auto prefix = "Assimp Loader Error: ";
+    AssimpLoaderError(std::string msg)
+        : AssimpLoaderError(prefix, std::move(msg))
+    {}
+protected:
+    AssimpLoaderError(const char* prefix, std::string msg)
+        : RuntimeError(prefix, std::move(msg))
+    {}
 };
 
-class AssimpLoaderIOError : public AssimpLoaderError {
+
+
+
+// TODO: Can this be classified more accurately?
+// Exact reasons why read fails? Do I need to?
+class AssimpLoaderReadFileFailure : public AssimpLoaderError {
 public:
-    using AssimpLoaderError::AssimpLoaderError;
+    static constexpr auto prefix = "Assimp Loader File Reading Failure: ";
+    Path path;
+    AssimpLoaderReadFileFailure(Path path, std::string error_string)
+        : AssimpLoaderReadFileFailure(prefix,
+            std::move(path), std::move(error_string))
+    {}
+protected:
+    AssimpLoaderReadFileFailure(const char* prefix,
+        Path path, std::string error_string)
+        : AssimpLoaderError(prefix, std::move(error_string))
+        , path{ std::move(path) }
+    {}
 };
+
 
 class AssimpLoaderSceneParseError : public AssimpLoaderError {
 public:
-    using AssimpLoaderError::AssimpLoaderError;
+    static constexpr auto prefix = "Assimp Loader Scene Parsing Error: ";
+    AssimpLoaderSceneParseError(std::string msg)
+        : AssimpLoaderSceneParseError(prefix, std::move(msg))
+    {}
+protected:
+    AssimpLoaderSceneParseError(const char* prefix, std::string msg)
+        : AssimpLoaderError(prefix, std::move(msg))
+    {}
 };
+
 
 } // namespace error
 
@@ -134,7 +166,6 @@ private:
 
     std::vector<MeshData<V>> mesh_data_;
     const aiScene* scene_;
-    std::string path_;
 
 public:
     using Base::Base;
@@ -144,19 +175,15 @@ public:
         return std::move(mesh_data_);
     }
 
-    AssimpMeshDataLoader& load(const std::string& path) {
+    AssimpMeshDataLoader& load(const File& file) {
 
-        const aiScene* new_scene{ importer_.ReadFile(path, flags_) };
+        const aiScene* new_scene{ importer_.ReadFile(file.path(), flags_) };
 
         if (!new_scene) {
-            globals::logstream << "[Assimp Error] " << importer_.GetErrorString() << '\n';
-            throw error::AssimpLoaderIOError(importer_.GetErrorString());
+            throw error::AssimpLoaderReadFileFailure{ file.path(), importer_.GetErrorString() };
         }
 
         scene_ = new_scene;
-        path_ = path;
-
-        // assert(scene_->mNumMeshes);
 
         mesh_data_.reserve(scene_->mNumMeshes);
         process_node(scene_->mRootNode);
@@ -189,8 +216,8 @@ private:
 
 struct ModelLoadingContext {
     const aiScene* scene{};
-    std::string path;
-    std::string directory;
+    File file;
+    Directory directory;
 };
 
 
@@ -211,25 +238,22 @@ private:
 public:
     using Base::Base;
 
-    ModelComponent& load_into(entt::handle model_handle, const char* path)
+    ModelComponent& load_into(entt::handle model_handle, const File& file)
     {
         // FIXME: Who specifies this?
         add_flags(aiProcess_CalcTangentSpace);
 
-        const aiScene* new_scene{ importer_.ReadFile(path, flags_) };
+        const aiScene* new_scene{ importer_.ReadFile(file.path(), flags_) };
 
         if (!new_scene) {
-            throw error::AssimpLoaderIOError(importer_.GetErrorString());
+            throw error::AssimpLoaderReadFileFailure{ file.path(), importer_.GetErrorString() };
         }
 
         ModelLoadingContext context{
-            .scene=new_scene
+            .scene = new_scene,
+            .file  = file,
+            .directory = Directory{ file.path().parent_path() }
         };
-
-        context.path = path;
-        context.directory =
-            context.path.substr(0ull, context.path.find_last_of('/') + 1);
-
 
         std::vector<entt::entity> output_meshes;
         output_meshes.reserve(context.scene->mNumMeshes);

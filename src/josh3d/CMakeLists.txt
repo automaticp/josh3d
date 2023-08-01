@@ -5,6 +5,7 @@ target_include_directories(josh3d
     PUBLIC
         ./
         ./data/
+        ./filesystem/
         ./gl/
         ./imgui/
         ./render/

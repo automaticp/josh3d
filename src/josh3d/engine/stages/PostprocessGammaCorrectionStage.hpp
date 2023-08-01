@@ -2,6 +2,7 @@
 #include "GLObjects.hpp"
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
+#include "VPath.hpp"
 #include <entt/fwd.hpp>
 #include <glbinding/gl/gl.h>
 
@@ -14,8 +15,8 @@ class PostprocessGammaCorrectionStage {
 private:
     ShaderProgram sp_{
         ShaderBuilder()
-            .load_vert("src/shaders/postprocess.vert")
-            .load_frag("src/shaders/pp_gamma.frag")
+            .load_vert(VPath("src/shaders/postprocess.vert"))
+            .load_frag(VPath("src/shaders/pp_gamma.frag"))
             .get()
     };
 

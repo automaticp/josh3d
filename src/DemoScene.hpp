@@ -6,6 +6,7 @@
 #include "ImGuiContextWrapper.hpp"
 #include "ImGuiRegistryHooks.hpp"
 #include "ImGuiStageHooks.hpp"
+#include "ImGuiVFSControl.hpp"
 #include "ImGuiWindowSettings.hpp"
 #include "Input.hpp"
 #include "InputFreeCamera.hpp"
@@ -14,6 +15,8 @@
 #include "RenderComponents.hpp"
 #include "RenderEngine.hpp"
 #include "Shared.hpp"
+#include "VPath.hpp"
+#include "VirtualFilesystem.hpp"
 #include "hooks/DeferredShadingStageHook.hpp"
 #include "hooks/GBufferStageHook.hpp"
 #include "hooks/LightComponentsRegistryHook.hpp"
@@ -64,6 +67,7 @@ private:
 
     ImGuiContextWrapper imgui_{ window_ };
     ImGuiWindowSettings imgui_window_settings_{ window_ };
+    ImGuiVFSControl     imgui_vfs_control_{ vfs() };
     ImGuiStageHooks     imgui_stage_hooks_;
     ImGuiRegistryHooks  imgui_registry_hooks_{ registry_ };
 
@@ -149,6 +153,7 @@ public:
         rengine_.render();
 
         imgui_window_settings_.display();
+        imgui_vfs_control_.display();
         imgui_registry_hooks_.display();
         imgui_stage_hooks_.display();
 
@@ -175,6 +180,7 @@ inline void DemoScene::configure_input() {
     input_.set_keybind(glfw::KeyCode::T, [this](const KeyCallbackArgs& args) {
         if (args.is_released()) {
             imgui_window_settings_.hidden ^= true;
+            imgui_vfs_control_.hidden ^= true;
             imgui_stage_hooks_.hidden ^= true;
             imgui_registry_hooks_.hidden ^= true;
         }
@@ -206,7 +212,7 @@ inline void DemoScene::init_registry() {
     entt::handle model{ r, r.create() };
 
     ModelComponentLoader()
-        .load_into(model, path);
+        .load_into(model, VPath(path));
 
     model.emplace<Transform>();
     model.emplace<components::Path>(path);
@@ -226,14 +232,12 @@ inline void DemoScene::init_registry() {
     components::Skybox skybox{ std::make_shared<Cubemap>() };
     skybox.cubemap->bind().attach_data(
         CubemapData::from_files(
-            {
-                "data/skyboxes/lake/right.png",
-                "data/skyboxes/lake/left.png",
-                "data/skyboxes/lake/top.png",
-                "data/skyboxes/lake/bottom.png",
-                "data/skyboxes/lake/front.png",
-                "data/skyboxes/lake/back.png",
-            }
+                VPath("data/skyboxes/lake/right.png"),
+                VPath("data/skyboxes/lake/left.png"),
+                VPath("data/skyboxes/lake/top.png"),
+                VPath("data/skyboxes/lake/bottom.png"),
+                VPath("data/skyboxes/lake/front.png"),
+                VPath("data/skyboxes/lake/back.png")
         ), gl::GL_SRGB_ALPHA
     );
     r.emplace<components::Skybox>(r.create(), std::move(skybox));

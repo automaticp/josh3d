@@ -1,4 +1,6 @@
 #pragma once
+#include "Filesystem.hpp"
+#include "RuntimeError.hpp"
 #include <cstdlib>
 #include <memory>
 #include <string>
@@ -9,6 +11,25 @@
 
 
 namespace josh {
+
+
+namespace error {
+
+class ImageReadingError final : public RuntimeError {
+public:
+    static constexpr auto prefix = "Cannot Read Image: ";
+    Path path;
+    ImageReadingError(Path path, std::string reason)
+        : RuntimeError(prefix,
+            path.native() + "; Reason: " + std::move(reason))
+        , path{ std::move(path) }
+    {}
+};
+
+} // namespace error
+
+
+
 
 
 class TextureData {
@@ -34,14 +55,8 @@ public:
         , data_{ (unsigned char*)std::malloc(size()) }
     {}
 
-    static TextureData from_file(const char* path,
+    static TextureData from_file(const File& file,
         bool flip_vertically = true, int num_desired_channels = 0) noexcept(false);
-
-    static TextureData from_file(const std::string& path,
-        bool flip_vertically = true, int num_desired_channels = 0) noexcept(false)
-    {
-        return from_file(path.c_str(), flip_vertically, num_desired_channels);
-    }
 
     size_t size() const noexcept { return width_ * height_ * n_channels_; }
     size_t height() const noexcept { return height_; }

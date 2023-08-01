@@ -1,9 +1,12 @@
 #include "SkyboxRegistryHook.hpp"
 #include "CubemapData.hpp"
+#include "Filesystem.hpp"
 #include "GLTextures.hpp"
 #include "RenderComponents.hpp"
+#include "VPath.hpp"
 #include <entt/entity/entity.hpp>
 #include <entt/entt.hpp>
+#include <functional>
 #include <imgui.h>
 #include <imgui_stdlib.h>
 #include <memory>
@@ -31,24 +34,23 @@ void SkyboxRegistryHook::operator()(entt::registry& registry) {
 
         if (ImGui::Button("Load")) {
             try {
-                std::string files[6]{
-                    load_path_ + '/' + filenames_[0],
-                    load_path_ + '/' + filenames_[1],
-                    load_path_ + '/' + filenames_[2],
-                    load_path_ + '/' + filenames_[3],
-                    load_path_ + '/' + filenames_[4],
-                    load_path_ + '/' + filenames_[5],
-                };
-                auto data = CubemapData::from_files(
-                    {
-                        files[0].c_str(),
-                        files[1].c_str(),
-                        files[2].c_str(),
-                        files[3].c_str(),
-                        files[4].c_str(),
-                        files[5].c_str()
+                Path path{ load_path_ };
+                Directory skybox_dir = std::invoke([&]() -> Directory {
+                    if (path.is_relative()) {
+                        return VPath(path);
+                    } else {
+                        return Directory(path);
                     }
-                );
+                });
+                File files[6]{
+                    File(skybox_dir.path() / filenames_[0]),
+                    File(skybox_dir.path() / filenames_[1]),
+                    File(skybox_dir.path() / filenames_[2]),
+                    File(skybox_dir.path() / filenames_[3]),
+                    File(skybox_dir.path() / filenames_[4]),
+                    File(skybox_dir.path() / filenames_[5]),
+                };
+                auto data = CubemapData::from_files(files);
                 auto skybox_e = registry.view<components::Skybox>().back();
                 if (skybox_e == entt::null) {
                     skybox_e = registry.create();
