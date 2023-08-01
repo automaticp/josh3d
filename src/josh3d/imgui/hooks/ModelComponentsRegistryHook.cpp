@@ -4,9 +4,12 @@
 #include "Transform.hpp"
 #include "GLTextures.hpp"
 #include "AssimpModelLoader.hpp"
+#include "VPath.hpp"
+#include <entt/entity/fwd.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 #include <imgui_stdlib.h>
+#include <filesystem>
 #include <stdexcept>
 
 
@@ -15,7 +18,7 @@ namespace josh::imguihooks {
 
 
 
-static void display_transform_widget(Transform& transform) noexcept {
+static void transform_widget(Transform& transform) noexcept {
 
     ImGui::DragFloat3(
         "Position", glm::value_ptr(transform.position()),
@@ -57,99 +60,131 @@ static void display_transform_widget(Transform& transform) noexcept {
 
 
 
+void ModelComponentsRegistryHook::load_model_widget(
+    entt::registry& registry)
+{
 
+    auto try_load_model = [&] {
 
-
-
-void josh::imguihooks::ModelComponentsRegistryHook::operator()(entt::registry& registry) {
-
-    if (ImGui::Button("Load")) {
+        last_load_error_message_ = {};
         entt::handle model_handle{ registry, registry.create() };
+
         try {
 
-            ModelComponentLoader()
-                .load_into(model_handle, File(load_path));
-
-            model_handle.emplace<Transform>();
-            model_handle.emplace<components::Path>(load_path);
-
-            last_load_error_message = {};
-
-        } catch (const std::runtime_error& e) {
-            model_handle.destroy();
-            last_load_error_message = e.what();
-        }
-    }
-
-
-    ImGui::InputText("Path", &load_path);
-
-    ImGui::TextUnformatted(last_load_error_message.c_str());
-
-    ImGui::Separator();
-
-    for (auto [e, transform, model] : registry.view<Transform, ModelComponent>().each()) {
-        const char* path = registry.all_of<components::Path>(e) ?
-            registry.get<components::Path>(e).c_str() : "(No Path)";
-
-        if (ImGui::TreeNode(void_id(e), "Model [%d]: %s",
-            static_cast<entt::id_type>(e), path))
-        {
-
-            display_transform_widget(transform);
-
-
-            for (auto mesh_entity : model.meshes()) {
-                entt::handle mesh{ registry, mesh_entity };
-
-                const char* name = mesh.all_of<components::Name>() ?
-                    mesh.get<components::Name>().name.c_str() : "(No Name)";
-
-                if (ImGui::TreeNode(void_id(mesh_entity), "Mesh [%d]: %s",
-                    entt::id_type(mesh_entity), name))
-                {
-
-                    display_transform_widget(mesh.get<Transform>());
-
-                    bool is_alpha_tested = mesh.all_of<components::AlphaTested>();
-                    if (ImGui::Checkbox("Alpha-Testing", &is_alpha_tested)) {
-                        if (is_alpha_tested) {
-                            mesh.emplace<components::AlphaTested>();
-                        } else {
-                            mesh.remove<components::AlphaTested>();
-                        }
-                    }
-
-                    if (ImGui::TreeNode("Material")) {
-
-                        if (auto material = mesh.try_get<components::MaterialDiffuse>(); material) {
-                            ImGui::TextUnformatted("Diffuse");
-                            ImGui::ImageGL(void_id(material->diffuse->id()), { 256.f, 256.f });
-                        }
-
-                        if (auto material = mesh.try_get<components::MaterialSpecular>(); material) {
-                            ImGui::TextUnformatted("Specular");
-                            ImGui::ImageGL(void_id(material->specular->id()), { 256.f, 256.f });
-                            ImGui::DragFloat(
-                                "Shininess", &material->shininess,
-                                1.0f, 0.1f, 1.e4f, "%.3f", ImGuiSliderFlags_Logarithmic
-                            );
-                        }
-
-                        if (auto material = mesh.try_get<components::MaterialNormal>(); material) {
-                            ImGui::TextUnformatted("Normal");
-                            ImGui::ImageGL(void_id(material->normal->id()), { 256.f, 256.f });
-                        }
-
-                        ImGui::TreePop();
-                    }
-
-
-                    ImGui::TreePop();
-                }
-
+            Path path{ load_path_ };
+            if (path.is_absolute()) {
+                File file{ path };
+                ModelComponentLoader().load_into(model_handle, file);
+                model_handle.emplace<components::Path>(std::filesystem::canonical(file.path()));
+            } else /* is_relative */ {
+                VPath vpath{ path };
+                File file{ vpath };
+                ModelComponentLoader().load_into(model_handle, file);
+                model_handle.emplace<components::VPath>(std::move(vpath));
+                model_handle.emplace<components::Path>(std::filesystem::canonical(file.path()));
             }
 
+            model_handle.emplace<Transform>();
+
+        } catch (const error::RuntimeError& e) {
+            model_handle.destroy();
+            last_load_error_message_ = e.what();
+        } catch (...) {
+            model_handle.destroy();
+            throw;
+        }
+
+    };
+
+    auto load_model_signal = on_value_change_from(false, try_load_model);
+
+    if (ImGui::InputText("##Path or VPath", &load_path_,
+        ImGuiInputTextFlags_EnterReturnsTrue))
+    {
+        load_model_signal.set(true);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Load")) {
+        load_model_signal.set(true);
+    }
+
+    ImGui::TextColored({ 1.0f, 0.5f, 0.5f, 1.0f }, "%s", last_load_error_message_.c_str());
+
+}
+
+
+
+
+static void mesh_subwidget(entt::handle mesh) {
+
+    const char* name = mesh.all_of<components::Name>() ?
+        mesh.get<components::Name>().name.c_str() : "(No Name)";
+
+    if (ImGui::TreeNode(void_id(mesh.entity()), "Mesh [%d]: %s",
+        entt::id_type(mesh.entity()), name))
+    {
+
+        transform_widget(mesh.get<Transform>());
+
+        bool is_alpha_tested = mesh.all_of<components::AlphaTested>();
+        if (ImGui::Checkbox("Alpha-Testing", &is_alpha_tested)) {
+            if (is_alpha_tested) {
+                mesh.emplace<components::AlphaTested>();
+            } else {
+                mesh.remove<components::AlphaTested>();
+            }
+        }
+
+        if (ImGui::TreeNode("Material")) {
+
+            if (auto material = mesh.try_get<components::MaterialDiffuse>(); material) {
+                ImGui::TextUnformatted("Diffuse");
+                ImGui::ImageGL(void_id(material->diffuse->id()), { 256.f, 256.f });
+            }
+
+            if (auto material = mesh.try_get<components::MaterialSpecular>(); material) {
+                ImGui::TextUnformatted("Specular");
+                ImGui::ImageGL(void_id(material->specular->id()), { 256.f, 256.f });
+                ImGui::DragFloat(
+                    "Shininess", &material->shininess,
+                    1.0f, 0.1f, 1.e4f, "%.3f", ImGuiSliderFlags_Logarithmic
+                );
+            }
+
+            if (auto material = mesh.try_get<components::MaterialNormal>(); material) {
+                ImGui::TextUnformatted("Normal");
+                ImGui::ImageGL(void_id(material->normal->id()), { 256.f, 256.f });
+            }
+
+            ImGui::TreePop();
+        }
+        ImGui::TreePop();
+    }
+
+}
+
+
+
+
+void ModelComponentsRegistryHook::model_list_widget(
+    entt::registry& registry)
+{
+
+    for (auto [e, transform, model_component]
+        : registry.view<Transform, ModelComponent>().each())
+    {
+        components::Path* path = registry.try_get<components::Path>(e);
+        const char* path_cstr = path ? path->c_str() : "(No Path)";
+
+        if (ImGui::TreeNode(void_id(e), "Model [%d]: %s",
+            static_cast<entt::id_type>(e), path_cstr))
+        {
+
+            transform_widget(transform);
+
+            for (auto mesh_entity : model_component.meshes()) {    ;
+                mesh_subwidget({ registry, mesh_entity });
+            }
 
             ImGui::TreePop();
         }
@@ -160,19 +195,13 @@ void josh::imguihooks::ModelComponentsRegistryHook::operator()(entt::registry& r
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+void ModelComponentsRegistryHook::operator()(
+    entt::registry& registry)
+{
+    load_model_widget(registry);
+    ImGui::Separator();
+    model_list_widget(registry);
+}
 
 
 

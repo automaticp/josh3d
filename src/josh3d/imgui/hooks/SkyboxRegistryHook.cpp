@@ -1,9 +1,12 @@
 #include "SkyboxRegistryHook.hpp"
 #include "CubemapData.hpp"
+#include "Filesystem.hpp"
 #include "GLTextures.hpp"
 #include "RenderComponents.hpp"
+#include "VPath.hpp"
 #include <entt/entity/entity.hpp>
 #include <entt/entt.hpp>
+#include <functional>
 #include <imgui.h>
 #include <imgui_stdlib.h>
 #include <memory>
@@ -31,13 +34,21 @@ void SkyboxRegistryHook::operator()(entt::registry& registry) {
 
         if (ImGui::Button("Load")) {
             try {
+                Path path{ load_path_ };
+                Directory skybox_dir = std::invoke([&]() -> Directory {
+                    if (path.is_relative()) {
+                        return VPath(path);
+                    } else {
+                        return Directory(path);
+                    }
+                });
                 File files[6]{
-                    File(Path(load_path_) / filenames_[0]),
-                    File(Path(load_path_) / filenames_[1]),
-                    File(Path(load_path_) / filenames_[2]),
-                    File(Path(load_path_) / filenames_[3]),
-                    File(Path(load_path_) / filenames_[4]),
-                    File(Path(load_path_) / filenames_[5]),
+                    File(skybox_dir.path() / filenames_[0]),
+                    File(skybox_dir.path() / filenames_[1]),
+                    File(skybox_dir.path() / filenames_[2]),
+                    File(skybox_dir.path() / filenames_[3]),
+                    File(skybox_dir.path() / filenames_[4]),
+                    File(skybox_dir.path() / filenames_[5]),
                 };
                 auto data = CubemapData::from_files(files);
                 auto skybox_e = registry.view<components::Skybox>().back();
