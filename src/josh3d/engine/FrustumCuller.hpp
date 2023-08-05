@@ -80,11 +80,11 @@ public:
             };
 
             const bool should_be_culled =
-                is_fully_in_front_of(frustum.near())   &&
-                is_fully_in_front_of(frustum.far())    &&
-                is_fully_in_front_of(frustum.left())   &&
-                is_fully_in_front_of(frustum.right())  &&
-                is_fully_in_front_of(frustum.bottom()) &&
+                is_fully_in_front_of(frustum.near())   ||
+                is_fully_in_front_of(frustum.far())    ||
+                is_fully_in_front_of(frustum.left())   ||
+                is_fully_in_front_of(frustum.right())  ||
+                is_fully_in_front_of(frustum.bottom()) ||
                 is_fully_in_front_of(frustum.top());
 
             const bool was_culled = registry_.all_of<components::Culled>(entity);
