@@ -1,16 +1,13 @@
 #pragma once
-#include "Basis.hpp"
-#include "Camera.hpp"
-#include "GlobalsUtil.hpp"
-#include "glfwpp/window.h"
-
 #include <glbinding/gl/gl.h>
 #include <glfwpp/glfwpp.h>
+#include <glfwpp/window.h>
 #include <glm/glm.hpp>
 #include <concepts>
 #include <functional>
 #include <unordered_map>
 #include <utility>
+
 
 namespace josh {
 
@@ -154,14 +151,14 @@ public:
     virtual ~IInputBlocker() = default;
 };
 
-class NonBlockingInputBlocker : public IInputBlocker {
+class NonBlockingInputBlocker final : public IInputBlocker {
 public:
     bool is_key_blocked(const KeyCallbackArgs&) const override { return false; }
     bool is_cursor_blocked(const CursorPosCallbackArgs&) const override { return false; };
     bool is_scroll_blocked(const ScrollCallbackArgs&) const override { return false; };
 };
 
-class SimpleInputBlocker : public IInputBlocker {
+class SimpleInputBlocker final : public IInputBlocker {
 public:
     bool block_keys  { false };
     bool block_cursor{ false };
