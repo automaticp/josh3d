@@ -67,6 +67,17 @@ public:
         return *this;
     }
 
+
+    Transform operator*(const Transform& other) const noexcept {
+        return {
+            this->position_ + other.position_,
+            this->rotation_ * other.rotation_,
+            this->scale_    * other.scale_
+        };
+    }
+
+
+
     MTransform mtransform() const noexcept;
 
     operator MTransform() const noexcept;
