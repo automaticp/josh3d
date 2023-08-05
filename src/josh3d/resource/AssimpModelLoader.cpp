@@ -6,10 +6,27 @@
 #include "VertexPNTTB.hpp"
 #include "TextureHandlePool.hpp"
 #include "GlobalsGL.hpp"
+#include "FrustumCuller.hpp"
+#include <algorithm>
 #include <entt/entt.hpp>
+#include <functional>
 
 
 namespace josh {
+
+
+static float bounding_radius(const std::vector<VertexPNTTB>& verts) noexcept {
+    if (verts.empty()) { return 0.f; }
+    auto max_elem =
+        std::max_element(verts.begin(), verts.end(),
+            [](const VertexPNTTB& vert1, const VertexPNTTB& vert2) {
+                return glm::length(vert1.position) < glm::length(vert2.position);
+            }
+        );
+    return glm::length(max_elem->position);
+}
+
+
 
 
 void ModelComponentLoader::emplace_mesh(std::vector<entt::entity>& output_meshes,
@@ -27,8 +44,8 @@ void ModelComponentLoader::emplace_mesh(std::vector<entt::entity>& output_meshes
     auto& r = *model_handle.registry();
     auto mesh_handle = entt::handle(r, r.create());
 
-
     mesh_handle.emplace<Mesh>(mesh_data);
+    mesh_handle.emplace<components::BoundingSphere>(bounding_radius(mesh_data.vertices()));
 
     aiMaterial* material = context.scene->mMaterials[mesh->mMaterialIndex];
     emplace_material_components(mesh_handle, material, context);
