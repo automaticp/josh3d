@@ -34,12 +34,12 @@ void LightComponentsRegistryHook::operator()(
             ImGui::PushID(void_id(e));
             ImGui::ColorEdit3("Color", glm::value_ptr(dir.color), ImGuiColorEditFlags_DisplayHSV);
             ImGui::SameLine();
-            bool has_shadow = registry.all_of<components::ShadowCasting>(e);
+            bool has_shadow = registry.all_of<tags::ShadowCasting>(e);
             if (ImGui::Checkbox("Shadow", &has_shadow)) {
                 if (has_shadow) {
-                    registry.emplace<components::ShadowCasting>(e);
+                    registry.emplace<tags::ShadowCasting>(e);
                 } else {
-                    registry.remove<components::ShadowCasting>(e);
+                    registry.remove<tags::ShadowCasting>(e);
                 }
             }
 
@@ -77,7 +77,7 @@ void LightComponentsRegistryHook::operator()(
             auto e = registry.create();
             registry.emplace<light::Point>(e, plight_template_);
             if (plight_has_shadow_) {
-                registry.emplace<components::ShadowCasting>(e);
+                registry.emplace<tags::ShadowCasting>(e);
             }
         }
 
@@ -120,12 +120,12 @@ void LightComponentsRegistryHook::operator()(
                 ImGui::ColorEdit3("Color", glm::value_ptr(plight.color), ImGuiColorEditFlags_DisplayHSV);
 
                 ImGui::SameLine();
-                bool has_shadow = registry.all_of<components::ShadowCasting>(e);
+                bool has_shadow = registry.all_of<tags::ShadowCasting>(e);
                 if (ImGui::Checkbox("Shadow", &has_shadow)) {
                     if (has_shadow) {
-                        registry.emplace<components::ShadowCasting>(e);
+                        registry.emplace<tags::ShadowCasting>(e);
                     } else {
-                        registry.remove<components::ShadowCasting>(e);
+                        registry.remove<tags::ShadowCasting>(e);
                     }
                 }
 
@@ -146,8 +146,8 @@ void LightComponentsRegistryHook::operator()(
         if (to_duplicate != entt::null) {
             auto new_e = registry.create();
             registry.emplace<light::Point>(new_e, registry.get<light::Point>(to_duplicate));
-            if (registry.all_of<components::ShadowCasting>(to_duplicate)) {
-                registry.emplace<components::ShadowCasting>(new_e);
+            if (registry.all_of<tags::ShadowCasting>(to_duplicate)) {
+                registry.emplace<tags::ShadowCasting>(new_e);
             }
         }
 

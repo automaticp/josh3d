@@ -114,7 +114,7 @@ void ModelComponentLoader::emplace_material_components(
                     // FIXME: Alpha masking is enabled by default for all meshes
                     // with diffuse textures as we have no way to tell that from
                     // the loading contex yet.
-                    mesh_handle.emplace<components::AlphaTested>();
+                    mesh_handle.emplace<tags::AlphaTested>();
                     break;
                 case specular:
                     // FIXME: Shininess?

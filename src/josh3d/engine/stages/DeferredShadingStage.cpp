@@ -42,7 +42,7 @@ void DeferredShadingStage::operator()(
         {
             ashp.uniform("dir_light.color",        dir.color)
                 .uniform("dir_light.direction",    dir.direction)
-                .uniform("dir_shadow.do_cast",     registry.all_of<components::ShadowCasting>(e));
+                .uniform("dir_shadow.do_cast",     registry.all_of<tags::ShadowCasting>(e));
         }
 
         shadow_info_->dir_light_map.depth_target().bind_to_unit_index(3);
@@ -93,7 +93,7 @@ void DeferredShadingStage::update_point_light_buffers(
 {
 
     auto plights_with_shadow_view =
-        registry.view<light::Point, components::ShadowCasting>();
+        registry.view<light::Point, tags::ShadowCasting>();
 
     plights_with_shadows_ssbo_.bind().update(
         plights_with_shadow_view | ranges::views::transform([&](entt::entity e) {
@@ -102,7 +102,7 @@ void DeferredShadingStage::update_point_light_buffers(
     );
 
     auto plights_no_shadow_view =
-        registry.view<light::Point>(entt::exclude<components::ShadowCasting>);
+        registry.view<light::Point>(entt::exclude<tags::ShadowCasting>);
 
     plights_no_shadows_ssbo_.bind().update(
         plights_no_shadow_view | ranges::views::transform([&](entt::entity e) {

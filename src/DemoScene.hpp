@@ -244,7 +244,7 @@ inline void DemoScene::init_registry() {
         .color = { 0.15f, 0.15f, 0.1f },
         .direction = { -0.2f, -1.0f, -0.3f }
     });
-    r.emplace<components::ShadowCasting>(e);
+    r.emplace<tags::ShadowCasting>(e);
 
     components::Skybox skybox{ std::make_shared<Cubemap>() };
     skybox.cubemap->bind().attach_data(

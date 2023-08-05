@@ -14,28 +14,6 @@
 
 namespace josh {
 
-namespace components {
-
-/*
-Simple pivot-centered sphere that fully encloses and object.
-*/
-struct BoundingSphere {
-    float radius;
-
-    float scaled_radius(const glm::vec3& scale) const noexcept {
-        return glm::max(glm::max(scale.x, scale.y), scale.z) * radius;
-    }
-};
-
-
-/*
-Tag type denoting objects that were culled from rendering.
-*/
-struct Culled {};
-
-} // namespace components
-
-
 
 class FrustumCuller {
 private:
@@ -87,13 +65,13 @@ public:
                 is_fully_in_front_of(frustum.bottom()) ||
                 is_fully_in_front_of(frustum.top());
 
-            const bool was_culled = registry_.all_of<components::Culled>(entity);
+            const bool was_culled = registry_.all_of<tags::Culled>(entity);
 
             if (should_be_culled != was_culled) {
                 if (should_be_culled) /* as it wasn't previously */ {
-                    registry_.emplace<components::Culled>(entity);
+                    registry_.emplace<tags::Culled>(entity);
                 } else /* should now be un-culled */ {
-                    registry_.erase<components::Culled>(entity);
+                    registry_.erase<tags::Culled>(entity);
                 }
             }
 

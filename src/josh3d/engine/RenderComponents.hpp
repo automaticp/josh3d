@@ -11,14 +11,58 @@
 
 
 
-namespace josh::components {
+namespace josh {
+
+
+/*
+Empty types modelling boolean conditions and inclusion/exclusion.
+*/
+namespace tags {
+
+
+/*
+Per-mesh tag component that enables alpha-testing in shadow and geometry mapping.
+*/
+struct AlphaTested {};
+
+
+/*
+Empty component used to enable shadows being cast from various light sources.
+*/
+struct ShadowCasting {};
+
+
+/*
+Tag type denoting objects that were culled from rendering.
+*/
+struct Culled {};
+
+
+} // namespace tags
+
+
+
 
 /*
 WIP
 
-I'll slowly fill out this with wrappers, tags and aliases
-to have a semi-standard list of components used in rendering
+I'll slowly fill out this with wrappers and aliases
+to have a semi-standard list of components used in rendering.
 */
+namespace components {
+
+
+/*
+Simple pivot-centered sphere that fully encloses and object.
+*/
+struct BoundingSphere {
+    float radius;
+
+    float scaled_radius(const glm::vec3& scale) const noexcept {
+        return glm::max(glm::max(scale.x, scale.y), scale.z) * radius;
+    }
+};
+
 
 
 struct MaterialDiffuse {
@@ -35,21 +79,12 @@ struct MaterialNormal {
 };
 
 
-/*
-Per-mesh tag component that enables alpha-testing in shadow and geometry mapping.
-*/
-struct AlphaTested {};
-
-
-/*
-Empty component used to enable shadows being cast from various light sources.
-*/
-struct ShadowCasting {};
 
 
 struct Skybox {
     Shared<Cubemap> cubemap;
 };
+
 
 
 
@@ -77,4 +112,9 @@ struct ChildMesh {
 using Model = ModelComponent;
 
 
-} // namespace josh::components
+
+
+} // namespace components
+
+
+} // namespace josh

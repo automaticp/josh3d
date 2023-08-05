@@ -52,7 +52,7 @@ void ShadowMappingStage::resize_point_light_cubemap_array_if_needed(
 {
 
     auto plights_with_shadow =
-        registry.view<light::Point, components::ShadowCasting>();
+        registry.view<light::Point, tags::ShadowCasting>();
 
     // This technically makes a redundant iteration over the view
     // because getting the size from a view is an O(n) operation.
@@ -118,7 +118,7 @@ static void draw_all_world_geometry_with_alpha_test(ActiveShaderProgram& ashp,
         }
     };
 
-    auto meshes_with_alpha_view = registry.view<Transform, Mesh, components::AlphaTested>();
+    auto meshes_with_alpha_view = registry.view<Transform, Mesh, tags::AlphaTested>();
 
     for (auto [entity, transform, mesh]
         : meshes_with_alpha_view.each())
@@ -139,7 +139,7 @@ static void draw_all_world_geometry_no_alpha_test(ActiveShaderProgram& ashp,
     // Assumes that projection and view are already set.
 
     auto meshes_no_alpha_view =
-        registry.view<Transform, Mesh>(entt::exclude<components::AlphaTested>);
+        registry.view<Transform, Mesh>(entt::exclude<tags::AlphaTested>);
 
     for (auto [entity, transform, mesh]
         : meshes_no_alpha_view.each())
@@ -204,7 +204,7 @@ void ShadowMappingStage::map_point_light_shadows(
 {
 
     auto plights_with_shadow_view =
-        registry.view<light::Point, components::ShadowCasting>();
+        registry.view<light::Point, tags::ShadowCasting>();
 
     auto& maps = mapping_output_->point_light_maps;
     glViewport(0, 0, maps.width(), maps.height());
@@ -275,7 +275,7 @@ void ShadowMappingStage::map_dir_light_shadows(
     // Only one directional light supported for shadowing.
     // No idea what happens to you if there's more in the registry.
     entt::entity the_only_light_that_matters =
-        registry.view<light::Directional, components::ShadowCasting>().back();
+        registry.view<light::Directional, tags::ShadowCasting>().back();
 
     if (the_only_light_that_matters == entt::null) {
         return;

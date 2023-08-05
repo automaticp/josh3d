@@ -122,7 +122,7 @@ static void mesh_subwidget(entt::handle mesh) {
         mesh.get<components::Name>().name.c_str() : "(No Name)";
 
     const char* culled_cstr =
-        mesh.all_of<components::Culled>() ? "(Culled)" : "";
+        mesh.all_of<tags::Culled>() ? "(Culled)" : "";
 
     if (ImGui::TreeNode(void_id(mesh.entity()), "Mesh [%d]%s: %s",
         entt::id_type(mesh.entity()), culled_cstr, name))
@@ -130,12 +130,12 @@ static void mesh_subwidget(entt::handle mesh) {
 
         transform_widget(mesh.get<Transform>());
 
-        bool is_alpha_tested = mesh.all_of<components::AlphaTested>();
+        bool is_alpha_tested = mesh.all_of<tags::AlphaTested>();
         if (ImGui::Checkbox("Alpha-Testing", &is_alpha_tested)) {
             if (is_alpha_tested) {
-                mesh.emplace<components::AlphaTested>();
+                mesh.emplace<tags::AlphaTested>();
             } else {
-                mesh.remove<components::AlphaTested>();
+                mesh.remove<tags::AlphaTested>();
             }
         }
 
