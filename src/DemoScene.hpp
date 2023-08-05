@@ -27,6 +27,7 @@
 #include "hooks/PostprocessHDREyeAdaptationStageHook.hpp"
 #include "hooks/ShadowMappingStageHook.hpp"
 #include "hooks/SkyboxRegistryHook.hpp"
+#include "stages/BoundingSphereDebugStage.hpp"
 #include "stages/DeferredGeometryStage.hpp"
 #include "stages/DeferredShadingStage.hpp"
 #include "stages/GBufferStage.hpp"
@@ -99,6 +100,8 @@ public:
         );
 
         auto plightboxes = rengine_.make_primary_stage<PointLightSourceBoxStage>();
+        auto cullspheres = rengine_.make_primary_stage<BoundingSphereDebugStage>();
+        cullspheres.target().display = true;
 
         auto blooming    = rengine_.make_postprocess_stage<PostprocessBloomStage>();
         auto hdreyeing   = rengine_.make_postprocess_stage<PostprocessHDREyeAdaptationStage>();
@@ -127,6 +130,7 @@ public:
         rengine_.add_next_primary_stage(std::move(defgeom));
         rengine_.add_next_primary_stage(std::move(defshad));
         rengine_.add_next_primary_stage(std::move(plightboxes));
+        rengine_.add_next_primary_stage(std::move(cullspheres));
 
         rengine_.add_next_postprocess_stage(std::move(blooming));
         rengine_.add_next_postprocess_stage(std::move(hdreyeing));
