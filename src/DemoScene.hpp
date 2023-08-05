@@ -19,6 +19,7 @@
 #include "Transform.hpp"
 #include "VPath.hpp"
 #include "VirtualFilesystem.hpp"
+#include "hooks/BoundingSphereDebugStageHook.hpp"
 #include "hooks/DeferredShadingStageHook.hpp"
 #include "hooks/GBufferStageHook.hpp"
 #include "hooks/LightComponentsRegistryHook.hpp"
@@ -113,7 +114,6 @@ public:
 
         auto plightboxes = rengine_.make_primary_stage<PointLightSourceBoxStage>();
         auto cullspheres = rengine_.make_primary_stage<BoundingSphereDebugStage>();
-        cullspheres.target().display = true;
 
         auto blooming    = rengine_.make_postprocess_stage<PostprocessBloomStage>();
         auto hdreyeing   = rengine_.make_postprocess_stage<PostprocessHDREyeAdaptationStage>();
@@ -124,7 +124,7 @@ public:
         imgui_stage_hooks_.add_hook("GBuffer",            imguihooks::GBufferStageHook(gbuffer));
         imgui_stage_hooks_.add_hook("Deferred Rendering", imguihooks::DeferredShadingStageHook(defshad));
         imgui_stage_hooks_.add_hook("Point Light Boxes",  imguihooks::PointLightSourceBoxStageHook(plightboxes));
-
+        imgui_stage_hooks_.add_hook("Bounding Spheres",   imguihooks::BoundingSphereDebugStageHook(cullspheres));
 
         imgui_stage_hooks_.add_postprocess_hook("Bloom",
             imguihooks::PostprocessBloomStageHook(blooming));

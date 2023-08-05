@@ -4,7 +4,6 @@
 #include "ShaderBuilder.hpp"
 #include "Transform.hpp"
 #include "VPath.hpp"
-#include "FrustumCuller.hpp"
 #include "RenderComponents.hpp"
 #include "Mesh.hpp"
 #include "GlobalsData.hpp"
@@ -32,6 +31,8 @@ public:
     void operator()(const RenderEnginePrimaryInterface& engine,
         const entt::registry& registry)
     {
+        if (!display) { return; }
+
         using namespace gl;
 
         auto get_full_transform = [&](entt::entity ent, const Transform& transform) {
