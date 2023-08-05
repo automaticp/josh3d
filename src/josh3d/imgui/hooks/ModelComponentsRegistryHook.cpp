@@ -1,4 +1,5 @@
 #include "ModelComponentsRegistryHook.hpp"
+#include "FrustumCuller.hpp"
 #include "ImGuiHelpers.hpp"
 #include "RenderComponents.hpp"
 #include "Transform.hpp"
@@ -120,8 +121,11 @@ static void mesh_subwidget(entt::handle mesh) {
     const char* name = mesh.all_of<components::Name>() ?
         mesh.get<components::Name>().name.c_str() : "(No Name)";
 
-    if (ImGui::TreeNode(void_id(mesh.entity()), "Mesh [%d]: %s",
-        entt::id_type(mesh.entity()), name))
+    const char* culled_cstr =
+        mesh.all_of<components::Culled>() ? "(Culled)" : "";
+
+    if (ImGui::TreeNode(void_id(mesh.entity()), "Mesh [%d]%s: %s",
+        entt::id_type(mesh.entity()), culled_cstr, name))
     {
 
         transform_widget(mesh.get<Transform>());

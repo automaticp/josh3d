@@ -76,6 +76,8 @@ private:
         globals::window_size.size_ref(), globals::frame_timer
     };
 
+    FrustumCuller culler_{ registry_ };
+
     ImGuiContextWrapper imgui_{ window_ };
     ImGuiWindowSettings imgui_window_settings_{ window_ };
     ImGuiVFSControl     imgui_vfs_control_{ vfs() };
@@ -159,6 +161,7 @@ public:
 
     void update() {
         input_freecam_.update();
+        culler_.cull_from_bounding_spheres(cam_.get_view_frustum());
     }
 
     void render() {
