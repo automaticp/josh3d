@@ -292,9 +292,9 @@ void ShadowMappingStage::map_dir_light_shadows(
     );
 
     glm::mat4 light_view = glm::lookAt(
-        engine.camera().get_pos()
+        engine.camera().transform.position()
             - dir_params().cam_offset * glm::normalize(dir_light.direction),
-        engine.camera().get_pos(),
+        engine.camera().transform.position(),
         globals::basis.y()
     );
 

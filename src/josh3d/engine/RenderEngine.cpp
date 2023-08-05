@@ -14,6 +14,12 @@ namespace josh {
 void RenderEngine::render() {
     using namespace gl;
 
+    // Update camera.
+    auto params = cam_.get_params();
+    params.aspect_ratio = window_size_.aspect_ratio();
+    cam_.update_params(params);
+
+
     main_target_.framebuffer()
         .bind_draw()
         .and_then([] { glClear(GL_DEPTH_BUFFER_BIT); });

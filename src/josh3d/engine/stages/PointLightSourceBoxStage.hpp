@@ -36,12 +36,8 @@ public:
 
         sp_.use().and_then([&, this](ActiveShaderProgram& ashp) {
 
-            ashp.uniform("projection",
-                engine.camera().perspective_projection_mat(
-                    engine.window_size().aspect_ratio()
-                )
-            );
-            ashp.uniform("view", engine.camera().view_mat());
+            ashp.uniform("projection", engine.camera().projection_mat())
+                .uniform("view",       engine.camera().view_mat());
 
             engine.draw([&, this] {
 

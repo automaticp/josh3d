@@ -18,12 +18,8 @@ void DeferredGeometryStage::operator()(
     const entt::registry& registry)
 {
 
-    const auto projection =
-        engine.camera().perspective_projection_mat(
-            engine.window_size().aspect_ratio());
-
+    const auto projection = engine.camera().projection_mat();
     const auto view = engine.camera().view_mat();
-
 
     const auto get_mtransform = [&](entt::entity e, const Transform& transform)
         -> MTransform

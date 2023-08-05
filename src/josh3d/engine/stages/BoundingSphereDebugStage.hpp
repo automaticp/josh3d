@@ -45,9 +45,7 @@ public:
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
         sp_ .use()
-            .uniform("projection", engine.camera().perspective_projection_mat(
-                engine.window_size().aspect_ratio()
-            ))
+            .uniform("projection", engine.camera().projection_mat())
             .uniform("view", engine.camera().view_mat())
             .uniform("light_color", sphere_color)
             .and_then([&, this](ActiveShaderProgram& ashp) {

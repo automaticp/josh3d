@@ -62,7 +62,7 @@ void DeferredShadingStage::operator()(
             .uniform("point_shadow.pcf_offset", point_params.pcf_offset);
 
 
-        ashp.uniform("cam_pos", engine.camera().get_pos());
+        ashp.uniform("cam_pos", engine.camera().transform.position());
 
 
         engine.draw([&, this] {

@@ -1,11 +1,10 @@
 #pragma once
-#include "Camera.hpp"
+#include "PerspectiveCamera.hpp"
 #include "FrameTimer.hpp"
 #include "GLObjects.hpp"
 #include "PostprocessDoubleBuffer.hpp"
 #include "PostprocessRenderer.hpp"
 #include "RenderTargetColorAndDepth.hpp"
-#include "UniqueFunction.hpp"
 #include "WindowSize.hpp"
 #include "RenderStage.hpp"
 #include <entt/fwd.hpp>
@@ -88,7 +87,7 @@ public:
 private:
     entt::registry& registry_;
 
-    Camera& cam_;
+    PerspectiveCamera& cam_;
     const WindowSize<int>& window_size_;
     const FrameTimer& frame_timer_;
 
@@ -110,7 +109,7 @@ private:
 
 
 public:
-    RenderEngine(entt::registry& registry, Camera& cam,
+    RenderEngine(entt::registry& registry, PerspectiveCamera& cam,
         const WindowSize<int>& window_size, const FrameTimer& frame_timer)
         : registry_{ registry }
         , cam_{ cam }
@@ -187,7 +186,7 @@ protected:
 public:
     RenderEngineCommonInterface(RenderEngine& engine) : engine_{ engine } {}
 
-    const Camera& camera() const noexcept { return engine_.cam_; }
+    const PerspectiveCamera& camera() const noexcept { return engine_.cam_; }
     const WindowSize<int>& window_size() const noexcept { return engine_.window_size_; }
     const FrameTimer& frame_timer() const noexcept { return engine_.frame_timer_; }
 };

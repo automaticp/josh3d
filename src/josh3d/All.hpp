@@ -2,7 +2,7 @@
 #include "AssimpModelLoader.hpp"
 #include "AsyncDataPool.hpp"
 #include "Basis.hpp"
-#include "Camera.hpp"
+#include "PerspectiveCamera.hpp"
 #include "CubemapData.hpp"
 #include "DataPool.hpp"
 #include "FrameTimer.hpp"

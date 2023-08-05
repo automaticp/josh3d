@@ -23,13 +23,8 @@ public:
     {
         using namespace gl;
 
-        glm::mat4 projection =
-            engine.camera().perspective_projection_mat(
-                engine.window_size().aspect_ratio()
-            );
-
-        glm::mat4 view =
-            engine.camera().view_mat();
+        glm::mat4 projection = engine.camera().projection_mat();
+        glm::mat4 view       = engine.camera().view_mat();
 
         engine.draw([&, this] {
 

@@ -64,13 +64,9 @@ void ForwardRenderingStage::draw_scene(
 
     sp_.use().and_then([&, this](ActiveShaderProgram& ashp) {
 
-        ashp.uniform("projection",
-            engine.camera().perspective_projection_mat(
-                engine.window_size().aspect_ratio()
-            )
-        );
-        ashp.uniform("view", engine.camera().view_mat())
-            .uniform("cam_pos", engine.camera().get_pos());
+        ashp.uniform("projection", engine.camera().projection_mat())
+            .uniform("view",       engine.camera().view_mat())
+            .uniform("cam_pos",    engine.camera().transform.position());
 
 
         // Ambient light.

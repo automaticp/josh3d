@@ -1,9 +1,12 @@
 #pragma once
-#include "Camera.hpp"
+#include "PerspectiveCamera.hpp"
 #include "GlobalsUtil.hpp"
 #include "Input.hpp"
+#include <glm/ext/quaternion_geometric.hpp>
+#include <glm/ext/quaternion_transform.hpp>
 #include <glm/glm.hpp>
 #include <glfwpp/glfwpp.h>
+#include <glm/gtc/quaternion.hpp>
 
 
 namespace josh {
@@ -18,16 +21,15 @@ struct InputFreeCameraConfig {
     key_t forward       { key_t::W };
     key_t back          { key_t::S };
     key_t toggle_cursor { key_t::C };
-    // FIXME: Do these have anything to do with
+    // FIXME: Does this have anything to do with
     // the free camera input?
-    key_t toggle_line   { key_t::H };
     key_t close_window  { key_t::Escape };
 };
 
 
 class InputFreeCamera {
 private:
-    Camera& camera_;
+    PerspectiveCamera& camera_;
     InputFreeCameraConfig config_;
 
     struct State {
@@ -37,7 +39,6 @@ private:
         bool right	{ false };
         bool forward{ false };
         bool back	{ false };
-        bool is_line_mode{ false };
         bool is_cursor_mode{ false };
         float last_xpos{ 0.0f };
         float last_ypos{ 0.0f };
@@ -58,7 +59,7 @@ public:
     // In degrees.
     glm::vec2 zoom_bounds{ 5.0f, 135.0f };
 
-    InputFreeCamera(Camera& camera, InputFreeCameraConfig config = {})
+    InputFreeCamera(PerspectiveCamera& camera, InputFreeCameraConfig config = {})
         : camera_{ camera }
         , config_{ config }
     {}
@@ -84,17 +85,19 @@ inline void InputFreeCamera::update() {
     const float abs_move =
         camera_speed * globals::frame_timer.delta<float>();
 
+    OrthonormalBasis3D cam_basis = camera_.get_local_basis();
+
     glm::vec3 sum_move{ 0.f };
 
-    if (state_.up)      sum_move += camera_.up_uv();
-    if (state_.down)    sum_move -= camera_.up_uv();
-    if (state_.right)   sum_move += camera_.right_uv();
-    if (state_.left)    sum_move -= camera_.right_uv();
-    if (state_.back)    sum_move += camera_.back_uv();
-    if (state_.forward) sum_move -= camera_.back_uv();
+    if (state_.up)      sum_move += cam_basis.y();
+    if (state_.down)    sum_move -= cam_basis.y();
+    if (state_.right)   sum_move += cam_basis.x();
+    if (state_.left)    sum_move -= cam_basis.x();
+    if (state_.back)    sum_move += cam_basis.z();
+    if (state_.forward) sum_move -= cam_basis.z();
 
     if (sum_move != glm::vec3{ 0.f }) {
-        camera_.move(abs_move * glm::normalize(sum_move));
+        camera_.transform.translate(abs_move * glm::normalize(sum_move));
     }
 
 }
@@ -114,7 +117,7 @@ inline void InputFreeCamera::configure(BasicRebindableInput& input) {
             const auto ypos = static_cast<float>(args.ypos);
 
             const float sensitivity =
-                look_sensitivity * camera_.get_fov();
+                look_sensitivity * camera_.get_params().fovy_rad;
 
             const float xoffset_deg =
                 sensitivity * (xpos - state_.last_xpos);
@@ -122,18 +125,24 @@ inline void InputFreeCamera::configure(BasicRebindableInput& input) {
             const float yoffset_deg =
                 sensitivity * (ypos - state_.last_ypos);
 
-            state_.last_xpos = xpos;
-            state_.last_ypos = ypos;
 
             if (!state_.is_cursor_mode) {
-                camera_.rotate(
-                    glm::radians(xoffset_deg), -globals::basis.y()
-                );
 
-                camera_.rotate(
-                    glm::radians(yoffset_deg), -camera_.right_uv()
-                );
+                // pitch, yaw, roll
+                glm::vec3 euler = camera_.transform.get_euler();
+
+                euler.x -= glm::radians(yoffset_deg);
+                euler.y -= glm::radians(xoffset_deg);
+
+                euler.x  = glm::clamp(euler.x,
+                    glm::radians(-89.f), glm::radians(89.f));
+
+                camera_.transform.set_euler(euler);
+
             }
+
+            state_.last_xpos = xpos;
+            state_.last_ypos = ypos;
 
         }
     );
@@ -142,17 +151,16 @@ inline void InputFreeCamera::configure(BasicRebindableInput& input) {
         [this](const ScrollCallbackArgs& args) {
 
             float new_fov{
-                camera_.get_fov() - zoom_sensitivity *
+                camera_.get_params().fovy_rad - zoom_sensitivity *
                 glm::radians(static_cast<float>(args.yoffset))
             };
 
-            camera_.set_fov(
-                glm::clamp(
-                    new_fov,
-                    glm::radians(zoom_bounds[0]),
-                    glm::radians(zoom_bounds[1])
-                )
-            );
+            new_fov = glm::clamp(new_fov,
+                glm::radians(zoom_bounds[0]), glm::radians(zoom_bounds[1]));
+
+            auto params = camera_.get_params();
+            params.fovy_rad = new_fov;
+            camera_.update_params(params);
 
         }
     );
@@ -194,19 +202,6 @@ inline void InputFreeCamera::configure(BasicRebindableInput& input) {
                     state_.is_cursor_mode ?
                     glfw::CursorMode::Normal :
                     glfw::CursorMode::Disabled
-                );
-            }
-        });
-
-    input.set_keybind(config_.toggle_line,
-        [&, this] (const KeyCallbackArgs& args) {
-            using namespace gl;
-            if (args.is_released()) {
-                state_.is_line_mode ^= true;
-                glPolygonMode(
-                    GL_FRONT_AND_BACK,
-                    state_.is_line_mode ?
-                    GL_LINE : GL_FILL
                 );
             }
         });

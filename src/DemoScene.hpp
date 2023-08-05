@@ -1,6 +1,7 @@
 #pragma once
 #include "AssimpModelLoader.hpp"
-#include "Camera.hpp"
+#include "FrustumCuller.hpp"
+#include "PerspectiveCamera.hpp"
 #include "CubemapData.hpp"
 #include "GlobalsUtil.hpp"
 #include "ImGuiContextWrapper.hpp"
@@ -15,6 +16,7 @@
 #include "RenderComponents.hpp"
 #include "RenderEngine.hpp"
 #include "Shared.hpp"
+#include "Transform.hpp"
 #include "VPath.hpp"
 #include "VirtualFilesystem.hpp"
 #include "hooks/DeferredShadingStageHook.hpp"
@@ -55,7 +57,15 @@ private:
 
     entt::registry registry_;
 
-    Camera cam_{ { 0.0f, 1.0f, 3.0f }, { 0.0f, 0.0f, -1.0f } };
+    PerspectiveCamera cam_{
+        Transform().translate({ 0.f, 1.f, 0.f }),
+        PerspectiveCameraParams{
+            .fovy_rad = glm::radians(90.f),
+            .aspect_ratio = globals::window_size.size_ref().aspect_ratio(),
+            .z_near  = 0.1f,
+            .z_far   = 1000.f
+        }
+    };
 
     SimpleInputBlocker   input_blocker_;
     BasicRebindableInput input_{ window_, input_blocker_ };
