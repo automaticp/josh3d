@@ -33,8 +33,8 @@ void DeferredGeometryStage::operator()(
 
     // Exclude to not draw the same meshes twice.
 
-    auto material_ds_view = registry.view<Transform, Mesh>(entt::exclude<components::MaterialNormal>);
-    auto material_dsn_view = registry.view<Transform, Mesh, components::MaterialNormal>();
+    auto material_ds_view = registry.view<Transform, Mesh>(entt::exclude<components::MaterialNormal, tags::Culled>);
+    auto material_dsn_view = registry.view<Transform, Mesh, components::MaterialNormal>(entt::exclude<tags::Culled>);
 
     // TODO: Mutual exclusions like these are generally
     // uncomfortable to do in EnTT. Is there a better way?
