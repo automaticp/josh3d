@@ -81,7 +81,7 @@ public:
     // Constructs a frustum for a perspective projection
     // in the shape of a rectangular right pyramid frustum.
     static LocalViewFrustum from_perspective(
-        float fov_rad, float aspect_ratio,
+        float fovy_rad, float aspect_ratio,
         float z_near, float z_far) noexcept
     {
         // RH (X: right, Y: up, Z: back) coordinate system.
@@ -92,8 +92,8 @@ public:
         using std::sin, std::cos, std::tan, std::atan;
 
         // aspect == w / h == tan(hfov/2) / tan(vfov/2)
-        const float hfov = fov_rad;
-        const float vfov = 2.f * atan((1 / aspect_ratio) * tan(hfov / 2.f));
+        const float vfov = fovy_rad;
+        const float hfov = 2.f * atan((aspect_ratio) * tan(vfov / 2.f));
 
         Plane right{ { cos(hfov / 2.f),   0.f,             sin(hfov / 2.f) } };
         Plane top  { { 0.f,               cos(vfov / 2.f), sin(vfov / 2.f) } };
