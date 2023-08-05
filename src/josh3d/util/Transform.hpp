@@ -77,6 +77,30 @@ public:
     }
 
 
+    // Get an euler angle representation of rotation:
+    // (X, Y, Z) == (Pitch, Yaw, Roll).
+    // Differs from GLM in that the locking axis is Pitch not Yaw.
+    glm::vec3 get_euler() const noexcept {
+        const auto& q = rotation_;
+        const glm::quat q_shfl{ q.w, q.y, q.x, q.z };
+
+        const glm::vec3 euler{
+            glm::yaw(q_shfl),   // Pitch
+            glm::pitch(q_shfl), // Yaw
+            glm::roll(q_shfl)   // Roll
+        };
+        return euler;
+    }
+
+    // Sets the rotation from euler angles:
+    // (X, Y, Z) == (Pitch, Yaw, Roll).
+    // Works with angles taken from get_euler(),
+    // NOT with GLM's eulerAngles().
+    void set_euler(const glm::vec3& euler) noexcept {
+        const glm::quat p{ glm::vec3{ euler.y, euler.x, euler.z } };
+        rotation_ = glm::quat{ p.w, p.y, p.x, p.z };
+    }
+
 
     MTransform mtransform() const noexcept;
 
