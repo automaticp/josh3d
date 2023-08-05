@@ -12,17 +12,10 @@ namespace josh {
 
 
 struct PerspectiveCameraParams {
-    float fov_rad;
-    float aspect_ratio;
-    float z_near;
-    float z_far;
-
-    PerspectiveCameraParams(
-        float fov_rad, float aspect_ratio,
-        float z_near, float z_far)
-        : fov_rad{ fov_rad }, aspect_ratio{ aspect_ratio }
-        , z_near{ z_near }, z_far{ z_far }
-    {}
+    float fovy_rad{ glm::radians(90.f) };
+    float aspect_ratio{ 1.f };
+    float z_near{ 0.1f };
+    float z_far{ 1000.f };
 };
 
 
@@ -78,14 +71,7 @@ public:
 
 inline PerspectiveCamera::PerspectiveCamera(
     PerspectiveCameraParams params) noexcept
-    : PerspectiveCamera{
-        Transform{
-            glm::vec3{ 0.f },
-            glm::quat{ 0.f, 0.f, -1.f, 0.f },
-            glm::vec3{ 1.f }
-        },
-        params
-    }
+    : PerspectiveCamera{ Transform{}, params }
 {}
 
 
@@ -94,7 +80,7 @@ inline PerspectiveCamera::PerspectiveCamera(
     PerspectiveCameraParams params) noexcept
     : frustum_{
         LocalViewFrustum::from_perspective(
-            params.fov_rad, params.aspect_ratio,
+            params.fovy_rad, params.aspect_ratio,
             params.z_near, params.z_far)
     }
     , params_{ params }
@@ -137,7 +123,7 @@ inline void PerspectiveCamera::update_params(
 {
     params_ = params;
     frustum_ = LocalViewFrustum::from_perspective(
-        params_.fov_rad, params_.aspect_ratio,
+        params_.fovy_rad, params_.aspect_ratio,
         params_.z_near, params_.z_far
     );
 }
@@ -168,7 +154,7 @@ inline auto PerspectiveCamera::projection_mat() const noexcept
     -> glm::mat4
 {
     return glm::perspective(
-        params_.fov_rad, params_.aspect_ratio,
+        params_.fovy_rad, params_.aspect_ratio,
         params_.z_near, params_.z_far
     );
 }
