@@ -1,5 +1,6 @@
 #pragma once
 #include "GLObjectHandles.hpp"
+#include "GLScalars.hpp"
 #include "AndThen.hpp"
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
@@ -11,17 +12,16 @@
 namespace josh {
 
 
-/*
-In order to not move trivial single-line definitions into a .cpp file
-and to not have to prepend every OpenGL type and function with gl::,
-we're 'using namespace gl' inside of 'leaksgl' namespace,
-and then reexpose the symbols back to this namespace at the end
-with 'using leaksgl::Type' declarations.
-*/
-
-
 class TextureData;
 class CubemapData;
+
+
+class Texture2D;      class BoundTexture2D;      class BoundConstTexture2D;
+class Texture2DArray; class BoundTexture2DArray; class BoundConstTexture2DArray;
+class Texture2DMS;    class BoundTexture2DMS;    class BoundConstTexture2DMS;
+class Cubemap;        class BoundCubemap;        class BoundConstCubemap;
+class CubemapArray;   class BoundCubemapArray;   class BoundConstCubemapArray;
+
 
 
 
@@ -120,7 +120,7 @@ a const handle, but, like, don't, ok? You can just write raw OpenGL if you want 
 
 namespace detail {
 
-template<typename CRTP, typename BoundT, typename BoundConstT, gl::GLenum TargetV>
+template<typename CRTP, typename BoundT, typename BoundConstT, GLenum TargetV>
 class BindableTexture {
 public:
     BoundT bind() {
@@ -134,54 +134,54 @@ public:
     }
 
 
-    BoundT bind_to_unit(gl::GLenum tex_unit) {
+    BoundT bind_to_unit(GLenum tex_unit) {
         set_active_unit(tex_unit);
         return bind();
     }
 
-    BoundConstT bind_to_unit(gl::GLenum tex_unit) const {
+    BoundConstT bind_to_unit(GLenum tex_unit) const {
         set_active_unit(tex_unit);
         return bind();
     }
 
-    BoundT bind_to_unit_index(gl::GLsizei tex_unit_index) {
+    BoundT bind_to_unit_index(GLsizei tex_unit_index) {
         set_active_unit(gl::GLenum(gl::GL_TEXTURE0 + tex_unit_index));
         return bind();
     }
 
-    BoundConstT bind_to_unit_index(gl::GLsizei tex_unit_index) const {
-        set_active_unit(gl::GLenum(gl::GL_TEXTURE0 + tex_unit_index));
+    BoundConstT bind_to_unit_index(GLsizei tex_unit_index) const {
+        set_active_unit(GLenum(gl::GL_TEXTURE0 + tex_unit_index));
         return bind();
     }
 
-    static void set_active_unit(gl::GLenum tex_unit) {
+    static void set_active_unit(GLenum tex_unit) {
         gl::glActiveTexture(tex_unit);
     }
 };
 
 
-template<typename CRTP, gl::GLenum TargetV>
+template<typename CRTP, GLenum TargetV>
 class SetParameter {
 public:
     // Technically all applies to the Active Tex Unit
     // and not to the bound texture directly. But...
 
-    CRTP& set_parameter(gl::GLenum param_name, gl::GLint param_value) {
+    CRTP& set_parameter(GLenum param_name, GLint param_value) {
         gl::glTexParameteri(TargetV, param_name, param_value);
         return as_self();
     }
 
-    CRTP& set_parameter(gl::GLenum param_name, gl::GLenum param_value) {
+    CRTP& set_parameter(GLenum param_name, GLenum param_value) {
         gl::glTexParameteri(TargetV, param_name, param_value);
         return as_self();
     }
 
-    CRTP& set_parameter(gl::GLenum param_name, gl::GLfloat param_value) {
+    CRTP& set_parameter(GLenum param_name, GLfloat param_value) {
         gl::glTexParameterf(TargetV, param_name, param_value);
         return as_self();
     }
 
-    CRTP& set_parameter(gl::GLenum param_name, const gl::GLfloat* param_values) {
+    CRTP& set_parameter(GLenum param_name, const GLfloat* param_values) {
         gl::glTexParameterfv(TargetV, param_name, param_values);
         return as_self();
     }
@@ -195,33 +195,35 @@ private:
 
 
 
-} // namespace detail
-
-
-
-namespace leaksgl {
-
-using namespace gl;
-
 // These exist so that we could 'befriend' the right layer
 // that actually constructs the bound handles.
 //
 // "Friendship is not inherited" - thanks C++.
 // Makes it real easy to write implementation traits...
 using BindableTexture2D =
-    detail::BindableTexture<class Texture2D, class BoundTexture2D, class BoundConstTexture2D, GL_TEXTURE_2D>;
+    detail::BindableTexture<Texture2D, BoundTexture2D, BoundConstTexture2D, gl::GL_TEXTURE_2D>;
 
 using BindableTexture2DArray =
-    detail::BindableTexture<class Texture2DArray, class BoundTexture2DArray, class BoundConstTexture2DArray, GL_TEXTURE_2D_ARRAY>;
+    detail::BindableTexture<Texture2DArray, BoundTexture2DArray, BoundConstTexture2DArray, gl::GL_TEXTURE_2D_ARRAY>;
 
 using BindableTexture2DMS =
-    detail::BindableTexture<class Texture2DMS, class BoundTexture2DMS, class BoundConstTexture2DMS, GL_TEXTURE_2D_MULTISAMPLE>;
+    detail::BindableTexture<Texture2DMS, BoundTexture2DMS, BoundConstTexture2DMS, gl::GL_TEXTURE_2D_MULTISAMPLE>;
 
 using BindableCubemap =
-    detail::BindableTexture<class Cubemap, class BoundCubemap, class BoundConstCubemap, GL_TEXTURE_CUBE_MAP>;
+    detail::BindableTexture<Cubemap, BoundCubemap, BoundConstCubemap, gl::GL_TEXTURE_CUBE_MAP>;
 
 using BindableCubemapArray =
-    detail::BindableTexture<class CubemapArray, class BoundCubemapArray, class BoundConstCubemapArray, GL_TEXTURE_CUBE_MAP_ARRAY>;
+    detail::BindableTexture<CubemapArray, BoundCubemapArray, BoundConstCubemapArray, gl::GL_TEXTURE_CUBE_MAP_ARRAY>;
+
+
+} // namepsace detail
+
+
+
+
+
+
+
 
 
 // I am writing extra const classes for now,
@@ -230,37 +232,39 @@ class BoundConstTexture2D
     : public detail::AndThen<BoundConstTexture2D>
 {
 private:
-    friend BindableTexture2D;
+    friend detail::BindableTexture2D;
     BoundConstTexture2D() = default;
 public:
     static void unbind() {
-        glBindTexture(GL_TEXTURE_2D, 0);
+        gl::glBindTexture(gl::GL_TEXTURE_2D, 0);
     }
 };
 
 
 class BoundTexture2D
     : public detail::AndThen<BoundTexture2D>
-    , public detail::SetParameter<BoundTexture2D, GL_TEXTURE_2D>
+    , public detail::SetParameter<BoundTexture2D, gl::GL_TEXTURE_2D>
 {
 private:
-    friend BindableTexture2D;
+    friend detail::BindableTexture2D;
     BoundTexture2D() = default;
 
 public:
     static void unbind() {
-        glBindTexture(GL_TEXTURE_2D, 0);
+        gl::glBindTexture(gl::GL_TEXTURE_2D, 0);
     }
 
+    // FIXME: Technically is not part of OpenGL.
+    // Make it a free function or responsibility of TextureData.
     BoundTexture2D& attach_data(const TextureData& tex_data,
-        GLenum internal_format = GL_RGBA, GLenum format = GL_NONE);
+        GLenum internal_format = gl::GL_RGBA, GLenum format = gl::GL_NONE);
 
     BoundTexture2D& specify_image(GLsizei width, GLsizei height,
         GLenum internal_format, GLenum format, GLenum type,
         const void* data, GLint mipmap_level = 0)
     {
-        glTexImage2D(
-            GL_TEXTURE_2D, mipmap_level, static_cast<GLint>(internal_format),
+        gl::glTexImage2D(
+            gl::GL_TEXTURE_2D, mipmap_level, static_cast<GLint>(internal_format),
             width, height, 0, format, type, data
         );
         return *this;
@@ -271,7 +275,7 @@ public:
 
 class Texture2D
     : public TextureHandle
-    , public BindableTexture2D
+    , public detail::BindableTexture2D
 {};
 
 
@@ -285,23 +289,23 @@ class BoundConstTexture2DArray
     : public detail::AndThen<BoundConstTexture2DArray>
 {
 private:
-    friend BindableTexture2DArray;
+    friend detail::BindableTexture2DArray;
     BoundConstTexture2DArray() = default;
 public:
-    static void unbind() { glBindTexture(GL_TEXTURE_2D_ARRAY, 0); }
+    static void unbind() { gl::glBindTexture(gl::GL_TEXTURE_2D_ARRAY, 0); }
 };
 
 
 class BoundTexture2DArray
     : public detail::AndThen<BoundTexture2DArray>
-    , public detail::SetParameter<BoundTexture2DArray, GL_TEXTURE_2D_ARRAY>
+    , public detail::SetParameter<BoundTexture2DArray, gl::GL_TEXTURE_2D_ARRAY>
 {
 private:
-    friend BindableTexture2DArray;
+    friend detail::BindableTexture2DArray;
     BoundTexture2DArray() = default;
 public:
     static void unbind() {
-        glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+        gl::glBindTexture(gl::GL_TEXTURE_2D_ARRAY, 0);
     }
 
     BoundTexture2DArray& specify_all_images(
@@ -309,8 +313,8 @@ public:
         GLenum internal_format, GLenum format, GLenum type,
         const void* data, GLint mipmap_level = 0)
     {
-        glTexImage3D(
-            GL_TEXTURE_2D_ARRAY, mipmap_level, internal_format,
+        gl::glTexImage3D(
+            gl::GL_TEXTURE_2D_ARRAY, mipmap_level, internal_format,
             width, height, layers, 0, format, type, data
         );
         return *this;
@@ -321,7 +325,7 @@ public:
 
 class Texture2DArray
     : public TextureHandle
-    , public BindableTexture2DArray
+    , public detail::BindableTexture2DArray
 {};
 
 
@@ -335,34 +339,34 @@ class BoundConstTexture2DMS
     : public detail::AndThen<BoundConstTexture2DMS>
 {
 private:
-    friend BindableTexture2DMS;
+    friend detail::BindableTexture2DMS;
     BoundConstTexture2DMS() = default;
 
 public:
     static void unbind() {
-        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+        gl::glBindTexture(gl::GL_TEXTURE_2D_MULTISAMPLE, 0);
     }
 };
 
 
 class BoundTexture2DMS
     : public detail::AndThen<BoundTexture2DMS>
-    , public detail::SetParameter<BoundTexture2DMS, GL_TEXTURE_2D_MULTISAMPLE>
+    , public detail::SetParameter<BoundTexture2DMS, gl::GL_TEXTURE_2D_MULTISAMPLE>
 {
 private:
-    friend BindableTexture2DMS;
+    friend detail::BindableTexture2DMS;
     BoundTexture2DMS() = default;
 
 public:
     static void unbind() {
-        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+        gl::glBindTexture(gl::GL_TEXTURE_2D_MULTISAMPLE, 0);
     }
 
     BoundTexture2DMS& specify_image(GLsizei width, GLsizei height,
-        GLsizei nsamples, GLenum internal_format = GL_RGB,
-        GLboolean fixed_sample_locations = GL_TRUE)
+        GLsizei nsamples, GLenum internal_format = gl::GL_RGB,
+        GLboolean fixed_sample_locations = gl::GL_TRUE)
     {
-        glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, nsamples, internal_format, width, height, fixed_sample_locations);
+        gl::glTexImage2DMultisample(gl::GL_TEXTURE_2D_MULTISAMPLE, nsamples, internal_format, width, height, fixed_sample_locations);
         return *this;
     }
 
@@ -371,7 +375,7 @@ public:
 
 class Texture2DMS
     : public TextureHandle
-    , public BindableTexture2DMS
+    , public detail::BindableTexture2DMS
 {};
 
 
@@ -385,32 +389,32 @@ class BoundConstCubemap
     : public detail::AndThen<BoundConstCubemap>
 {
 private:
-    friend BindableCubemap;
+    friend detail::BindableCubemap;
     BoundConstCubemap() = default;
 public:
     static void unbind() {
-        glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+        gl::glBindTexture(gl::GL_TEXTURE_CUBE_MAP, 0);
     }
 };
 
 
 class BoundCubemap
     : public detail::AndThen<BoundCubemap>
-    , public detail::SetParameter<BoundCubemap, GL_TEXTURE_CUBE_MAP>
+    , public detail::SetParameter<BoundCubemap, gl::GL_TEXTURE_CUBE_MAP>
 {
 private:
-    friend BindableCubemap;
+    friend detail::BindableCubemap;
     BoundCubemap() = default;
 public:
     static void unbind() {
-        glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+        gl::glBindTexture(gl::GL_TEXTURE_CUBE_MAP, 0);
     }
 
     BoundCubemap& specify_image(GLenum target, GLsizei width,
         GLsizei height, GLenum internal_format, GLenum format,
         GLenum type, const void* data, GLint mipmap_level = 0)
     {
-        glTexImage2D(
+        gl::glTexImage2D(
             target, mipmap_level, internal_format,
             width, height, 0, format, type, data
         );
@@ -423,7 +427,7 @@ public:
     {
         for (size_t i{ 0 }; i < 6; ++i) {
             specify_image(
-                GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                gl::GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
                 width, height,
                 internal_format, format,
                 type, data, mipmap_level
@@ -433,7 +437,7 @@ public:
     }
 
     BoundCubemap& attach_data(const CubemapData& tex_data,
-        GLenum internal_format = GL_RGB, GLenum format = GL_NONE);
+        GLenum internal_format = gl::GL_RGB, GLenum format = gl::GL_NONE);
 
 
 };
@@ -441,10 +445,11 @@ public:
 
 class Cubemap
     : public TextureHandle
-    , public BindableCubemap
+    , public detail::BindableCubemap
 {
 public:
     Cubemap() {
+        using enum GLenum;
         // FIXME: This doesn't have to exist here.
         // If you want your skyboxes, do it yourself.
         this->bind()
@@ -466,25 +471,25 @@ class BoundConstCubemapArray
     : public detail::AndThen<BoundConstCubemapArray>
 {
 private:
-    friend BindableCubemapArray;
+    friend detail::BindableCubemapArray;
     BoundConstCubemapArray() = default;
 public:
     static void unbind() {
-        glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, 0);
+        gl::glBindTexture(gl::GL_TEXTURE_CUBE_MAP_ARRAY, 0);
     }
 };
 
 
 class BoundCubemapArray
     : public detail::AndThen<BoundCubemapArray>
-    , public detail::SetParameter<BoundCubemapArray, GL_TEXTURE_CUBE_MAP_ARRAY>
+    , public detail::SetParameter<BoundCubemapArray, gl::GL_TEXTURE_CUBE_MAP_ARRAY>
 {
 private:
-    friend BindableCubemapArray;
+    friend detail::BindableCubemapArray;
     BoundCubemapArray() = default;
 public:
     static void unbind() {
-        glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, 0);
+        gl::glBindTexture(gl::GL_TEXTURE_CUBE_MAP_ARRAY, 0);
     }
 
     BoundCubemapArray& specify_all_images(GLsizei width,
@@ -492,8 +497,8 @@ public:
         GLenum format, GLenum type, const void* data,
         GLint mipmap_level = 0)
     {
-        glTexImage3D(
-            GL_TEXTURE_CUBE_MAP_ARRAY, mipmap_level, internal_format,
+        gl::glTexImage3D(
+            gl::GL_TEXTURE_CUBE_MAP_ARRAY, mipmap_level, internal_format,
             width, height, 6 * depth, 0, format, type, data
         );
         return *this;
@@ -504,18 +509,9 @@ public:
 
 class CubemapArray
     : public TextureHandle
-    , public BindableCubemapArray
+    , public detail::BindableCubemapArray
 {};
 
 
-
-
-} // namespace leaksgl
-
-using leaksgl::BoundConstTexture2D, leaksgl::BoundTexture2D, leaksgl::Texture2D;
-using leaksgl::BoundConstTexture2DArray, leaksgl::BoundTexture2DArray, leaksgl::Texture2DArray;
-using leaksgl::BoundConstTexture2DMS, leaksgl::BoundTexture2DMS, leaksgl::Texture2DMS;
-using leaksgl::BoundConstCubemap, leaksgl::BoundCubemap, leaksgl::Cubemap;
-using leaksgl::BoundConstCubemapArray, leaksgl::BoundCubemapArray, leaksgl::CubemapArray;
 
 } // namespace josh

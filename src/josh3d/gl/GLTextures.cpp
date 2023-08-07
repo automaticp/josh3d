@@ -3,12 +3,10 @@
 #include "TextureData.hpp"
 
 
-
-
-namespace josh::leaksgl {
-
 using namespace gl;
 
+
+namespace josh {
 
 BoundTexture2D& BoundTexture2D::attach_data(
     const TextureData& tex_data,
@@ -74,4 +72,4 @@ BoundCubemap& BoundCubemap::attach_data(
 }
 
 
-} // namespace josh::leaksgl
+} // namespace josh
