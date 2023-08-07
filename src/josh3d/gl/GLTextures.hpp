@@ -2,6 +2,7 @@
 #include "GLObjectHandles.hpp"
 #include "AndThen.hpp"
 #include <glbinding/gl/enum.h>
+#include <glbinding/gl/functions.h>
 #include <glbinding/gl/gl.h>
 
 
@@ -210,6 +211,9 @@ using namespace gl;
 using BindableTexture2D =
     detail::BindableTexture<class Texture2D, class BoundTexture2D, class BoundConstTexture2D, GL_TEXTURE_2D>;
 
+using BindableTexture2DArray =
+    detail::BindableTexture<class Texture2DArray, class BoundTexture2DArray, class BoundConstTexture2DArray, GL_TEXTURE_2D_ARRAY>;
+
 using BindableTexture2DMS =
     detail::BindableTexture<class Texture2DMS, class BoundTexture2DMS, class BoundConstTexture2DMS, GL_TEXTURE_2D_MULTISAMPLE>;
 
@@ -269,6 +273,58 @@ class Texture2D
     : public TextureHandle
     , public BindableTexture2D
 {};
+
+
+
+
+
+
+
+
+class BoundConstTexture2DArray
+    : public detail::AndThen<BoundConstTexture2DArray>
+{
+private:
+    friend BindableTexture2DArray;
+    BoundConstTexture2DArray() = default;
+public:
+    static void unbind() { glBindTexture(GL_TEXTURE_2D_ARRAY, 0); }
+};
+
+
+class BoundTexture2DArray
+    : public detail::AndThen<BoundTexture2DArray>
+    , public detail::SetParameter<BoundTexture2DArray, GL_TEXTURE_2D_ARRAY>
+{
+private:
+    friend BindableTexture2DArray;
+    BoundTexture2DArray() = default;
+public:
+    static void unbind() {
+        glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+    }
+
+    BoundTexture2DArray& specify_all_images(
+        GLsizei width, GLsizei height, GLsizei layers,
+        GLenum internal_format, GLenum format, GLenum type,
+        const void* data, GLint mipmap_level = 0)
+    {
+        glTexImage3D(
+            GL_TEXTURE_2D_ARRAY, mipmap_level, internal_format,
+            width, height, layers, 0, format, type, data
+        );
+        return *this;
+    }
+
+};
+
+
+class Texture2DArray
+    : public TextureHandle
+    , public BindableTexture2DArray
+{};
+
+
 
 
 
@@ -457,6 +513,7 @@ class CubemapArray
 } // namespace leaksgl
 
 using leaksgl::BoundConstTexture2D, leaksgl::BoundTexture2D, leaksgl::Texture2D;
+using leaksgl::BoundConstTexture2DArray, leaksgl::BoundTexture2DArray, leaksgl::Texture2DArray;
 using leaksgl::BoundConstTexture2DMS, leaksgl::BoundTexture2DMS, leaksgl::Texture2DMS;
 using leaksgl::BoundConstCubemap, leaksgl::BoundCubemap, leaksgl::Cubemap;
 using leaksgl::BoundConstCubemapArray, leaksgl::BoundCubemapArray, leaksgl::CubemapArray;
