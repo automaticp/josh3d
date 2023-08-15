@@ -62,6 +62,15 @@ public:
         return *this;
     }
 
+    BoundDrawFramebuffer& attach_texture_array(GLuint tex_array,
+        GLenum attachment, GLint mipmap_level = 0)
+    {
+        glFramebufferTexture(
+            GL_DRAW_FRAMEBUFFER, attachment, tex_array, mipmap_level
+        );
+        return *this;
+    }
+
     BoundDrawFramebuffer& attach_cubemap(GLuint cubemap,
         GLenum attachment, GLint mipmap_level = 0)
     {
