@@ -24,7 +24,7 @@ public:
         : registry_{ registry }
     {}
 
-    void cull_from_bounding_spheres(const ViewFrustum& frustum) {
+    void cull_from_bounding_spheres(const ViewFrustumAsPlanes& frustum) {
         // Assume the frustum has been correctly
         // transformed with the camera's transforms into world-space.
 
