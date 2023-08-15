@@ -24,6 +24,7 @@
 #include "hooks/GBufferStageHook.hpp"
 #include "hooks/LightComponentsRegistryHook.hpp"
 #include "hooks/ModelComponentsRegistryHook.hpp"
+#include "hooks/PerspectiveCameraHook.hpp"
 #include "hooks/PointLightSourceBoxStageHook.hpp"
 #include "hooks/PostprocessBloomStageHook.hpp"
 #include "hooks/PostprocessGammaCorrectionStageHook.hpp"
@@ -59,13 +60,13 @@ private:
     entt::registry registry_;
 
     PerspectiveCamera cam_{
-        Transform().translate({ 0.f, 1.f, 0.f }),
         PerspectiveCameraParams{
             .fovy_rad = glm::radians(90.f),
             .aspect_ratio = globals::window_size.size_ref().aspect_ratio(),
             .z_near  = 0.1f,
-            .z_far   = 1000.f
-        }
+            .z_far   = 100.f
+        },
+        Transform().translate({ 0.f, 1.f, 0.f })
     };
 
     SimpleInputBlocker   input_blocker_;
@@ -152,6 +153,7 @@ public:
 
         imgui_registry_hooks_.add_hook("Lights", imguihooks::LightComponentsRegistryHook());
         imgui_registry_hooks_.add_hook("Models", imguihooks::ModelComponentsRegistryHook());
+        imgui_registry_hooks_.add_hook("Camera", imguihooks::PerspectiveCameraHook(cam_));
         imgui_registry_hooks_.add_hook("Skybox", imguihooks::SkyboxRegistryHook());
 
         init_registry();
