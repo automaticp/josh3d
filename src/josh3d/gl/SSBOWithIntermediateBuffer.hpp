@@ -76,7 +76,7 @@ public:
 
         storage.clear();
         storage.reserve(std::ranges::distance(range));
-        for (T&& value : range) {
+        for (auto&& value : range) {
             storage.emplace_back(value);
         }
 
