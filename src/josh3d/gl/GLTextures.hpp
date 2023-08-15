@@ -123,6 +123,8 @@ namespace detail {
 template<typename CRTP, typename BoundT, typename BoundConstT, GLenum TargetV>
 class BindableTexture {
 public:
+    static constexpr GLenum target_type = TargetV;
+
     BoundT bind() {
         gl::glBindTexture(TargetV, static_cast<CRTP&>(*this).id());
         return {};
