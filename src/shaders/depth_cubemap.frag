@@ -22,6 +22,9 @@ void main() {
     if (texture(material.diffuse, tex_coords).a < 0.5) discard;
 #endif // ENABLE_ALPHA_TESTING
 
+    // TODO: Why is this needed again?
+    // This breaks early z-rejection.
+
     float light_to_frag_distance =
         length(frag_pos.xyz - light_pos) / z_far;
 
