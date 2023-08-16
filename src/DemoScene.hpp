@@ -20,6 +20,7 @@
 #include "VPath.hpp"
 #include "VirtualFilesystem.hpp"
 #include "hooks/BoundingSphereDebugStageHook.hpp"
+#include "hooks/CascadedShadowMappingStageHook.hpp"
 #include "hooks/DeferredShadingStageHook.hpp"
 #include "hooks/GBufferStageHook.hpp"
 #include "hooks/LightComponentsRegistryHook.hpp"
@@ -32,6 +33,7 @@
 #include "hooks/ShadowMappingStageHook.hpp"
 #include "hooks/SkyboxRegistryHook.hpp"
 #include "stages/BoundingSphereDebugStage.hpp"
+#include "stages/CascadedShadowMappingStage.hpp"
 #include "stages/DeferredGeometryStage.hpp"
 #include "stages/DeferredShadingStage.hpp"
 #include "stages/GBufferStage.hpp"
@@ -78,6 +80,7 @@ private:
         globals::window_size.size_ref(), globals::frame_timer
     };
 
+    CascadeViewsBuilder csm_info_builder_{ 1 };
     FrustumCuller culler_{ registry_ };
 
     ImGuiContextWrapper imgui_{ window_ };
@@ -97,7 +100,9 @@ public:
 
         auto skyboxing    = rengine_.make_primary_stage<SkyboxStage>();
 
+        // TODO: Replace with point light mapping only
         auto shmapping    = rengine_.make_primary_stage<ShadowMappingStage>();
+        auto csmapping    = rengine_.make_primary_stage<CascadedShadowMappingStage>(csm_info_builder_.view_output());
         auto gbuffer      = rengine_.make_primary_stage<GBufferStage>(w, h);
 
         // This is me sharing the depth target between the GBuffer and the
@@ -110,7 +115,9 @@ public:
         auto defgeom     = rengine_.make_primary_stage<DeferredGeometryStage>(std::move(gbuffer_write_handle));
 
         auto defshad     = rengine_.make_primary_stage<DeferredShadingStage>(
-            gbuffer.target().get_read_view(), shmapping.target().view_mapping_output()
+            gbuffer.target().get_read_view(),
+            shmapping.target().view_mapping_output(),
+            csmapping.target().view_output()
         );
 
         auto plightboxes = rengine_.make_primary_stage<PointLightSourceBoxStage>();
@@ -122,6 +129,7 @@ public:
 
 
         imgui_stage_hooks_.add_hook("Shadow Mapping",     imguihooks::ShadowMappingStageHook(shmapping));
+        imgui_stage_hooks_.add_hook("CSM",                imguihooks::CascadedShadowMappingStageHook(csm_info_builder_, csmapping));
         imgui_stage_hooks_.add_hook("GBuffer",            imguihooks::GBufferStageHook(gbuffer));
         imgui_stage_hooks_.add_hook("Deferred Rendering", imguihooks::DeferredShadingStageHook(defshad));
         imgui_stage_hooks_.add_hook("Point Light Boxes",  imguihooks::PointLightSourceBoxStageHook(plightboxes));
@@ -139,6 +147,7 @@ public:
 
         rengine_.add_next_primary_stage(std::move(skyboxing));
         rengine_.add_next_primary_stage(std::move(shmapping));
+        rengine_.add_next_primary_stage(std::move(csmapping));
         rengine_.add_next_primary_stage(std::move(gbuffer));
         rengine_.add_next_primary_stage(std::move(defgeom));
         rengine_.add_next_primary_stage(std::move(defshad));
@@ -163,7 +172,14 @@ public:
 
     void update() {
         input_freecam_.update();
-        culler_.cull_from_bounding_spheres(cam_.get_view_frustum());
+
+        csm_info_builder_.build_from_camera(rengine_.camera(),
+            // FIXME: Scuffed, but who finds the light?
+            registry_.view<light::Directional>().storage().begin()->direction);
+
+        // TODO: Cull for shadow mapping
+
+        culler_.cull_from_bounding_spheres(cam_.get_frustum_as_planes());
     }
 
     void render() {
