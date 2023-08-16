@@ -10,6 +10,7 @@ target_include_directories(josh3d
         ./imgui/
         ./render/
         ./resource/
+        ./scene/
         ./util/
         ./engine/
 )
