@@ -28,7 +28,6 @@
 #include "ShaderBuilder.hpp"
 #include "ShaderSource.hpp"
 #include "Shared.hpp"
-#include "SharedPtr.hpp"
 #include "SkyboxRenderer.hpp"
 #include "TextureData.hpp"
 #include "Transform.hpp"
