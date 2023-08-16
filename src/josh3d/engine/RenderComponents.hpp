@@ -38,6 +38,12 @@ Tag type denoting objects that were culled from rendering.
 struct Culled {};
 
 
+/*
+Tag type denoting objects that were culled from directional shadow mapping.
+*/
+struct CulledFromCascadedShadowMapping {};
+
+
 } // namespace tags
 
 
