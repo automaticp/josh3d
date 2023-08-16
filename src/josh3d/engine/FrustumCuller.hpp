@@ -24,6 +24,7 @@ public:
         : registry_{ registry }
     {}
 
+    template<typename CullTagT = tags::Culled>
     void cull_from_bounding_spheres(const ViewFrustumAsPlanes& frustum) {
         // Assume the frustum has been correctly
         // transformed with the camera's transforms into world-space.
@@ -65,13 +66,14 @@ public:
                 is_fully_in_front_of(frustum.bottom()) ||
                 is_fully_in_front_of(frustum.top());
 
-            const bool was_culled = registry_.all_of<tags::Culled>(entity);
+            const bool was_culled = registry_.all_of<CullTagT>(entity);
 
+            // TODO: Add support for additive culling?
             if (should_be_culled != was_culled) {
                 if (should_be_culled) /* as it wasn't previously */ {
-                    registry_.emplace<tags::Culled>(entity);
+                    registry_.emplace<CullTagT>(entity);
                 } else /* should now be un-culled */ {
-                    registry_.erase<tags::Culled>(entity);
+                    registry_.erase<CullTagT>(entity);
                 }
             }
 

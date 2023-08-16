@@ -178,8 +178,8 @@ public:
             registry_.view<light::Directional>().storage().begin()->direction);
 
         // TODO: Cull for shadow mapping
-
-        culler_.cull_from_bounding_spheres(cam_.get_frustum_as_planes());
+        // culler_.cull_from_bounding_spheres<tags::CulledFromCascadedShadowMapping>(csm_info_builder_.view_output()->cascades.back().frustum);
+        culler_.cull_from_bounding_spheres<tags::Culled>(cam_.get_frustum_as_planes());
     }
 
     void render() {
