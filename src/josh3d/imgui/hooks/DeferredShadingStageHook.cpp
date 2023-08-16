@@ -44,6 +44,8 @@ void josh::imguihooks::DeferredShadingStageHook::operator()() {
             0.01f, 10.0f, "%.2f", ImGuiSliderFlags_Logarithmic
         );
 
+        ImGui::Checkbox("Enable CSM Debug", &stage_.enable_csm_debug);
+
         ImGui::TreePop();
     }
 

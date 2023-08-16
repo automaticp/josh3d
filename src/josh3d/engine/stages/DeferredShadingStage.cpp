@@ -1,5 +1,6 @@
 #include "DeferredShadingStage.hpp"
 #include "GLShaders.hpp"
+#include "LightCasters.hpp"
 #include "RenderComponents.hpp"
 #include "RenderEngine.hpp"
 #include <entt/entity/registry.hpp>
@@ -19,7 +20,21 @@ void DeferredShadingStage::operator()(
 {
 
     update_point_light_buffers(registry);
+    update_cascade_buffer();
 
+    if (enable_csm_debug) {
+        draw_debug_csm(engine, registry);
+    } else {
+        draw_main(engine, registry);
+    }
+
+}
+
+
+void DeferredShadingStage::draw_main(
+    const RenderEnginePrimaryInterface& engine,
+    const entt::registry& registry)
+{
 
     sp_.use().and_then([&, this](ActiveShaderProgram& ashp) {
 
@@ -45,10 +60,10 @@ void DeferredShadingStage::operator()(
                 .uniform("dir_shadow.do_cast",     registry.all_of<tags::ShadowCasting>(e));
         }
 
-        shadow_info_->dir_light_map.depth_target().bind_to_unit_index(3);
-        ashp.uniform("dir_shadow.map", 3)
+        // shadow_info_->dir_light_map.depth_target().bind_to_unit_index(3);
+        input_csm_->dir_shadow_maps.depth_target().bind_to_unit_index(3);
+        ashp.uniform("dir_shadow.cascades", 3)
             .uniform("dir_shadow.bias_bounds", dir_params.bias_bounds)
-            .uniform("dir_shadow.projection_view", shadow_info_->dir_light_projection_view)
             .uniform("dir_shadow.pcf_samples", dir_params.pcf_samples)
             .uniform("dir_shadow.pcf_offset", dir_params.pcf_offset);
 
@@ -81,11 +96,43 @@ void DeferredShadingStage::operator()(
 
     });
 
+}
 
+
+void DeferredShadingStage::draw_debug_csm(
+    const RenderEnginePrimaryInterface& engine,
+    const entt::registry& registry)
+{
+    sp_cascade_debug_.use().and_then([&, this](ActiveShaderProgram& ashp) {
+
+        gbuffer_->position_target().bind_to_unit_index(0);
+        gbuffer_->normals_target() .bind_to_unit_index(1);
+
+        ashp.uniform("tex_position_draw", 0)
+            .uniform("tex_normals",       1);
+
+        // This will crash if the storage is empty. HAVE FUN.
+        const auto& dir_light = *registry.storage<light::Directional>().rbegin();
+
+        ashp.uniform("dir_light.color",     dir_light.color)
+            .uniform("dir_light.direction", dir_light.direction);
+
+
+
+        engine.draw([&, this] {
+            glDisable(GL_DEPTH_TEST);
+            quad_renderer_.draw();
+            glEnable(GL_DEPTH_TEST);
+        });
+    });
 
 }
 
 
+
+void DeferredShadingStage::update_cascade_buffer() {
+    cascade_params_ssbo_.bind().update(input_csm_->params);
+}
 
 
 void DeferredShadingStage::update_point_light_buffers(
