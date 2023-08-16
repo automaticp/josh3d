@@ -51,7 +51,7 @@ struct DirShadow {
     vec2  bias_bounds;
     mat4  projection_view;
     bool  do_cast;
-    int   pcf_samples;
+    int   pcf_extent;
     float pcf_offset;
 };
 
@@ -60,7 +60,7 @@ struct PointShadow {
     samplerCubeArray maps;
     vec2  bias_bounds;
     float z_far;
-    int   pcf_samples;
+    int   pcf_extent;
     float pcf_offset;
 };
 
@@ -221,15 +221,15 @@ float point_light_shadow_yield(vec3 frag_pos, vec3 normal,
 
     float yield = 0.0;
 
-    const int pcf_samples = point_shadow.pcf_samples;
+    const int pcf_extent = point_shadow.pcf_extent;
     const float pcf_offset = point_shadow.pcf_offset;
 
-    for (int x = -pcf_samples; x <= pcf_samples; ++x) {
-        for (int y = -pcf_samples; y <= pcf_samples; ++y) {
-            for (int z = -pcf_samples; z <= pcf_samples; ++z) {
+    for (int x = -pcf_extent; x <= pcf_extent; ++x) {
+        for (int y = -pcf_extent; y <= pcf_extent; ++y) {
+            for (int z = -pcf_extent; z <= pcf_extent; ++z) {
 
                 const vec3 sample_dir = frag_to_light +
-                    pcf_offset * vec3(x, y, z) / pcf_samples;
+                    pcf_offset * vec3(x, y, z) / pcf_extent;
 
                 // Normalized depth value in [0, 1]
                 float pcf_depth = texture(point_shadow.maps,
@@ -246,7 +246,7 @@ float point_light_shadow_yield(vec3 frag_pos, vec3 normal,
         }
     }
 
-    const int pcf_width = 1 + 2 * pcf_samples;
+    const int pcf_width = 1 + 2 * pcf_extent;
 
     return yield / (pcf_width * pcf_width * pcf_width);
 }
@@ -317,10 +317,10 @@ float dir_light_shadow_yield(vec3 frag_pos, vec3 normal) {
     float yield = 0.0;
 
     const vec2 texel_size = 1.0 / textureSize(dir_shadow.map, 0);
-    const int pcf_samples = dir_shadow.pcf_samples;
+    const int pcf_extent = dir_shadow.pcf_extent;
 
-    for (int x = -pcf_samples; x <= pcf_samples; ++x) {
-        for (int y = -pcf_samples; y <= pcf_samples; ++y) {
+    for (int x = -pcf_extent; x <= pcf_extent; ++x) {
+        for (int y = -pcf_extent; y <= pcf_extent; ++y) {
 
             const vec2 offset =
                 vec2(x, y) * texel_size * dir_shadow.pcf_offset;
@@ -334,7 +334,7 @@ float dir_light_shadow_yield(vec3 frag_pos, vec3 normal) {
     }
 
     // Size of N dimension for NxN PCF kernel.
-    const int pcf_width = 1 + 2 * pcf_samples;
+    const int pcf_width = 1 + 2 * pcf_extent;
 
     // Normalize and return.
     return yield / (pcf_width * pcf_width);

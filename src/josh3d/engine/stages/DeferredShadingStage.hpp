@@ -24,13 +24,13 @@ class DeferredShadingStage {
 public:
     struct PointShadowParams {
         glm::vec2 bias_bounds{ 0.0001f, 0.08f };
-        GLint   pcf_samples{ 1 };
+        GLint   pcf_extent{ 1 };
         GLfloat pcf_offset{ 0.01f };
     };
 
     struct DirShadowParams {
         glm::vec2 bias_bounds{ 0.0001f, 0.0015f };
-        GLint   pcf_samples{ 1 };
+        GLint   pcf_extent{ 1 };
         GLfloat pcf_offset{ 1.0f };
     };
 

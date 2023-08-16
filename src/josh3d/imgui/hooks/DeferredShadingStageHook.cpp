@@ -15,7 +15,7 @@ void josh::imguihooks::DeferredShadingStageHook::operator()() {
         );
 
         ImGui::SliderInt(
-            "PCF Samples", &stage_.point_params.pcf_samples, 0, 6
+            "PCF Extent", &stage_.point_params.pcf_extent, 0, 6
         );
 
         ImGui::SliderFloat(
@@ -36,7 +36,7 @@ void josh::imguihooks::DeferredShadingStageHook::operator()() {
         );
 
         ImGui::SliderInt(
-            "PCF Samples", &stage_.dir_params.pcf_samples, 0, 12
+            "PCF Extent", &stage_.dir_params.pcf_extent, 0, 12
         );
 
         ImGui::SliderFloat(

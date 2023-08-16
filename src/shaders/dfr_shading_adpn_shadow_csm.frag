@@ -60,7 +60,7 @@ struct DirShadow {
     sampler2DArray cascades;
     vec2  bias_bounds;
     bool  do_cast;
-    int   pcf_samples;
+    int   pcf_extent;
     float pcf_offset;
 };
 
@@ -69,7 +69,7 @@ struct PointShadow {
     samplerCubeArray maps;
     vec2  bias_bounds;
     float z_far;
-    int   pcf_samples;
+    int   pcf_extent;
     float pcf_offset;
 };
 
@@ -219,8 +219,7 @@ float point_light_shadow_yield(vec3 frag_pos, vec3 normal,
 
     float yield = 0.0;
 
-    // TODO: Rename pcf_samples.
-    const int   pcf_extent = point_shadow.pcf_samples;
+    const int   pcf_extent = point_shadow.pcf_extent;
     const int   pcf_order  = 1 + 2 * pcf_extent;
     const float pcf_offset = point_shadow.pcf_offset;
 
@@ -347,8 +346,7 @@ float dir_light_shadow_yield(vec3 frag_pos, vec3 normal) {
     // the shadow edge look "blurrier".
     // TODO: Maybe fix this, looks pretty ugly at the cascade splits otherwise.
 
-    // FIXME: pcf_samples is misleading. Rename.
-    const int   pcf_extent = dir_shadow.pcf_samples;
+    const int   pcf_extent = dir_shadow.pcf_extent;
     const int   pcf_order  = 1 + 2 * pcf_extent;
     const float pcf_offset = dir_shadow.pcf_offset;
 

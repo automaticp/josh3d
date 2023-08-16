@@ -43,8 +43,8 @@ void DeferredShadingStage::draw_main(
         gbuffer_->albedo_spec_target().bind_to_unit_index(2);
 
         ashp.uniform("tex_position_draw", 0)
-            .uniform("tex_normals", 1)
-            .uniform("tex_albedo_spec", 2);
+            .uniform("tex_normals",       1)
+            .uniform("tex_albedo_spec",   2);
 
         for (auto [_, ambi]
             : registry.view<light::Ambient>().each())
@@ -64,17 +64,17 @@ void DeferredShadingStage::draw_main(
         input_csm_->dir_shadow_maps.depth_target().bind_to_unit_index(3);
         ashp.uniform("dir_shadow.cascades", 3)
             .uniform("dir_shadow.bias_bounds", dir_params.bias_bounds)
-            .uniform("dir_shadow.pcf_samples", dir_params.pcf_samples)
-            .uniform("dir_shadow.pcf_offset", dir_params.pcf_offset);
+            .uniform("dir_shadow.pcf_extent",  dir_params.pcf_extent)
+            .uniform("dir_shadow.pcf_offset",  dir_params.pcf_offset);
 
 
 
         shadow_info_->point_light_maps.depth_taget().bind_to_unit_index(4);
         ashp.uniform("point_shadow.maps", 4)
             .uniform("point_shadow.bias_bounds", point_params.bias_bounds)
-            .uniform("point_shadow.z_far", shadow_info_->point_params.z_near_far[1])
-            .uniform("point_shadow.pcf_samples", point_params.pcf_samples)
-            .uniform("point_shadow.pcf_offset", point_params.pcf_offset);
+            .uniform("point_shadow.z_far",       shadow_info_->point_params.z_near_far[1])
+            .uniform("point_shadow.pcf_extent",  point_params.pcf_extent)
+            .uniform("point_shadow.pcf_offset",  point_params.pcf_offset);
 
 
         ashp.uniform("cam_pos", engine.camera().transform.position());
@@ -111,6 +111,7 @@ void DeferredShadingStage::draw_debug_csm(
         ashp.uniform("tex_position_draw", 0)
             .uniform("tex_normals",       1);
 
+        // FIXME:
         // This will crash if the storage is empty. HAVE FUN.
         const auto& dir_light = *registry.storage<light::Directional>().rbegin();
 
