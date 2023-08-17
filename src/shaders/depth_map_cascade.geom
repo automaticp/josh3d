@@ -7,7 +7,7 @@
 layout (triangles) in;
 layout (triangle_strip, max_vertices = MAX_VERTICES) out;
 
-const int max_cascades = 3 * MAX_VERTICES;
+const int max_cascades = MAX_VERTICES / 3;
 
 uniform mat4 projections[max_cascades];
 uniform mat4 views[max_cascades];
