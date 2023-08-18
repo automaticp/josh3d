@@ -1,5 +1,6 @@
 #pragma once
 #include "Layout.hpp"
+#include "GLScalars.hpp"
 #include "RenderEngine.hpp"
 #include "RenderTargetDepthArray.hpp"
 #include "ShaderBuilder.hpp"
@@ -40,13 +41,8 @@ CascadeViewsBuilder
                                        |-> CascadedShadowMaps -> DeferredShadingStage
 */
 class CascadedShadowMappingStage {
-public:
-    struct Params {
-
-    };
-
 private:
-    SharedStorageView<CascadeViews> input_;
+    SharedStorageView<CascadeViews>   input_;
     SharedStorage<CascadedShadowMaps> output_;
 
     size_t max_cascades_;
@@ -89,6 +85,7 @@ public:
     void operator()(const RenderEnginePrimaryInterface& engine,
         const entt::registry& registry);
 
+    void resize_maps(GLsizei width, GLsizei height);
 
 private:
     void resize_cascade_storage_if_needed();
@@ -96,6 +93,16 @@ private:
         const RenderEnginePrimaryInterface& engine,
         const entt::registry& registry);
 };
+
+
+
+
+inline void CascadedShadowMappingStage::resize_maps(
+    GLsizei width, GLsizei height)
+{
+    auto& maps = output_->dir_shadow_maps;
+    maps.reset_size(width, height, maps.layers());
+}
 
 
 } // namespace josh
