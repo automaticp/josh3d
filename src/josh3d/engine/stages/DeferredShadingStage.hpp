@@ -2,15 +2,13 @@
 #include "GLShaders.hpp"
 #include "GLScalars.hpp"
 #include "LightCasters.hpp"
-#include "PostprocessRenderer.hpp"
 #include "QuadRenderer.hpp"
-#include "RenderStage.hpp"
 #include "SSBOWithIntermediateBuffer.hpp"
 #include "ShaderBuilder.hpp"
-#include "ShadowMappingStage.hpp"
 #include "SharedStorage.hpp"
 #include "GBuffer.hpp"
 #include "VPath.hpp"
+#include "stages/PointShadowMappingStage.hpp"
 #include "stages/CascadedShadowMappingStage.hpp"
 #include <entt/entity/fwd.hpp>
 #include <glbinding/gl/enum.h>
@@ -49,9 +47,8 @@ private:
             .get()
     };
 
-    SharedStorageView<GBuffer> gbuffer_;
-    // TODO: Remove and replace with a dedicated point shadow mapper.
-    SharedStorageView<ShadowMappingStage::Output> shadow_info_;
+    SharedStorageView<GBuffer>            gbuffer_;
+    SharedStorageView<PointShadowMaps>    input_psm_;
     SharedStorageView<CascadedShadowMaps> input_csm_;
 
     SSBOWithIntermediateBuffer<light::Point> plights_with_shadows_ssbo_{
@@ -73,11 +70,12 @@ public:
     DirShadowParams dir_params;
     bool enable_csm_debug{ false };
 
-    DeferredShadingStage(SharedStorageView<GBuffer> gbuffer,
-        SharedStorageView<ShadowMappingStage::Output> shadow_info,
+    DeferredShadingStage(
+        SharedStorageView<GBuffer>            gbuffer,
+        SharedStorageView<PointShadowMaps>    input_psm,
         SharedStorageView<CascadedShadowMaps> input_csm)
-        : gbuffer_{ std::move(gbuffer) }
-        , shadow_info_{ std::move(shadow_info) }
+        : gbuffer_  { std::move(gbuffer) }
+        , input_psm_{ std::move(input_psm) }
         , input_csm_{ std::move(input_csm) }
     {}
 

@@ -27,10 +27,10 @@
 #include "hooks/ModelComponentsRegistryHook.hpp"
 #include "hooks/PerspectiveCameraHook.hpp"
 #include "hooks/PointLightSourceBoxStageHook.hpp"
+#include "hooks/PointShadowMappingStageHook.hpp"
 #include "hooks/PostprocessBloomStageHook.hpp"
 #include "hooks/PostprocessGammaCorrectionStageHook.hpp"
 #include "hooks/PostprocessHDREyeAdaptationStageHook.hpp"
-#include "hooks/ShadowMappingStageHook.hpp"
 #include "hooks/SkyboxRegistryHook.hpp"
 #include "stages/BoundingSphereDebugStage.hpp"
 #include "stages/CascadedShadowMappingStage.hpp"
@@ -38,10 +38,10 @@
 #include "stages/DeferredShadingStage.hpp"
 #include "stages/GBufferStage.hpp"
 #include "stages/PointLightSourceBoxStage.hpp"
+#include "stages/PointShadowMappingStage.hpp"
 #include "stages/PostprocessBloomStage.hpp"
 #include "stages/PostprocessGammaCorrectionStage.hpp"
 #include "stages/PostprocessHDREyeAdaptationStage.hpp"
-#include "stages/ShadowMappingStage.hpp"
 #include "stages/SkyboxStage.hpp"
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
@@ -100,8 +100,7 @@ public:
 
         auto skyboxing    = rengine_.make_primary_stage<SkyboxStage>();
 
-        // TODO: Replace with point light mapping only
-        auto shmapping    = rengine_.make_primary_stage<ShadowMappingStage>();
+        auto psmapping    = rengine_.make_primary_stage<PointShadowMappingStage>();
         auto csmapping    = rengine_.make_primary_stage<CascadedShadowMappingStage>(csm_info_builder_.view_output());
         auto gbuffer      = rengine_.make_primary_stage<GBufferStage>(w, h);
 
@@ -116,7 +115,7 @@ public:
 
         auto defshad     = rengine_.make_primary_stage<DeferredShadingStage>(
             gbuffer.target().get_read_view(),
-            shmapping.target().view_mapping_output(),
+            psmapping.target().view_output(),
             csmapping.target().view_output()
         );
 
@@ -128,12 +127,23 @@ public:
         auto whatsgamma  = rengine_.make_postprocess_stage<PostprocessGammaCorrectionStage>();
 
 
-        imgui_stage_hooks_.add_hook("Shadow Mapping",     imguihooks::ShadowMappingStageHook(shmapping));
-        imgui_stage_hooks_.add_hook("CSM",                imguihooks::CascadedShadowMappingStageHook(csm_info_builder_, csmapping));
-        imgui_stage_hooks_.add_hook("GBuffer",            imguihooks::GBufferStageHook(gbuffer));
-        imgui_stage_hooks_.add_hook("Deferred Rendering", imguihooks::DeferredShadingStageHook(defshad));
-        imgui_stage_hooks_.add_hook("Point Light Boxes",  imguihooks::PointLightSourceBoxStageHook(plightboxes));
-        imgui_stage_hooks_.add_hook("Bounding Spheres",   imguihooks::BoundingSphereDebugStageHook(cullspheres));
+        imgui_stage_hooks_.add_hook("Point Shadow Mapping",
+            imguihooks::PointShadowMappingStageHook(psmapping));
+
+        imgui_stage_hooks_.add_hook("Cascaded Shadow Mapping",
+            imguihooks::CascadedShadowMappingStageHook(csm_info_builder_, csmapping));
+
+        imgui_stage_hooks_.add_hook("GBuffer",
+            imguihooks::GBufferStageHook(gbuffer));
+
+        imgui_stage_hooks_.add_hook("Deferred Rendering",
+            imguihooks::DeferredShadingStageHook(defshad));
+
+        imgui_stage_hooks_.add_hook("Point Light Boxes",
+            imguihooks::PointLightSourceBoxStageHook(plightboxes));
+
+        imgui_stage_hooks_.add_hook("Bounding Spheres",
+            imguihooks::BoundingSphereDebugStageHook(cullspheres));
 
         imgui_stage_hooks_.add_postprocess_hook("Bloom",
             imguihooks::PostprocessBloomStageHook(blooming));
@@ -146,7 +156,7 @@ public:
 
 
         rengine_.add_next_primary_stage(std::move(skyboxing));
-        rengine_.add_next_primary_stage(std::move(shmapping));
+        rengine_.add_next_primary_stage(std::move(psmapping));
         rengine_.add_next_primary_stage(std::move(csmapping));
         rengine_.add_next_primary_stage(std::move(gbuffer));
         rengine_.add_next_primary_stage(std::move(defgeom));

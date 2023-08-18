@@ -60,7 +60,7 @@ void DeferredShadingStage::draw_main(
                 .uniform("dir_shadow.do_cast",     registry.all_of<tags::ShadowCasting>(e));
         }
 
-        // shadow_info_->dir_light_map.depth_target().bind_to_unit_index(3);
+
         input_csm_->dir_shadow_maps.depth_target().bind_to_unit_index(3);
         ashp.uniform("dir_shadow.cascades", 3)
             .uniform("dir_shadow.bias_bounds", dir_params.bias_bounds)
@@ -68,11 +68,10 @@ void DeferredShadingStage::draw_main(
             .uniform("dir_shadow.pcf_offset",  dir_params.pcf_offset);
 
 
-
-        shadow_info_->point_light_maps.depth_taget().bind_to_unit_index(4);
+        input_psm_->point_shadow_maps.depth_taget().bind_to_unit_index(4);
         ashp.uniform("point_shadow.maps", 4)
             .uniform("point_shadow.bias_bounds", point_params.bias_bounds)
-            .uniform("point_shadow.z_far",       shadow_info_->point_params.z_near_far[1])
+            .uniform("point_shadow.z_far",       input_psm_->z_near_far[1])
             .uniform("point_shadow.pcf_extent",  point_params.pcf_extent)
             .uniform("point_shadow.pcf_offset",  point_params.pcf_offset);
 
