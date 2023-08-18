@@ -4,6 +4,7 @@
 #include "RenderComponents.hpp"
 #include "Transform.hpp"
 #include "ULocation.hpp"
+#include "ECSHelpers.hpp"
 #include <entt/entity/entity.hpp>
 #include <entt/entity/fwd.hpp>
 #include <glbinding-aux/Meta.h>
@@ -50,35 +51,37 @@ void CascadedShadowMappingStage::resize_cascade_storage_if_needed() {
 
 
 
-static MTransform get_full_mtransform(
-    entt::const_handle handle, const Transform& transform)
-{
-    if (auto as_child = handle.try_get<components::ChildMesh>(); as_child) {
-        return handle.registry()->get<Transform>(as_child->parent).mtransform() *
-            transform.mtransform();
-    } else {
-        return transform.mtransform();
-    }
-}
-
-
 static void draw_all_world_geometry_no_alpha_test(
     ActiveShaderProgram& ashp, const entt::registry& registry)
 {
     // Assumes that projection and view are already set.
 
-    auto meshes_no_alpha_view =
+    auto draw_from_view = [&](auto view) {
+        for (auto [entity, transform, mesh] : view.each()) {
+            ashp.uniform("model",
+                get_full_mesh_transform({ registry, entity }, transform)
+                    .mtransform().model());
+            mesh.draw();
+        }
+    };
+
+    // You could have no AT requested, or you could have an AT flag,
+    // but no diffuse material to sample from.
+    //
+    // Both ignore Alpha-Testing.
+
+    draw_from_view(
         registry.view<Transform, Mesh>(
             entt::exclude<tags::AlphaTested, tags::CulledFromCascadedShadowMapping>
-        );
+        )
+    );
 
-    for (auto [entity, transform, mesh]
-        : meshes_no_alpha_view.each())
-    {
-        ashp.uniform("model",
-            get_full_mtransform({ registry, entity }, transform).model());
-        mesh.draw();
-    }
+    draw_from_view(
+        registry.view<Transform, Mesh, tags::AlphaTested>(
+            entt::exclude<components::MaterialDiffuse, tags::CulledFromCascadedShadowMapping>
+        )
+    );
+
 }
 
 
@@ -89,27 +92,18 @@ static void draw_all_world_geometry_with_alpha_test(
 
     ashp.uniform("material.diffuse", 0);
 
-    auto bind_diffuse_material = [&](entt::entity e) {
-        if (auto material =
-            registry.try_get<components::MaterialDiffuse>(e))
-        {
-            material->diffuse->bind_to_unit_index(0);
-        } else {
-            globals::default_diffuse_texture->bind_to_unit_index(0);
-        }
-    };
-
     auto meshes_with_alpha_view =
-        registry.view<Transform, Mesh, tags::AlphaTested>(
+        registry.view<Transform, Mesh, components::MaterialDiffuse, tags::AlphaTested>(
             entt::exclude<tags::CulledFromCascadedShadowMapping>
         );
 
-    for (auto [entity, transform, mesh]
+    for (auto [entity, transform, mesh, diffuse]
         : meshes_with_alpha_view.each())
     {
-        bind_diffuse_material(entity);
+        diffuse.diffuse->bind_to_unit_index(0);
         ashp.uniform("model",
-            get_full_mtransform({ registry, entity }, transform).model());
+            get_full_mesh_transform({ registry, entity }, transform)
+                .mtransform().model());
         mesh.draw();
     }
 
@@ -119,7 +113,7 @@ static void draw_all_world_geometry_with_alpha_test(
 
 
 void CascadedShadowMappingStage::map_dir_light_shadow_cascade(
-    const RenderEnginePrimaryInterface& engine,
+    const RenderEnginePrimaryInterface&,
     const entt::registry& registry)
 {
 
