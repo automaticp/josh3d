@@ -80,7 +80,7 @@ private:
         globals::window_size.size_ref(), globals::frame_timer
     };
 
-    CascadeViewsBuilder csm_info_builder_{ 1 };
+    CascadeViewsBuilder csm_info_builder_{ 5 };
     FrustumCuller culler_{ registry_ };
 
     ImGuiContextWrapper imgui_{ window_ };
