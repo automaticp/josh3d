@@ -35,12 +35,12 @@ public:
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
         normals_.bind()
-            .specify_image(width_, height_, GL_RGBA16F, GL_RGBA, GL_FLOAT, nullptr)
+            .specify_image(width_, height_, GL_RGBA8, GL_RGBA, GL_FLOAT, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
         albedo_spec_.bind()
-            .specify_image(width_, height_, GL_RGBA32F, GL_RGBA, GL_UNSIGNED_BYTE, nullptr)
+            .specify_image(width_, height_, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
@@ -49,10 +49,10 @@ public:
 
         fb_.bind_draw()
             .attach_texture(position_draw_, GL_COLOR_ATTACHMENT0)
-            .attach_texture(normals_, GL_COLOR_ATTACHMENT1)
-            .attach_texture(albedo_spec_, GL_COLOR_ATTACHMENT2)
+            .attach_texture(normals_,       GL_COLOR_ATTACHMENT1)
+            .attach_texture(albedo_spec_,   GL_COLOR_ATTACHMENT2)
             .set_draw_buffers(GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2)
-            .attach_renderbuffer(depth_, GL_DEPTH_ATTACHMENT);
+            .attach_renderbuffer(depth_,    GL_DEPTH_ATTACHMENT);
 
     }
 
