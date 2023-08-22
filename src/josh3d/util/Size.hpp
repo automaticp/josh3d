@@ -1,6 +1,7 @@
 #pragma once
 #include "CommonConcepts.hpp" // IWYU pragma: keep
 #include <concepts>
+#include <cstddef>
 
 
 namespace josh {
@@ -15,24 +16,24 @@ concept size_representable =
 
 
 template<size_representable NumericT>
-struct Size2D {
+struct Size2 {
     NumericT width;
     NumericT height;
 
-    Size2D(NumericT width, NumericT height) noexcept
+    Size2(NumericT width, NumericT height) noexcept
         : width { width  }
         , height{ height }
     {}
 
     template<size_representable NumericU>
-    explicit Size2D(const Size2D<NumericU>& other) noexcept
-        : Size2D{
+    explicit Size2(const Size2<NumericU>& other) noexcept
+        : Size2{
             static_cast<NumericT>(other.width),
             static_cast<NumericT>(other.height)
         }
     {}
 
-    Size2D(const Size2D& other) = default; // non-explicit
+    Size2(const Size2& other) = default; // non-explicit
 
     template<std::floating_point FloatT = float>
     FloatT aspect_ratio() const noexcept {
@@ -42,7 +43,7 @@ struct Size2D {
     }
 
     template<size_representable NumericU>
-    bool operator==(const Size2D<NumericU>& other) const noexcept {
+    bool operator==(const Size2<NumericU>& other) const noexcept {
         return
             width  == other.width &&
             height == other.height;
@@ -51,35 +52,43 @@ struct Size2D {
 
 };
 
+// Common specializations.
+// Closer to OpenGL conventions than to standard library.
+using Size2I = Size2<int>;
+using Size2U = Size2<unsigned int>;
+using Size2S = Size2<size_t>;
+using Size2F = Size2<float>;
+using Size2D = Size2<double>;
+
 
 
 
 template<size_representable NumericT>
-struct Size3D {
+struct Size3 {
     NumericT width;
     NumericT height;
     NumericT depth;
 
-    Size3D(NumericT width, NumericT height, NumericT depth)
+    Size3(NumericT width, NumericT height, NumericT depth)
         : width { width  }
         , height{ height }
         , depth { depth  }
     {}
 
     template<size_representable NumericU>
-    explicit Size3D(const Size3D<NumericU>& other) noexcept
-        : Size3D{
+    explicit Size3(const Size3<NumericU>& other) noexcept
+        : Size3{
             static_cast<NumericT>(other.width),
             static_cast<NumericT>(other.height),
             static_cast<NumericT>(other.depth)
         }
     {}
 
-    Size3D(const Size3D& other) = default; // non-explicit
+    Size3(const Size3& other) = default; // non-explicit
 
     template<size_representable NumericU, size_representable NumericY>
-    Size3D(const Size2D<NumericU>& size2d, NumericY depth) noexcept
-        : Size3D{
+    Size3(const Size2<NumericU>& size2d, NumericY depth) noexcept
+        : Size3{
             static_cast<NumericT>(size2d.width),
             static_cast<NumericT>(size2d.height),
             static_cast<NumericT>(depth)
@@ -87,7 +96,7 @@ struct Size3D {
     {}
 
     template<size_representable NumericU>
-    explicit operator Size2D<NumericU>() const noexcept {
+    explicit operator Size2<NumericU>() const noexcept {
         return {
             static_cast<NumericU>(width),
             static_cast<NumericU>(height)
@@ -102,7 +111,7 @@ struct Size3D {
     }
 
     template<size_representable NumericU>
-    bool operator==(const Size3D<NumericU>& other) const noexcept {
+    bool operator==(const Size3<NumericU>& other) const noexcept {
         return
             width  == other.width  &&
             height == other.height &&
@@ -110,6 +119,13 @@ struct Size3D {
     }
 
 };
+
+
+using Size3I = Size3<int>;
+using Size3U = Size3<unsigned int>;
+using Size3S = Size3<size_t>;
+using Size3F = Size3<float>;
+using Size3D = Size3<double>;
 
 
 
