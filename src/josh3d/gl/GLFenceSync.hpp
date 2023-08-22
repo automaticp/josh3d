@@ -1,8 +1,10 @@
 #pragma once
 #include "GLScalars.hpp"
+#include "EnumUtils.hpp"
 #include <glbinding/gl/gl.h>
 #include <chrono>
 #include <ratio>
+#include <type_traits>
 #include <utility>
 
 
@@ -60,6 +62,13 @@ public:
 
 
 
+enum class SyncWaitResult : std::underlying_type_t<GLenum> {
+    signaled         = to_underlying(gl::GL_CONDITION_SATISFIED),
+    already_signaled = to_underlying(gl::GL_ALREADY_SIGNALED),
+    timeout          = to_underlying(gl::GL_TIMEOUT_EXPIRED),
+    fail             = to_underlying(gl::GL_WAIT_FAILED),
+};
+
 
 class FenceSync : public FenceSyncHandle {
 private:
@@ -78,12 +87,18 @@ public:
         return result[0] == gl::GL_SIGNALED;
     }
 
-    GLenum wait_for(nanoseconds timeout) const noexcept {
-        return gl::glClientWaitSync(id_, {}, timeout.count());
+    [[nodiscard]]
+    SyncWaitResult wait_for(nanoseconds timeout) const noexcept {
+        return SyncWaitResult{
+            to_underlying(gl::glClientWaitSync(id_, {}, timeout.count()))
+        };
     }
 
-    GLenum flush_and_wait_for(nanoseconds timeout) const noexcept {
-        return gl::glClientWaitSync(id_, gl::GL_SYNC_FLUSH_COMMANDS_BIT, timeout.count());
+    [[nodiscard]]
+    SyncWaitResult flush_and_wait_for(nanoseconds timeout) const noexcept {
+        return SyncWaitResult{
+            to_underlying(gl::glClientWaitSync(id_, gl::GL_SYNC_FLUSH_COMMANDS_BIT, timeout.count()))
+        };
     }
 
     // It is very likely you want to glFlush before this, else
