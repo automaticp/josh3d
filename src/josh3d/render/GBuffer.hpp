@@ -33,7 +33,7 @@ public:
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
         normals_.bind()
-            .specify_image(size_, GL_RGBA8, GL_RGBA, GL_FLOAT, nullptr)
+            .specify_image(size_, GL_RGBA8_SNORM, GL_RGBA, GL_FLOAT, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
@@ -92,7 +92,7 @@ public:
             .specify_image(size_, GL_RGBA16F, GL_RGBA, GL_FLOAT, nullptr);
 
         normals_.bind()
-            .specify_image(size_, GL_RGBA8, GL_RGBA, GL_FLOAT, nullptr);
+            .specify_image(size_, GL_RGBA8_SNORM, GL_RGBA, GL_FLOAT, nullptr);
 
         albedo_spec_.bind()
             .specify_image(size_, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
