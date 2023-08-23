@@ -96,10 +96,10 @@ public:
             .specify_image(width_, height_, GL_RGBA16F, GL_RGBA, GL_FLOAT, nullptr);
 
         normals_.bind()
-            .specify_image(width_, height_, GL_RGBA16F, GL_RGBA, GL_FLOAT, nullptr);
+            .specify_image(width_, height_, GL_RGBA8, GL_RGBA, GL_FLOAT, nullptr);
 
         albedo_spec_.bind()
-            .specify_image(width_, height_, GL_RGBA32F, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+            .specify_image(width_, height_, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 
         depth_.bind()
             .create_storage(width_, height_, GL_DEPTH24_STENCIL8);
