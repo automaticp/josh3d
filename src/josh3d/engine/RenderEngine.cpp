@@ -1,4 +1,5 @@
 #include "RenderEngine.hpp"
+#include "GLFramebuffers.hpp"
 #include <entt/entt.hpp>
 #include <glbinding/gl/gl.h>
 #include <cassert>
@@ -52,21 +53,17 @@ void RenderEngine::render() {
 
     } else /* has postprocessing */ {
 
-        ppdb_.draw_and_swap([this] {
+        ppdb_.draw_and_swap([this](BoundDrawFramebuffer& dst_fbo) {
             main_target_.framebuffer()
                 .bind_read()
-                .and_then([this](BoundReadFramebuffer& fbo) {
+                .and_then([&, this](BoundReadFramebuffer& src_fbo) {
 
                     auto [src_w, src_h] = main_target_.size();
                     auto [dst_w, dst_h] = ppdb_.back().size();
 
-                    // FIXME: Here I can pass the BoundDrawFramebuffer through the
-                    // draw_and_swap() callback. PPDB backbuffer is bound implicitly otherwise.
-                    glBlitFramebuffer(
-                        0, 0, src_w, src_h,
-                        0, 0, dst_w, dst_h,
-                        GL_COLOR_BUFFER_BIT, GL_NEAREST
-                    );
+                    src_fbo.blit_to(dst_fbo,
+                        0, 0, src_w, src_h, 0, 0, dst_w, dst_h,
+                        GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
                 })
                 .unbind();
