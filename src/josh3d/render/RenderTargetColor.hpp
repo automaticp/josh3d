@@ -1,5 +1,7 @@
 #pragma once
+#include "GLScalars.hpp"
 #include "GLObjects.hpp"
+#include "Size.hpp"
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/gl.h>
 
@@ -13,24 +15,22 @@ private:
     Framebuffer fb_;
     Renderbuffer rb_;
 
-    gl::GLsizei width_;
-    gl::GLsizei height_;
+    Size2I size_;
 
-    gl::GLenum color_format_{ gl::GL_RGBA };
-    gl::GLenum color_internal_format_{ gl::GL_RGBA };
-    gl::GLenum color_type_{ gl::GL_UNSIGNED_BYTE };
+    GLenum color_format_;
+    GLenum color_internal_format_;
+    GLenum color_type_;
 
 public:
-    RenderTargetColor(gl::GLsizei width, gl::GLsizei height)
-        : RenderTargetColor(width, height, gl::GL_RGBA, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE)
+    RenderTargetColor(Size2I size)
+        : RenderTargetColor(size, gl::GL_RGBA, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE)
     {}
 
-    RenderTargetColor(gl::GLsizei width, gl::GLsizei height,
-        gl::GLenum color_format, gl::GLenum color_internal_format,
-        gl::GLenum color_type
+    RenderTargetColor(Size2I size,
+        GLenum color_format, GLenum color_internal_format,
+        GLenum color_type
     )
-        : width_{ width }
-        , height_{ height }
+        : size_{ size }
         , color_format_{ color_format }
         , color_internal_format_{ color_internal_format }
         , color_type_{ color_type }
@@ -38,7 +38,7 @@ public:
         using namespace gl;
 
         tex_.bind_to_unit(GL_TEXTURE0)
-            .specify_image(width_, height_, color_internal_format_, color_format_, color_type_, nullptr)
+            .specify_image(size_, color_internal_format_, color_format_, color_type_, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
             // Fixes edge overflow from kernel effects
@@ -46,7 +46,7 @@ public:
             .set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 
         rb_ .bind()
-            .create_storage(width_, height_, GL_DEPTH24_STENCIL8);
+            .create_storage(size_, GL_DEPTH24_STENCIL8);
 
         fb_ .bind_draw()
             .attach_texture(tex_, GL_COLOR_ATTACHMENT0)
@@ -60,22 +60,18 @@ public:
 
     Framebuffer& framebuffer() noexcept { return fb_; }
 
-    gl::GLsizei width() const noexcept { return width_; }
-    gl::GLsizei height() const noexcept { return height_; }
+    Size2I size() const noexcept { return size_; }
 
-    void reset_size(gl::GLsizei width, gl::GLsizei height) {
+    void reset_size(Size2I new_size) {
         using namespace gl;
 
-        width_ = width;
-        height_ = height;
+        size_ = new_size;
 
-        tex_.bind_to_unit(GL_TEXTURE0)
-            .specify_image(
-                width_, height_, color_internal_format_,
-                color_format_, color_type_, nullptr
-            );
+        tex_.bind()
+            .specify_image(size_, color_internal_format_,
+                color_format_, color_type_, nullptr);
 
-        rb_.bind().create_storage(width_, height_, GL_DEPTH24_STENCIL8);
+        rb_.bind().create_storage(size_, GL_DEPTH24_STENCIL8);
 
     }
 

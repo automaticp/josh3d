@@ -27,8 +27,8 @@ struct CascadeParams {
 // FIXME: figure out proper incapsulation for resizing
 // and uploading data, etc.
 struct CascadedShadowMaps {
-    RenderTargetDepthArray dir_shadow_maps{ 2048, 2048, 3 };
-    std::vector<CascadeParams> params{ size_t(dir_shadow_maps.layers()) };
+    RenderTargetDepthArray dir_shadow_maps{ Size3I{ 2048, 2048, 3 } };
+    std::vector<CascadeParams> params{ size_t(dir_shadow_maps.size().depth) };
 };
 
 
@@ -85,7 +85,7 @@ public:
     void operator()(const RenderEnginePrimaryInterface& engine,
         const entt::registry& registry);
 
-    void resize_maps(GLsizei width, GLsizei height);
+    void resize_maps(Size2I new_size);
 
 private:
     void resize_cascade_storage_if_needed();
@@ -97,11 +97,9 @@ private:
 
 
 
-inline void CascadedShadowMappingStage::resize_maps(
-    GLsizei width, GLsizei height)
-{
+inline void CascadedShadowMappingStage::resize_maps(Size2I new_size) {
     auto& maps = output_->dir_shadow_maps;
-    maps.reset_size(width, height, maps.layers());
+    maps.reset_size(Size3I{ new_size, maps.size().depth });
 }
 
 

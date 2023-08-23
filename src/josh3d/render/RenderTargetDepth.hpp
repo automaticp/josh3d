@@ -1,5 +1,6 @@
 #pragma once
 #include "GLObjects.hpp"
+#include "Size.hpp"
 #include <glbinding/gl/gl.h>
 
 
@@ -11,21 +12,18 @@ private:
     Texture2D tex_;
     Framebuffer fbo_;
 
-    gl::GLsizei width_;
-    gl::GLsizei height_;
-
+    Size2I size_;
 
 public:
-    RenderTargetDepth(gl::GLsizei width, gl::GLsizei height)
-        : width_{ width }
-        , height_{ height }
+    RenderTargetDepth(Size2I size)
+        : size_{ size }
     {
         using namespace gl;
 
         const float border_color[4] = { 1.f, 1.f, 1.f, 1.f };
 
         tex_.bind()
-            .specify_image(width_, height_, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr)
+            .specify_image(size_, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER)
@@ -46,17 +44,15 @@ public:
 
     Framebuffer& framebuffer() noexcept { return fbo_; }
 
-    gl::GLsizei width() const noexcept { return width_; }
-    gl::GLsizei height() const noexcept { return height_; }
+    Size2I size() const noexcept { return size_; }
 
-    void reset_size(gl::GLsizei width, gl::GLsizei height) {
+    void reset_size(Size2I new_size) {
         using namespace gl;
 
-        width_ = width;
-        height_ = height;
+        size_ = new_size;
 
         tex_.bind()
-            .specify_image(width_, height_, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr)
+            .specify_image(size_, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr)
             .unbind();
     }
 

@@ -13,15 +13,13 @@ void josh::imguihooks::ShadowMappingStageHook::operator()() {
 
     if (ImGui::TreeNode("Point Shadows")) {
         const bool unconfirmed_changes =
-            plight_maps.width() != point_shadow_res_;
+            plight_maps.size().width != point_shadow_res_;
 
         const char* label =
             unconfirmed_changes ? "*Apply" : " Apply";
 
         if (ImGui::Button(label)) {
-            stage_.resize_point_maps(
-                point_shadow_res_, point_shadow_res_
-            );
+            stage_.resize_point_maps({ point_shadow_res_, point_shadow_res_ });
         }
 
         ImGui::SliderInt(
@@ -48,15 +46,13 @@ void josh::imguihooks::ShadowMappingStageHook::operator()() {
         }
 
         const bool unconfirmed_changes =
-            dir_light_map.width() != dir_shadow_res_;
+            dir_light_map.size().width != dir_shadow_res_;
 
         const char* label =
             unconfirmed_changes ? "*Apply" : " Apply";
 
         if (ImGui::Button(label)) {
-            s.resize_dir_map(
-                dir_shadow_res_, dir_shadow_res_
-            );
+            s.resize_dir_map({ dir_shadow_res_, dir_shadow_res_ });
         }
 
         ImGui::SliderInt(

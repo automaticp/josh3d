@@ -19,9 +19,11 @@ TextureData TextureData::from_file(const File& file,
         throw error::ImageReadingError(file.path(), stbi_failure_reason());
     }
 
+    auto size = Size2S(width, height);
+
     return TextureData(
         std::unique_ptr<unsigned char[], FreeDeleter>{ data },
-        width, height, n_channels
+        size, n_channels
     );
 }
 

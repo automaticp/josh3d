@@ -23,8 +23,8 @@ private:
     SharedStorage<GBuffer> gbuffer_;
 
 public:
-    GBufferStage(GLsizei width, GLsizei height)
-        : gbuffer_{ width, height }
+    GBufferStage(Size2I size)
+        : gbuffer_{ size }
     {}
 
     SharedStorageMutableView<GBuffer> get_write_view() noexcept {
@@ -36,8 +36,8 @@ public:
     }
 
 
-    void reset_size(GLsizei width, GLsizei height) {
-        gbuffer_->reset_size(width, height);
+    void reset_size(Size2I new_size) {
+        gbuffer_->reset_size(new_size);
     }
 
 
@@ -46,11 +46,8 @@ public:
     {
         using namespace gl;
 
-        if (engine.window_size().width != gbuffer_->width() ||
-            engine.window_size().height != gbuffer_->height())
-        {
-            auto [w, h] = engine.window_size();
-            reset_size(w, h);
+        if (engine.window_size() != gbuffer_->size()) {
+            reset_size(engine.window_size());
         }
 
         gbuffer_->framebuffer().bind_draw()

@@ -34,6 +34,7 @@ struct Size2 {
     {}
 
     Size2(const Size2& other) = default; // non-explicit
+    Size2& operator=(const Size2& other) = default;
 
     template<std::floating_point FloatT = float>
     FloatT aspect_ratio() const noexcept {
@@ -41,6 +42,9 @@ struct Size2 {
             static_cast<FloatT>(width) /
             static_cast<FloatT>(height);
     }
+
+    // A product of width and height.
+    auto area() const noexcept { return width * height; }
 
     template<size_representable NumericU>
     bool operator==(const Size2<NumericU>& other) const noexcept {
@@ -85,6 +89,7 @@ struct Size3 {
     {}
 
     Size3(const Size3& other) = default; // non-explicit
+    Size3& operator=(const Size3& other) = default;
 
     template<size_representable NumericU, size_representable NumericY>
     Size3(const Size2<NumericU>& size2d, NumericY depth) noexcept
@@ -109,6 +114,11 @@ struct Size3 {
             static_cast<FloatT>(width) /
             static_cast<FloatT>(height);
     }
+
+    // A product of width and height.
+    auto slice_area() const noexcept { return width * height; }
+    // A product of all three dimensions.
+    auto volume() const noexcept { return width * height * depth; }
 
     template<size_representable NumericU>
     bool operator==(const Size3<NumericU>& other) const noexcept {

@@ -3,6 +3,8 @@
 #include "RenderComponents.hpp"
 #include "RenderEngine.hpp"
 #include "Transform.hpp"
+#include "Mesh.hpp"
+#include "GlobalsGL.hpp"
 #include <entt/core/type_traits.hpp>
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>

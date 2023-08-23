@@ -1,6 +1,7 @@
 #pragma once
-#include "All.hpp"
+#include "GLScalars.hpp"
 #include "RenderTargetColor.hpp"
+#include "Size.hpp"
 #include <glbinding/gl/enum.h>
 #include <utility>
 #include <glbinding/gl/types.h>
@@ -86,19 +87,19 @@ private:
     RenderTargetColor buf2_;
 
     RenderTargetColor* front_{ &buf1_ };
-    RenderTargetColor* back_{ &buf2_ };
+    RenderTargetColor* back_ { &buf2_ };
 
 public:
-    PostprocessDoubleBuffer(gl::GLsizei width, gl::GLsizei height)
-        : PostprocessDoubleBuffer(width, height, gl::GL_RGBA, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE)
+    PostprocessDoubleBuffer(Size2I canvas_size)
+        : PostprocessDoubleBuffer(canvas_size, gl::GL_RGBA, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE)
     {}
 
-    PostprocessDoubleBuffer(gl::GLsizei width, gl::GLsizei height,
-        gl::GLenum color_format, gl::GLenum color_internal_format,
-        gl::GLenum color_type
+    PostprocessDoubleBuffer(Size2I canvas_size,
+        GLenum color_format, GLenum color_internal_format,
+        GLenum color_type
     )
-        : buf1_{ width, height, color_format, color_internal_format, color_type }
-        , buf2_{ width, height, color_format, color_internal_format, color_type }
+        : buf1_{ canvas_size, color_format, color_internal_format, color_type }
+        , buf2_{ canvas_size, color_format, color_internal_format, color_type }
     {}
 
     Texture2D& front_target() noexcept { return front_->color_target(); }
@@ -106,15 +107,15 @@ public:
 
 
     RenderTargetColor& front() noexcept { return *front_; }
-    RenderTargetColor& back() noexcept { return *back_; }
+    RenderTargetColor& back()  noexcept { return *back_; }
 
     void swap_buffers() {
         std::swap(front_, back_);
     }
 
-    void reset_size(gl::GLsizei width, gl::GLsizei height) {
-        buf1_.reset_size(width, height);
-        buf2_.reset_size(width, height);
+    void reset_size(Size2I new_size) {
+        buf1_.reset_size(new_size);
+        buf2_.reset_size(new_size);
     }
 
     // Implements the Bind-Draw-Unbind-Swap chain.
@@ -134,10 +135,10 @@ public:
         const bool buf1_is_front = other.front_ == &other.buf1_;
         if (buf1_is_front) {
             front_ = &buf1_;
-            back_ = &buf2_;
+            back_  = &buf2_;
         } else /* buf2_is_front */ {
             front_ = &buf2_;
-            back_ = &buf1_;
+            back_  = &buf1_;
         }
     }
 
@@ -147,10 +148,10 @@ public:
         const bool buf1_is_front = other.front_ == &other.buf1_;
         if (buf1_is_front) {
             front_ = &buf1_;
-            back_ = &buf2_;
+            back_  = &buf2_;
         } else /* buf2_is_front */ {
             front_ = &buf2_;
-            back_ = &buf1_;
+            back_  = &buf1_;
         }
         return *this;
     }

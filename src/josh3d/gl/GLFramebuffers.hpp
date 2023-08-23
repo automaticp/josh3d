@@ -1,6 +1,7 @@
 #pragma once
 #include "GLObjectHandles.hpp"
 #include "AndThen.hpp"
+#include "Size.hpp"
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
 #include <glbinding/gl/gl.h>
@@ -183,17 +184,18 @@ private:
     BoundRenderbuffer() = default;
 
 public:
-    BoundRenderbuffer& create_storage(GLsizei width, GLsizei height,
-        GLenum internal_format)
-    {
-        glRenderbufferStorage(GL_RENDERBUFFER, internal_format, width, height);
+    BoundRenderbuffer& create_storage(Size2I size, GLenum internal_format) {
+        glRenderbufferStorage(
+            GL_RENDERBUFFER, internal_format, size.width, size.height
+        );
         return *this;
     }
 
-    BoundRenderbuffer& create_multisample_storage(GLsizei width,
-        GLsizei height, GLsizei samples, GLenum internal_format)
+    BoundRenderbuffer& create_multisample_storage(Size2I size, GLsizei num_samples, GLenum internal_format)
     {
-        glRenderbufferStorageMultisample(GL_RENDERBUFFER, samples, internal_format, width, height);
+        glRenderbufferStorageMultisample(
+            GL_RENDERBUFFER, num_samples, internal_format, size.width, size.height
+        );
         return *this;
     }
 

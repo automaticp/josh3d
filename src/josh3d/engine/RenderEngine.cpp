@@ -33,13 +33,18 @@ void RenderEngine::render() {
 
         main_target_.framebuffer()
             .bind_read()
-            .and_then([this](BoundReadFramebuffer& fbo) {
+            .and_then([this](BoundReadFramebuffer&) {
 
+                // FIXME: Kinda awkward because there's no default binding object.
+                // Way to fix this is so far unknown.
                 BoundDrawFramebuffer::unbind();
 
+                auto [src_w, src_h] = main_target_.size();
+                auto [dst_w, dst_h] = window_size_;
+
                 glBlitFramebuffer(
-                    0, 0, main_target_.width(), main_target_.height(),
-                    0, 0, window_size().width, window_size().height,
+                    0, 0, src_w, src_h,
+                    0, 0, dst_w, dst_h,
                     GL_COLOR_BUFFER_BIT, GL_NEAREST
                 );
             })
@@ -52,11 +57,14 @@ void RenderEngine::render() {
                 .bind_read()
                 .and_then([this](BoundReadFramebuffer& fbo) {
 
+                    auto [src_w, src_h] = main_target_.size();
+                    auto [dst_w, dst_h] = ppdb_.back().size();
+
                     // FIXME: Here I can pass the BoundDrawFramebuffer through the
                     // draw_and_swap() callback. PPDB backbuffer is bound implicitly otherwise.
                     glBlitFramebuffer(
-                        0, 0, main_target_.width(), main_target_.height(),
-                        0, 0, ppdb_.back().width(), ppdb_.back().height(),
+                        0, 0, src_w, src_h,
+                        0, 0, dst_w, dst_h,
                         GL_COLOR_BUFFER_BIT, GL_NEAREST
                     );
 

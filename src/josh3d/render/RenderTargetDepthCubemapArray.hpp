@@ -1,5 +1,6 @@
 #pragma once
 #include "GLObjects.hpp"
+#include "Size.hpp"
 #include <glbinding/gl/gl.h>
 
 
@@ -11,25 +12,17 @@ private:
     CubemapArray cubemaps_;
     Framebuffer fbo_;
 
-    gl::GLsizei width_;
-    gl::GLsizei height_;
-    gl::GLsizei depth_;
+    Size3I size_;
 
 public:
-    RenderTargetDepthCubemapArray(gl::GLsizei width,
-        gl::GLsizei height, gl::GLsizei depth)
-        : width_{ width }
-        , height_{ height }
-        , depth_{ depth }
+    RenderTargetDepthCubemapArray(Size3I size)
+        : size_{ size }
     {
         using namespace gl;
 
         cubemaps_.bind()
-            .specify_all_images(
-                width_, height_, depth_,
-                GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT,
-                nullptr
-            )
+            .specify_all_images(Size2I{ size_ }, size_.depth,
+                GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
@@ -49,19 +42,16 @@ public:
 
     Framebuffer& framebuffer() noexcept { return fbo_; }
 
-    gl::GLsizei width() const noexcept { return width_; }
-    gl::GLsizei height() const noexcept { return height_; }
-    gl::GLsizei depth() const noexcept { return depth_; }
+    Size3I size() const noexcept { return size_; }
 
-    void reset_size(gl::GLsizei width, gl::GLsizei height, gl::GLsizei depth) {
+    void reset_size(Size3I new_size) {
         using namespace gl;
 
-        width_ = width;
-        height_ = height;
-        depth_ = depth;
+        size_ = new_size;
 
         cubemaps_.bind()
-            .specify_all_images(width_, height_, depth_, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr)
+            .specify_all_images(Size2I{ size_ }, size_.depth,
+                GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr)
             .unbind();
     }
 

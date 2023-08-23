@@ -1,9 +1,11 @@
 #include "ShadowMappingStage.hpp"
 #include "GLShaders.hpp"
+#include "GlobalsGL.hpp"
 #include "LightCasters.hpp"
 #include "RenderComponents.hpp"
 #include "Mesh.hpp"
 #include "Shared.hpp"
+#include "Size.hpp"
 #include "Transform.hpp"
 #include <cstddef>
 #include <entt/entity/fwd.hpp>
@@ -71,12 +73,10 @@ void ShadowMappingStage::resize_point_light_cubemap_array_if_needed(
     size_t new_size = calculate_view_size(plights_with_shadow);
 
     auto& maps = mapping_output_->point_light_maps;
-    size_t old_size = maps.depth();
+    size_t old_size = maps.size().depth;
 
     if (new_size != old_size) {
-        maps.reset_size(
-            maps.width(), maps.height(), GLsizei(new_size)
-        );
+        maps.reset_size({ Size2I{ maps.size() }, new_size });
     }
 
 }
@@ -207,12 +207,12 @@ void ShadowMappingStage::map_point_light_shadows(
         registry.view<light::Point, tags::ShadowCasting>();
 
     auto& maps = mapping_output_->point_light_maps;
-    glViewport(0, 0, maps.width(), maps.height());
+    glViewport(0, 0, maps.size().width, maps.size().height);
 
 
     maps.framebuffer().bind_draw().and_then([&, this] {
 
-        if (maps.depth() /* (aka. cubemap array size) */ != 0) {
+        if (maps.size().depth /* (aka. cubemap array size) */ != 0) {
             // glClear on an empty array render target will error out.
             glClear(GL_DEPTH_BUFFER_BIT);
         }
@@ -303,7 +303,7 @@ void ShadowMappingStage::map_dir_light_shadows(
 
 
     auto& map = mapping_output_->dir_light_map;
-    glViewport(0, 0, map.width(), map.height());
+    glViewport(0, 0, map.size().width, map.size().height);
 
     map.framebuffer().bind_draw().and_then([&, this] {
 
@@ -337,18 +337,14 @@ void ShadowMappingStage::map_dir_light_shadows(
 
 
 
-void ShadowMappingStage::resize_dir_map(
-    gl::GLsizei width, gl::GLsizei height)
-{
-    mapping_output_->dir_light_map.reset_size(width, height);
+void ShadowMappingStage::resize_dir_map(Size2I new_size) {
+    mapping_output_->dir_light_map.reset_size(new_size);
 }
 
 
-void ShadowMappingStage::resize_point_maps(
-    gl::GLsizei width, gl::GLsizei height)
-{
+void ShadowMappingStage::resize_point_maps(Size2I new_size) {
     mapping_output_->point_light_maps.reset_size(
-        width, height, mapping_output_->point_light_maps.depth()
+        { new_size, mapping_output_->point_light_maps.size().depth }
     );
 }
 

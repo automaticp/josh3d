@@ -95,14 +95,11 @@ public:
     {
         configure_input();
 
-        auto [w, h] = rengine_.window_size();
-
-
         auto skyboxing    = rengine_.make_primary_stage<SkyboxStage>();
 
         auto psmapping    = rengine_.make_primary_stage<PointShadowMappingStage>();
         auto csmapping    = rengine_.make_primary_stage<CascadedShadowMappingStage>(csm_info_builder_.view_output());
-        auto gbuffer      = rengine_.make_primary_stage<GBufferStage>(w, h);
+        auto gbuffer      = rengine_.make_primary_stage<GBufferStage>(rengine_.window_size());
 
         // This is me sharing the depth target between the GBuffer and the
         // main framebuffer of the RenderEngine, so that deferred and forward draws
@@ -235,9 +232,9 @@ inline void DemoScene::configure_input() {
         [this](glfw::Window& /* window */ , int w, int h) {
             using namespace gl;
 
-            globals::window_size.set_to(w, h);
+            globals::window_size.set_to({ w, h });
             glViewport(0, 0, w, h);
-            rengine_.reset_size(w, h);
+            rengine_.reset_size({ w, h });
             // or
             // rengine_.reset_size_from_window_size();
         }

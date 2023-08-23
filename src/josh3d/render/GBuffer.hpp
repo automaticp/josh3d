@@ -19,33 +19,31 @@ private:
     Texture2D albedo_spec_;
     Renderbuffer depth_;
 
-    GLsizei width_;
-    GLsizei height_;
+    Size2I size_;
 
 public:
-    GBuffer(GLsizei width, GLsizei height)
-        : width_{ width }
-        , height_{ height }
+    GBuffer(Size2I size)
+        : size_{ size }
     {
         using enum gl::GLenum;
 
         position_draw_.bind()
-            .specify_image(width_, height_, GL_RGBA16F, GL_RGBA, GL_FLOAT, nullptr)
+            .specify_image(size_, GL_RGBA16F, GL_RGBA, GL_FLOAT, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
         normals_.bind()
-            .specify_image(width_, height_, GL_RGBA8, GL_RGBA, GL_FLOAT, nullptr)
+            .specify_image(size_, GL_RGBA8, GL_RGBA, GL_FLOAT, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
         albedo_spec_.bind()
-            .specify_image(width_, height_, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, nullptr)
+            .specify_image(size_, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
         depth_.bind()
-            .create_storage(width_, height_, GL_DEPTH_COMPONENT);
+            .create_storage(size_, GL_DEPTH_COMPONENT);
 
         fb_.bind_draw()
             .attach_texture(position_draw_, GL_COLOR_ATTACHMENT0)
@@ -76,33 +74,31 @@ public:
     }
 
 
-    const Texture2D& position_target() const noexcept { return position_draw_; }
-    const Texture2D& normals_target() const noexcept { return normals_; }
+    const Texture2D& position_target()    const noexcept { return position_draw_; }
+    const Texture2D& normals_target()     const noexcept { return normals_; }
     const Texture2D& albedo_spec_target() const noexcept { return albedo_spec_; }
 
     Framebuffer& framebuffer() noexcept { return fb_; }
     const Framebuffer& framebuffer() const noexcept { return fb_; }
 
-    GLsizei width() const noexcept { return width_; }
-    GLsizei height() const noexcept { return height_; }
+    Size2I size() const noexcept { return size_; }
 
-    void reset_size(GLsizei width, GLsizei height) {
+    void reset_size(Size2I new_size) {
         using enum gl::GLenum;
 
-        width_ = width;
-        height_ = height;
+        size_ = new_size;
 
         position_draw_.bind()
-            .specify_image(width_, height_, GL_RGBA16F, GL_RGBA, GL_FLOAT, nullptr);
+            .specify_image(size_, GL_RGBA16F, GL_RGBA, GL_FLOAT, nullptr);
 
         normals_.bind()
-            .specify_image(width_, height_, GL_RGBA8, GL_RGBA, GL_FLOAT, nullptr);
+            .specify_image(size_, GL_RGBA8, GL_RGBA, GL_FLOAT, nullptr);
 
         albedo_spec_.bind()
-            .specify_image(width_, height_, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+            .specify_image(size_, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 
         depth_.bind()
-            .create_storage(width_, height_, GL_DEPTH24_STENCIL8);
+            .create_storage(size_, GL_DEPTH24_STENCIL8);
 
     }
 

@@ -1,5 +1,7 @@
 #pragma once
+#include "GLScalars.hpp"
 #include "GLObjects.hpp"
+#include "Size.hpp"
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/gl.h>
 
@@ -13,29 +15,22 @@ private:
     Renderbuffer rbo_;
     Framebuffer fbo_;
 
-    gl::GLsizei width_;
-    gl::GLsizei height_;
-    gl::GLsizei depth_;
+    Size3I size_;
 
-    gl::GLenum format_{ gl::GL_RGBA };
-    gl::GLenum internal_format_{ gl::GL_RGBA };
-    gl::GLenum type_{ gl::GL_UNSIGNED_BYTE };
+    GLenum format_;
+    GLenum internal_format_;
+    GLenum type_;
 
 public:
-    RenderTargetColorCubemapArray(gl::GLsizei width, gl::GLsizei height, gl::GLsizei depth)
+    RenderTargetColorCubemapArray(Size3I size)
         : RenderTargetColorCubemapArray(
-            width, height, depth,
-            gl::GL_RGBA, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE
+            size, gl::GL_RGBA, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE
         )
     {}
 
-    RenderTargetColorCubemapArray(
-        gl::GLsizei width, gl::GLsizei height, gl::GLsizei depth,
-        gl::GLenum format, gl::GLenum internal_format, gl::GLenum type
-    )
-        : width_{ width }
-        , height_{ height }
-        , depth_{ depth }
+    RenderTargetColorCubemapArray(Size3I size,
+        GLenum format, GLenum internal_format, GLenum type)
+        : size_{ size }
         , format_{ format }
         , internal_format_{ internal_format }
         , type_{ type }
@@ -43,11 +38,8 @@ public:
         using namespace gl;
 
         cubemaps_.bind()
-            .specify_all_images(
-                width_, height_, depth_,
-                internal_format_, format_, type_,
-                nullptr
-            )
+            .specify_all_images(Size2I{ size_ }, size_.depth,
+                internal_format_, format_, type_, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
@@ -55,7 +47,7 @@ public:
             .set_parameter(GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
         rbo_.bind()
-            .create_storage(width_, height_, GL_DEPTH24_STENCIL8);
+            .create_storage(Size2I{ size_ }, GL_DEPTH24_STENCIL8);
 
         fbo_.bind_draw()
             .attach_texture(cubemaps_, GL_COLOR_ATTACHMENT0)
@@ -69,19 +61,16 @@ public:
 
     Framebuffer& framebuffer() noexcept { return fbo_; }
 
-    gl::GLsizei width() const noexcept { return width_; }
-    gl::GLsizei height() const noexcept { return height_; }
-    gl::GLsizei depth() const noexcept { return depth_; }
+    Size3I size() const noexcept { return size_; }
 
-    void reset_size(gl::GLsizei width, gl::GLsizei height, gl::GLsizei depth) {
+    void reset_size(Size3I new_size) {
         using namespace gl;
 
-        width_ = width;
-        height_ = height;
-        depth_ = depth;
+        size_ = new_size;
 
         cubemaps_.bind()
-            .specify_all_images(width_, height_, depth_, internal_format_, format_, type_, nullptr)
+            .specify_all_images(Size2I{ size_ }, size_.depth,
+                internal_format_, format_, type_, nullptr)
             .unbind();
     }
 

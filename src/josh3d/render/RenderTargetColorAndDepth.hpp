@@ -1,5 +1,7 @@
 #pragma once
 #include "GLObjects.hpp"
+#include "GLTextures.hpp"
+#include "Size.hpp"
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/gl.h>
 
@@ -14,24 +16,22 @@ private:
     Texture2D depth_;
     Framebuffer fbo_;
 
-    gl::GLsizei width_;
-    gl::GLsizei height_;
+    Size2I size_;
 
-    gl::GLenum color_format_{ gl::GL_RGBA };
-    gl::GLenum color_internal_format_{ gl::GL_RGBA };
-    gl::GLenum color_type_{ gl::GL_UNSIGNED_BYTE };
+    GLenum color_format_;
+    GLenum color_internal_format_;
+    GLenum color_type_;
 
 public:
-    RenderTargetColorAndDepth(gl::GLsizei width, gl::GLsizei height)
-        : RenderTargetColorAndDepth(width, height, gl::GL_RGBA, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE)
+    RenderTargetColorAndDepth(Size2I size)
+        : RenderTargetColorAndDepth(size, gl::GL_RGBA, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE)
     {}
 
-    RenderTargetColorAndDepth(gl::GLsizei width, gl::GLsizei height,
-        gl::GLenum color_format, gl::GLenum color_internal_format,
-        gl::GLenum color_type
+    RenderTargetColorAndDepth(Size2I size,
+        GLenum color_format, GLenum color_internal_format,
+        GLenum color_type
     )
-        : width_{ width }
-        , height_{ height }
+        : size_{ size }
         , color_format_{ color_format }
         , color_internal_format_{ color_internal_format }
         , color_type_{ color_type }
@@ -39,7 +39,7 @@ public:
         using namespace gl;
 
         color_.bind()
-            .specify_image(width_, height_, color_internal_format_,
+            .specify_image(size_, color_internal_format_,
                 color_format_, color_type_, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
@@ -47,7 +47,7 @@ public:
             .set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 
         depth_.bind()
-            .specify_image(width_, height_, GL_DEPTH_COMPONENT,
+            .specify_image(size_, GL_DEPTH_COMPONENT,
                 GL_DEPTH_COMPONENT, GL_FLOAT, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
@@ -69,22 +69,19 @@ public:
 
     Framebuffer& framebuffer() noexcept { return fbo_; }
 
-    gl::GLsizei width() const noexcept { return width_; }
-    gl::GLsizei height() const noexcept { return height_; }
+    Size2I size() const noexcept { return size_; }
 
-
-    void reset_size(gl::GLsizei width, gl::GLsizei height) {
+    void reset_size(Size2I new_size) {
         using namespace gl;
 
-        width_ = width;
-        height_ = height;
+        size_ = new_size;
 
         color_.bind()
-            .specify_image(width_, height_, color_internal_format_,
+            .specify_image(size_, color_internal_format_,
                 color_format_, color_type_, nullptr);
 
         depth_.bind()
-            .specify_image(width_, height_, GL_DEPTH_COMPONENT,
+            .specify_image(size_, GL_DEPTH_COMPONENT,
                 GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
 
     }

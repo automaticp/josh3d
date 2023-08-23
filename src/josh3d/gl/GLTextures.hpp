@@ -2,9 +2,11 @@
 #include "GLObjectHandles.hpp"
 #include "GLScalars.hpp"
 #include "AndThen.hpp"
+#include "Size.hpp"
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
 #include <glbinding/gl/gl.h>
+#include <glbinding/gl/types.h>
 
 
 
@@ -261,13 +263,13 @@ public:
     BoundTexture2D& attach_data(const TextureData& tex_data,
         GLenum internal_format = gl::GL_RGBA, GLenum format = gl::GL_NONE);
 
-    BoundTexture2D& specify_image(GLsizei width, GLsizei height,
+    BoundTexture2D& specify_image(Size2I size,
         GLenum internal_format, GLenum format, GLenum type,
         const void* data, GLint mipmap_level = 0)
     {
         gl::glTexImage2D(
             gl::GL_TEXTURE_2D, mipmap_level, static_cast<GLint>(internal_format),
-            width, height, 0, format, type, data
+            size.width, size.height, 0, format, type, data
         );
         return *this;
     }
@@ -310,14 +312,13 @@ public:
         gl::glBindTexture(gl::GL_TEXTURE_2D_ARRAY, 0);
     }
 
-    BoundTexture2DArray& specify_all_images(
-        GLsizei width, GLsizei height, GLsizei layers,
+    BoundTexture2DArray& specify_all_images(Size3I size,
         GLenum internal_format, GLenum format, GLenum type,
         const void* data, GLint mipmap_level = 0)
     {
         gl::glTexImage3D(
             gl::GL_TEXTURE_2D_ARRAY, mipmap_level, internal_format,
-            width, height, layers, 0, format, type, data
+            size.width, size.height, size.depth, 0, format, type, data
         );
         return *this;
     }
@@ -364,11 +365,14 @@ public:
         gl::glBindTexture(gl::GL_TEXTURE_2D_MULTISAMPLE, 0);
     }
 
-    BoundTexture2DMS& specify_image(GLsizei width, GLsizei height,
+    BoundTexture2DMS& specify_image(Size2I size,
         GLsizei nsamples, GLenum internal_format = gl::GL_RGB,
         GLboolean fixed_sample_locations = gl::GL_TRUE)
     {
-        gl::glTexImage2DMultisample(gl::GL_TEXTURE_2D_MULTISAMPLE, nsamples, internal_format, width, height, fixed_sample_locations);
+        gl::glTexImage2DMultisample(
+            gl::GL_TEXTURE_2D_MULTISAMPLE, nsamples, internal_format,
+            size.width, size.height, fixed_sample_locations
+        );
         return *this;
     }
 
@@ -412,26 +416,25 @@ public:
         gl::glBindTexture(gl::GL_TEXTURE_CUBE_MAP, 0);
     }
 
-    BoundCubemap& specify_image(GLenum target, GLsizei width,
-        GLsizei height, GLenum internal_format, GLenum format,
+    BoundCubemap& specify_image(GLenum target,
+        Size2I size, GLenum internal_format, GLenum format,
         GLenum type, const void* data, GLint mipmap_level = 0)
     {
         gl::glTexImage2D(
             target, mipmap_level, internal_format,
-            width, height, 0, format, type, data
+            size.width, size.height, 0, format, type, data
         );
         return *this;
     }
 
-    BoundCubemap& specify_all_images(GLsizei width, GLsizei height,
+    BoundCubemap& specify_all_images(Size2I size,
         GLenum internal_format, GLenum format, GLenum type,
         const void* data, GLint mipmap_level = 0)
     {
         for (size_t i{ 0 }; i < 6; ++i) {
             specify_image(
                 gl::GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-                width, height,
-                internal_format, format,
+                size, internal_format, format,
                 type, data, mipmap_level
             );
         }
@@ -494,14 +497,14 @@ public:
         gl::glBindTexture(gl::GL_TEXTURE_CUBE_MAP_ARRAY, 0);
     }
 
-    BoundCubemapArray& specify_all_images(GLsizei width,
-        GLsizei height, GLsizei depth, GLenum internal_format,
-        GLenum format, GLenum type, const void* data,
-        GLint mipmap_level = 0)
+    BoundCubemapArray& specify_all_images(
+        Size2I face_size, GLsizei num_cubemaps,
+        GLenum internal_format, GLenum format, GLenum type,
+        const void* data, GLint mipmap_level = 0)
     {
         gl::glTexImage3D(
             gl::GL_TEXTURE_CUBE_MAP_ARRAY, mipmap_level, internal_format,
-            width, height, 6 * depth, 0, format, type, data
+            face_size.width, face_size.height, 6 * num_cubemaps, 0, format, type, data
         );
         return *this;
     }

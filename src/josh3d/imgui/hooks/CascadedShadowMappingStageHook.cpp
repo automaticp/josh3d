@@ -21,12 +21,12 @@ void CascadedShadowMappingStageHook::operator()() {
     );
 
     if (ImGui::Button("Change Resolution")) {
-        stage_.resize_maps(resolution_, resolution_);
+        stage_.resize_maps({ resolution_, resolution_ });
     }
     ImGui::SameLine();
     ImGui::Text(
         "%d -> %d",
-        stage_output_->dir_shadow_maps.width(), resolution_
+        stage_output_->dir_shadow_maps.size().width, resolution_
     );
 
 }

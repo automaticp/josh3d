@@ -4,6 +4,7 @@
 #include "GLObjects.hpp"
 #include "GLTextures.hpp"
 #include "GlobalsUtil.hpp"
+#include "Size.hpp"
 #include <glbinding-aux/Meta.h>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
@@ -17,17 +18,13 @@ private:
     Texture2DArray tex_;
     Framebuffer fbo_;
 
-    GLsizei width_;
-    GLsizei height_;
-    GLsizei layers_;
-    GLenum  type_;
+    Size3I size_;
+
+    GLenum type_;
 
 public:
-    RenderTargetDepthArray(GLsizei width, GLsizei height,
-        GLsizei layers, GLenum type = gl::GL_FLOAT)
-        : width_{ width }
-        , height_{ height }
-        , layers_{ layers }
+    RenderTargetDepthArray(Size3I size, GLenum type = gl::GL_FLOAT)
+        : size_{ size }
         , type_{ type }
     {
         using enum GLenum;
@@ -35,7 +32,7 @@ public:
         const float border_color[4]{ 1.f, 1.f, 1.f, 1.f };
 
         tex_.bind()
-            .specify_all_images(width_, height_, layers_, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, type_, nullptr)
+            .specify_all_images(size_, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, type_, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER)
@@ -56,20 +53,16 @@ public:
     Framebuffer& framebuffer() noexcept { return fbo_; }
     const Framebuffer& framebuffer() const noexcept { return fbo_; }
 
-    GLsizei width()  const noexcept { return width_;  }
-    GLsizei height() const noexcept { return height_; }
-    GLsizei layers() const noexcept { return layers_; }
-    GLenum  type()   const noexcept { return type_;   }
+    Size3I size() const noexcept { return size_; }
+    GLenum type() const noexcept { return type_; }
 
-    void reset_size(GLsizei width, GLsizei height, GLsizei layers) {
+    void reset_size(Size3I new_size) {
         using enum GLenum;
 
-        width_  = width;
-        height_ = height;
-        layers_ = layers;
+        size_ = new_size;
 
         tex_.bind()
-            .specify_all_images(width_, height_, layers_,
+            .specify_all_images(size_,
                 GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, type_, nullptr)
             .unbind();
 

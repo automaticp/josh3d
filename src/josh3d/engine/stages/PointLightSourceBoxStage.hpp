@@ -6,6 +6,7 @@
 #include "ShaderBuilder.hpp"
 #include "Transform.hpp"
 #include "VPath.hpp"
+#include "Mesh.hpp"
 #include <entt/entt.hpp>
 
 

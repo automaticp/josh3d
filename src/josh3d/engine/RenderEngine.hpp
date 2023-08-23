@@ -5,7 +5,7 @@
 #include "PostprocessDoubleBuffer.hpp"
 #include "PostprocessRenderer.hpp"
 #include "RenderTargetColorAndDepth.hpp"
-#include "WindowSize.hpp"
+#include "Size.hpp"
 #include "RenderStage.hpp"
 #include <entt/fwd.hpp>
 #include <glbinding/gl/gl.h>
@@ -88,21 +88,20 @@ private:
     entt::registry& registry_;
 
     PerspectiveCamera& cam_;
-    const WindowSize<int>& window_size_;
+
+    const Size2I&     window_size_;
     const FrameTimer& frame_timer_;
 
     std::vector<detail::AnyPrimaryStage> stages_;
     size_t current_stage_{};
 
     mutable RenderTargetColorAndDepth main_target_{
-        window_size_.width, window_size_.height,
-        gl::GL_RGBA, gl::GL_RGBA16F, gl::GL_FLOAT
+        window_size_, gl::GL_RGBA, gl::GL_RGBA16F, gl::GL_FLOAT
     };
 
     PostprocessRenderer pp_renderer_;
     PostprocessDoubleBuffer ppdb_{
-        window_size_.width, window_size_.height,
-        gl::GL_RGBA, gl::GL_RGBA16F, gl::GL_FLOAT
+        window_size_, gl::GL_RGBA, gl::GL_RGBA16F, gl::GL_FLOAT
     };
     size_t current_pp_stage_{};
     std::vector<detail::AnyPostprocessStage> pp_stages_;
@@ -110,7 +109,7 @@ private:
 
 public:
     RenderEngine(entt::registry& registry, PerspectiveCamera& cam,
-        const WindowSize<int>& window_size, const FrameTimer& frame_timer)
+        const Size2I& window_size, const FrameTimer& frame_timer)
         : registry_{ registry }
         , cam_{ cam }
         , window_size_{ window_size }
@@ -154,17 +153,16 @@ public:
     auto& camera() noexcept { return cam_; }
     const auto& camera() const noexcept { return cam_; }
 
-    const WindowSize<int>& window_size() const noexcept { return window_size_; }
+    const Size2I&     window_size() const noexcept { return window_size_; }
     const FrameTimer& frame_timer() const noexcept { return frame_timer_; }
 
-    void reset_size(gl::GLsizei width, gl::GLsizei height) {
-        main_target_.reset_size(width, height);
-        ppdb_.reset_size(width, height);
+    void reset_size(Size2I new_size) {
+        main_target_.reset_size(new_size);
+        ppdb_       .reset_size(new_size);
     }
 
     void reset_size_from_window_size() {
-        auto [w, h] = window_size_;
-        reset_size(w, h);
+        reset_size(window_size_);
     }
 
 private:
@@ -187,7 +185,7 @@ public:
     RenderEngineCommonInterface(RenderEngine& engine) : engine_{ engine } {}
 
     const PerspectiveCamera& camera() const noexcept { return engine_.cam_; }
-    const WindowSize<int>& window_size() const noexcept { return engine_.window_size_; }
+    const Size2I& window_size() const noexcept { return engine_.window_size_; }
     const FrameTimer& frame_timer() const noexcept { return engine_.frame_timer_; }
 };
 

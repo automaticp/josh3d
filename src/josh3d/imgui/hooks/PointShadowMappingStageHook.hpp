@@ -17,7 +17,7 @@ public:
     PointShadowMappingStageHook(PointShadowMappingStage& stage)
         : stage_{ stage }
         , stage_output_{ stage_.view_output() }
-        , resolution_{ stage_output_->point_shadow_maps.width() }
+        , resolution_{ stage_output_->point_shadow_maps.size().width }
     {}
 
     void operator()();

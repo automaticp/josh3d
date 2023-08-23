@@ -19,10 +19,10 @@ public:
         : stage_{ stage }
         , shadow_info_{ stage_.view_mapping_output() }
         , point_shadow_res_{
-            shadow_info_->point_light_maps.width()
+            shadow_info_->point_light_maps.size().width
         }
         , dir_shadow_res_{
-            shadow_info_->dir_light_map.width()
+            shadow_info_->dir_light_map.size().width
         }
     {}
 

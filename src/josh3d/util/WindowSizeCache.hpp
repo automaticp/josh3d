@@ -1,5 +1,5 @@
 #pragma once
-#include "WindowSize.hpp"
+#include "Size.hpp"
 #include <glfwpp/window.h>
 #include <cassert>
 #include <tuple>
@@ -19,7 +19,7 @@ namespace josh {
 class WindowSizeCache {
 private:
     glfw::Window* window_{ nullptr };
-    WindowSize<int> size_;
+    Size2I size_{ 1, 1 };
 
 public:
     // Doesn't track any window by default.
@@ -41,28 +41,27 @@ public:
     // Prefer using set_to() whenever possible.
     void update_from_tracked() {
         assert(window_);
-        auto [w, h] = window_->getSize();
-        size_ = { w, h };
+        size_ = std::make_from_tuple<Size2I>(window_->getSize());
     }
 
     // Manually sets the size of the window.
     // Can be used within window size or framebuffer size callbacks.
-    void set_to(int width, int height) noexcept {
-        size_ = { width, height };
+    void set_to(const Size2I& new_size) noexcept {
+        size_ = new_size;
     }
 
-    template<typename NumericT = int>
-    WindowSize<NumericT> size() const noexcept {
+    template<size_representable NumericT = int>
+    Size2<NumericT> size() const noexcept {
         return size_;
     }
 
-    WindowSize<int>& size_ref() noexcept { return size_; }
-    const WindowSize<int>& size_ref() const noexcept { return size_; }
+    Size2I& size_ref() noexcept { return size_; }
+    const Size2I& size_ref() const noexcept { return size_; }
 
-    template<typename NumericT = int>
+    template<size_representable NumericT = int>
     NumericT width() const noexcept { return static_cast<NumericT>(size_.width); }
 
-    template<typename NumericT = int>
+    template<size_representable NumericT = int>
     NumericT height() const noexcept { return static_cast<NumericT>(size_.height); }
 
 };

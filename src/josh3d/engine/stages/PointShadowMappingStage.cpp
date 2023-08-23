@@ -1,7 +1,10 @@
 #include "PointShadowMappingStage.hpp"
 #include "RenderComponents.hpp"
 #include "ECSHelpers.hpp"
+#include "Size.hpp"
 #include "Transform.hpp"
+#include "LightCasters.hpp"
+#include "Mesh.hpp"
 #include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/functions.h>
 #include <glm/fwd.hpp>
@@ -53,12 +56,10 @@ void PointShadowMappingStage::resize_cubemap_array_storage_if_needed(
     size_t new_size = calculate_view_size(plights_with_shadow);
 
     auto& maps = output_->point_shadow_maps;
-    size_t old_size = maps.depth();
+    size_t old_size = maps.size().depth;
 
     if (new_size != old_size) {
-        maps.reset_size(
-            maps.width(), maps.height(), GLsizei(new_size)
-        );
+        maps.reset_size({ Size2I{ maps.size() }, new_size });
     }
 
 }
@@ -82,9 +83,9 @@ void PointShadowMappingStage::map_point_shadows(
 {
     auto& maps = output_->point_shadow_maps;
 
-    if (maps.depth() == 0) { return; }
+    if (maps.size().depth == 0) { return; }
 
-    glViewport(0, 0, maps.width(), maps.height());
+    glViewport(0, 0, maps.size().width, maps.size().height);
 
     auto plights_with_shadows_view =
         registry.view<light::Point, tags::ShadowCasting>();

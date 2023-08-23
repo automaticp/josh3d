@@ -3,6 +3,7 @@
 #include <glfwpp/glfwpp.h>
 
 #include "GlobalsUtil.hpp"
+#include "Logging.hpp"
 #include "DemoScene.hpp"
 
 
@@ -61,7 +62,7 @@ int main() {
 
     window.framebufferSizeEvent.setCallback(
         [](glfw::Window& /* window */, int w, int h) {
-            globals::window_size.set_to(w, h);
+            globals::window_size.set_to({ w, h });
             glViewport(0, 0, w, h);
         }
     );

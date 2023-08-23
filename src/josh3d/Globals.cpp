@@ -44,7 +44,7 @@ const MeshData<VertexPNTTB>& sphere_primitive() noexcept{ return sphere_primitiv
 
 
 static TextureData fill_default(std::array<unsigned char, 4> rgba) {
-    TextureData img{ 1, 1, 4 };
+    TextureData img{ Size2S{ 1, 1 }, 4 };
     const size_t n_channels = img.n_channels();
     for (size_t i{ 0 }; i < img.n_pixels(); ++i) {
         const size_t idx = i * n_channels;

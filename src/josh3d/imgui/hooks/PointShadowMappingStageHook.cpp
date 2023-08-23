@@ -15,11 +15,11 @@ void PointShadowMappingStageHook::operator()() {
     ImGui::SameLine();
     ImGui::Text(
         "%d -> %d",
-        stage_output_->point_shadow_maps.width(), resolution_
+        stage_output_->point_shadow_maps.size().width, resolution_
     );
 
     if (change_res) {
-        stage_.resize_maps(resolution_, resolution_);
+        stage_.resize_maps({ resolution_, resolution_ });
     }
 
 }

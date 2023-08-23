@@ -1,6 +1,8 @@
 #include "ForwardRenderingStage.hpp"
 #include "GLShaders.hpp"
+#include "GlobalsGL.hpp"
 #include "LightCasters.hpp"
+#include "Mesh.hpp"
 #include "RenderComponents.hpp"
 #include "RenderEngine.hpp"
 #include "Transform.hpp"

@@ -4,6 +4,7 @@
 #include "RenderEngine.hpp"
 #include "SSBOWithIntermediateBuffer.hpp"
 #include "ShaderBuilder.hpp"
+#include "Size.hpp"
 #include "VPath.hpp"
 #include <glm/glm.hpp>
 #include <entt/entt.hpp>
@@ -41,7 +42,7 @@ private:
     };
 
     PostprocessDoubleBuffer blur_ppdb_{
-        1024, 1024, gl::GL_RGBA, gl::GL_RGBA16F, gl::GL_FLOAT
+        Size2I{ 1024, 1024 }, gl::GL_RGBA, gl::GL_RGBA16F, gl::GL_FLOAT
     };
 
     SSBOWithIntermediateBuffer<float> weights_ssbo_{ 0 };
@@ -75,11 +76,9 @@ public:
     void operator()(const RenderEnginePostprocessInterface& engine, const entt::registry&) {
         using namespace gl;
 
-        if (engine.window_size().width  != blur_ppdb_.back().width() ||
-            engine.window_size().height != blur_ppdb_.back().height())
-        {
+        if (engine.window_size() != blur_ppdb_.back().size()) {
             // TODO: Might be part of PPDB::reset_size() to skip redundant resets
-            blur_ppdb_.reset_size(engine.window_size().width, engine.window_size().height);
+            blur_ppdb_.reset_size(engine.window_size());
         }
 
         if (gaussian_weights_need_updating()) {

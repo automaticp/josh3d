@@ -25,7 +25,7 @@ BoundTexture2D& BoundTexture2D::attach_data(
 
 
     specify_image(
-        tex_data.width(), tex_data.height(),
+        Size2I{ tex_data.image_size() },
         internal_format, format,
         GL_UNSIGNED_BYTE, tex_data.data()
     );
@@ -62,7 +62,7 @@ BoundCubemap& BoundCubemap::attach_data(
 
         specify_image(
             GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-            tex.width(), tex.height(),
+            Size2I{ tex.image_size() },
             internal_format, current_format,
             GL_UNSIGNED_BYTE, tex.data()
         );

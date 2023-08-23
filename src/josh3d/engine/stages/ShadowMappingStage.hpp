@@ -38,8 +38,8 @@ public:
 
         glm::mat4 dir_light_projection_view{};
 
-        RenderTargetDepthCubemapArray point_light_maps{ 1024, 1024, 0 };
-        RenderTargetDepth dir_light_map{ 4096, 4096 };
+        RenderTargetDepthCubemapArray point_light_maps{ { 1024, 1024, 0 } };
+        RenderTargetDepth dir_light_map{ { 4096, 4096 } };
     };
 
 
@@ -99,8 +99,8 @@ public:
         -> SharedStorageView<Output>
     { return mapping_output_.share_view(); }
 
-    void resize_point_maps(gl::GLsizei width, gl::GLsizei height);
-    void resize_dir_map(gl::GLsizei width, gl::GLsizei height);
+    void resize_point_maps(Size2I new_size);
+    void resize_dir_map(Size2I new_size);
 
 private:
     void resize_point_light_cubemap_array_if_needed(

@@ -12,7 +12,7 @@ namespace josh {
 
 
 struct PointShadowMaps {
-    RenderTargetDepthCubemapArray point_shadow_maps{ 1024, 1024, 0 };
+    RenderTargetDepthCubemapArray point_shadow_maps{ Size3I{ 1024, 1024, 0 } };
     // TODO: Life would be easier if this was per-light property.
     glm::vec2 z_near_far{ 0.05f, 150.f };
 };
@@ -49,7 +49,7 @@ public:
         return output_.share_view();
     }
 
-    void resize_maps(GLsizei width, GLsizei height);
+    void resize_maps(Size2I new_size);
 
 private:
     void resize_cubemap_array_storage_if_needed(
@@ -64,11 +64,9 @@ private:
 
 
 
-inline void PointShadowMappingStage::resize_maps(
-    GLsizei width, GLsizei height)
-{
+inline void PointShadowMappingStage::resize_maps(Size2I new_size) {
     auto& maps = output_->point_shadow_maps;
-    maps.reset_size(width, height, maps.depth());
+    maps.reset_size(Size3I{ new_size, maps.size().depth });
 }
 
 
