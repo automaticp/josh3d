@@ -6,6 +6,8 @@
 
 void josh::imguihooks::PostprocessBloomStageHook::operator()() {
 
+    ImGui::Checkbox("Use Bloom", &stage_.use_bloom);
+
     ImGui::SliderFloat2(
         "Threshold", glm::value_ptr(stage_.threshold_bounds),
         0.f, 10.f, "%.3f", ImGuiSliderFlags_Logarithmic

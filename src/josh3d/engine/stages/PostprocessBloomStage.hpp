@@ -56,8 +56,10 @@ public:
 
 
     glm::vec2 threshold_bounds{ 0.05f, 1.0f };
-    size_t blur_iterations{ 1 };
-    float offset_scale{ 1.f };
+    size_t    blur_iterations{ 1 };
+    float     offset_scale{ 1.f };
+    bool      use_bloom{ true };
+
 
     float gaussian_sample_range{ old_gaussian_sample_range_ };
     size_t gaussian_samples{ old_gaussian_samples_ };
@@ -75,6 +77,8 @@ public:
 
     void operator()(const RenderEnginePostprocessInterface& engine, const entt::registry&) {
         using namespace gl;
+
+        if (!use_bloom) { return; }
 
         if (engine.window_size() != blur_ppdb_.back().size()) {
             // TODO: Might be part of PPDB::reset_size() to skip redundant resets
