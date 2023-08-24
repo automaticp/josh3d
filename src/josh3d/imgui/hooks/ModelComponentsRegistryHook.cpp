@@ -7,7 +7,9 @@
 #include "AssimpModelLoader.hpp"
 #include "VPath.hpp"
 #include <entt/entity/fwd.hpp>
+#include <glbinding/gl/enum.h>
 #include <glm/gtc/type_ptr.hpp>
+#include <glbinding/gl/gl.h>
 #include <imgui.h>
 #include <imgui_stdlib.h>
 #include <filesystem>
@@ -141,23 +143,63 @@ static void mesh_subwidget(entt::handle mesh) {
 
         if (ImGui::TreeNode("Material")) {
 
-            if (auto material = mesh.try_get<components::MaterialDiffuse>(); material) {
-                ImGui::TextUnformatted("Diffuse");
-                ImGui::ImageGL(void_id(material->diffuse->id()), { 256.f, 256.f });
+            // FIXME:
+            // There's gotta be a better way.
+            auto get_size = [](const Texture2D& tex) -> Size2I {
+                Size2I out{ 0, 0 };
+                tex.bind()
+                    .and_then([&] {
+                        using enum GLenum;
+                        gl::glGetTexLevelParameteriv(tex.target_type, 0, GL_TEXTURE_WIDTH,  &out.width);
+                        gl::glGetTexLevelParameteriv(tex.target_type, 0, GL_TEXTURE_HEIGHT, &out.height);
+                    })
+                    .unbind();
+                return out;
+            };
+
+            // FIXME: Not sure if scaling to max size is always preferrable.
+            auto imsize = [&](const Texture2D& tex) -> ImVec2 {
+                const float w = ImGui::GetContentRegionAvail().x;
+                const float h = w / get_size(tex).aspect_ratio();
+                return { w, h };
+            };
+
+            if (auto material = mesh.try_get<components::MaterialDiffuse>()) {
+                if (ImGui::TreeNode("Diffuse")) {
+                    ImGui::Unindent();
+
+                    ImGui::ImageGL(void_id(material->diffuse->id()), imsize(*material->diffuse));
+
+                    ImGui::Indent();
+                    ImGui::TreePop();
+                }
             }
 
-            if (auto material = mesh.try_get<components::MaterialSpecular>(); material) {
-                ImGui::TextUnformatted("Specular");
-                ImGui::ImageGL(void_id(material->specular->id()), { 256.f, 256.f });
-                ImGui::DragFloat(
-                    "Shininess", &material->shininess,
-                    1.0f, 0.1f, 1.e4f, "%.3f", ImGuiSliderFlags_Logarithmic
-                );
+            if (auto material = mesh.try_get<components::MaterialSpecular>()) {
+                if (ImGui::TreeNode("Specular")) {
+                    ImGui::Unindent();
+
+                    ImGui::ImageGL(void_id(material->specular->id()), imsize(*material->specular));
+
+                    ImGui::DragFloat(
+                        "Shininess", &material->shininess,
+                        1.0f, 0.1f, 1.e4f, "%.3f", ImGuiSliderFlags_Logarithmic
+                    );
+
+                    ImGui::Indent();
+                    ImGui::TreePop();
+                }
             }
 
-            if (auto material = mesh.try_get<components::MaterialNormal>(); material) {
-                ImGui::TextUnformatted("Normal");
-                ImGui::ImageGL(void_id(material->normal->id()), { 256.f, 256.f });
+            if (auto material = mesh.try_get<components::MaterialNormal>()) {
+                if (ImGui::TreeNode("Normal")) {
+                    ImGui::Unindent();
+
+                    ImGui::ImageGL(void_id(material->normal->id()), imsize(*material->normal));
+
+                    ImGui::Indent();
+                    ImGui::TreePop();
+                }
             }
 
             ImGui::TreePop();

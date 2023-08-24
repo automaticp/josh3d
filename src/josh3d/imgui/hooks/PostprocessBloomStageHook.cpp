@@ -49,7 +49,14 @@ void josh::imguihooks::PostprocessBloomStageHook::operator()() {
 
     if (ImGui::TreeNode("Bloom Texture")) {
 
-        ImGui::ImageGL(void_id(stage_.blur_front_target().id()), { 300.f, 300.f });
+        ImGui::Unindent();
+
+        const float w = ImGui::GetContentRegionAvail().x;
+        const float h = w / stage_.blur_ppdb().size().aspect_ratio();
+
+        ImGui::ImageGL(void_id(stage_.blur_ppdb().front_target().id()), { w, h });
+
+        ImGui::Indent();
 
         ImGui::TreePop();
     }

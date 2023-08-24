@@ -46,7 +46,7 @@ private:
     };
 
     SSBOWithIntermediateBuffer<float> weights_ssbo_{ 0 };
-    float old_gaussian_sample_range_{ 1.8f };
+    float  old_gaussian_sample_range_{ 1.8f };
     size_t old_gaussian_samples_{ 4 };
 
 public:
@@ -61,19 +61,10 @@ public:
     bool      use_bloom{ true };
 
 
-    float gaussian_sample_range{ old_gaussian_sample_range_ };
+    float  gaussian_sample_range{ old_gaussian_sample_range_ };
     size_t gaussian_samples{ old_gaussian_samples_ };
 
-    const Texture2D& blur_front_target() const noexcept {
-        return blur_ppdb_.front_target();
-    }
-
-    // From -x to +x binned into 2 * n_samples + 1.
-    void update_gaussian_blur_weights();
-    bool gaussian_weights_need_updating() const noexcept {
-        return gaussian_sample_range != old_gaussian_sample_range_ ||
-            gaussian_samples != old_gaussian_samples_;
-    }
+    const PostprocessDoubleBuffer& blur_ppdb() const noexcept { return blur_ppdb_; }
 
     void operator()(const RenderEnginePostprocessInterface& engine, const entt::registry&) {
         using namespace gl;
@@ -133,6 +124,16 @@ public:
 
         });
 
+    }
+
+
+private:
+    // From -x to +x binned into 2 * n_samples + 1.
+    void update_gaussian_blur_weights();
+
+    bool gaussian_weights_need_updating() const noexcept {
+        return gaussian_sample_range != old_gaussian_sample_range_ ||
+            gaussian_samples != old_gaussian_samples_;
     }
 
     // Uniformly bins the normal distribution from x0 to x1.

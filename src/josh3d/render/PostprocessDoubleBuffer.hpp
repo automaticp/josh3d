@@ -113,6 +113,10 @@ public:
         std::swap(front_, back_);
     }
 
+    Size2I size() const noexcept {
+        return buf1_.size();
+    }
+
     void reset_size(Size2I new_size) {
         buf1_.reset_size(new_size);
         buf2_.reset_size(new_size);
