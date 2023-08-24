@@ -28,12 +28,15 @@ private:
 
 public:
     float light_box_scale{ 0.1f };
+    bool  display{ true };
 
 public:
     PointLightSourceBoxStage() = default;
 
     void operator()(const RenderEnginePrimaryInterface& engine, const entt::registry& registry) {
         using namespace gl;
+
+        if (!display) { return; }
 
         sp_.use().and_then([&, this](ActiveShaderProgram& ashp) {
 
