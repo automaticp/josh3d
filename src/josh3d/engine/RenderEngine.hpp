@@ -1,4 +1,5 @@
 #pragma once
+#include "GLFramebuffers.hpp"
 #include "PerspectiveCamera.hpp"
 #include "FrameTimer.hpp"
 #include "GLObjects.hpp"
@@ -243,6 +244,10 @@ private:
         : RenderEngineCommonInterface(engine)
     {}
 
+    bool is_last_stage() const noexcept {
+        return engine_.current_pp_stage_ == engine_.pp_stages_.size() - 1;
+    }
+
 
 public:
     PostprocessRenderer& postprocess_renderer() const {
@@ -271,9 +276,7 @@ public:
     void draw() const {
         assert(draw_call_budget_ && "draw() called more than once in a postprocessing stage.");
 
-        using namespace gl;
-
-        if (engine_.current_pp_stage_ < engine_.pp_stages_.size() - 1) {
+        if (!is_last_stage()) {
             engine_.ppdb_.draw_and_swap([this] {
                 engine_.pp_renderer_.draw();
             });
@@ -285,6 +288,30 @@ public:
 
         --draw_call_budget_;
     }
+
+
+    // Emit the draw call on the screen quad and draw directly to the front buffer.
+    // DOES NOT advance the chain. You CANNOT SAMPLE THE SCREEN COLOR during this draw.
+    //
+    // Used as an optimization for draws that either override or blend with the screen.
+    void draw_to_front() const {
+        assert(draw_call_budget_ && "draw() called more than once in a postprocessing stage.");
+
+        if (!is_last_stage()) {
+            engine_.ppdb_.front().framebuffer()
+                .bind_draw()
+                .and_then([this] {
+                    engine_.pp_renderer_.draw();
+                });
+        } else /* last stage */ {
+            BoundDrawFramebuffer::unbind();
+            engine_.pp_renderer_.draw();
+        }
+
+        --draw_call_budget_;
+    }
+
+
 };
 
 
