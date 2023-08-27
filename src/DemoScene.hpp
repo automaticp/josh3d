@@ -31,6 +31,7 @@
 #include "hooks/PostprocessBloomStageHook.hpp"
 #include "hooks/PostprocessGammaCorrectionStageHook.hpp"
 #include "hooks/PostprocessHDREyeAdaptationStageHook.hpp"
+#include "hooks/PostprocessFogStageHook.hpp"
 #include "hooks/SkyboxRegistryHook.hpp"
 #include "stages/BoundingSphereDebugStage.hpp"
 #include "stages/CascadedShadowMappingStage.hpp"
@@ -42,6 +43,7 @@
 #include "stages/PostprocessBloomStage.hpp"
 #include "stages/PostprocessGammaCorrectionStage.hpp"
 #include "stages/PostprocessHDREyeAdaptationStage.hpp"
+#include "stages/PostprocessFogStage.hpp"
 #include "stages/SkyboxStage.hpp"
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
@@ -119,6 +121,7 @@ public:
         auto plightboxes = rengine_.make_primary_stage<PointLightSourceBoxStage>();
         auto cullspheres = rengine_.make_primary_stage<BoundingSphereDebugStage>();
 
+        auto fog         = rengine_.make_postprocess_stage<PostprocessFogStage>();
         auto blooming    = rengine_.make_postprocess_stage<PostprocessBloomStage>();
         auto hdreyeing   = rengine_.make_postprocess_stage<PostprocessHDREyeAdaptationStage>();
         auto whatsgamma  = rengine_.make_postprocess_stage<PostprocessGammaCorrectionStage>();
@@ -142,6 +145,9 @@ public:
         imgui_stage_hooks_.add_hook("Bounding Spheres",
             imguihooks::BoundingSphereDebugStageHook(cullspheres));
 
+        imgui_stage_hooks_.add_postprocess_hook("Fog",
+            imguihooks::PostprocessFogStageHook(fog));
+
         imgui_stage_hooks_.add_postprocess_hook("Bloom",
             imguihooks::PostprocessBloomStageHook(blooming));
 
@@ -161,6 +167,7 @@ public:
         rengine_.add_next_primary_stage(std::move(plightboxes));
         rengine_.add_next_primary_stage(std::move(cullspheres));
 
+        rengine_.add_next_postprocess_stage(std::move(fog));
         rengine_.add_next_postprocess_stage(std::move(blooming));
         rengine_.add_next_postprocess_stage(std::move(hdreyeing));
         rengine_.add_next_postprocess_stage(std::move(whatsgamma));
