@@ -6,9 +6,11 @@ It's mainly a hobby project and is a constant work in progress so there's no sta
 
 Here's some pictures because you probably like to look at things:
 
+![barometric_fog_1](pics/barometric_fog_1.png)
+![barometric_fog_2](pics/barometric_fog_2.png)
 ![tree_pic](pics/some_tree_and_grass_1.png)
 ![imgui_vomit](pics/imgui_vomit.png)
-> Tree asset by [SomeKevin on sketchfab](https://sketchfab.com/3d-models/tree-66a8d0ef9b49415a9eaf6af216cb9bce), Grass by [3dhdscan on sketchfab](https://sketchfab.com/3d-models/simple-grass-chunks-eb4f6dc9d4e3455ea3435385faf58b60), Skybox by [Emil Persson (aka. Humus) from humus.name](https://www.humus.name/index.php?page=Textures)
+> Tree asset by [SomeKevin on sketchfab](https://sketchfab.com/3d-models/tree-66a8d0ef9b49415a9eaf6af216cb9bce), Grass by [3dhdscan on sketchfab](https://sketchfab.com/3d-models/simple-grass-chunks-eb4f6dc9d4e3455ea3435385faf58b60), Skybox by [Emil Persson (aka. Humus) from humus.name](https://www.humus.name/index.php?page=Textures), Josh by me.
 
 
 ## Currently Implemented Features:
@@ -19,6 +21,7 @@ Here's some pictures because you probably like to look at things:
 - Directional and point lights with shadow mapping;
 - Normal maps;
 - Soft gaussian bloom;
+- Barometric and uniform fog;
 - Gamma Correction and HDR with adaptive exposure.
 
 ### Engine:
@@ -50,7 +53,6 @@ Here's some pictures because you probably like to look at things:
 
 ### Assets and IO:
 
-- Virtual filesystem with multiple-root and overriding support;
 - Asynchronous asset loading with caching;
 - High-level asset management system;
 - Serialization (binary ECS dump + custom schema)
