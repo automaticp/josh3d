@@ -51,6 +51,9 @@ public:
 
     void resize_maps(Size2I new_size);
 
+    glm::vec2&       z_near_far()       noexcept { return output_->z_near_far; }
+    const glm::vec2& z_near_far() const noexcept { return output_->z_near_far; }
+
 private:
     void resize_cubemap_array_storage_if_needed(
         const entt::registry& registry);

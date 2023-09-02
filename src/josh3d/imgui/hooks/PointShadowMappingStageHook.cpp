@@ -1,4 +1,5 @@
 #include "PointShadowMappingStageHook.hpp"
+#include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 
 namespace josh::imguihooks {
@@ -21,6 +22,11 @@ void PointShadowMappingStageHook::operator()() {
     if (change_res) {
         stage_.resize_maps({ resolution_, resolution_ });
     }
+
+    ImGui::DragFloat2(
+        "Z Near/Far", glm::value_ptr(stage_.z_near_far()),
+        1.0f, 0.001f, 1e4f, "%.3f", ImGuiSliderFlags_Logarithmic
+    );
 
 }
 
