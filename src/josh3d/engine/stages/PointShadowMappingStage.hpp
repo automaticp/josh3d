@@ -41,6 +41,22 @@ private:
 
 
 public:
+    PointShadowMappingStage() {
+        using enum GLenum;
+        output_->point_shadow_maps.depth_taget()
+            .bind()
+            .set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+            .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+            // Enable shadow sampling with built-in 2x2 PCF
+            .set_parameter(GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE)
+            // Comparison: result = ref OPERATOR texture
+            // This will return "how much this fragment is lit" from 0 to 1.
+            // If you want "how much it's in shadow", use (1.0 - result).
+            // Or set the comparison func to GL_GREATER.
+            .set_parameter(GL_TEXTURE_COMPARE_FUNC, GL_LESS)
+            .unbind();
+    }
+
     void operator()(
         const RenderEnginePrimaryInterface& engine,
         const entt::registry& registry);

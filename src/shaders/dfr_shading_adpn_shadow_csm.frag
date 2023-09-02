@@ -57,7 +57,7 @@ layout (std430, binding = 3) restrict readonly buffer CascadeParamsBlock {
 };
 
 struct DirShadow {
-    sampler2DArray cascades;
+    sampler2DArrayShadow cascades;
     vec2  bias_bounds;
     bool  do_cast;
     int   pcf_extent;
@@ -66,7 +66,7 @@ struct DirShadow {
 
 
 struct PointShadow {
-    samplerCubeArray maps;
+    samplerCubeArrayShadow maps;
     vec2  bias_bounds;
     float z_far;
     int   pcf_extent;
@@ -205,14 +205,29 @@ void main() {
 float point_light_shadow_yield(vec3 frag_pos, vec3 normal,
     PointLight plight, int shadow_map_idx)
 {
-    const vec3  frag_to_light = frag_pos - plight.position;
-    const float frag_depth    = length(frag_to_light);
+    const vec3  light_to_frag = frag_pos - plight.position;
+    const float frag_depth    = length(light_to_frag);
 
-    const float total_bias = max(
+
+    // This bias model offsets the surface along the normal
+    // depending on the alignment between the light-to-frag direction
+    // and the surface normal. This causes some issues alongside the
+    // PCF since the offset PCF samples might require higher bias
+    // then the one precalculated for the central fragment.
+    //
+    // Hypothetically, knowing the offsets, we should be able to precalculate
+    // the bias for each of the PCF samples under the assumption
+    // that the surface is planar and it's normal doesn't change.
+    //
+    // Worst case, we can resample the normals at each screen pixel
+    // using the G-Buffer, but that involves a lot of transformations
+    // and NxN more samples. Probably not worth it.
+    const float alignment  = dot(normal, -normalize(light_to_frag));
+    const float total_bias = mix(
+        point_shadow.bias_bounds[1],
         point_shadow.bias_bounds[0],
-        point_shadow.bias_bounds[1] *
-            (1.0 - dot(normal, normalize(frag_to_light)))
-    );
+        alignment // More aligned - less bias
+    ) * frag_depth;
 
 
     // Do PCF sampling.
@@ -228,20 +243,27 @@ float point_light_shadow_yield(vec3 frag_pos, vec3 normal,
         for (int y = -pcf_extent; y <= pcf_extent; ++y) {
             for (int z = -pcf_extent; z <= pcf_extent; ++z) {
 
-                const vec3 sample_dir = frag_to_light +
+                const float reference_depth =
+                    (frag_depth - total_bias) / point_shadow.z_far;
+
+                // The "angular" offset of the offset direction depends
+                // on the light-to-frag distance due to the unnormalized
+                // addition. This preserves the visible PCF area across
+                // all distances. The alternative, where light_to_frag
+                // is normalized, is way, way worse, as the PCF area
+                // grows rapidly with distance from the light source,
+                // requiring more filtering to look smooth.
+                const vec3 sample_dir = light_to_frag +
                     pcf_offset * vec3(x, y, z) / pcf_extent;
 
-                // Normalized depth value in [0, 1]
-                float pcf_depth = texture(point_shadow.maps,
-                    vec4(sample_dir, shadow_map_idx)).r;
+                // Sample from normalized depth value in [0, 1].
+                float pcf_lit = texture(
+                    point_shadow.maps,
+                    vec4(sample_dir, shadow_map_idx),
+                    reference_depth
+                ).r;
 
-                // Transofrm back to [0, z_far]
-                pcf_depth *= point_shadow.z_far;
-
-
-                yield +=
-                    frag_depth - total_bias > pcf_depth ? 1.0 : 0.0;
-
+                yield += (1.0 - pcf_lit);
             }
         }
     }
@@ -356,9 +378,13 @@ float dir_light_shadow_yield(vec3 frag_pos, vec3 normal) {
     // in order to eliminate the gaps between cascades, that normally
     // arise due to sampling over the edge of the cascade map.
     //
+    // We also add an extra texel_size padding to account for the fact
+    // that the shadow sampler already provides us with the 2x2 PCF
+    // on a non-configurable texel_scale.
+    //
     // The coefficient 2 is here because we pad in clip space which is [-1, 1]
     // but sample in NDC which is [0, 1], so the padding has to be twice as wide.
-    const vec2 padding = 2.0 * pcf_extent * pcf_offset * texel_size;
+    const vec2 padding = 2.0 * (pcf_extent * pcf_offset * texel_size + texel_size);
     const vec3 clip_border_padding = vec3(padding.x, padding.y, 0.0);
 
     const int cascade_id = select_best_cascade(frag_pos, clip_border_padding);
@@ -396,12 +422,23 @@ float dir_light_shadow_yield(vec3 frag_pos, vec3 normal) {
     for (int x = -pcf_extent; x <= pcf_extent; ++x) {
         for (int y = -pcf_extent; y <= pcf_extent; ++y) {
 
+            const float reference_depth = frag_depth - total_bias;
+
             const vec2 offset = vec2(x, y) * pcf_offset * texel_size;
 
-            const float pcf_depth =
-                texture(dir_shadow.cascades, vec3(frag_pos_ndc.xy + offset, cascade_id)).r;
+            const vec4 lookup = vec4(
+                frag_pos_ndc.xy + offset, // Actual coordinates
+                cascade_id,               // Texture index
+                reference_depth           // Reference value for shadow-testing
+            );
 
-            yield += (frag_depth - total_bias > pcf_depth) ? 1.0 : 0.0;
+            const float pcf_lit =
+                texture(dir_shadow.cascades, lookup).r;
+
+            // Shadow sampler returns "how much of the fragment is lit"
+            // from GL_LESS comparison function.
+            // We need "how much of the fragment is in shadow".
+            yield += (1.0 - pcf_lit);
         }
     }
 
