@@ -58,7 +58,7 @@ layout (std430, binding = 3) restrict readonly buffer CascadeParamsBlock {
 
 struct DirShadow {
     sampler2DArrayShadow cascades;
-    vec2  bias_bounds;
+    float base_bias_tx;
     bool  do_cast;
     int   pcf_extent;
     float pcf_offset;
@@ -357,15 +357,15 @@ float dir_light_shadow_yield(vec3 frag_pos, vec3 normal) {
 
     // Extent is (N-1)/2 for an NxN kernel.
     // So a kernel with extent of 0 is just a 1x1 kernel
-    // and extent of 1 gives 3x3 kernel, etc.
+    // and extent of 1 gives 3x3 kernel, extent of 2 gives 5x5, etc.
     //
     // Order is size of N dimension for NxN PCF kernel.
     //
     // Offset is given in relative texel units.
     // Beware, this does not scale well with the cascades.
-    // The larger the scale of the cascade, the larger
-    // the absolute offset in world-space becomes, making
-    // the shadow edge look "blurrier".
+    // The larger the scale of the cascade is, the larger the absolute offset
+    // in world-space becomes, making the shadow edge look "blurrier".
+    //
     // TODO: Maybe fix this, looks pretty ugly at the cascade splits otherwise.
 
     const int   pcf_extent = dir_shadow.pcf_extent;
@@ -389,31 +389,38 @@ float dir_light_shadow_yield(vec3 frag_pos, vec3 normal) {
 
     const int cascade_id = select_best_cascade(frag_pos, clip_border_padding);
 
-    // TODO: Redundant calculation. Already done in select_best_cascade().
-    // Maybe return as an out parameter or struct?
-    const vec4 frag_pos_light_space =
-        cascade_params[cascade_id].projview * vec4(frag_pos, 1.0);
 
-    // FIXME: Why the perspective divide even exists for an orthographic projection?
-    // Should copy-paste code less.
+    // Everything that follows with biasing and PCF sampling is best done
+    // in light space, so we go there.
 
-    // Perspective divide to [-1, 1] and then to NDC [0, 1]
+    // Light-space local directions.
+    const vec3 light_back_dir  = vec3(0.0,  0.0,  1.0);
+    const vec3 light_right_dir = vec3(1.0,  0.0,  0.0);
+    const vec3 light_up_dir    = vec3(0.0,  1.0,  0.0);
+
+    // Get the position and normal in light space.
+    const mat4 cascade_pv        = cascade_params[cascade_id].projview;
+    const mat3 cascade_normal_pv = mat3(transpose(inverse(cascade_pv)));
+
+    const vec4 frag_pos_light_space = cascade_pv * vec4(frag_pos, 1.0);
+    const vec3 normal_light_space   = normalize(cascade_normal_pv * normal);
+
+    const float incidence_angle_cos = dot(light_back_dir, normal_light_space);
+
+
+    // Perspective divide to [-1, 1] (none for orthographic) and then to NDC [0, 1]
     vec3 frag_pos_ndc =
         ((frag_pos_light_space.xyz / frag_pos_light_space.w) + 1.0) / 2.0;
 
-    if (frag_pos_ndc.z > 1.0) {
-        return 0.0;
-    }
+    // FIXME: Still need to fix the bug where the cascades cut-off early.
+    if (frag_pos_ndc.z > 1.0) { return 0.0; }
 
+    // This is our fragment depth in light-space NDC that we use for shadow-testing.
     const float frag_depth = frag_pos_ndc.z;
 
-    // TODO: How does this work out for different cascades?
-    const float total_bias = max(
-        dir_shadow.bias_bounds[0],
-        dir_shadow.bias_bounds[1] *
-            (1.0 - dot(normal, normalize(dir_light.direction)))
-    );
 
+    const float mean_texel_size = (texel_size.x + texel_size.y) * 0.5;
+    const float base_bias       = dir_shadow.base_bias_tx * mean_texel_size;
 
     // Do PCF sampling.
 
@@ -422,14 +429,111 @@ float dir_light_shadow_yield(vec3 frag_pos, vec3 normal) {
     for (int x = -pcf_extent; x <= pcf_extent; ++x) {
         for (int y = -pcf_extent; y <= pcf_extent; ++y) {
 
-            const float reference_depth = frag_depth - total_bias;
+            const vec2 patch_offset = vec2(x, y) * pcf_offset * texel_size;
 
-            const vec2 offset = vec2(x, y) * pcf_offset * texel_size;
+            // Here we calculate per-sample bias assuming planar geometry, where normals for each
+            // PCF sample are assumed the same as the normal for the central fragment.
+            //
+            // The idea here is very similar to the "receiver plane depth bias" or other
+            // "adaptive bias" techniques. The implementation here might look different
+            // for one reason or another, but it's the same "select bias for each sample
+            // to tightly fit the assumed planar geometry" thing. I just did this on my own
+            // at first, and then figured that there's probably at least a dozen papers about
+            // something similar to this. There is.
+            //
+            //
+            // Each 2x2 PCF sample is a square "patch" with the shadow-test already interpolated
+            // by the hardware. We sample these patches, instead of sampling each texel and doing
+            // our own bilinear filtering of the shadow-testing. For small PCF scales this looks
+            // good enough, for proper filtering textureGather() can be used instead.
+            //
+            // The central patch has it's midpoint intersecting the geometry plane at exactly frag_depth.
+            // For calculating the bias and sink (see below), we assume this intersection point to be the origin.
+            //
+            //
+            // If the light and normal vectors are not collinear, then some patches will be sunken
+            // below, partially intersecting, or floating above the geometry plane.
+            //
+            // If the patch is partially or fully sunken into the plane at one of the sides,
+            // there exists a point (a patch vertex) where the depth of the sinking is maximal.
+            //
+            // The patch has to be "lifted" along the light direction such that there's no more sinking
+            // anywhere on the patch. The distance to lift the patch by defines its bias.
+            //
+            // Floating patches are instead lowered towards the plane to "just touch" it
+            // by applying negative bias.
+
+
+            // The 2x2 patch for PCF is probably chosen from a quadrant of a texel, but not sure.
+            // The multiplier of 1.5 accounts for the maximum quadrant dimensions of 0.5x0.5
+            // plus the size of the adjacent texel in X and Y; this defines the dimensions of each patch.
+            const vec2 ps = 1.5 * texel_size;
+
+            // We take each of the vertices of the patch, and find their signed distance
+            // from the plane by representing the plane by its normal.
+            const vec3 patch_vertices[4] = {
+                vec3(patch_offset, 0.0) + vec3(-ps.x,  ps.y, 0.0),
+                vec3(patch_offset, 0.0) + vec3( ps.x,  ps.y, 0.0),
+                vec3(patch_offset, 0.0) + vec3(-ps.x, -ps.y, 0.0),
+                vec3(patch_offset, 0.0) + vec3( ps.x, -ps.y, 0.0)
+            };
+
+            // Since we calclulate sink in the space where the midpoint of the central patch
+            // is the origin, the geometry plane is defined by the equation:
+            //     Ax + By + Cz + D = 0,
+            // where its normal vector is (A, B, C) and D is normally-projected frag_depth,
+            // which in this space equals 0, since the midpoint of the central patch lies in
+            // the geometry plane. The signed distance of a point r from such plane is just:
+            //     S = Ax + By + Cz = dot(n, r)
+            //
+            // We calculate how much the patch vertices sink against the normal of the plane,
+            // then we find the maximum sink. Note that the sink is calculated *against* the normal.
+            // Positive sink means we need to do bias-correction by lifting the patch up -
+            // above the surface, negative sink means we need to lower the patch down.
+            const float normal_sink[4] = {
+                dot(-normal_light_space, patch_vertices[0]),
+                dot(-normal_light_space, patch_vertices[1]),
+                dot(-normal_light_space, patch_vertices[2]),
+                dot(-normal_light_space, patch_vertices[3])
+            };
+
+            const float max_normal_sink = max(
+                max(normal_sink[0], normal_sink[1]),
+                max(normal_sink[2], normal_sink[3])
+            );
+
+            // Now we just project the normal sink onto the light direction.
+            // This can be simply done with the cosine of the incidence angle.
+            const float max_sink = max_normal_sink / incidence_angle_cos;
+
+            // We lift the patch by -max_sink plus additional base_bias.
+            //
+            // Some small base bias is still needed to account for two things:
+            //   1. Interpolated normals;
+            //   2. Normal-mapped surfaces.
+            // Both of them distort real geometric normals which are needed for precise
+            // geometric plane reconstruction, but are not usually present in the G-Buffer.
+            //
+            // Real geometric normals can be generated even for assets with interpolated
+            // normals with the geometry shader and then later stored in a separate layer
+            // of the G-Buffer at some performance and convinience cost. We don't do this here.
+            //
+            // Alternatively, geometric normals can be reconstructed from the depth buffer
+            // using the depth gradient. However, that probably won't behave well
+            // at the sharp edges of geometry. We don't do this here either.
+            //
+            // Base bias does not have to be large, you can get by with a bias of
+            // only about a fraction of the shadow map texel size. You might
+            // lose some very small scale detail, but you can compensate with AO or
+            // contact shadows.
+            const float sample_bias = -max_sink + base_bias;
+
+            const float reference_depth = frag_depth - sample_bias;
 
             const vec4 lookup = vec4(
-                frag_pos_ndc.xy + offset, // Actual coordinates
-                cascade_id,               // Texture index
-                reference_depth           // Reference value for shadow-testing
+                frag_pos_ndc.xy + patch_offset, // Actual coordinates
+                cascade_id,                     // Texture index
+                reference_depth                 // Reference value for shadow-testing
             );
 
             const float pcf_lit =

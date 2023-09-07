@@ -63,9 +63,9 @@ void DeferredShadingStage::draw_main(
 
         input_csm_->dir_shadow_maps.depth_target().bind_to_unit_index(3);
         ashp.uniform("dir_shadow.cascades", 3)
-            .uniform("dir_shadow.bias_bounds", dir_params.bias_bounds)
-            .uniform("dir_shadow.pcf_extent",  dir_params.pcf_extent)
-            .uniform("dir_shadow.pcf_offset",  dir_params.pcf_offset);
+            .uniform("dir_shadow.base_bias_tx", dir_params.base_bias_tx)
+            .uniform("dir_shadow.pcf_extent",   dir_params.pcf_extent)
+            .uniform("dir_shadow.pcf_offset",   dir_params.pcf_offset);
 
 
         input_psm_->point_shadow_maps.depth_taget().bind_to_unit_index(4);

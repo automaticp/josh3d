@@ -27,7 +27,7 @@ public:
     };
 
     struct DirShadowParams {
-        glm::vec2 bias_bounds{ 0.0001f, 0.0015f };
+        GLfloat base_bias_tx{ 0.2f };
         GLint   pcf_extent{ 1 };
         GLfloat pcf_offset{ 1.0f };
     };

@@ -29,10 +29,10 @@ void josh::imguihooks::DeferredShadingStageHook::operator()() {
 
     if (ImGui::TreeNode("Directional Shadows")) {
 
-        ImGui::SliderFloat2(
-            "Shadow Bias",
-            glm::value_ptr(stage_.dir_params.bias_bounds),
-            0.0001f, 0.1f, "%.4f", ImGuiSliderFlags_Logarithmic
+        ImGui::SliderFloat(
+            "Base Bias, tx",
+            &stage_.dir_params.base_bias_tx,
+            0.01f, 100.0f, "%.2f", ImGuiSliderFlags_Logarithmic
         );
 
         ImGui::SliderInt(
@@ -40,7 +40,7 @@ void josh::imguihooks::DeferredShadingStageHook::operator()() {
         );
 
         ImGui::SliderFloat(
-            "PCF Offset", &stage_.dir_params.pcf_offset,
+            "PCF Offset, tx", &stage_.dir_params.pcf_offset,
             0.01f, 10.0f, "%.2f", ImGuiSliderFlags_Logarithmic
         );
 
