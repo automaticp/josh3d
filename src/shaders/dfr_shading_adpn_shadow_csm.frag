@@ -59,6 +59,8 @@ layout (std430, binding = 3) restrict readonly buffer CascadeParamsBlock {
 struct DirShadow {
     sampler2DArrayShadow cascades;
     float base_bias_tx;
+    bool  do_blend_cascades;
+    float blend_size_inner_tx;
     bool  do_cast;
     int   pcf_extent;
     float pcf_offset;
@@ -330,25 +332,83 @@ bool is_fragment_in_clip(vec3 frag_pos_clip_space, vec3 clip_border_padding) {
 }
 
 
-int select_best_cascade(vec3 frag_pos_world_space, vec3 clip_border_padding) {
+struct CascadeSelection {
+    int   inner_cascade_id;
+    float outer_cascade_blend_factor;
+};
 
-    const int num_cascades = cascade_params.length();
+CascadeSelection select_best_cascade_blend(
+    vec3 frag_pos_world_space, vec3 clip_discard_padding, vec3 clip_blend_padding)
+{
+
+    const int num_cascades    = cascade_params.length();
+    const int last_cascade_id = num_cascades - 1;
     // We assume that cascades are stored in order from smallest
     // to largest, so the first match is the smallest projection,
     // that is highest resolution match.
-    for (int i = 0; i < num_cascades; ++i) {
+    for (int i = 0; i < last_cascade_id; ++i) {
 
         const vec4 frag_pos_clip_space =
             cascade_params[i].projview * vec4(frag_pos_world_space, 1.0);
 
-        if (is_fragment_in_clip(frag_pos_clip_space.xyz, clip_border_padding)) {
+        const vec3 total_border_padding = clip_discard_padding + clip_blend_padding;
+
+        if (is_fragment_in_clip(frag_pos_clip_space.xyz, clip_discard_padding)) {
+            if (is_fragment_in_clip(frag_pos_clip_space.xyz, total_border_padding)) {
+                return CascadeSelection(i, 0.0);
+            } else /* Welcome to THE BLEND ZONE!!! */ {
+                const vec3 blend_start = vec3(1.0) - total_border_padding;
+                const vec3 outer_blend_factors =
+                    (abs(frag_pos_clip_space.xyz) - blend_start) / clip_blend_padding;
+
+                // TODO: Maybe return dimensional blend factors?
+                const float outer_blend_factor = max(outer_blend_factors.x, outer_blend_factors.y);
+                return CascadeSelection(i, outer_blend_factor);
+            }
+        }
+
+    }
+
+    // If we hit the last cascade or there's only one cascade total,
+    // then select it, no padding or blending.
+    return CascadeSelection(last_cascade_id, 0.0);
+}
+
+
+
+
+int select_best_cascade(
+    vec3 frag_pos_world_space, vec3 clip_discard_padding)
+{
+
+    const int num_cascades    = cascade_params.length();
+    const int last_cascade_id = num_cascades - 1;
+    // We assume that cascades are stored in order from smallest
+    // to largest, so the first match is the smallest projection,
+    // that is highest resolution match.
+    for (int i = 0; i < last_cascade_id; ++i) {
+
+        const vec4 frag_pos_clip_space =
+            cascade_params[i].projview * vec4(frag_pos_world_space, 1.0);
+
+        if (is_fragment_in_clip(frag_pos_clip_space.xyz, clip_discard_padding)) {
             return i;
         }
 
     }
 
-    return num_cascades - 1;
+    // If we hit the last cascade or there's only one cascade total,
+    // then select it, no padding.
+    return last_cascade_id;
 }
+
+
+
+
+
+float dir_shadow_yield_pcf_sample(
+    int pcf_extent, int pcf_order, float pcf_offset_tx,
+    vec2 texel_size, int cascade_id, vec3 normal_light_space, vec3 frag_pos_ndc);
 
 
 
@@ -372,7 +432,14 @@ float dir_light_shadow_yield(vec3 frag_pos, vec3 normal) {
     const int   pcf_order  = 1 + 2 * pcf_extent;
     const float pcf_offset = dir_shadow.pcf_offset;
 
-    const vec2 texel_size = 1.0 / textureSize(dir_shadow.cascades, 0).xy;
+    const vec2  texel_size = 1.0 / textureSize(dir_shadow.cascades, 0).xy;
+
+
+    // TODO: Send some cascade scale paremeter from the CPU.
+    // and maybe rescale pcf_offset based on that. We need the cascade
+    // frustum dimensions in world-space.
+    // const vec2  base_tx_scale = cascade_params[0].scale
+
 
     // We pad each cascade map by the (extent * offset) of the PCF kernel
     // in order to eliminate the gaps between cascades, that normally
@@ -385,38 +452,87 @@ float dir_light_shadow_yield(vec3 frag_pos, vec3 normal) {
     // The coefficient 2 is here because we pad in clip space which is [-1, 1]
     // but sample in NDC which is [0, 1], so the padding has to be twice as wide.
     const vec2 padding = 2.0 * (pcf_extent * pcf_offset * texel_size + texel_size);
-    const vec3 clip_border_padding = vec3(padding.x, padding.y, 0.0);
+    const vec3 clip_discard_padding = vec3(padding.x, padding.y, 0.0);
 
-    const int cascade_id = select_best_cascade(frag_pos, clip_border_padding);
+    int   inner_cascade_id;
+    float outer_cascade_blend = 0.0;
+
+    if (dir_shadow.do_blend_cascades) {
+        const float blend_size_inner_tx = dir_shadow.blend_size_inner_tx;
+        const vec2  blend_padding       = blend_size_inner_tx * texel_size * 0.5;
+        const vec3  clip_blend_padding  = vec3(blend_padding.x, blend_padding.y, 0.0);
+
+        const CascadeSelection selection =
+            select_best_cascade_blend(frag_pos, clip_discard_padding, clip_blend_padding);
+
+        inner_cascade_id    = selection.inner_cascade_id;
+        outer_cascade_blend = selection.outer_cascade_blend_factor;
+
+    } else {
+        inner_cascade_id = select_best_cascade(frag_pos, clip_discard_padding);
+    }
 
 
     // Everything that follows with biasing and PCF sampling is best done
     // in light space, so we go there.
 
-    // Light-space local directions.
-    const vec3 light_back_dir  = vec3(0.0,  0.0,  1.0);
-    const vec3 light_right_dir = vec3(1.0,  0.0,  0.0);
-    const vec3 light_up_dir    = vec3(0.0,  1.0,  0.0);
-
     // Get the position and normal in light space.
-    const mat4 cascade_pv        = cascade_params[cascade_id].projview;
-    const mat3 cascade_normal_pv = mat3(transpose(inverse(cascade_pv)));
+    const mat4 inner_cascade_pv     = cascade_params[inner_cascade_id].projview;
+    const vec4 frag_pos_light_space = inner_cascade_pv * vec4(frag_pos, 1.0);
 
-    const vec4 frag_pos_light_space = cascade_pv * vec4(frag_pos, 1.0);
+    // All cascades are parallel, so any cascade will do for plane normals.
+    const mat3 cascade_normal_pv    = mat3(transpose(inverse(inner_cascade_pv)));
     const vec3 normal_light_space   = normalize(cascade_normal_pv * normal);
 
-    const float incidence_angle_cos = dot(light_back_dir, normal_light_space);
-
-
     // Perspective divide to [-1, 1] (none for orthographic) and then to NDC [0, 1]
-    vec3 frag_pos_ndc =
-        ((frag_pos_light_space.xyz / frag_pos_light_space.w) + 1.0) / 2.0;
+    vec3 inner_frag_pos_ndc =
+        0.5 * (1.0 + frag_pos_light_space.xyz / frag_pos_light_space.w);
 
     // FIXME: Still need to fix the bug where the cascades cut-off early.
-    if (frag_pos_ndc.z > 1.0) { return 0.0; }
+    if (inner_frag_pos_ndc.z > 1.0) { return 0.0; }
 
-    // This is our fragment depth in light-space NDC that we use for shadow-testing.
-    const float frag_depth = frag_pos_ndc.z;
+    float shadow_yield = dir_shadow_yield_pcf_sample(
+        pcf_extent, pcf_order, pcf_offset,
+        texel_size, inner_cascade_id, normal_light_space, inner_frag_pos_ndc
+    );
+
+
+    if (dir_shadow.do_blend_cascades) {
+
+        if (outer_cascade_blend > 0.0) {
+            int outer_cascade_id = inner_cascade_id + 1;
+            const mat4 outer_cascade_pv           = cascade_params[outer_cascade_id].projview;
+            const vec4 outer_frag_pos_light_space = outer_cascade_pv * vec4(frag_pos, 1.0);
+            const vec3 outer_frag_pos_ndc =
+                0.5 * (1.0 + outer_frag_pos_light_space.xyz / outer_frag_pos_light_space.w);
+            // TODO; Can adjust the pcf_offset here maybe.
+            const float outer_shadow_yield = dir_shadow_yield_pcf_sample(
+                pcf_extent, pcf_order, pcf_offset,
+                texel_size, outer_cascade_id, normal_light_space, outer_frag_pos_ndc
+            );
+
+            // FIXME: There's a bit of self-shadowing in the blend region that can
+            // be eliminated with a small extra bias. But it shouldn't be there
+            // in the first place. Both blending and pcf_offset accentuate it. Investigate.
+            shadow_yield = mix(shadow_yield, outer_shadow_yield, smoothstep(0.0, 1.0, outer_cascade_blend));
+        }
+
+    }
+
+
+    return shadow_yield;
+}
+
+
+
+
+float dir_shadow_yield_pcf_sample(
+    int pcf_extent, int pcf_order, float pcf_offset_tx,
+    vec2 texel_size, int cascade_id, vec3 normal_light_space, vec3 frag_pos_ndc)
+{
+    // In light space.
+    const vec3  light_back_dir      = vec3(0.0,  0.0,  1.0);
+    const float incidence_angle_cos = dot(light_back_dir, normal_light_space);
 
 
     const float mean_texel_size = (texel_size.x + texel_size.y) * 0.5;
@@ -429,7 +545,7 @@ float dir_light_shadow_yield(vec3 frag_pos, vec3 normal) {
     for (int x = -pcf_extent; x <= pcf_extent; ++x) {
         for (int y = -pcf_extent; y <= pcf_extent; ++y) {
 
-            const vec2 patch_offset = vec2(x, y) * pcf_offset * texel_size;
+            const vec2 patch_offset = vec2(x, y) * pcf_offset_tx * texel_size;
 
             // Here we calculate per-sample bias assuming planar geometry, where normals for each
             // PCF sample are assumed the same as the normal for the central fragment.
@@ -528,7 +644,7 @@ float dir_light_shadow_yield(vec3 frag_pos, vec3 normal) {
             // contact shadows.
             const float sample_bias = -max_sink + base_bias;
 
-            const float reference_depth = frag_depth - sample_bias;
+            const float reference_depth = frag_pos_ndc.z - sample_bias;
 
             const vec4 lookup = vec4(
                 frag_pos_ndc.xy + patch_offset, // Actual coordinates
@@ -548,6 +664,5 @@ float dir_light_shadow_yield(vec3 frag_pos, vec3 normal) {
 
     // Normalize and return.
     return yield / (pcf_order * pcf_order);
+
 }
-
-

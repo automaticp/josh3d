@@ -27,13 +27,23 @@ void josh::imguihooks::DeferredShadingStageHook::operator()() {
     }
 
 
-    if (ImGui::TreeNode("Directional Shadows")) {
+    if (ImGui::TreeNode("Directional Shadow Cascades")) {
 
         ImGui::SliderFloat(
             "Base Bias, tx",
             &stage_.dir_params.base_bias_tx,
             0.01f, 100.0f, "%.2f", ImGuiSliderFlags_Logarithmic
         );
+
+
+        ImGui::Checkbox("Blend Cascades", &stage_.dir_params.blend_cascades);
+
+        ImGui::SliderFloat(
+            "Blend, inner tx",
+            &stage_.dir_params.blend_size_inner_tx,
+            0.1f, 1000.f, "%.1f", ImGuiSliderFlags_Logarithmic
+        );
+
 
         ImGui::SliderInt(
             "PCF Extent", &stage_.dir_params.pcf_extent, 0, 12

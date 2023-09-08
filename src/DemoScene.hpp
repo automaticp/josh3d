@@ -136,7 +136,7 @@ public:
         imgui_stage_hooks_.add_hook("GBuffer",
             imguihooks::GBufferStageHook(gbuffer));
 
-        imgui_stage_hooks_.add_hook("Deferred Rendering",
+        imgui_stage_hooks_.add_hook("Deferred Shading",
             imguihooks::DeferredShadingStageHook(defshad));
 
         imgui_stage_hooks_.add_hook("Point Light Boxes",

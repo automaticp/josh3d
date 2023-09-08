@@ -28,6 +28,8 @@ public:
 
     struct DirShadowParams {
         GLfloat base_bias_tx{ 0.2f };
+        bool    blend_cascades{ true };
+        GLfloat blend_size_inner_tx{ 50.f };
         GLint   pcf_extent{ 1 };
         GLfloat pcf_offset{ 1.0f };
     };
