@@ -21,6 +21,7 @@ namespace josh {
 
 struct CascadeParams {
     alignas(layout::base_alignment_of_vec4)  glm::mat4 projview{};
+    alignas(layout::base_alignment_of_vec3)  glm::vec3 scale{};
     alignas(layout::base_alignment_of_float) float     z_split{};
 };
 

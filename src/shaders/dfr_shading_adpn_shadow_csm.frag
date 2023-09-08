@@ -47,7 +47,8 @@ layout (std430, binding = 2) restrict readonly buffer point_light_no_shadows_blo
 
 
 struct CascadeParams {
-    mat4 projview;
+    mat4  projview;
+    vec3  scale;
     float z_split;
 };
 
@@ -407,7 +408,7 @@ int select_best_cascade(
 
 
 float dir_shadow_yield_pcf_sample(
-    int pcf_extent, int pcf_order, float pcf_offset_tx,
+    int pcf_extent, int pcf_order, vec2 pcf_offset_tx,
     vec2 texel_size, int cascade_id, vec3 normal_light_space, vec3 frag_pos_ndc);
 
 
@@ -415,31 +416,37 @@ float dir_shadow_yield_pcf_sample(
 
 float dir_light_shadow_yield(vec3 frag_pos, vec3 normal) {
 
-    // Extent is (N-1)/2 for an NxN kernel.
+    // pcf_extent is (N-1)/2 for an NxN kernel.
     // So a kernel with extent of 0 is just a 1x1 kernel
     // and extent of 1 gives 3x3 kernel, extent of 2 gives 5x5, etc.
     //
-    // Order is size of N dimension for NxN PCF kernel.
+    // pcf_order is the size N of a NxN PCF kernel.
+    // A 5x5 kernel is of order 5.
     //
-    // Offset is given in relative texel units.
-    // Beware, this does not scale well with the cascades.
-    // The larger the scale of the cascade is, the larger the absolute offset
-    // in world-space becomes, making the shadow edge look "blurrier".
+    // pcf_offset is given in the number of texels of the innermost cascade.
+    // The actual effective PCF area in world-space does not scale with
+    // the cascades, it stays constant across all distances.
+    // If you want it to scale in a continuous fashion, see the part
+    // about offset scaling in code (not example) below.
     //
-    // TODO: Maybe fix this, looks pretty ugly at the cascade splits otherwise.
+    // Given an offset of 2.0 (texels) and a 3x3 kernel, the effective
+    // filtering area is then:
+    //     pcf_area_world = (N * texel_size_world_space * pcf_offset)^2;
+    //                    = (3 * texel_size_world_space * 2.0       )^2;
+    // where texel_size_world_space can be taken from:
+    //     texel_size_world_space = texel_size * cascade_params[cascade_id].scale.xy;
+    //
+    // TODO:
+    // It might make sense to derive the offset from some parameter that defines the
+    // effective PCF area instead (like pcf_width or something), so that the area
+    // is preserved between different kernel sizes and shadowmap resolutions.
+    // I'm just too lazy right now.
 
     const int   pcf_extent = dir_shadow.pcf_extent;
     const int   pcf_order  = 1 + 2 * pcf_extent;
-    const float pcf_offset = dir_shadow.pcf_offset;
+    const vec2  pcf_offset = vec2(dir_shadow.pcf_offset);
 
     const vec2  texel_size = 1.0 / textureSize(dir_shadow.cascades, 0).xy;
-
-
-    // TODO: Send some cascade scale paremeter from the CPU.
-    // and maybe rescale pcf_offset based on that. We need the cascade
-    // frustum dimensions in world-space.
-    // const vec2  base_tx_scale = cascade_params[0].scale
-
 
     // We pad each cascade map by the (extent * offset) of the PCF kernel
     // in order to eliminate the gaps between cascades, that normally
@@ -454,6 +461,9 @@ float dir_light_shadow_yield(vec3 frag_pos, vec3 normal) {
     const vec2 padding = 2.0 * (pcf_extent * pcf_offset * texel_size + texel_size);
     const vec3 clip_discard_padding = vec3(padding.x, padding.y, 0.0);
 
+    // For blending we use the terms like "inner" and "outer" cascades:
+    //   - Inner cascade is just the best resolution cascade available for the fragment;
+    //   - Outer cascade is the next best resolution cascade after the inner one.
     int   inner_cascade_id;
     float outer_cascade_blend = 0.0;
 
@@ -469,7 +479,7 @@ float dir_light_shadow_yield(vec3 frag_pos, vec3 normal) {
         outer_cascade_blend = selection.outer_cascade_blend_factor;
 
     } else {
-        inner_cascade_id = select_best_cascade(frag_pos, clip_discard_padding);
+        inner_cascade_id    = select_best_cascade(frag_pos, clip_discard_padding);
     }
 
 
@@ -477,22 +487,39 @@ float dir_light_shadow_yield(vec3 frag_pos, vec3 normal) {
     // in light space, so we go there.
 
     // Get the position and normal in light space.
-    const mat4 inner_cascade_pv     = cascade_params[inner_cascade_id].projview;
-    const vec4 frag_pos_light_space = inner_cascade_pv * vec4(frag_pos, 1.0);
+    const mat4 inner_cascade_pv           = cascade_params[inner_cascade_id].projview;
+    const vec4 inner_frag_pos_light_space = inner_cascade_pv * vec4(frag_pos, 1.0);
 
-    // All cascades are parallel, so any cascade will do for plane normals.
-    const mat3 cascade_normal_pv    = mat3(transpose(inverse(inner_cascade_pv)));
-    const vec3 normal_light_space   = normalize(cascade_normal_pv * normal);
+    // All cascades are parallel, so any cascade will work for plane normals.
+    const mat3 cascade_normal_pv  = mat3(transpose(inverse(inner_cascade_pv)));
+    const vec3 normal_light_space = normalize(cascade_normal_pv * normal);
 
     // Perspective divide to [-1, 1] (none for orthographic) and then to NDC [0, 1]
     vec3 inner_frag_pos_ndc =
-        0.5 * (1.0 + frag_pos_light_space.xyz / frag_pos_light_space.w);
+        0.5 * (1.0 + inner_frag_pos_light_space.xyz / inner_frag_pos_light_space.w);
 
     // FIXME: Still need to fix the bug where the cascades cut-off early.
     if (inner_frag_pos_ndc.z > 1.0) { return 0.0; }
 
+
+    // We scale the pcf_offset so that it's constant size in world-space across multiple
+    // cascades. This eliminates the discrete nature of the visible PCF area and makes the
+    // cascade "transition line" practically unnoticable if the aliasing of both cascades
+    // is fully filtered out or not visible at this screen-pixel to shadowmap-texel ratio.
+    //
+    // The aliasing (blocky shadowmap) is going to be present at farther cascades because
+    // a good filtering scale for the nearest cascade is not enough for a distant one.
+    // Again, since the cascade is distant, you probably won't see the aliasing directly,
+    // but if that is still an issue for one reason or another...
+    //
+    // You can manually introduce a *continuous* increase of the inner(outer)_pcf_offset here
+    // based on some depth-like parameter to hide the aliasing for distant cascades.
+    const vec2 base_cascade_scale  = cascade_params[0].scale.xy;
+    const vec2 inner_cascade_scale = cascade_params[inner_cascade_id].scale.xy;
+    const vec2 inner_pcf_offset    = pcf_offset * (base_cascade_scale / inner_cascade_scale);
+
     float shadow_yield = dir_shadow_yield_pcf_sample(
-        pcf_extent, pcf_order, pcf_offset,
+        pcf_extent, pcf_order, inner_pcf_offset,
         texel_size, inner_cascade_id, normal_light_space, inner_frag_pos_ndc
     );
 
@@ -501,13 +528,17 @@ float dir_light_shadow_yield(vec3 frag_pos, vec3 normal) {
 
         if (outer_cascade_blend > 0.0) {
             int outer_cascade_id = inner_cascade_id + 1;
+
             const mat4 outer_cascade_pv           = cascade_params[outer_cascade_id].projview;
             const vec4 outer_frag_pos_light_space = outer_cascade_pv * vec4(frag_pos, 1.0);
             const vec3 outer_frag_pos_ndc =
                 0.5 * (1.0 + outer_frag_pos_light_space.xyz / outer_frag_pos_light_space.w);
-            // TODO; Can adjust the pcf_offset here maybe.
+
+            const vec2 outer_cascade_scale = cascade_params[outer_cascade_id].scale.xy;
+            const vec2 outer_pcf_offset    = pcf_offset * (base_cascade_scale / outer_cascade_scale);
+
             const float outer_shadow_yield = dir_shadow_yield_pcf_sample(
-                pcf_extent, pcf_order, pcf_offset,
+                pcf_extent, pcf_order, outer_pcf_offset,
                 texel_size, outer_cascade_id, normal_light_space, outer_frag_pos_ndc
             );
 
@@ -527,7 +558,7 @@ float dir_light_shadow_yield(vec3 frag_pos, vec3 normal) {
 
 
 float dir_shadow_yield_pcf_sample(
-    int pcf_extent, int pcf_order, float pcf_offset_tx,
+    int pcf_extent, int pcf_order, vec2 pcf_offset_tx,
     vec2 texel_size, int cascade_id, vec3 normal_light_space, vec3 frag_pos_ndc)
 {
     // In light space.
@@ -560,8 +591,10 @@ float dir_shadow_yield_pcf_sample(
             //
             // Each 2x2 PCF sample is a square "patch" with the shadow-test already interpolated
             // by the hardware. We sample these patches, instead of sampling each texel and doing
-            // our own bilinear filtering of the shadow-testing. For small PCF scales this looks
-            // good enough, for proper filtering textureGather() can be used instead.
+            // our own bilinear filtering of the shadow-testing. This allows us to easily adjust
+            // the pcf_offset and control the effective filtering area in world-space.
+            // For small PCF scales this looks good enough, for proper filtering textureGather()
+            // can be used instead.
             //
             // The central patch has it's midpoint intersecting the geometry plane at exactly frag_depth.
             // For calculating the bias and sink (see below), we assume this intersection point to be the origin.

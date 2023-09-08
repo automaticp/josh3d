@@ -117,12 +117,23 @@ void CascadedShadowMappingStage::map_dir_light_shadow_cascade(
 {
 
 
+
     output_->params.clear();
     for (const auto& cascade : input_->cascades) {
+
+        const glm::mat4& proj = cascade.projection;
+        // Knowing the orthographic projection matrix, we can extract the
+        // scale of the cascade in world-space/light-view-space.
+        float w =  2.f / proj[0][0];
+        float h =  2.f / proj[1][1];
+        float d = -2.f / proj[2][2];
+
+        // This is used later in the shading stage.
         output_->params.emplace_back(
             CascadeParams{
                 .projview = cascade.projection * cascade.view,
-                .z_split = cascade.z_split
+                .scale    = { w, h, d },
+                .z_split  = cascade.z_split
             }
         );
     }
