@@ -36,19 +36,27 @@ Shared<Texture2D>
 inline TextureHandlePool::load_data_from(const File& file,
     const TextureHandleLoadContext& context)
 {
+    using enum GLenum;
+
     Shared<TextureData> tex_data{ upstream_.load(file) };
 
     auto new_handle = std::make_shared<Texture2D>();
 
-    gl::GLenum internal_format;
-    switch (context.type) {
-        case TextureType::diffuse:  internal_format = gl::GL_SRGB_ALPHA; break;
-        case TextureType::specular: internal_format = gl::GL_RGBA; break;
-        case TextureType::normal:   internal_format = gl::GL_RGBA; break;
-        default: internal_format = gl::GL_RGBA;
-    }
+    GLenum internal_format = [&] {
+        switch (context.type) {
+            using enum TextureType;
+            case diffuse:  return GL_SRGB_ALPHA;
+            case specular:
+            case normal:
+            default:       return GL_RGBA;
+        }
+    }();
 
-    new_handle->bind().attach_data(*tex_data, internal_format);
+    new_handle->bind()
+        .attach_data(*tex_data, internal_format)
+        .generate_mipmaps()
+        .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+        .set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 
     return new_handle;
 }

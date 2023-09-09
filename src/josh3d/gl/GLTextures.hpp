@@ -274,6 +274,11 @@ public:
         return *this;
     }
 
+    BoundTexture2D& generate_mipmaps() {
+        gl::glGenerateMipmap(gl::GL_TEXTURE_2D);
+        return *this;
+    }
+
 };
 
 
@@ -320,6 +325,11 @@ public:
             gl::GL_TEXTURE_2D_ARRAY, mipmap_level, internal_format,
             size.width, size.height, size.depth, 0, format, type, data
         );
+        return *this;
+    }
+
+    BoundTexture2DArray& generate_mipmaps() {
+        gl::glGenerateMipmap(gl::GL_TEXTURE_2D_ARRAY);
         return *this;
     }
 
@@ -444,6 +454,11 @@ public:
     BoundCubemap& attach_data(const CubemapData& tex_data,
         GLenum internal_format = gl::GL_RGB, GLenum format = gl::GL_NONE);
 
+    BoundCubemap& generate_mipmaps() {
+        gl::glGenerateMipmap(gl::GL_TEXTURE_CUBE_MAP);
+        return *this;
+    }
+
 
 };
 
@@ -506,6 +521,11 @@ public:
             gl::GL_TEXTURE_CUBE_MAP_ARRAY, mipmap_level, internal_format,
             face_size.width, face_size.height, 6 * num_cubemaps, 0, format, type, data
         );
+        return *this;
+    }
+
+    BoundCubemapArray& generate_mipmaps() {
+        gl::glGenerateMipmap(gl::GL_TEXTURE_CUBE_MAP_ARRAY);
         return *this;
     }
 

@@ -30,8 +30,6 @@ BoundTexture2D& BoundTexture2D::attach_data(
         GL_UNSIGNED_BYTE, tex_data.data()
     );
 
-    glGenerateMipmap(GL_TEXTURE_2D);
-
     return *this;
 }
 
