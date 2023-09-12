@@ -39,9 +39,11 @@ int main() {
     auto glfw_instance{ glfw::init() };
 
     glfw::WindowHints{
-        .scaleToMonitor=true,
-        .contextVersionMajor=4, .contextVersionMinor=3,
-        .openglProfile=glfw::OpenGlProfile::Core
+        .scaleToMonitor = true,
+        .srgbCapable    = true,
+        .contextVersionMajor = 4,
+        .contextVersionMinor = 3,
+        .openglProfile = glfw::OpenGlProfile::Core,
     }.apply();
 
     glfw::Window window{ 800, 600, "Josh3d Demo" };
