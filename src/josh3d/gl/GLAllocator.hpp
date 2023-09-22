@@ -1,0 +1,142 @@
+#pragma once
+#include "CommonConcepts.hpp" // IWYU pragma: keep
+#include "GLMutability.hpp"
+#include "RawGLHandles.hpp"
+#include "GLScalars.hpp"
+#include <glbinding/gl/gl.h>
+#include <concepts>
+
+
+namespace josh {
+
+
+namespace detail {
+
+struct TextureAllocator {
+    static GLuint request() noexcept {
+        GLuint id;
+        gl::glGenTextures(1, &id);
+        return id;
+    }
+    static void release(GLuint id) noexcept {
+        gl::glDeleteTextures(1, &id);
+    }
+};
+
+struct BufferAllocator {
+    static GLuint request() noexcept {
+        GLuint id;
+        gl::glGenBuffers(1, &id);
+        return id;
+    }
+    static void release(GLuint id) noexcept {
+        gl::glDeleteBuffers(1, &id);
+    }
+};
+
+struct VertexArrayAllocator {
+    static GLuint request() noexcept {
+        GLuint id;
+        gl::glGenVertexArrays(1, &id);
+        return id;
+    }
+    static void release(GLuint id) noexcept {
+        gl::glDeleteVertexArrays(1, &id);
+    }
+};
+
+struct FramebufferAllocator {
+    static GLuint request() noexcept {
+        GLuint id;
+        gl::glGenFramebuffers(1, &id);
+        return id;
+    }
+    static void release(GLuint id) noexcept {
+        gl::glDeleteFramebuffers(1, &id);
+    }
+};
+
+struct RenderbufferAllocator {
+    static GLuint request() noexcept {
+        GLuint id;
+        gl::glGenRenderbuffers(1, &id);
+        return id;
+    }
+    static void release(GLuint id) noexcept {
+        gl::glDeleteRenderbuffers(1, &id);
+    }
+};
+
+struct ShaderAllocator {
+    static GLuint request(GLenum shader_type) noexcept {
+        return gl::glCreateShader(shader_type);
+    }
+    static void release(GLuint id) noexcept {
+        gl::glDeleteShader(id);
+    }
+};
+
+struct ShaderProgramAllocator {
+    static GLuint request() noexcept {
+        return gl::glCreateProgram();
+    }
+    static void release(GLuint id) noexcept {
+        gl::glDeleteProgram(id);
+    }
+};
+
+} // namespace detail
+
+
+
+
+/*
+OpenGL object allocator defined for different "kinds" of objects in the API
+based on their RawKindHandle type.
+*/
+template<raw_gl_kind_handle RawKindH> struct GLAllocator;
+
+#define SPECIALIZE_ALLOCATOR(kind)                   \
+    template<>                                       \
+    struct GLAllocator<Raw##kind##Handle<GLMutable>> \
+        : detail::kind##Allocator                    \
+    {};                                              \
+                                                     \
+    template<>                                       \
+    struct GLAllocator<Raw##kind##Handle<GLConst>>   \
+        : detail::kind##Allocator                    \
+    {};
+
+
+SPECIALIZE_ALLOCATOR(Texture)
+SPECIALIZE_ALLOCATOR(Buffer)
+SPECIALIZE_ALLOCATOR(VertexArray)
+SPECIALIZE_ALLOCATOR(Framebuffer)
+SPECIALIZE_ALLOCATOR(Renderbuffer)
+SPECIALIZE_ALLOCATOR(Shader)
+SPECIALIZE_ALLOCATOR(ShaderProgram)
+
+#undef SPECIALIZE_ALLOCATOR
+
+
+
+template<typename RawKindH>
+concept has_gl_allocator = requires {
+    sizeof(GLAllocator<RawKindH>);
+};
+
+
+template<typename RawKindH>
+concept allocatable_gl_kind_handle =
+    raw_gl_kind_handle<RawKindH> &&
+    has_gl_allocator<RawKindH>;
+
+
+template<typename RawObjH>
+concept allocatable_gl_object_handle =
+    raw_gl_object_handle<RawObjH> &&
+    has_gl_allocator<typename RawObjH::kind_handle_type>;
+
+
+
+} // namespace josh
