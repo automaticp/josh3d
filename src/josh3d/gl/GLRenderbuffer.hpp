@@ -55,8 +55,11 @@ public:
 template<mutability_tag MutT>
 class RawRenderbuffer
     : public RawRenderbufferHandle<MutT>
+    , public detail::ObjectHandleTypeInfo<RawRenderbuffer, MutT>
 {
 public:
+    using RawRenderbufferHandle<MutT>::RawRenderbufferHandle;
+
     BoundRenderbuffer<MutT> bind() const noexcept {
         gl::glBindRenderbuffer(gl::GL_RENDERBUFFER, this->id());
         return {};

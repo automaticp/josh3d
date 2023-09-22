@@ -25,6 +25,7 @@ template<mutability_tag MutT> class RawShaderProgram;
 template<mutability_tag MutT>
 class RawShader
     : public RawShaderHandle<MutT>
+    , public detail::ObjectHandleTypeInfo<RawShader, MutT>
 {
 public:
     using RawShaderHandle<MutT>::RawShaderHandle;
@@ -174,6 +175,7 @@ public:
 template<mutability_tag MutT>
 class RawShaderProgram
     : public RawShaderProgramHandle<MutT>
+    , public detail::ObjectHandleTypeInfo<RawShaderProgram, MutT>
 {
 public:
     using RawShaderProgramHandle<MutT>::RawShaderProgramHandle;

@@ -165,6 +165,7 @@ public:
 template<mutability_tag MutT>
 class RawFramebuffer
     : public RawFramebufferHandle<MutT>
+    , public detail::ObjectHandleTypeInfo<RawFramebuffer, MutT>
 {
 public:
     using RawFramebufferHandle<MutT>::RawFramebufferHandle;

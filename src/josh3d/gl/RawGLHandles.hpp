@@ -99,6 +99,24 @@ concept has_basic_raw_handle_semantics = requires(RawT raw) {
 };
 
 
+namespace detail {
+
+
+template<
+    template<typename/* clangd crashes if I put a concept here */> typename TemplateCRTP,
+    mutability_tag MutT
+>
+struct KindHandleTypeInfo {
+    using kind_handle_type          = TemplateCRTP<MutT>;
+    using kind_handle_const_type    = TemplateCRTP<GLConst>;
+    using kind_handle_mutable_type  = TemplateCRTP<GLMutable>;
+
+    template<mutability_tag MutU>
+    using kind_handle_type_template = TemplateCRTP<MutU>;
+};
+
+
+} // namespace detail
 
 
 /*
@@ -129,8 +147,10 @@ concept raw_gl_kind_handle = requires {
 
 #define GENERATE_KIND_HANDLE(kind)                                 \
     template<mutability_tag MutT>                                  \
-    struct Raw##kind##Handle : RawGLHandle<MutT> {                 \
-        using kind_handle_type = Raw##kind##Handle;                \
+    struct Raw##kind##Handle                                       \
+        : RawGLHandle<MutT>                                        \
+        , detail::KindHandleTypeInfo<Raw##kind##Handle, MutT>      \
+    {                                                              \
         using RawGLHandle<MutT>::RawGLHandle;                      \
     };                                                             \
                                                                    \
@@ -155,17 +175,18 @@ namespace detail{
 /*
 Allows you to "reflect" on the object type with stripped mutability.
 Can go from GLMutable to GLConst through this:
-    RawTexture2D<GLConst>::object_type_template<GLMutable> -> RawTexture2D<GLMutable>
+    RawTexture2D<GLConst>::object_handle_type_template<GLMutable> -> RawTexture2D<GLMutable>
 
 Also there's probably a cleaner way.
 */
-template<template<typename/* clangd crashes if I put a concept here */> typename TemplateCRTP, mutability_tag MutT>
-struct GLObjectHandleType {
-    // You most likely need the same type of reflection on
-    // RawHandle types as well...
-    using object_handle_type         = TemplateCRTP<MutT>;
-    using object_handle_const_type   = TemplateCRTP<GLConst>;
-    using object_handle_mutable_type = TemplateCRTP<GLMutable>;
+template<
+    template<typename/* clangd crashes if I put a concept here */> typename TemplateCRTP,
+    mutability_tag MutT
+>
+struct ObjectHandleTypeInfo {
+    using object_handle_type          = TemplateCRTP<MutT>;
+    using object_handle_const_type    = TemplateCRTP<GLConst>;
+    using object_handle_mutable_type  = TemplateCRTP<GLMutable>;
 
     template<mutability_tag MutU>
     using object_handle_type_template = TemplateCRTP<MutU>;

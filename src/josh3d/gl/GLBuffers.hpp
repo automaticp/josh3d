@@ -256,6 +256,7 @@ SPECIALIZE_INDEXED_IMPL(SSBO, gl::GL_SHADER_STORAGE_BUFFER)
     class Raw##buf_name                                            \
         : public RawBufferHandle<MutT>                             \
         , public detail::Bindable##buf_name<MutT>                  \
+        , public detail::ObjectHandleTypeInfo<Raw##buf_name, MutT> \
     {                                                              \
     public:                                                        \
         using RawBufferHandle<MutT>::RawBufferHandle;              \

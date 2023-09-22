@@ -162,6 +162,7 @@ private:
 template<mutability_tag MutT>
 class RawVAO
     : public RawVertexArrayHandle<MutT>
+    , public detail::ObjectHandleTypeInfo<RawVAO, MutT>
 {
 public:
     using RawVertexArrayHandle<MutT>::RawVertexArrayHandle;

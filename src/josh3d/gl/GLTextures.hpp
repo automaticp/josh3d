@@ -502,7 +502,7 @@ The magic happens here.
         : public RawTextureHandle<MutT>                            \
         , public detail::Bindable##tex_name<MutT>                  \
         , public detail::GLTexInfo<target_enum>                    \
-        , public detail::GLObjectHandleType<Raw##tex_name, MutT>   \
+        , public detail::ObjectHandleTypeInfo<Raw##tex_name, MutT> \
     {                                                              \
     public:                                                        \
         using RawTextureHandle<MutT>::RawTextureHandle;            \
