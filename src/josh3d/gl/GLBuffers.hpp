@@ -1,449 +1,277 @@
 #pragma once
-#include "GLObjectHandles.hpp"
-#include "GLScalars.hpp"
 #include "AndThen.hpp"
-#include "VertexConcept.hpp"
+#include "AsSelf.hpp"
+#include "GLMutability.hpp"
+#include "GLScalars.hpp"
+#include "RawGLHandles.hpp"
+#include <glbinding/gl/enum.h>
+#include <glbinding/gl/functions.h>
 #include <glbinding/gl/gl.h>
-#include <array>
-
-
 
 
 namespace josh {
 
 
-/*
-In order to not move trivial single-line definitions into a .cpp file
-and to not have to prepend every OpenGL type and function with gl::,
-we're 'using namespace gl' inside of 'leaksgl' namespace,
-and then reexpose the symbols back to this namespace at the end
-with 'using leaksgl::Type' declarations.
-*/
+template<mutability_tag MutT> class BoundVAO;
+template<mutability_tag MutT> class BoundVBO;
+template<mutability_tag MutT> class BoundEBO;
+template<mutability_tag MutT> class BoundUBO;
+template<mutability_tag MutT> class BoundIndexedUBO;
+template<mutability_tag MutT> class BoundSSBO;
+template<mutability_tag MutT> class BoundIndexedSSBO;
+
+template<mutability_tag MutT> class RawVAO;
+template<mutability_tag MutT> class RawVBO;
+template<mutability_tag MutT> class RawEBO;
+template<mutability_tag MutT> class RawUBO;
+template<mutability_tag MutT> class RawSSBO;
+
+
+
+
 
 
 namespace detail {
 
 
-template<typename CRTP>
-class VAODraw {
-public:
-    CRTP& draw_arrays(GLenum mode, GLint first, GLsizei count) {
-        gl::glDrawArrays(mode, first, count);
-        return as_self();
+template<
+    mutability_tag MutT,
+    template<typename> typename CRTP,
+    template<typename> typename BoundT,
+    GLenum TargetV
+>
+struct BindableBuffer {
+    BoundT<MutT> bind() const noexcept {
+        gl::glBindBuffer(
+            TargetV, static_cast<const CRTP<MutT>&>(*this).id()
+        );
+        return {};
     }
-
-    CRTP& draw_elements(GLenum mode, GLsizei count, GLenum type,
-        const void* indices_buffer = nullptr)
-    {
-        glDrawElements(mode, count, type, indices_buffer);
-        return as_self();
-    }
-
-    CRTP& draw_arrays_instanced(GLenum mode, GLint first,
-        GLsizei count, GLsizei instance_count)
-    {
-        glDrawArraysInstanced(mode, first, count, instance_count);
-        return as_self();
-    }
-
-    CRTP& draw_elements_instanced(GLenum mode,
-        GLsizei elem_count, GLenum type, GLsizei instance_count,
-        const void* indices_buffer = nullptr)
-    {
-        glDrawElementsInstanced(mode, elem_count, type, indices_buffer, instance_count);
-        return as_self();
-    }
-
-private:
-    CRTP& as_self() noexcept { return static_cast<CRTP&>(*this); }
 };
+
+
+template<
+    mutability_tag MutT,
+    template<typename> typename CRTP,
+    template<typename> typename BoundT,
+    template<typename> typename BoundIndexedT,
+    GLenum TargetV
+>
+struct BindableBufferIndexed
+    : BindableBuffer<MutT, CRTP, BoundT, TargetV>
+{
+    BoundIndexedT<MutT> bind_to_index(GLuint binding_index) const noexcept {
+        gl::glBindBufferBase(
+            TargetV, binding_index,
+            static_cast<const CRTP<MutT>&>(*this).id()
+        );
+        return { binding_index };
+    }
+
+    BoundIndexedT<MutT> bind_range_to_index(
+        GLintptr offset, GLsizeiptr size, GLuint index) const noexcept
+    {
+        gl::glBindBufferRange(
+            TargetV, index,
+            static_cast<const CRTP<MutT>&>(*this).id(),
+            offset, size
+        );
+        return { index };
+    }
+};
+
+
+template<mutability_tag MutT> using BindableVBO =
+    BindableBuffer<MutT, RawVBO, BoundVBO, gl::GL_ARRAY_BUFFER>;
+
+template<mutability_tag MutT> using BindableEBO =
+    BindableBuffer<MutT, RawEBO, BoundEBO, gl::GL_ELEMENT_ARRAY_BUFFER>;
+
+template<mutability_tag MutT> using BindableUBO =
+    BindableBufferIndexed<MutT, RawUBO, BoundUBO, BoundIndexedUBO, gl::GL_UNIFORM_BUFFER>;
+
+template<mutability_tag MutT> using BindableSSBO =
+    BindableBufferIndexed<MutT, RawSSBO, BoundSSBO, BoundIndexedSSBO, gl::GL_SHADER_STORAGE_BUFFER>;
+
+
+
+
+
+
+
+
+template<GLenum TargetV>
+struct BoundBufferIndexedBase {
+private:
+    GLuint index_;
+public:
+    BoundBufferIndexedBase(GLuint index) : index_{ index } {}
+    void unbind() const noexcept { gl::glBindBufferBase(TargetV, index_, 0); }
+    GLuint binding_index() const noexcept { return index_; }
+};
+
+
+template<GLenum TargetV>
+struct BoundBufferBase {
+    static void unbind() noexcept { gl::glBindBuffer(TargetV, 0); }
+};
+
+
+
+
+template<typename CRTP, GLenum TargetV>
+struct BoundBufferCommonImpl
+    : public  detail::AndThen<CRTP>
+    , private detail::AsSelf<CRTP>
+{
+    template<typename T>
+    CRTP& get_sub_data(GLsizeiptr size, GLsizeiptr offset, T* data) {
+        gl::glGetBufferSubData(
+            TargetV, offset * sizeof(T), size * sizeof(T), data
+        );
+        return this->as_self();
+    }
+};
+
+
+
+template<typename CRTP, GLenum TargetV>
+struct BoundBufferMutableImpl
+    : public BoundBufferCommonImpl<CRTP, TargetV>
+{
+    template<typename T>
+    CRTP& specify_data(GLsizeiptr size, const T* data, GLenum usage) {
+        gl::glBufferData(
+            TargetV, size * sizeof(T), data, usage
+        );
+        return this->as_self();
+    }
+
+    template<typename T>
+    CRTP& sub_data(GLsizeiptr size, GLsizeiptr offset, const T* data) {
+        gl::glBufferSubData(
+            TargetV, offset * sizeof(T), size * sizeof(T), data
+        );
+        return this->as_self();
+    }
+
+};
+
+
+
+
+
+
+
+
+
+
+
+
+template<template<typename> typename BoundTemplateCRTP, mutability_tag MutT>
+struct BoundBufferImpl;
+
+
+#define SPECIALIZE_IMPL(buf_name, target_enum)                            \
+    template<>                                                            \
+    struct BoundBufferImpl<Bound##buf_name, GLConst>                      \
+        : BoundBufferCommonImpl<Bound##buf_name<GLConst>, target_enum>    \
+        , BoundBufferBase<target_enum>                                    \
+    {};                                                                   \
+                                                                          \
+    template<>                                                            \
+    struct BoundBufferImpl<Bound##buf_name, GLMutable>                    \
+        : BoundBufferMutableImpl<Bound##buf_name<GLMutable>, target_enum> \
+        , BoundBufferBase<target_enum>                                    \
+    {};
+
+
+SPECIALIZE_IMPL(VBO,  gl::GL_ARRAY_BUFFER)
+SPECIALIZE_IMPL(EBO,  gl::GL_ELEMENT_ARRAY_BUFFER)
+SPECIALIZE_IMPL(UBO,  gl::GL_UNIFORM_BUFFER)
+SPECIALIZE_IMPL(SSBO, gl::GL_SHADER_STORAGE_BUFFER)
+
+#undef SPECIALIZE_IMPL
+
+
+
+
+template<template<typename> typename BoundTemplateCRTP, mutability_tag MutT>
+struct BoundBufferIndexedImpl;
+
+
+#define SPECIALIZE_INDEXED_IMPL(buf_name, target_enum)                           \
+    template<>                                                                   \
+    struct BoundBufferIndexedImpl<BoundIndexed##buf_name, GLConst>               \
+        : BoundBufferCommonImpl<BoundIndexed##buf_name<GLConst>, target_enum>    \
+        , BoundBufferIndexedBase<target_enum>                                    \
+    {                                                                            \
+        using BoundBufferIndexedBase<target_enum>::BoundBufferIndexedBase;       \
+    };                                                                           \
+                                                                                 \
+    template<>                                                                   \
+    struct BoundBufferIndexedImpl<BoundIndexed##buf_name, GLMutable>             \
+        : BoundBufferMutableImpl<BoundIndexed##buf_name<GLMutable>, target_enum> \
+        , BoundBufferIndexedBase<target_enum>                                    \
+    {                                                                            \
+        using BoundBufferIndexedBase<target_enum>::BoundBufferIndexedBase;       \
+    };
+
+
+SPECIALIZE_INDEXED_IMPL(UBO,  gl::GL_UNIFORM_BUFFER)
+SPECIALIZE_INDEXED_IMPL(SSBO, gl::GL_SHADER_STORAGE_BUFFER)
+
+#undef SPECIALIZE_INDEXED_IMPL
+
+
 
 
 } // namespace detail
 
 
 
-namespace leaksgl {
 
-using namespace gl;
-
-
-
-
-
-
-class BoundConstVAO
-    : public detail::AndThen<BoundConstVAO>
-    , public detail::VAODraw<BoundConstVAO>
-{
-private:
-    friend class VAO;
-    BoundConstVAO() = default;
-
-public:
-    static void unbind() {
-        glBindVertexArray(0u);
-    }
-};
-
-
-
-
-class BoundVAO
-    : public detail::AndThen<BoundVAO>
-    , public detail::VAODraw<BoundVAO>
-{
-private:
-    friend class VAO;
-    BoundVAO() = default;
-
-public:
-    BoundVAO& enable_array_access(GLuint attrib_index) {
-        glEnableVertexAttribArray(attrib_index);
-        return *this;
-    }
-
-    BoundVAO& disable_array_access(GLuint attrib_index) {
-        glDisableVertexAttribArray(attrib_index);
-        return *this;
-    }
-
-    template<vertex_attribute_container AttrsT>
-    BoundVAO& set_many_attribute_params(
-        const AttrsT& aparams)
-    {
-        for (const AttributeParams& ap : aparams) {
-            set_attribute_params(ap);
-            this->enable_array_access(ap.index);
-        }
-        return *this;
-    }
-
-
-    // Use this overload when the type of VertexT is known.
-    template<vertex VertexT>
-    BoundVAO& associate_with(const class BoundVBO& vbo) {
-        this->set_many_attribute_params(VertexT::get_attributes());
-        return *this;
-    }
-
-
-    // Use this overload when the layout specification is custom
-    // and does not depend on the vertex type,
-    // or the attributes have to be specified manually.
-    template<vertex_attribute_container AttrsT>
-    BoundVAO& associate_with(const class BoundVBO& vbo,
-        const AttrsT& aparams)
-    {
-        this->set_many_attribute_params(aparams);
-        return *this;
-    }
-
-
-    static void set_attribute_params(const AttributeParams& ap) {
-        glVertexAttribPointer(
-            ap.index, ap.size, ap.type, ap.normalized,
-            ap.stride_bytes, reinterpret_cast<const void*>(ap.offset_bytes)
-        );
-    }
-
-    static void unbind() {
-        glBindVertexArray(0u);
-    }
-};
-
-
-
-
-class VAO : public VAOHandle {
-public:
-    BoundVAO bind() {
-        glBindVertexArray(id_);
-        return {};
-    }
-
-    BoundConstVAO bind() const {
-        glBindVertexArray(id_);
-        return {};
-    }
-};
-
-
-
-
-
-
-
-
-
-
-
-class BoundAbstractBuffer : public detail::AndThen<BoundAbstractBuffer> {
-private:
-    GLenum type_;
-
-    friend class AbstractBuffer;
-    BoundAbstractBuffer(GLenum type) : type_{ type } {}
-
-public:
-    template<typename T>
-    BoundAbstractBuffer& attach_data(size_t size, const T* data,
-        GLenum usage)
-    {
-        glBufferData(
-            type_,
-            static_cast<GLsizeiptr>(size * sizeof(T)),
-            reinterpret_cast<const void*>(data),
-            usage
-        );
-        return *this;
-    }
-
-    template<typename T>
-    BoundAbstractBuffer& sub_data(size_t size,
-        size_t offset, const T* data)
-    {
-        glBufferSubData(
-            type_,
-            static_cast<GLintptr>(offset * sizeof(T)),
-            static_cast<GLsizeiptr>(size * sizeof(T)),
-            reinterpret_cast<const void*>(data)
-        );
-        return *this;
-    }
-
-    template<typename T>
-    BoundAbstractBuffer& get_sub_data(size_t size,
-        size_t offset, T* data)
-    {
-        glGetBufferSubData(
-            type_,
-            static_cast<GLintptr>(offset * sizeof(T)),
-            static_cast<GLsizeiptr>(size * sizeof(T)),
-            reinterpret_cast<void*>(data)
-        );
-        return *this;
-    }
-
-
-
-    void unbind() {
-        glBindBuffer(type_, 0);
-    }
-};
-
-
-class AbstractBuffer : public BufferHandle {
-public:
-    BoundAbstractBuffer bind_as(GLenum type) {
-        glBindBuffer(type, id_);
-        return { type };
-    }
-
-    static void unbind_as(GLenum type) {
-        glBindBuffer(type, 0);
-    }
-};
-
-
-
-
-
-
-
-
-
-
-
-class BoundSSBO : public detail::AndThen<BoundSSBO> {
-private:
-    friend class SSBO;
-    BoundSSBO() = default;
-
-public:
-    template<typename T>
-    BoundSSBO& attach_data(size_t size, const T* data, GLenum usage) {
-        glBufferData(
-            GL_SHADER_STORAGE_BUFFER,
-            static_cast<GLsizeiptr>(size * sizeof(T)),
-            reinterpret_cast<const void*>(data),
-            usage
-        );
-        return *this;
-    }
-
-    template<typename T>
-    BoundSSBO& sub_data(size_t size, size_t offset, const T* data) {
-        glBufferSubData(
-            GL_SHADER_STORAGE_BUFFER,
-            static_cast<GLintptr>(offset * sizeof(T)),
-            static_cast<GLsizeiptr>(size * sizeof(T)),
-            reinterpret_cast<const void*>(data)
-        );
-        return *this;
-    }
-
-    template<typename T>
-    BoundSSBO& get_sub_data(size_t size,
-        size_t offset, T* data)
-    {
-        glGetBufferSubData(
-            GL_SHADER_STORAGE_BUFFER,
-            static_cast<GLintptr>(offset * sizeof(T)),
-            static_cast<GLsizeiptr>(size * sizeof(T)),
-            reinterpret_cast<void*>(data)
-        );
-        return *this;
-    }
-
-
-    static void unbind() {
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0u);
-    }
-};
-
-
-class SSBO : public BufferHandle {
-public:
-    BoundSSBO bind() {
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, id_);
-        return {};
-    }
-
-    BoundSSBO bind_to(GLuint binding_index) {
-        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, binding_index, id_);
-        return {};
-    }
-};
-
-
-
-
-
-
-
-
-
-
-
-class BoundVBO : public detail::AndThen<BoundVBO>{
-private:
-    friend class VBO;
-    BoundVBO() = default;
-
-public:
-    template<typename T>
-    BoundVBO& attach_data(size_t size, const T* data, GLenum usage) {
-        glBufferData(
-            GL_ARRAY_BUFFER,
-            static_cast<GLsizeiptr>(size * sizeof(T)),
-            reinterpret_cast<const void*>(data),
-            usage
-        );
-        return *this;
-    }
-
-
-    template<vertex_attribute_container AttrsT>
-    BoundVBO& associate_with(BoundVAO& vao,
-        const AttrsT& aparams)
-    {
-        vao.associate_with(*this, aparams);
-        return *this;
-    }
-
-
-    template<vertex_attribute_container AttrsT>
-    BoundVBO& associate_with(BoundVAO&& vao,
-        const AttrsT& aparams)
-    {
-        return this->associate_with(vao, aparams);
-    }
-
-
-    template<vertex VertexT>
-    BoundVBO& associate_with(BoundVAO& vao) {
-        vao.associate_with<VertexT>(*this);
-        return *this;
-    }
-
-
-    template<vertex VertexT>
-    BoundVBO& associate_with(BoundVAO&& vao) {
-        return this->associate_with<VertexT>(vao);
-    }
-
-
-
-    static void unbind() {
-        glBindBuffer(GL_ARRAY_BUFFER, 0u);
-    }
-};
-
-
-class VBO : public BufferHandle {
-public:
-    BoundVBO bind() {
-        glBindBuffer(GL_ARRAY_BUFFER, id_);
-        return {};
-    }
-};
-
-
-
-
-
-
-
-
-
-
-
-class BoundEBO : public detail::AndThen<BoundEBO> {
-private:
-    friend class EBO;
-    BoundEBO() = default;
-
-public:
-    template<typename T>
-    BoundEBO& attach_data(size_t size, const T* data, GLenum usage) {
-        glBufferData(
-            GL_ELEMENT_ARRAY_BUFFER,
-            static_cast<GLsizeiptr>(size * sizeof(T)),
-            reinterpret_cast<const void*>(data),
-            usage
-        );
-        return *this;
-    }
-
-    static void unbind() {
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0u);
-    }
-};
-
-
-class EBO : public BufferHandle {
-public:
-    BoundEBO bind(BoundVAO& vao) {
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id_);
-        return {};
-    }
-};
-
-
-
-
-
-
-
-} // namespace leaksgl
-
-
-using leaksgl::BoundAbstractBuffer, leaksgl::AbstractBuffer;
-using leaksgl::BoundVAO, leaksgl::VAO;
-using leaksgl::BoundVBO, leaksgl::VBO;
-using leaksgl::BoundSSBO, leaksgl::SSBO;
-using leaksgl::BoundEBO, leaksgl::EBO;
+#define GENERATE_BUFFER_CLASSES(buf_name, target_enum)             \
+    template<mutability_tag MutT>                                  \
+    class Bound##buf_name                                          \
+        : public detail::BoundBufferImpl<Bound##buf_name, MutT>    \
+    {                                                              \
+    private:                                                       \
+        friend detail::Bindable##buf_name<MutT>;                   \
+        Bound##buf_name() = default;                               \
+    };                                                             \
+                                                                   \
+    template<mutability_tag MutT>                                  \
+    class BoundIndexed##buf_name                                   \
+        : public detail::BoundBufferIndexedImpl<                   \
+            BoundIndexed##buf_name, MutT>                          \
+    {                                                              \
+    private:                                                       \
+        friend detail::Bindable##buf_name<MutT>;                   \
+        using detail::BoundBufferIndexedImpl<                      \
+            BoundIndexed##buf_name, MutT>::BoundBufferIndexedImpl; \
+    };                                                             \
+                                                                   \
+    template<mutability_tag MutT>                                  \
+    class Raw##buf_name                                            \
+        : public RawBufferHandle<MutT>                             \
+        , public detail::Bindable##buf_name<MutT>                  \
+    {                                                              \
+    public:                                                        \
+        using RawBufferHandle<MutT>::RawBufferHandle;              \
+    };                                                             \
+                                                                   \
+    static_assert(sizeof(Raw##buf_name<GLConst>));                 \
+    static_assert(sizeof(Raw##buf_name<GLMutable>));
+
+
+
+GENERATE_BUFFER_CLASSES(VBO,  gl::GL_ARRAY_BUFFER)
+GENERATE_BUFFER_CLASSES(EBO,  gl::GL_ELEMENT_ARRAY_BUFFER)
+GENERATE_BUFFER_CLASSES(UBO,  gl::GL_UNIFORM_BUFFER)
+GENERATE_BUFFER_CLASSES(SSBO, gl::GL_SHADER_STORAGE_BUFFER)
+
+#undef GENERATE_BUFFER_CLASSES
 
 
 } // namespace josh
