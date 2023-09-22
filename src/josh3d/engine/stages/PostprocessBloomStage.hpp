@@ -82,7 +82,7 @@ public:
 
         // Extract
         blur_ppdb_.draw_and_swap([&, this] {
-            sp_extract_.use().and_then([&, this](ActiveShaderProgram& ashp) {
+            sp_extract_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
 
                 ashp.uniform("threshold_bounds", threshold_bounds)
                     .uniform("screen_color", 0);
@@ -98,7 +98,9 @@ public:
 
             for (size_t i{ 0 }; i < (2 * blur_iterations); ++i) {
                 blur_ppdb_.draw_and_swap([&, this] {
-                    sp_twopass_gaussian_blur_.use().and_then([&, this](ActiveShaderProgram& ashp) {
+                    sp_twopass_gaussian_blur_.use().and_then([&, this](
+                        ActiveShaderProgram<GLMutable>& ashp)
+                    {
 
                         ashp.uniform("blur_horizontally", bool(i % 2))
                             .uniform("offset_scale", offset_scale)
@@ -113,7 +115,7 @@ public:
         });
 
         // Blend
-        sp_blend_.use().and_then([&, this](ActiveShaderProgram& ashp) {
+        sp_blend_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
 
             ashp.uniform("screen_color", 0)
                 .uniform("bloom_color", 1);

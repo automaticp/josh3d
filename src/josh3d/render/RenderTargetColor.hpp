@@ -17,9 +17,7 @@ private:
 
     Size2I size_;
 
-    GLenum color_format_;
-    GLenum color_internal_format_;
-    GLenum color_type_;
+    Texture2D::spec_type spec_;
 
 public:
     RenderTargetColor(Size2I size)
@@ -28,17 +26,14 @@ public:
 
     RenderTargetColor(Size2I size,
         GLenum color_format, GLenum color_internal_format,
-        GLenum color_type
-    )
+        GLenum color_type)
         : size_{ size }
-        , color_format_{ color_format }
-        , color_internal_format_{ color_internal_format }
-        , color_type_{ color_type }
+        , spec_{ color_internal_format, color_format, color_type }
     {
         using namespace gl;
 
         tex_.bind_to_unit(GL_TEXTURE0)
-            .specify_image(size_, color_internal_format_, color_format_, color_type_, nullptr)
+            .specify_image(size_, spec_, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
             // Fixes edge overflow from kernel effects
@@ -67,9 +62,7 @@ public:
 
         size_ = new_size;
 
-        tex_.bind()
-            .specify_image(size_, color_internal_format_,
-                color_format_, color_type_, nullptr);
+        tex_.bind().specify_image(size_, spec_, nullptr);
 
         rb_.bind().create_storage(size_, GL_DEPTH24_STENCIL8);
 

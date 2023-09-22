@@ -36,7 +36,7 @@ void DeferredShadingStage::draw_main(
     const entt::registry& registry)
 {
 
-    sp_.use().and_then([&, this](ActiveShaderProgram& ashp) {
+    sp_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
 
         gbuffer_->position_target().bind_to_unit_index(0);
         gbuffer_->normals_target().bind_to_unit_index(1);
@@ -104,7 +104,7 @@ void DeferredShadingStage::draw_debug_csm(
     const RenderEnginePrimaryInterface& engine,
     const entt::registry& registry)
 {
-    sp_cascade_debug_.use().and_then([&, this](ActiveShaderProgram& ashp) {
+    sp_cascade_debug_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
 
         gbuffer_->position_target().bind_to_unit_index(0);
         gbuffer_->normals_target() .bind_to_unit_index(1);

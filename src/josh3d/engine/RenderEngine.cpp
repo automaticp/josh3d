@@ -1,5 +1,5 @@
 #include "RenderEngine.hpp"
-#include "GLFramebuffers.hpp"
+#include "GLFramebuffer.hpp"
 #include <entt/entt.hpp>
 #include <glbinding/gl/gl.h>
 #include <cassert>
@@ -34,11 +34,11 @@ void RenderEngine::render() {
 
         main_target_.framebuffer()
             .bind_read()
-            .and_then([this](BoundReadFramebuffer&) {
+            .and_then([this](BoundReadFramebuffer<GLMutable>&) {
 
                 // FIXME: Kinda awkward because there's no default binding object.
                 // Way to fix this is so far unknown.
-                BoundDrawFramebuffer::unbind();
+                BoundDrawFramebuffer<GLMutable>::unbind();
 
                 auto [src_w, src_h] = main_target_.size();
                 auto [dst_w, dst_h] = window_size_;
@@ -53,10 +53,10 @@ void RenderEngine::render() {
 
     } else /* has postprocessing */ {
 
-        ppdb_.draw_and_swap([this](BoundDrawFramebuffer& dst_fbo) {
+        ppdb_.draw_and_swap([this](BoundDrawFramebuffer<GLMutable>& dst_fbo) {
             main_target_.framebuffer()
                 .bind_read()
-                .and_then([&, this](BoundReadFramebuffer& src_fbo) {
+                .and_then([&, this](BoundReadFramebuffer<GLMutable>& src_fbo) {
 
                     auto [src_w, src_h] = main_target_.size();
                     auto [dst_w, dst_h] = ppdb_.back().size();

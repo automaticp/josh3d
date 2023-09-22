@@ -38,7 +38,7 @@ public:
         sp_.use().uniform("projection", projection);
 
         vbo_.bind()
-            .attach_data(quad.size(), quad.data(), GL_STATIC_DRAW)
+            .specify_data(quad.size(), quad.data(), GL_STATIC_DRAW)
             .associate_with<Vertex2D>(vao_.bind());
 
     }

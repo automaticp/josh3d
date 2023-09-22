@@ -28,17 +28,17 @@ public:
         using enum gl::GLenum;
 
         position_draw_.bind()
-            .specify_image(size_, GL_RGBA16F, GL_RGBA, GL_FLOAT, nullptr)
+            .specify_image(size_, { GL_RGBA16F, GL_RGBA, GL_FLOAT }, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
         normals_.bind()
-            .specify_image(size_, GL_RGBA8_SNORM, GL_RGBA, GL_FLOAT, nullptr)
+            .specify_image(size_, { GL_RGBA8_SNORM, GL_RGBA, GL_FLOAT }, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
         albedo_spec_.bind()
-            .specify_image(size_, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, nullptr)
+            .specify_image(size_, { GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE }, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
@@ -89,13 +89,13 @@ public:
         size_ = new_size;
 
         position_draw_.bind()
-            .specify_image(size_, GL_RGBA16F, GL_RGBA, GL_FLOAT, nullptr);
+            .specify_image(size_, { GL_RGBA16F, GL_RGBA, GL_FLOAT }, nullptr);
 
         normals_.bind()
-            .specify_image(size_, GL_RGBA8_SNORM, GL_RGBA, GL_FLOAT, nullptr);
+            .specify_image(size_, { GL_RGBA8_SNORM, GL_RGBA, GL_FLOAT }, nullptr);
 
         albedo_spec_.bind()
-            .specify_image(size_, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+            .specify_image(size_, { GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE }, nullptr);
 
         depth_.bind()
             .create_storage(size_, GL_DEPTH24_STENCIL8);

@@ -1,4 +1,5 @@
 #include "PointShadowMappingStage.hpp"
+#include "GLMutability.hpp"
 #include "RenderComponents.hpp"
 #include "ECSHelpers.hpp"
 #include "Size.hpp"
@@ -68,11 +69,11 @@ void PointShadowMappingStage::resize_cubemap_array_storage_if_needed(
 
 
 static void draw_all_world_geometry_with_alpha_test(
-    ActiveShaderProgram& ashp, const entt::registry& registry);
+    ActiveShaderProgram<GLMutable>& ashp, const entt::registry& registry);
 
 
 static void draw_all_world_geometry_no_alpha_test(
-    ActiveShaderProgram& ashp, const entt::registry& registry);
+    ActiveShaderProgram<GLMutable>& ashp, const entt::registry& registry);
 
 
 
@@ -96,7 +97,8 @@ void PointShadowMappingStage::map_point_shadows(
         glClear(GL_DEPTH_BUFFER_BIT);
 
 
-        auto set_common_uniforms = [&, this](ActiveShaderProgram& ashp,
+        auto set_common_uniforms = [&, this](
+            ActiveShaderProgram<GLMutable>& ashp,
             const glm::vec3& pos, GLint cubemap_id)
         {
             glm::mat4 projection = glm::perspective(
@@ -128,7 +130,7 @@ void PointShadowMappingStage::map_point_shadows(
         };
 
 
-        sp_with_alpha.use().and_then([&](ActiveShaderProgram& ashp) {
+        sp_with_alpha.use().and_then([&](ActiveShaderProgram<GLMutable>& ashp) {
             for (GLint cubemap_id{ 0 };
                 auto [_, plight] : plights_with_shadows_view.each())
             {
@@ -140,7 +142,7 @@ void PointShadowMappingStage::map_point_shadows(
         });
 
 
-        sp_no_alpha.use().and_then([&](ActiveShaderProgram& ashp) {
+        sp_no_alpha.use().and_then([&](ActiveShaderProgram<GLMutable>& ashp) {
             for (GLint cubemap_id{ 0 };
                 auto [_, plight] : plights_with_shadows_view.each())
             {
@@ -161,7 +163,7 @@ void PointShadowMappingStage::map_point_shadows(
 
 
 static void draw_all_world_geometry_no_alpha_test(
-    ActiveShaderProgram& ashp, const entt::registry& registry)
+    ActiveShaderProgram<GLMutable>& ashp, const entt::registry& registry)
 {
     // Assumes that projection and view are already set.
 
@@ -191,7 +193,7 @@ static void draw_all_world_geometry_no_alpha_test(
 
 
 static void draw_all_world_geometry_with_alpha_test(
-    ActiveShaderProgram& ashp, const entt::registry& registry)
+    ActiveShaderProgram<GLMutable>& ashp, const entt::registry& registry)
 {
     // Assumes that projection and view are already set.
 

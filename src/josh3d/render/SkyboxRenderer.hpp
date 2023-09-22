@@ -32,7 +32,7 @@ public:
         auto bvao = cube_vao_.bind();
 
         cube_vbo_.bind()
-            .attach_data(skybox_vertices.size(), skybox_vertices.data(), GL_STATIC_DRAW)
+            .specify_data(skybox_vertices.size(), skybox_vertices.data(), GL_STATIC_DRAW)
             .associate_with(bvao, aparams)
             .unbind();
 

@@ -53,7 +53,9 @@ inline TextureHandlePool::load_data_from(const File& file,
     }();
 
     new_handle->bind()
-        .attach_data(*tex_data, internal_format)
+        .and_then([&](BoundTexture2D<GLMutable>& tex) {
+            attach_data_to_texture(tex, *tex_data, internal_format);
+        })
         .generate_mipmaps()
         .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
         .set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);

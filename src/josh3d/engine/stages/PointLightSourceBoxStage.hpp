@@ -38,7 +38,7 @@ public:
 
         if (!display) { return; }
 
-        sp_.use().and_then([&, this](ActiveShaderProgram& ashp) {
+        sp_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
 
             ashp.uniform("projection", engine.camera().projection_mat())
                 .uniform("view",       engine.camera().view_mat());

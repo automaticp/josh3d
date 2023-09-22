@@ -21,8 +21,8 @@ public:
         using namespace gl;
 
         cubemaps_.bind()
-            .specify_all_images(Size2I{ size_ }, size_.depth,
-                GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr)
+            .specify_all_images(size_,
+                { GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT }, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
@@ -50,8 +50,8 @@ public:
         size_ = new_size;
 
         cubemaps_.bind()
-            .specify_all_images(Size2I{ size_ }, size_.depth,
-                GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr)
+            .specify_all_images(size_,
+                { GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT }, nullptr)
             .unbind();
     }
 

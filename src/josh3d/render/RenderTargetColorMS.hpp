@@ -15,27 +15,24 @@ private:
     Framebuffer fbo_;
     Renderbuffer rbo_;
 
-    Size2I  size_;
-    GLsizei nsamples_;
+    Size2I size_;
 
-    GLenum color_internal_format_;
+    Texture2DMS::spec_type spec_;
 
 public:
     RenderTargetColorMS(Size2I size,
-        GLsizei nsamples, GLenum color_internal_format = gl::GL_RGBA
-    )
+        GLsizei nsamples, GLenum color_internal_format = gl::GL_RGBA)
         : size_{ size }
-        , nsamples_{ nsamples }
-        , color_internal_format_{ color_internal_format }
+        , spec_{ color_internal_format, nsamples, false }
     {
         using namespace gl;
 
         tex_.bind()
-            .specify_image(size_, nsamples_, color_internal_format_);
+            .specify_image(size_, spec_);
         //  .set_parameter(...) ???
 
         rbo_.bind()
-            .create_multisample_storage(size_, nsamples_, GL_DEPTH24_STENCIL8);
+            .create_multisample_storage(size_, spec_.nsamples, GL_DEPTH24_STENCIL8);
 
         fbo_.bind_draw()
             .attach_multisample_texture(tex_, GL_COLOR_ATTACHMENT0)
@@ -50,19 +47,19 @@ public:
     Framebuffer& framebuffer() noexcept { return fbo_; }
 
     Size2I  size()     const noexcept { return size_; }
-    GLsizei nsamples() const noexcept { return nsamples_; }
+    GLsizei nsamples() const noexcept { return spec_.nsamples; }
 
     void reset_size_and_samples(Size2I new_size, GLsizei nsamples) {
         using namespace gl;
 
-        size_     = new_size;
-        nsamples_ = nsamples;
+        size_          = new_size;
+        spec_.nsamples = nsamples;
 
         tex_.bind()
-            .specify_image(size_, nsamples_, color_internal_format_);
+            .specify_image(size_, spec_);
 
         rbo_.bind()
-            .create_multisample_storage(size_, nsamples_, GL_DEPTH24_STENCIL8);
+            .create_multisample_storage(size_, spec_.nsamples, GL_DEPTH24_STENCIL8);
     }
 
 

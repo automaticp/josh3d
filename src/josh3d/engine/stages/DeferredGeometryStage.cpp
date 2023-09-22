@@ -1,4 +1,5 @@
 #include "DeferredGeometryStage.hpp"
+#include "GLMutability.hpp"
 #include "GLShaders.hpp"
 #include "RenderComponents.hpp"
 #include "RenderEngine.hpp"
@@ -42,7 +43,7 @@ void DeferredGeometryStage::operator()(
     // uncomfortable to do in EnTT. Is there a better way?
 
 
-    const auto apply_ds_materials = [&](entt::entity e, ActiveShaderProgram& ashp) {
+    const auto apply_ds_materials = [&](entt::entity e, ActiveShaderProgram<GLMutable>& ashp) {
 
         if (auto mat_d = registry.try_get<components::MaterialDiffuse>(e); mat_d) {
             mat_d->diffuse->bind_to_unit_index(0);
@@ -63,7 +64,7 @@ void DeferredGeometryStage::operator()(
 
     gbuffer_->framebuffer().bind_draw().and_then([&, this] {
 
-        sp_ds.use().and_then([&](ActiveShaderProgram& ashp) {
+        sp_ds.use().and_then([&](ActiveShaderProgram<GLMutable>& ashp) {
 
             ashp.uniform("projection", projection)
                 .uniform("view", view);
@@ -86,7 +87,7 @@ void DeferredGeometryStage::operator()(
         });
 
 
-        sp_dsn.use().and_then([&](ActiveShaderProgram& ashp) {
+        sp_dsn.use().and_then([&](ActiveShaderProgram<GLMutable>& ashp) {
 
             ashp.uniform("projection", projection)
                 .uniform("view", view);

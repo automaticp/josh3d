@@ -1,5 +1,6 @@
 #pragma once
 #include "GLBuffers.hpp"
+#include "GLObjects.hpp"
 #include "Vertex2D.hpp"
 #include "GLScalars.hpp"
 #include <glbinding/gl/enum.h>
@@ -27,7 +28,7 @@ public:
         using enum GLenum;
 
         quad_vbo_.bind()
-            .attach_data(quad.size(), quad.data(), GL_STATIC_DRAW)
+            .specify_data(quad.size(), quad.data(), GL_STATIC_DRAW)
             .associate_with<Vertex2D>(quad_vao_.bind());
 
     }

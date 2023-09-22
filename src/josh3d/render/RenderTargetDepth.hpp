@@ -23,7 +23,8 @@ public:
         const float border_color[4] = { 1.f, 1.f, 1.f, 1.f };
 
         tex_.bind()
-            .specify_image(size_, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr)
+            .specify_image(size_,
+                { GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT }, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER)
@@ -52,7 +53,8 @@ public:
         size_ = new_size;
 
         tex_.bind()
-            .specify_image(size_, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr)
+            .specify_image(size_,
+                { GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT }, nullptr)
             .unbind();
     }
 

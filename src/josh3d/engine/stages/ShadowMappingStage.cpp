@@ -1,4 +1,5 @@
 #include "ShadowMappingStage.hpp"
+#include "GLMutability.hpp"
 #include "GLShaders.hpp"
 #include "GlobalsGL.hpp"
 #include "LightCasters.hpp"
@@ -102,7 +103,7 @@ static MTransform get_full_mtransform(entt::const_handle handle,
 
 
 
-static void draw_all_world_geometry_with_alpha_test(ActiveShaderProgram& ashp,
+static void draw_all_world_geometry_with_alpha_test(ActiveShaderProgram<GLMutable>& ashp,
     const entt::registry& registry)
 {
     // Assumes that projection and view are already set.
@@ -133,7 +134,7 @@ static void draw_all_world_geometry_with_alpha_test(ActiveShaderProgram& ashp,
 
 
 
-static void draw_all_world_geometry_no_alpha_test(ActiveShaderProgram& ashp,
+static void draw_all_world_geometry_no_alpha_test(ActiveShaderProgram<GLMutable>& ashp,
     const entt::registry& registry)
 {
     // Assumes that projection and view are already set.
@@ -158,7 +159,7 @@ static void draw_all_world_geometry_no_alpha_test(ActiveShaderProgram& ashp,
 
 
 static void set_common_point_shadow_uniforms(
-    ActiveShaderProgram& ashp, const glm::vec3& position,
+    ActiveShaderProgram<GLMutable>& ashp, const glm::vec3& position,
     const ShadowMappingStage::PointShadowParams& params,
     GLint cubemap_id)
 {
@@ -218,7 +219,7 @@ void ShadowMappingStage::map_point_light_shadows(
         }
 
 
-        sp_plight_depth_with_alpha_.use().and_then([&, this](ActiveShaderProgram& ashp) {
+        sp_plight_depth_with_alpha_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
 
             for (GLint cubemap_id{ 0 };
                 auto [_, plight] : plights_with_shadow_view.each())
@@ -236,7 +237,7 @@ void ShadowMappingStage::map_point_light_shadows(
         });
 
 
-        sp_plight_depth_no_alpha_.use().and_then([&, this](ActiveShaderProgram& ashp) {
+        sp_plight_depth_no_alpha_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
 
             for (GLint cubemap_id{ 0 };
                 auto [_, plight] : plights_with_shadow_view.each())
@@ -313,7 +314,7 @@ void ShadowMappingStage::map_dir_light_shadows(
         sp_dir_depth_with_alpha.use()
             .uniform("projection", light_projection)
             .uniform("view",       light_view)
-            .and_then([&](ActiveShaderProgram& ashp) {
+            .and_then([&](ActiveShaderProgram<GLMutable>& ashp) {
                 draw_all_world_geometry_with_alpha_test(ashp, registry);
             });
 
@@ -321,7 +322,7 @@ void ShadowMappingStage::map_dir_light_shadows(
         sp_dir_depth_no_alpha.use()
             .uniform("projection", light_projection)
             .uniform("view",       light_view)
-            .and_then([&](ActiveShaderProgram& ashp) {
+            .and_then([&](ActiveShaderProgram<GLMutable>& ashp) {
                 draw_all_world_geometry_no_alpha_test(ashp, registry);
             });
 

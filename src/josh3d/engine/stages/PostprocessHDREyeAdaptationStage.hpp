@@ -1,5 +1,6 @@
 #pragma once
 #include "GLFenceSync.hpp"
+#include "GLMutability.hpp"
 #include "GLObjects.hpp"
 #include "GlobalsUtil.hpp"
 #include "RenderEngine.hpp"
@@ -66,7 +67,7 @@ public:
                     avg_screen_value, frame_weight, adaptation_rate);
         }
 
-        sp_.use().and_then([&, this](ActiveShaderProgram& ashp) {
+        sp_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
             engine.screen_color().bind_to_unit(GL_TEXTURE0);
             ashp.uniform("color", 0)
                 .uniform("use_reinhard", false)
@@ -113,7 +114,7 @@ private:
         float result_screen_value;
 
         reduce_sp_.use()
-            .and_then([&, this](ActiveShaderProgram& ashp) {
+            .and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
 
                 engine.screen_color().bind_to_unit_index(0);
                 ashp.uniform("screen_color", 0);

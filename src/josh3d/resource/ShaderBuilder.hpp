@@ -114,7 +114,8 @@ public:
 private:
     static void compile_from_source_and_attach_to(ShaderProgram& sp, const UnevaluatedShader& shader_info) {
         Shader new_shader{ shader_info.type };
-        new_shader.set_source(shader_info.source).compile();
+        new_shader.set_source(shader_info.source.text().c_str());
+        new_shader.compile();
         sp.attach_shader(new_shader);
     }
 

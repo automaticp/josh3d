@@ -14,7 +14,7 @@ private:
     QuadRenderer renderer_;
 
 public:
-    void draw(ActiveShaderProgram& pp_shader, Texture2D& screen_color_texture) {
+    void draw(ActiveShaderProgram<GLMutable>& pp_shader, Texture2D& screen_color_texture) {
         using namespace gl;
 
         glDisable(GL_DEPTH_TEST);

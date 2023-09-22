@@ -18,9 +18,7 @@ private:
 
     Size2I size_;
 
-    GLenum color_format_;
-    GLenum color_internal_format_;
-    GLenum color_type_;
+    Texture2D::spec_type spec_;
 
 public:
     RenderTargetColorAndDepth(Size2I size)
@@ -29,26 +27,22 @@ public:
 
     RenderTargetColorAndDepth(Size2I size,
         GLenum color_format, GLenum color_internal_format,
-        GLenum color_type
-    )
+        GLenum color_type)
         : size_{ size }
-        , color_format_{ color_format }
-        , color_internal_format_{ color_internal_format }
-        , color_type_{ color_type }
+        , spec_{ color_internal_format, color_format, color_type }
     {
         using namespace gl;
 
         color_.bind()
-            .specify_image(size_, color_internal_format_,
-                color_format_, color_type_, nullptr)
+            .specify_image(size_, spec_, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
             .set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER)
             .set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 
         depth_.bind()
-            .specify_image(size_, GL_DEPTH_COMPONENT,
-                GL_DEPTH_COMPONENT, GL_FLOAT, nullptr)
+            .specify_image(size_,
+                { GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT }, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER)
@@ -77,12 +71,11 @@ public:
         size_ = new_size;
 
         color_.bind()
-            .specify_image(size_, color_internal_format_,
-                color_format_, color_type_, nullptr);
+            .specify_image(size_, spec_, nullptr);
 
         depth_.bind()
-            .specify_image(size_, GL_DEPTH_COMPONENT,
-                GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+            .specify_image(size_,
+                { GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT }, nullptr);
 
     }
 

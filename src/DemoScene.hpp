@@ -1,6 +1,7 @@
 #pragma once
 #include "AssimpModelLoader.hpp"
 #include "FrustumCuller.hpp"
+#include "GLTextures.hpp"
 #include "PerspectiveCamera.hpp"
 #include "CubemapData.hpp"
 #include "GlobalsUtil.hpp"
@@ -267,6 +268,7 @@ inline void DemoScene::configure_input() {
 inline void DemoScene::init_registry() {
     auto& r = registry_;
 
+    using enum GLenum;
 
     constexpr const char* path = "data/models/shadow_scene/shadow_scene.obj";
 
@@ -291,16 +293,29 @@ inline void DemoScene::init_registry() {
     r.emplace<tags::ShadowCasting>(e);
 
     components::Skybox skybox{ std::make_shared<Cubemap>() };
-    skybox.cubemap->bind().attach_data(
-        CubemapData::from_files(
-                VPath("data/skyboxes/lake/right.png"),
-                VPath("data/skyboxes/lake/left.png"),
-                VPath("data/skyboxes/lake/top.png"),
-                VPath("data/skyboxes/lake/bottom.png"),
-                VPath("data/skyboxes/lake/front.png"),
-                VPath("data/skyboxes/lake/back.png")
-        ), gl::GL_SRGB_ALPHA
-    );
+    skybox.cubemap->bind()
+        .and_then([&](BoundCubemap<GLMutable>& cubemap) {
+            attach_data_to_cubemap(
+                cubemap,
+                CubemapData::from_files(
+                    VPath("data/skyboxes/lake/right.png"),
+                    VPath("data/skyboxes/lake/left.png"),
+                    VPath("data/skyboxes/lake/top.png"),
+                    VPath("data/skyboxes/lake/bottom.png"),
+                    VPath("data/skyboxes/lake/front.png"),
+                    VPath("data/skyboxes/lake/back.png")
+                ),
+                gl::GL_SRGB_ALPHA
+            );
+        })
+        // FIXME: There's gotta be a better place to put this.
+        // Maybe a create_skybox() function or something...
+        .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+        .set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+        .set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
+        .set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+        .set_parameter(GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
     r.emplace<components::Skybox>(r.create(), std::move(skybox));
 
 }

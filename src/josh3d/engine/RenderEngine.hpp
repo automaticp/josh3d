@@ -1,5 +1,5 @@
 #pragma once
-#include "GLFramebuffers.hpp"
+#include "GLFramebuffer.hpp"
 #include "PerspectiveCamera.hpp"
 #include "FrameTimer.hpp"
 #include "GLObjects.hpp"
@@ -282,7 +282,8 @@ public:
             });
         } else /* last stage */ {
             // Draw to the screen directly.
-            BoundDrawFramebuffer::unbind();
+            // FIXME: This way of default-binding is ugly.
+            BoundDrawFramebuffer<GLMutable>::unbind();
             engine_.pp_renderer_.draw();
         }
 
@@ -304,7 +305,8 @@ public:
                     engine_.pp_renderer_.draw();
                 });
         } else /* last stage */ {
-            BoundDrawFramebuffer::unbind();
+            // FIXME: default-binding ugly, yada-yada.
+            BoundDrawFramebuffer<GLMutable>::unbind();
             engine_.pp_renderer_.draw();
         }
 

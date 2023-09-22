@@ -1,4 +1,5 @@
 #include "CascadedShadowMappingStage.hpp"
+#include "GLMutability.hpp"
 #include "GLShaders.hpp"
 #include "GlobalsUtil.hpp"
 #include "RenderComponents.hpp"
@@ -51,7 +52,7 @@ void CascadedShadowMappingStage::resize_cascade_storage_if_needed() {
 
 
 static void draw_all_world_geometry_no_alpha_test(
-    ActiveShaderProgram& ashp, const entt::registry& registry)
+    ActiveShaderProgram<GLMutable>& ashp, const entt::registry& registry)
 {
     // Assumes that projection and view are already set.
 
@@ -85,7 +86,7 @@ static void draw_all_world_geometry_no_alpha_test(
 
 
 static void draw_all_world_geometry_with_alpha_test(
-    ActiveShaderProgram& ashp, const entt::registry& registry)
+    ActiveShaderProgram<GLMutable>& ashp, const entt::registry& registry)
 {
     // Assumes that projection and view are already set.
 
@@ -163,7 +164,7 @@ void CascadedShadowMappingStage::map_dir_light_shadow_cascade(
                 << max_cascades_ << ". Extra cascades will be ignored.";
         }
 
-        auto set_common_uniforms = [&](ActiveShaderProgram& ashp) {
+        auto set_common_uniforms = [&](ActiveShaderProgram<GLMutable>& ashp) {
             ULocation proj_loc = ashp.location_of("projections");
             ULocation view_loc = ashp.location_of("views");
 
@@ -177,13 +178,13 @@ void CascadedShadowMappingStage::map_dir_light_shadow_cascade(
 
 
         sp_with_alpha_.use()
-            .and_then([&](ActiveShaderProgram& ashp) {
+            .and_then([&](ActiveShaderProgram<GLMutable>& ashp) {
                 set_common_uniforms(ashp);
                 draw_all_world_geometry_with_alpha_test(ashp, registry);
             });
 
         sp_no_alpha_.use()
-            .and_then([&](ActiveShaderProgram& ashp) {
+            .and_then([&](ActiveShaderProgram<GLMutable>& ashp) {
                 set_common_uniforms(ashp);
                 draw_all_world_geometry_no_alpha_test(ashp, registry);
             });
