@@ -21,7 +21,7 @@ class BoundRenderbuffer
 {
 private:
     friend RawRenderbuffer<MutT>;
-    BoundRenderbuffer<MutT>() = default;
+    BoundRenderbuffer() = default;
 public:
     static void unbind() { gl::glBindRenderbuffer(gl::GL_RENDERBUFFER, 0); }
 

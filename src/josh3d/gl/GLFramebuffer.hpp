@@ -95,7 +95,7 @@ public:
     }
 
     BoundDrawFramebuffer& attach_texture_array(
-        GLuint tex_array, GLenum attachment, GLint mipmap_level = 0) const
+        GLuint tex_array, GLenum attachment, GLint mipmap_level = 0)
     {
         gl::glFramebufferTexture(
             gl::GL_DRAW_FRAMEBUFFER, attachment,
@@ -105,7 +105,7 @@ public:
     }
 
     BoundDrawFramebuffer& attach_cubemap(
-        GLuint cubemap, GLenum attachment, GLint mipmap_level = 0) const
+        GLuint cubemap, GLenum attachment, GLint mipmap_level = 0)
     {
         gl::glFramebufferTexture(
             gl::GL_DRAW_FRAMEBUFFER, attachment,
@@ -116,7 +116,7 @@ public:
 
     BoundDrawFramebuffer& attach_texture_layer(
         GLuint texture, GLenum attachment, GLint layer,
-        GLint mipmap_level = 0) const
+        GLint mipmap_level = 0)
     {
         gl::glFramebufferTextureLayer(
             gl::GL_DRAW_FRAMEBUFFER, attachment,
@@ -130,7 +130,7 @@ public:
         const BoundReadFramebuffer<MutU>& src [[maybe_unused]],
         GLint src_x0, GLint src_y0, GLint src_x1, GLint src_y1,
         GLint dst_x0, GLint dst_y0, GLint dst_x1, GLint dst_y1,
-        gl::ClearBufferMask buffer_mask, GLenum interp_filter) const
+        gl::ClearBufferMask buffer_mask, GLenum interp_filter)
     {
         gl::glBlitFramebuffer(
             src_x0, src_y0, src_x1, src_y1,
@@ -140,20 +140,20 @@ public:
         return *this;
     }
 
-    BoundDrawFramebuffer& set_draw_buffer(GLenum buffer_attachment) const {
+    BoundDrawFramebuffer& set_draw_buffer(GLenum buffer_attachment) {
         gl::glDrawBuffer(buffer_attachment);
         return *this;
     }
 
     template<std::same_as<GLenum> ...EnumT>
-    BoundDrawFramebuffer& set_draw_buffers(EnumT... attachments) const {
+    BoundDrawFramebuffer& set_draw_buffers(EnumT... attachments) {
         constexpr GLsizei n_slots = sizeof...(EnumT);
         GLenum slots[n_slots]{ attachments... };
         gl::glDrawBuffers(n_slots, slots);
         return *this;
     }
 
-    BoundDrawFramebuffer& set_read_buffer(GLenum buffer_attachment) const {
+    BoundDrawFramebuffer& set_read_buffer(GLenum buffer_attachment) {
         gl::glReadBuffer(buffer_attachment);
         return *this;
     }

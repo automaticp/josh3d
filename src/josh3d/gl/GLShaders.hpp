@@ -8,7 +8,6 @@
 #include <glbinding/gl/gl.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <utility>
 
 
 
@@ -53,7 +52,7 @@ class ActiveShaderProgram
 private:
     friend RawShaderProgram<MutT>;
     RawShaderProgram<MutT> parent_;
-    ActiveShaderProgram(RawShaderProgramHandle<MutT> parent)
+    ActiveShaderProgram(RawShaderProgram<MutT> parent)
         : parent_{ parent }
     {}
 public:
@@ -192,6 +191,7 @@ public:
 
     ActiveShaderProgram<MutT> use() const {
         gl::glUseProgram(*this);
+        return { *this };
     }
 
     ULocation location_of(const GLchar* name) const noexcept {

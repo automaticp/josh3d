@@ -97,23 +97,23 @@ struct BoundVAOImplMutable
 
 
     // Use this overload when the type of VertexT is known.
-    template<vertex VertexT>
+    template<vertex VertexT, mutability_tag MutT>
     CRTP& associate_with(
-        const BoundVBO<GLConst>& vbo [[maybe_unused]])
+        const BoundVBO<MutT>& vbo [[maybe_unused]])
     {
-        return set_many_attribute_params(VertexT::get_attributes());
+        return enable_many_attribute_params(VertexT::get_attributes());
     }
 
 
     // Use this overload when the layout specification is custom
     // and does not depend on the vertex type,
     // or the attributes have to be specified manually.
-    template<vertex_attribute_container AttrsT>
+    template<vertex_attribute_container AttrsT, mutability_tag MutT>
     CRTP& associate_with(
-        const BoundVBO<GLConst>& vbo [[maybe_unused]],
+        const BoundVBO<MutT>& vbo [[maybe_unused]],
         const AttrsT& aparams)
     {
-        return set_many_attribute_params(aparams);
+        return enable_many_attribute_params(aparams);
     }
 
 

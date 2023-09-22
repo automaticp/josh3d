@@ -1,9 +1,9 @@
 #pragma once
 #include "AndThen.hpp"
-#include "AsSelf.hpp"
 #include "GLMutability.hpp"
 #include "GLScalars.hpp"
 #include "RawGLHandles.hpp"
+#include "GLVertexArray.hpp"
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
 #include <glbinding/gl/gl.h>
@@ -120,16 +120,15 @@ struct BoundBufferBase {
 
 
 template<typename CRTP, GLenum TargetV>
-struct BoundBufferCommonImpl
-    : public  detail::AndThen<CRTP>
-    , private detail::AsSelf<CRTP>
+struct BoundBufferConstImpl
+    : public AndThen<CRTP>
 {
     template<typename T>
     CRTP& get_sub_data(GLsizeiptr size, GLsizeiptr offset, T* data) {
         gl::glGetBufferSubData(
             TargetV, offset * sizeof(T), size * sizeof(T), data
         );
-        return this->as_self();
+        return static_cast<CRTP&>(*this);
     }
 };
 
@@ -137,14 +136,14 @@ struct BoundBufferCommonImpl
 
 template<typename CRTP, GLenum TargetV>
 struct BoundBufferMutableImpl
-    : public BoundBufferCommonImpl<CRTP, TargetV>
+    : public BoundBufferConstImpl<CRTP, TargetV>
 {
     template<typename T>
     CRTP& specify_data(GLsizeiptr size, const T* data, GLenum usage) {
         gl::glBufferData(
             TargetV, size * sizeof(T), data, usage
         );
-        return this->as_self();
+        return static_cast<CRTP&>(*this);
     }
 
     template<typename T>
@@ -152,7 +151,7 @@ struct BoundBufferMutableImpl
         gl::glBufferSubData(
             TargetV, offset * sizeof(T), size * sizeof(T), data
         );
-        return this->as_self();
+        return static_cast<CRTP&>(*this);
     }
 
 };
@@ -160,9 +159,47 @@ struct BoundBufferMutableImpl
 
 
 
+template<typename CRTP>
+struct BoundBufferVBOAssociate {
+
+    template<typename VertexT>
+    CRTP& associate_with(BoundVAO<GLMutable>& bvao) {
+        bvao.associate_with<VertexT>(static_cast<CRTP&>(*this));
+        return static_cast<CRTP&>(*this);
+    }
+
+    template<typename VertexT>
+    CRTP& associate_with(BoundVAO<GLMutable>&& bvao) {
+        return associate_with<VertexT>(bvao);
+    }
+
+    template<vertex_attribute_container AttrsT>
+    CRTP& associate_with(BoundVAO<GLMutable>& bvao, const AttrsT& aparams) {
+        bvao.associate_with(static_cast<CRTP&>(*this), aparams);
+        return static_cast<CRTP&>(*this);
+    }
+
+    template<vertex_attribute_container AttrsT>
+    CRTP& associate_with(BoundVAO<GLMutable>&& bvao, const AttrsT& aparams) {
+        return associate_with(bvao, aparams);
+    }
+};
 
 
 
+
+template<template<typename> typename BoundTemplateCRTP, mutability_tag MutT>
+struct BoundBufferSpecificImpl {};
+
+template<>
+struct BoundBufferSpecificImpl<BoundVBO, GLMutable>
+    : BoundBufferVBOAssociate<BoundVBO<GLMutable>>
+{};
+
+template<>
+struct BoundBufferSpecificImpl<BoundVBO, GLConst>
+    : BoundBufferVBOAssociate<BoundVBO<GLConst>>
+{};
 
 
 
@@ -175,13 +212,15 @@ struct BoundBufferImpl;
 #define SPECIALIZE_IMPL(buf_name, target_enum)                            \
     template<>                                                            \
     struct BoundBufferImpl<Bound##buf_name, GLConst>                      \
-        : BoundBufferCommonImpl<Bound##buf_name<GLConst>, target_enum>    \
+        : BoundBufferConstImpl<Bound##buf_name<GLConst>, target_enum>     \
+        , BoundBufferSpecificImpl<Bound##buf_name, GLConst>               \
         , BoundBufferBase<target_enum>                                    \
     {};                                                                   \
                                                                           \
     template<>                                                            \
     struct BoundBufferImpl<Bound##buf_name, GLMutable>                    \
         : BoundBufferMutableImpl<Bound##buf_name<GLMutable>, target_enum> \
+        , BoundBufferSpecificImpl<Bound##buf_name, GLMutable>             \
         , BoundBufferBase<target_enum>                                    \
     {};
 
@@ -203,7 +242,7 @@ struct BoundBufferIndexedImpl;
 #define SPECIALIZE_INDEXED_IMPL(buf_name, target_enum)                           \
     template<>                                                                   \
     struct BoundBufferIndexedImpl<BoundIndexed##buf_name, GLConst>               \
-        : BoundBufferCommonImpl<BoundIndexed##buf_name<GLConst>, target_enum>    \
+        : BoundBufferConstImpl<BoundIndexed##buf_name<GLConst>, target_enum>     \
         , BoundBufferIndexedBase<target_enum>                                    \
     {                                                                            \
         using BoundBufferIndexedBase<target_enum>::BoundBufferIndexedBase;       \

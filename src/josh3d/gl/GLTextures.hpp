@@ -329,7 +329,7 @@ struct UnbindableTex {
 };
 
 template<typename CRTP, GLenum TargetV>
-struct BoundTexImplCommon
+struct BoundTexImplConst
     : GLTexInfo<TargetV>
     , UnbindableTex<TargetV>
     , AndThen<CRTP>
@@ -338,7 +338,7 @@ struct BoundTexImplCommon
 
 template<typename CRTP, GLenum TargetV>
 struct BoundTexImplMutable
-    : BoundTexImplCommon<CRTP, TargetV>
+    : BoundTexImplConst<CRTP, TargetV>
 {
     CRTP& generate_mipmaps() {
         gl::glGenerateMipmap(TargetV);
@@ -376,11 +376,11 @@ struct BoundTexImpl;
 
 
 // GLConst implementations are simple enough.
-template<> struct BoundTexImpl<BoundTexture2D, GLConst>      : BoundTexImplCommon<BoundTexture2D<GLConst>,      gl::GL_TEXTURE_2D> {};
-template<> struct BoundTexImpl<BoundTexture2DArray, GLConst> : BoundTexImplCommon<BoundTexture2DArray<GLConst>, gl::GL_TEXTURE_2D_ARRAY> {};
-template<> struct BoundTexImpl<BoundTexture2DMS, GLConst>    : BoundTexImplCommon<BoundTexture2DMS<GLConst>,    gl::GL_TEXTURE_2D_MULTISAMPLE> {};
-template<> struct BoundTexImpl<BoundCubemap, GLConst>        : BoundTexImplCommon<BoundCubemap<GLConst>,        gl::GL_TEXTURE_CUBE_MAP> {};
-template<> struct BoundTexImpl<BoundCubemapArray, GLConst>   : BoundTexImplCommon<BoundCubemapArray<GLConst>,   gl::GL_TEXTURE_CUBE_MAP_ARRAY> {};
+template<> struct BoundTexImpl<BoundTexture2D, GLConst>      : BoundTexImplConst<BoundTexture2D<GLConst>,      gl::GL_TEXTURE_2D> {};
+template<> struct BoundTexImpl<BoundTexture2DArray, GLConst> : BoundTexImplConst<BoundTexture2DArray<GLConst>, gl::GL_TEXTURE_2D_ARRAY> {};
+template<> struct BoundTexImpl<BoundTexture2DMS, GLConst>    : BoundTexImplConst<BoundTexture2DMS<GLConst>,    gl::GL_TEXTURE_2D_MULTISAMPLE> {};
+template<> struct BoundTexImpl<BoundCubemap, GLConst>        : BoundTexImplConst<BoundCubemap<GLConst>,        gl::GL_TEXTURE_CUBE_MAP> {};
+template<> struct BoundTexImpl<BoundCubemapArray, GLConst>   : BoundTexImplConst<BoundCubemapArray<GLConst>,   gl::GL_TEXTURE_CUBE_MAP_ARRAY> {};
 
 // GLMutable need some extra stuff.
 template<> struct BoundTexImpl<BoundTexture2D, GLMutable>
