@@ -1,8 +1,42 @@
 #pragma once
 #include "GLBuffers.hpp"      // IWYU pragma: export
+#include "GLVertexArray.hpp"  // IWYU pragma: export
 #include "GLShaders.hpp"      // IWYU pragma: export
 #include "GLTextures.hpp"     // IWYU pragma: export
-#include "GLFramebuffers.hpp" // IWYU pragma: export
+#include "GLFramebuffer.hpp"  // IWYU pragma: export
+#include "GLRenderbuffer.hpp" // IWYU pragma: export
+#include "GLUnique.hpp"       // IWYU pragma: export
+
+
+namespace josh {
+
+#define ALIAS_UNIQUE(object) \
+    using object = GLUnique<Raw##object<GLMutable>>; // NOLINT(bugprone-macro-parentheses)
+
+ALIAS_UNIQUE(Texture2D)
+ALIAS_UNIQUE(Texture2DArray)
+ALIAS_UNIQUE(Texture2DMS)
+ALIAS_UNIQUE(Cubemap)
+ALIAS_UNIQUE(CubemapArray)
+
+ALIAS_UNIQUE(Framebuffer)
+ALIAS_UNIQUE(Renderbuffer)
+
+ALIAS_UNIQUE(VAO)
+
+ALIAS_UNIQUE(VBO)
+ALIAS_UNIQUE(EBO)
+ALIAS_UNIQUE(SSBO)
+ALIAS_UNIQUE(UBO)
+
+ALIAS_UNIQUE(Shader)
+ALIAS_UNIQUE(ShaderProgram)
+
+#undef ALIAS_UNIQUE
+
+
+} // namespace josh
+
 
 /*
 These files define thin wrappers around various OpenGL objects:
