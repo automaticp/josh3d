@@ -1,5 +1,5 @@
 #pragma once
-#include "AndThen.hpp"
+#include "detail/AndThen.hpp"
 #include "GLMutability.hpp"
 #include "GLScalars.hpp"
 #include "RawGLHandles.hpp"

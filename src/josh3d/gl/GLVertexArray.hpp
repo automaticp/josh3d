@@ -1,6 +1,6 @@
 #pragma once
-#include "AndThen.hpp"
-#include "AsSelf.hpp"
+#include "detail/AndThen.hpp"
+#include "detail/AsSelf.hpp"
 #include "GLMutability.hpp"
 #include "GLScalars.hpp"
 #include "RawGLHandles.hpp"

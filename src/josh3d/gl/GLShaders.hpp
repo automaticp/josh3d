@@ -1,5 +1,5 @@
 #pragma once
-#include "AndThen.hpp"
+#include "detail/AndThen.hpp"
 #include "GLMutability.hpp" // IWYU pragma: keep (concepts)
 #include "GLScalars.hpp"
 #include "RawGLHandles.hpp"

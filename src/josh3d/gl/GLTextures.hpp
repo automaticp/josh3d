@@ -3,8 +3,8 @@
 #include "GLMutability.hpp"
 #include "RawGLHandles.hpp"
 #include "GLScalars.hpp"
-#include "AndThen.hpp"
-#include "AsSelf.hpp"
+#include "detail/AndThen.hpp"
+#include "detail/AsSelf.hpp"
 #include "Size.hpp"
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
