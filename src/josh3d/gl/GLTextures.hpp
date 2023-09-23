@@ -36,37 +36,13 @@ template<mutability_tag MutT> class RawCubemapArray;
 
 
 /*
-What follows is truly a product of insanity.
+What follows is truly a product of desparate times.
 
 God help us all.
 
 Hint: scroll to the bottom to the GENERATE_TEXTURE_CLASSES macro
 to see how all of this fits together.
 */
-
-
-
-
-/*
-On the topic of what would make sense to actually consider to be a const operation:
-
-1. Modification of a property of an OpenGL object specifically: writing to/resizing buffers,
-changing draw hints, parameters, etc. - is a non-const operation.
-
-2. Operation that modifies an OpenGL context but not the properties of objects: binding,
-changing active units, buffer bindnigs, etc. - _can_ be considered a const operation.
-
-3. Read operation on an object: getting properties, validation, etc - is a const operation.
-
-The point 2 is probably the most important one, as without it, you can't really do anything
-useful and still preserve some sense of const-correctness. If I can't even bind a texture
-for sampling (reading) when it's const, then that const handle is useless for me.
-
-Yes, you can still abuse this and find ways to write to the texture even when binding
-a const handle, but, like, don't, ok? You can just write raw OpenGL if you want it that much.
-
-*/
-
 
 
 /*

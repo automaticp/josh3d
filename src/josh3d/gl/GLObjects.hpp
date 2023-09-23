@@ -1,4 +1,5 @@
 #pragma once
+#include "GLMutability.hpp"   // IWYU pragma: export
 #include "GLBuffers.hpp"      // IWYU pragma: export
 #include "GLVertexArray.hpp"  // IWYU pragma: export
 #include "GLShaders.hpp"      // IWYU pragma: export

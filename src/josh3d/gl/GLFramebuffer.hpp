@@ -9,7 +9,7 @@
 #include <glbinding/gl/gl.h>
 
 
-// WIP
+
 
 namespace josh {
 
