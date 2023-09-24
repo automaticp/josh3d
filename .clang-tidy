@@ -19,4 +19,8 @@ Checks: 'boost-*,
     -modernize-use-auto,
     performance-*,
     portability-*'
+CheckOptions:
+    performance-unnecessary-value-param.AllowedTypes:
+        '^josh::Raw'
+
 ...
