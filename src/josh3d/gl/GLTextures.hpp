@@ -6,6 +6,7 @@
 #include "detail/AndThen.hpp"
 #include "detail/AsSelf.hpp"
 #include "Size.hpp"
+#include "detail/MagicConstructorsMacro.hpp"
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
 #include <glbinding/gl/gl.h>
@@ -463,28 +464,28 @@ template<> struct BoundTexImpl<BoundCubemapArray, GLMutable>
 /*
 The magic happens here.
 */
-#define GENERATE_TEXTURE_CLASSES(tex_name, target_enum)            \
-    template<mutability_tag MutT>                                  \
-    class Bound##tex_name                                          \
-        : public detail::BoundTexImpl<Bound##tex_name, MutT>       \
-    {                                                              \
-    private:                                                       \
-        friend detail::Bindable##tex_name<MutT>;                   \
-        Bound##tex_name() = default;                               \
-    };                                                             \
-                                                                   \
-    template<mutability_tag MutT>                                  \
-    class Raw##tex_name                                            \
-        : public RawTextureHandle<MutT>                            \
-        , public detail::Bindable##tex_name<MutT>                  \
-        , public detail::GLTexInfo<target_enum>                    \
-        , public detail::ObjectHandleTypeInfo<Raw##tex_name, MutT> \
-    {                                                              \
-    public:                                                        \
-        using RawTextureHandle<MutT>::RawTextureHandle;            \
-    };                                                             \
-                                                                   \
-static_assert(detail::gl_texture_object<Raw##tex_name<GLConst>>);  \
+#define GENERATE_TEXTURE_CLASSES(tex_name, target_enum)                        \
+    template<mutability_tag MutT>                                              \
+    class Bound##tex_name                                                      \
+        : public detail::BoundTexImpl<Bound##tex_name, MutT>                   \
+    {                                                                          \
+    private:                                                                   \
+        friend detail::Bindable##tex_name<MutT>;                               \
+        Bound##tex_name() = default;                                           \
+    };                                                                         \
+                                                                               \
+    template<mutability_tag MutT>                                              \
+    class Raw##tex_name                                                        \
+        : public RawTextureHandle<MutT>                                        \
+        , public detail::Bindable##tex_name<MutT>                              \
+        , public detail::GLTexInfo<target_enum>                                \
+        , public detail::ObjectHandleTypeInfo<Raw##tex_name, MutT>             \
+    {                                                                          \
+    public:                                                                    \
+        JOSH3D_MAGIC_CONSTRUCTORS(Raw##tex_name, MutT, RawTextureHandle<MutT>) \
+    };                                                                         \
+                                                                               \
+static_assert(detail::gl_texture_object<Raw##tex_name<GLConst>>);              \
 static_assert(detail::gl_texture_object<Raw##tex_name<GLMutable>>);
 
 

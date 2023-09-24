@@ -4,6 +4,7 @@
 #include "GLScalars.hpp"
 #include "RawGLHandles.hpp"
 #include "ULocation.hpp"
+#include "detail/MagicConstructorsMacro.hpp"
 #include <glbinding/gl/functions.h>
 #include <glbinding/gl/gl.h>
 #include <glm/glm.hpp>
@@ -27,7 +28,7 @@ class RawShader
     , public detail::ObjectHandleTypeInfo<RawShader, MutT>
 {
 public:
-    using RawShaderHandle<MutT>::RawShaderHandle;
+    JOSH3D_MAGIC_CONSTRUCTORS(RawShader, MutT, RawShaderHandle<MutT>)
 
     void set_source(const GLchar* src) const
         requires gl_mutable<MutT>
@@ -70,7 +71,7 @@ public:
     }
 
     ULocation location_of(const GLchar* uniform_name) const {
-        return gl::glGetUniformLocation(parent_, uniform_name);
+        return gl::glGetUniformLocation(parent_.id(), uniform_name);
     }
 
 
@@ -177,20 +178,20 @@ class RawShaderProgram
     , public detail::ObjectHandleTypeInfo<RawShaderProgram, MutT>
 {
 public:
-    using RawShaderProgramHandle<MutT>::RawShaderProgramHandle;
+    JOSH3D_MAGIC_CONSTRUCTORS(RawShaderProgram, MutT, RawShaderProgramHandle<MutT>)
 
     void attach_shader(RawShader<GLConst> shader) const
         requires gl_mutable<MutT>
     {
-        gl::glAttachShader(*this, shader);
+        gl::glAttachShader(this->id(), shader.id());
     }
 
     void link() const {
-        gl::glLinkProgram(*this);
+        gl::glLinkProgram(this->id());
     }
 
     ActiveShaderProgram<MutT> use() const {
-        gl::glUseProgram(*this);
+        gl::glUseProgram(this->id());
         return { *this };
     }
 

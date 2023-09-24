@@ -1,5 +1,6 @@
 #pragma once
 #include "detail/AndThen.hpp"
+#include "detail/MagicConstructorsMacro.hpp"
 #include "GLMutability.hpp"
 #include "GLScalars.hpp"
 #include "RawGLHandles.hpp"
@@ -270,38 +271,38 @@ SPECIALIZE_INDEXED_IMPL(SSBO, gl::GL_SHADER_STORAGE_BUFFER)
 
 
 
-#define GENERATE_BUFFER_CLASSES(buf_name, target_enum)             \
-    template<mutability_tag MutT>                                  \
-    class Bound##buf_name                                          \
-        : public detail::BoundBufferImpl<Bound##buf_name, MutT>    \
-    {                                                              \
-    private:                                                       \
-        friend detail::Bindable##buf_name<MutT>;                   \
-        Bound##buf_name() = default;                               \
-    };                                                             \
-                                                                   \
-    template<mutability_tag MutT>                                  \
-    class BoundIndexed##buf_name                                   \
-        : public detail::BoundBufferIndexedImpl<                   \
-            BoundIndexed##buf_name, MutT>                          \
-    {                                                              \
-    private:                                                       \
-        friend detail::Bindable##buf_name<MutT>;                   \
-        using detail::BoundBufferIndexedImpl<                      \
-            BoundIndexed##buf_name, MutT>::BoundBufferIndexedImpl; \
-    };                                                             \
-                                                                   \
-    template<mutability_tag MutT>                                  \
-    class Raw##buf_name                                            \
-        : public RawBufferHandle<MutT>                             \
-        , public detail::Bindable##buf_name<MutT>                  \
-        , public detail::ObjectHandleTypeInfo<Raw##buf_name, MutT> \
-    {                                                              \
-    public:                                                        \
-        using RawBufferHandle<MutT>::RawBufferHandle;              \
-    };                                                             \
-                                                                   \
-    static_assert(sizeof(Raw##buf_name<GLConst>));                 \
+#define GENERATE_BUFFER_CLASSES(buf_name, target_enum)                        \
+    template<mutability_tag MutT>                                             \
+    class Bound##buf_name                                                     \
+        : public detail::BoundBufferImpl<Bound##buf_name, MutT>               \
+    {                                                                         \
+    private:                                                                  \
+        friend detail::Bindable##buf_name<MutT>;                              \
+        Bound##buf_name() = default;                                          \
+    };                                                                        \
+                                                                              \
+    template<mutability_tag MutT>                                             \
+    class BoundIndexed##buf_name                                              \
+        : public detail::BoundBufferIndexedImpl<                              \
+            BoundIndexed##buf_name, MutT>                                     \
+    {                                                                         \
+    private:                                                                  \
+        friend detail::Bindable##buf_name<MutT>;                              \
+        using detail::BoundBufferIndexedImpl<                                 \
+            BoundIndexed##buf_name, MutT>::BoundBufferIndexedImpl;            \
+    };                                                                        \
+                                                                              \
+    template<mutability_tag MutT>                                             \
+    class Raw##buf_name                                                       \
+        : public RawBufferHandle<MutT>                                        \
+        , public detail::Bindable##buf_name<MutT>                             \
+        , public detail::ObjectHandleTypeInfo<Raw##buf_name, MutT>            \
+    {                                                                         \
+    public:                                                                   \
+        JOSH3D_MAGIC_CONSTRUCTORS(Raw##buf_name, MutT, RawBufferHandle<MutT>) \
+    };                                                                        \
+                                                                              \
+    static_assert(sizeof(Raw##buf_name<GLConst>));                            \
     static_assert(sizeof(Raw##buf_name<GLMutable>));
 
 

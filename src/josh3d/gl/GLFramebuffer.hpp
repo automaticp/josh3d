@@ -1,5 +1,6 @@
 #pragma once
 #include "detail/AndThen.hpp"
+#include "detail/MagicConstructorsMacro.hpp"
 #include "CommonConcepts.hpp" // IWYU pragma: keep
 #include "GLMutability.hpp"
 #include "GLScalars.hpp"
@@ -168,7 +169,7 @@ class RawFramebuffer
     , public detail::ObjectHandleTypeInfo<RawFramebuffer, MutT>
 {
 public:
-    using RawFramebufferHandle<MutT>::RawFramebufferHandle;
+    JOSH3D_MAGIC_CONSTRUCTORS(RawFramebuffer, MutT, RawFramebufferHandle<MutT>)
 
     BoundDrawFramebuffer<MutT> bind_draw() const noexcept
         requires gl_mutable<typename RawFramebuffer::mutability_type>

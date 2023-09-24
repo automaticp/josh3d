@@ -4,6 +4,7 @@
 #include "Size.hpp"
 #include "GLScalars.hpp"
 #include "GLMutability.hpp" // IWYU pragma: keep (concepts)
+#include "detail/MagicConstructorsMacro.hpp"
 #include <glbinding/gl/gl.h>
 
 
@@ -58,7 +59,7 @@ class RawRenderbuffer
     , public detail::ObjectHandleTypeInfo<RawRenderbuffer, MutT>
 {
 public:
-    using RawRenderbufferHandle<MutT>::RawRenderbufferHandle;
+    JOSH3D_MAGIC_CONSTRUCTORS(RawRenderbuffer, MutT, RawRenderbufferHandle<MutT>)
 
     BoundRenderbuffer<MutT> bind() const noexcept {
         gl::glBindRenderbuffer(gl::GL_RENDERBUFFER, this->id());

@@ -1,4 +1,5 @@
 #pragma once
+#include "detail/MagicConstructorsMacro.hpp"
 #include "GLMutability.hpp"
 #include "CommonConcepts.hpp" // IWYU pragma: keep
 #include "GLScalars.hpp"
@@ -80,7 +81,7 @@ public:
 
 
     GLuint id() const noexcept { return id_; }
-    operator GLuint() const noexcept { return id_; }
+    explicit operator GLuint() const noexcept { return id_; }
 };
 
 
@@ -145,16 +146,16 @@ concept raw_gl_kind_handle = requires {
 
 
 
-#define GENERATE_KIND_HANDLE(kind)                                 \
-    template<mutability_tag MutT>                                  \
-    struct Raw##kind##Handle                                       \
-        : RawGLHandle<MutT>                                        \
-        , detail::KindHandleTypeInfo<Raw##kind##Handle, MutT>      \
-    {                                                              \
-        using RawGLHandle<MutT>::RawGLHandle;                      \
-    };                                                             \
-                                                                   \
-    static_assert(raw_gl_kind_handle<Raw##kind##Handle<GLConst>>); \
+#define GENERATE_KIND_HANDLE(kind)                                            \
+    template<mutability_tag MutT>                                             \
+    struct Raw##kind##Handle                                                  \
+        : RawGLHandle<MutT>                                                   \
+        , detail::KindHandleTypeInfo<Raw##kind##Handle, MutT>                 \
+    {                                                                         \
+        JOSH3D_MAGIC_CONSTRUCTORS(Raw##kind##Handle, MutT, RawGLHandle<MutT>) \
+    };                                                                        \
+                                                                              \
+    static_assert(raw_gl_kind_handle<Raw##kind##Handle<GLConst>>);            \
     static_assert(raw_gl_kind_handle<Raw##kind##Handle<GLMutable>>);
 
 

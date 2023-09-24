@@ -5,6 +5,7 @@
 #include "GLScalars.hpp"
 #include "RawGLHandles.hpp"
 #include "VertexConcept.hpp" // IWYU pragma: keep (concepts)
+#include "detail/MagicConstructorsMacro.hpp"
 #include <glbinding/gl/gl.h>
 
 
@@ -165,7 +166,7 @@ class RawVAO
     , public detail::ObjectHandleTypeInfo<RawVAO, MutT>
 {
 public:
-    using RawVertexArrayHandle<MutT>::RawVertexArrayHandle;
+    JOSH3D_MAGIC_CONSTRUCTORS(RawVAO, MutT, RawVertexArrayHandle<MutT>)
 
     BoundVAO<MutT> bind() const {
         gl::glBindVertexArray(this->id());

@@ -58,6 +58,7 @@ void sema_slicing_and_conversions() {
     // CONFUSED(+) - Compiles correctly, but for the wrong reason;
     // CONFUSED(x) - Does not compile correctly, but for the wrong reason.
 
+    // NOLINTBEGIN(performance-unnecessary-copy-initialization)
     {
         // Given unique object handles,
         GLUnique<RawTexture2D<GLMutable>> utm;
@@ -76,16 +77,16 @@ void sema_slicing_and_conversions() {
         RawTextureHandle<GLConst>   rthc2{ utc }; // OK(+): GLConst   -> GLConst
 
         // Cannot slice down to other object handles;
-    //  RawCubemap<GLMutable>       rcm1{ utm };  // CONFUSED(x): Ambiguous overload.
-        RawCubemap<GLConst>         rcc1{ utm };  // WRONG(x): Implicit conversion to GLuint breaks this.
-    //  RawCubemap<GLMutable>       rcm2{ utc };  // CONFUSED(x): Call to deleted constructor. Should just not exist.
-    //  RawCubemap<GLConst>         rcc2{ utc };  // CONFUSED(x): Ambiguous overload.
+    //  RawCubemap<GLMutable>       rcm1{ utm };  // OK(x): No matching c-tor.
+    //  RawCubemap<GLConst>         rcc1{ utm };  // OK(x): No matching c-tor.
+    //  RawCubemap<GLMutable>       rcm2{ utc };  // OK(x): No matching c-tor.
+    //  RawCubemap<GLConst>         rcc2{ utc };  // OK(x): No matching c-tor.
 
         // Cannot slice down to other kind handles;
-    //  RawBufferHandle<GLMutable>  rbm1{ utm };  // CONFUSED(x): Amibguous overload.
-        RawBufferHandle<GLConst>    rbc1{ utm };  // WRONG(x): Implicit conversion.
-    //  RawBufferHandle<GLMutable>  rbm2{ utc };  // CONFUSED(x): Call to deleted constructor. Should just not exist.
-    //  RawBufferHandle<GLConst>    rbc2{ utc };  // CONFUSED(x): Amibguous overload.
+    //  RawBufferHandle<GLMutable>  rbm1{ utm };  // OK(x): No matching c-tor.
+    //  RawBufferHandle<GLConst>    rbc1{ utm };  // OK(x): No matching c-tor.
+    //  RawBufferHandle<GLMutable>  rbm2{ utc };  // OK(x): No matching c-tor.
+    //  RawBufferHandle<GLConst>    rbc2{ utc };  // OK(x): No matching c-tor.
     }
 
 
@@ -94,6 +95,12 @@ void sema_slicing_and_conversions() {
         RawTexture2D<GLMutable>     rtm{ GLuint{ 42 } };
         RawTexture2D<GLConst>       rtc{ GLuint{ 42 } };
 
+        // Can copy-construct;
+        RawTexture2D<GLMutable>      rtm1{ rtm }; // OK(+): GLMutable -> GLMutable
+        RawTexture2D<GLConst>        rtc1{ rtm }; // OK(+): GLMutable -> GLConst
+    //  RawTexture2D<GLMutable>      rtm2{ rtc }; // OK(x): GLConst   -x GLMutable
+        RawTexture2D<GLConst>        rtc2{ rtc }; // OK(+): GLConst   -> GLConst
+
         // Can slice down to raw kind handles;
         RawTextureHandle<GLMutable> rthm1{ rtm }; // OK(+): GLMutable -> GLMutable
         RawTextureHandle<GLConst>   rthc1{ rtm }; // OK(+): GLMutable -> GLConst
@@ -101,11 +108,10 @@ void sema_slicing_and_conversions() {
         RawTextureHandle<GLConst>   rthc2{ rtc }; // OK(+): GLConst   -> GLConst
 
         // Cannot slice down to other kind handles;
-    //  RawBufferHandle<GLMutable>  rbm1{ rtm };  // CONFUSED(x): Amibguous overload.
-        RawBufferHandle<GLConst>    rbc1{ rtm };  // WRONG(x): Implicit conversion.
-    //  RawBufferHandle<GLMutable>  rbm2{ rtc };  // CONFUSED(x): Call to deleted constructor. Should just not exist.
-    //  RawBufferHandle<GLConst>    rbc2{ rtc };  // CONFUSED(x): Amibguous overload.
-
+    //  RawBufferHandle<GLMutable>  rbm1{ rtm };  // OK(x): No matching c-tor.
+    //  RawBufferHandle<GLConst>    rbc1{ rtm };  // OK(x): No matching c-tor.
+    //  RawBufferHandle<GLMutable>  rbm2{ rtc };  // OK(x): No matching c-tor.
+    //  RawBufferHandle<GLConst>    rbc2{ rtc };  // OK(x): No matching c-tor.
     }
 
 
@@ -114,17 +120,23 @@ void sema_slicing_and_conversions() {
         RawTextureHandle<GLMutable> rthm{ GLuint{ 42 } };
         RawTextureHandle<GLConst>   rthc{ GLuint{ 42 } };
 
+        // Can copy-construct;
+        RawTextureHandle<GLMutable> rthm1{ rthm }; // OK(+): GLMutable -> GLMutable
+        RawTextureHandle<GLConst>   rthc1{ rthm }; // OK(+): GLMutable -> GLConst
+    //  RawTextureHandle<GLMutable> rthm2{ rthc }; // OK(x): GLConst   -x GLMutable
+        RawTextureHandle<GLConst>   rthc2{ rthc }; // OK(+): GLConst   -> GLConst
+
         // Cannot slice down to other kind handles;
-    //  RawBufferHandle<GLMutable>  rbm1{ rthm };  // CONFUSED(x): Amibguous overload.
-        RawBufferHandle<GLConst>    rbc1{ rthm };  // WRONG(x): Implicit conversion.
-    //  RawBufferHandle<GLMutable>  rbm2{ rthc };  // CONFUSED(x): Call to deleted constructor. Should just not exist.
-    //  RawBufferHandle<GLConst>    rbc2{ rthc };  // CONFUSED(x): Amibguous overload.
+    //  RawBufferHandle<GLMutable>  rbm1{ rthm };  // OK(x): No matching c-tor.
+    //  RawBufferHandle<GLConst>    rbc1{ rthm };  // OK(x): No matching c-tor.
+    //  RawBufferHandle<GLMutable>  rbm2{ rthc };  // OK(x): No matching c-tor.
+    //  RawBufferHandle<GLConst>    rbc2{ rthc };  // OK(x): No matching c-tor.
 
         // Cannot convert to unrelated object handles;
-    //  RawVBO<GLMutable>           rvbm1{ rthm };  // CONFUSED(x): Amibguous overload.
-        RawVBO<GLConst>             rvbc1{ rthm };  // WRONG(x): Implicit conversion.
-    //  RawVBO<GLMutable>           rvbm2{ rthc };  // CONFUSED(x): Call to deleted constructor. Should just not exist.
-    //  RawVBO<GLConst>             rvbc2{ rthc };  // CONFUSED(x): Amibguous overload.
+    //  RawVBO<GLMutable>           rvbm1{ rthm }; // OK(x): No matching c-tor.
+    //  RawVBO<GLConst>             rvbc1{ rthm }; // OK(x): No matching c-tor.
+    //  RawVBO<GLMutable>           rvbm2{ rthc }; // OK(x): No matching c-tor.
+    //  RawVBO<GLConst>             rvbc2{ rthc }; // OK(x): No matching c-tor.
     }
 
 
@@ -141,6 +153,7 @@ void sema_slicing_and_conversions() {
     //  RawTexture2D<GLConst> rt2 = id;  // OK(x)
 
     }
+    // NOLINTEND(performance-unnecessary-copy-initialization)
 
 }
 
