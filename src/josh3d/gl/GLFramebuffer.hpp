@@ -5,6 +5,8 @@
 #include "GLMutability.hpp"
 #include "GLScalars.hpp"
 #include "RawGLHandles.hpp"
+#include "GLTextures.hpp"
+#include "GLRenderbuffer.hpp"
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
 #include <glbinding/gl/gl.h>
@@ -66,62 +68,72 @@ public:
     static void unbind() { gl::glBindFramebuffer(gl::GL_DRAW_FRAMEBUFFER, 0); }
 
     BoundDrawFramebuffer& attach_texture(
-        GLuint texture, GLenum attachment, GLint mipmap_level = 0)
+        RawTexture2D<GLMutable> texture, GLenum attachment, GLint mipmap_level = 0)
     {
         gl::glFramebufferTexture2D(
             gl::GL_DRAW_FRAMEBUFFER, attachment,
-            gl::GL_TEXTURE_2D, texture, mipmap_level
+            gl::GL_TEXTURE_2D, texture.id(), mipmap_level
         );
         return *this;
     }
 
     BoundDrawFramebuffer& attach_multisample_texture(
-        GLuint texture, GLenum attachment, GLint mipmap_level = 0)
+        RawTexture2DMS<GLMutable> texture, GLenum attachment, GLint mipmap_level = 0)
     {
         gl::glFramebufferTexture2D(
             gl::GL_DRAW_FRAMEBUFFER, attachment,
-            gl::GL_TEXTURE_2D_MULTISAMPLE, texture, mipmap_level
+            gl::GL_TEXTURE_2D_MULTISAMPLE, texture.id(), mipmap_level
         );
         return *this;
     }
 
     BoundDrawFramebuffer& attach_renderbuffer(
-        GLuint renderbuffer, GLenum attachment)
+        RawRenderbuffer<GLMutable> renderbuffer, GLenum attachment)
     {
         gl::glFramebufferRenderbuffer(
             gl::GL_DRAW_FRAMEBUFFER, attachment,
-            gl::GL_RENDERBUFFER, renderbuffer
+            gl::GL_RENDERBUFFER, renderbuffer.id()
         );
         return *this;
     }
 
     BoundDrawFramebuffer& attach_texture_array(
-        GLuint tex_array, GLenum attachment, GLint mipmap_level = 0)
+        RawTexture2DArray<GLMutable> tex_array, GLenum attachment, GLint mipmap_level = 0)
     {
         gl::glFramebufferTexture(
             gl::GL_DRAW_FRAMEBUFFER, attachment,
-            tex_array, mipmap_level
+            tex_array.id(), mipmap_level
         );
         return *this;
     }
 
     BoundDrawFramebuffer& attach_cubemap(
-        GLuint cubemap, GLenum attachment, GLint mipmap_level = 0)
+        RawCubemap<GLMutable> cubemap, GLenum attachment, GLint mipmap_level = 0)
     {
         gl::glFramebufferTexture(
             gl::GL_DRAW_FRAMEBUFFER, attachment,
-            cubemap, mipmap_level
+            cubemap.id(), mipmap_level
+        );
+        return *this;
+    }
+
+    BoundDrawFramebuffer& attach_cubemap_array(
+        RawCubemapArray<GLMutable> cubemap_array, GLenum attachment, GLint mipmap_level = 0)
+    {
+        gl::glFramebufferTexture(
+            gl::GL_DRAW_FRAMEBUFFER, attachment,
+            cubemap_array.id(), mipmap_level
         );
         return *this;
     }
 
     BoundDrawFramebuffer& attach_texture_layer(
-        GLuint texture, GLenum attachment, GLint layer,
-        GLint mipmap_level = 0)
+        RawTextureHandle<GLMutable> texture, GLenum attachment,
+        GLint layer, GLint mipmap_level = 0)
     {
         gl::glFramebufferTextureLayer(
             gl::GL_DRAW_FRAMEBUFFER, attachment,
-            texture, mipmap_level, layer
+            texture.id(), mipmap_level, layer
         );
         return *this;
     }

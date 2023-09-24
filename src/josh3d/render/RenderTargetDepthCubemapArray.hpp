@@ -30,7 +30,7 @@ public:
             .set_parameter(GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
         fbo_.bind_draw()
-            .attach_cubemap(cubemaps_, GL_DEPTH_ATTACHMENT)
+            .attach_cubemap_array(cubemaps_, GL_DEPTH_ATTACHMENT)
             .set_draw_buffer(GL_NONE)
             .set_read_buffer(GL_NONE)
             .unbind();
