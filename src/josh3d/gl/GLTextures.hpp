@@ -464,7 +464,7 @@ template<> struct BoundTexImpl<BoundCubemapArray, GLMutable>
 /*
 The magic happens here.
 */
-#define GENERATE_TEXTURE_CLASSES(tex_name, target_enum)                        \
+#define JOSH3D_GENERATE_TEXTURE_CLASSES(tex_name, target_enum)                 \
     template<mutability_tag MutT>                                              \
     class Bound##tex_name                                                      \
         : public detail::BoundTexImpl<Bound##tex_name, MutT>                   \
@@ -490,13 +490,13 @@ static_assert(detail::gl_texture_object<Raw##tex_name<GLMutable>>);
 
 
 
-GENERATE_TEXTURE_CLASSES(Texture2D,      gl::GL_TEXTURE_2D)
-GENERATE_TEXTURE_CLASSES(Texture2DArray, gl::GL_TEXTURE_2D_ARRAY)
-GENERATE_TEXTURE_CLASSES(Texture2DMS,    gl::GL_TEXTURE_2D_MULTISAMPLE)
-GENERATE_TEXTURE_CLASSES(Cubemap,        gl::GL_TEXTURE_CUBE_MAP)
-GENERATE_TEXTURE_CLASSES(CubemapArray,   gl::GL_TEXTURE_CUBE_MAP_ARRAY)
+JOSH3D_GENERATE_TEXTURE_CLASSES(Texture2D,      gl::GL_TEXTURE_2D)
+JOSH3D_GENERATE_TEXTURE_CLASSES(Texture2DArray, gl::GL_TEXTURE_2D_ARRAY)
+JOSH3D_GENERATE_TEXTURE_CLASSES(Texture2DMS,    gl::GL_TEXTURE_2D_MULTISAMPLE)
+JOSH3D_GENERATE_TEXTURE_CLASSES(Cubemap,        gl::GL_TEXTURE_CUBE_MAP)
+JOSH3D_GENERATE_TEXTURE_CLASSES(CubemapArray,   gl::GL_TEXTURE_CUBE_MAP_ARRAY)
 
-#undef GENERATE_TEXTURE_CLASSES
+#undef JOSH3D_GENERATE_TEXTURE_CLASSES
 
 
 

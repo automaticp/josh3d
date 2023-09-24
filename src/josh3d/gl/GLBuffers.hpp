@@ -210,7 +210,7 @@ template<template<typename> typename BoundTemplateCRTP, mutability_tag MutT>
 struct BoundBufferImpl;
 
 
-#define SPECIALIZE_IMPL(buf_name, target_enum)                            \
+#define JOSH3D_SPECIALIZE_IMPL(buf_name, target_enum)                     \
     template<>                                                            \
     struct BoundBufferImpl<Bound##buf_name, GLConst>                      \
         : BoundBufferConstImpl<Bound##buf_name<GLConst>, target_enum>     \
@@ -226,12 +226,12 @@ struct BoundBufferImpl;
     {};
 
 
-SPECIALIZE_IMPL(VBO,  gl::GL_ARRAY_BUFFER)
-SPECIALIZE_IMPL(EBO,  gl::GL_ELEMENT_ARRAY_BUFFER)
-SPECIALIZE_IMPL(UBO,  gl::GL_UNIFORM_BUFFER)
-SPECIALIZE_IMPL(SSBO, gl::GL_SHADER_STORAGE_BUFFER)
+JOSH3D_SPECIALIZE_IMPL(VBO,  gl::GL_ARRAY_BUFFER)
+JOSH3D_SPECIALIZE_IMPL(EBO,  gl::GL_ELEMENT_ARRAY_BUFFER)
+JOSH3D_SPECIALIZE_IMPL(UBO,  gl::GL_UNIFORM_BUFFER)
+JOSH3D_SPECIALIZE_IMPL(SSBO, gl::GL_SHADER_STORAGE_BUFFER)
 
-#undef SPECIALIZE_IMPL
+#undef JOSH3D_SPECIALIZE_IMPL
 
 
 
@@ -240,7 +240,7 @@ template<template<typename> typename BoundTemplateCRTP, mutability_tag MutT>
 struct BoundBufferIndexedImpl;
 
 
-#define SPECIALIZE_INDEXED_IMPL(buf_name, target_enum)                           \
+#define JOSH3D_SPECIALIZE_INDEXED_IMPL(buf_name, target_enum)                    \
     template<>                                                                   \
     struct BoundBufferIndexedImpl<BoundIndexed##buf_name, GLConst>               \
         : BoundBufferConstImpl<BoundIndexed##buf_name<GLConst>, target_enum>     \
@@ -258,10 +258,10 @@ struct BoundBufferIndexedImpl;
     };
 
 
-SPECIALIZE_INDEXED_IMPL(UBO,  gl::GL_UNIFORM_BUFFER)
-SPECIALIZE_INDEXED_IMPL(SSBO, gl::GL_SHADER_STORAGE_BUFFER)
+JOSH3D_SPECIALIZE_INDEXED_IMPL(UBO,  gl::GL_UNIFORM_BUFFER)
+JOSH3D_SPECIALIZE_INDEXED_IMPL(SSBO, gl::GL_SHADER_STORAGE_BUFFER)
 
-#undef SPECIALIZE_INDEXED_IMPL
+#undef JOSH3D_SPECIALIZE_INDEXED_IMPL
 
 
 
@@ -271,7 +271,7 @@ SPECIALIZE_INDEXED_IMPL(SSBO, gl::GL_SHADER_STORAGE_BUFFER)
 
 
 
-#define GENERATE_BUFFER_CLASSES(buf_name, target_enum)                        \
+#define JOSH3D_GENERATE_BUFFER_CLASSES(buf_name, target_enum)                 \
     template<mutability_tag MutT>                                             \
     class Bound##buf_name                                                     \
         : public detail::BoundBufferImpl<Bound##buf_name, MutT>               \
@@ -307,12 +307,12 @@ SPECIALIZE_INDEXED_IMPL(SSBO, gl::GL_SHADER_STORAGE_BUFFER)
 
 
 
-GENERATE_BUFFER_CLASSES(VBO,  gl::GL_ARRAY_BUFFER)
-GENERATE_BUFFER_CLASSES(EBO,  gl::GL_ELEMENT_ARRAY_BUFFER)
-GENERATE_BUFFER_CLASSES(UBO,  gl::GL_UNIFORM_BUFFER)
-GENERATE_BUFFER_CLASSES(SSBO, gl::GL_SHADER_STORAGE_BUFFER)
+JOSH3D_GENERATE_BUFFER_CLASSES(VBO,  gl::GL_ARRAY_BUFFER)
+JOSH3D_GENERATE_BUFFER_CLASSES(EBO,  gl::GL_ELEMENT_ARRAY_BUFFER)
+JOSH3D_GENERATE_BUFFER_CLASSES(UBO,  gl::GL_UNIFORM_BUFFER)
+JOSH3D_GENERATE_BUFFER_CLASSES(SSBO, gl::GL_SHADER_STORAGE_BUFFER)
 
-#undef GENERATE_BUFFER_CLASSES
+#undef JOSH3D_GENERATE_BUFFER_CLASSES
 
 
 } // namespace josh

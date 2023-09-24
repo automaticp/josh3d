@@ -96,7 +96,7 @@ based on their RawKindHandle type.
 */
 template<raw_gl_kind_handle RawKindH> struct GLAllocator;
 
-#define SPECIALIZE_ALLOCATOR(kind)                   \
+#define JOSH3D_SPECIALIZE_ALLOCATOR(kind)            \
     template<>                                       \
     struct GLAllocator<Raw##kind##Handle<GLMutable>> \
         : detail::kind##Allocator                    \
@@ -108,15 +108,15 @@ template<raw_gl_kind_handle RawKindH> struct GLAllocator;
     {};
 
 
-SPECIALIZE_ALLOCATOR(Texture)
-SPECIALIZE_ALLOCATOR(Buffer)
-SPECIALIZE_ALLOCATOR(VertexArray)
-SPECIALIZE_ALLOCATOR(Framebuffer)
-SPECIALIZE_ALLOCATOR(Renderbuffer)
-SPECIALIZE_ALLOCATOR(Shader)
-SPECIALIZE_ALLOCATOR(ShaderProgram)
+JOSH3D_SPECIALIZE_ALLOCATOR(Texture)
+JOSH3D_SPECIALIZE_ALLOCATOR(Buffer)
+JOSH3D_SPECIALIZE_ALLOCATOR(VertexArray)
+JOSH3D_SPECIALIZE_ALLOCATOR(Framebuffer)
+JOSH3D_SPECIALIZE_ALLOCATOR(Renderbuffer)
+JOSH3D_SPECIALIZE_ALLOCATOR(Shader)
+JOSH3D_SPECIALIZE_ALLOCATOR(ShaderProgram)
 
-#undef SPECIALIZE_ALLOCATOR
+#undef JOSH3D_SPECIALIZE_ALLOCATOR
 
 
 
