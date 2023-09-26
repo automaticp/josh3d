@@ -104,22 +104,6 @@ Supports GLMutable->GLConst rvalue conversions.
 Allows slicing down to the underlying RawObject type.
 
 
-FIXME: Slicing does not work correctly because of the implicit conversions.
-This still compiles:
-
-    void uhoh() {
-        RawTexture2D<GLMutable> utm{ 23 };
-        RawVBO<GLConst>         rtc{ utm };
-    }
-
-`explicit` specifier is lost from RawGLHandle constructor after inheriting it,
-which enables the series of events:
-
-1. RawTexture2D is implicitly converted to GLuint;
-2. RawVBO (now-converting) constructor takes GLuint and constructs the VBO handle.
-
-This is really bad...
-
 TODO: Support for kind-handles.
 Currently doesn't work because kind handles have no object_handle_type_template.
 */
