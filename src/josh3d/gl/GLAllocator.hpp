@@ -94,16 +94,12 @@ struct ShaderProgramAllocator {
 OpenGL object allocator defined for different "kinds" of objects in the API
 based on their RawKindHandle type.
 */
-template<raw_gl_kind_handle RawKindH> struct GLAllocator;
+template<raw_gl_kind_handle RawKindH>
+struct GLAllocator;
 
 #define JOSH3D_SPECIALIZE_ALLOCATOR(kind)            \
-    template<>                                       \
-    struct GLAllocator<Raw##kind##Handle<GLMutable>> \
-        : detail::kind##Allocator                    \
-    {};                                              \
-                                                     \
-    template<>                                       \
-    struct GLAllocator<Raw##kind##Handle<GLConst>>   \
+    template<mutability_tag MutT>                    \
+    struct GLAllocator<Raw##kind##Handle<MutT>>      \
         : detail::kind##Allocator                    \
     {};
 

@@ -192,14 +192,9 @@ struct BoundBufferVBOAssociate {
 template<template<typename> typename BoundTemplateCRTP, mutability_tag MutT>
 struct BoundBufferSpecificImpl {};
 
-template<>
-struct BoundBufferSpecificImpl<BoundVBO, GLMutable>
-    : BoundBufferVBOAssociate<BoundVBO<GLMutable>>
-{};
-
-template<>
-struct BoundBufferSpecificImpl<BoundVBO, GLConst>
-    : BoundBufferVBOAssociate<BoundVBO<GLConst>>
+template<mutability_tag MutT>
+struct BoundBufferSpecificImpl<BoundVBO, MutT>
+    : BoundBufferVBOAssociate<BoundVBO<MutT>>
 {};
 
 
