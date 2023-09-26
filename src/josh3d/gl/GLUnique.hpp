@@ -1,6 +1,7 @@
 #pragma once
 #include "CommonConcepts.hpp" // IWYU pragma: keep
 #include "GLAllocator.hpp"
+#include "GLMutability.hpp"
 #include <concepts>
 
 
@@ -102,76 +103,76 @@ Does not propagate language-level constness.
 Supports GLMutable->GLConst rvalue conversions.
 
 Allows slicing down to the underlying RawObject type.
-
-
-TODO: Support for kind-handles.
-Currently doesn't work because kind handles have no object_handle_type_template.
 */
-template<allocatable_gl_object_handle RawObjT>
+template<typename RawH>
+    requires allocatable_gl_kind_handle<RawH> || allocatable_gl_object_handle<RawH>
 class GLUnique
-    : public  RawObjT
-    , private GLAllocator<typename RawObjT::kind_handle_type>
+    : public  RawH
+    , private GLAllocator<typename RawH::kind_handle_type>
 {
 private:
-    using object_type     = RawObjT;
-    using allocator_type  = GLAllocator<typename RawObjT::kind_handle_type>;
-    using mutability_type = RawObjT::mutability_type;
-    using const_type      = RawObjT::template object_handle_type_template<GLConst>;
-    using mutable_type    = RawObjT::template object_handle_type_template<GLMutable>;
-    using opposite_type   = RawObjT::template object_handle_type_template<OppositeGLMutability<mutability_type>>;
-    friend GLUnique<opposite_type>;
+    using handle_type     = RawH;
+    using allocator_type  = GLAllocator<typename RawH::kind_handle_type>;
+
+    using mt              = mutability_traits<RawH>;
+    using mutability      = mt::mutability;
+    using const_type      = mt::const_type;
+    using mutable_type    = mt::mutable_type;
+    using opposite_type   = mt::opposite_type;
+
+    friend GLUnique<mutable_type>; // For GLMutable -> GLConst conversion
 
 public:
     template<typename ...AllocArgs>
         requires not_move_or_copy_constructor_of<GLUnique, AllocArgs...> &&
             detail::gl_allocator_request_args<allocator_type, AllocArgs...>
     GLUnique(AllocArgs&&... args)
-        : RawObjT{ this->allocator_type::request(std::forward<AllocArgs>(args)...) }
+        : RawH{ this->allocator_type::request(std::forward<AllocArgs>(args)...) }
     {}
 
     GLUnique(const GLUnique&)            = delete;
     GLUnique& operator=(const GLUnique&) = delete;
 
     GLUnique(GLUnique&& other) noexcept
-        : object_type{ other.object_type::reset_id() }
+        : handle_type{ other.handle_type::reset_id() }
     {}
 
     GLUnique& operator=(GLUnique&& other) noexcept {
         release_current();
-        this->object_type::reset_id(other.object_type::reset_id());
+        this->handle_type::reset_id(other.handle_type::reset_id());
         return *this;
     }
 
     // GLMutable -> GLConst converting move c-tor.
     GLUnique(GLUnique<mutable_type>&& other) noexcept
-        requires std::same_as<object_type, const_type>
-        : object_type{ other.object_type::reset_id() }
+        requires gl_const<mutability>
+        : handle_type{ other.handle_type::reset_id() }
     {}
 
     // GLMutable -> GLConst converting move assignment.
     GLUnique& operator=(GLUnique<mutable_type>&& other) noexcept
-        requires std::same_as<object_type, const_type>
+        requires gl_const<mutability>
     {
         release_current();
-        this->object_type::reset_id(other.object_type::reset_id());
+        this->handle_type::reset_id(other.handle_type::reset_id());
         return *this;
     }
 
     // GLConst -> GLMutable converting move construction is forbidden.
     GLUnique(GLUnique<const_type>&&) noexcept
-        requires std::same_as<object_type, mutable_type> = delete;
+        requires gl_mutable<mutability> = delete;
 
     // GLConst -> GLMutable converting move assignment is forbidden.
     GLUnique& operator=(GLUnique<const_type>&&) noexcept
-        requires std::same_as<object_type, mutable_type> = delete;
+        requires gl_mutable<mutability> = delete;
 
 
     ~GLUnique() noexcept { release_current(); }
 
 private:
     void release_current() noexcept {
-        if (this->object_type::id()) {
-            this->allocator_type::release(this->object_type::id());
+        if (this->handle_type::id()) {
+            this->allocator_type::release(this->handle_type::id());
         }
     }
 };

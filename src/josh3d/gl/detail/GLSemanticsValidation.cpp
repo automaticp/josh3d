@@ -29,17 +29,43 @@ namespace {
 
 
 
-template<template<typename> typename RawH, typename MutT>
+template<template<typename> typename RawH>
 concept can_be_unique =
-    mutability_tag<MutT> &&
-    requires { sizeof(GLUnique<RawH<MutT>>); };
+    requires {
+        sizeof(GLUnique<RawH<GLMutable>>);
+        sizeof(GLUnique<RawH<GLConst>>);
+    };
 
-static_assert(can_be_unique<RawTexture2D, GLMutable>);
-static_assert(can_be_unique<RawTexture2D, GLConst>);
+static_assert(can_be_unique<RawTexture2D>);
+static_assert(can_be_unique<RawTexture2DMS>);
+static_assert(can_be_unique<RawTexture2DArray>);
+static_assert(can_be_unique<RawCubemap>);
+static_assert(can_be_unique<RawCubemapArray>);
 
-// FIXME:
-// static_assert(can_be_unique<RawTextureHandle, GLMutable>);
-// static_assert(can_be_unique<RawTextureHandle, GLConst>);
+static_assert(can_be_unique<RawVBO>);
+static_assert(can_be_unique<RawEBO>);
+static_assert(can_be_unique<RawUBO>);
+static_assert(can_be_unique<RawSSBO>);
+
+static_assert(can_be_unique<RawFramebuffer>);
+
+static_assert(can_be_unique<RawRenderbuffer>);
+
+static_assert(can_be_unique<RawVAO>);
+
+static_assert(can_be_unique<RawShader>);
+static_assert(can_be_unique<RawShaderProgram>);
+
+
+static_assert(can_be_unique<RawTextureHandle>);
+static_assert(can_be_unique<RawBufferHandle>);
+static_assert(can_be_unique<RawFramebufferHandle>);
+static_assert(can_be_unique<RawRenderbufferHandle>);
+static_assert(can_be_unique<RawVertexArrayHandle>);
+static_assert(can_be_unique<RawShaderHandle>);
+static_assert(can_be_unique<RawShaderProgramHandle>);
+
+
 
 
 template<typename FromRawObj, typename ToRawObj>
