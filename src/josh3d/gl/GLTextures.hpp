@@ -1,7 +1,7 @@
 #pragma once
 #include "CommonConcepts.hpp" // IWYU pragma: keep (concepts)
 #include "GLMutability.hpp"
-#include "RawGLHandles.hpp"
+#include "GLKindHandles.hpp"
 #include "GLScalars.hpp"
 #include "detail/AndThen.hpp"
 #include "detail/AsSelf.hpp"

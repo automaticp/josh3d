@@ -3,7 +3,7 @@
 #include "detail/MagicConstructorsMacro.hpp"
 #include "GLMutability.hpp"
 #include "GLScalars.hpp"
-#include "RawGLHandles.hpp"
+#include "GLKindHandles.hpp"
 #include "GLVertexArray.hpp"
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>

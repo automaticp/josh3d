@@ -1,6 +1,6 @@
 #pragma once
 #include "detail/AndThen.hpp"
-#include "RawGLHandles.hpp"
+#include "GLKindHandles.hpp"
 #include "Size.hpp"
 #include "GLScalars.hpp"
 #include "GLMutability.hpp" // IWYU pragma: keep (concepts)

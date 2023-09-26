@@ -4,7 +4,7 @@
 #include "CommonConcepts.hpp" // IWYU pragma: keep
 #include "GLMutability.hpp"
 #include "GLScalars.hpp"
-#include "RawGLHandles.hpp"
+#include "GLKindHandles.hpp"
 #include "GLTextures.hpp"
 #include "GLRenderbuffer.hpp"
 #include <glbinding/gl/enum.h>

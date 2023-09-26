@@ -2,7 +2,7 @@
 #include "detail/AndThen.hpp"
 #include "GLMutability.hpp" // IWYU pragma: keep (concepts)
 #include "GLScalars.hpp"
-#include "RawGLHandles.hpp"
+#include "GLKindHandles.hpp"
 #include "ULocation.hpp"
 #include "detail/MagicConstructorsMacro.hpp"
 #include <glbinding/gl/functions.h>

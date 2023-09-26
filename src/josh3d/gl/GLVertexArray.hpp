@@ -3,7 +3,7 @@
 #include "detail/AsSelf.hpp"
 #include "GLMutability.hpp"
 #include "GLScalars.hpp"
-#include "RawGLHandles.hpp"
+#include "GLKindHandles.hpp"
 #include "VertexConcept.hpp" // IWYU pragma: keep (concepts)
 #include "detail/MagicConstructorsMacro.hpp"
 #include <glbinding/gl/gl.h>
