@@ -151,4 +151,21 @@ template<mutability_tag MutT>
 using OppositeGLMutability = detail::OppositeGLMutabilityImpl<MutT>::type;
 
 
+
+template<typename RawH>
+struct mutability_traits;
+
+template<template<typename> typename RawTemplate, mutability_tag MutT>
+struct mutability_traits<RawTemplate<MutT>> {
+    using mutability          = MutT;
+    using opposite_mutability = detail::OppositeGLMutabilityImpl<MutT>::type;
+    template<mutability_tag MutU>
+    using type_template       = RawTemplate<MutU>;
+    using const_type          = RawTemplate<GLConst>;
+    using mutable_type        = RawTemplate<GLMutable>;
+    using opposite_type       = RawTemplate<opposite_mutability>;
+};
+
+
+
 } // namespace josh
