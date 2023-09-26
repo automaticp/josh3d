@@ -120,7 +120,7 @@ private:
     using mutable_type    = mt::mutable_type;
     using opposite_type   = mt::opposite_type;
 
-    friend GLUnique<mutable_type>; // For GLMutable -> GLConst conversion
+    friend GLUnique<const_type>; // For GLMutable -> GLConst conversion
 
 public:
     template<typename ...AllocArgs>

@@ -103,18 +103,20 @@ for sampling (reading) when it's GLConst, then that const handle is useless for 
 */
 
 
+struct GLConst;
+struct GLMutable;
 
 /*
 Mutability tag used for specifying that the referenced OpenGL object
 cannot be modified through this handle. Models pointer-to-const.
 */
-struct GLConst   { using mutability_type = GLConst;   };
+struct GLConst   { using opposite_mutability = GLMutable; };
 
 /*
 Mutability tag used for specifying that the referenced OpenGL object
 can be modified through this handle. Models pointer-to-non-const.
 */
-struct GLMutable { using mutability_type = GLMutable; };
+struct GLMutable { using opposite_mutability = GLConst;   };
 
 
 
@@ -130,26 +132,6 @@ template<typename MutT>
 concept gl_mutable = std::same_as<MutT, GLMutable>;
 
 
-template<typename GLHandleT>
-concept specifies_mutability =
-    (std::derived_from<GLHandleT, GLConst>   && gl_const<typename GLHandleT::mutability_type>  ) ||
-    (std::derived_from<GLHandleT, GLMutable> && gl_mutable<typename GLHandleT::mutability_type>);
-
-
-namespace detail {
-
-template<mutability_tag MutT>
-struct OppositeGLMutabilityImpl;
-
-template<> struct OppositeGLMutabilityImpl<GLMutable> { using type = GLConst;   };
-template<> struct OppositeGLMutabilityImpl<GLConst>   { using type = GLMutable; };
-
-} // namespace detail
-
-
-template<mutability_tag MutT>
-using OppositeGLMutability = detail::OppositeGLMutabilityImpl<MutT>::type;
-
 
 
 template<typename RawH>
@@ -158,13 +140,20 @@ struct mutability_traits;
 template<template<typename> typename RawTemplate, mutability_tag MutT>
 struct mutability_traits<RawTemplate<MutT>> {
     using mutability          = MutT;
-    using opposite_mutability = detail::OppositeGLMutabilityImpl<MutT>::type;
+    using opposite_mutability = MutT::opposite_mutability;
     template<mutability_tag MutU>
     using type_template       = RawTemplate<MutU>;
     using const_type          = RawTemplate<GLConst>;
     using mutable_type        = RawTemplate<GLMutable>;
     using opposite_type       = RawTemplate<opposite_mutability>;
 };
+
+
+template<typename RawH>
+concept specifies_mutability = requires {
+    sizeof(mutability_traits<RawH>);
+};
+
 
 
 

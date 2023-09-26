@@ -184,7 +184,7 @@ public:
     JOSH3D_MAGIC_CONSTRUCTORS(RawFramebuffer, MutT, RawFramebufferHandle<MutT>)
 
     BoundDrawFramebuffer<MutT> bind_draw() const noexcept
-        requires gl_mutable<typename RawFramebuffer::mutability_type>
+        requires gl_mutable<MutT>
     {
         gl::glBindFramebuffer(gl::GL_DRAW_FRAMEBUFFER, this->id());
         return {};

@@ -19,12 +19,9 @@ template<
     mutability_tag MutT
 >
 struct KindHandleTypeInfo {
-    using kind_handle_type          = TemplateCRTP<MutT>;
-    using kind_handle_const_type    = TemplateCRTP<GLConst>;
-    using kind_handle_mutable_type  = TemplateCRTP<GLMutable>;
-
     template<mutability_tag MutU>
     using kind_handle_type_template = TemplateCRTP<MutU>;
+    using kind_handle_type          = TemplateCRTP<MutT>;
 };
 
 
@@ -96,14 +93,9 @@ template<
     mutability_tag MutT
 >
 struct ObjectHandleTypeInfo {
-    using object_handle_type          = TemplateCRTP<MutT>;
-    using object_handle_const_type    = TemplateCRTP<GLConst>;
-    using object_handle_mutable_type  = TemplateCRTP<GLMutable>;
-
     template<mutability_tag MutU>
     using object_handle_type_template = TemplateCRTP<MutU>;
-    // I'm still surprised this actually works.
-    // TMP is truly write-only...
+    using object_handle_type          = TemplateCRTP<MutT>;
 };
 
 } // namespace detail
@@ -127,7 +119,7 @@ concept raw_gl_object_handle = requires {
     requires specifies_mutability<RawObjH>;
     requires std::same_as<RawObjH, typename RawObjH::object_handle_type>;
     requires std::same_as<RawObjH,
-        typename RawObjH::template object_handle_type_template<typename RawObjH::mutability_type>>;
+        typename RawObjH::template object_handle_type_template<typename mutability_traits<RawObjH>::mutability>>;
     requires detail::has_basic_raw_handle_semantics<RawObjH>;
 };
 

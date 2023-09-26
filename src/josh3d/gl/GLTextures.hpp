@@ -272,8 +272,8 @@ concept gl_texture_object =
     detail::has_tex_spec<TextureT> &&
     detail::has_tex_info<TextureT> &&
     requires(
-        TextureT::object_handle_mutable_type mtex,
-        TextureT::object_handle_const_type   ctex)
+        TextureT::template object_handle_type_template<GLMutable> mtex,
+        TextureT::template object_handle_type_template<GLConst>   ctex)
     {
         // Has TexInfo as a base trait.
         requires std::derived_from<TextureT, detail::GLTexInfo<TextureT::target_type>>;

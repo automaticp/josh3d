@@ -27,8 +27,8 @@ protected:
         return old_id;
     }
     ~RawGLHandle() = default;
+    friend RawGLHandle<GLConst>;
 public:
-    friend RawGLHandle<OppositeGLMutability<MutT>>;
 
     explicit RawGLHandle(GLuint id) : id_{ id } {}
 
