@@ -213,6 +213,14 @@ public:
     }
 
 
+    BoundDrawFramebuffer<GLMutable> bind_draw() noexcept { return fbo_.bind_draw(); }
+    BoundReadFramebuffer<GLMutable> bind_read() noexcept { return fbo_.bind_read(); }
+    BoundReadFramebuffer<GLConst>   bind_read() const noexcept {
+        // FIXME: Bummy GLMutable -> GLConst move-conversion is needed here.
+        return RawFramebuffer<GLConst>{ fbo_ }.bind_read();
+    }
+
+
     void resize_all(const Size2I& new_size) {
 
         auto resize_impl = [&]<typename AttT>(AttT& attachment) {
@@ -244,41 +252,20 @@ public:
 
     }
 
-    // Odd hack, but whatever. The overload will be disabled anyway.
-    using depth_size_type =
-        std::conditional_t<has_depth_attachment, typename DepthAttachmentT::size_type, Size2I>;
 
-    void resize_depth_attachment(const depth_size_type& new_size)
-        requires has_depth_attachment
-    {
-        depth_.resize(new_size);
-    }
-
-    auto depth_attachment() const noexcept
-        -> const DepthAttachmentT&
+    const auto& depth_attachment() const noexcept
         requires has_depth_attachment
     {
         return depth_;
     }
 
-    template<auto EnumV>
-        requires enumeration<decltype(EnumV)> &&
-            (to_underlying(EnumV) < num_color_attachments)
-    void resize_color_attachment(
-        const std::tuple_element_t<to_underlying(EnumV), std::tuple<ColorAttachmentTs...>>::size_type& new_size)
+    auto& depth_attachment() noexcept
+        requires has_depth_attachment
     {
-        std::get<to_underlying(EnumV)>(colors_).resize(new_size);
+        return depth_;
     }
 
-    template<auto AttachmentId>
-        requires std::integral<decltype(AttachmentId)> &&
-            (AttachmentId < num_color_attachments)
-    void resize_color_attachment(
-        const std::tuple_element_t<AttachmentId, std::tuple<ColorAttachmentTs...>>::size_type& new_size)
-    {
-        std::get<AttachmentId>(colors_).resize(new_size);
-    }
-
+    // Get color attachment by the underlying value of enum.
     template<auto EnumV>
         requires enumeration<decltype(EnumV)> &&
             (to_underlying(EnumV) < num_color_attachments)
@@ -286,10 +273,25 @@ public:
         return std::get<to_underlying(EnumV)>(colors_);
     }
 
-    template<auto AttachmentId>
+    template<auto EnumV>
+        requires enumeration<decltype(EnumV)> &&
+            (to_underlying(EnumV) < num_color_attachments)
+    auto& color_attachment() noexcept {
+        return std::get<to_underlying(EnumV)>(colors_);
+    }
+
+    // Get color attachment by integral id.
+    template<auto AttachmentId = size_t{ 0 }>
         requires std::integral<decltype(AttachmentId)> &&
             (AttachmentId < num_color_attachments)
     const auto& color_attachment() const noexcept {
+        return std::get<AttachmentId>(colors_);
+    }
+
+    template<auto AttachmentId = size_t{ 0 }>
+        requires std::integral<decltype(AttachmentId)> &&
+            (AttachmentId < num_color_attachments)
+    auto& color_attachment() noexcept {
         return std::get<AttachmentId>(colors_);
     }
 
