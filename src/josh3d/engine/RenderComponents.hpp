@@ -72,23 +72,23 @@ struct BoundingSphere {
 
 
 struct MaterialDiffuse {
-    Shared<Texture2D> diffuse;
+    Shared<UniqueTexture2D> diffuse;
 };
 
 struct MaterialSpecular {
-    Shared<Texture2D> specular;
+    Shared<UniqueTexture2D> specular;
     GLfloat shininess{ 128.f };
 };
 
 struct MaterialNormal {
-    Shared<Texture2D> normal;
+    Shared<UniqueTexture2D> normal;
 };
 
 
 
 
 struct Skybox {
-    Shared<Cubemap> cubemap;
+    Shared<UniqueCubemap> cubemap;
 };
 
 

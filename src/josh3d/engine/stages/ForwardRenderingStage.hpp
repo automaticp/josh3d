@@ -32,7 +32,7 @@ public:
     };
 
 private:
-    ShaderProgram sp_{
+    UniqueShaderProgram sp_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/in_directional_shadow.vert"))
             .load_frag(VPath("src/shaders/mat_ds_light_adpn_shadow.frag"))

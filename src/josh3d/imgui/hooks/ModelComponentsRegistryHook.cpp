@@ -145,7 +145,7 @@ static void mesh_subwidget(entt::handle mesh) {
 
             // FIXME:
             // There's gotta be a better way.
-            auto get_size = [](const Texture2D& tex) -> Size2I {
+            auto get_size = [](const UniqueTexture2D& tex) -> Size2I {
                 Size2I out{ 0, 0 };
                 tex.bind()
                     .and_then([&] {
@@ -158,7 +158,7 @@ static void mesh_subwidget(entt::handle mesh) {
             };
 
             // FIXME: Not sure if scaling to max size is always preferrable.
-            auto imsize = [&](const Texture2D& tex) -> ImVec2 {
+            auto imsize = [&](const UniqueTexture2D& tex) -> ImVec2 {
                 const float w = ImGui::GetContentRegionAvail().x;
                 const float h = w / get_size(tex).aspect_ratio();
                 return { w, h };

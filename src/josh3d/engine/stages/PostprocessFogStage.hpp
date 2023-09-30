@@ -59,14 +59,14 @@ public:
     };
 
 private:
-    ShaderProgram sp_uniform_{
+    UniqueShaderProgram sp_uniform_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/pp_fog_uniform.frag"))
             .get()
     };
 
-    ShaderProgram sp_barometric_{
+    UniqueShaderProgram sp_barometric_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/pp_fog_barometric.frag"))

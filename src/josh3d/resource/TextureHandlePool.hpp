@@ -28,11 +28,11 @@ struct TextureHandleLoadContext {
 
 
 using TextureHandlePool =
-    GLObjectPool<Texture2D, DataPool<TextureData>, TextureHandleLoadContext>;
+    GLObjectPool<UniqueTexture2D, DataPool<TextureData>, TextureHandleLoadContext>;
 
 
 template<>
-Shared<Texture2D>
+Shared<UniqueTexture2D>
 inline TextureHandlePool::load_data_from(const File& file,
     const TextureHandleLoadContext& context)
 {
@@ -40,7 +40,7 @@ inline TextureHandlePool::load_data_from(const File& file,
 
     Shared<TextureData> tex_data{ upstream_.load(file) };
 
-    auto new_handle = std::make_shared<Texture2D>();
+    auto new_handle = std::make_shared<UniqueTexture2D>();
 
     GLenum internal_format = [&] {
         switch (context.type) {
@@ -53,10 +53,12 @@ inline TextureHandlePool::load_data_from(const File& file,
     }();
 
     new_handle->bind()
-        .attach_data(*tex_data, internal_format)
+        .and_then([&](BoundTexture2D<GLMutable>& tex) {
+            attach_data_to_texture(tex, *tex_data, internal_format);
+        })
         .generate_mipmaps()
-        .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-        .set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        .set_min_mag_filters(GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR)
+        .set_wrap_st(GL_REPEAT, GL_REPEAT);
 
     return new_handle;
 }

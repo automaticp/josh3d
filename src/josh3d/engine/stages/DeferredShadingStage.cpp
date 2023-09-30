@@ -36,11 +36,11 @@ void DeferredShadingStage::draw_main(
     const entt::registry& registry)
 {
 
-    sp_.use().and_then([&, this](ActiveShaderProgram& ashp) {
+    sp_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
 
-        gbuffer_->position_target().bind_to_unit_index(0);
-        gbuffer_->normals_target().bind_to_unit_index(1);
-        gbuffer_->albedo_spec_target().bind_to_unit_index(2);
+        gbuffer_->position_draw_texture().bind_to_unit_index(0);
+        gbuffer_->normals_texture()      .bind_to_unit_index(1);
+        gbuffer_->albedo_spec_texture()  .bind_to_unit_index(2);
 
         ashp.uniform("tex_position_draw", 0)
             .uniform("tex_normals",       1)
@@ -61,7 +61,7 @@ void DeferredShadingStage::draw_main(
         }
 
 
-        input_csm_->dir_shadow_maps.depth_target().bind_to_unit_index(3);
+        input_csm_->dir_shadow_maps_tgt.depth_attachment().texture().bind_to_unit_index(3);
         ashp.uniform("dir_shadow.cascades", 3)
             .uniform("dir_shadow.base_bias_tx",        dir_params.base_bias_tx)
             .uniform("dir_shadow.do_blend_cascades",   dir_params.blend_cascades)
@@ -70,7 +70,7 @@ void DeferredShadingStage::draw_main(
             .uniform("dir_shadow.pcf_offset",          dir_params.pcf_offset);
 
 
-        input_psm_->point_shadow_maps.depth_taget().bind_to_unit_index(4);
+        input_psm_->point_shadow_maps_tgt.depth_attachment().texture().bind_to_unit_index(4);
         ashp.uniform("point_shadow.maps", 4)
             .uniform("point_shadow.bias_bounds", point_params.bias_bounds)
             .uniform("point_shadow.z_far",       input_psm_->z_near_far[1])
@@ -104,10 +104,10 @@ void DeferredShadingStage::draw_debug_csm(
     const RenderEnginePrimaryInterface& engine,
     const entt::registry& registry)
 {
-    sp_cascade_debug_.use().and_then([&, this](ActiveShaderProgram& ashp) {
+    sp_cascade_debug_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
 
-        gbuffer_->position_target().bind_to_unit_index(0);
-        gbuffer_->normals_target() .bind_to_unit_index(1);
+        gbuffer_->position_draw_texture().bind_to_unit_index(0);
+        gbuffer_->normals_texture()      .bind_to_unit_index(1);
 
         ashp.uniform("tex_position_draw", 0)
             .uniform("tex_normals",       1);

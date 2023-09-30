@@ -11,9 +11,9 @@ namespace josh {
 
 class Mesh {
 private:
-    VBO vbo_;
-    VAO vao_;
-    EBO ebo_;
+    UniqueVBO vbo_;
+    UniqueVAO vao_;
+    UniqueEBO ebo_;
     GLsizei num_elements_;
 
 public:
@@ -25,14 +25,14 @@ public:
 
         // Ok, these 'and_then's are getting pretty ridiculous
         vao_.bind()
-            .and_then([this, &data](BoundVAO& self) {
+            .and_then([&, this](BoundVAO<GLMutable>& bvao) {
 
                 vbo_.bind()
-                    .attach_data(data.vertices().size(), data.vertices().data(), GL_STATIC_DRAW)
-                    .template associate_with<V>(self);
+                    .specify_data(data.vertices().size(), data.vertices().data(), GL_STATIC_DRAW)
+                    .template associate_with<V>(bvao);
 
-                ebo_.bind(self)
-                    .attach_data(num_elements_, data.elements().data(), GL_STATIC_DRAW);
+                ebo_.bind()
+                    .specify_data(num_elements_, data.elements().data(), GL_STATIC_DRAW);
 
             })
             .unbind();
@@ -42,7 +42,7 @@ public:
         using enum GLenum;
 
         vao_.bind()
-           .draw_elements(GL_TRIANGLES, num_elements_, GL_UNSIGNED_INT);
+            .draw_elements(GL_TRIANGLES, num_elements_, GL_UNSIGNED_INT);
     }
 
 

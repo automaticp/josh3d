@@ -1,5 +1,5 @@
 #pragma once
-#include "GLFramebuffers.hpp"
+#include "GLFramebuffer.hpp"
 #include "GLScalars.hpp"
 #include "GLObjects.hpp"
 #include "GLTextures.hpp"
@@ -15,8 +15,8 @@ namespace josh {
 
 class RenderTargetDepthArray {
 private:
-    Texture2DArray tex_;
-    Framebuffer fbo_;
+    UniqueTexture2DArray tex_;
+    UniqueFramebuffer fbo_;
 
     Size3I size_;
 
@@ -32,7 +32,8 @@ public:
         const float border_color[4]{ 1.f, 1.f, 1.f, 1.f };
 
         tex_.bind()
-            .specify_all_images(size_, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, type_, nullptr)
+            .specify_all_images(size_,
+                { GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, type_ }, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER)
@@ -47,11 +48,11 @@ public:
 
     }
 
-    Texture2DArray& depth_target() noexcept { return tex_; }
-    const Texture2DArray& depth_target() const noexcept { return tex_;  }
+    UniqueTexture2DArray& depth_target() noexcept { return tex_; }
+    const UniqueTexture2DArray& depth_target() const noexcept { return tex_;  }
 
-    Framebuffer& framebuffer() noexcept { return fbo_; }
-    const Framebuffer& framebuffer() const noexcept { return fbo_; }
+    UniqueFramebuffer& framebuffer() noexcept { return fbo_; }
+    const UniqueFramebuffer& framebuffer() const noexcept { return fbo_; }
 
     Size3I size() const noexcept { return size_; }
     GLenum type() const noexcept { return type_; }
@@ -63,7 +64,7 @@ public:
 
         tex_.bind()
             .specify_all_images(size_,
-                GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, type_, nullptr)
+                { GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, type_ }, nullptr)
             .unbind();
 
     }

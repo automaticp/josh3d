@@ -11,10 +11,10 @@ namespace josh {
 // Pretty basic, one skybox at a time.
 class SkyboxRenderer {
 private:
-    ShaderProgram skybox_shader_;
+    UniqueShaderProgram skybox_shader_;
 
-    VBO cube_vbo_;
-    VAO cube_vao_;
+    UniqueVBO cube_vbo_;
+    UniqueVAO cube_vao_;
 
 public:
     SkyboxRenderer()
@@ -32,14 +32,14 @@ public:
         auto bvao = cube_vao_.bind();
 
         cube_vbo_.bind()
-            .attach_data(skybox_vertices.size(), skybox_vertices.data(), GL_STATIC_DRAW)
+            .specify_data(skybox_vertices.size(), skybox_vertices.data(), GL_STATIC_DRAW)
             .associate_with(bvao, aparams)
             .unbind();
 
         bvao.unbind();
     }
 
-    void draw(Cubemap& skybox_cubemap,
+    void draw(RawCubemap<GLConst> skybox_cubemap,
         const glm::mat4& projection, const glm::mat4& view)
     {
         using namespace gl;

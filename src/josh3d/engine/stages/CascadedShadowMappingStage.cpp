@@ -1,4 +1,5 @@
 #include "CascadedShadowMappingStage.hpp"
+#include "GLMutability.hpp"
 #include "GLShaders.hpp"
 #include "GlobalsUtil.hpp"
 #include "RenderComponents.hpp"
@@ -35,13 +36,13 @@ void CascadedShadowMappingStage::operator()(
 
 
 void CascadedShadowMappingStage::resize_cascade_storage_if_needed() {
+    auto& maps = output_->dir_shadow_maps_tgt.depth_attachment();
+
     const size_t new_size = input_->cascades.size();
-    const size_t old_size = output_->dir_shadow_maps.size().depth;
+    const size_t old_size = maps.size().depth;
 
     if (new_size != old_size) {
-        auto& maps = output_->dir_shadow_maps;
-
-        maps.reset_size(Size3I{ Size2I{ maps.size() }, new_size });
+        maps.resize(Size3I{ Size2I{ maps.size() }, new_size });
         // FIXME: Is this needed?
         output_->params.resize(new_size);
     }
@@ -51,7 +52,7 @@ void CascadedShadowMappingStage::resize_cascade_storage_if_needed() {
 
 
 static void draw_all_world_geometry_no_alpha_test(
-    ActiveShaderProgram& ashp, const entt::registry& registry)
+    ActiveShaderProgram<GLMutable>& ashp, const entt::registry& registry)
 {
     // Assumes that projection and view are already set.
 
@@ -85,7 +86,7 @@ static void draw_all_world_geometry_no_alpha_test(
 
 
 static void draw_all_world_geometry_with_alpha_test(
-    ActiveShaderProgram& ashp, const entt::registry& registry)
+    ActiveShaderProgram<GLMutable>& ashp, const entt::registry& registry)
 {
     // Assumes that projection and view are already set.
 
@@ -139,7 +140,8 @@ void CascadedShadowMappingStage::map_dir_light_shadow_cascade(
     }
 
 
-    auto& maps = output_->dir_shadow_maps;
+    auto& csm_target = output_->dir_shadow_maps_tgt;
+    auto& maps = csm_target.depth_attachment();
 
     // No following calls are valid for empty cascades array.
     // The framebuffer would be incomplete.
@@ -147,7 +149,7 @@ void CascadedShadowMappingStage::map_dir_light_shadow_cascade(
 
     glViewport(0, 0, maps.size().width, maps.size().height);
 
-    maps.framebuffer().bind_draw().and_then([&, this] {
+    csm_target.bind_draw().and_then([&, this] {
 
         glClear(GL_DEPTH_BUFFER_BIT);
 
@@ -163,7 +165,7 @@ void CascadedShadowMappingStage::map_dir_light_shadow_cascade(
                 << max_cascades_ << ". Extra cascades will be ignored.";
         }
 
-        auto set_common_uniforms = [&](ActiveShaderProgram& ashp) {
+        auto set_common_uniforms = [&](ActiveShaderProgram<GLMutable>& ashp) {
             ULocation proj_loc = ashp.location_of("projections");
             ULocation view_loc = ashp.location_of("views");
 
@@ -177,13 +179,13 @@ void CascadedShadowMappingStage::map_dir_light_shadow_cascade(
 
 
         sp_with_alpha_.use()
-            .and_then([&](ActiveShaderProgram& ashp) {
+            .and_then([&](ActiveShaderProgram<GLMutable>& ashp) {
                 set_common_uniforms(ashp);
                 draw_all_world_geometry_with_alpha_test(ashp, registry);
             });
 
         sp_no_alpha_.use()
-            .and_then([&](ActiveShaderProgram& ashp) {
+            .and_then([&](ActiveShaderProgram<GLMutable>& ashp) {
                 set_common_uniforms(ashp);
                 draw_all_world_geometry_no_alpha_test(ashp, registry);
             });

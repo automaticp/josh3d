@@ -15,7 +15,7 @@ namespace josh {
 
 class BoundingSphereDebugStage {
 private:
-    ShaderProgram sp_{
+    UniqueShaderProgram sp_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/non_instanced.vert"))
             .load_frag(VPath("src/shaders/light_source.frag"))
@@ -49,7 +49,7 @@ public:
             .uniform("projection", engine.camera().projection_mat())
             .uniform("view", engine.camera().view_mat())
             .uniform("light_color", sphere_color)
-            .and_then([&, this](ActiveShaderProgram& ashp) {
+            .and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
                 engine.draw([&, this] {
                     auto view = registry.view<Transform, components::BoundingSphere>();
                     for (auto [entity, transform, sphere] : view.each()) {

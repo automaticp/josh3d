@@ -10,9 +10,9 @@ namespace josh {
 
 class SpriteRenderer {
 private:
-    VBO vbo_;
-    VAO vao_;
-    ShaderProgram sp_;
+    UniqueVBO vbo_;
+    UniqueVAO vao_;
+    UniqueShaderProgram sp_;
 
     constexpr static std::array<Vertex2D, 6> quad{ {
         { { -0.5f, +0.5f }, { 0.0f, 1.0f } },
@@ -38,14 +38,14 @@ public:
         sp_.use().uniform("projection", projection);
 
         vbo_.bind()
-            .attach_data(quad.size(), quad.data(), GL_STATIC_DRAW)
+            .specify_data(quad.size(), quad.data(), GL_STATIC_DRAW)
             .associate_with<Vertex2D>(vao_.bind());
 
     }
 
 
 
-    void draw_sprite(Texture2D& texture, const MTransform& transform,
+    void draw_sprite(RawTexture2D<GLConst> texture, const MTransform& transform,
         const glm::vec4& color = glm::vec4{ 1.f })
     {
         using namespace gl;

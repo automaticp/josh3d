@@ -1,6 +1,6 @@
 #pragma once
 #include "EnumUtils.hpp"
-#include "GBuffer.hpp"
+#include "GBufferStage.hpp"
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
 #include "SharedStorage.hpp"
@@ -18,7 +18,7 @@ class PostprocessGBufferDebugOverlayStage {
 private:
     SharedStorageView<GBuffer> gbuffer_;
 
-    ShaderProgram sp_{
+    UniqueShaderProgram sp_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/pp_gbuffer_debug.frag"))
@@ -49,10 +49,11 @@ public:
             return;
         }
 
-        gbuffer_->position_target()   .bind_to_unit_index(0);
-        gbuffer_->normals_target()    .bind_to_unit_index(1);
-        gbuffer_->albedo_spec_target().bind_to_unit_index(2);
-        engine   .screen_depth()      .bind_to_unit_index(3);
+        gbuffer_->position_draw_texture()   .bind_to_unit_index(0);
+        gbuffer_->normals_texture()         .bind_to_unit_index(1);
+        gbuffer_->albedo_spec_texture()     .bind_to_unit_index(2);
+        gbuffer_->depth_texture()           .bind_to_unit_index(3);
+        // engine   .screen_depth()            .bind_to_unit_index(3);
 
         sp_.use()
             .uniform("mode",              to_underlying(mode))

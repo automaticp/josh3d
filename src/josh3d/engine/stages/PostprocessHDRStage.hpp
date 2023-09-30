@@ -1,4 +1,5 @@
 #pragma once
+#include "GLMutability.hpp"
 #include "GLObjects.hpp"
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
@@ -12,7 +13,7 @@ namespace josh {
 
 class PostprocessHDRStage {
 private:
-    ShaderProgram sp_{
+    UniqueShaderProgram sp_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/pp_hdr.frag"))
@@ -27,7 +28,7 @@ public:
     void operator()(const RenderEnginePostprocessInterface& engine, const entt::registry&) {
         using namespace gl;
 
-        sp_.use().and_then([&, this](ActiveShaderProgram& ashp) {
+        sp_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
             engine.screen_color().bind_to_unit(GL_TEXTURE0);
             ashp.uniform("color", 0)
                 .uniform("use_reinhard", use_reinhard)

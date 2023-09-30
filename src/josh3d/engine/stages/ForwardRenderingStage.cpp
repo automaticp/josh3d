@@ -1,4 +1,5 @@
 #include "ForwardRenderingStage.hpp"
+#include "GLMutability.hpp"
 #include "GLShaders.hpp"
 #include "GlobalsGL.hpp"
 #include "LightCasters.hpp"
@@ -64,7 +65,7 @@ void ForwardRenderingStage::draw_scene(
     const entt::registry& registry)
 {
 
-    sp_.use().and_then([&, this](ActiveShaderProgram& ashp) {
+    sp_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
 
         ashp.uniform("projection", engine.camera().projection_mat())
             .uniform("view",       engine.camera().view_mat())
@@ -128,7 +129,7 @@ void ForwardRenderingStage::draw_scene(
         ashp.uniform("material.diffuse",  0)
             .uniform("material.specular", 1);
 
-        const auto apply_ds_materials = [&](entt::entity e, ActiveShaderProgram& ashp) {
+        const auto apply_ds_materials = [&](entt::entity e, ActiveShaderProgram<GLMutable>& ashp) {
 
             if (auto mat_d = registry.try_get<components::MaterialDiffuse>(e); mat_d) {
                 mat_d->diffuse->bind_to_unit_index(0);

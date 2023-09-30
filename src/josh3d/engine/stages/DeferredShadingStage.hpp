@@ -6,7 +6,7 @@
 #include "SSBOWithIntermediateBuffer.hpp"
 #include "ShaderBuilder.hpp"
 #include "SharedStorage.hpp"
-#include "GBuffer.hpp"
+#include "GBufferStage.hpp"
 #include "VPath.hpp"
 #include "stages/PointShadowMappingStage.hpp"
 #include "stages/CascadedShadowMappingStage.hpp"
@@ -35,14 +35,14 @@ public:
     };
 
 private:
-    ShaderProgram sp_{
+    UniqueShaderProgram sp_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/dfr_shading.vert"))
             .load_frag(VPath("src/shaders/dfr_shading_adpn_shadow_csm.frag"))
             .get()
     };
 
-    ShaderProgram sp_cascade_debug_{
+    UniqueShaderProgram sp_cascade_debug_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/dfr_shading.vert"))
             .load_frag(VPath("src/shaders/dfr_shading_csm_debug.frag"))

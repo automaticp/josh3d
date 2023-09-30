@@ -11,7 +11,19 @@
 namespace josh {
 
 
+/*
+FenceSync is a special OpenGL object, and does not follow the semantics
+of other objects (Textures, Buffers, etc.) in this implementation either.
 
+FenceSyncHandle always provides move-only ownership of the underlying object,
+but can also be created empty, or be reset later to a new OpenGL instance,
+while keeping the same C++ object.
+
+The interface is more focused on providing useful functionality for common use-cases,
+than on modelling the OpenGL handle semantics.
+
+(This might change in the future)
+*/
 class FenceSyncHandle {
 protected:
     gl::GLsync id_;
@@ -105,6 +117,11 @@ public:
     // the fence might be yet not in the queue.
     void stall_cmd_queue_until_signaled() const noexcept {
         gl::glWaitSync(id_, {}, gl::GL_TIMEOUT_IGNORED);
+    }
+
+    void flush_and_stall_cmd_queue_until_signaled() const noexcept {
+        gl::glFlush();
+        stall_cmd_queue_until_signaled();
     }
 
 };

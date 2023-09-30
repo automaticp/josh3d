@@ -1,4 +1,5 @@
 #pragma once
+#include "GLMutability.hpp"
 #include "GLObjects.hpp"
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/gl.h>
@@ -20,10 +21,11 @@ class BoundSSBOWithIntermediateBuffer
 private:
     friend class SSBOWithIntermediateBuffer<T>;
 
-    BoundSSBO ssbo_;
+    BoundIndexedSSBO<GLMutable> ssbo_;
     SSBOWithIntermediateBuffer<T>& parent_;
 
-    BoundSSBOWithIntermediateBuffer(SSBOWithIntermediateBuffer<T>& parent, BoundSSBO&& ssbo)
+    BoundSSBOWithIntermediateBuffer(
+        SSBOWithIntermediateBuffer<T>& parent, BoundIndexedSSBO<GLMutable>&& ssbo)
         : parent_{ parent }
         , ssbo_{ ssbo }
     {}
@@ -41,7 +43,7 @@ public:
     // Use create_storage() if you want to prepare SSBO for reading shader output.
     BoundSSBOWithIntermediateBuffer& create_storage(size_t new_size) {
         parent_.storage_.resize(new_size);
-        ssbo_.attach_data<T>(new_size, nullptr, parent_.usage_);
+        ssbo_.specify_data<T>(new_size, nullptr, parent_.usage_);
         return *this;
     }
 
@@ -94,7 +96,7 @@ private:
     void update_ssbo_from_ready_storage(bool needs_resizing) {
         const auto& storage = parent_.storage_;
         if (needs_resizing) {
-            ssbo_.attach_data(storage.size(), storage.data(), parent_.usage_);
+            ssbo_.specify_data(storage.size(), storage.data(), parent_.usage_);
         } else [[likely]] {
             ssbo_.sub_data(storage.size(), 0, storage.data());
         }
@@ -127,7 +129,7 @@ have much experience with them to fully say that.
 template<typename T> requires (std::is_trivially_copyable_v<T>)
 class SSBOWithIntermediateBuffer {
 private:
-    SSBO ssbo_;
+    UniqueSSBO ssbo_;
     std::vector<T> storage_;
     gl::GLenum usage_{ gl::GL_STATIC_DRAW };
 
@@ -150,7 +152,7 @@ public:
     const std::vector<T>& storage() const noexcept { return storage_; }
 
     BoundSSBOWithIntermediateBuffer<T> bind() {
-        return { *this, ssbo_.bind_to(binding) };
+        return { *this, ssbo_.bind_to_index(binding) };
     }
 
 };

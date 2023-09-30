@@ -58,9 +58,9 @@ AttributeMacros: []
 # BreakBeforeBraces: Attach
 # BreakBeforeConceptDeclarations: true
 # BreakBeforeTernaryOperators: true
-# BreakConstructorInitializers: BeforeColon
+BreakConstructorInitializers: BeforeComma
 # BreakConstructorInitializersBeforeComma: false
-BreakInheritanceList: AfterComma
+BreakInheritanceList: BeforeComma
 # BreakBeforeInheritanceComma: false
 BreakStringLiterals: false
 # ColumnLimit: 80

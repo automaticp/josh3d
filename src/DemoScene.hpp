@@ -1,6 +1,8 @@
 #pragma once
 #include "AssimpModelLoader.hpp"
+#include "Attachments.hpp"
 #include "FrustumCuller.hpp"
+#include "GLTextures.hpp"
 #include "PerspectiveCamera.hpp"
 #include "CubemapData.hpp"
 #include "GlobalsUtil.hpp"
@@ -103,16 +105,19 @@ public:
 
         auto psmapping    = rengine_.make_primary_stage<PointShadowMappingStage>();
         auto csmapping    = rengine_.make_primary_stage<CascadedShadowMappingStage>(csm_info_builder_.view_output());
-        auto gbuffer      = rengine_.make_primary_stage<GBufferStage>(rengine_.window_size());
+        auto gbuffer      = rengine_.make_primary_stage<GBufferStage>(
+            rengine_.window_size(),
+            // This is me sharing the depth target between the GBuffer and the
+            // main framebuffer of the RenderEngine, so that deferred and forward draws
+            // would overlap properly. Seems to work so far...
+            ViewAttachment<RawTexture2D>{
+                rengine_.main_depth(),
+                rengine_.window_size(),
+                { gl::GL_DEPTH_COMPONENT32F, gl::GL_DEPTH_COMPONENT, gl::GL_FLOAT }
+            }
+        );
 
-        // This is me sharing the depth target between the GBuffer and the
-        // main framebuffer of the RenderEngine, so that deferred and forward draws
-        // would overlap properly. Seems to work so far...
-        auto gbuffer_write_handle = gbuffer.target().get_write_view();
-
-        gbuffer_write_handle->attach_external_depth_buffer(rengine_.main_target().depth_target());
-
-        auto defgeom     = rengine_.make_primary_stage<DeferredGeometryStage>(std::move(gbuffer_write_handle));
+        auto defgeom     = rengine_.make_primary_stage<DeferredGeometryStage>(gbuffer.target().get_write_view());
 
         auto defshad     = rengine_.make_primary_stage<DeferredShadingStage>(
             gbuffer.target().get_read_view(),
@@ -267,6 +272,7 @@ inline void DemoScene::configure_input() {
 inline void DemoScene::init_registry() {
     auto& r = registry_;
 
+    using enum GLenum;
 
     constexpr const char* path = "data/models/shadow_scene/shadow_scene.obj";
 
@@ -290,17 +296,30 @@ inline void DemoScene::init_registry() {
     });
     r.emplace<tags::ShadowCasting>(e);
 
-    components::Skybox skybox{ std::make_shared<Cubemap>() };
-    skybox.cubemap->bind().attach_data(
-        CubemapData::from_files(
-                VPath("data/skyboxes/lake/right.png"),
-                VPath("data/skyboxes/lake/left.png"),
-                VPath("data/skyboxes/lake/top.png"),
-                VPath("data/skyboxes/lake/bottom.png"),
-                VPath("data/skyboxes/lake/front.png"),
-                VPath("data/skyboxes/lake/back.png")
-        ), gl::GL_SRGB_ALPHA
-    );
+    components::Skybox skybox{ std::make_shared<UniqueCubemap>() };
+    skybox.cubemap->bind()
+        .and_then([&](BoundCubemap<GLMutable>& cubemap) {
+            attach_data_to_cubemap(
+                cubemap,
+                CubemapData::from_files(
+                    VPath("data/skyboxes/lake/right.png"),
+                    VPath("data/skyboxes/lake/left.png"),
+                    VPath("data/skyboxes/lake/top.png"),
+                    VPath("data/skyboxes/lake/bottom.png"),
+                    VPath("data/skyboxes/lake/front.png"),
+                    VPath("data/skyboxes/lake/back.png")
+                ),
+                gl::GL_SRGB_ALPHA
+            );
+        })
+        // FIXME: There's gotta be a better place to put this.
+        // Maybe a create_skybox() function or something...
+        .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+        .set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+        .set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
+        .set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+        .set_parameter(GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
     r.emplace<components::Skybox>(r.create(), std::move(skybox));
 
 }

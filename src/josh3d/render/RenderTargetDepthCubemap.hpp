@@ -9,8 +9,8 @@ namespace josh {
 
 class RenderTargetDepthCubemap {
 private:
-    Cubemap cubemap_;
-    Framebuffer fbo_;
+    UniqueCubemap cubemap_;
+    UniqueFramebuffer fbo_;
 
     Size2I size_;
 
@@ -21,7 +21,8 @@ public:
         using namespace gl;
 
         cubemap_.bind()
-            .specify_all_images(size_, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr)
+            .specify_all_images(size_,
+                { GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT }, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
@@ -36,10 +37,10 @@ public:
 
     }
 
-    Cubemap& depth_taget() noexcept { return cubemap_; }
-    const Cubemap& depth_taget() const noexcept { return cubemap_; }
+    UniqueCubemap& depth_taget() noexcept { return cubemap_; }
+    const UniqueCubemap& depth_taget() const noexcept { return cubemap_; }
 
-    Framebuffer& framebuffer() noexcept { return fbo_; }
+    UniqueFramebuffer& framebuffer() noexcept { return fbo_; }
 
     Size2I size() const noexcept { return size_; }
 
@@ -49,7 +50,8 @@ public:
         size_ = new_size;
 
         cubemap_.bind()
-            .specify_all_images(size_, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr)
+            .specify_all_images(size_,
+                { GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT, GL_FLOAT }, nullptr)
             .unbind();
     }
 

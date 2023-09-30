@@ -1,11 +1,15 @@
 #pragma once
 #include "GLObjects.hpp"
-#include "PostprocessDoubleBuffer.hpp"
+#include "Attachments.hpp"
+#include "GLTextures.hpp"
+#include "RenderTarget.hpp"
+#include "SwapChain.hpp"
 #include "RenderEngine.hpp"
 #include "SSBOWithIntermediateBuffer.hpp"
 #include "ShaderBuilder.hpp"
 #include "Size.hpp"
 #include "VPath.hpp"
+#include <glbinding/gl/enum.h>
 #include <glm/glm.hpp>
 #include <entt/entt.hpp>
 #include <cmath>
@@ -20,29 +24,49 @@ namespace josh {
 
 class PostprocessBloomStage {
 private:
-    ShaderProgram sp_extract_{
+    UniqueShaderProgram sp_extract_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/pp_bloom_threshold_extract.frag"))
             .get()
     };
 
-    ShaderProgram sp_twopass_gaussian_blur_{
+    UniqueShaderProgram sp_twopass_gaussian_blur_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/pp_bloom_twopass_gaussian_blur.frag"))
             .get()
     };
 
-    ShaderProgram sp_blend_{
+    UniqueShaderProgram sp_blend_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/pp_bloom_blend.frag"))
             .get()
     };
 
-    PostprocessDoubleBuffer blur_ppdb_{
-        Size2I{ 1024, 1024 }, gl::GL_RGBA, gl::GL_RGBA16F, gl::GL_FLOAT
+    using BlurTarget    = RenderTarget<NoDepthAttachment, UniqueAttachment<RawTexture2D>>;
+    using BlurSwapChain = SwapChain<BlurTarget>;
+
+    static BlurTarget make_blur_target() {
+        using enum GLenum;
+        BlurTarget tgt{
+            {},                                                   // No Depth
+            { Size2I{ 1, 1 }, { GL_RGBA16F, GL_RGBA, GL_FLOAT } } // HDR Color
+        };
+        // TODO: That's one way to do it.
+        // Another one would be to support Sampler objects.
+        tgt.color_attachment().texture()
+            .bind()
+            .set_min_mag_filters(GL_LINEAR, GL_LINEAR)
+            .set_wrap_st(GL_CLAMP_TO_BORDER, GL_CLAMP_TO_BORDER)
+            .unbind();
+
+        return tgt;
+    }
+
+    BlurSwapChain blur_chain_{
+        make_blur_target(), make_blur_target()
     };
 
     SSBOWithIntermediateBuffer<float> weights_ssbo_{ 0 };
@@ -64,16 +88,22 @@ public:
     float  gaussian_sample_range{ old_gaussian_sample_range_ };
     size_t gaussian_samples{ old_gaussian_samples_ };
 
-    const PostprocessDoubleBuffer& blur_ppdb() const noexcept { return blur_ppdb_; }
+
+    RawTexture2D<GLConst> blur_texture() const noexcept {
+        return blur_chain_.front_target().color_attachment().texture();
+    }
+
+    Size2I blur_texture_size() const noexcept {
+        return blur_chain_.front_target().color_attachment().size();
+    }
 
     void operator()(const RenderEnginePostprocessInterface& engine, const entt::registry&) {
-        using namespace gl;
 
         if (!use_bloom) { return; }
 
-        if (engine.window_size() != blur_ppdb_.back().size()) {
-            // TODO: Might be part of PPDB::reset_size() to skip redundant resets
-            blur_ppdb_.reset_size(engine.window_size());
+        if (engine.window_size() != blur_chain_.back_target().color_attachment().size()) {
+            // TODO: Might be part of Attachment::resize() to skip redundant resizes
+            blur_chain_.resize_all(engine.window_size());
         }
 
         if (gaussian_weights_need_updating()) {
@@ -81,12 +111,12 @@ public:
         }
 
         // Extract
-        blur_ppdb_.draw_and_swap([&, this] {
-            sp_extract_.use().and_then([&, this](ActiveShaderProgram& ashp) {
+        blur_chain_.draw_and_swap([&, this] {
+            sp_extract_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
 
                 ashp.uniform("threshold_bounds", threshold_bounds)
                     .uniform("screen_color", 0);
-                engine.screen_color().bind_to_unit(GL_TEXTURE0);
+                engine.screen_color().bind_to_unit_index(0);
 
                 engine.postprocess_renderer().draw();
 
@@ -97,13 +127,18 @@ public:
         weights_ssbo_.bind().and_then([&, this] {
 
             for (size_t i{ 0 }; i < (2 * blur_iterations); ++i) {
-                blur_ppdb_.draw_and_swap([&, this] {
-                    sp_twopass_gaussian_blur_.use().and_then([&, this](ActiveShaderProgram& ashp) {
+                blur_chain_.draw_and_swap([&, this] {
+                    sp_twopass_gaussian_blur_.use().and_then([&, this](
+                        ActiveShaderProgram<GLMutable>& ashp)
+                    {
 
                         ashp.uniform("blur_horizontally", bool(i % 2))
-                            .uniform("offset_scale", offset_scale)
-                            .uniform("screen_color", 0);
-                        blur_ppdb_.front_target().bind_to_unit(GL_TEXTURE0);
+                            .uniform("offset_scale",      offset_scale)
+                            .uniform("screen_color",      0);
+                        blur_chain_.front_target()
+                            .color_attachment()
+                            .texture()
+                            .bind_to_unit_index(0);
 
                         engine.postprocess_renderer().draw();
                     });
@@ -113,12 +148,12 @@ public:
         });
 
         // Blend
-        sp_blend_.use().and_then([&, this](ActiveShaderProgram& ashp) {
+        sp_blend_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
 
             ashp.uniform("screen_color", 0)
-                .uniform("bloom_color", 1);
-            engine.screen_color().bind_to_unit(GL_TEXTURE0);
-            blur_ppdb_.front_target().bind_to_unit(GL_TEXTURE1);
+                .uniform("bloom_color",  1);
+            engine.screen_color().bind_to_unit_index(0);
+            blur_chain_.front_target().color_attachment().texture().bind_to_unit_index(1);
 
             engine.draw();
 

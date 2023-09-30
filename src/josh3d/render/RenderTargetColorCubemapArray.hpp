@@ -11,35 +11,30 @@ namespace josh {
 
 class RenderTargetColorCubemapArray {
 private:
-    CubemapArray cubemaps_;
-    Renderbuffer rbo_;
-    Framebuffer fbo_;
+    UniqueCubemapArray cubemaps_;
+    UniqueRenderbuffer rbo_;
+    UniqueFramebuffer fbo_;
 
     Size3I size_;
 
-    GLenum format_;
-    GLenum internal_format_;
-    GLenum type_;
+    UniqueCubemapArray::spec_type spec_;
 
 public:
     RenderTargetColorCubemapArray(Size3I size)
-        : RenderTargetColorCubemapArray(
+        : RenderTargetColorCubemapArray{
             size, gl::GL_RGBA, gl::GL_RGBA, gl::GL_UNSIGNED_BYTE
-        )
+        }
     {}
 
     RenderTargetColorCubemapArray(Size3I size,
         GLenum format, GLenum internal_format, GLenum type)
         : size_{ size }
-        , format_{ format }
-        , internal_format_{ internal_format }
-        , type_{ type }
+        , spec_{ internal_format, format, type }
     {
         using namespace gl;
 
         cubemaps_.bind()
-            .specify_all_images(Size2I{ size_ }, size_.depth,
-                internal_format_, format_, type_, nullptr)
+            .specify_all_images(size_, spec_, nullptr)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST)
             .set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
@@ -50,16 +45,16 @@ public:
             .create_storage(Size2I{ size_ }, GL_DEPTH24_STENCIL8);
 
         fbo_.bind_draw()
-            .attach_texture(cubemaps_, GL_COLOR_ATTACHMENT0)
+            .attach_cubemap_array(cubemaps_, GL_COLOR_ATTACHMENT0)
             .attach_renderbuffer(rbo_, GL_DEPTH_STENCIL_ATTACHMENT)
             .unbind();
     }
 
 
-    CubemapArray& color_taget() noexcept { return cubemaps_; }
-    const CubemapArray& color_taget() const noexcept { return cubemaps_; }
+    UniqueCubemapArray& color_taget() noexcept { return cubemaps_; }
+    const UniqueCubemapArray& color_taget() const noexcept { return cubemaps_; }
 
-    Framebuffer& framebuffer() noexcept { return fbo_; }
+    UniqueFramebuffer& framebuffer() noexcept { return fbo_; }
 
     Size3I size() const noexcept { return size_; }
 
@@ -69,8 +64,7 @@ public:
         size_ = new_size;
 
         cubemaps_.bind()
-            .specify_all_images(Size2I{ size_ }, size_.depth,
-                internal_format_, format_, type_, nullptr)
+            .specify_all_images(size_, spec_, nullptr)
             .unbind();
     }
 

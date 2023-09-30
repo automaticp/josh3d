@@ -10,7 +10,6 @@
 #include "GlobalsData.hpp"
 #include "GlobalsGL.hpp"
 #include "GlobalsUtil.hpp"
-#include "GLObjectHandles.hpp"
 #include "GLObjectPool.hpp"
 #include "GLObjects.hpp"
 #include "ImGuiContextWrapper.hpp"

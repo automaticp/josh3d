@@ -8,66 +8,69 @@ using namespace gl;
 
 namespace josh {
 
-BoundTexture2D& BoundTexture2D::attach_data(
-    const TextureData& tex_data,
-    GLenum internal_format, GLenum format)
-{
 
-    if (format == GL_NONE) {
-        switch (tex_data.n_channels()) {
-            case 1ull: format = GL_RED; break;
-            case 2ull: format = GL_RG; break;
-            case 3ull: format = GL_RGB; break;
-            case 4ull: format = GL_RGBA; break;
-            default: format = GL_RED;
-        }
+static GLenum get_default_format(size_t n_channels) noexcept {
+    switch (n_channels) {
+        case 1ull: return GL_RED;
+        case 2ull: return GL_RG;
+        case 3ull: return GL_RGB;
+        case 4ull: return GL_RGBA;
+        default:   return GL_RED;
     }
-
-
-    specify_image(
-        Size2I{ tex_data.image_size() },
-        internal_format, format,
-        GL_UNSIGNED_BYTE, tex_data.data()
-    );
-
-    return *this;
 }
 
 
-BoundCubemap& BoundCubemap::attach_data(
-    const CubemapData &cubemap_data,
-    GLenum internal_format, GLenum format)
+void attach_data_to_texture(BoundTexture2D<GLMutable>& tex,
+    const TextureData& data, GLenum internal_format)
 {
+    GLenum format = get_default_format(data.n_channels());
+    attach_data_to_texture(tex, data, internal_format, format);
+}
 
-    auto get_default_format = [](size_t n_channels) {
-        switch (n_channels) {
-            case 1ull: return GL_RED;
-            case 2ull: return GL_RG;
-            case 3ull: return GL_RGB;
-            case 4ull: return GL_RGBA;
-            default:   return GL_RED;
-        }
-    };
 
-    for (size_t i{ 0 }; i < cubemap_data.data().size(); ++i) {
+void attach_data_to_texture(BoundTexture2D<GLMutable>& tex,
+    const TextureData& data, GLenum internal_format, GLenum format)
+{
+    tex.specify_image(
+        Size2I{ data.image_size() },
+        GLTexSpec<GL_TEXTURE_2D>{ internal_format, format, GL_UNSIGNED_BYTE },
+        data.data()
+    );
+}
 
-        const auto& tex = cubemap_data.data()[i];
 
-        GLenum current_format{ format };
-        if (format == GL_NONE) {
-            current_format = get_default_format(tex.n_channels());
-        }
 
-        specify_image(
+
+void attach_data_to_cubemap(BoundCubemap<GLMutable>& cube,
+    const CubemapData& data, GLenum internal_format)
+{
+    for (size_t i{ 0 }; i < data.data().size(); ++i) {
+        const auto& face = data.data()[i];
+        GLenum format = get_default_format(face.n_channels());
+        cube.specify_image(
             GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-            Size2I{ tex.image_size() },
-            internal_format, current_format,
-            GL_UNSIGNED_BYTE, tex.data()
+            Size2I{ face.image_size() },
+            { internal_format, format, GL_UNSIGNED_BYTE },
+            face.data()
         );
     }
-
-    return *this;
 }
+
+
+void attach_data_to_cubemap(BoundCubemap<GLMutable>& cube,
+    const CubemapData& data, GLenum internal_format, GLenum format)
+{
+    for (size_t i{ 0 }; i < data.data().size(); ++i) {
+        const auto& face = data.data()[i];
+        cube.specify_image(
+            GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+            Size2I{ face.image_size() },
+            { internal_format, format, GL_UNSIGNED_BYTE },
+            face.data()
+        );
+    }
+}
+
 
 
 } // namespace josh
