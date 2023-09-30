@@ -1,5 +1,5 @@
 #pragma once
-#include "GBuffer.hpp"
+#include "GBufferStage.hpp"
 #include "GLShaders.hpp"
 #include "RenderStage.hpp"
 #include "ShaderBuilder.hpp"

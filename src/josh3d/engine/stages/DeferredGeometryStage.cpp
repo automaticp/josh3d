@@ -62,7 +62,7 @@ void DeferredGeometryStage::operator()(
     };
 
 
-    gbuffer_->framebuffer().bind_draw().and_then([&, this] {
+    gbuffer_->bind_draw().and_then([&, this] {
 
         sp_ds.use().and_then([&](ActiveShaderProgram<GLMutable>& ashp) {
 

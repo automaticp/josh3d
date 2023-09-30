@@ -38,9 +38,9 @@ void DeferredShadingStage::draw_main(
 
     sp_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
 
-        gbuffer_->position_target().bind_to_unit_index(0);
-        gbuffer_->normals_target().bind_to_unit_index(1);
-        gbuffer_->albedo_spec_target().bind_to_unit_index(2);
+        gbuffer_->position_draw_texture().bind_to_unit_index(0);
+        gbuffer_->normals_texture()      .bind_to_unit_index(1);
+        gbuffer_->albedo_spec_texture()  .bind_to_unit_index(2);
 
         ashp.uniform("tex_position_draw", 0)
             .uniform("tex_normals",       1)
@@ -106,8 +106,8 @@ void DeferredShadingStage::draw_debug_csm(
 {
     sp_cascade_debug_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
 
-        gbuffer_->position_target().bind_to_unit_index(0);
-        gbuffer_->normals_target() .bind_to_unit_index(1);
+        gbuffer_->position_draw_texture().bind_to_unit_index(0);
+        gbuffer_->normals_texture()      .bind_to_unit_index(1);
 
         ashp.uniform("tex_position_draw", 0)
             .uniform("tex_normals",       1);

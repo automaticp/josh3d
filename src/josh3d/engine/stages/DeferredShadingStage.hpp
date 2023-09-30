@@ -6,7 +6,7 @@
 #include "SSBOWithIntermediateBuffer.hpp"
 #include "ShaderBuilder.hpp"
 #include "SharedStorage.hpp"
-#include "GBuffer.hpp"
+#include "GBufferStage.hpp"
 #include "VPath.hpp"
 #include "stages/PointShadowMappingStage.hpp"
 #include "stages/CascadedShadowMappingStage.hpp"
