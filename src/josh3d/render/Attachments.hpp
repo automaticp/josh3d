@@ -103,21 +103,27 @@ public:
     const size_type& size() const noexcept { return size_; }
 
     void resize(const size_type& new_size) {
-        size_ = new_size;
-        reallocate_storage();
+        if (size_ != new_size) {
+            size_ = new_size;
+            reallocate_storage();
+        }
     }
 
     void respec(const spec_type& new_spec) {
-        spec_ = new_spec;
-        reallocate_storage();
+        if (spec_ != new_spec) {
+            spec_ = new_spec;
+            reallocate_storage();
+        }
     }
 
     void resize_and_respec(
         const size_type& new_size, const spec_type& new_spec)
     {
-        size_ = new_size;
-        spec_ = new_spec;
-        reallocate_storage();
+        if (size_ != new_size || spec_ != new_spec) {
+            size_ = new_size;
+            spec_ = new_spec;
+            reallocate_storage();
+        }
     }
 
 private:
@@ -161,21 +167,27 @@ public:
     const size_type& size() const noexcept { return size_; }
 
     void resize(const size_type& new_size) {
-        size_ = new_size;
-        reallocate_storage();
+        if (size_ != new_size) {
+            size_ = new_size;
+            reallocate_storage();
+        }
     }
 
     void respec(const spec_type& new_spec) {
-        spec_ = new_spec;
-        reallocate_storage();
+        if (spec_ != new_spec) {
+            spec_ = new_spec;
+            reallocate_storage();
+        }
     }
 
     void resize_and_respec(
         const size_type& new_size, const spec_type& new_spec)
     {
-        size_ = new_size;
-        spec_ = new_spec;
-        reallocate_storage();
+        if (size_ != new_size || spec_ != new_spec) {
+            size_ = new_size;
+            spec_ = new_spec;
+            reallocate_storage();
+        }
     }
 
 private:
