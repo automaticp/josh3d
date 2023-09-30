@@ -101,8 +101,6 @@ public:
     {
         configure_input();
 
-        auto skyboxing    = rengine_.make_primary_stage<SkyboxStage>();
-
         auto psmapping    = rengine_.make_primary_stage<PointShadowMappingStage>();
         auto csmapping    = rengine_.make_primary_stage<CascadedShadowMappingStage>(csm_info_builder_.view_output());
         auto gbuffer      = rengine_.make_primary_stage<GBufferStage>(
@@ -127,6 +125,9 @@ public:
 
         auto plightboxes = rengine_.make_primary_stage<PointLightSourceBoxStage>();
         auto cullspheres = rengine_.make_primary_stage<BoundingSphereDebugStage>();
+
+        auto skyboxing   = rengine_.make_primary_stage<SkyboxStage>();
+
 
         auto fog         = rengine_.make_postprocess_stage<PostprocessFogStage>();
         auto blooming    = rengine_.make_postprocess_stage<PostprocessBloomStage>();
@@ -171,7 +172,6 @@ public:
 
 
 
-        rengine_.add_next_primary_stage(std::move(skyboxing));
         rengine_.add_next_primary_stage(std::move(psmapping));
         rengine_.add_next_primary_stage(std::move(csmapping));
         rengine_.add_next_primary_stage(std::move(gbuffer));
@@ -179,6 +179,7 @@ public:
         rengine_.add_next_primary_stage(std::move(defshad));
         rengine_.add_next_primary_stage(std::move(plightboxes));
         rengine_.add_next_primary_stage(std::move(cullspheres));
+        rengine_.add_next_primary_stage(std::move(skyboxing));
 
         rengine_.add_next_postprocess_stage(std::move(fog));
         rengine_.add_next_postprocess_stage(std::move(blooming));

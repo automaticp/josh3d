@@ -3,6 +3,7 @@
 #include "ShaderBuilder.hpp"
 #include "AttributeParams.hpp"
 #include "VPath.hpp"
+#include <glbinding/gl/enum.h>
 #include <glbinding/gl/gl.h>
 
 namespace josh {
@@ -45,6 +46,7 @@ public:
         using namespace gl;
 
         glDepthMask(GL_FALSE);
+        glDepthFunc(GL_LEQUAL);
 
         skybox_cubemap.bind_to_unit(GL_TEXTURE0);
         skybox_shader_.use()
@@ -58,6 +60,7 @@ public:
             });
 
         glDepthMask(GL_TRUE);
+        glDepthFunc(GL_LESS);
 
     }
 

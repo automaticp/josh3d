@@ -12,5 +12,6 @@ void main() {
     // Cubemaps amright
     tex_coords = vec3(in_pos.xy, -in_pos.z);
 
-    gl_Position = projection * view * vec4(in_pos, 1.0);
+    vec4 position = projection * view * vec4(in_pos, 1.0);
+    gl_Position = position.xyww; // Force set z = 1.0 in NDC
 }
