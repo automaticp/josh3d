@@ -1,6 +1,7 @@
 #pragma once
 #include "CommonConcepts.hpp" // IWYU pragma: keep
 #include <concepts>
+#include <utility>
 
 
 
@@ -155,6 +156,13 @@ concept specifies_mutability = requires {
 };
 
 
+// Returns a GLConst version of the passed RawHandle.
+template<typename RawH>
+inline auto as_gl_const(RawH&& raw_handle) noexcept {
+    return typename mutability_traits<std::remove_cvref_t<RawH>>::const_type{
+        std::forward<RawH>(raw_handle)
+    };
+}
 
 
 } // namespace josh
