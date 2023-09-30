@@ -129,7 +129,7 @@ have much experience with them to fully say that.
 template<typename T> requires (std::is_trivially_copyable_v<T>)
 class SSBOWithIntermediateBuffer {
 private:
-    SSBO ssbo_;
+    UniqueSSBO ssbo_;
     std::vector<T> storage_;
     gl::GLenum usage_{ gl::GL_STATIC_DRAW };
 

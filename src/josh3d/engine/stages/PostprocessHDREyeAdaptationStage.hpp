@@ -21,14 +21,14 @@ namespace josh {
 
 class PostprocessHDREyeAdaptationStage {
 private:
-    ShaderProgram sp_{
+    UniqueShaderProgram sp_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/pp_hdr.frag"))
             .get()
     };
 
-    ShaderProgram reduce_sp_{
+    UniqueShaderProgram reduce_sp_{
         ShaderBuilder()
             .load_comp(VPath("src/shaders/pp_hdr_eye_adaptation_screen_reduce.comp"))
             .get()

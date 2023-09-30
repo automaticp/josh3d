@@ -33,7 +33,7 @@ private:
         UniqueAttachment<RawTexture2D>  // Albedo/Spec
     >;
 
-    Texture2D depth_;
+    UniqueTexture2D depth_;
     Target tgt_;
 
 public:

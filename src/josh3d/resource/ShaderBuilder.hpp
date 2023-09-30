@@ -90,9 +90,9 @@ public:
 
 
     [[nodiscard]]
-    ShaderProgram get() {
+    UniqueShaderProgram get() {
 
-        ShaderProgram sp;
+        UniqueShaderProgram sp;
 
         for (auto& shader : shaders_) {
 
@@ -112,8 +112,10 @@ public:
     }
 
 private:
-    static void compile_from_source_and_attach_to(ShaderProgram& sp, const UnevaluatedShader& shader_info) {
-        Shader new_shader{ shader_info.type };
+    static void compile_from_source_and_attach_to(
+        RawShaderProgram<GLMutable> sp, const UnevaluatedShader& shader_info)
+    {
+        UniqueShader new_shader{ shader_info.type };
         new_shader.set_source(shader_info.source.text().c_str());
         new_shader.compile();
         sp.attach_shader(new_shader);

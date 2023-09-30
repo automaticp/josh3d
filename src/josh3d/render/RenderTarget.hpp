@@ -160,7 +160,7 @@ private:
         detail::make_array_filled_with<bool, num_color_attachments>(true)
     };
 
-    Framebuffer fbo_;
+    UniqueFramebuffer fbo_;
 
 
     void update_enabled_draw_buffers(BoundDrawFramebuffer<GLMutable>& bfbo) noexcept {

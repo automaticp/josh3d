@@ -11,13 +11,13 @@ namespace josh {
 
 class RenderTargetColor {
 private:
-    Texture2D tex_;
-    Framebuffer fb_;
-    Renderbuffer rb_;
+    UniqueTexture2D tex_;
+    UniqueFramebuffer fb_;
+    UniqueRenderbuffer rb_;
 
     Size2I size_;
 
-    Texture2D::spec_type spec_;
+    UniqueTexture2D::spec_type spec_;
 
 public:
     RenderTargetColor(Size2I size)
@@ -50,10 +50,10 @@ public:
 
     }
 
-    Texture2D& color_target() noexcept { return tex_; }
-    const Texture2D& color_target() const noexcept { return tex_; }
+    UniqueTexture2D& color_target() noexcept { return tex_; }
+    const UniqueTexture2D& color_target() const noexcept { return tex_; }
 
-    Framebuffer& framebuffer() noexcept { return fb_; }
+    UniqueFramebuffer& framebuffer() noexcept { return fb_; }
 
     Size2I size() const noexcept { return size_; }
 

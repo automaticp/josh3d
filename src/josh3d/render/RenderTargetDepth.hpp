@@ -9,8 +9,8 @@ namespace josh {
 
 class RenderTargetDepth {
 private:
-    Texture2D tex_;
-    Framebuffer fbo_;
+    UniqueTexture2D tex_;
+    UniqueFramebuffer fbo_;
 
     Size2I size_;
 
@@ -40,10 +40,10 @@ public:
 
     }
 
-    Texture2D& depth_target() noexcept { return tex_; }
-    const Texture2D& depth_target() const noexcept { return tex_; }
+    UniqueTexture2D& depth_target() noexcept { return tex_; }
+    const UniqueTexture2D& depth_target() const noexcept { return tex_; }
 
-    Framebuffer& framebuffer() noexcept { return fbo_; }
+    UniqueFramebuffer& framebuffer() noexcept { return fbo_; }
 
     Size2I size() const noexcept { return size_; }
 

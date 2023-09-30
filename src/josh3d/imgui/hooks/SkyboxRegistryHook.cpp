@@ -56,7 +56,7 @@ void SkyboxRegistryHook::operator()(entt::registry& registry) {
                     skybox_e = registry.create();
                 }
                 auto& skybox =
-                    registry.emplace_or_replace<components::Skybox>(skybox_e, std::make_shared<Cubemap>());
+                    registry.emplace_or_replace<components::Skybox>(skybox_e, std::make_shared<UniqueCubemap>());
 
                 using enum GLenum;
                 skybox.cubemap->bind()

@@ -27,9 +27,9 @@ TextureHandlePool texture_handle_pool{ texture_data_pool };
 
 std::ostream& logstream{ std::clog };
 
-Shared<Texture2D> default_diffuse_texture;
-Shared<Texture2D> default_specular_texture;
-Shared<Texture2D> default_normal_texture;
+Shared<UniqueTexture2D> default_diffuse_texture;
+Shared<UniqueTexture2D> default_specular_texture;
+Shared<UniqueTexture2D> default_normal_texture;
 
 
 static MeshData<VertexPNTTB> plane_primitive_;
@@ -58,9 +58,9 @@ static TextureData fill_default(std::array<unsigned char, 4> rgba) {
 }
 
 
-static Shared<Texture2D> init_default_diffuse_texture() {
+static Shared<UniqueTexture2D> init_default_diffuse_texture() {
     auto tex = fill_default({ 0xB0, 0xB0, 0xB0, 0xFF });
-    auto handle = std::make_shared<Texture2D>();
+    auto handle = std::make_shared<UniqueTexture2D>();
     handle->bind()
         .and_then([&](BoundTexture2D<GLMutable>& btex) {
             attach_data_to_texture(btex, tex, gl::GL_SRGB_ALPHA);
@@ -70,9 +70,9 @@ static Shared<Texture2D> init_default_diffuse_texture() {
     return handle;
 }
 
-static Shared<Texture2D> init_default_specular_texture() {
+static Shared<UniqueTexture2D> init_default_specular_texture() {
     auto tex = fill_default({ 0x00, 0x00, 0x00, 0xFF });
-    auto handle = std::make_shared<Texture2D>();
+    auto handle = std::make_shared<UniqueTexture2D>();
     handle->bind()
         .and_then([&](BoundTexture2D<GLMutable>& btex) {
             attach_data_to_texture(btex, tex, gl::GL_RGBA);
@@ -82,9 +82,9 @@ static Shared<Texture2D> init_default_specular_texture() {
     return handle;
 }
 
-static Shared<Texture2D> init_default_normal_texture() {
+static Shared<UniqueTexture2D> init_default_normal_texture() {
     auto tex = fill_default({ 0x7F, 0x7F, 0xFF, 0xFF });
-    auto handle = std::make_shared<Texture2D>();
+    auto handle = std::make_shared<UniqueTexture2D>();
     handle->bind()
         .and_then([&](BoundTexture2D<GLMutable>& btex) {
             attach_data_to_texture(btex, tex, gl::GL_RGBA);

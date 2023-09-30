@@ -14,7 +14,7 @@ namespace josh {
 
 class PostprocessGammaCorrectionStage {
 private:
-    ShaderProgram sp_{
+    UniqueShaderProgram sp_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/pp_gamma.frag"))

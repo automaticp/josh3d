@@ -18,7 +18,7 @@ class PostprocessGBufferDebugOverlayStage {
 private:
     SharedStorageView<GBuffer> gbuffer_;
 
-    ShaderProgram sp_{
+    UniqueShaderProgram sp_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/pp_gbuffer_debug.frag"))

@@ -24,21 +24,21 @@ namespace josh {
 
 class PostprocessBloomStage {
 private:
-    ShaderProgram sp_extract_{
+    UniqueShaderProgram sp_extract_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/pp_bloom_threshold_extract.frag"))
             .get()
     };
 
-    ShaderProgram sp_twopass_gaussian_blur_{
+    UniqueShaderProgram sp_twopass_gaussian_blur_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/pp_bloom_twopass_gaussian_blur.frag"))
             .get()
     };
 
-    ShaderProgram sp_blend_{
+    UniqueShaderProgram sp_blend_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/pp_bloom_blend.frag"))

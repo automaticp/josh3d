@@ -11,9 +11,9 @@ namespace josh {
 
 class Mesh {
 private:
-    VBO vbo_;
-    VAO vao_;
-    EBO ebo_;
+    UniqueVBO vbo_;
+    UniqueVAO vao_;
+    UniqueEBO ebo_;
     GLsizei num_elements_;
 
 public:

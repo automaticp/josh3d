@@ -45,7 +45,7 @@ public:
 
 
 private:
-    ShaderProgram sp_plight_depth_with_alpha_{
+    UniqueShaderProgram sp_plight_depth_with_alpha_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/depth_cubemap.vert"))
             .load_geom(VPath("src/shaders/depth_cubemap_array.geom"))
@@ -54,7 +54,7 @@ private:
             .get()
     };
 
-    ShaderProgram sp_dir_depth_with_alpha{
+    UniqueShaderProgram sp_dir_depth_with_alpha{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/depth_map.vert"))
             .load_frag(VPath("src/shaders/depth_map.frag"))
@@ -62,7 +62,7 @@ private:
             .get()
     };
 
-    ShaderProgram sp_plight_depth_no_alpha_{
+    UniqueShaderProgram sp_plight_depth_no_alpha_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/depth_cubemap.vert"))
             .load_geom(VPath("src/shaders/depth_cubemap_array.geom"))
@@ -70,7 +70,7 @@ private:
             .get()
     };
 
-    ShaderProgram sp_dir_depth_no_alpha{
+    UniqueShaderProgram sp_dir_depth_no_alpha{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/depth_map.vert"))
             .load_frag(VPath("src/shaders/depth_map.frag"))

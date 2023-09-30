@@ -12,13 +12,13 @@ namespace josh {
 
 class RenderTargetColorAndDepth {
 private:
-    Texture2D color_;
-    Texture2D depth_;
-    Framebuffer fbo_;
+    UniqueTexture2D color_;
+    UniqueTexture2D depth_;
+    UniqueFramebuffer fbo_;
 
     Size2I size_;
 
-    Texture2D::spec_type spec_;
+    UniqueTexture2D::spec_type spec_;
 
 public:
     RenderTargetColorAndDepth(Size2I size)
@@ -55,13 +55,13 @@ public:
 
     }
 
-    Texture2D& color_target() noexcept { return color_; }
-    const Texture2D& color_target() const noexcept { return color_; }
+    UniqueTexture2D& color_target() noexcept { return color_; }
+    const UniqueTexture2D& color_target() const noexcept { return color_; }
 
-    Texture2D& depth_target() noexcept { return depth_; }
-    const Texture2D& depth_target() const noexcept { return depth_; }
+    UniqueTexture2D& depth_target() noexcept { return depth_; }
+    const UniqueTexture2D& depth_target() const noexcept { return depth_; }
 
-    Framebuffer& framebuffer() noexcept { return fbo_; }
+    UniqueFramebuffer& framebuffer() noexcept { return fbo_; }
 
     Size2I size() const noexcept { return size_; }
 

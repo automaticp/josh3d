@@ -11,13 +11,13 @@ namespace josh {
 
 class RenderTargetColorCubemapArray {
 private:
-    CubemapArray cubemaps_;
-    Renderbuffer rbo_;
-    Framebuffer fbo_;
+    UniqueCubemapArray cubemaps_;
+    UniqueRenderbuffer rbo_;
+    UniqueFramebuffer fbo_;
 
     Size3I size_;
 
-    CubemapArray::spec_type spec_;
+    UniqueCubemapArray::spec_type spec_;
 
 public:
     RenderTargetColorCubemapArray(Size3I size)
@@ -51,10 +51,10 @@ public:
     }
 
 
-    CubemapArray& color_taget() noexcept { return cubemaps_; }
-    const CubemapArray& color_taget() const noexcept { return cubemaps_; }
+    UniqueCubemapArray& color_taget() noexcept { return cubemaps_; }
+    const UniqueCubemapArray& color_taget() const noexcept { return cubemaps_; }
 
-    Framebuffer& framebuffer() noexcept { return fbo_; }
+    UniqueFramebuffer& framebuffer() noexcept { return fbo_; }
 
     Size3I size() const noexcept { return size_; }
 

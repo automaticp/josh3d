@@ -16,7 +16,7 @@ namespace josh {
 
 class PointLightSourceBoxStage {
 private:
-    ShaderProgram sp_{
+    UniqueShaderProgram sp_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/non_instanced.vert"))
             .load_frag(VPath("src/shaders/light_source.frag"))

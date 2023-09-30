@@ -9,8 +9,8 @@ namespace josh {
 
 class RenderTargetDepthCubemapArray {
 private:
-    CubemapArray cubemaps_;
-    Framebuffer fbo_;
+    UniqueCubemapArray cubemaps_;
+    UniqueFramebuffer fbo_;
 
     Size3I size_;
 
@@ -37,10 +37,10 @@ public:
     }
 
 
-    CubemapArray& depth_taget() noexcept { return cubemaps_; }
-    const CubemapArray& depth_taget() const noexcept { return cubemaps_; }
+    UniqueCubemapArray& depth_taget() noexcept { return cubemaps_; }
+    const UniqueCubemapArray& depth_taget() const noexcept { return cubemaps_; }
 
-    Framebuffer& framebuffer() noexcept { return fbo_; }
+    UniqueFramebuffer& framebuffer() noexcept { return fbo_; }
 
     Size3I size() const noexcept { return size_; }
 

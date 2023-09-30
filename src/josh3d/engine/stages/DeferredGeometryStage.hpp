@@ -15,7 +15,7 @@ namespace josh {
 
 class DeferredGeometryStage {
 private:
-    ShaderProgram sp_ds{
+    UniqueShaderProgram sp_ds{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/non_instanced.vert"))
             .load_frag(VPath("src/shaders/dfr_geometry_mat_ds.frag"))
@@ -23,7 +23,7 @@ private:
             .get()
     };
 
-    ShaderProgram sp_dsn{
+    UniqueShaderProgram sp_dsn{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/dfr_geometry_mat_dsn.vert"))
             .load_frag(VPath("src/shaders/dfr_geometry_mat_dsn.frag"))

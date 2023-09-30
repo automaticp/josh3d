@@ -45,7 +45,7 @@ class PointShadowMappingStage {
 private:
     SharedStorage<PointShadowMaps> output_;
 
-    ShaderProgram sp_with_alpha{
+    UniqueShaderProgram sp_with_alpha{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/depth_cubemap.vert"))
             .load_geom(VPath("src/shaders/depth_cubemap_array.geom"))
@@ -54,7 +54,7 @@ private:
             .get()
     };
 
-    ShaderProgram sp_no_alpha{
+    UniqueShaderProgram sp_no_alpha{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/depth_cubemap.vert"))
             .load_geom(VPath("src/shaders/depth_cubemap_array.geom"))

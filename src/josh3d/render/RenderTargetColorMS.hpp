@@ -11,13 +11,13 @@ namespace josh {
 
 class RenderTargetColorMS {
 private:
-    Texture2DMS tex_;
-    Framebuffer fbo_;
-    Renderbuffer rbo_;
+    UniqueTexture2DMS tex_;
+    UniqueFramebuffer fbo_;
+    UniqueRenderbuffer rbo_;
 
     Size2I size_;
 
-    Texture2DMS::spec_type spec_;
+    UniqueTexture2DMS::spec_type spec_;
 
 public:
     RenderTargetColorMS(Size2I size,
@@ -41,10 +41,10 @@ public:
 
     }
 
-    Texture2DMS& color_target() noexcept { return tex_; }
-    const Texture2DMS& color_target() const noexcept { return tex_; }
+    UniqueTexture2DMS& color_target() noexcept { return tex_; }
+    const UniqueTexture2DMS& color_target() const noexcept { return tex_; }
 
-    Framebuffer& framebuffer() noexcept { return fbo_; }
+    UniqueFramebuffer& framebuffer() noexcept { return fbo_; }
 
     Size2I  size()     const noexcept { return size_; }
     GLsizei nsamples() const noexcept { return spec_.nsamples; }

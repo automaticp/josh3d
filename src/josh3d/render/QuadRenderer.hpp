@@ -20,8 +20,8 @@ Input attributes:
 */
 class QuadRenderer {
 private:
-    VBO quad_vbo_{};
-    VAO quad_vao_{};
+    UniqueVBO quad_vbo_{};
+    UniqueVAO quad_vao_{};
 
 public:
     QuadRenderer() {

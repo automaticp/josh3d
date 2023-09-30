@@ -15,8 +15,8 @@ namespace josh {
 
 class RenderTargetDepthArray {
 private:
-    Texture2DArray tex_;
-    Framebuffer fbo_;
+    UniqueTexture2DArray tex_;
+    UniqueFramebuffer fbo_;
 
     Size3I size_;
 
@@ -48,11 +48,11 @@ public:
 
     }
 
-    Texture2DArray& depth_target() noexcept { return tex_; }
-    const Texture2DArray& depth_target() const noexcept { return tex_;  }
+    UniqueTexture2DArray& depth_target() noexcept { return tex_; }
+    const UniqueTexture2DArray& depth_target() const noexcept { return tex_;  }
 
-    Framebuffer& framebuffer() noexcept { return fbo_; }
-    const Framebuffer& framebuffer() const noexcept { return fbo_; }
+    UniqueFramebuffer& framebuffer() noexcept { return fbo_; }
+    const UniqueFramebuffer& framebuffer() const noexcept { return fbo_; }
 
     Size3I size() const noexcept { return size_; }
     GLenum type() const noexcept { return type_; }

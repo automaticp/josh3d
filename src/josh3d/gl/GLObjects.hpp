@@ -12,7 +12,7 @@
 namespace josh {
 
 #define JOSH3D_ALIAS_UNIQUE(object) \
-    using object = GLUnique<Raw##object<GLMutable>>; // NOLINT(bugprone-macro-parentheses)
+    using Unique##object = GLUnique<Raw##object<GLMutable>>; // NOLINT(bugprone-macro-parentheses)
 
 JOSH3D_ALIAS_UNIQUE(Texture2D)
 JOSH3D_ALIAS_UNIQUE(Texture2DArray)

@@ -296,7 +296,7 @@ inline void DemoScene::init_registry() {
     });
     r.emplace<tags::ShadowCasting>(e);
 
-    components::Skybox skybox{ std::make_shared<Cubemap>() };
+    components::Skybox skybox{ std::make_shared<UniqueCubemap>() };
     skybox.cubemap->bind()
         .and_then([&](BoundCubemap<GLMutable>& cubemap) {
             attach_data_to_cubemap(

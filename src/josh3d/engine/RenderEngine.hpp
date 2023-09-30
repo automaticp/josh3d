@@ -104,7 +104,7 @@ private:
         UniqueAttachment<RawTexture2D> // Color
     >;
 
-    Texture2D depth_;
+    UniqueTexture2D depth_;
 
     MainTarget make_main_target(const Size2I& size, RawTexture2D<GLMutable> depth) {
         using enum GLenum;
