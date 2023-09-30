@@ -11,6 +11,8 @@
 #include <glbinding/gl/functions.h>
 #include <glbinding/gl/gl.h>
 #include <glbinding/gl/types.h>
+#include <glm/vec4.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <concepts>
 #include <type_traits>
 
@@ -301,6 +303,25 @@ Next we have all the garbage needed to implement Bound texture dummies.
 
 
 template<GLenum TargetV>
+struct BoundSizeGetter {
+    GLTexSize<TargetV> get_size(GLint level = 0) {
+        using enum GLenum;
+        if constexpr (std::same_as<GLTexSize<TargetV>, Size2I>) {
+            GLint width, height;
+            gl::glGetTexLevelParameteriv(TargetV, level, GL_TEXTURE_WIDTH,  &width);
+            gl::glGetTexLevelParameteriv(TargetV, level, GL_TEXTURE_HEIGHT, &height);
+            return { width, height };
+        } else {
+            GLint width, height, depth;
+            gl::glGetTexLevelParameteriv(TargetV, level, GL_TEXTURE_WIDTH,  &width);
+            gl::glGetTexLevelParameteriv(TargetV, level, GL_TEXTURE_HEIGHT, &height);
+            gl::glGetTexLevelParameteriv(TargetV, level, GL_TEXTURE_DEPTH,  &depth);
+            return { width, height, depth };
+        }
+    }
+};
+
+template<GLenum TargetV>
 struct UnbindableTex {
     static void unbind() noexcept { gl::glBindTexture(TargetV, 0); }
 };
@@ -308,6 +329,7 @@ struct UnbindableTex {
 template<typename CRTP, GLenum TargetV>
 struct BoundTexImplConst
     : GLTexInfo<TargetV>
+    , BoundSizeGetter<TargetV>
     , UnbindableTex<TargetV>
     , AndThen<CRTP>
     , AsSelf<CRTP>
@@ -341,6 +363,41 @@ struct BoundTexImplMutable
         gl::glTexParameterfv(TargetV, param_name, param_values);
         return this->as_self();
     }
+
+    CRTP& set_min_mag_filters(GLenum min_filter, GLenum mag_filter)
+        requires (!(TargetV == gl::GL_TEXTURE_2D_MULTISAMPLE ||
+            TargetV == gl::GL_TEXTURE_2D_MULTISAMPLE_ARRAY))
+    {
+        set_parameter(gl::GL_TEXTURE_MIN_FILTER, min_filter);
+        set_parameter(gl::GL_TEXTURE_MAG_FILTER, mag_filter);
+        return this->as_self();
+    }
+
+    CRTP& set_wrap_st(GLenum wrap_s, GLenum wrap_t)
+        requires any_of<typename GLTexInfo<TargetV>::size_type, Size2I, Size3I>
+    {
+        set_parameter(gl::GL_TEXTURE_WRAP_S, wrap_s);
+        set_parameter(gl::GL_TEXTURE_WRAP_T, wrap_t);
+        return this->as_self();
+    }
+
+    CRTP& set_wrap_str(GLenum wrap_s, GLenum wrap_t, GLenum wrap_r)
+        requires std::same_as<typename GLTexInfo<TargetV>::size_type, Size3I>
+    {
+        set_parameter(gl::GL_TEXTURE_WRAP_S, wrap_s);
+        set_parameter(gl::GL_TEXTURE_WRAP_T, wrap_t);
+        set_parameter(gl::GL_TEXTURE_WRAP_R, wrap_r);
+        return this->as_self();
+    }
+
+    CRTP& set_border_color(const GLfloat* colors_array) {
+        return set_parameter(gl::GL_TEXTURE_BORDER_COLOR, colors_array);
+    }
+
+    CRTP& set_border_color(const glm::vec4& color) {
+        return set_border_color(glm::value_ptr(color));
+    }
+
 };
 
 

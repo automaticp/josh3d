@@ -57,8 +57,8 @@ inline TextureHandlePool::load_data_from(const File& file,
             attach_data_to_texture(tex, *tex_data, internal_format);
         })
         .generate_mipmaps()
-        .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-        .set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        .set_min_mag_filters(GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR)
+        .set_wrap_st(GL_REPEAT, GL_REPEAT);
 
     return new_handle;
 }
