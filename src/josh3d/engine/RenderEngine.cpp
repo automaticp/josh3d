@@ -1,5 +1,6 @@
 #include "RenderEngine.hpp"
 #include "GLFramebuffer.hpp"
+#include "GLMutability.hpp"
 #include <entt/entt.hpp>
 #include <glbinding/gl/gl.h>
 #include <cassert>
@@ -12,8 +13,36 @@ namespace josh {
 
 
 
+/*
+Just some thoughts:
+
+The main render target of the engine is a SwapChain
+with shared Depth.
+
+The primary passes all draw to the backbuffer of the
+SwapChain. Then it swaps and the postprocessing begins.
+
+At the end of postprocessing, the result is blitted into
+the default framebuffer.
+(sRGB conversion can be done here).
+
+Additionally, you can have a bunch of overlays drawn
+after this, which can sample from the pre-blit SwapChain buffer.
+
+Depending on the choice of gamma-correction, if it was
+applied manually, you'll be sampling sRGB colors.
+If it was applied as an sRGB blit, then you'll be sampling
+linear colors, since that's what is left in the SwapChain.
+
+What a mess.
+
+There probably has to be pre-sRGB and post-sRGB postprocessing.
+This has the same implications as Overlay stages, I think.
+*/
+
+
+
 void RenderEngine::render() {
-    using namespace gl;
 
     // Update camera.
     auto params = cam_.get_params();
@@ -21,55 +50,43 @@ void RenderEngine::render() {
     cam_.update_params(params);
 
 
-    main_target_.framebuffer()
-        .bind_draw()
+    main_swapchain_.back_target().bind_draw()
         .and_then([] { glClear(GL_DEPTH_BUFFER_BIT); });
 
     glEnable(GL_DEPTH_TEST);
     render_primary_stages();
 
-    // TODO: Remove the blit by drawing to the desired target right away.
 
     if (pp_stages_.empty()) {
 
-        main_target_.framebuffer()
-            .bind_read()
-            .and_then([this](BoundReadFramebuffer<GLMutable>&) {
+        main_swapchain_.back_target().bind_read()
+            .and_then([this](BoundReadFramebuffer<GLMutable>& src_fb) {
 
                 // FIXME: Kinda awkward because there's no default binding object.
                 // Way to fix this is so far unknown.
-                BoundDrawFramebuffer<GLMutable>::unbind();
+                RawFramebuffer<GLMutable> default_fb{ 0 };
 
-                auto [src_w, src_h] = main_target_.size();
+                auto [src_w, src_h] = main_swapchain_.back_target().color_attachment().size();
                 auto [dst_w, dst_h] = window_size_;
 
-                glBlitFramebuffer(
-                    0, 0, src_w, src_h,
-                    0, 0, dst_w, dst_h,
-                    GL_COLOR_BUFFER_BIT, GL_NEAREST
-                );
+                default_fb.bind_draw()
+                    .blit_from(
+                        src_fb,
+                        0, 0, src_w, src_h,
+                        0, 0, dst_w, dst_h,
+                        GL_COLOR_BUFFER_BIT, GL_NEAREST
+                    )
+                    .unbind();
             })
             .unbind();
 
     } else /* has postprocessing */ {
 
-        ppdb_.draw_and_swap([this](BoundDrawFramebuffer<GLMutable>& dst_fbo) {
-            main_target_.framebuffer()
-                .bind_read()
-                .and_then([&, this](BoundReadFramebuffer<GLMutable>& src_fbo) {
-
-                    auto [src_w, src_h] = main_target_.size();
-                    auto [dst_w, dst_h] = ppdb_.back().size();
-
-                    src_fbo.blit_to(dst_fbo,
-                        0, 0, src_w, src_h, 0, 0, dst_w, dst_h,
-                        GL_COLOR_BUFFER_BIT, GL_NEAREST);
-
-                })
-                .unbind();
-        });
+        // So that the next PP stage could sample from the results of the main pass.
+        main_swapchain_.swap_buffers();
 
         glDisable(GL_DEPTH_TEST);
+
         render_postprocess_stages();
     }
 }

@@ -36,13 +36,13 @@ void CascadedShadowMappingStage::operator()(
 
 
 void CascadedShadowMappingStage::resize_cascade_storage_if_needed() {
+    auto& maps = output_->dir_shadow_maps_tgt.depth_attachment();
+
     const size_t new_size = input_->cascades.size();
-    const size_t old_size = output_->dir_shadow_maps.size().depth;
+    const size_t old_size = maps.size().depth;
 
     if (new_size != old_size) {
-        auto& maps = output_->dir_shadow_maps;
-
-        maps.reset_size(Size3I{ Size2I{ maps.size() }, new_size });
+        maps.resize(Size3I{ Size2I{ maps.size() }, new_size });
         // FIXME: Is this needed?
         output_->params.resize(new_size);
     }
@@ -140,7 +140,8 @@ void CascadedShadowMappingStage::map_dir_light_shadow_cascade(
     }
 
 
-    auto& maps = output_->dir_shadow_maps;
+    auto& csm_target = output_->dir_shadow_maps_tgt;
+    auto& maps = csm_target.depth_attachment();
 
     // No following calls are valid for empty cascades array.
     // The framebuffer would be incomplete.
@@ -148,7 +149,7 @@ void CascadedShadowMappingStage::map_dir_light_shadow_cascade(
 
     glViewport(0, 0, maps.size().width, maps.size().height);
 
-    maps.framebuffer().bind_draw().and_then([&, this] {
+    csm_target.bind_draw().and_then([&, this] {
 
         glClear(GL_DEPTH_BUFFER_BIT);
 

@@ -20,7 +20,7 @@ public:
         : builder_{ cascade_builder }
         , stage_{ stage }
         , stage_output_{ stage_.view_output() }
-        , resolution_{ stage_output_->dir_shadow_maps.size().width }
+        , resolution_{ stage_output_->dir_shadow_maps_tgt.depth_attachment().size().width }
     {}
 
     void operator()();

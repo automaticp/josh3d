@@ -12,11 +12,13 @@ void PointShadowMappingStageHook::operator()() {
         128, 8192, "%d", ImGuiSliderFlags_Logarithmic
     );
 
+    auto& maps = stage_output_->point_shadow_maps_tgt.depth_attachment();
+
     const bool change_res = ImGui::Button("Change Resolution");
     ImGui::SameLine();
     ImGui::Text(
         "%d -> %d",
-        stage_output_->point_shadow_maps.size().width, resolution_
+        maps.size().width, resolution_
     );
 
     if (change_res) {

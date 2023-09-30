@@ -2,7 +2,7 @@
 #include "Layout.hpp"
 #include "GLScalars.hpp"
 #include "RenderEngine.hpp"
-#include "RenderTargetDepthArray.hpp"
+#include "RenderTarget.hpp"
 #include "ShaderBuilder.hpp"
 #include "SharedStorage.hpp"
 #include "VPath.hpp"
@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cassert>
 #include <entt/entity/fwd.hpp>
+#include <glbinding/gl/enum.h>
 #include <glm/glm.hpp>
 #include <limits>
 #include <vector>
@@ -28,8 +29,32 @@ struct CascadeParams {
 // FIXME: figure out proper incapsulation for resizing
 // and uploading data, etc.
 struct CascadedShadowMaps {
-    RenderTargetDepthArray dir_shadow_maps{ Size3I{ 2048, 2048, 3 } };
-    std::vector<CascadeParams> params{ size_t(dir_shadow_maps.size().depth) };
+    using CascadesTarget = RenderTarget<UniqueAttachment<RawTexture2DArray>>;
+private:
+    static CascadesTarget make_cascades_target(const Size3I& initial_size) {
+        using enum GLenum;
+        CascadesTarget tgt{
+            { initial_size, { GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT, GL_FLOAT } }
+        };
+        tgt.depth_attachment().texture().bind()
+            .set_border_color({ 1.f, 1.f, 1.f, 1.f })
+            .set_wrap_st(GL_CLAMP_TO_BORDER, GL_CLAMP_TO_BORDER)
+            .set_min_mag_filters(GL_LINEAR, GL_LINEAR)
+            // Enable shadow sampling with built-in 2x2 PCF
+            .set_parameter(GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE)
+            // Comparison: result = ref OPERATOR texture
+            // This will return "how much this fragment is lit" from 0 to 1.
+            // If you want "how much it's in shadow", use (1.0 - result).
+            // Or set the comparison func to GL_GREATER.
+            .set_parameter(GL_TEXTURE_COMPARE_FUNC, GL_LESS)
+            .unbind();
+
+        return tgt;
+    }
+
+public:
+    CascadesTarget dir_shadow_maps_tgt{ make_cascades_target({ 2048, 2048, 3 }) };
+    std::vector<CascadeParams> params{ size_t(dir_shadow_maps_tgt.depth_attachment().size().depth) };
 };
 
 
@@ -75,20 +100,6 @@ public:
         , max_cascades_{ max_cascades }
     {
         assert(input_->cascades.size() < max_cascades_);
-
-        using enum GLenum;
-        output_->dir_shadow_maps.depth_target()
-            .bind()
-            .set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-            .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-            // Enable shadow sampling with built-in 2x2 PCF
-            .set_parameter(GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE)
-            // Comparison: result = ref OPERATOR texture
-            // This will return "how much this fragment is lit" from 0 to 1.
-            // If you want "how much it's in shadow", use (1.0 - result).
-            // Or set the comparison func to GL_GREATER.
-            .set_parameter(GL_TEXTURE_COMPARE_FUNC, GL_LESS)
-            .unbind();
     }
 
     SharedStorageView<CascadedShadowMaps> view_output() const noexcept {
@@ -100,7 +111,7 @@ public:
     void operator()(const RenderEnginePrimaryInterface& engine,
         const entt::registry& registry);
 
-    void resize_maps(Size2I new_size);
+    void resize_maps(const Size2I& new_size);
 
 private:
     void resize_cascade_storage_if_needed();
@@ -112,9 +123,9 @@ private:
 
 
 
-inline void CascadedShadowMappingStage::resize_maps(Size2I new_size) {
-    auto& maps = output_->dir_shadow_maps;
-    maps.reset_size(Size3I{ new_size, maps.size().depth });
+inline void CascadedShadowMappingStage::resize_maps(const Size2I& new_size) {
+    auto& maps = output_->dir_shadow_maps_tgt;
+    maps.resize_all(new_size);
 }
 
 

@@ -56,11 +56,11 @@ void PointShadowMappingStage::resize_cubemap_array_storage_if_needed(
 
     size_t new_size = calculate_view_size(plights_with_shadow);
 
-    auto& maps = output_->point_shadow_maps;
+    auto& maps = output_->point_shadow_maps_tgt.depth_attachment();
     size_t old_size = maps.size().depth;
 
     if (new_size != old_size) {
-        maps.reset_size({ Size2I{ maps.size() }, new_size });
+        maps.resize({ Size2I{ maps.size() }, new_size });
     }
 
 }
@@ -82,7 +82,8 @@ void PointShadowMappingStage::map_point_shadows(
     const RenderEnginePrimaryInterface&,
     const entt::registry& registry)
 {
-    auto& maps = output_->point_shadow_maps;
+    auto& maps_tgt = output_->point_shadow_maps_tgt;
+    auto& maps = maps_tgt.depth_attachment();
 
     if (maps.size().depth == 0) { return; }
 
@@ -92,7 +93,7 @@ void PointShadowMappingStage::map_point_shadows(
         registry.view<light::Point, tags::ShadowCasting>();
 
 
-    maps.framebuffer().bind_draw().and_then([&, this] {
+    maps_tgt.bind_draw().and_then([&, this] {
 
         glClear(GL_DEPTH_BUFFER_BIT);
 

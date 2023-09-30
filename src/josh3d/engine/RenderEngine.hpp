@@ -1,14 +1,16 @@
 #pragma once
 #include "GLFramebuffer.hpp"
+#include "GLMutability.hpp"
 #include "PerspectiveCamera.hpp"
 #include "FrameTimer.hpp"
 #include "GLObjects.hpp"
-#include "PostprocessDoubleBuffer.hpp"
 #include "PostprocessRenderer.hpp"
-#include "RenderTargetColorAndDepth.hpp"
+#include "RenderTarget.hpp"
 #include "Size.hpp"
 #include "RenderStage.hpp"
+#include "SwapChain.hpp"
 #include <entt/fwd.hpp>
+#include <glbinding/gl/enum.h>
 #include <glbinding/gl/gl.h>
 #include <cassert>
 #include <concepts>
@@ -96,14 +98,39 @@ private:
     std::vector<detail::AnyPrimaryStage> stages_;
     size_t current_stage_{};
 
-    mutable RenderTargetColorAndDepth main_target_{
-        window_size_, gl::GL_RGBA, gl::GL_RGBA16F, gl::GL_FLOAT
+
+    using MainTarget = RenderTarget<
+        ViewAttachment<RawTexture2D>,  // Depth
+        UniqueAttachment<RawTexture2D> // Color
+    >;
+
+    Texture2D depth_;
+
+    MainTarget make_main_target(const Size2I& size, RawTexture2D<GLMutable> depth) {
+        using enum GLenum;
+        MainTarget tgt{
+            { depth, size, { GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT, GL_FLOAT} },
+            {        size, { GL_RGBA16F, GL_RGBA, GL_FLOAT }}
+        };
+
+        tgt.depth_attachment().texture().bind()
+            .set_min_mag_filters(GL_NEAREST, GL_NEAREST)
+            .set_wrap_st(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+
+        tgt.color_attachment().texture().bind()
+            .set_min_mag_filters(GL_LINEAR, GL_LINEAR)
+            .set_wrap_st(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+
+        return tgt;
+    }
+
+    SwapChain<MainTarget> main_swapchain_{
+        make_main_target(window_size_, depth_),
+        make_main_target(window_size_, depth_)
     };
 
     PostprocessRenderer pp_renderer_;
-    PostprocessDoubleBuffer ppdb_{
-        window_size_, gl::GL_RGBA, gl::GL_RGBA16F, gl::GL_FLOAT
-    };
+
     size_t current_pp_stage_{};
     std::vector<detail::AnyPostprocessStage> pp_stages_;
 
@@ -144,12 +171,8 @@ public:
         return ref;
     }
 
-    // Please don't do anything stupid with this.
-    // Only smart things are supported. This is the main framebuffer
-    // the RenderEngine draws to, handle it with care.
-    RenderTargetColorAndDepth& main_target() noexcept { return main_target_; }
-    const RenderTargetColorAndDepth& main_target() const noexcept { return main_target_; }
-
+    RawTexture2D<GLMutable> main_depth()       noexcept { return depth_; }
+    RawTexture2D<GLConst>   main_depth() const noexcept { return depth_; }
 
     auto& camera() noexcept { return cam_; }
     const auto& camera() const noexcept { return cam_; }
@@ -158,8 +181,7 @@ public:
     const FrameTimer& frame_timer() const noexcept { return frame_timer_; }
 
     void reset_size(Size2I new_size) {
-        main_target_.reset_size(new_size);
-        ppdb_       .reset_size(new_size);
+        main_swapchain_.resize_all(new_size);
     }
 
     void reset_size_from_window_size() {
@@ -214,7 +236,7 @@ public:
     void draw(CallableT&& draw_func, Args&&... args) const {
         using namespace gl;
 
-        engine_.main_target_.framebuffer().bind_draw()
+        engine_.main_swapchain_.back_target().bind_draw()
             .and_then([&] {
                 std::invoke(std::forward<CallableT>(draw_func), std::forward<Args>(args)...);
             })
@@ -250,16 +272,17 @@ private:
 
 
 public:
-    PostprocessRenderer& postprocess_renderer() const {
+    PostprocessRenderer& postprocess_renderer() const noexcept {
         return engine_.pp_renderer_;
     }
 
-    const Texture2D& screen_color() const {
-        return engine_.ppdb_.front_target();
+    RawTexture2D<GLConst> screen_color() const noexcept {
+        return engine_.main_swapchain_.front_target().color_attachment().texture();
     }
 
-    const Texture2D& screen_depth() const {
-        return engine_.main_target_.depth_target();
+    RawTexture2D<GLConst> screen_depth() const noexcept {
+        return engine_.main_swapchain_.front_target().depth_attachment().texture();
+        // return engine_.depth_; // Is the same.
     }
 
     // Emit the draw call on the screen quad and adjust the render target state
@@ -277,14 +300,16 @@ public:
         assert(draw_call_budget_ && "draw() called more than once in a postprocessing stage.");
 
         if (!is_last_stage()) {
-            engine_.ppdb_.draw_and_swap([this] {
+            engine_.main_swapchain_.draw_and_swap([this] {
                 engine_.pp_renderer_.draw();
             });
         } else /* last stage */ {
             // Draw to the screen directly.
             // FIXME: This way of default-binding is ugly.
-            BoundDrawFramebuffer<GLMutable>::unbind();
-            engine_.pp_renderer_.draw();
+            RawFramebuffer<GLMutable>{ 0 }.bind_draw()
+                .and_then([this] {
+                    engine_.pp_renderer_.draw();
+                });
         }
 
         --draw_call_budget_;
@@ -299,15 +324,16 @@ public:
         assert(draw_call_budget_ && "draw() called more than once in a postprocessing stage.");
 
         if (!is_last_stage()) {
-            engine_.ppdb_.front().framebuffer()
-                .bind_draw()
+            engine_.main_swapchain_.front_target().bind_draw()
                 .and_then([this] {
                     engine_.pp_renderer_.draw();
                 });
         } else /* last stage */ {
             // FIXME: default-binding ugly, yada-yada.
-            BoundDrawFramebuffer<GLMutable>::unbind();
-            engine_.pp_renderer_.draw();
+            RawFramebuffer<GLMutable>{ 0 }.bind_draw()
+                .and_then([this] {
+                    engine_.pp_renderer_.draw();
+                });
         }
 
         --draw_call_budget_;
