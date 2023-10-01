@@ -42,9 +42,9 @@ public:
         const ViewAttachment<RawTexture2D>& depth)
         : tgt_{
             depth,
-            { size, { gl::GL_RGBA16F,     gl::GL_RGBA, gl::GL_FLOAT } },
-            { size, { gl::GL_RGBA8_SNORM, gl::GL_RGBA, gl::GL_FLOAT } },
-            { size, { gl::GL_RGBA8,       gl::GL_RGBA, gl::GL_UNSIGNED_BYTE } }
+            { size, { gl::GL_RGBA16F     } },
+            { size, { gl::GL_RGBA8_SNORM } },
+            { size, { gl::GL_RGBA8       } }
         }
     {
         using enum GLenum;
@@ -61,7 +61,7 @@ public:
     GBuffer(const Size2I& size)
         : GBuffer{
             size,
-            { this->depth_, size, { gl::GL_DEPTH_COMPONENT32F, gl::GL_DEPTH_COMPONENT, gl::GL_FLOAT } }
+            { this->depth_ }
         }
     {
         using enum GLenum;

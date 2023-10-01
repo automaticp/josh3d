@@ -34,7 +34,7 @@ private:
     static CascadesTarget make_cascades_target(const Size3I& initial_size) {
         using enum GLenum;
         CascadesTarget tgt{
-            { initial_size, { GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT, GL_FLOAT } }
+            { initial_size, { GL_DEPTH_COMPONENT32F } }
         };
         tgt.depth_attachment().texture().bind()
             .set_border_color({ 1.f, 1.f, 1.f, 1.f })

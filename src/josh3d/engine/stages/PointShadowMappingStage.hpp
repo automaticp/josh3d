@@ -18,7 +18,7 @@ private:
     static PointMapsTarget make_point_maps_target(const Size3I& init_size) {
         using enum GLenum;
         PointMapsTarget tgt{
-            { init_size, { GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT, GL_FLOAT } }
+            { init_size, { GL_DEPTH_COMPONENT32F } }
         };
         tgt.depth_attachment().texture().bind()
             .set_wrap_str(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE)

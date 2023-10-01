@@ -51,8 +51,8 @@ private:
     static BlurTarget make_blur_target() {
         using enum GLenum;
         BlurTarget tgt{
-            {},                                                   // No Depth
-            { Size2I{ 1, 1 }, { GL_RGBA16F, GL_RGBA, GL_FLOAT } } // HDR Color
+            {},                                // No Depth
+            { Size2I{ 0, 0 }, { GL_RGBA16F } } // HDR Color
         };
         // TODO: That's one way to do it.
         // Another one would be to support Sampler objects.

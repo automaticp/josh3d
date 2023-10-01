@@ -108,11 +108,7 @@ public:
             // This is me sharing the depth target between the GBuffer and the
             // main framebuffer of the RenderEngine, so that deferred and forward draws
             // would overlap properly. Seems to work so far...
-            ViewAttachment<RawTexture2D>{
-                rengine_.main_depth(),
-                rengine_.window_size(),
-                { gl::GL_DEPTH_COMPONENT32F, gl::GL_DEPTH_COMPONENT, gl::GL_FLOAT }
-            }
+            ViewAttachment<RawTexture2D>{ rengine_.main_depth() }
         );
 
         auto defgeom     = rengine_.make_primary_stage<DeferredGeometryStage>(gbuffer.target().get_write_view());

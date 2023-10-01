@@ -104,18 +104,16 @@ private:
         UniqueAttachment<RawTexture2D> // Color
     >;
 
-    UniqueTexture2D depth_;
+    UniqueAttachment<RawTexture2D> depth_{
+        window_size_, { gl::GL_DEPTH_COMPONENT32F }
+    };
 
-    MainTarget make_main_target(const Size2I& size, RawTexture2D<GLMutable> depth) {
+    MainTarget make_main_target() {
         using enum GLenum;
         MainTarget tgt{
-            { depth, size, { GL_DEPTH_COMPONENT32F, GL_DEPTH_COMPONENT, GL_FLOAT} },
-            {        size, { GL_RGBA16F, GL_RGBA, GL_FLOAT }}
+            { depth_ },
+            { window_size_, { GL_RGBA16F }}
         };
-
-        tgt.depth_attachment().texture().bind()
-            .set_min_mag_filters(GL_NEAREST, GL_NEAREST)
-            .set_wrap_st(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 
         tgt.color_attachment().texture().bind()
             .set_min_mag_filters(GL_LINEAR, GL_LINEAR)
@@ -125,8 +123,7 @@ private:
     }
 
     SwapChain<MainTarget> main_swapchain_{
-        make_main_target(window_size_, depth_),
-        make_main_target(window_size_, depth_)
+        make_main_target(), make_main_target()
     };
 
     PostprocessRenderer pp_renderer_;
@@ -142,7 +139,12 @@ public:
         , cam_{ cam }
         , window_size_{ window_size }
         , frame_timer_{ frame_timer }
-    {}
+    {
+        using enum GLenum;
+        depth_.texture().bind()
+            .set_min_mag_filters(GL_NEAREST, GL_NEAREST)
+            .set_wrap_st(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+    }
 
     void render();
 
@@ -171,8 +173,8 @@ public:
         return ref;
     }
 
-    RawTexture2D<GLMutable> main_depth()       noexcept { return depth_; }
-    RawTexture2D<GLConst>   main_depth() const noexcept { return depth_; }
+    RawTexture2D<GLMutable> main_depth()       noexcept { return depth_.texture(); }
+    RawTexture2D<GLConst>   main_depth() const noexcept { return depth_.texture(); }
 
     auto& camera() noexcept { return cam_; }
     const auto& camera() const noexcept { return cam_; }
