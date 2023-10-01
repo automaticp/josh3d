@@ -1,8 +1,8 @@
 #pragma once
 #include "CommonConcepts.hpp" // IWYU pragma: keep (concepts)
 #include "GLMutability.hpp"
-#include "GLRenderbuffer.hpp"
 #include "GLTextures.hpp"
+#include "GLRenderbuffer.hpp"
 #include "GLObjects.hpp"
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
@@ -14,47 +14,47 @@ namespace josh {
 
 namespace detail {
 
-inline void specify_attachment_image(
+inline void allocate_attachment_image(
     RawTexture2D<GLMutable>& tex,
     const RawTexture2D<GLMutable>::size_type& size,
     const RawTexture2D<GLMutable>::spec_type& spec)
 {
-    tex.bind().specify_image(size, spec, nullptr);
+    tex.bind().allocate_image(size, spec);
 }
 
-inline void specify_attachment_image(
+inline void allocate_attachment_image(
     RawTexture2DMS<GLMutable>& tex,
     const RawTexture2DMS<GLMutable>::size_type& size,
     const RawTexture2DMS<GLMutable>::spec_type& spec)
 {
-    tex.bind().specify_image(size, spec);
+    tex.bind().allocate_image(size, spec);
 }
 
-inline void specify_attachment_image(
+inline void allocate_attachment_image(
     RawTexture2DArray<GLMutable>& tex,
     const RawTexture2DArray<GLMutable>::size_type& size,
     const RawTexture2DArray<GLMutable>::spec_type& spec)
 {
-    tex.bind().specify_all_images(size, spec, nullptr);
+    tex.bind().allocate_all_images(size, spec);
 }
 
-inline void specify_attachment_image(
+inline void allocate_attachment_image(
     RawCubemap<GLMutable>& tex,
     const RawCubemap<GLMutable>::size_type& size,
     const RawCubemap<GLMutable>::spec_type& spec)
 {
-    tex.bind().specify_all_images(size, spec, nullptr);
+    tex.bind().allocate_all_images(size, spec);
 }
 
-inline void specify_attachment_image(
+inline void allocate_attachment_image(
     RawCubemapArray<GLMutable>& tex,
     const RawCubemapArray<GLMutable>::size_type& size,
     const RawCubemapArray<GLMutable>::spec_type& spec)
 {
-    tex.bind().specify_all_images(size, spec, nullptr);
+    tex.bind().allocate_all_images(size, spec);
 }
 
-inline void specify_attachment_image(
+inline void allocate_attachment_image(
     RawRenderbuffer<GLMutable>& rbo,
     const RawRenderbuffer<GLMutable>::size_type& size,
     const RawRenderbuffer<GLMutable>::spec_type& spec)
@@ -62,9 +62,9 @@ inline void specify_attachment_image(
     assert(spec.num_samples > 0);
     rbo.bind().and_then([&](BoundRenderbuffer<GLMutable>& brbo) {
         if (spec.num_samples == 1) {
-            brbo.create_storage(size, spec.internal_format);
+            brbo.allocate_storage(size, spec);
         } else {
-            brbo.create_multisample_storage(size, spec.num_samples, spec.internal_format);
+            brbo.allocate_multisample_storage(size, spec);
         }
     });
 }
@@ -128,7 +128,7 @@ public:
 
 private:
     void reallocate_storage() {
-        detail::specify_attachment_image(texture_, size_, spec_);
+        detail::allocate_attachment_image(texture_, size_, spec_);
     }
 };
 
@@ -161,6 +161,21 @@ public:
         reallocate_storage();
     }
 
+    // This constructor assumes that the `texture`
+    // already has the storage allocated and will
+    // query the `size` and `spec` from it.
+    ViewAttachment(RawTextureTmp<GLMutable> texture)
+        : texture_{ std::move(texture) }
+        , size_{ texture_.bind().get_size() }
+        , spec_{ texture_.bind().get_spec() }
+    {}
+
+    ViewAttachment(UniqueAttachment<RawTextureTmp>& uattach)
+        : texture_{ uattach.texture() }
+        , size_{ uattach.size() }
+        , spec_{ uattach.spec() }
+    {}
+
     RawTextureTmp<GLMutable> texture()       noexcept { return texture_; }
     RawTextureTmp<GLConst>   texture() const noexcept { return texture_; }
     const spec_type& spec() const noexcept { return spec_; }
@@ -192,7 +207,7 @@ public:
 
 private:
     void reallocate_storage() {
-        detail::specify_attachment_image(texture_, size_, spec_);
+        detail::allocate_attachment_image(texture_, size_, spec_);
     }
 };
 

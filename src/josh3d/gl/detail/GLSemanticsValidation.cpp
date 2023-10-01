@@ -202,11 +202,11 @@ void sema_binding() {
         RawTexture2D<GLConst>   rtc{ 11 };
 
         RawTexture2D<GLMutable>::size_type size{ 0, 0 };
-        RawTexture2D<GLMutable>::spec_type spec{ GL_RGBA, GL_RGBA, GL_UNSIGNED_BYTE };
+        RawTexture2D<GLMutable>::spec_type spec{ GL_RGBA8 };
 
         // Bind-unbind, whatever, works;
         rtm.bind()
-            .specify_image(size, spec, nullptr)
+            .allocate_image(size, spec)
             .set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR)
             .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
             .generate_mipmaps() // OK(+)

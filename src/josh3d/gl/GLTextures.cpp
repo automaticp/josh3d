@@ -33,7 +33,8 @@ void attach_data_to_texture(BoundTexture2D<GLMutable>& tex,
 {
     tex.specify_image(
         Size2I{ data.image_size() },
-        GLTexSpec<GL_TEXTURE_2D>{ internal_format, format, GL_UNSIGNED_BYTE },
+        TexSpec{ internal_format },
+        TexPackSpec{ format, GL_UNSIGNED_BYTE },
         data.data()
     );
 }
@@ -44,13 +45,14 @@ void attach_data_to_texture(BoundTexture2D<GLMutable>& tex,
 void attach_data_to_cubemap(BoundCubemap<GLMutable>& cube,
     const CubemapData& data, GLenum internal_format)
 {
-    for (size_t i{ 0 }; i < data.data().size(); ++i) {
-        const auto& face = data.data()[i];
+    for (GLint face_id{ 0 }; face_id < data.data().size(); ++face_id) {
+        const auto& face = data.data()[face_id];
         GLenum format = get_default_format(face.n_channels());
-        cube.specify_image(
-            GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+        cube.specify_face_image(
+            face_id,
             Size2I{ face.image_size() },
-            { internal_format, format, GL_UNSIGNED_BYTE },
+            TexSpec{ internal_format },
+            TexPackSpec{ format, GL_UNSIGNED_BYTE },
             face.data()
         );
     }
@@ -60,12 +62,13 @@ void attach_data_to_cubemap(BoundCubemap<GLMutable>& cube,
 void attach_data_to_cubemap(BoundCubemap<GLMutable>& cube,
     const CubemapData& data, GLenum internal_format, GLenum format)
 {
-    for (size_t i{ 0 }; i < data.data().size(); ++i) {
-        const auto& face = data.data()[i];
-        cube.specify_image(
-            GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+    for (GLint face_id{ 0 }; face_id < data.data().size(); ++face_id) {
+        const auto& face = data.data()[face_id];
+        cube.specify_face_image(
+            face_id,
             Size2I{ face.image_size() },
-            { internal_format, format, GL_UNSIGNED_BYTE },
+            TexSpec{ internal_format },
+            TexPackSpec{ format, GL_UNSIGNED_BYTE },
             face.data()
         );
     }

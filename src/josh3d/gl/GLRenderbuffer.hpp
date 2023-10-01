@@ -7,6 +7,7 @@
 #include "GLTextures.hpp"
 #include "Size.hpp"
 #include <glbinding/gl/enum.h>
+#include <glbinding/gl/functions.h>
 #include <glbinding/gl/gl.h>
 
 
@@ -21,15 +22,16 @@ template<mutability_tag MutT> class RawRenderbuffer;
 We treat renderbuffers similar to textures for reflection with GLTexInfo.
 This helps when using them as framebuffer attachments.
 */
-template<> struct GLTexSpec<gl::GL_RENDERBUFFER> {
+struct TexSpecRB {
     GLenum  internal_format;
     GLsizei num_samples;
-    GLTexSpec(GLenum internal_format, GLsizei num_samples = 1)
+    TexSpecRB(GLenum internal_format, GLsizei num_samples = 1)
         : internal_format{ internal_format }, num_samples{ num_samples }
     {}
 };
 
 namespace detail {
+template<> struct GLTexSpecImpl<gl::GL_RENDERBUFFER> { using type = TexSpecRB; };
 template<> struct GLTexSizeImpl<gl::GL_RENDERBUFFER> { using type = Size2I; };
 } // namespace detail
 
@@ -46,26 +48,46 @@ private:
 public:
     static void unbind() { gl::glBindRenderbuffer(gl::GL_RENDERBUFFER, 0); }
 
-    BoundRenderbuffer& create_storage(
-        Size2I size, GLenum internal_format)
+    // TexSpecRB::num_samples is ignored here.
+    // Ask ARB why the hell there's no separate
+    // GL_RENDERBUFFER_MULTISAMPLE target instead.
+    BoundRenderbuffer& allocate_storage(
+        const Size2I& size, const TexSpecRB& spec)
         requires gl_mutable<MutT>
     {
         gl::glRenderbufferStorage(
-            gl::GL_RENDERBUFFER, internal_format,
+            gl::GL_RENDERBUFFER, spec.internal_format,
             size.width, size.height
         );
         return *this;
     }
 
-    BoundRenderbuffer& create_multisample_storage(
-        Size2I size, GLsizei num_samples, GLenum internal_format)
+    BoundRenderbuffer& allocate_multisample_storage(
+        const Size2I& size, const TexSpecRB& spec)
         requires gl_mutable<MutT>
     {
         gl::glRenderbufferStorageMultisample(
-            gl::GL_RENDERBUFFER, num_samples, internal_format,
+            gl::GL_RENDERBUFFER, spec.num_samples, spec.internal_format,
             size.width, size.height
         );
         return *this;
+    }
+
+    Size2I get_size() {
+        using enum GLenum;
+        GLint width, height;
+        gl::glGetRenderbufferParameteriv(target_type, GL_RENDERBUFFER_WIDTH, &width);
+        gl::glGetRenderbufferParameteriv(target_type, GL_RENDERBUFFER_HEIGHT, &height);
+        return { width, height };
+    }
+
+    TexSpecRB get_spec() {
+        using enum GLenum;
+        GLenum internal_format;
+        GLint nsamples;
+        gl::glGetRenderbufferParameteriv(target_type, GL_RENDERBUFFER_INTERNAL_FORMAT, &internal_format);
+        gl::glGetRenderbufferParameteriv(target_type, GL_RENDERBUFFER_SAMPLES, &nsamples);
+        return { internal_format, nsamples };
     }
 
 };

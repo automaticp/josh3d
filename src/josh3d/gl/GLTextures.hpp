@@ -7,6 +7,7 @@
 #include "detail/AsSelf.hpp"
 #include "Size.hpp"
 #include "detail/MagicConstructorsMacro.hpp"
+#include <glbinding/gl/boolean.h>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
 #include <glbinding/gl/gl.h>
@@ -69,61 +70,49 @@ enum class GLTexTarget : std::underlying_type_t<GLenum> {
 This would allow us to have custom target types outside OpenGL spec,
 but so far it seems unnecessary.
 */
-template<GLenum TargetV>
-struct GLTexSpec;
 
 
-template<> struct GLTexSpec<gl::GL_TEXTURE_2D> {
-    GLenum internal_format, format, type;
-    GLTexSpec(GLenum internal_format, GLenum format, GLenum type)
-        : internal_format{ internal_format }, format{ format }, type{ type }
+struct TexSpec {
+    GLenum internal_format;
+    TexSpec(GLenum internal_format)
+        : internal_format{ internal_format }
     {}
 };
 
-
-template<> struct GLTexSpec<gl::GL_TEXTURE_2D_ARRAY> {
-    GLenum internal_format, format, type;
-    GLTexSpec(GLenum internal_format, GLenum format, GLenum type)
-        : internal_format{ internal_format }, format{ format }, type{ type }
-    {}
-};
-
-
-template<> struct GLTexSpec<gl::GL_TEXTURE_2D_MULTISAMPLE> {
+struct TexSpecMS {
     GLenum    internal_format;
-    GLsizei   nsamples;
+    GLsizei   num_samples;
     GLboolean fixed_sample_locations;
-    GLTexSpec(GLenum internal_format, GLsizei nsamples, GLboolean fixed_sample_locations)
-        : internal_format{ internal_format }, nsamples{ nsamples }
+    TexSpecMS(GLenum internal_format, GLsizei num_samples, GLboolean fixed_sample_locations)
+        : internal_format{ internal_format }, num_samples{ num_samples }
         , fixed_sample_locations{ fixed_sample_locations }
     {}
 };
 
 
-template<> struct GLTexSpec<gl::GL_TEXTURE_CUBE_MAP> {
-    GLenum internal_format, format, type;
-    GLTexSpec(GLenum internal_format, GLenum format, GLenum type)
-        : internal_format{ internal_format }, format{ format }, type{ type }
+struct TexPackSpec {
+    GLenum format, type;
+    TexPackSpec(GLenum format, GLenum type)
+        : format{ format }, type{ type }
     {}
 };
 
-
-template<> struct GLTexSpec<gl::GL_TEXTURE_CUBE_MAP_ARRAY> {
-    GLenum internal_format, format, type;
-    GLTexSpec(GLenum internal_format, GLenum format, GLenum type)
-        : internal_format{ internal_format }, format{ format }, type{ type }
-    {}
-};
 
 
 
 namespace detail {
+template<GLenum TargetV> struct GLTexSpecImpl { using type = TexSpec; };
+template<> struct GLTexSpecImpl<gl::GL_TEXTURE_2D_MULTISAMPLE> { using type = TexSpecMS; };
+template<> struct GLTexSpecImpl<gl::GL_RENDERBUFFER>; // Defined in GLRenderbuffer.
+
 template<GLenum TargetV> struct GLTexSizeImpl;
 template<> struct GLTexSizeImpl<gl::GL_TEXTURE_2D>             { using type = Size2I; };
 template<> struct GLTexSizeImpl<gl::GL_TEXTURE_2D_ARRAY>       { using type = Size3I; };
 template<> struct GLTexSizeImpl<gl::GL_TEXTURE_2D_MULTISAMPLE> { using type = Size2I; };
 template<> struct GLTexSizeImpl<gl::GL_TEXTURE_CUBE_MAP>       { using type = Size2I; };
 template<> struct GLTexSizeImpl<gl::GL_TEXTURE_CUBE_MAP_ARRAY> { using type = Size3I; };
+template<> struct GLTexSizeImpl<gl::GL_RENDERBUFFER>; // Defined in GLRenderbuffer.
+
 } // namespace detail
 
 
@@ -133,7 +122,8 @@ Texture size type, sufficient to describe dimensions of each target type.
 template<GLenum TargetV>
 using GLTexSize = detail::GLTexSizeImpl<TargetV>::type;
 
-
+template<GLenum TargetV>
+using GLTexSpec = detail::GLTexSpecImpl<TargetV>::type;
 
 
 
@@ -303,7 +293,7 @@ Next we have all the garbage needed to implement Bound texture dummies.
 
 
 template<GLenum TargetV>
-struct BoundSizeGetter {
+struct BoundSizeAndSpecGetter {
     GLTexSize<TargetV> get_size(GLint level = 0) {
         using enum GLenum;
         if constexpr (std::same_as<GLTexSize<TargetV>, Size2I>) {
@@ -319,6 +309,29 @@ struct BoundSizeGetter {
             return { width, height, depth };
         }
     }
+
+    GLTexSpec<TargetV> get_spec(GLint level = 0) {
+        using enum GLenum;
+        if constexpr (std::same_as<GLTexSpec<TargetV>, TexSpec>) {
+            GLenum internal_format;
+            gl::glGetTexLevelParameteriv(
+                TargetV, level,
+                GL_TEXTURE_INTERNAL_FORMAT, &internal_format
+            );
+            return { internal_format };
+        } else if constexpr (std::same_as<GLTexSpec<TargetV>, TexSpecMS>) {
+            GLenum internal_format;
+            GLint nsamples;
+            GLboolean fixed_sample_locations;
+            gl::glGetTexLevelParameteriv(TargetV, level, GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
+            gl::glGetTexLevelParameteriv(TargetV, level, GL_TEXTURE_SAMPLES, &nsamples);
+            gl::glGetTexLevelParameteriv(TargetV, level, GL_TEXTURE_FIXED_SAMPLE_LOCATIONS, &fixed_sample_locations);
+            return { internal_format, nsamples, fixed_sample_locations };
+        } else {
+            assert(false);
+            return { GL_NONE };
+        }
+    }
 };
 
 template<GLenum TargetV>
@@ -329,7 +342,7 @@ struct UnbindableTex {
 template<typename CRTP, GLenum TargetV>
 struct BoundTexImplConst
     : GLTexInfo<TargetV>
-    , BoundSizeGetter<TargetV>
+    , BoundSizeAndSpecGetter<TargetV>
     , UnbindableTex<TargetV>
     , AndThen<CRTP>
     , AsSelf<CRTP>
@@ -417,18 +430,98 @@ template<> struct BoundTexImpl<BoundCubemap, GLConst>        : BoundTexImplConst
 template<> struct BoundTexImpl<BoundCubemapArray, GLConst>   : BoundTexImplConst<BoundCubemapArray<GLConst>,   gl::GL_TEXTURE_CUBE_MAP_ARRAY> {};
 
 // GLMutable need some extra stuff.
+
+
+inline GLenum best_unpack_format(
+    GLenum target, GLenum internal_format) noexcept
+{
+    GLint format;
+    gl::glGetInternalformativ(
+        target, internal_format,
+        gl::GL_TEXTURE_IMAGE_FORMAT,
+        1, &format
+    );
+    return static_cast<GLenum>(format);
+}
+
+inline GLenum best_unpack_type(
+    GLenum target, GLenum internal_format) noexcept
+{
+    GLint type;
+    gl::glGetInternalformativ(
+        target, internal_format,
+        gl::GL_TEXTURE_IMAGE_TYPE,
+        1, &type
+    );
+    return static_cast<GLenum>(type);
+}
+
+
+inline TexPackSpec best_unpack_spec(
+    GLenum target, GLenum internal_format) noexcept
+{
+    return {
+        best_unpack_format(target, internal_format),
+        best_unpack_type(target, internal_format)
+    };
+}
+
+
+
+inline void tex_image_2d(
+    GLenum target, const Size2I& size, const TexSpec& spec,
+    const TexPackSpec& pack_spec, const void* data, GLint mipmap_level)
+{
+    gl::glTexImage2D(
+        target, mipmap_level, static_cast<GLint>(spec.internal_format),
+        size.width, size.height, 0, pack_spec.format, pack_spec.type, data
+    );
+}
+
+inline void tex_image_2d_ms(
+    GLenum target, const Size2I& size, const TexSpecMS& spec)
+{
+    gl::glTexImage2DMultisample(
+        target, spec.num_samples, spec.internal_format,
+        size.width, size.height, spec.fixed_sample_locations
+    );
+}
+
+inline void tex_image_3d(
+    GLenum target, const Size3I& size, const TexSpec& spec,
+    const TexPackSpec& pack_spec, const void* data, GLint mipmap_level)
+{
+    gl::glTexImage3D(
+        target, mipmap_level, spec.internal_format,
+        size.width, size.height, size.depth, 0, pack_spec.format, pack_spec.type, data
+    );
+}
+
+
+
 template<> struct BoundTexImpl<BoundTexture2D, GLMutable>
     : BoundTexImplMutable<BoundTexture2D<GLMutable>, gl::GL_TEXTURE_2D>
 {
     BoundTexture2D<GLMutable>& specify_image(
-        const size_type& size, const spec_type& spec,
-        const void* data, GLint mipmap_level = 0)
+        const Size2I& size, const TexSpec& spec,
+        const TexPackSpec& pack_spec, const void* data,
+        GLint mipmap_level = 0)
     {
-        gl::glTexImage2D(
-            target_type, mipmap_level, static_cast<GLint>(spec.internal_format),
-            size.width, size.height, 0, spec.format, spec.type, data
-        );
+        tex_image_2d(target_type, size, spec, pack_spec, data, mipmap_level);
         return this->as_self();
+    }
+
+    BoundTexture2D<GLMutable>& allocate_image(
+        const Size2I& size, const TexSpec& spec,
+        GLint mipmap_level = 0)
+    {
+        return specify_image(
+            size, spec,
+            // OpenGL specification requires us to provide valid
+            // format and type even if no data is uploaded.
+            best_unpack_spec(target_type, spec.internal_format), nullptr,
+            mipmap_level
+        );
     }
 };
 
@@ -437,14 +530,23 @@ template<> struct BoundTexImpl<BoundTexture2DArray, GLMutable>
     : BoundTexImplMutable<BoundTexture2DArray<GLMutable>, gl::GL_TEXTURE_2D_ARRAY>
 {
     BoundTexture2DArray<GLMutable>& specify_all_images(
-        const size_type& size, const spec_type& spec,
-        const void* data, GLint mipmap_level = 0)
+        const Size3I& size, const TexSpec& spec,
+        const TexPackSpec& pack_spec, const void* data,
+        GLint mipmap_level = 0)
     {
-        gl::glTexImage3D(
-            target_type, mipmap_level, spec.internal_format,
-            size.width, size.height, size.depth, 0, spec.format, spec.type, data
-        );
+        tex_image_3d(target_type, size, spec, pack_spec, data, mipmap_level);
         return this->as_self();
+    }
+
+    BoundTexture2DArray<GLMutable>& allocate_all_images(
+        const Size3I& size, const TexSpec& spec,
+        GLint mipmap_level = 0)
+    {
+        return specify_all_images(
+            size, spec,
+            best_unpack_spec(target_type, spec.internal_format), nullptr,
+            mipmap_level
+        );
     }
 };
 
@@ -452,13 +554,10 @@ template<> struct BoundTexImpl<BoundTexture2DArray, GLMutable>
 template<> struct BoundTexImpl<BoundTexture2DMS, GLMutable>
     : BoundTexImplMutable<BoundTexture2DMS<GLMutable>, gl::GL_TEXTURE_2D_MULTISAMPLE>
 {
-    BoundTexture2DMS<GLMutable>& specify_image(
-        const size_type& size, const spec_type& spec)
+    BoundTexture2DMS<GLMutable>& allocate_image(
+        const Size2I& size, const TexSpecMS& spec)
     {
-        gl::glTexImage2DMultisample(
-            target_type, spec.nsamples, spec.internal_format,
-            size.width, size.height, spec.fixed_sample_locations
-        );
+        tex_image_2d_ms(target_type, size, spec);
         return this->as_self();
     }
 };
@@ -467,30 +566,40 @@ template<> struct BoundTexImpl<BoundTexture2DMS, GLMutable>
 template<> struct BoundTexImpl<BoundCubemap, GLMutable>
     : BoundTexImplMutable<BoundCubemap<GLMutable>, gl::GL_TEXTURE_CUBE_MAP>
 {
-    BoundCubemap<GLMutable>& specify_image(
-        GLenum target,
-        const size_type& size, const spec_type& spec,
-        const void* data, GLint mipmap_level = 0)
+
+    BoundCubemap<GLMutable>& specify_face_image(
+        GLint face_number,
+        const Size2I& size, const TexSpec& spec,
+        const TexPackSpec& pack_spec, const void* data,
+        GLint mipmap_level = 0)
     {
-        gl::glTexImage2D(
-            target, mipmap_level, spec.internal_format,
-            size.width, size.height, 0, spec.format, spec.type, data
-        );
+        GLenum target = gl::GL_TEXTURE_CUBE_MAP_POSITIVE_X + face_number;
+        tex_image_2d(target, size, spec, pack_spec, data, mipmap_level);
         return this->as_self();
     }
 
     BoundCubemap<GLMutable>& specify_all_images(
-        const size_type& size, const spec_type& spec,
-        const void* data, GLint mipmap_level = 0)
+        const Size2I& size, const TexSpec& spec,
+        const TexPackSpec& pack_spec, const void* data,
+        GLint mipmap_level = 0)
     {
-        for (size_t i{ 0 }; i < 6; ++i) {
-            specify_image(
-                gl::GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-                size, spec, data, mipmap_level
-            );
+        for (GLint i{ 0 }; i < 6; ++i) {
+            specify_face_image(i, size, spec, pack_spec, data, mipmap_level);
         }
         return this->as_self();
     }
+
+    BoundCubemap<GLMutable>& allocate_all_images(
+        const Size2I& size, const TexSpec& spec,
+        GLint mipmap_level = 0)
+    {
+        return specify_all_images(
+            size, spec,
+            best_unpack_spec(target_type, spec.internal_format), nullptr,
+            mipmap_level
+        );
+    }
+
 };
 
 
@@ -498,15 +607,28 @@ template<> struct BoundTexImpl<BoundCubemapArray, GLMutable>
     : BoundTexImplMutable<BoundCubemapArray<GLMutable>, gl::GL_TEXTURE_CUBE_MAP_ARRAY>
 {
     BoundCubemapArray<GLMutable>& specify_all_images(
-        const size_type& size, const spec_type& spec,
-        const void* data, GLint mipmap_level = 0)
+        const Size3I& size, const TexSpec& spec,
+        const TexPackSpec& pack_spec, const void* data,
+        GLint mipmap_level = 0)
     {
-        gl::glTexImage3D(
-            target_type, mipmap_level, spec.internal_format,
-            size.width, size.height, 6 * size.depth, 0, spec.format, spec.type, data
+        tex_image_3d(
+            target_type, { size.width, size.height, 6 * size.depth }, spec,
+            pack_spec, data, mipmap_level
         );
         return this->as_self();
     }
+
+    BoundCubemapArray<GLMutable>& allocate_all_images(
+        const Size3I& size, const TexSpec& spec,
+        GLint mipmap_level = 0)
+    {
+        return specify_all_images(
+            size, spec,
+            best_unpack_spec(target_type, spec.internal_format),
+            nullptr, mipmap_level
+        );
+    }
+
 };
 
 
