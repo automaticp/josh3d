@@ -17,4 +17,10 @@ void josh::imguihooks::PerspectiveCameraHook::operator()(entt::registry&) {
         cam_.update_params(params_copy);
     }
 
+
+    ImGui::DragFloat3(
+        "World Pos.", glm::value_ptr(cam_.transform.position()),
+        1.f, -FLT_MAX, FLT_MAX, "%.1f"
+    );
+
 }
