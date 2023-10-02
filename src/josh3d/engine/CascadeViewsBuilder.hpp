@@ -65,8 +65,12 @@ public:
         const OrthonormalBasis3D  cam_basis    = cam.get_local_basis();
 
 
+        const float largest_observable_length = // OR IS IT?
+            glm::length(cam.get_local_frustum_as_quads().far().points[0]);
+        // There's still clipping for the largest cascade.
+
         const float z_near{ 0.f };
-        const float z_far { cam.get_params().z_far - cam.get_params().z_near };
+        const float z_far { 2 * largest_observable_length };
 
         // Similar to cam_offset in simple shadow mapping.
         const float cam_offset{ (z_far - z_near) / 2.f };
