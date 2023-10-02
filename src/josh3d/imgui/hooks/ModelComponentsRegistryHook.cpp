@@ -6,6 +6,7 @@
 #include "GLTextures.hpp"
 #include "AssimpModelLoader.hpp"
 #include "VPath.hpp"
+#include <entt/entity/entity.hpp>
 #include <entt/entity/fwd.hpp>
 #include <glbinding/gl/enum.h>
 #include <glm/gtc/type_ptr.hpp>
@@ -86,6 +87,7 @@ void ModelComponentsRegistryHook::load_model_widget(
                 model_handle.emplace<components::VPath>(std::move(vpath));
                 model_handle.emplace<components::Path>(std::filesystem::canonical(file.path()));
             }
+            model_handle.emplace<components::Name>(path.filename());
 
             model_handle.emplace<Transform>();
 
@@ -127,7 +129,7 @@ static void mesh_subwidget(entt::handle mesh) {
         mesh.all_of<tags::Culled>() ? "(Culled)" : "";
 
     if (ImGui::TreeNode(void_id(mesh.entity()), "Mesh [%d]%s: %s",
-        entt::id_type(mesh.entity()), culled_cstr, name))
+        entt::to_entity(mesh.entity()), culled_cstr, name))
     {
 
         transform_widget(mesh.get<Transform>());
@@ -216,15 +218,37 @@ void ModelComponentsRegistryHook::model_list_widget(
     entt::registry& registry)
 {
 
+    auto to_remove = on_value_change_from<entt::entity>(
+        entt::null,
+        [&](const entt::entity& model_ent) {
+            auto& model = registry.get<ModelComponent>(model_ent);
+            registry.destroy(model.meshes().begin(), model.meshes().end());
+            registry.destroy(model_ent);
+        }
+    );
+
     for (auto [e, transform, model_component]
         : registry.view<Transform, ModelComponent>().each())
     {
         components::Path* path = registry.try_get<components::Path>(e);
         const char* path_cstr = path ? path->c_str() : "(No Path)";
+        components::Name* name = registry.try_get<components::Name>(e);
+        const char* name_cstr = name ? name->name.c_str() : "(No Name)";
 
-        if (ImGui::TreeNode(void_id(e), "Model [%d]: %s",
-            static_cast<entt::id_type>(e), path_cstr))
-        {
+        ImGui::PushID(void_id(e));
+
+        const bool display_node =
+            ImGui::TreeNode(void_id(e), "Model [%d]: %s",
+                entt::to_entity(e), name_cstr);
+
+
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Remove")) {
+            to_remove.set(e);
+        }
+
+        if (display_node) {
+            ImGui::TextUnformatted(path_cstr);
 
             transform_widget(transform);
 
@@ -234,6 +258,7 @@ void ModelComponentsRegistryHook::model_list_widget(
 
             ImGui::TreePop();
         }
+        ImGui::PopID();
     }
 
 }

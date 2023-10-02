@@ -2,6 +2,7 @@
 #include "RenderComponents.hpp"
 #include "ImGuiHelpers.hpp"
 #include <entt/core/fwd.hpp>
+#include <entt/entity/entity.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/polar_coordinates.hpp>
 #include <imgui.h>
@@ -100,7 +101,7 @@ void LightComponentsRegistryHook::operator()(
 
         for (auto [e, plight] : registry.view<light::Point>().each()) {
             bool display_node =
-                ImGui::TreeNode(void_id(e), "Id %d", static_cast<entt::id_type>(e));
+                ImGui::TreeNode(void_id(e), "Id %d", entt::to_entity(e));
 
             ImGui::PushID(void_id(e));
             ImGui::SameLine();

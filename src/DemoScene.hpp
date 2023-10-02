@@ -272,6 +272,7 @@ inline void DemoScene::init_registry() {
     using enum GLenum;
 
     constexpr const char* path = "data/models/shadow_scene/shadow_scene.obj";
+    constexpr const char* name = "shadow_scene.obj";
 
     entt::handle model{ r, r.create() };
 
@@ -280,7 +281,7 @@ inline void DemoScene::init_registry() {
 
     model.emplace<Transform>();
     model.emplace<components::Path>(path);
-
+    model.emplace<components::Name>(name);
 
     r.emplace<light::Ambient>(r.create(), light::Ambient{
         .color = { 0.15f, 0.15f, 0.1f }
