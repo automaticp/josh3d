@@ -3,6 +3,7 @@
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
 #include "VPath.hpp"
+#include <cmath>
 #include <entt/fwd.hpp>
 #include <glm/matrix.hpp>
 
@@ -135,23 +136,39 @@ private:
     void draw_barometric_fog(const RenderEnginePostprocessInterface& engine) {
         const auto& cam = engine.camera();
 
-        const glm::mat4 inv_projview =
-            glm::inverse(cam.projection_mat() * cam.view_mat());
+        const glm::mat4 inv_proj =
+            glm::inverse(cam.projection_mat());
 
+        const glm::mat3 normal_view_mat =
+            glm::inverse(glm::transpose(cam.view_mat()));
+
+        const glm::vec3 world_up_in_view_space =
+            glm::normalize(normal_view_mat * globals::basis.y());
+
+        // See comments in shader code to make sense of this.
         const auto  [H, Y0, L0]  = barometric_fog_params;
         const float base_density = glm::exp(Y0 / H) / L0;
+        // We want to compute the effect in the view-space,
+        // because world-space calculations incur precision issues
+        // at large separation from the origin.
+        const float eye_height = cam.transform.position().y;
+        float density_at_eye_height =
+            static_cast<float>(
+                double(base_density) * glm::exp(-double(eye_height) / double(H))
+            );
+
 
         engine.screen_depth().bind_to_unit_index(1);
 
         sp_barometric_.use()
             .uniform("depth",        1)
             .uniform("fog_color",    fog_color)
-            .uniform("cam_pos",      cam.transform.position())
             .uniform("z_near",       cam.get_params().z_near)
             .uniform("z_far",        cam.get_params().z_far)
-            .uniform("inv_projview", inv_projview)
-            .uniform("base_density", base_density)
+            .uniform("inv_proj",     inv_proj)
             .uniform("scale_height", H)
+            .uniform("world_up_in_view_space", world_up_in_view_space)
+            .uniform("density_at_eye_height",  density_at_eye_height)
             .and_then([&] {
                 using namespace gl;
                 glEnable(GL_BLEND);
