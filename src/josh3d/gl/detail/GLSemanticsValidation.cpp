@@ -230,19 +230,21 @@ void sema_binding() {
         RawVBO<GLMutable> rvbm{ 10 };
         RawVBO<GLConst>   rvbc{ 10 };
 
+        int data[] = { 1, 2, 3 };
+
         // Bind-unbind, whatever;
         rvbm.bind()
-            .specify_data<int>(1, nullptr, GL_STATIC_DRAW)
-            .sub_data<int>(1, 0, nullptr) // OK(+)
-            .get_sub_data<int>(1, 0, nullptr)
+            .specify_data<int>(data, GL_STATIC_DRAW)
+            .sub_data<int>(data) // OK(+)
+            .get_sub_data_into<int>(data)
             .and_then([] {})
             .and_then([](BoundVBO<GLMutable>&) {})
             .unbind(); // OK(+)
 
         rvbc.bind()
-        //  .specify_data<int>(1, nullptr, GL_STATIC_DRAW)
-        //  .sub_data<int>(1, 0, nullptr) // OK(x)
-            .get_sub_data<int>(1, 0, nullptr)
+        //  .specify_data<int>(data, GL_STATIC_DRAW)
+        //  .sub_data<int>(data) // OK(x)
+            .get_sub_data_into<int>(data)
             .and_then([] {})
             .and_then([](BoundVBO<GLConst>&) {})
             .unbind(); // OK(+)
@@ -254,20 +256,22 @@ void sema_binding() {
         RawSSBO<GLMutable> rsbm{ 10 };
         RawSSBO<GLConst>   rsbc{ 10 };
 
+        int data[] = { 1, 2, 3 };
+
         // Bind-unbind, indexed, whatever;
         rsbm.bind_to_index(0)
-            .specify_data<int>(1, nullptr, GL_STATIC_DRAW)
-            .sub_data<int>(1, 0, nullptr) // OK(+)
-            .get_sub_data<int>(1, 0, nullptr)
+            .specify_data<int>(data, GL_STATIC_DRAW)
+            .sub_data<int>(data) // OK(+)
+            .get_sub_data_into<int>(data)
             .and_then([] {})
             .and_then([](BoundIndexedSSBO<GLMutable>&) {})
         //  .and_then([](BoundSSBO<GLMutable>&) {}) // OK(x)
             .unbind(); // OK(+)
 
         rsbc.bind_to_index(0)
-        //  .specify_data<int>(1, nullptr, GL_STATIC_DRAW)
-        //  .sub_data<int>(1, 0, nullptr) // OK(x)
-            .get_sub_data<int>(1, 0, nullptr)
+        //  .specify_data<int>(data, GL_STATIC_DRAW)
+        //  .sub_data<int>(data) // OK(x)
+            .get_sub_data_into<int>(data)
             .and_then([] {})
             .and_then([](BoundIndexedSSBO<GLConst>&) {}) // OK(+)
         //  .and_then([](BoundSSBO<GLMutable>&) {}) // OK(x)

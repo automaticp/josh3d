@@ -28,7 +28,7 @@ public:
         using enum GLenum;
 
         quad_vbo_.bind()
-            .specify_data(quad.size(), quad.data(), GL_STATIC_DRAW)
+            .specify_data<Vertex2D>(quad, GL_STATIC_DRAW)
             .associate_with<Vertex2D>(quad_vao_.bind());
 
     }

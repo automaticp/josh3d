@@ -34,7 +34,7 @@ public:
     // Reads the data from SSBO into the intermediate storage.
     // Effectively calls glGetBufferSubData.
     BoundSSBOWithIntermediateBuffer& read_to_storage() {
-        ssbo_.get_sub_data(parent_.storage_.size(), 0, parent_.storage_.data());
+        ssbo_.get_sub_data_into<T>(parent_.storage_);
         return *this;
     }
 
@@ -43,7 +43,7 @@ public:
     // Use create_storage() if you want to prepare SSBO for reading shader output.
     BoundSSBOWithIntermediateBuffer& create_storage(size_t new_size) {
         parent_.storage_.resize(new_size);
-        ssbo_.specify_data<T>(new_size, nullptr, parent_.usage_);
+        ssbo_.allocate_data<T>(new_size, parent_.usage_);
         return *this;
     }
 
@@ -96,9 +96,9 @@ private:
     void update_ssbo_from_ready_storage(bool needs_resizing) {
         const auto& storage = parent_.storage_;
         if (needs_resizing) {
-            ssbo_.specify_data(storage.size(), storage.data(), parent_.usage_);
+            ssbo_.specify_data<T>(storage, parent_.usage_);
         } else [[likely]] {
-            ssbo_.sub_data(storage.size(), 0, storage.data());
+            ssbo_.sub_data<T>(storage);
         }
     }
 

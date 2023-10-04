@@ -8,6 +8,8 @@
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
 #include <glbinding/gl/gl.h>
+#include <glbinding/gl/types.h>
+#include <span>
 
 
 namespace josh {
@@ -125,9 +127,9 @@ struct BoundBufferConstImpl
     : public AndThen<CRTP>
 {
     template<typename T>
-    CRTP& get_sub_data(GLsizeiptr size, GLsizeiptr offset, T* data) {
+    CRTP& get_sub_data_into(std::span<T> dst_buf, GLsizeiptr offset = 0) {
         gl::glGetBufferSubData(
-            TargetV, offset * sizeof(T), size * sizeof(T), data
+            TargetV, offset * sizeof(T), dst_buf.size_bytes(), dst_buf.data()
         );
         return static_cast<CRTP&>(*this);
     }
@@ -140,17 +142,25 @@ struct BoundBufferMutableImpl
     : public BoundBufferConstImpl<CRTP, TargetV>
 {
     template<typename T>
-    CRTP& specify_data(GLsizeiptr size, const T* data, GLenum usage) {
+    CRTP& specify_data(std::span<const T> src_buf, GLenum usage) {
         gl::glBufferData(
-            TargetV, size * sizeof(T), data, usage
+            TargetV, src_buf.size_bytes(), src_buf.data(), usage
         );
         return static_cast<CRTP&>(*this);
     }
 
     template<typename T>
-    CRTP& sub_data(GLsizeiptr size, GLsizeiptr offset, const T* data) {
+    CRTP& allocate_data(GLsizeiptr size, GLenum usage) {
+        gl::glBufferData(
+            TargetV, size * sizeof(T), nullptr, usage
+        );
+        return static_cast<CRTP&>(*this);
+    }
+
+    template<typename T>
+    CRTP& sub_data(std::span<const T> src_buf, GLsizeiptr offset = 0) {
         gl::glBufferSubData(
-            TargetV, offset * sizeof(T), size * sizeof(T), data
+            TargetV, offset * sizeof(T), src_buf.size_bytes(), src_buf.data()
         );
         return static_cast<CRTP&>(*this);
     }

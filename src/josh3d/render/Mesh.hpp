@@ -28,11 +28,11 @@ public:
             .and_then([&, this](BoundVAO<GLMutable>& bvao) {
 
                 vbo_.bind()
-                    .specify_data(data.vertices().size(), data.vertices().data(), GL_STATIC_DRAW)
+                    .specify_data<V>(data.vertices(), GL_STATIC_DRAW)
                     .template associate_with<V>(bvao);
 
                 ebo_.bind()
-                    .specify_data(num_elements_, data.elements().data(), GL_STATIC_DRAW);
+                    .specify_data<GLuint>(data.elements(), GL_STATIC_DRAW);
 
             })
             .unbind();
