@@ -7,10 +7,10 @@ It's mainly a hobby project and is a constant work in progress so there's no sta
 Here's some pictures because you probably like to look at things:
 
 ![sponza](pics/obligatory_sponza.png)
-![barometric_fog_1](pics/barometric_fog_1.png)
+![ls_skyline](pics/ls_skyline_stylized.png)
 ![barometric_fog_2](pics/barometric_fog_2.png)
 ![imgui_vomit](pics/imgui_vomit.png)
-> Tree asset by [SomeKevin on sketchfab](https://sketchfab.com/3d-models/tree-66a8d0ef9b49415a9eaf6af216cb9bce), Grass by [3dhdscan on sketchfab](https://sketchfab.com/3d-models/simple-grass-chunks-eb4f6dc9d4e3455ea3435385faf58b60), Forest Skybox by [Emil Persson](https://www.humus.name/index.php?page=Textures), Sponza by Frank Meinl, Josh by me.
+> Tree asset by [SomeKevin on sketchfab](https://sketchfab.com/3d-models/tree-66a8d0ef9b49415a9eaf6af216cb9bce), Forest Skybox by [Emil Persson](https://www.humus.name/index.php?page=Textures), Sponza by Frank Meinl, Josh by me.
 
 
 ## Currently Implemented Features:
