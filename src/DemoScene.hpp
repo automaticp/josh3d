@@ -36,6 +36,7 @@
 #include "hooks/PostprocessHDREyeAdaptationStageHook.hpp"
 #include "hooks/PostprocessFogStageHook.hpp"
 #include "hooks/SkyboxRegistryHook.hpp"
+#include "hooks/SkyboxStageHook.hpp"
 #include "stages/BoundingSphereDebugStage.hpp"
 #include "stages/CascadedShadowMappingStage.hpp"
 #include "stages/DeferredGeometryStage.hpp"
@@ -150,6 +151,9 @@ public:
 
         imgui_stage_hooks_.add_hook("Bounding Spheres",
             imguihooks::BoundingSphereDebugStageHook(cullspheres));
+
+        imgui_stage_hooks_.add_hook("Sky",
+            imguihooks::SkyboxStageHook(skyboxing));
 
         imgui_stage_hooks_.add_postprocess_hook("Fog",
             imguihooks::PostprocessFogStageHook(fog));
