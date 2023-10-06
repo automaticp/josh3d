@@ -2,7 +2,7 @@
 #include "CommonConcepts.hpp" // IWYU pragma: keep (concepts)
 #include "RenderTarget.hpp"
 #include <utility>
-
+#include <cstdint>
 
 
 
@@ -12,32 +12,29 @@ namespace josh {
 template<specialization_of<RenderTarget> TargetT>
 class SwapChain {
 private:
-    TargetT buf1_;
-    TargetT buf2_;
+    std::array<TargetT, 2> bufs_;
 
-    TargetT* front_{ &buf1_ };
-    TargetT* back_ { &buf2_ };
+    int8_t front_id_{ 0 };
+    int8_t back_id_ { 1 };
 
 public:
     SwapChain(TargetT initial_front, TargetT initial_back)
-        : buf1_{ std::move(initial_front) }
-        , buf2_{ std::move(initial_back) }
+        : bufs_{ std::move(initial_front), std::move(initial_back) }
     {}
 
+    TargetT&       front_target()       noexcept { return bufs_[front_id_]; }
+    const TargetT& front_target() const noexcept { return bufs_[front_id_]; }
 
-    TargetT&       front_target()       noexcept { return *front_; }
-    const TargetT& front_target() const noexcept { return *front_; }
-
-    TargetT&       back_target()        noexcept { return *back_;  }
-    const TargetT& back_target()  const noexcept { return *back_;  }
+    TargetT&       back_target()        noexcept { return bufs_[back_id_];  }
+    const TargetT& back_target()  const noexcept { return bufs_[back_id_];  }
 
     void swap_buffers() noexcept {
-        std::swap(front_, back_);
+        std::swap(front_id_, back_id_);
     }
 
     void resize_all(const Size2I& new_size) {
-        buf1_.resize_all(new_size);
-        buf2_.resize_all(new_size);
+        front_target().resize_all(new_size);
+        back_target() .resize_all(new_size);
     }
 
     void draw_and_swap(auto&& draw_func) {
@@ -45,25 +42,6 @@ public:
         swap_buffers();
     }
 
-
-
-    SwapChain(const SwapChain&) = delete;
-    SwapChain& operator=(const SwapChain&) = delete;
-
-    SwapChain(SwapChain&& other) noexcept
-        : buf1_{ std::move(*other.front_) }
-        , buf2_{ std::move(*other.back_)  }
-    {
-        // This implementation is somewhat cheating.
-        // But might be okay.
-    }
-
-    SwapChain& operator=(SwapChain&& other) noexcept {
-        buf1_ = std::move(*other.front_);
-        buf2_ = std::move(*other.back_);
-        front_ = &buf1_;
-        back_  = &buf2_;
-    }
 };
 
 
