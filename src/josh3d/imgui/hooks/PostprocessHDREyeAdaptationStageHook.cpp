@@ -24,12 +24,12 @@ void josh::imguihooks::PostprocessHDREyeAdaptationStageHook::operator()() {
         0.5f, 0.0, 100.f, "%.3f", ImGuiSliderFlags_Logarithmic
     );
 
-    int num_samples = static_cast<int>(stage_.num_samples);
+    int num_samples = static_cast<int>(stage_.num_y_samples);
     if (ImGui::SliderInt(
         "Num Samples", &num_samples,
         1, 1024, "%d", ImGuiSliderFlags_Logarithmic))
     {
-        stage_.num_samples = num_samples;
+        stage_.num_y_samples = num_samples;
     }
 
 }
