@@ -30,7 +30,7 @@ private:
 
     UniqueShaderProgram block_reduce_sp_{
         ShaderBuilder()
-            .load_comp(VPath("src/shaders/pp_hdr_eye_adaptation_image_block_average.comp"))
+            .load_comp(VPath("src/shaders/pp_hdr_eye_adaptation_sample_image_block.comp"))
             .get()
     };
 
@@ -102,8 +102,15 @@ public:
         return old_dims_;
     }
 
-    // Num elements per workgroup in the first pass.
-    static constexpr size_t block_size = 64;
+
+    // Values below do not represent the actual number of shader invocations.
+
+    // Num of XY samples in a sampling block in the first pass.
+    static constexpr Size2S block_dims{ 8, 8 };
+
+    // Num elements per block/workgroup in the first pass.
+    static constexpr size_t block_size = block_dims.area();
+
 
     // Num elements per workgroup in the recursive passes.
     static constexpr GLsizeiptr batch_size = 128;
@@ -115,6 +122,8 @@ public:
     {
         using namespace gl;
 
+        engine.screen_color().bind_to_unit_index(0);
+
         if (use_adaptation) {
 
             Size2S dims = dispatch_dimensions(num_y_sample_blocks, engine.window_size().aspect_ratio());
@@ -125,7 +134,6 @@ public:
                 resize_intermediate_buffer(dims);
             }
 
-            engine.screen_color().bind_to_unit_index(0);
             intermediate_buf_.bind_to_index(0);
 
             // Do a first block extraction reduce pass.
@@ -151,6 +159,7 @@ public:
 
             recursive_reduce_sp_.use()
                 .uniform("mean_fold_weight", fold_weight)
+                .uniform("block_size",       GLuint(block_size))
                 .and_then([&](ActiveShaderProgram<GLMutable>& ashp) {
 
                     size_t num_workgroups = buf_size;

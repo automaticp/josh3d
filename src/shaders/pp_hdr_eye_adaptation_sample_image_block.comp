@@ -27,7 +27,8 @@ First, each work group samples screen values into the shared storage.
 Then each work group does a parallel reduction of it's shared storage,
 and writes the result into this IntermediateBuffer.
 
-Finally, we can run recursive reduction on the values in the buffer.
+Finally, we can run simple recursive reduction on the values in the buffer
+in a different compute shader.
 */
 layout (std430, binding = 0) restrict writeonly buffer IntermediateBuffer {
     float values[];
@@ -72,9 +73,10 @@ void main() {
     const vec2 local_step_size = group_step_size / gl_WorkGroupSize.xy;
     const vec2 tex_coords = group_tex_coords + local_step_size * gl_LocalInvocationID.xy;
 
-    // TODO:
-    //   - Make 2 samples per-thread (for perf);
-    //   - Do not average the results.
+    // TODO: Make 2 samples per-thread (for perf);
+    // Not sure how to do this, when we want to preserve
+    // the "square" structure of the block (8x8).
+
 
     // Make a local independent sample and write to the shared buffer.
     local_value_samples[gl_LocalInvocationIndex] =
@@ -99,11 +101,9 @@ void main() {
 
     // First of the local invocations for each group writes
     // the result to intermediate buffer.
+    // No averaging yet, just accumulation.
     if (gl_LocalInvocationIndex == 0) {
-
-        intermediate.values[work_group_index()] =
-            local_value_samples[0] / local_value_samples.length();
-
+        intermediate.values[work_group_index()] = local_value_samples[0];
     }
 }
 

@@ -44,6 +44,7 @@ const uint num_elements    = 2 * num_inovcations;
 
 layout (location = 0) uniform float mean_fold_weight;
 layout (location = 1) uniform uint  dispatch_depth; // 0 to floor(log(N, num_elements)).
+layout (location = 2) uniform uint  block_size;     // 1 / Weight of each sample in the buffer.
 
 
 uint upow(uint base, uint exponent) {
@@ -95,15 +96,11 @@ void main() {
         if (local_index == 0) {
             // No need for barrier, since this thread wrote this value.
             float reduced_value = intermediate.values[0];
-            // TODO: Consider not averaging the first block samples,
-            // and do:
-            //     reduced_value /
-            //         (intermediate.values.length() * block_size)
+            uint  total_samples = intermediate.values.length() * block_size;
 
-            float new_average =
-                reduced_value / intermediate.values.length();
+            float new_average   = reduced_value / total_samples;
 
-            next.screen_value = weighted_mean_fold(
+            next.screen_value   = weighted_mean_fold(
                 current.screen_value, new_average, mean_fold_weight
             );
         }

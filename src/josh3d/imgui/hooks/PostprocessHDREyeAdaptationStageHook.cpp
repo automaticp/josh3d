@@ -45,7 +45,10 @@ void josh::imguihooks::PostprocessHDREyeAdaptationStageHook::operator()() {
         dims.width, dims.height, dims.area()
     );
 
-    ImGui::Text("Block Size: (8, 8)[64]");
+    ImGui::Text(
+        "Block Size: (%lu, %lu)[%lu]",
+        stage_.block_dims.width, stage_.block_dims.height, stage_.block_size
+    );
 
     ImGui::Text(
         "Num Samples: (%lu, %lu)[%lu]",
