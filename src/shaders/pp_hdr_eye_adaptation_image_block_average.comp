@@ -1,30 +1,57 @@
 #version 430 core
 
-#define LOCAL_SIZE_X 8
-#define LOCAL_SIZE_Y 8
+#ifndef LOCAL_SIZE_X
+    #define LOCAL_SIZE_X 8
+#endif
+
+#ifndef LOCAL_SIZE_Y
+    #define LOCAL_SIZE_Y 8
+#endif
 
 layout (local_size_x = LOCAL_SIZE_X, local_size_y = LOCAL_SIZE_Y, local_size_z = 1) in;
+
+
 
 const uint flat_local_size = gl_WorkGroupSize.x * gl_WorkGroupSize.y * gl_WorkGroupSize.z;
 
 shared float local_value_samples[flat_local_size];
 
+
 uniform sampler2D screen_color;
 
-layout (std430, binding = 0) restrict writeonly buffer output_block {
-    float color_values[];
-};
+
+/*
+Intermediate storage for a recursive reduction.
+
+First, each work group samples screen values into the shared storage.
+Then each work group does a parallel reduction of it's shared storage,
+and writes the result into this IntermediateBuffer.
+
+Finally, we can run recursive reduction on the values in the buffer.
+*/
+layout (std430, binding = 0) restrict writeonly buffer IntermediateBuffer {
+    float values[];
+} intermediate;
+
+
+// 1D index amongst all work groups.
+uint work_group_index() {
+    return
+        gl_WorkGroupID.z * gl_NumWorkGroups.x * gl_NumWorkGroups.y +
+        gl_WorkGroupID.y * gl_NumWorkGroups.x +
+        gl_WorkGroupID.x;
+}
+
 
 
 float color_value(vec3 color) {
     return dot(color, vec3(0.2126, 0.7152, 0.0722));
 }
 
-
 // This is slightly better then my previous attempt.
-// Now we sample a local_size_x * local_size_y rectangle
-// for each work group and make one of the invocations
-// reduce (compute the mean of) the samples.
+// Now we sample a local_size_x * local_size_y block
+// for each work group and then do a parallel reduce
+// on the data and write into an intermediate buffer.
 //
 // I'm still using a simple sampler2D and texture()
 // and not image2D as it saves me the headache of
@@ -45,9 +72,13 @@ void main() {
     const vec2 local_step_size = group_step_size / gl_WorkGroupSize.xy;
     const vec2 tex_coords = group_tex_coords + local_step_size * gl_LocalInvocationID.xy;
 
+    // TODO:
+    //   - Make 2 samples per-thread (for perf);
+    //   - Do not average the results.
+
     // Make a local independent sample and write to the shared buffer.
     local_value_samples[gl_LocalInvocationIndex] =
-        color_value(texture(screen_color, tex_coords).xyz);
+        color_value(texture(screen_color, tex_coords).rgb);
 
     // Run parallel reduction on the shared samples.
     uint active_threads = flat_local_size;
@@ -56,9 +87,6 @@ void main() {
 
         active_threads /= 2;
 
-        // Synchronize execution because abstract machine requires this.
-        // Do not put the barrier under a non dynamically uniform condition
-        // as the one below, or things might explode.
         barrier();
 
         if (gl_LocalInvocationIndex < active_threads) {
@@ -69,14 +97,13 @@ void main() {
 
     }
 
-
+    // First of the local invocations for each group writes
+    // the result to intermediate buffer.
     if (gl_LocalInvocationIndex == 0) {
-        const uint group_index =
-            gl_WorkGroupID.z * gl_NumWorkGroups.x * gl_NumWorkGroups.y +
-            gl_WorkGroupID.y * gl_NumWorkGroups.x +
-            gl_WorkGroupID.x;
 
-        color_values[group_index] = local_value_samples[0] / local_value_samples.length();
+        intermediate.values[work_group_index()] =
+            local_value_samples[0] / local_value_samples.length();
+
     }
 }
 

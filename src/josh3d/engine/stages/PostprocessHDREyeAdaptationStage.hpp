@@ -1,6 +1,7 @@
 #pragma once
 #include "GLMutability.hpp"
 #include "GLObjects.hpp"
+#include "GLShaders.hpp"
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
 #include "VPath.hpp"
@@ -11,6 +12,7 @@
 #include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
+#include <glbinding/gl/types.h>
 #include <numeric>
 #include <cmath>
 
@@ -19,154 +21,175 @@ namespace josh {
 
 class PostprocessHDREyeAdaptationStage {
 private:
-    UniqueShaderProgram sp_{
+    UniqueShaderProgram tonemap_sp_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
-            .load_frag(VPath("src/shaders/pp_hdr.frag"))
+            .load_frag(VPath("src/shaders/pp_hdr_eye_adaptation_tonemap.frag"))
             .get()
     };
 
-    UniqueShaderProgram reduce_sp_{
+    UniqueShaderProgram block_reduce_sp_{
         ShaderBuilder()
-            .load_comp(VPath("src/shaders/pp_hdr_eye_adaptation_screen_reduce.comp"))
+            .load_comp(VPath("src/shaders/pp_hdr_eye_adaptation_image_block_average.comp"))
             .get()
     };
 
-    std::array<UniqueSSBO, 3> readback_bufs_;
-    size_t current_readback_id_{ 0 };
+    UniqueShaderProgram recursive_reduce_sp_{
+        ShaderBuilder()
+            .load_comp(VPath("src/shaders/pp_hdr_eye_adaptation_recursive_reduce.comp"))
+            .get()
+    };
 
-    RawSSBO<GLConst> current_readback_buffer() const noexcept {
-        return readback_bufs_[current_readback_id_];
+
+
+    std::array<UniqueSSBO, 2> val_bufs_;
+    size_t current_val_id_{ 0 };
+
+    RawSSBO<GLMutable> current_value_buffer() const noexcept {
+        return val_bufs_[current_val_id_];
     }
 
-    RawSSBO<GLConst> previous_readback_buffer() const noexcept {
+    RawSSBO<GLMutable> next_value_buffer() const noexcept {
         const size_t idx =
-            (current_readback_id_ + (readback_bufs_.size() - 1)) % readback_bufs_.size();
-        return readback_bufs_[idx];
+            (current_val_id_ + 1) % val_bufs_.size();
+        return val_bufs_[idx];
     }
 
-    void resize_all_readback_buffers(const Size2S& new_dims) {
-        for (auto& buf : readback_bufs_) {
-            buf.bind().allocate_data<float>(new_dims.area(), gl::GL_DYNAMIC_READ);
-        }
+    void advance_current_value_buffer() noexcept {
+        current_val_id_ =
+            (current_val_id_ + 1) % val_bufs_.size();
     }
 
-    void resize_current_readback_buffer(const Size2S& new_dims) {
-        readback_bufs_[current_readback_id_].bind()
-            .allocate_data<float>(new_dims.area(), gl::GL_DYNAMIC_READ);
-    }
+    UniqueSSBO intermediate_buf_;
+    Size2S old_dims_{ 0, 0 };
 
-    void advance_current_readback_buffer() noexcept {
-        current_readback_id_ = (current_readback_id_ + 1) % readback_bufs_.size();
+    void resize_intermediate_buffer(const Size2S& new_dims) {
+        intermediate_buf_.bind()
+            .allocate_data<float>(new_dims.area(), gl::GL_DYNAMIC_COPY);
+        old_dims_ = new_dims;
     }
-
-    Size2S old_dispatch_dims_{ dispatch_dimensions(64, 1.f) };
 
 public:
-    float  current_screen_value{ 1.0f };
     float  exposure_factor{ 0.35f };
-    float  adaptation_rate{ 1.f };
-    size_t num_y_samples{ 64 };
-    bool   use_adaptation{ true };
+    float  adaptation_rate{ 1.f   };
+    bool   use_adaptation { true  };
+    size_t num_y_sample_blocks{ 64    };
 
     PostprocessHDREyeAdaptationStage() noexcept {
-        auto dims = dispatch_dimensions(num_y_samples, 1.0f);
-        resize_all_readback_buffers(dims);
+        auto dims = dispatch_dimensions(num_y_sample_blocks, 1.0f);
+        resize_intermediate_buffer(dims);
+
+        for (auto& buf : val_bufs_) {
+            buf.bind().allocate_data<float>(1, gl::GL_DYNAMIC_COPY);
+        }
+
+        set_screen_value(0.2f);
     }
 
-    void operator()(const RenderEnginePostprocessInterface& engine, const entt::registry&) {
+    // Warning: Slow. Will stall the pipeline.
+    float get_screen_value() const noexcept {
+        float out;
+        current_value_buffer().bind().get_sub_data_into<float>({ &out, 1 });
+        return out;
+    }
+
+    // Warning: Slow. Will stall the pipeline.
+    void set_screen_value(float new_value) noexcept {
+        current_value_buffer().bind().sub_data<float>({ &new_value, 1 });
+    }
+
+    Size2S get_sampling_block_dims() const noexcept {
+        return old_dims_;
+    }
+
+    // Num elements per workgroup in the first pass.
+    static constexpr size_t block_size = 64;
+
+    // Num elements per workgroup in the recursive passes.
+    static constexpr GLsizeiptr batch_size = 128;
+
+
+    void operator()(
+        const RenderEnginePostprocessInterface& engine,
+        const entt::registry&)
+    {
         using namespace gl;
 
         if (use_adaptation) {
 
-            const float avg_screen_value = // this frame
-                compute_avg_screen_value(engine);
+            Size2S dims = dispatch_dimensions(num_y_sample_blocks, engine.window_size().aspect_ratio());
 
-            const float frame_weight =
-                engine.frame_timer().delta<float>();
+            const GLsizeiptr buf_size = dims.area();
 
-            current_screen_value =
-                scaled_weighted_mean_fold(current_screen_value,
-                    avg_screen_value, frame_weight, adaptation_rate);
-        }
+            if (old_dims_.area() != buf_size) {
+                resize_intermediate_buffer(dims);
+            }
 
-        sp_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
             engine.screen_color().bind_to_unit_index(0);
-            ashp.uniform("color", 0)
-                .uniform("use_reinhard", false)
-                .uniform("use_exposure", true)
-                .uniform("exposure", exposure_function(current_screen_value));
+            intermediate_buf_.bind_to_index(0);
 
-            engine.draw();
-        });
-    }
-
-
-
-private:
-    static float scaled_weighted_mean_fold(float current_mean,
-        float value, float weight, float scale) noexcept
-    {
-        // Actually no clue what this does exactly.
-        // I needed something similar to a weighted running mean,
-        // except I only have the current average and an incoming value,
-        // and NO context about any previous values used in calculating the mean.
-        //
-        // The actual plot of mean vs time for a sudden change
-        // of a value looks a lot like the Integrator Circuit's
-        // charge/discharge response to a step pulse.
-        // So, uhhh, if you're into that kind of thing...
-        //
-        // The adaptation_rate (passed as scale) is actually pretty consistent
-        // across jittery and inconsistent frametimes so that's good.
-        //
-        // It also looks okay when rendering so I'm not complaining.
-        return (current_mean + scale * weight * value) /
-            (1 + scale * weight);
-    }
+            // Do a first block extraction reduce pass.
+            block_reduce_sp_.use()
+                .uniform("screen_color", 0)
+                .and_then([&] {
+                    glDispatchCompute(dims.width, dims.height, 1);
+                });
 
 
-    float exposure_function(float screen_value) const noexcept {
-        return exposure_factor / (screen_value + 0.0001f);
-    }
+            // Do a recursive reduction on the intermediate buffer.
+            // Take the mean and write the result into the the next_value_buffer().
+
+            auto div_up = [](auto val, auto denom) {
+                bool up = val % denom;
+                return val / denom + up;
+            };
+
+            current_value_buffer().bind_to_index(1); // Read
+            next_value_buffer()   .bind_to_index(2); // Write
+
+            const float fold_weight = adaptation_rate * engine.frame_timer().delta<float>();
+
+            recursive_reduce_sp_.use()
+                .uniform("mean_fold_weight", fold_weight)
+                .and_then([&](ActiveShaderProgram<GLMutable>& ashp) {
+
+                    size_t num_workgroups = buf_size;
+                    GLuint dispatch_depth{ 0 };
+
+                    do {
+                        num_workgroups = div_up(num_workgroups, batch_size);
+
+                        ashp.uniform("dispatch_depth", dispatch_depth);
+                        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+                        glDispatchCompute(num_workgroups, 1, 1);
+
+                        ++dispatch_depth;
+                    } while (num_workgroups > 1);
+
+                    assert(num_workgroups == 1);
+                });
 
 
-    float compute_avg_screen_value(const RenderEnginePostprocessInterface& engine) {
-        using namespace gl;
-
-        advance_current_readback_buffer();
-
-        Size2S dims = dispatch_dimensions(num_y_samples, engine.window_size().aspect_ratio());
-
-        if (old_dispatch_dims_ != dims) {
-            resize_current_readback_buffer(dims);
-            old_dispatch_dims_ = dims;
         }
 
-        engine.screen_color().bind_to_unit_index(0);
-        reduce_sp_.use()
-            .uniform("screen_color", 0)
-            .and_then([&, this] {
-                current_readback_buffer().bind_to_index(0)
-                    .and_then([&] {
-                        glDispatchCompute(dims.width, dims.height, 1);
-                    });
+        // Do a tonemapping pass.
+        current_value_buffer().bind_to_index(1);
+        tonemap_sp_.use()
+            .uniform("color", 0)
+            .uniform("exposure_factor", exposure_factor)
+            .and_then([&] {
+                glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+                engine.draw();
             });
 
 
+        if (use_adaptation) {
+            advance_current_value_buffer();
+        }
 
-        float result_screen_value{};
 
-        previous_readback_buffer().bind()
-            .and_then([&](BoundSSBO<GLConst>& ssbo) {
-                std::span<const float> mapped = ssbo.map_for_read<float>();
-                result_screen_value =
-                    std::reduce(mapped.begin(), mapped.end()) / float(mapped.size());
-                ssbo.unmap_current();
-            });
+}
 
-        return result_screen_value;
-    }
 
 private:
     static Size2S dispatch_dimensions(size_t num_y_samples, float aspect_ratio) noexcept {

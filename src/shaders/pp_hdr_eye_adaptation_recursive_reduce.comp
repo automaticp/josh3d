@@ -1,0 +1,113 @@
+#version 430 core
+
+#ifndef LOCAL_SIZE_X
+    #define LOCAL_SIZE_X 64
+#endif
+
+layout (local_size_x = LOCAL_SIZE_X, local_size_y = 1, local_size_z = 1) in;
+
+
+
+/*
+Average screen value from previous frame.
+*/
+layout (std430, binding = 1) restrict readonly buffer CurrentValueBuffer {
+    float screen_value;
+} current;
+
+/*
+Adjusted output from current dispatch.
+*/
+layout (std430, binding = 2) restrict writeonly buffer NextValueBuffer {
+    float screen_value;
+} next;
+
+
+
+
+layout (std430, binding = 0) restrict coherent buffer IntermediateBuffer {
+    float values[];
+} intermediate;
+
+
+
+float weighted_mean_fold(
+    float current_mean, float new_mean, float weight)
+{
+    return (current_mean + weight * new_mean) / (1.0 + weight);
+}
+
+
+const uint num_inovcations = gl_WorkGroupSize.x;
+const uint num_elements    = 2 * num_inovcations;
+
+
+layout (location = 0) uniform float mean_fold_weight;
+layout (location = 1) uniform uint  dispatch_depth; // 0 to floor(log(N, num_elements)).
+
+
+uint upow(uint base, uint exponent) {
+    uint result = 1;
+    for (uint i = 0; i < exponent; ++i) {
+        result *= base;
+    }
+    return result;
+}
+
+
+void main() {
+    uint local_index = gl_LocalInvocationID.x;
+    uint group_index = gl_WorkGroupID.x;
+
+    // Compute CPU-side? Meh.
+    uint invocation_stride = upow(num_elements, dispatch_depth);
+    uint group_stride      = invocation_stride * num_elements;
+    uint group_start_index = group_index * group_stride;
+    uint start_offset      = local_index * invocation_stride;
+
+    // This points to the index in the first (left) half of the buffer subrange.
+    uint buffer_index_lh = group_start_index + start_offset;
+
+    // We start at active_threads == num_elements / 2.
+    uint active_threads = gl_WorkGroupSize.x;
+
+    while (active_threads >= 1) {
+        uint buffer_index_rh = buffer_index_lh + (active_threads * invocation_stride);
+
+        // The active_threads better be a power-of-2,
+        // else this OOB check fails miserably.
+        bool in_bounds =
+            buffer_index_rh < intermediate.values.length();
+
+        if (local_index < active_threads && in_bounds) {
+            memoryBarrierBuffer();
+
+            intermediate.values[buffer_index_lh] +=
+                intermediate.values[buffer_index_rh];
+        }
+
+        active_threads /= 2;
+        barrier();
+    }
+
+
+    if (gl_NumWorkGroups.x == 1) /* last dispatch */ {
+        if (local_index == 0) {
+            // No need for barrier, since this thread wrote this value.
+            float reduced_value = intermediate.values[0];
+            // TODO: Consider not averaging the first block samples,
+            // and do:
+            //     reduced_value /
+            //         (intermediate.values.length() * block_size)
+
+            float new_average =
+                reduced_value / intermediate.values.length();
+
+            next.screen_value = weighted_mean_fold(
+                current.screen_value, new_average, mean_fold_weight
+            );
+        }
+    }
+
+
+}
