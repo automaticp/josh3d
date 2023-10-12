@@ -1,4 +1,5 @@
 #pragma once
+#include "Size.hpp"
 #include "detail/AndThen.hpp"
 #include "detail/MagicConstructorsMacro.hpp"
 #include "CommonConcepts.hpp" // IWYU pragma: keep
@@ -7,6 +8,7 @@
 #include "GLKindHandles.hpp"
 #include "GLTextures.hpp"
 #include "GLRenderbuffer.hpp"
+#include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
 #include <glbinding/gl/gl.h>
@@ -46,6 +48,21 @@ public:
             buffer_mask, interp_filter
         );
         return *this;
+    }
+
+    BoundReadFramebuffer& blit_to(
+        const BoundDrawFramebuffer<GLMutable>& dst [[maybe_unused]],
+        const Size2I& src_size, const Size2I& dst_size,
+        gl::ClearBufferMask buffer_mask, GLenum interp_filter)
+    {
+        auto& [src_w, src_h] = src_size;
+        auto& [dst_w, dst_h] = dst_size;
+        return blit_to(
+            dst,
+            0, 0, src_w, src_h,
+            0, 0, dst_w, dst_h,
+            buffer_mask, interp_filter
+        );
     }
 
     BoundReadFramebuffer& set_read_buffer(GLenum attachment) const {
@@ -151,6 +168,22 @@ public:
             buffer_mask, interp_filter
         );
         return *this;
+    }
+
+    template<mutability_tag MutU>
+    BoundDrawFramebuffer& blit_from(
+        const BoundReadFramebuffer<MutU>& src [[maybe_unused]],
+        const Size2I& src_size, const Size2I& dst_size,
+        gl::ClearBufferMask buffer_mask, GLenum interp_filter)
+    {
+        auto& [src_w, src_h] = src_size;
+        auto& [dst_w, dst_h] = dst_size;
+        return blit_from(
+            src,
+            0, 0, src_w, src_h,
+            0, 0, dst_w, dst_h,
+            buffer_mask, interp_filter
+        );
     }
 
     BoundDrawFramebuffer& set_draw_buffer(GLenum buffer_attachment) {
