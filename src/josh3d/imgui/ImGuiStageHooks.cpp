@@ -45,6 +45,21 @@ void ImGuiStageHooks::display() {
             }
         }
 
+        if (ImGui::CollapsingHeader("Overlays")) {
+            for (size_t i{ 0 }; i < overlay_hooks_.size(); ++i) {
+
+                ImGui::PushID(int(i));
+                if (ImGui::TreeNode(overlay_hooks_[i].name.c_str())) {
+
+                    overlay_hooks_[i].hook();
+
+                    ImGui::TreePop();
+                }
+                ImGui::PopID();
+
+            }
+        }
+
     } ImGui::End();
 }
 

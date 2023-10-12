@@ -42,6 +42,7 @@ private:
     // FIXME: Multimap with typeid as key?
     std::vector<HookEntry> hooks_;
     std::vector<HookEntry> pp_hooks_;
+    std::vector<HookEntry> overlay_hooks_;
 public:
     bool hidden{ false };
 
@@ -52,6 +53,10 @@ public:
 
     void add_postprocess_hook(std::string name, UniqueFunction<void()> postprocess_hook) {
         pp_hooks_.emplace_back(std::move(postprocess_hook), std::move(name));
+    }
+
+    void add_overlay_hook(std::string name, UniqueFunction<void()> overlay_hook) {
+        overlay_hooks_.emplace_back(std::move(overlay_hook), std::move(name));
     }
 
     void display();
