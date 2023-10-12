@@ -14,7 +14,7 @@
 
 namespace josh {
 
-class PostprocessGBufferDebugOverlayStage {
+class OverlayGBufferDebugStage {
 private:
     SharedStorageView<GBuffer> gbuffer_;
 
@@ -39,11 +39,11 @@ public:
 
     OverlayMode mode{ OverlayMode::none };
 
-    PostprocessGBufferDebugOverlayStage(SharedStorageView<GBuffer> gbuffer)
+    OverlayGBufferDebugStage(SharedStorageView<GBuffer> gbuffer)
         : gbuffer_{ std::move(gbuffer) }
     {}
 
-    void operator()(const RenderEnginePostprocessInterface& engine, const entt::registry&) {
+    void operator()(const RenderEngineOverlayInterface& engine, const entt::registry&) {
 
         if (mode == OverlayMode::none) {
             return;
@@ -64,7 +64,7 @@ public:
             .uniform("tex_albedo_spec",   2)
             .uniform("tex_depth",         3)
             .and_then([&] {
-                engine.draw_to_front();
+                engine.draw_fullscreen_quad();
             });
 
     }

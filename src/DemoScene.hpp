@@ -31,7 +31,7 @@
 #include "hooks/PointLightSourceBoxStageHook.hpp"
 #include "hooks/PointShadowMappingStageHook.hpp"
 #include "hooks/PostprocessBloomStageHook.hpp"
-#include "hooks/PostprocessGBufferDebugOverlayStageHook.hpp"
+#include "hooks/OverlayGBufferDebugStageHook.hpp"
 #include "hooks/PostprocessGammaCorrectionStageHook.hpp"
 #include "hooks/PostprocessHDREyeAdaptationStageHook.hpp"
 #include "hooks/PostprocessFogStageHook.hpp"
@@ -45,7 +45,7 @@
 #include "stages/PointLightSourceBoxStage.hpp"
 #include "stages/PointShadowMappingStage.hpp"
 #include "stages/PostprocessBloomStage.hpp"
-#include "stages/PostprocessGBufferDebugOverlayStage.hpp"
+#include "stages/OverlayGBufferDebugStage.hpp"
 #include "stages/PostprocessGammaCorrectionStage.hpp"
 #include "stages/PostprocessHDREyeAdaptationStage.hpp"
 #include "stages/PostprocessFogStage.hpp"
@@ -131,7 +131,7 @@ public:
         auto hdreyeing   = rengine_.make_postprocess_stage<PostprocessHDREyeAdaptationStage>();
         auto whatsgamma  = rengine_.make_postprocess_stage<PostprocessGammaCorrectionStage>();
 
-        auto gbugger     = rengine_.make_postprocess_stage<PostprocessGBufferDebugOverlayStage>(gbuffer.target().get_read_view());
+        auto gbugger     = rengine_.make_overlay_stage<OverlayGBufferDebugStage>(gbuffer.target().get_read_view());
 
 
         imgui_stage_hooks_.add_hook("Point Shadow Mapping",
@@ -164,11 +164,8 @@ public:
         imgui_stage_hooks_.add_postprocess_hook("HDR Eye Adaptation",
             imguihooks::PostprocessHDREyeAdaptationStageHook(hdreyeing));
 
-        imgui_stage_hooks_.add_postprocess_hook("GBuffer Debug Overlay",
-            imguihooks::PostprocessGBufferDebugOverlayStageHook(gbugger));
-
-        imgui_stage_hooks_.add_postprocess_hook("Gamma Correction",
-            imguihooks::PostprocessGammaCorrectionStageHook(whatsgamma));
+        imgui_stage_hooks_.add_overlay_hook("GBuffer Debug Overlay",
+            imguihooks::OverlayGBufferDebugStageHook(gbugger));
 
 
 
@@ -184,12 +181,8 @@ public:
         rengine_.add_next_postprocess_stage(std::move(fog));
         rengine_.add_next_postprocess_stage(std::move(blooming));
         rengine_.add_next_postprocess_stage(std::move(hdreyeing));
-        // FIXME: It should be put *after* all of the effects to
-        // act as an overlay. But because my sRGB gamma correction
-        // is broken but works correctly accidentally because
-        // it's the last stage, I can't just move the overlay after it until I fix that.
-        rengine_.add_next_postprocess_stage(std::move(gbugger));
-        rengine_.add_next_postprocess_stage(std::move(whatsgamma));
+
+        rengine_.add_next_overlay_stage(std::move(gbugger));
 
 
         imgui_registry_hooks_.add_hook("Lights", imguihooks::LightComponentsRegistryHook());
