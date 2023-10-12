@@ -1,6 +1,7 @@
 #pragma once
 #include "UniqueFunction.hpp"
 #include <concepts>
+#include <entt/entity/fwd.hpp>
 #include <entt/fwd.hpp>
 
 
@@ -9,15 +10,20 @@ namespace josh {
 class RenderEngine;
 class RenderEnginePrimaryInterface;
 class RenderEnginePostprocessInterface;
+class RenderEngineOverlayInterface;
 
 
 template<typename StageT>
-concept primary_render_stage = std::invocable<StageT, const RenderEnginePrimaryInterface&, const entt::registry&>;
+concept primary_render_stage =
+    std::invocable<StageT, const RenderEnginePrimaryInterface&, const entt::registry&>;
 
 template<typename StageT>
-concept postprocess_render_stage = std::invocable<StageT, const RenderEnginePostprocessInterface&, const entt::registry&>;
+concept postprocess_render_stage =
+    std::invocable<StageT, const RenderEnginePostprocessInterface&, const entt::registry&>;
 
-
+template<typename StageT>
+concept overlay_render_stage =
+    std::invocable<StageT, const RenderEngineOverlayInterface&, const entt::registry&>;
 
 
 /*
@@ -72,6 +78,28 @@ public:
 
 
 
+/*
+A generic container for overlay stages that preserves the type of the stored callable.
+Used to separate the construction of the stage from addition to the rendering engine.
+*/
+template<overlay_render_stage StageT>
+class OverlayStage {
+private:
+    UniqueFunction<void(const RenderEngineOverlayInterface&, const entt::registry&)> stage_;
+
+    friend RenderEngine;
+    OverlayStage(StageT&& stage) : stage_{ std::move(stage) } {}
+
+public:
+    StageT& target() noexcept { return stage_.target_unchecked<StageT>(); }
+    const StageT& target() const noexcept { return stage_.target_unchecked<StageT>(); }
+
+    operator StageT&() noexcept { return target(); }
+    operator const StageT&() const noexcept { return target(); }
+
+};
+
+
 namespace detail {
 
 
@@ -118,6 +146,28 @@ public:
     }
 };
 
+
+
+
+
+/*
+Type erased overlay stage stored inside the RenderEngine stages container.
+*/
+class AnyOverlayStage {
+private:
+    friend RenderEngine;
+
+    using stage_t =
+        UniqueFunction<void(const RenderEngineOverlayInterface&, const entt::registry&)>;
+
+    stage_t stage_;
+
+    AnyOverlayStage(stage_t&& stage) : stage_{ std::move(stage) } {}
+public:
+    void operator()(const RenderEngineOverlayInterface& engine, const entt::registry& registry) {
+        stage_(engine, registry);
+    }
+};
 
 
 

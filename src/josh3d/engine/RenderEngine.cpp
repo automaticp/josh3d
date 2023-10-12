@@ -1,7 +1,9 @@
 #include "RenderEngine.hpp"
 #include "GLFramebuffer.hpp"
 #include "GLMutability.hpp"
+#include "RenderStage.hpp"
 #include <entt/entt.hpp>
+#include <glbinding/gl/enum.h>
 #include <glbinding/gl/gl.h>
 #include <cassert>
 
@@ -9,37 +11,6 @@
 using namespace gl;
 
 namespace josh {
-
-
-
-
-/*
-Just some thoughts:
-
-The main render target of the engine is a SwapChain
-with shared Depth.
-
-The primary passes all draw to the backbuffer of the
-SwapChain. Then it swaps and the postprocessing begins.
-
-At the end of postprocessing, the result is blitted into
-the default framebuffer.
-(sRGB conversion can be done here).
-
-Additionally, you can have a bunch of overlays drawn
-after this, which can sample from the pre-blit SwapChain buffer.
-
-Depending on the choice of gamma-correction, if it was
-applied manually, you'll be sampling sRGB colors.
-If it was applied as an sRGB blit, then you'll be sampling
-linear colors, since that's what is left in the SwapChain.
-
-What a mess.
-
-There probably has to be pre-sRGB and post-sRGB postprocessing.
-This has the same implications as Overlay stages, I think.
-*/
-
 
 
 void RenderEngine::render() {
@@ -53,60 +24,75 @@ void RenderEngine::render() {
     main_swapchain_.back_target().bind_draw()
         .and_then([] { glClear(GL_DEPTH_BUFFER_BIT); });
 
+
+
     glEnable(GL_DEPTH_TEST);
-    render_primary_stages();
+    render_primary_stages(); // To swapchain backbuffer.
+    glDisable(GL_DEPTH_TEST);
 
+    main_swapchain_.swap_buffers();
+    render_postprocess_stages(); // To swapchain (swap each draw).
 
-    if (pp_stages_.empty()) {
+    // Blit front to default (opt. sRGB)
+    if (enable_srgb_conversion) { glEnable(GL_FRAMEBUFFER_SRGB); }
 
-        main_swapchain_.back_target().bind_read()
-            .and_then([this](BoundReadFramebuffer<GLMutable>& src_fb) {
+    main_swapchain_.front_target().bind_read()
+        .and_then([this](BoundReadFramebuffer<GLMutable>& front) {
+            using enum GLenum;
+            default_fbo_.bind_draw()
+                .blit_from(front, window_size_, window_size_,
+                    GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        })
+        .unbind();
 
-                // FIXME: Kinda awkward because there's no default binding object.
-                // Way to fix this is so far unknown.
-                RawFramebuffer<GLMutable> default_fb{ 0 };
+    if (enable_srgb_conversion) { glDisable(GL_FRAMEBUFFER_SRGB); }
 
-                auto [src_w, src_h] = main_swapchain_.back_target().color_attachment().size();
-                auto [dst_w, dst_h] = window_size_;
+    // There are free frames on the table if you can eliminate
+    // this blit by redirecting last postprocessing draw to the
+    // default framebuffer. The problem is deciding which draw
+    // is "last".
+    //
+    // We can ask each stage to tell us which draw is last, and
+    // complain about perf if it doesn't comply. We run into a problem,
+    // however, if no draw is made in the last stage at all
+    // and are forced to blit anyway.
+    //
+    // The harder approach is to require each stage to be able
+    // to tell us whether it will be drawing anything at all
+    // before the frame even starts (starting from primary stages),
+    // and then expect it to hold true until the end.
+    // This is a difficult requirement because stages can technically
+    // communicate through SharedStorage and the like, but
+    // might be reasonable just as the assumption about stable registry.
 
-                default_fb.bind_draw()
-                    .blit_from(
-                        src_fb,
-                        0, 0, src_w, src_h,
-                        0, 0, dst_w, dst_h,
-                        GL_COLOR_BUFFER_BIT, GL_NEAREST
-                    )
-                    .unbind();
-            })
-            .unbind();
+    render_overlay_stages(); // To default framebuffer
 
-    } else /* has postprocessing */ {
+    // Present.
 
-        // So that the next PP stage could sample from the results of the main pass.
-        main_swapchain_.swap_buffers();
-
-        glDisable(GL_DEPTH_TEST);
-
-        render_postprocess_stages();
-    }
 }
 
 
 
 
 void RenderEngine::render_primary_stages() {
-    for (current_stage_ = 0; current_stage_ < stages_.size(); ++current_stage_) {
-        stages_[current_stage_](RenderEnginePrimaryInterface{ *this }, registry_);
-    }
+    primary_.each([this](auto& stage) {
+        stage(RenderEnginePrimaryInterface{ *this }, registry_);
+    });
 }
 
 
 void RenderEngine::render_postprocess_stages() {
-    for (current_pp_stage_ = 0; current_pp_stage_ < pp_stages_.size(); ++current_pp_stage_) {
-        pp_stages_[current_pp_stage_](RenderEnginePostprocessInterface{ *this }, registry_);
-    }
+    postprocess_.each([this](auto& stage) {
+        stage(RenderEnginePostprocessInterface{ *this }, registry_);
+    });
 }
 
+
+void RenderEngine::render_overlay_stages() {
+    overlay_.each([this](auto& stage) {
+        stage(RenderEngineOverlayInterface{ *this }, registry_);
+    });
+}
 
 
 
