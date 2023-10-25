@@ -23,14 +23,12 @@ set(SUBTARGET_DIRS
     engine
     filesystem
     gl
-    globals
     imgui
     render
     resource
     scene
     util
 )
-
 
 
 # Main interface target of josh3d.
@@ -41,7 +39,6 @@ foreach(DIR IN ITEMS ${SUBTARGET_DIRS})
     make_subtarget(${DIR})
     target_link_libraries(josh3d INTERFACE josh3d-${DIR})
 endforeach()
-
 
 
 
@@ -72,25 +69,26 @@ endfunction()
 
 # Internal DEPendencieS:
 set(data_IDEPS       filesystem util)
-set(engine_IDEPS     data filesystem gl globals render)
+set(engine_IDEPS     data filesystem gl render)
 set(filesystem_IDEPS util)
 set(gl_IDEPS         util render #[[ removable, belongs to gl ]])
-set(globals_IDEPS    data filesystem gl render resource scene util)
-set(imgui_IDEPS      data engine filesystem gl globals scene resource util)
+set(imgui_IDEPS      data engine filesystem gl scene resource util)
 set(render_IDEPS     data filesystem #[[ removable ]] gl resource #[[ removable ]] util)
 set(resource_IDEPS   data filesystem gl render #[[ maybe removable ]] util)
-set(scene_IDEPS      engine #[[ removable ]] gl globals util)
-set(util_IDEPS       scene #[[ removable, needs input target ]] globals)
+set(scene_IDEPS      engine #[[ removable ]] gl util)
+set(util_IDEPS       scene #[[ removable, needs input target ]])
+
 
 foreach(DIR IN ITEMS ${SUBTARGET_DIRS})
     resolve_internal_and_common_external_deps(josh3d-${DIR} "${${DIR}_IDEPS}")
 endforeach()
 
-target_link_libraries(josh3d-data     PRIVATE   stb::stb)
+
+target_link_libraries(josh3d-data     PRIVATE   stb::stb assimp::assimp)
 target_link_libraries(josh3d-engine   PUBLIC    glfwpp::glfwpp EnTT::EnTT)
 target_link_libraries(josh3d-gl       PUBLIC    glbinding::glbinding)
-target_link_libraries(josh3d-globals  PRIVATE   assimp::assimp)
 target_link_libraries(josh3d-imgui    PRIVATE   imgui::imgui glfwpp::glfwpp)
 target_link_libraries(josh3d-resource PUBLIC    #[[ should be private ]] assimp::assimp)
 target_link_libraries(josh3d-scene    INTERFACE EnTT::EnTT)
 target_link_libraries(josh3d-util     INTERFACE glbinding::glbinding glbinding::glbinding-aux glfwpp::glfwpp)
+

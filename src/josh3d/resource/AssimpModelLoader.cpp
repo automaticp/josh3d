@@ -5,8 +5,6 @@
 #include "Transform.hpp"
 #include "VertexPNTTB.hpp"
 #include "TextureHandlePool.hpp"
-#include "GlobalsGL.hpp"
-#include "FrustumCuller.hpp"
 #include <algorithm>
 #include <entt/entt.hpp>
 #include <functional>

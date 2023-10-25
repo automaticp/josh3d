@@ -1,17 +1,8 @@
 #pragma once
 
 
-
-// Declarations of globals are split between headers
-// to avoid circular dependencies that arise
-// when chucking a bunch of unrelated classes
-// into a single header, and when suddenly one of
-// them needs one of the globals.
-//
-// Include specific Globals* headers.
-
-
 namespace josh::globals {
+
 
 // Initialize the global defaults.
 // Must be done right after creating the OpenGL context.
@@ -23,8 +14,12 @@ void init_all();
 void clear_all();
 
 
-// RAII wrapper for initialization and cleanup of globals.
-// Must be constructed right after creating the OpenGL context.
+/*
+RAII wrapper for initialization and cleanup of globals.
+Must be constructed right after creating the OpenGL context.
+
+Use either manual init_all() and clear_all() or this. Not both.
+*/
 class RAIIContext {
 public:
     RAIIContext() { init_all(); }

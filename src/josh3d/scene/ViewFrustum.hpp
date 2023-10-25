@@ -1,6 +1,5 @@
 #pragma once
 #include "Transform.hpp"
-#include <glm/fwd.hpp>
 #include <glm/glm.hpp>
 #include <cmath>
 #include <array>

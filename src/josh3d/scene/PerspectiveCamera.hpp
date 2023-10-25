@@ -1,6 +1,4 @@
 #pragma once
-#include "Basis.hpp"
-#include "GlobalsUtil.hpp"
 #include "CameraBase.hpp"
 #include "Transform.hpp"
 #include "ViewFrustum.hpp"

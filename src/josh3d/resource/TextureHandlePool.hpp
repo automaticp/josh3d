@@ -64,9 +64,9 @@ inline TextureHandlePool::load_data_from(const File& file,
 }
 
 
+namespace globals {
+inline TextureHandlePool texture_handle_pool{ texture_data_pool };
+} // namespace globals
 
 
-
-
-
-}
+} // namespace josh

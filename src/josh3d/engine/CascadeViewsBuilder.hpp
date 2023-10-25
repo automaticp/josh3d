@@ -1,5 +1,4 @@
 #pragma once
-#include "GlobalsUtil.hpp"
 #include "ViewFrustum.hpp"
 #include "SharedStorage.hpp"
 #include "PerspectiveCamera.hpp"

@@ -1,6 +1,5 @@
 #pragma once
 #include "ViewFrustum.hpp"
-#include "GlobalsUtil.hpp"
 #include "Basis.hpp"
 #include <glm/ext/matrix_transform.hpp>
 

@@ -67,4 +67,10 @@ public:
 };
 
 
+namespace globals {
+// Only really usable for apps with one window.
+inline WindowSizeCache window_size;
+} // namespace globals
+
+
 } // namespace josh

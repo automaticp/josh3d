@@ -1,5 +1,5 @@
 #include "ImGuiWindowSettings.hpp"
-#include "GlobalsUtil.hpp"
+#include "FrameTimer.hpp"
 #include <imgui.h>
 #include <cstdio>
 #include <string>

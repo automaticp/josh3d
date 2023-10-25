@@ -6,7 +6,7 @@
 #include "VPath.hpp"
 #include "RenderComponents.hpp"
 #include "Mesh.hpp"
-#include "GlobalsData.hpp"
+#include "MeshData.hpp"
 #include <entt/entt.hpp>
 
 

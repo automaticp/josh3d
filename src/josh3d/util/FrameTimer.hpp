@@ -27,4 +27,9 @@ public:
 };
 
 
+namespace globals {
+inline FrameTimer frame_timer;
+} // namespace globals
+
+
 } // namespace josh

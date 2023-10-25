@@ -60,14 +60,15 @@ void DataPool<T>::clear_unused() {
 }
 
 
-
 template<>
 inline Shared<TextureData> DataPool<TextureData>::load_data_from(const File& file) {
     return std::make_shared<TextureData>(TextureData::from_file(file));
 }
 
 
-
+namespace globals {
+inline DataPool<TextureData> texture_data_pool;
+} // namespace globals
 
 
 } // namespace josh

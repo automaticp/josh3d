@@ -5,7 +5,7 @@
 #include "RenderEngine.hpp"
 #include "Transform.hpp"
 #include "Mesh.hpp"
-#include "GlobalsGL.hpp"
+#include "DefaultResources.hpp"
 #include <entt/core/type_traits.hpp>
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
@@ -48,14 +48,14 @@ void DeferredGeometryStage::operator()(
         if (auto mat_d = registry.try_get<components::MaterialDiffuse>(e); mat_d) {
             mat_d->diffuse->bind_to_unit_index(0);
         } else {
-            globals::default_diffuse_texture->bind_to_unit_index(0);
+            globals::default_diffuse_texture().bind_to_unit_index(0);
         }
 
         if (auto mat_s = registry.try_get<components::MaterialSpecular>(e); mat_s) {
             mat_s->specular->bind_to_unit_index(1);
             ashp.uniform("material.shininess", mat_s->shininess);
         } else {
-            globals::default_specular_texture->bind_to_unit_index(1);
+            globals::default_specular_texture().bind_to_unit_index(1);
             ashp.uniform("material.shininess", 128.f);
         }
 

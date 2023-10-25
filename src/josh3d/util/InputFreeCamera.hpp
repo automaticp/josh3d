@@ -1,7 +1,7 @@
 #pragma once
 #include "PerspectiveCamera.hpp"
-#include "GlobalsUtil.hpp"
 #include "Input.hpp"
+#include "FrameTimer.hpp"
 #include <glm/ext/quaternion_geometric.hpp>
 #include <glm/ext/quaternion_transform.hpp>
 #include <glm/glm.hpp>

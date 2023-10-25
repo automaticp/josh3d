@@ -1,5 +1,4 @@
 #pragma once
-#include <glm/fwd.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -122,7 +121,9 @@ public:
 };
 
 
-// inline const OrthonormalBasis3D globals::basis{ glm::vec3(1.0f, 0.0, 0.0), glm::vec3(0.0f, 1.0f, 0.0f), true };
+namespace globals {
+inline const OrthonormalBasis3D basis{ glm::vec3(1.0f, 0.0, 0.0), glm::vec3(0.0f, 1.0f, 0.0f), true };
+}
 
 
 } // namespace josh

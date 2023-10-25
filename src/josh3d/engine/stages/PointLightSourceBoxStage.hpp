@@ -1,12 +1,12 @@
 #pragma once
 #include "GLObjects.hpp"
-#include "GlobalsData.hpp"
 #include "LightCasters.hpp"
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
 #include "Transform.hpp"
 #include "VPath.hpp"
 #include "Mesh.hpp"
+#include "MeshData.hpp"
 #include <entt/entt.hpp>
 
 

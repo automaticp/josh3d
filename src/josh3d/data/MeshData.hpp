@@ -1,10 +1,12 @@
 #pragma once
 #include "GLScalars.hpp"
+#include "VertexPNTTB.hpp"
 #include <glbinding/gl/gl.h>
 #include <vector>
 #include <utility>
 
 namespace josh {
+
 
 template<typename VertexT>
 class MeshData {
@@ -27,6 +29,17 @@ public:
     const std::vector<GLuint>& elements() const noexcept { return elements_; }
 };
 
+
+namespace globals {
+const MeshData<VertexPNTTB>& plane_primitive()  noexcept;
+const MeshData<VertexPNTTB>& box_primitive()    noexcept;
+const MeshData<VertexPNTTB>& sphere_primitive() noexcept;
+} // namespace globals
+
+
+namespace detail {
+void init_mesh_primitives();
+} // namespace detail
 
 
 } // namespace josh

@@ -5,7 +5,6 @@
 #include "GLTextures.hpp"
 #include "PerspectiveCamera.hpp"
 #include "CubemapData.hpp"
-#include "GlobalsUtil.hpp"
 #include "ImGuiContextWrapper.hpp"
 #include "ImGuiRegistryHooks.hpp"
 #include "ImGuiStageHooks.hpp"
@@ -14,6 +13,8 @@
 #include "Input.hpp"
 #include "InputFreeCamera.hpp"
 #include "LightCasters.hpp"
+#include "WindowSizeCache.hpp"
+#include "FrameTimer.hpp"
 #include "Model.hpp"
 #include "RenderComponents.hpp"
 #include "RenderEngine.hpp"
@@ -33,7 +34,6 @@
 #include "hooks/PostprocessBloomStageHook.hpp"
 #include "hooks/OverlayGBufferDebugStageHook.hpp"
 #include "hooks/PostprocessFXAAStageHook.hpp"
-#include "hooks/PostprocessGammaCorrectionStageHook.hpp"
 #include "hooks/PostprocessHDREyeAdaptationStageHook.hpp"
 #include "hooks/PostprocessFogStageHook.hpp"
 #include "hooks/SkyboxRegistryHook.hpp"
@@ -48,11 +48,9 @@
 #include "stages/PostprocessBloomStage.hpp"
 #include "stages/OverlayGBufferDebugStage.hpp"
 #include "stages/PostprocessFXAAStage.hpp"
-#include "stages/PostprocessGammaCorrectionStage.hpp"
 #include "stages/PostprocessHDREyeAdaptationStage.hpp"
 #include "stages/PostprocessFogStage.hpp"
 #include "stages/SkyboxStage.hpp"
-#include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
 #include <glbinding/gl/enum.h>
 #include <glfwpp/window.h>

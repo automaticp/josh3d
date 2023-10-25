@@ -1,7 +1,7 @@
 #include "CascadedShadowMappingStage.hpp"
 #include "GLMutability.hpp"
 #include "GLShaders.hpp"
-#include "GlobalsUtil.hpp"
+#include "Logging.hpp"
 #include "RenderComponents.hpp"
 #include "Transform.hpp"
 #include "Mesh.hpp"
