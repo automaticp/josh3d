@@ -30,3 +30,14 @@ target_link_libraries(josh3d
         range-v3::range-v3
         range-v3::concepts
 )
+
+
+target_precompile_headers(josh3d
+    PRIVATE
+        <glbinding/gl/gl.h>
+        <imgui.h>
+        <imgui_stdlib.h>
+        <glm/glm.hpp>
+        <glm/ext.hpp>
+        <entt/entt.hpp>
+)
