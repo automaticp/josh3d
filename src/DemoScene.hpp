@@ -32,6 +32,7 @@
 #include "hooks/PointShadowMappingStageHook.hpp"
 #include "hooks/PostprocessBloomStageHook.hpp"
 #include "hooks/OverlayGBufferDebugStageHook.hpp"
+#include "hooks/PostprocessFXAAStageHook.hpp"
 #include "hooks/PostprocessGammaCorrectionStageHook.hpp"
 #include "hooks/PostprocessHDREyeAdaptationStageHook.hpp"
 #include "hooks/PostprocessFogStageHook.hpp"
@@ -46,6 +47,7 @@
 #include "stages/PointShadowMappingStage.hpp"
 #include "stages/PostprocessBloomStage.hpp"
 #include "stages/OverlayGBufferDebugStage.hpp"
+#include "stages/PostprocessFXAAStage.hpp"
 #include "stages/PostprocessGammaCorrectionStage.hpp"
 #include "stages/PostprocessHDREyeAdaptationStage.hpp"
 #include "stages/PostprocessFogStage.hpp"
@@ -129,7 +131,8 @@ public:
         auto fog         = rengine_.make_postprocess_stage<PostprocessFogStage>();
         auto blooming    = rengine_.make_postprocess_stage<PostprocessBloomStage>();
         auto hdreyeing   = rengine_.make_postprocess_stage<PostprocessHDREyeAdaptationStage>();
-        auto whatsgamma  = rengine_.make_postprocess_stage<PostprocessGammaCorrectionStage>();
+        auto fxaaaaaaa   = rengine_.make_postprocess_stage<PostprocessFXAAStage>();
+        // auto whatsgamma  = rengine_.make_postprocess_stage<PostprocessGammaCorrectionStage>();
 
         auto gbugger     = rengine_.make_overlay_stage<OverlayGBufferDebugStage>(gbuffer.target().get_read_view());
 
@@ -164,6 +167,9 @@ public:
         imgui_stage_hooks_.add_postprocess_hook("HDR Eye Adaptation",
             imguihooks::PostprocessHDREyeAdaptationStageHook(hdreyeing));
 
+        imgui_stage_hooks_.add_postprocess_hook("FXAA",
+            imguihooks::PostprocessFXAAStageHook(fxaaaaaaa));
+
         imgui_stage_hooks_.add_overlay_hook("GBuffer Debug Overlay",
             imguihooks::OverlayGBufferDebugStageHook(gbugger));
 
@@ -181,6 +187,7 @@ public:
         rengine_.add_next_postprocess_stage(std::move(fog));
         rengine_.add_next_postprocess_stage(std::move(blooming));
         rengine_.add_next_postprocess_stage(std::move(hdreyeing));
+        rengine_.add_next_postprocess_stage(std::move(fxaaaaaaa));
 
         rengine_.add_next_overlay_stage(std::move(gbugger));
 
