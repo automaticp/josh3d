@@ -1,6 +1,7 @@
 #pragma once
 #include "GLObjects.hpp"
 #include "TextureData.hpp"
+#include "TextureHelpers.hpp"
 #include "Filesystem.hpp"
 #include "GLObjectPool.hpp"
 #include "DataPool.hpp"

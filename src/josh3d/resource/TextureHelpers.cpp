@@ -1,6 +1,5 @@
-#include "GLTextures.hpp"
-#include "CubemapData.hpp"
-#include "TextureData.hpp"
+#include "TextureHelpers.hpp"
+#include <glbinding/gl/enum.h>
 
 
 using namespace gl;
@@ -40,8 +39,6 @@ void attach_data_to_texture(BoundTexture2D<GLMutable>& tex,
 }
 
 
-
-
 void attach_data_to_cubemap(BoundCubemap<GLMutable>& cube,
     const CubemapData& data, GLenum internal_format)
 {
@@ -73,7 +70,6 @@ void attach_data_to_cubemap(BoundCubemap<GLMutable>& cube,
         );
     }
 }
-
 
 
 } // namespace josh

@@ -3,6 +3,7 @@
 #include "Attachments.hpp"
 #include "FrustumCuller.hpp"
 #include "GLTextures.hpp"
+#include "TextureHelpers.hpp"
 #include "PerspectiveCamera.hpp"
 #include "CubemapData.hpp"
 #include "ImGuiContextWrapper.hpp"

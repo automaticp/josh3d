@@ -2,6 +2,7 @@
 #include "CubemapData.hpp"
 #include "Filesystem.hpp"
 #include "GLTextures.hpp"
+#include "TextureHelpers.hpp"
 #include "components/Skybox.hpp"
 #include "VPath.hpp"
 #include <entt/entity/entity.hpp>

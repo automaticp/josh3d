@@ -2,6 +2,7 @@
 #include "GLObjects.hpp"
 #include "GLScalars.hpp"
 #include "TextureData.hpp"
+#include "TextureHelpers.hpp"
 #include "MeshData.hpp"
 #include "AssimpModelLoader.hpp"
 #include "VPath.hpp"

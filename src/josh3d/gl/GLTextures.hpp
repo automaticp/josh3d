@@ -678,26 +678,4 @@ JOSH3D_GENERATE_TEXTURE_CLASSES(CubemapArray,   gl::GL_TEXTURE_CUBE_MAP_ARRAY)
 #undef JOSH3D_GENERATE_TEXTURE_CLASSES
 
 
-
-
-class TextureData;
-class CubemapData;
-
-// FIXME: Awkward Glue between data and gl.
-void attach_data_to_texture(BoundTexture2D<GLMutable>& tex,
-    const TextureData& data, GLenum internal_format);
-
-void attach_data_to_texture(BoundTexture2D<GLMutable>& tex,
-    const TextureData& data, GLenum internal_format, GLenum format);
-
-
-void attach_data_to_cubemap(BoundCubemap<GLMutable>& cube,
-    const CubemapData& data, GLenum internal_format);
-
-void attach_data_to_cubemap(BoundCubemap<GLMutable>& cube,
-    const CubemapData& data, GLenum internal_format, GLenum format);
-
-
-
-
 } // namespace josh
