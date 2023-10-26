@@ -1,5 +1,4 @@
 #pragma once
-#include "VertexPNTTB.hpp"
 #include <vector>
 #include <utility>
 
@@ -26,18 +25,6 @@ public:
     std::vector<unsigned>& elements() noexcept { return elements_; }
     const std::vector<unsigned>& elements() const noexcept { return elements_; }
 };
-
-
-namespace globals {
-const MeshData<VertexPNTTB>& plane_primitive()  noexcept;
-const MeshData<VertexPNTTB>& box_primitive()    noexcept;
-const MeshData<VertexPNTTB>& sphere_primitive() noexcept;
-} // namespace globals
-
-
-namespace detail {
-void init_mesh_primitives();
-} // namespace detail
 
 
 } // namespace josh

@@ -7,7 +7,7 @@
 #include "components/ChildMesh.hpp"
 #include "components/BoundingSphere.hpp"
 #include "Mesh.hpp"
-#include "MeshData.hpp"
+#include "DefaultResources.hpp"
 #include <entt/entt.hpp>
 
 
@@ -23,7 +23,7 @@ private:
             .get()
     };
 
-    Mesh sphere_{ globals::sphere_primitive() };
+    Mesh sphere_{ globals::sphere_primitive_data() };
 
 public:
     bool display{ false };

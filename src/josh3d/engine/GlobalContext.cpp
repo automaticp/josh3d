@@ -3,7 +3,6 @@
 #include "DefaultResources.hpp"
 #include "TextureHandlePool.hpp"
 #include "GLObjects.hpp"
-#include "MeshData.hpp"
 
 
 namespace josh::globals {

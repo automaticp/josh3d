@@ -6,7 +6,7 @@
 #include "Transform.hpp"
 #include "VPath.hpp"
 #include "Mesh.hpp"
-#include "MeshData.hpp"
+#include "DefaultResources.hpp"
 #include <entt/entt.hpp>
 
 
@@ -24,7 +24,7 @@ private:
     };
 
 
-    Mesh box_{ globals::box_primitive() };
+    Mesh box_{ globals::box_primitive_data() };
 
 public:
     float light_box_scale{ 0.1f };
