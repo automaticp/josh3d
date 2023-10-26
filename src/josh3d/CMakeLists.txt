@@ -1,24 +1,24 @@
-function(make_subtarget SUBTARGET_DIR)
+function(make_subtarget SUBTARGET)
 
-    set(SUBTARGET "josh3d-${SUBTARGET_DIR}")
-    file(GLOB_RECURSE LOCAL_SOURCES CONFIGURE_DEPENDS "${SUBTARGET_DIR}/*.cpp")
+    set(TARGET "josh3d-${SUBTARGET}")
+    file(GLOB_RECURSE LOCAL_SOURCES CONFIGURE_DEPENDS "${SUBTARGET}/*.cpp")
 
     if (LOCAL_SOURCES)
-        add_library(${SUBTARGET} STATIC)
-        target_sources(${SUBTARGET} PRIVATE "${LOCAL_SOURCES}")
+        add_library(${TARGET} STATIC)
+        target_sources(${TARGET} PRIVATE "${LOCAL_SOURCES}")
         set(VISIBILITY PUBLIC)
     else()
-        add_library(${SUBTARGET} INTERFACE)
+        add_library(${TARGET} INTERFACE)
         set(VISIBILITY INTERFACE)
     endif()
 
-    target_include_directories(${SUBTARGET} ${VISIBILITY} ${SUBTARGET_DIR})
-    target_compile_features(${SUBTARGET} ${VISIBILITY} cxx_std_20)
+    target_include_directories(${TARGET} ${VISIBILITY} ${SUBTARGET})
+    target_compile_features(${TARGET} ${VISIBILITY} cxx_std_20)
 
 endfunction()
 
 
-set(SUBTARGET_DIRS
+set(SUBTARGETS
     data
     engine
     filesystem
@@ -37,74 +37,109 @@ set(SUBTARGET_DIRS
 add_library(josh3d INTERFACE)
 add_library(josh3d::josh3d ALIAS josh3d)
 
-foreach(DIR IN ITEMS ${SUBTARGET_DIRS})
-    make_subtarget(${DIR})
-    target_link_libraries(josh3d INTERFACE josh3d-${DIR})
+foreach(SUBTARGET IN ITEMS ${SUBTARGETS})
+    make_subtarget(${SUBTARGET})
+    target_link_libraries(josh3d INTERFACE josh3d-${SUBTARGET})
 endforeach()
 
 
 
 
+# Resolve internal dependencies.
+# (Using short names, prefixes each subtarget with "josh3d-")
+
+
+function(subtarget_link_internal SUBTARGET)
+    set(ACCESS_MODS PUBLIC PRIVATE INTERFACE)
+    cmake_parse_arguments(ARG "" "" "${ACCESS_MODS}" ${ARGN})
+
+    message(STATUS "${SUBTARGET} -> ${ARGN}")
+
+    foreach(ACCESS IN ITEMS ${ACCESS_MODS})
+        foreach(DEP IN ITEMS ${ARG_${ACCESS}})
+            target_link_libraries(josh3d-${SUBTARGET} ${ACCESS} josh3d-${DEP})
+        endforeach()
+    endforeach()
+
+endfunction()
+
+
+subtarget_link_internal(
+    imgui
+        PUBLIC
+            engine filesystem input util
+        PRIVATE
+            data gl scene resource
+)
+subtarget_link_internal(
+    engine
+        PUBLIC
+            data filesystem gl render resource scene
+)
+subtarget_link_internal(
+    render
+        INTERFACE
+            data filesystem #[[ removable VPath]] resource #[[ removable ShaderBuilder ]] gl util
+)
+subtarget_link_internal(
+    resource
+        PUBLIC
+            data filesystem gl scene util layout
+        PRIVATE
+            render
+)
+subtarget_link_internal(
+    data
+        PUBLIC
+            filesystem util layout
+)
+subtarget_link_internal(
+    input
+        INTERFACE
+            util scene
+)
+subtarget_link_internal(
+    gl
+        PUBLIC
+            util layout
+)
+subtarget_link_internal(
+    scene
+        INTERFACE
+            util layout
+)
+subtarget_link_internal(
+    filesystem
+        PUBLIC
+            util
+)
+subtarget_link_internal(
+    layout
+)
+subtarget_link_internal(
+    util
+)
+
+
 # Common external dependencies.
-set(common_EDEPS glm::glm range-v3::range-v3 range-v3::concepts)
+set(common_external_deps glm::glm range-v3::range-v3 range-v3::concepts)
 
+function(subtarget_link_common_external_deps SUBTARGET)
 
-function(resolve_internal_and_common_external_deps SUBTARGET IDEPS PDEPS)
-
-    get_target_property(target_type ${SUBTARGET} TYPE)
+    get_target_property(target_type josh3d-${SUBTARGET} TYPE)
     if (target_type STREQUAL "INTERFACE_LIBRARY")
         set(VISIBILITY INTERFACE)
     else()
         set(VISIBILITY PUBLIC)
     endif()
 
-    message(STATUS "${SUBTARGET} IDEPS: ${IDEPS}")
-    message(STATUS "${SUBTARGET} PDEPS: ${PDEPS}")
-
-    foreach(IDEP IN ITEMS ${IDEPS})
-        target_link_libraries(${SUBTARGET} ${VISIBILITY} josh3d-${IDEP})
-    endforeach()
-
-
-    foreach(PDEP IN ITEMS ${PDEPS})
-        target_link_libraries(${SUBTARGET} PRIVATE josh3d-${PDEP})
-    endforeach()
-
-
-    target_link_libraries(${SUBTARGET} ${VISIBILITY} ${common_EDEPS})
+    target_link_libraries(josh3d-${SUBTARGET} ${VISIBILITY} ${common_external_deps})
 
 endfunction()
 
 
-# [Internal DEPendencieS] and [internal Private DEPendencieS]:
-set(imgui_IDEPS      engine filesystem input util)
-set(imgui_PDEPS      data gl scene resource)
-set(engine_IDEPS     data filesystem gl render resource scene)
-set(engine_PDEPS     )
-set(render_IDEPS     data filesystem #[[ removable VPath ]] resource #[[ removable ShaderBuilder ]] gl util)
-set(render_PDEPS     )
-set(resource_IDEPS   data filesystem gl scene util layout)
-set(resource_PDEPS   render)
-set(data_IDEPS       filesystem util layout)
-set(data_PDEPS       )
-set(input_IDEPS      util scene)
-set(input_PDEPS      )
-set(gl_IDEPS         util layout)
-set(gl_PDEPS         )
-set(scene_IDEPS      util layout)
-set(scene_PDEPS      )
-set(filesystem_IDEPS util)
-set(filesystem_PDEPS )
-set(layout_IDEPS     )
-set(layout_PDEPS     )
-set(util_IDEPS       )
-set(util_PDEPS       )
-
-
-foreach(DIR IN ITEMS ${SUBTARGET_DIRS})
-    resolve_internal_and_common_external_deps(
-        josh3d-${DIR} "${${DIR}_IDEPS}" "${${DIR}_PDEPS}"
-    )
+foreach(SUBTARGET IN ITEMS ${SUBTARGETS})
+    subtarget_link_common_external_deps(${SUBTARGET})
 endforeach()
 
 
