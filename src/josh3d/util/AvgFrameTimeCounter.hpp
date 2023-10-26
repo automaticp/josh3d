@@ -15,9 +15,10 @@ public:
     seconds_t averaging_interval{ 0.200f };
 
 private:
-    seconds_t current_frametime_until_reset_{ averaging_interval };
+    seconds_t left_until_reset_{ averaging_interval };
     seconds_t current_average_frametime_{};
-    std::vector<seconds_t> last_frametimes_;
+    seconds_t total_within_interval_{};
+    size_t    num_frames_since_last_reset_{};
 
 public:
     AvgFrameTimeCounter(seconds_t averaging_interval = 0.200f)
@@ -27,20 +28,20 @@ public:
     // Call once every frame.
     void update(seconds_t delta_time) {
 
-        last_frametimes_.push_back(delta_time);
-        current_frametime_until_reset_ -= delta_time;
-
-        if (current_frametime_until_reset_ < 0.0f) {
+        ++num_frames_since_last_reset_;
+        total_within_interval_ += delta_time;
+        left_until_reset_      -= delta_time;
+        if (left_until_reset_ < 0.0f) {
 
             current_average_frametime_ =
-                compute_average_from_buffer_and_reset();
+                compute_average_and_reset();
 
             // Subtract the time overflow from the next interval.
             // If the resulting interval is less than current frametime,
             // then just update average every frame (no average).
-            current_frametime_until_reset_ = std::max(
+            left_until_reset_ = std::max(
                 0.f,
-                current_frametime_until_reset_ + averaging_interval
+                left_until_reset_ + averaging_interval
             );
         }
     }
@@ -57,14 +58,12 @@ public:
 
 private:
     [[nodiscard]]
-    seconds_t compute_average_from_buffer_and_reset() {
+    seconds_t compute_average_and_reset() {
         seconds_t avg_frametime =
-            std::reduce(
-                last_frametimes_.begin(), last_frametimes_.end()
-            )
-            / static_cast<float>(last_frametimes_.size());
+            total_within_interval_ / float(num_frames_since_last_reset_);
 
-        last_frametimes_.clear();
+        total_within_interval_       = 0.f;
+        num_frames_since_last_reset_ = 0;
 
         return avg_frametime;
     }
