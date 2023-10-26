@@ -18,6 +18,7 @@ void clear_all() {
     texture_data_pool.clear();
     texture_handle_pool.clear();
     detail::reset_default_textures();
+    detail::reset_mesh_primitives();
 }
 
 

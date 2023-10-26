@@ -79,7 +79,7 @@ subtarget_link_internal(
 subtarget_link_internal(
     render
         INTERFACE
-            data filesystem #[[ removable VPath]] resource #[[ removable ShaderBuilder ]] gl util
+            data gl util layout
 )
 subtarget_link_internal(
     resource

@@ -1,8 +1,7 @@
 #pragma once
-#include "GLShaders.hpp"
+#include "GLObjects.hpp"
 #include "GLScalars.hpp"
 #include "LightCasters.hpp"
-#include "QuadRenderer.hpp"
 #include "SSBOWithIntermediateBuffer.hpp"
 #include "ShaderBuilder.hpp"
 #include "SharedStorage.hpp"
@@ -64,8 +63,6 @@ private:
     SSBOWithIntermediateBuffer<CascadeParams> cascade_params_ssbo_{
         3, gl::GL_DYNAMIC_DRAW
     };
-
-    QuadRenderer quad_renderer_;
 
 public:
     PointShadowParams point_params;

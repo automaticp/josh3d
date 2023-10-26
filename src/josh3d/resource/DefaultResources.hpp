@@ -1,6 +1,7 @@
 #pragma once
 #include "GLMutability.hpp"
 #include "GLTextures.hpp"
+#include "Mesh.hpp"
 #include "VertexPNTTB.hpp"
 #include "MeshData.hpp"
 
@@ -15,6 +16,11 @@ RawTexture2D<GLConst> default_normal_texture()   noexcept;
 const MeshData<VertexPNTTB>& plane_primitive_data()  noexcept;
 const MeshData<VertexPNTTB>& box_primitive_data()    noexcept;
 const MeshData<VertexPNTTB>& sphere_primitive_data() noexcept;
+
+const Mesh& plane_primitive_mesh()  noexcept;
+const Mesh& box_primitive_mesh()    noexcept;
+const Mesh& sphere_primitive_mesh() noexcept;
+const Mesh& quad_primitive_mesh()   noexcept;
 } // namespace globals
 
 
@@ -22,6 +28,7 @@ namespace detail {
 void init_default_textures();
 void reset_default_textures();
 void init_mesh_primitives();
+void reset_mesh_primitives();
 } // namespace detail
 
 

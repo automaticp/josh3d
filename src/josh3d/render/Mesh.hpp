@@ -3,6 +3,7 @@
 #include "GLScalars.hpp"
 #include "AttributeParams.hpp" // IWYU pragma: keep (concepts)
 #include "MeshData.hpp"
+#include <glbinding/gl/enum.h>
 #include <glbinding/gl/gl.h>
 
 
@@ -12,14 +13,16 @@ namespace josh {
 class Mesh {
 private:
     UniqueVBO vbo_;
-    UniqueVAO vao_;
     UniqueEBO ebo_;
+    UniqueVAO vao_;
     GLsizei num_elements_;
+    GLsizei num_vertices_;
 
 public:
     template<vertex V>
     Mesh(const MeshData<V>& data)
-        : num_elements_{ static_cast<gl::GLsizei>(data.elements().size()) }
+        : num_elements_{ GLsizei(data.elements().size()) }
+        , num_vertices_{ GLsizei(data.vertices().size()) }
     {
         using enum GLenum;
 
@@ -31,8 +34,10 @@ public:
                     .specify_data<V>(data.vertices(), GL_STATIC_DRAW)
                     .template associate_with<V>(bvao);
 
-                ebo_.bind()
-                    .specify_data<GLuint>(data.elements(), GL_STATIC_DRAW);
+                if (is_indexed()) {
+                    ebo_.bind()
+                       .specify_data<GLuint>(data.elements(), GL_STATIC_DRAW);
+                }
 
             })
             .unbind();
@@ -41,17 +46,26 @@ public:
     void draw() const {
         using enum GLenum;
 
-        vao_.bind()
-            .draw_elements(GL_TRIANGLES, num_elements_, GL_UNSIGNED_INT);
+        if (is_indexed()) {
+            vao_.bind().draw_elements(GL_TRIANGLES, num_elements_, GL_UNSIGNED_INT);
+        } else {
+            vao_.bind().draw_arrays(GL_TRIANGLES, 0, num_vertices_);
+        }
     }
 
-    void draw_instanced(GLsizei count) const {
+    void draw_instanced(GLsizei instance_count) const {
         using enum GLenum;
 
-        vao_.bind()
-            .draw_elements_instanced(GL_TRIANGLES, num_elements_, GL_UNSIGNED_INT, count);
+        if (is_indexed()) {
+            vao_.bind()
+                .draw_elements_instanced(GL_TRIANGLES, num_elements_, GL_UNSIGNED_INT, instance_count);
+        } else {
+            vao_.bind()
+                .draw_arrays_instanced(GL_TRIANGLES, 0, num_vertices_, instance_count);
+        }
     }
 
+    bool is_indexed() const noexcept { return bool(num_elements_); }
 
 };
 

@@ -1,12 +1,12 @@
 #pragma once
+#include "DefaultResources.hpp"
 #include "LightCasters.hpp"
-#include "QuadRenderer.hpp"
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
-#include "SkyboxRenderer.hpp"
 #include "components/Skybox.hpp"
 #include "VPath.hpp"
 #include <entt/entt.hpp>
+#include <glbinding/gl/functions.h>
 #include <glbinding/gl/gl.h>
 #include <glm/geometric.hpp>
 #include <glm/matrix.hpp>
@@ -31,8 +31,12 @@ public:
     };
 
 private:
-    SkyboxRenderer skybox_renderer_;
-    QuadRenderer   quad_renderer_;
+    UniqueShaderProgram sp_skybox_{
+        ShaderBuilder()
+            .load_vert(VPath("src/shaders/skybox.vert"))
+            .load_frag(VPath("src/shaders/skybox.frag"))
+            .get()
+    };
 
     UniqueShaderProgram sp_proc_{
         ShaderBuilder()
@@ -62,13 +66,30 @@ private:
         const RenderEnginePrimaryInterface& engine,
         const entt::registry& registry)
     {
+        using namespace gl;
+
         glm::mat4 projection = engine.camera().projection_mat();
         glm::mat4 view       = engine.camera().view_mat();
 
         engine.draw([&, this] {
 
             for (auto [e, skybox] : registry.view<const components::Skybox>().each()) {
-                skybox_renderer_.draw(*skybox.cubemap, projection, view);
+
+                glDepthMask(GL_FALSE);
+                glDepthFunc(GL_LEQUAL);
+
+                skybox.cubemap->bind_to_unit_index(0);
+                sp_skybox_.use()
+                    .uniform("projection", projection)
+                    .uniform("view", glm::mat4{ glm::mat3{ view } })
+                    .uniform("cubemap", 0)
+                    .and_then([] {
+                        globals::box_primitive_mesh().draw();
+                    });
+
+                glDepthMask(GL_TRUE);
+                glDepthFunc(GL_LESS);
+
             }
 
         });
@@ -103,11 +124,11 @@ private:
                 .uniform("sun_color", procedural_sky_params.sun_color)
                 .uniform("sun_size_rad",
                     glm::radians(procedural_sky_params.sun_size_deg))
-                .and_then([this] {
+                .and_then([] {
                     glDepthMask(GL_FALSE);
                     glDepthFunc(GL_LEQUAL);
 
-                    quad_renderer_.draw();
+                    globals::quad_primitive_mesh().draw();
 
                     glDepthMask(GL_TRUE);
                     glDepthFunc(GL_LESS);

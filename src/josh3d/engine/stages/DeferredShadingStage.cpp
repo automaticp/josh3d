@@ -1,4 +1,5 @@
 #include "DeferredShadingStage.hpp"
+#include "DefaultResources.hpp"
 #include "GLShaders.hpp"
 #include "LightCasters.hpp"
 #include "tags/ShadowCasting.hpp"
@@ -81,9 +82,9 @@ void DeferredShadingStage::draw_main(
         ashp.uniform("cam_pos", engine.camera().transform.position());
 
 
-        engine.draw([&, this] {
+        engine.draw([] {
             glDisable(GL_DEPTH_TEST);
-            quad_renderer_.draw();
+            globals::quad_primitive_mesh().draw();
             glEnable(GL_DEPTH_TEST);
         });
 
@@ -121,9 +122,9 @@ void DeferredShadingStage::draw_debug_csm(
 
 
 
-        engine.draw([&, this] {
+        engine.draw([] {
             glDisable(GL_DEPTH_TEST);
-            quad_renderer_.draw();
+            globals::quad_primitive_mesh().draw();
             glEnable(GL_DEPTH_TEST);
         });
     });

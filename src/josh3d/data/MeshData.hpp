@@ -14,6 +14,10 @@ private:
 public:
     MeshData() = default;
 
+    MeshData(std::vector<VertexT> vertices)
+        : vertices_{ std::move(vertices) }
+    {}
+
     MeshData(std::vector<VertexT> vertices, std::vector<unsigned> elements)
         : vertices_{ std::move(vertices) }
         , elements_{ std::move(elements) }
