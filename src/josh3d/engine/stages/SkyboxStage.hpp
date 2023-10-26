@@ -4,7 +4,7 @@
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
 #include "SkyboxRenderer.hpp"
-#include "RenderComponents.hpp"
+#include "components/Skybox.hpp"
 #include "VPath.hpp"
 #include <entt/entt.hpp>
 #include <glbinding/gl/gl.h>

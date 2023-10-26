@@ -1,10 +1,10 @@
 #pragma once
 #include "detail/AndThen.hpp"
 #include "detail/AsSelf.hpp"
+#include "AttributeParams.hpp"
 #include "GLMutability.hpp"
 #include "GLScalars.hpp"
 #include "GLKindHandles.hpp"
-#include "VertexConcept.hpp" // IWYU pragma: keep (concepts)
 #include "detail/MagicConstructorsMacro.hpp"
 #include <glbinding/gl/gl.h>
 
@@ -102,7 +102,7 @@ struct BoundVAOImplMutable
     CRTP& associate_with(
         const BoundVBO<MutT>& vbo [[maybe_unused]])
     {
-        return enable_many_attribute_params(VertexT::get_attributes());
+        return enable_many_attribute_params(attribute_traits<VertexT>::get_params());
     }
 
 

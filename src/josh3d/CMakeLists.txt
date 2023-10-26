@@ -24,6 +24,8 @@ set(SUBTARGET_DIRS
     filesystem
     gl
     imgui
+    input
+    layout
     render
     resource
     scene
@@ -47,7 +49,7 @@ endforeach()
 set(common_EDEPS glm::glm range-v3::range-v3 range-v3::concepts)
 
 
-function(resolve_internal_and_common_external_deps SUBTARGET IDEPS)
+function(resolve_internal_and_common_external_deps SUBTARGET IDEPS PDEPS)
 
     get_target_property(target_type ${SUBTARGET} TYPE)
     if (target_type STREQUAL "INTERFACE_LIBRARY")
@@ -56,39 +58,63 @@ function(resolve_internal_and_common_external_deps SUBTARGET IDEPS)
         set(VISIBILITY PUBLIC)
     endif()
 
-    message(DEBUG "${SUBTARGET} IDEPS: ${IDEPS}")
+    message(STATUS "${SUBTARGET} IDEPS: ${IDEPS}")
+    message(STATUS "${SUBTARGET} PDEPS: ${PDEPS}")
 
     foreach(IDEP IN ITEMS ${IDEPS})
         target_link_libraries(${SUBTARGET} ${VISIBILITY} josh3d-${IDEP})
     endforeach()
+
+
+    foreach(PDEP IN ITEMS ${PDEPS})
+        target_link_libraries(${SUBTARGET} PRIVATE josh3d-${PDEP})
+    endforeach()
+
 
     target_link_libraries(${SUBTARGET} ${VISIBILITY} ${common_EDEPS})
 
 endfunction()
 
 
-# Internal DEPendencieS:
-set(data_IDEPS       filesystem util)
-set(engine_IDEPS     data filesystem gl render)
+# [Internal DEPendencieS] and [internal Private DEPendencieS]:
+set(imgui_IDEPS      engine filesystem input util)
+set(imgui_PDEPS      data gl scene resource)
+set(engine_IDEPS     data filesystem gl render resource scene)
+set(engine_PDEPS     )
+set(render_IDEPS     data filesystem #[[ removable VPath ]] resource #[[ removable ShaderBuilder ]] gl util)
+set(render_PDEPS     )
+set(resource_IDEPS   data filesystem gl scene util)
+set(resource_PDEPS   render)
+set(data_IDEPS       filesystem util layout)
+set(data_PDEPS       resource #[[ maybe DefaultResources is a better place? ]])
+set(input_IDEPS      util scene)
+set(input_PDEPS      )
+set(gl_IDEPS         util layout)
+set(gl_PDEPS         data #[[ remove, for texture data loading (move to resource?) ]])
+set(scene_IDEPS      util layout)
+set(scene_PDEPS      )
 set(filesystem_IDEPS util)
-set(gl_IDEPS         util render #[[ removable, belongs to gl ]])
-set(imgui_IDEPS      data engine filesystem gl scene resource util)
-set(render_IDEPS     data filesystem #[[ removable ]] gl resource #[[ removable ]] util)
-set(resource_IDEPS   data filesystem gl render #[[ maybe removable ]] util)
-set(scene_IDEPS      engine #[[ removable ]] gl util)
-set(util_IDEPS       scene #[[ removable, needs input target ]])
+set(filesystem_PDEPS )
+set(layout_IDEPS     )
+set(layout_PDEPS     resource #[[ remove get_vertex_data ]])
+set(util_IDEPS       )
+set(util_PDEPS       )
 
 
 foreach(DIR IN ITEMS ${SUBTARGET_DIRS})
-    resolve_internal_and_common_external_deps(josh3d-${DIR} "${${DIR}_IDEPS}")
+    resolve_internal_and_common_external_deps(
+        josh3d-${DIR} "${${DIR}_IDEPS}" "${${DIR}_PDEPS}"
+    )
 endforeach()
 
 
 target_link_libraries(josh3d-data     PRIVATE   stb::stb assimp::assimp)
 target_link_libraries(josh3d-engine   PUBLIC    glfwpp::glfwpp EnTT::EnTT)
 target_link_libraries(josh3d-gl       PUBLIC    glbinding::glbinding)
-target_link_libraries(josh3d-imgui    PRIVATE   imgui::imgui glfwpp::glfwpp)
+target_link_libraries(josh3d-imgui    PUBLIC    imgui::imgui PRIVATE glfwpp::glfwpp)
 target_link_libraries(josh3d-resource PUBLIC    #[[ should be private ]] assimp::assimp)
+# target_link_libraries(josh3d-render)
+target_link_libraries(josh3d-layout   PRIVATE   assimp::assimp #[[ oh, jesus, it's the vertex data loading ]])
 target_link_libraries(josh3d-scene    INTERFACE EnTT::EnTT)
-target_link_libraries(josh3d-util     INTERFACE glbinding::glbinding glbinding::glbinding-aux glfwpp::glfwpp)
+target_link_libraries(josh3d-util     PUBLIC    glbinding::glbinding glbinding::glbinding-aux glfwpp::glfwpp)
 

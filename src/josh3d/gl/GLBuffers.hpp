@@ -6,6 +6,7 @@
 #include "GLScalars.hpp"
 #include "GLKindHandles.hpp"
 #include "GLVertexArray.hpp"
+#include "AttributeParams.hpp" // IWYU pragma: keep (concepts)
 #include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
@@ -297,13 +298,13 @@ struct BoundBufferMutableImpl
 template<typename CRTP>
 struct BoundBufferVBOAssociate {
 
-    template<typename VertexT>
+    template<vertex VertexT>
     CRTP& associate_with(BoundVAO<GLMutable>& bvao) {
         bvao.associate_with<VertexT>(static_cast<CRTP&>(*this));
         return static_cast<CRTP&>(*this);
     }
 
-    template<typename VertexT>
+    template<vertex VertexT>
     CRTP& associate_with(BoundVAO<GLMutable>&& bvao) {
         return associate_with<VertexT>(bvao);
     }

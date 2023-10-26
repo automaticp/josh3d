@@ -1,7 +1,12 @@
 #include "ModelComponentsRegistryHook.hpp"
-#include "FrustumCuller.hpp"
 #include "ImGuiHelpers.hpp"
-#include "RenderComponents.hpp"
+#include "components/Materials.hpp"
+#include "components/Model.hpp"
+#include "components/Name.hpp"
+#include "components/Path.hpp"
+#include "components/VPath.hpp"
+#include "tags/AlphaTested.hpp"
+#include "tags/Culled.hpp"
 #include "Transform.hpp"
 #include "GLTextures.hpp"
 #include "AssimpModelLoader.hpp"
@@ -221,14 +226,14 @@ void ModelComponentsRegistryHook::model_list_widget(
     auto to_remove = on_value_change_from<entt::entity>(
         entt::null,
         [&](const entt::entity& model_ent) {
-            auto& model = registry.get<ModelComponent>(model_ent);
+            auto& model = registry.get<components::Model>(model_ent);
             registry.destroy(model.meshes().begin(), model.meshes().end());
             registry.destroy(model_ent);
         }
     );
 
     for (auto [e, transform, model_component]
-        : registry.view<Transform, ModelComponent>().each())
+        : registry.view<Transform, components::Model>().each())
     {
         components::Path* path = registry.try_get<components::Path>(e);
         const char* path_cstr = path ? path->c_str() : "(No Path)";

@@ -1,5 +1,5 @@
 #include "LightComponentsRegistryHook.hpp"
-#include "RenderComponents.hpp"
+#include "tags/ShadowCasting.hpp"
 #include "ImGuiHelpers.hpp"
 #include <entt/core/fwd.hpp>
 #include <entt/entity/entity.hpp>

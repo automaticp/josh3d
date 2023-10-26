@@ -1,10 +1,9 @@
 #pragma once
-#include "CameraBase.hpp"
+#include "detail/CameraBase.hpp"
 #include "Transform.hpp"
 #include "ViewFrustum.hpp"
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/glm.hpp>
-
 
 
 namespace josh {

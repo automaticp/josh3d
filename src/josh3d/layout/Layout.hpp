@@ -3,15 +3,16 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-namespace josh {
 
+/*
+Some constants to help deal with layout and alignment requirements of UBOs and SSBOs.
+Not complete.
 
+See "7.6.2.2 Standard Uniform Block Layout" in OpenGL spec
+https://registry.khronos.org/OpenGL/specs/gl/
+*/
+namespace josh::layout {
 
-// Some constants to help deal with layout and alignment requirements of UBOs and SSBOs.
-// Not complete.
-namespace layout {
-// See "7.6.2.2 Standard Uniform Block Layout" in OpenGL spec
-// https://registry.khronos.org/OpenGL/specs/gl/
 
 template<size_t RoundTo>
 constexpr size_t round_up_to(size_t value) noexcept {
@@ -44,8 +45,4 @@ constexpr size_t base_alignment_of_vec3 = base_alignment_of_vector<glm::vec3>;
 constexpr size_t base_alignment_of_vec4 = base_alignment_of_vector<glm::vec4>;
 
 
-} // namespace layout
-
-
-
-}
+} // namespace josh::layout

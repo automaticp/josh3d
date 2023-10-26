@@ -1,7 +1,5 @@
 #pragma once
-#include "GLScalars.hpp"
 #include "VertexPNTTB.hpp"
-#include <glbinding/gl/gl.h>
 #include <vector>
 #include <utility>
 
@@ -12,12 +10,12 @@ template<typename VertexT>
 class MeshData {
 private:
     std::vector<VertexT> vertices_;
-    std::vector<GLuint> elements_;
+    std::vector<unsigned> elements_;
 
 public:
     MeshData() = default;
 
-    MeshData(std::vector<VertexT> vertices, std::vector<GLuint> elements)
+    MeshData(std::vector<VertexT> vertices, std::vector<unsigned> elements)
         : vertices_{ std::move(vertices) }
         , elements_{ std::move(elements) }
     {}
@@ -25,8 +23,8 @@ public:
     std::vector<VertexT>& vertices() noexcept { return vertices_; }
     const std::vector<VertexT>& vertices() const noexcept { return vertices_; }
 
-    std::vector<GLuint>& elements() noexcept { return elements_; }
-    const std::vector<GLuint>& elements() const noexcept { return elements_; }
+    std::vector<unsigned>& elements() noexcept { return elements_; }
+    const std::vector<unsigned>& elements() const noexcept { return elements_; }
 };
 
 

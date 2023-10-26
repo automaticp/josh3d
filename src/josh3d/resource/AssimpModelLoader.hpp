@@ -3,7 +3,7 @@
 #include "Filesystem.hpp"
 #include "GLObjects.hpp"
 #include "MeshData.hpp"
-#include "Model.hpp"
+#include "components/Model.hpp"
 #include "RuntimeError.hpp"
 #include "VertexPNT.hpp"
 #include <assimp/Exceptional.h>
@@ -238,7 +238,7 @@ private:
 public:
     using Base::Base;
 
-    ModelComponent& load_into(entt::handle model_handle, const File& file)
+    components::Model& load_into(entt::handle model_handle, const File& file)
     {
         // FIXME: Who specifies this?
         add_flags(aiProcess_CalcTangentSpace);
@@ -262,7 +262,7 @@ public:
             emplace_mesh(output_meshes, mesh, model_handle, context);
         }
 
-        return model_handle.emplace<ModelComponent>(std::move(output_meshes));
+        return model_handle.emplace<components::Model>(std::move(output_meshes));
     }
 
 private:

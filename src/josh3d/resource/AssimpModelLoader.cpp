@@ -1,12 +1,15 @@
 #include "AssimpModelLoader.hpp"
-#include "RenderComponents.hpp"
 #include "Mesh.hpp"
-#include "RenderComponents.hpp"
+#include "components/ChildMesh.hpp"
+#include "components/BoundingSphere.hpp"
+#include "components/Name.hpp"
+#include "components/Materials.hpp"
+#include "tags/AlphaTested.hpp"
 #include "Transform.hpp"
 #include "VertexPNTTB.hpp"
 #include "TextureHandlePool.hpp"
-#include <algorithm>
 #include <entt/entt.hpp>
+#include <algorithm>
 #include <functional>
 
 

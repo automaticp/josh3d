@@ -1,7 +1,7 @@
 #include "DeferredShadingStage.hpp"
 #include "GLShaders.hpp"
 #include "LightCasters.hpp"
-#include "RenderComponents.hpp"
+#include "tags/ShadowCasting.hpp"
 #include "RenderEngine.hpp"
 #include <entt/entity/registry.hpp>
 #include <glbinding/gl/gl.h>

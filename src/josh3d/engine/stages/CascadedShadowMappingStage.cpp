@@ -2,7 +2,9 @@
 #include "GLMutability.hpp"
 #include "GLShaders.hpp"
 #include "Logging.hpp"
-#include "RenderComponents.hpp"
+#include "tags/AlphaTested.hpp"
+#include "tags/CulledFromCSM.hpp"
+#include "components/Materials.hpp"
 #include "Transform.hpp"
 #include "Mesh.hpp"
 #include "ULocation.hpp"
@@ -72,13 +74,13 @@ static void draw_all_world_geometry_no_alpha_test(
 
     draw_from_view(
         registry.view<Transform, Mesh>(
-            entt::exclude<tags::AlphaTested, tags::CulledFromCascadedShadowMapping>
+            entt::exclude<tags::AlphaTested, tags::CulledFromCSM>
         )
     );
 
     draw_from_view(
         registry.view<Transform, Mesh, tags::AlphaTested>(
-            entt::exclude<components::MaterialDiffuse, tags::CulledFromCascadedShadowMapping>
+            entt::exclude<components::MaterialDiffuse, tags::CulledFromCSM>
         )
     );
 
@@ -94,7 +96,7 @@ static void draw_all_world_geometry_with_alpha_test(
 
     auto meshes_with_alpha_view =
         registry.view<Transform, Mesh, components::MaterialDiffuse, tags::AlphaTested>(
-            entt::exclude<tags::CulledFromCascadedShadowMapping>
+            entt::exclude<tags::CulledFromCSM>
         );
 
     for (auto [entity, transform, mesh, diffuse]

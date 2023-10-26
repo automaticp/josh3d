@@ -1,8 +1,6 @@
 #pragma once
-#include <glbinding/gl/gl.h>
 #include <glfwpp/glfwpp.h>
 #include <glfwpp/window.h>
-#include <glm/glm.hpp>
 #include <concepts>
 #include <functional>
 #include <unordered_map>

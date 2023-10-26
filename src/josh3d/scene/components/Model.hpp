@@ -1,15 +1,10 @@
 #pragma once
-#include "GLObjects.hpp"
 #include <entt/entity/entity.hpp>
-#include <entt/entity/registry.hpp>
-#include <glbinding/gl/types.h>
-#include <cassert>
 #include <utility>
 #include <vector>
 
 
-
-namespace josh {
+namespace josh::components {
 
 
 /*
@@ -26,12 +21,12 @@ set<Mesh>
 Transform
 
 */
-class ModelComponent {
+class Model {
 private:
     std::vector<entt::entity> meshes_;
 
 public:
-    explicit ModelComponent(std::vector<entt::entity> meshes)
+    explicit Model(std::vector<entt::entity> meshes)
         : meshes_{ std::move(meshes) }
     {}
 
@@ -39,6 +34,4 @@ public:
 };
 
 
-
-
-} // namespace josh
+} // namespace josh::components

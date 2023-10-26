@@ -4,7 +4,8 @@
 #include "ShaderBuilder.hpp"
 #include "Transform.hpp"
 #include "VPath.hpp"
-#include "RenderComponents.hpp"
+#include "components/ChildMesh.hpp"
+#include "components/BoundingSphere.hpp"
 #include "Mesh.hpp"
 #include "MeshData.hpp"
 #include <entt/entt.hpp>

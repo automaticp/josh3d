@@ -1,9 +1,8 @@
 #pragma once
+#include "detail/CameraBase.hpp"
 #include "Transform.hpp"
 #include "ViewFrustum.hpp"
-#include "CameraBase.hpp"
 #include <glm/ext/matrix_clip_space.hpp>
-#include <glm/fwd.hpp>
 #include <glm/glm.hpp>
 
 

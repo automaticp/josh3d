@@ -1,8 +1,8 @@
 #pragma once
 #include "GLObjects.hpp"
 #include "GLScalars.hpp"
+#include "AttributeParams.hpp" // IWYU pragma: keep (concepts)
 #include "MeshData.hpp"
-#include "VertexConcept.hpp"
 #include <glbinding/gl/gl.h>
 
 
@@ -45,14 +45,12 @@ public:
             .draw_elements(GL_TRIANGLES, num_elements_, GL_UNSIGNED_INT);
     }
 
-
     void draw_instanced(GLsizei count) const {
         using enum GLenum;
 
         vao_.bind()
             .draw_elements_instanced(GL_TRIANGLES, num_elements_, GL_UNSIGNED_INT, count);
     }
-
 
 
 };
