@@ -3,14 +3,12 @@
 #include "Attachments.hpp"
 #include "FrustumCuller.hpp"
 #include "GLTextures.hpp"
+#include "ImGuiApplicationAssembly.hpp"
 #include "TextureHelpers.hpp"
 #include "PerspectiveCamera.hpp"
 #include "CubemapData.hpp"
-#include "ImGuiContextWrapper.hpp"
 #include "ImGuiRegistryHooks.hpp"
 #include "ImGuiStageHooks.hpp"
-#include "ImGuiVFSControl.hpp"
-#include "ImGuiWindowSettings.hpp"
 #include "Input.hpp"
 #include "InputFreeCamera.hpp"
 #include "LightCasters.hpp"
@@ -57,7 +55,6 @@
 #include <entt/entt.hpp>
 #include <glbinding/gl/enum.h>
 #include <glfwpp/window.h>
-#include <imgui.h>
 
 
 namespace leaksjosh {
@@ -93,11 +90,7 @@ private:
     CascadeViewsBuilder csm_info_builder_{ 5 };
     FrustumCuller culler_{ registry_ };
 
-    ImGuiContextWrapper imgui_{ window_ };
-    ImGuiWindowSettings imgui_window_settings_{ window_ };
-    ImGuiVFSControl     imgui_vfs_control_{ vfs() };
-    ImGuiStageHooks     imgui_stage_hooks_;
-    ImGuiRegistryHooks  imgui_registry_hooks_{ registry_ };
+    ImGuiApplicationAssembly imgui_{ window_, registry_, vfs() };
 
 public:
     DemoScene(glfw::Window& window)
@@ -138,40 +131,40 @@ public:
         auto gbugger     = rengine_.make_overlay_stage<OverlayGBufferDebugStage>(gbuffer.target().get_read_view());
 
 
-        imgui_stage_hooks_.add_hook("Point Shadow Mapping",
+        imgui_.stage_hooks().add_primary_hook("Point Shadow Mapping",
             imguihooks::PointShadowMappingStageHook(psmapping));
 
-        imgui_stage_hooks_.add_hook("Cascaded Shadow Mapping",
+        imgui_.stage_hooks().add_primary_hook("Cascaded Shadow Mapping",
             imguihooks::CascadedShadowMappingStageHook(csm_info_builder_, csmapping));
 
-        imgui_stage_hooks_.add_hook("GBuffer",
+        imgui_.stage_hooks().add_primary_hook("GBuffer",
             imguihooks::GBufferStageHook(gbuffer));
 
-        imgui_stage_hooks_.add_hook("Deferred Shading",
+        imgui_.stage_hooks().add_primary_hook("Deferred Shading",
             imguihooks::DeferredShadingStageHook(defshad));
 
-        imgui_stage_hooks_.add_hook("Point Light Boxes",
+        imgui_.stage_hooks().add_primary_hook("Point Light Boxes",
             imguihooks::PointLightSourceBoxStageHook(plightboxes));
 
-        imgui_stage_hooks_.add_hook("Bounding Spheres",
+        imgui_.stage_hooks().add_primary_hook("Bounding Spheres",
             imguihooks::BoundingSphereDebugStageHook(cullspheres));
 
-        imgui_stage_hooks_.add_hook("Sky",
+        imgui_.stage_hooks().add_primary_hook("Sky",
             imguihooks::SkyboxStageHook(skyboxing));
 
-        imgui_stage_hooks_.add_postprocess_hook("Fog",
+        imgui_.stage_hooks().add_postprocess_hook("Fog",
             imguihooks::PostprocessFogStageHook(fog));
 
-        imgui_stage_hooks_.add_postprocess_hook("Bloom",
+        imgui_.stage_hooks().add_postprocess_hook("Bloom",
             imguihooks::PostprocessBloomStageHook(blooming));
 
-        imgui_stage_hooks_.add_postprocess_hook("HDR Eye Adaptation",
+        imgui_.stage_hooks().add_postprocess_hook("HDR Eye Adaptation",
             imguihooks::PostprocessHDREyeAdaptationStageHook(hdreyeing));
 
-        imgui_stage_hooks_.add_postprocess_hook("FXAA",
+        imgui_.stage_hooks().add_postprocess_hook("FXAA",
             imguihooks::PostprocessFXAAStageHook(fxaaaaaaa));
 
-        imgui_stage_hooks_.add_overlay_hook("GBuffer Debug Overlay",
+        imgui_.stage_hooks().add_overlay_hook("GBuffer Debug Overlay",
             imguihooks::OverlayGBufferDebugStageHook(gbugger));
 
 
@@ -193,10 +186,10 @@ public:
         rengine_.add_next_overlay_stage(std::move(gbugger));
 
 
-        imgui_registry_hooks_.add_hook("Lights", imguihooks::LightComponentsRegistryHook());
-        imgui_registry_hooks_.add_hook("Models", imguihooks::ModelComponentsRegistryHook());
-        imgui_registry_hooks_.add_hook("Camera", imguihooks::PerspectiveCameraHook(cam_));
-        imgui_registry_hooks_.add_hook("Skybox", imguihooks::SkyboxRegistryHook());
+        imgui_.registry_hooks().add_hook("Lights", imguihooks::LightComponentsRegistryHook());
+        imgui_.registry_hooks().add_hook("Models", imguihooks::ModelComponentsRegistryHook());
+        imgui_.registry_hooks().add_hook("Camera", imguihooks::PerspectiveCameraHook(cam_));
+        imgui_.registry_hooks().add_hook("Skybox", imguihooks::SkyboxRegistryHook());
 
         init_registry();
     }
@@ -204,6 +197,8 @@ public:
     void process_input() {}
 
     void update() {
+        update_input_blocker_from_imgui_io_state();
+
         input_freecam_.update();
 
         csm_info_builder_.build_from_camera(rengine_.camera(),
@@ -216,18 +211,13 @@ public:
     }
 
     void render() {
+
         imgui_.new_frame();
 
         rengine_.render();
 
-        imgui_window_settings_.display();
-        imgui_vfs_control_.display();
-        imgui_registry_hooks_.display();
-        imgui_stage_hooks_.display();
+        imgui_.display();
 
-        imgui_.render();
-
-        update_input_blocker_from_imgui_io_state();
     }
 
 private:
@@ -247,10 +237,7 @@ inline void DemoScene::configure_input() {
 
     input_.set_keybind(glfw::KeyCode::T, [this](const KeyCallbackArgs& args) {
         if (args.is_released()) {
-            imgui_window_settings_.hidden ^= true;
-            imgui_vfs_control_.hidden ^= true;
-            imgui_stage_hooks_.hidden ^= true;
-            imgui_registry_hooks_.hidden ^= true;
+            imgui_.toggle_hidden();
         }
     });
 
@@ -331,11 +318,13 @@ inline void DemoScene::init_registry() {
 
 
 inline void DemoScene::update_input_blocker_from_imgui_io_state() {
+
+    auto wants = imgui_.get_io_wants();
     // FIXME: Need a way to stop the ImGui window from recieving
     // mouse events when I'm in free cam.
-    input_blocker_.block_keys = ImGui::GetIO().WantCaptureKeyboard;
+    input_blocker_.block_keys = wants.capture_keyboard;
     input_blocker_.block_scroll =
-        ImGui::GetIO().WantCaptureMouse &&
+        wants.capture_mouse &&
         input_freecam_.state().is_cursor_mode;
 }
 

@@ -16,12 +16,13 @@ void ImGuiStageHooks::display() {
     if (ImGui::Begin("Render Stages")) {
 
         if (ImGui::CollapsingHeader("Primary")) {
-            for (size_t i{ 0 }; i < hooks_.size(); ++i) {
+            auto& hooks = hooks_container_.primary_hook_entries_;
+            for (size_t i{ 0 }; i < hooks.size(); ++i) {
 
                 ImGui::PushID(int(i));
-                if (ImGui::TreeNode(hooks_[i].name.c_str())) {
+                if (ImGui::TreeNode(hooks[i].name.c_str())) {
 
-                    hooks_[i].hook();
+                    hooks[i].hook();
 
                     ImGui::TreePop();
                 }
@@ -31,12 +32,13 @@ void ImGuiStageHooks::display() {
         }
 
         if (ImGui::CollapsingHeader("Postprocessing")) {
-            for (size_t i{ 0 }; i < pp_hooks_.size(); ++i) {
+            auto& hooks = hooks_container_.pp_hook_entries_;
+            for (size_t i{ 0 }; i < hooks.size(); ++i) {
 
                 ImGui::PushID(int(i));
-                if (ImGui::TreeNode(pp_hooks_[i].name.c_str())) {
+                if (ImGui::TreeNode(hooks[i].name.c_str())) {
 
-                    pp_hooks_[i].hook();
+                    hooks[i].hook();
 
                     ImGui::TreePop();
                 }
@@ -46,12 +48,13 @@ void ImGuiStageHooks::display() {
         }
 
         if (ImGui::CollapsingHeader("Overlays")) {
-            for (size_t i{ 0 }; i < overlay_hooks_.size(); ++i) {
+            auto& hooks = hooks_container_.overlay_hook_entries_;
+            for (size_t i{ 0 }; i < hooks.size(); ++i) {
 
                 ImGui::PushID(int(i));
-                if (ImGui::TreeNode(overlay_hooks_[i].name.c_str())) {
+                if (ImGui::TreeNode(hooks[i].name.c_str())) {
 
-                    overlay_hooks_[i].hook();
+                    hooks[i].hook();
 
                     ImGui::TreePop();
                 }
