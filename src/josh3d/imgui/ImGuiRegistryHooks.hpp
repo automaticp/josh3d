@@ -47,8 +47,6 @@ private:
     HooksContainer hooks_container_;
 
 public:
-    bool hidden{ false };
-
     ImGuiRegistryHooks(entt::registry& registry)
         : registry_{ registry }
     {}

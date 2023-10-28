@@ -64,8 +64,6 @@ private:
     HooksContainer hooks_container_;
 
 public:
-    bool hidden{ false };
-
     HooksContainer&       hooks() noexcept       { return hooks_container_; }
     const HooksContainer& hooks() const noexcept { return hooks_container_; }
 

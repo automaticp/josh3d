@@ -1,5 +1,4 @@
 #pragma once
-#include "AvgFrameTimeCounter.hpp"
 #include "GLFW/glfw3.h"
 #include <glfwpp/window.h>
 #include <glfwpp/monitor.h>
@@ -14,13 +13,6 @@ namespace josh {
 class ImGuiWindowSettings {
 private:
     glfw::Window& window_;
-
-
-    AvgFrameTimeCounter avg_frame_timer_{ 0.500f };
-
-    static constexpr size_t title_buf_size = 48u;
-    char title_[title_buf_size];
-
 
     bool is_vsync_on_{ false }; // FIXME: assumed, not guaranteed
     bool is_fullscreen_{
@@ -44,8 +36,6 @@ private:
     }
 
 public:
-    bool hidden{ false };
-
     ImGuiWindowSettings(glfw::Window& window) : window_{ window } {}
 
     void display();

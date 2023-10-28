@@ -175,21 +175,12 @@ void ImGuiVFSControl::debug_resolve_widget() {
 
 void ImGuiVFSControl::display() {
 
-    if (hidden) { return; }
+    roots_listbox_widget();
+    add_new_root_widget();
+    debug_resolve_widget();
 
-    ImGui::SetNextWindowSize({ 400.f, 400.f }, ImGuiCond_Once);
-    ImGui::SetNextWindowPos({ 600.f, 20.f }, ImGuiCond_Once);
-    ImGui::SetNextWindowCollapsed(true, ImGuiCond_Once);
+    ImGui::TextColored({ 1.0f, 0.5f, 0.5f, 1.0f }, "%s", exception_str_.c_str());
 
-    if (ImGui::Begin("VFS")) {
-
-        roots_listbox_widget();
-        add_new_root_widget();
-        debug_resolve_widget();
-
-        ImGui::TextColored({ 1.0f, 0.5f, 0.5f, 1.0f }, "%s", exception_str_.c_str());
-
-    } ImGui::End();
 }
 
 

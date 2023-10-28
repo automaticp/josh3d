@@ -21,8 +21,6 @@ private:
     std::string exception_str_;
 
 public:
-    bool hidden{ false };
-
     ImGuiVFSControl(VirtualFilesystem& vfs) : vfs_{ vfs } {}
 
     void display();
