@@ -1,5 +1,7 @@
 #include "ImGuiApplicationAssembly.hpp"
 #include "FrameTimer.hpp"
+#include "ImGuiHelpers.hpp"
+#include "Size.hpp"
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <cstdio>
@@ -7,6 +9,16 @@
 
 
 namespace josh {
+
+
+ImGuiApplicationAssembly::ImGuiApplicationAssembly(
+    glfw::Window& window, entt::registry& registry, VirtualFilesystem& vfs)
+    : context_{ window }
+    , window_settings_{ window }
+    , vfs_control_{ vfs }
+    , stage_hooks_{}
+    , registry_hooks_{ registry }
+{}
 
 
 ImGuiIOWants ImGuiApplicationAssembly::get_io_wants() const noexcept {
@@ -44,14 +56,20 @@ void ImGuiApplicationAssembly::new_frame() {
 }
 
 
-void ImGuiApplicationAssembly::display() {
+void ImGuiApplicationAssembly::draw_widgets() {
 
     // TODO: Keep active windows within docknodes across "hides".
-    // TODO: Autodock on initialization.
 
     auto bg_col = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
     bg_col.w = 0.f;
     ImGui::PushStyleColor(ImGuiCol_WindowBg, bg_col);
+    // FIXME: This is probably terribly broken in some way.
+    // For the frames that reset the dockspace, this initialization
+    // may be reset before OR after the widgets are drawn:
+    // in the direct call to reset_dockspace() on resize,
+    // or on_value_change_from() after the widget scope.
+    // How it still works somewhat "correctly" after both,
+    // is beyond me.
     ImGuiID dockspace_id =
         ImGui::DockSpaceOverViewport(
             ImGui::GetMainViewport(),
@@ -59,7 +77,20 @@ void ImGuiApplicationAssembly::display() {
         );
     ImGui::PopStyleColor();
 
+    // FIXME: Terrible, maybe will add "was resized" flag to WindowSizeCache instead.
+    static Size2F old_size{ 0, 0 };
+    auto vport_size = ImGui::GetMainViewport()->Size;
+    Size2F new_size = { vport_size.x, vport_size.y };
+    if (old_size != new_size) {
+        // Do the reset inplace, before the windows are submitted.
+        reset_dockspace(dockspace_id);
+        old_size = new_size;
+    }
+
     if (!is_hidden()) {
+
+        auto reset_condition = on_value_change_from(false, [&, this] { reset_dockspace(dockspace_id); });
+
         auto bg_col = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
         bg_col.w = background_alpha;
         ImGui::PushStyleColor(ImGuiCol_WindowBg, bg_col);
@@ -87,9 +118,7 @@ void ImGuiApplicationAssembly::display() {
 
             ImGui::SliderFloat("Bg. Alpha", &background_alpha, 0.f, 1.f);
 
-            if (ImGui::Button("Reset Dockspace")) {
-                reset_dockspace(dockspace_id);
-            }
+            reset_condition.set(ImGui::Button("Reset Dockspace"));
 
         } ImGui::End();
 
@@ -112,6 +141,11 @@ void ImGuiApplicationAssembly::display() {
         ImGui::PopStyleColor();
     }
 
+}
+
+
+void ImGuiApplicationAssembly::display() {
+    draw_widgets();
     context_.render();
 }
 

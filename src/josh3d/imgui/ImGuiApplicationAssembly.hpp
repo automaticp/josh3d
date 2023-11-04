@@ -53,19 +53,14 @@ private:
 
     bool hidden_{ false };
 
+    void draw_widgets();
     void reset_dockspace(unsigned int dockspace_id);
 
 public:
     float background_alpha{ 0.8f };
 
-    ImGuiApplicationAssembly(glfw::Window& window,
-        entt::registry& registry, VirtualFilesystem& vfs)
-        : context_{ window }
-        , window_settings_{ window }
-        , vfs_control_{ vfs }
-        , stage_hooks_{}
-        , registry_hooks_{ registry }
-    {}
+    ImGuiApplicationAssembly(
+        glfw::Window& window, entt::registry& registry, VirtualFilesystem& vfs);
 
     ImGuiStageHooks::HooksContainer&       stage_hooks() noexcept { return stage_hooks_.hooks(); }
     const ImGuiStageHooks::HooksContainer& stage_hooks() const noexcept { return stage_hooks_.hooks(); }
