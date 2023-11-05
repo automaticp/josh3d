@@ -1,5 +1,5 @@
 #pragma once
-#include "CommonConcepts.hpp"
+#include "CommonConcepts.hpp" // IWYU pragma: keep (concepts)
 #include <concepts>
 #include <cstddef>
 #include <memory>
@@ -62,11 +62,9 @@ private:
 
 public:
     template<typename CallableT>
-        requires (
+        requires
             not_move_or_copy_constructor_of<UniqueFunction, CallableT> &&
-            std::invocable<CallableT, ArgTs...> &&
-            std::same_as<std::invoke_result_t<CallableT, ArgTs...>, ResT>
-        )
+            of_signature<CallableT, ResT(ArgTs...)>
     UniqueFunction(CallableT&& callable)
         : target_ptr_{
             std::make_unique<
