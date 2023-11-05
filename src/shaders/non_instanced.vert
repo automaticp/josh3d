@@ -21,5 +21,5 @@ void main() {
 
     gl_Position = projection * view * vec4(frag_pos, 1.0);
 
-    normal = normal_model * in_normal;
+    normal = normalize(normal_model * in_normal);
 }
