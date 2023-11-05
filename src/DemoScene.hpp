@@ -17,6 +17,8 @@
 #include "components/Model.hpp"
 #include "components/Path.hpp"
 #include "components/Name.hpp"
+#include "hooks/TerrainComponentRegistryHook.hpp"
+#include "stages/TerrainGeometryStage.hpp"
 #include "tags/ShadowCasting.hpp"
 #include "RenderEngine.hpp"
 #include "Shared.hpp"
@@ -109,6 +111,7 @@ public:
         );
 
         auto defgeom     = rengine_.make_primary_stage<DeferredGeometryStage>(gbuffer.target().get_write_view());
+        auto terraingeom = rengine_.make_primary_stage<TerrainGeometryStage>(gbuffer.target().get_write_view());
 
         auto defshad     = rengine_.make_primary_stage<DeferredShadingStage>(
             gbuffer.target().get_read_view(),
@@ -173,6 +176,7 @@ public:
         rengine_.add_next_primary_stage(std::move(csmapping));
         rengine_.add_next_primary_stage(std::move(gbuffer));
         rengine_.add_next_primary_stage(std::move(defgeom));
+        rengine_.add_next_primary_stage(std::move(terraingeom));
         rengine_.add_next_primary_stage(std::move(defshad));
         rengine_.add_next_primary_stage(std::move(plightboxes));
         rengine_.add_next_primary_stage(std::move(cullspheres));
@@ -186,10 +190,11 @@ public:
         rengine_.add_next_overlay_stage(std::move(gbugger));
 
 
-        imgui_.registry_hooks().add_hook("Lights", imguihooks::LightComponentsRegistryHook());
-        imgui_.registry_hooks().add_hook("Models", imguihooks::ModelComponentsRegistryHook());
-        imgui_.registry_hooks().add_hook("Camera", imguihooks::PerspectiveCameraHook(cam_));
-        imgui_.registry_hooks().add_hook("Skybox", imguihooks::SkyboxRegistryHook());
+        imgui_.registry_hooks().add_hook("Lights",  imguihooks::LightComponentsRegistryHook());
+        imgui_.registry_hooks().add_hook("Models",  imguihooks::ModelComponentsRegistryHook());
+        imgui_.registry_hooks().add_hook("Camera",  imguihooks::PerspectiveCameraHook(cam_));
+        imgui_.registry_hooks().add_hook("Skybox",  imguihooks::SkyboxRegistryHook());
+        imgui_.registry_hooks().add_hook("Terrain", imguihooks::TerrainComponentRegistryHook());
 
         init_registry();
     }

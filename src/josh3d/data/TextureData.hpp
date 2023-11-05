@@ -64,7 +64,7 @@ public:
     unsigned char* data() noexcept { return data_.get(); }
     const unsigned char* data() const noexcept { return data_.get(); }
     unsigned char& operator[](size_t idx) noexcept { return data_[idx]; }
-    unsigned char operator[](size_t idx) const noexcept { return data_[idx]; }
+    const unsigned char& operator[](size_t idx) const noexcept { return data_[idx]; }
 
 private:
     TextureData(std::unique_ptr<unsigned char[], FreeDeleter> data,

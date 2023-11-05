@@ -2,9 +2,9 @@
 #include <glbinding/glbinding.h>
 #include <glfwpp/glfwpp.h>
 
+#include "DemoScene.hpp"
 #include "GlobalContext.hpp"
 #include "Logging.hpp"
-#include "DemoScene.hpp"
 #include "WindowSizeCache.hpp"
 
 

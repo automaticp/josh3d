@@ -29,6 +29,7 @@ set(SUBTARGETS
     render
     resource
     scene
+    terrain
     util
 )
 
@@ -74,7 +75,12 @@ subtarget_link_internal(
 subtarget_link_internal(
     engine
         PUBLIC
-            data filesystem gl render resource scene
+            data filesystem gl render resource scene terrain util
+)
+subtarget_link_internal(
+    terrain
+        PUBLIC
+            data gl scene resource util layout imgui #[[ well... ]]
 )
 subtarget_link_internal(
     render
