@@ -12,6 +12,7 @@
 #include "CubemapData.hpp"
 #include <concepts>
 #include <string>
+#include <tuple>
 
 
 namespace josh {
@@ -39,13 +40,13 @@ template<typename PixelT>
 [[nodiscard]] ImageData<PixelT>   load_image_from_file(const File& file);
 
 template<typename PixelT>
-[[nodiscard]] CubemapData<PixelT> load_cubemap_from_files(const File (&files)[6]);
-
-template<typename PixelT>
 [[nodiscard]] CubemapData<PixelT> load_cubemap_from_files(
     const File& posx, const File& negx,
     const File& posy, const File& negy,
     const File& posz, const File& negz);
+
+template<typename PixelT>
+[[nodiscard]] CubemapData<PixelT> load_cubemap_from_json(const File& json_file);
 
 
 template<typename PixelT>
@@ -78,6 +79,9 @@ extern template ImageStorage<float>   load_image_from_file_impl<float>(
     const File &file, size_t n_channels);
 
 
+std::array<File, 6> parse_cubemap_json_for_files(const File& json_file);
+
+
 } // namespace detail
 
 
@@ -95,19 +99,6 @@ ImageData<PixelT> load_image_from_file(const class File& file) {
 
 
 template<typename PixelT>
-CubemapData<PixelT> load_cubemap_from_files(const File (&files)[6]) {
-    return CubemapData<PixelT>{
-        load_image_from_file<PixelT>(files[0]),
-        load_image_from_file<PixelT>(files[1]),
-        load_image_from_file<PixelT>(files[2]),
-        load_image_from_file<PixelT>(files[3]),
-        load_image_from_file<PixelT>(files[4]),
-        load_image_from_file<PixelT>(files[5]),
-    };
-}
-
-
-template<typename PixelT>
 [[nodiscard]] CubemapData<PixelT> load_cubemap_from_files(
     const File& posx, const File& negx,
     const File& posy, const File& negy,
@@ -121,6 +112,13 @@ template<typename PixelT>
         load_image_from_file<PixelT>(posz),
         load_image_from_file<PixelT>(negz)
     };
+}
+
+
+template<typename PixelT>
+[[nodiscard]] CubemapData<PixelT> load_cubemap_from_json(const File& json_file) {
+    std::array<File, 6> files = detail::parse_cubemap_json_for_files(json_file);
+    return std::apply(load_cubemap_from_files<PixelT>, files);
 }
 
 

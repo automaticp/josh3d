@@ -2,6 +2,7 @@
 #include "CubemapData.hpp"
 #include "Filesystem.hpp"
 #include "GLTextures.hpp"
+#include "Pixels.hpp"
 #include "TextureHelpers.hpp"
 #include "components/Skybox.hpp"
 #include "VPath.hpp"
@@ -21,37 +22,20 @@ namespace josh::imguihooks {
 void SkyboxRegistryHook::operator()(entt::registry& registry) {
 
     if (ImGui::TreeNode("Load Skybox")) {
-        ImGui::InputText("Directory", &load_path_);
-
-        ImGui::TextUnformatted("Filenames:");
-
-        constexpr const char* side_names[]{ "+X", "-X", "+Y", "-Y", "+Z", "-Z" };
-
-        for (size_t i{ 0 }; i < 6; ++i) {
-            ImGui::PushID(int(i));
-            ImGui::InputText(side_names[i], &filenames_[i]);
-            ImGui::PopID();
-        }
+        ImGui::InputText("Cubemap JSON", &load_path_);
 
         if (ImGui::Button("Load")) {
             try {
                 Path path{ load_path_ };
-                Directory skybox_dir = std::invoke([&]() -> Directory {
+                File skybox_json = std::invoke([&]() -> File {
                     if (path.is_relative()) {
                         return VPath(path);
                     } else {
-                        return Directory(path);
+                        return File(path);
                     }
                 });
-                File files[6]{
-                    File(skybox_dir.path() / filenames_[0]),
-                    File(skybox_dir.path() / filenames_[1]),
-                    File(skybox_dir.path() / filenames_[2]),
-                    File(skybox_dir.path() / filenames_[3]),
-                    File(skybox_dir.path() / filenames_[4]),
-                    File(skybox_dir.path() / filenames_[5]),
-                };
-                auto data = load_cubemap_from_files<pixel::RGBA>(files);
+                auto data = load_cubemap_from_json<pixel::RGBA>(skybox_json);
+
                 auto skybox_e = registry.view<components::Skybox>().back();
                 if (skybox_e == entt::null) {
                     skybox_e = registry.create();

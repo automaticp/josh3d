@@ -296,13 +296,8 @@ inline void DemoScene::init_registry() {
         .and_then([&](BoundCubemap<GLMutable>& cubemap) {
             attach_data_to_cubemap(
                 cubemap,
-                load_cubemap_from_files<pixel::RGBA>(
-                    VPath("data/skyboxes/lake/right.png"),
-                    VPath("data/skyboxes/lake/left.png"),
-                    VPath("data/skyboxes/lake/top.png"),
-                    VPath("data/skyboxes/lake/bottom.png"),
-                    VPath("data/skyboxes/lake/front.png"),
-                    VPath("data/skyboxes/lake/back.png")
+                load_cubemap_from_json<pixel::RGBA>(
+                    VPath("data/skyboxes/lake/skybox.json")
                 ),
                 gl::GL_SRGB_ALPHA
             );

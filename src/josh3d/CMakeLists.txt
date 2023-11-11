@@ -153,7 +153,10 @@ endforeach()
 target_link_libraries(josh3d-engine   PUBLIC    glfwpp::glfwpp EnTT::EnTT)
 target_link_libraries(josh3d-gl       PUBLIC    glbinding::glbinding)
 target_link_libraries(josh3d-imgui    PUBLIC    imgui::imgui PRIVATE glfwpp::glfwpp)
-target_link_libraries(josh3d-resource PUBLIC    #[[ should be private ]] assimp::assimp stb::stb)
+target_link_libraries(josh3d-resource
+    PUBLIC assimp::assimp #[[ should be private ]]
+    PRIVATE stb::stb nlohmann_json::nlohmann_json
+)
 # target_link_libraries(josh3d-render)
 # target_link_libraries(josh3d-layout)
 target_link_libraries(josh3d-scene    INTERFACE EnTT::EnTT)

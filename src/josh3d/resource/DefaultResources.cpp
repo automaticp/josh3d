@@ -97,14 +97,7 @@ void detail::init_default_textures() {
     default_normal_texture_   = create_filled({ 0x7F, 0x7F, 0xFF, 0xFF }, {1, 1}, GL_RGBA);
     debug_skybox_cubemap_     = [] {
         CubemapData data{
-            load_cubemap_from_files<pixel::RGBA>(
-                VPath("data/skyboxes/debug/posx.png"),
-                VPath("data/skyboxes/debug/negx.png"),
-                VPath("data/skyboxes/debug/posy.png"),
-                VPath("data/skyboxes/debug/negy.png"),
-                VPath("data/skyboxes/debug/posz.png"),
-                VPath("data/skyboxes/debug/negz.png")
-            )
+            load_cubemap_from_json<pixel::RGBA>(VPath("data/skyboxes/debug/skybox.json"))
         };
         UniqueCubemap cube;
         cube.bind()
