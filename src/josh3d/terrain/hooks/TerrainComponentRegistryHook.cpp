@@ -1,8 +1,10 @@
 #include "TerrainComponentRegistryHook.hpp"
-#include "HeightmapData.hpp"
+#include "ImageData.hpp"
+#include "Pixels.hpp"
 #include "ImGuiHelpers.hpp"
 #include "NoiseGenerators.hpp"
 #include "Size.hpp"
+#include "TerrainGenerators.hpp"
 #include "components/TerrainChunk.hpp"
 #include "Transform.hpp"
 #include <algorithm>
@@ -19,13 +21,13 @@ void TerrainComponentRegistryHook::operator()(entt::registry& registry) {
     if (ImGui::Button("Generate Chunk")) {
 
         Size2S size{ 256, 256 };
-        HeightmapData hdata{ size };
+        ImageData<pixel::REDF> hdata{ size };
         static WhiteNoiseGenerator noise_generator;
-        for (float& pix : hdata) { pix = noise_generator(); }
+        for (auto& px : hdata) { px.r = noise_generator(); }
 
 
         auto mesh_data =
-            generate_terrain_mesh(size, [&](size_t x, size_t y) { return hdata.at(x, y); });
+            generate_terrain_mesh(size, [&](size_t x, size_t y) { return hdata.at(x, y).r; });
 
         Mesh mesh{ mesh_data };
 
@@ -34,7 +36,7 @@ void TerrainComponentRegistryHook::operator()(entt::registry& registry) {
         UniqueTexture2D heightmap;
         heightmap.bind()
             .specify_image(
-                Size2I{ hdata.image_size() },
+                Size2I{ hdata.size() },
                 TexSpec{ GL_R32F },
                 TexPackSpec{ GL_RED, GL_FLOAT },
                 hdata.data()
