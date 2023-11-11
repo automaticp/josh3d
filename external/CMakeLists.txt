@@ -92,6 +92,13 @@ target_link_libraries(stb::stb INTERFACE stb_implementation)
 
 
 
+# === nlohmann-json ===
+
+find_package(nlohmann_json CONFIG REQUIRED)
+set_target_properties(nlohmann_json::nlohmann_json PROPERTIES IMPORTED_GLOBAL TRUE)
+
+
+
 
 # Precompile external headers
 if (JOSH3D_USE_PCH)
