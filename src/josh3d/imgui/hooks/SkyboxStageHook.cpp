@@ -13,6 +13,10 @@ void SkyboxStageHook::operator()() {
         stage_.sky_type = SkyType::none;
     }
     ImGui::SameLine();
+    if (ImGui::RadioButton("Debug", stage_.sky_type == SkyType::debug)) {
+        stage_.sky_type = SkyType::debug;
+    }
+    ImGui::SameLine();
     if (ImGui::RadioButton("Skybox", stage_.sky_type == SkyType::skybox)) {
         stage_.sky_type = SkyType::skybox;
     }

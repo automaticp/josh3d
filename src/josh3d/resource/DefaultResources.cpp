@@ -1,7 +1,9 @@
 #include "DefaultResources.hpp"
+#include "CubemapData.hpp"
 #include "GLObjects.hpp"
 #include "GLScalars.hpp"
 #include "ImageData.hpp"
+#include "Pixels.hpp"
 #include "TextureHelpers.hpp"
 #include "MeshData.hpp"
 #include "Mesh.hpp"
@@ -44,6 +46,7 @@ UniqueTexture2D create_filled(
 std::optional<UniqueTexture2D> default_diffuse_texture_;
 std::optional<UniqueTexture2D> default_specular_texture_;
 std::optional<UniqueTexture2D> default_normal_texture_;
+std::optional<UniqueCubemap>   debug_skybox_cubemap_;
 
 MeshData<VertexPNTTB> plane_primitive_data_;
 MeshData<VertexPNTTB> box_primitive_data_;
@@ -71,6 +74,7 @@ namespace globals {
 RawTexture2D<GLConst> default_diffuse_texture()  noexcept { return default_diffuse_texture_ .value(); }
 RawTexture2D<GLConst> default_specular_texture() noexcept { return default_specular_texture_.value(); }
 RawTexture2D<GLConst> default_normal_texture()   noexcept { return default_normal_texture_  .value(); }
+RawCubemap<GLConst>   debug_skybox_cubemap()     noexcept { return debug_skybox_cubemap_    .value(); }
 
 const MeshData<VertexPNTTB>& plane_primitive_data()  noexcept { return plane_primitive_data_;  }
 const MeshData<VertexPNTTB>& box_primitive_data()    noexcept { return box_primitive_data_;    }
@@ -91,6 +95,28 @@ void detail::init_default_textures() {
     default_diffuse_texture_  = create_filled({ 0xB0, 0xB0, 0xB0, 0xFF }, {1, 1}, GL_SRGB_ALPHA);
     default_specular_texture_ = create_filled({ 0x00, 0x00, 0x00, 0xFF }, {1, 1}, GL_RGBA);
     default_normal_texture_   = create_filled({ 0x7F, 0x7F, 0xFF, 0xFF }, {1, 1}, GL_RGBA);
+    debug_skybox_cubemap_     = [] {
+        CubemapData data{
+            load_cubemap_from_files<pixel::RGBA>(
+                VPath("data/skyboxes/debug/posx.png"),
+                VPath("data/skyboxes/debug/negx.png"),
+                VPath("data/skyboxes/debug/posy.png"),
+                VPath("data/skyboxes/debug/negy.png"),
+                VPath("data/skyboxes/debug/posz.png"),
+                VPath("data/skyboxes/debug/negz.png")
+            )
+        };
+        UniqueCubemap cube;
+        cube.bind()
+            .and_then([&data](BoundCubemap<GLMutable>& cube) {
+                attach_data_to_cubemap(cube, data, TexSpec{ GL_SRGB_ALPHA });
+            })
+            .set_min_mag_filters(GL_NEAREST, GL_NEAREST)
+            .set_wrap_st(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE)
+            .unbind();
+
+        return cube;
+    }();
 }
 
 
@@ -98,6 +124,7 @@ void detail::reset_default_textures() {
     default_diffuse_texture_ .reset();
     default_specular_texture_.reset();
     default_normal_texture_  .reset();
+    debug_skybox_cubemap_    .reset();
 }
 
 

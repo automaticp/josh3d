@@ -12,6 +12,7 @@ namespace globals {
 RawTexture2D<GLConst> default_diffuse_texture()  noexcept;
 RawTexture2D<GLConst> default_specular_texture() noexcept;
 RawTexture2D<GLConst> default_normal_texture()   noexcept;
+RawCubemap<GLConst>   debug_skybox_cubemap()     noexcept;
 
 const MeshData<VertexPNTTB>& plane_primitive_data()  noexcept;
 const MeshData<VertexPNTTB>& box_primitive_data()    noexcept;
