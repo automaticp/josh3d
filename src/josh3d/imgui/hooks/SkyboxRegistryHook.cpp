@@ -51,7 +51,7 @@ void SkyboxRegistryHook::operator()(entt::registry& registry) {
                     File(skybox_dir.path() / filenames_[4]),
                     File(skybox_dir.path() / filenames_[5]),
                 };
-                auto data = CubemapData::from_files(files);
+                auto data = load_cubemap_from_files<pixel::RGBA>(files);
                 auto skybox_e = registry.view<components::Skybox>().back();
                 if (skybox_e == entt::null) {
                     skybox_e = registry.create();

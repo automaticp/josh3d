@@ -1,7 +1,8 @@
 #pragma once
 #include "Filesystem.hpp"
-#include "TextureData.hpp"
 #include "Shared.hpp"
+#include "ImageData.hpp"
+#include "TextureHelpers.hpp"
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -62,7 +63,9 @@ void DataPool<T>::clear_unused() {
 
 template<>
 inline Shared<TextureData> DataPool<TextureData>::load_data_from(const File& file) {
-    return std::make_shared<TextureData>(TextureData::from_file(file));
+    return std::make_shared<TextureData>(
+        load_image_from_file<TextureData::pixel_type>(file)
+    );
 }
 
 

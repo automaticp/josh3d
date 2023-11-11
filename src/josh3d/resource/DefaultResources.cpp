@@ -1,7 +1,7 @@
 #include "DefaultResources.hpp"
 #include "GLObjects.hpp"
 #include "GLScalars.hpp"
-#include "TextureData.hpp"
+#include "ImageData.hpp"
 #include "TextureHelpers.hpp"
 #include "MeshData.hpp"
 #include "Mesh.hpp"
@@ -18,22 +18,15 @@ namespace josh {
 namespace {
 
 
-TextureData make_filled_image_data(glm::vec<4, unsigned char> rgba, const Size2S& size) {
-    TextureData img{ size, 4 };
-    const size_t n_channels = img.n_channels();
-    for (size_t i{ 0 }; i < img.n_pixels(); ++i) {
-        const size_t idx = i * n_channels;
-        img[idx + 0] = rgba[0];
-        img[idx + 1] = rgba[1];
-        img[idx + 2] = rgba[2];
-        img[idx + 3] = rgba[3];
-    }
+ImageData<pixel::RGBA> make_filled_image_data(pixel::RGBA rgba, const Size2S& size) {
+    ImageData<pixel::RGBA> img{ size };
+    for (auto& px : img) { px = rgba; }
     return img;
 }
 
 
 UniqueTexture2D create_filled(
-    glm::vec<4, unsigned char> rgba, const Size2S& size,
+    pixel::RGBA rgba, const Size2S& size,
     GLenum internal_format)
 {
     auto tex_data = make_filled_image_data(rgba, size);

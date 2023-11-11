@@ -96,8 +96,8 @@ subtarget_link_internal(
 )
 subtarget_link_internal(
     data
-        PUBLIC
-            filesystem util layout
+        INTERFACE
+            filesystem #[[ ShaderSource can probably have from_file moved to resource ]] util layout
 )
 subtarget_link_internal(
     input
@@ -149,11 +149,11 @@ foreach(SUBTARGET IN ITEMS ${SUBTARGETS})
 endforeach()
 
 
-target_link_libraries(josh3d-data     PRIVATE   stb::stb assimp::assimp)
+# target_link_libraries(josh3d-data)
 target_link_libraries(josh3d-engine   PUBLIC    glfwpp::glfwpp EnTT::EnTT)
 target_link_libraries(josh3d-gl       PUBLIC    glbinding::glbinding)
 target_link_libraries(josh3d-imgui    PUBLIC    imgui::imgui PRIVATE glfwpp::glfwpp)
-target_link_libraries(josh3d-resource PUBLIC    #[[ should be private ]] assimp::assimp)
+target_link_libraries(josh3d-resource PUBLIC    #[[ should be private ]] assimp::assimp stb::stb)
 # target_link_libraries(josh3d-render)
 # target_link_libraries(josh3d-layout)
 target_link_libraries(josh3d-scene    INTERFACE EnTT::EnTT)

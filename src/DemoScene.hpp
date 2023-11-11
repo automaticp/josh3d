@@ -296,7 +296,7 @@ inline void DemoScene::init_registry() {
         .and_then([&](BoundCubemap<GLMutable>& cubemap) {
             attach_data_to_cubemap(
                 cubemap,
-                CubemapData::from_files(
+                load_cubemap_from_files<pixel::RGBA>(
                     VPath("data/skyboxes/lake/right.png"),
                     VPath("data/skyboxes/lake/left.png"),
                     VPath("data/skyboxes/lake/top.png"),
