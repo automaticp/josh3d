@@ -102,10 +102,10 @@ void detail::init_default_textures() {
         UniqueCubemap cube;
         cube.bind()
             .and_then([&data](BoundCubemap<GLMutable>& cube) {
-                attach_data_to_cubemap(cube, data, TexSpec{ GL_SRGB_ALPHA });
+                attach_data_to_cubemap_as_skybox(
+                    cube, data, TexSpec{ GL_SRGB_ALPHA }, GL_NEAREST
+                );
             })
-            .set_min_mag_filters(GL_NEAREST, GL_NEAREST)
-            .set_wrap_st(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE)
             .unbind();
 
         return cube;

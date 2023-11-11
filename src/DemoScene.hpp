@@ -294,21 +294,14 @@ inline void DemoScene::init_registry() {
     components::Skybox skybox{ std::make_shared<UniqueCubemap>() };
     skybox.cubemap->bind()
         .and_then([&](BoundCubemap<GLMutable>& cubemap) {
-            attach_data_to_cubemap(
+            attach_data_to_cubemap_as_skybox(
                 cubemap,
                 load_cubemap_from_json<pixel::RGBA>(
                     VPath("data/skyboxes/lake/skybox.json")
                 ),
                 gl::GL_SRGB_ALPHA
             );
-        })
-        // FIXME: There's gotta be a better place to put this.
-        // Maybe a create_skybox() function or something...
-        .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-        .set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-        .set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
-        .set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
-        .set_parameter(GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+        });
 
     r.emplace<components::Skybox>(r.create(), std::move(skybox));
 

@@ -11,6 +11,7 @@
 #include "PixelPackTraits.hpp"
 #include "CubemapData.hpp"
 #include <concepts>
+#include <glbinding/gl/enum.h>
 #include <string>
 #include <tuple>
 
@@ -57,7 +58,9 @@ template<typename PixelT>
 void attach_data_to_cubemap(BoundCubemap<GLMutable>& cube,
     const CubemapData<PixelT>& data, const TexSpec& spec);
 
-
+template<typename PixelT>
+void attach_data_to_cubemap_as_skybox(BoundCubemap<GLMutable>& cube,
+    const CubemapData<PixelT>& data, const TexSpec& spec, GLenum filter_mode = gl::GL_LINEAR);
 
 
 namespace detail {
@@ -146,6 +149,27 @@ void attach_data_to_cubemap(BoundCubemap<GLMutable>& cube,
         );
     }
 }
+
+
+template<typename PixelT>
+void attach_data_to_cubemap_as_skybox(BoundCubemap<GLMutable>& cube,
+    const CubemapData<PixelT>& data, const TexSpec& spec, GLenum filter_mode)
+{
+    using tr = pixel_pack_traits<PixelT>;
+    for (GLint face_id{ 0 }; face_id < data.sides().size(); ++face_id) {
+        const auto& face = data.sides()[face_id];
+        // TODO: swap faces because?
+        cube.specify_face_image(
+            face_id,
+            Size2I{ face.size() }, spec, TexPackSpec{ tr::format, tr::type }, face.data()
+        );
+    }
+    using enum GLenum;
+    cube.set_min_mag_filters(filter_mode, filter_mode)
+        .set_wrap_st(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+}
+
+
 
 
 } // namespace josh

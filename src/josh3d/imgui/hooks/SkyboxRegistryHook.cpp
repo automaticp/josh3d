@@ -46,14 +46,10 @@ void SkyboxRegistryHook::operator()(entt::registry& registry) {
                 using enum GLenum;
                 skybox.cubemap->bind()
                     .and_then([&](BoundCubemap<GLMutable>& cubemap) {
-                        attach_data_to_cubemap(cubemap, data, GL_SRGB_ALPHA);
+                        attach_data_to_cubemap_as_skybox(
+                            cubemap, data, GL_SRGB_ALPHA
+                        );
                     })
-                    // FIXME: Find a better place for this.
-                    .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-                    .set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-                    .set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
-                    .set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
-                    .set_parameter(GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE)
                     .unbind();
 
                 error_text_ = "";
