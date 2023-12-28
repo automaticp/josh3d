@@ -1,6 +1,7 @@
 #pragma once
 #include "AssimpModelLoader.hpp"
 #include "Attachments.hpp"
+#include "ComponentLoaders.hpp"
 #include "FrustumCuller.hpp"
 #include "GLTextures.hpp"
 #include "ImGuiApplicationAssembly.hpp"
@@ -291,20 +292,7 @@ inline void DemoScene::init_registry() {
     });
     r.emplace<tags::ShadowCasting>(e);
 
-    components::Skybox skybox{ std::make_shared<UniqueCubemap>() };
-    skybox.cubemap->bind()
-        .and_then([&](BoundCubemap<GLMutable>& cubemap) {
-            attach_data_to_cubemap_as_skybox(
-                cubemap,
-                load_cubemap_from_json<pixel::RGBA>(
-                    VPath("data/skyboxes/lake/skybox.json")
-                ),
-                gl::GL_SRGB_ALPHA
-            );
-        });
-
-    r.emplace<components::Skybox>(r.create(), std::move(skybox));
-
+    load_skybox_into(entt::handle{ r, r.create() }, VPath("data/skyboxes/yokohama/skybox.json"));
 }
 
 

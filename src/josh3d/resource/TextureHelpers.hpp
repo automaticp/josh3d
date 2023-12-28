@@ -10,10 +10,8 @@
 #include "Size.hpp"
 #include "PixelPackTraits.hpp"
 #include "CubemapData.hpp"
-#include <concepts>
 #include <glbinding/gl/enum.h>
 #include <string>
-#include <tuple>
 
 
 namespace josh {
@@ -38,16 +36,19 @@ public:
 
 
 template<typename PixelT>
-[[nodiscard]] ImageData<PixelT>   load_image_from_file(const File& file);
+[[nodiscard]] ImageData<PixelT>   load_image_from_file(const File& file,
+    bool flip_vertically = true);
 
 template<typename PixelT>
 [[nodiscard]] CubemapData<PixelT> load_cubemap_from_files(
     const File& posx, const File& negx,
     const File& posy, const File& negy,
-    const File& posz, const File& negz);
+    const File& posz, const File& negz,
+    bool flip_vertically = true);
 
 template<typename PixelT>
-[[nodiscard]] CubemapData<PixelT> load_cubemap_from_json(const File& json_file);
+[[nodiscard]] CubemapData<PixelT> load_cubemap_from_json(const File& json_file,
+    bool flip_vertically = true);
 
 
 template<typename PixelT>
@@ -73,13 +74,16 @@ struct ImageStorage {
 };
 
 template<typename ChanT>
-ImageStorage<ChanT> load_image_from_file_impl(const File& file, size_t n_channels);
+ImageStorage<ChanT>   load_image_from_file_impl(
+    const File& file, size_t n_channels, bool vflip);
 
-extern template ImageStorage<ubyte_t> load_image_from_file_impl<ubyte_t>(
-    const File &file, size_t n_channels);
+extern template
+ImageStorage<ubyte_t> load_image_from_file_impl<ubyte_t>(
+    const File& file, size_t n_channels, bool vflip);
 
-extern template ImageStorage<float>   load_image_from_file_impl<float>(
-    const File &file, size_t n_channels);
+extern template
+ImageStorage<float>   load_image_from_file_impl<float>(
+    const File& file, size_t n_channels, bool vflip);
 
 
 std::array<File, 6> parse_cubemap_json_for_files(const File& json_file);
@@ -89,11 +93,11 @@ std::array<File, 6> parse_cubemap_json_for_files(const File& json_file);
 
 
 template<typename PixelT>
-ImageData<PixelT> load_image_from_file(const class File& file) {
+ImageData<PixelT> load_image_from_file(const class File& file, bool flip_vertically) {
     using tr = pixel_traits<PixelT>;
 
     detail::ImageStorage<typename tr::channel_type> im =
-        detail::load_image_from_file_impl<typename tr::channel_type>(file, tr::n_channels);
+        detail::load_image_from_file_impl<typename tr::channel_type>(file, tr::n_channels, flip_vertically);
 
     return ImageData<PixelT>::from_channel_data(
         std::move(im.data), im.size
@@ -105,23 +109,31 @@ template<typename PixelT>
 [[nodiscard]] CubemapData<PixelT> load_cubemap_from_files(
     const File& posx, const File& negx,
     const File& posy, const File& negy,
-    const File& posz, const File& negz)
+    const File& posz, const File& negz,
+    bool flip_vertically)
 {
     return CubemapData<PixelT> {
-        load_image_from_file<PixelT>(posx),
-        load_image_from_file<PixelT>(negx),
-        load_image_from_file<PixelT>(posy),
-        load_image_from_file<PixelT>(negy),
-        load_image_from_file<PixelT>(posz),
-        load_image_from_file<PixelT>(negz)
+        load_image_from_file<PixelT>(posx, flip_vertically),
+        load_image_from_file<PixelT>(negx, flip_vertically),
+        load_image_from_file<PixelT>(posy, flip_vertically),
+        load_image_from_file<PixelT>(negy, flip_vertically),
+        load_image_from_file<PixelT>(posz, flip_vertically),
+        load_image_from_file<PixelT>(negz, flip_vertically)
     };
 }
 
 
 template<typename PixelT>
-[[nodiscard]] CubemapData<PixelT> load_cubemap_from_json(const File& json_file) {
+[[nodiscard]] CubemapData<PixelT> load_cubemap_from_json(
+    const File& json_file, bool flip_vertically)
+{
     std::array<File, 6> files = detail::parse_cubemap_json_for_files(json_file);
-    return std::apply(load_cubemap_from_files<PixelT>, files);
+    return load_cubemap_from_files<PixelT>(
+        files[0], files[1],
+        files[2], files[3],
+        files[4], files[5],
+        flip_vertically
+    );
 }
 
 
@@ -158,9 +170,20 @@ void attach_data_to_cubemap_as_skybox(BoundCubemap<GLMutable>& cube,
     using tr = pixel_pack_traits<PixelT>;
     for (GLint face_id{ 0 }; face_id < data.sides().size(); ++face_id) {
         const auto& face = data.sides()[face_id];
-        // TODO: swap faces because?
+        // We swap +Y and -Y faces when attaching them to the cubemap.
+        // Then, inverting the X and Y coordinates in the shader
+        // produces "reasonable" results.
+        //
+        // TODO: The skybox saga isn't over yet, but if this is a sufficent
+        // solution, then remove this TODO and resume enjoying life.
+        auto target_face_id = face_id;
+        switch (target_face_id) {
+            case 2: target_face_id = 3; break;
+            case 3: target_face_id = 2; break;
+            default: break;
+        }
         cube.specify_face_image(
-            face_id,
+            target_face_id,
             Size2I{ face.size() }, spec, TexPackSpec{ tr::format, tr::type }, face.data()
         );
     }

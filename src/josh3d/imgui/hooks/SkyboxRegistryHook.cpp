@@ -1,10 +1,7 @@
 #include "SkyboxRegistryHook.hpp"
-#include "CubemapData.hpp"
+#include "ComponentLoaders.hpp"
 #include "Filesystem.hpp"
-#include "GLTextures.hpp"
 #include "ImGuiHelpers.hpp"
-#include "Pixels.hpp"
-#include "TextureHelpers.hpp"
 #include "components/Skybox.hpp"
 #include "VPath.hpp"
 #include <entt/entity/entity.hpp>
@@ -12,7 +9,6 @@
 #include <functional>
 #include <imgui.h>
 #include <imgui_stdlib.h>
-#include <memory>
 #include <stdexcept>
 
 
@@ -35,23 +31,13 @@ void SkyboxRegistryHook::operator()(entt::registry& registry) {
                     return File(path);
                 }
             });
-            auto data = load_cubemap_from_json<pixel::RGBA>(skybox_json);
 
             auto skybox_e = registry.view<components::Skybox>().back();
             if (skybox_e == entt::null) {
                 skybox_e = registry.create();
             }
-            auto& skybox =
-                registry.emplace_or_replace<components::Skybox>(skybox_e, std::make_shared<UniqueCubemap>());
 
-            using enum GLenum;
-            skybox.cubemap->bind()
-                .and_then([&](BoundCubemap<GLMutable>& cubemap) {
-                    attach_data_to_cubemap_as_skybox(
-                        cubemap, data, GL_SRGB_ALPHA
-                    );
-                })
-                .unbind();
+            load_skybox_into({ registry, skybox_e }, skybox_json);
 
         } catch (const std::runtime_error& e) {
             error_text_ = e.what();

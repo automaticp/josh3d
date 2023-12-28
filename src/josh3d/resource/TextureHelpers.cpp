@@ -15,9 +15,9 @@ namespace detail {
 
 template<typename ChanT>
 ImageStorage<ChanT> load_image_from_file_impl(
-    const File& file, size_t n_channels)
+    const File& file, size_t n_channels, bool vflip)
 {
-    stbi_set_flip_vertically_on_load(true);
+    stbi_set_flip_vertically_on_load(vflip);
     int width, height, n_channels_out;
 
     ChanT* data;
@@ -50,11 +50,13 @@ ImageStorage<ChanT> load_image_from_file_impl(
 }
 
 
-template ImageStorage<ubyte_t> load_image_from_file_impl<ubyte_t>(
-    const File &file, size_t n_channels);
+template
+ImageStorage<ubyte_t> load_image_from_file_impl<ubyte_t>(
+    const File &file, size_t n_channels, bool vflip);
 
-template ImageStorage<float>   load_image_from_file_impl<float>(
-    const File &file, size_t n_channels);
+template
+ImageStorage<float>   load_image_from_file_impl<float>(
+    const File &file, size_t n_channels, bool vflip);
 
 
 std::array<File, 6> parse_cubemap_json_for_files(const File& json_file) {
