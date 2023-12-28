@@ -21,7 +21,7 @@ namespace josh {
 class SkyboxStage {
 public:
     enum class SkyType {
-        none, skybox, procedural
+        none, debug, skybox, procedural
     };
 
     struct ProceduralSkyParams {
@@ -56,12 +56,42 @@ public:
         switch (sky_type) {
             using enum SkyType;
             case none:       return;
+            case debug:      draw_debug_skybox(engine);             break;
             case skybox:     draw_skybox(engine, registry);         break;
             case procedural: draw_procedural_sky(engine, registry); break;
         }
     }
 
 private:
+    void draw_debug_skybox(
+        const RenderEnginePrimaryInterface& engine)
+    {
+        using namespace gl;
+
+        glm::mat4 projection = engine.camera().projection_mat();
+        glm::mat4 view       = engine.camera().view_mat();
+
+        engine.draw([&, this] {
+
+            glDepthMask(GL_FALSE);
+            glDepthFunc(GL_LEQUAL);
+
+            globals::debug_skybox_cubemap().bind_to_unit_index(0);
+            sp_skybox_.use()
+                .uniform("projection", projection)
+                .uniform("view", glm::mat4{ glm::mat3{ view } })
+                .uniform("cubemap", 0)
+                .and_then([] {
+                    globals::box_primitive_mesh().draw();
+                });
+
+            glDepthMask(GL_TRUE);
+            glDepthFunc(GL_LESS);
+
+        });
+
+    }
+
     void draw_skybox(
         const RenderEnginePrimaryInterface& engine,
         const entt::registry& registry)

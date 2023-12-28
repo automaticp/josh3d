@@ -1,5 +1,6 @@
 #pragma once
-#include "HeightmapData.hpp"
+#include "ImageData.hpp"
+#include "Pixels.hpp"
 #include "GLObjects.hpp"
 #include "Mesh.hpp"
 
@@ -8,7 +9,7 @@ namespace josh::components {
 
 
 struct TerrainChunk {
-    HeightmapData hdata;
+    ImageData<pixel::REDF> hdata;
     Mesh mesh;
     UniqueTexture2D heightmap;
 };
