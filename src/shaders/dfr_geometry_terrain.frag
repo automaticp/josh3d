@@ -3,6 +3,7 @@
 layout (location = 0) out vec4 out_position_draw;
 layout (location = 1) out vec4 out_normal;
 layout (location = 2) out vec4 out_albedo_spec;
+layout (location = 3) out uint out_object_id;
 
 in vec2 tex_coords;
 in vec3 normal;
@@ -15,6 +16,8 @@ in vec3 frag_pos;
 // } material;
 
 uniform sampler2D test_color;
+
+uniform uint object_id;
 
 
 void main() {
@@ -34,4 +37,5 @@ void main() {
 
     out_normal = gl_FrontFacing ? vec4(normal, 1.0) : vec4(-normal, 1.0);
 
+    out_object_id = object_id;
 }

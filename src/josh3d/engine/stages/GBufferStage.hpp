@@ -1,5 +1,6 @@
 #pragma once
 #include "GLFramebuffer.hpp"
+#include "GLMutability.hpp"
 #include "GLTextures.hpp"
 #include "RenderEngine.hpp"
 #include "RenderTarget.hpp"
@@ -22,7 +23,8 @@ public:
     enum class Slot : size_t {
         position_draw = 0,
         normals       = 1,
-        albedo_spec   = 2
+        albedo_spec   = 2,
+        object_id     = 3
     };
 
 private:
@@ -30,7 +32,8 @@ private:
         ViewAttachment<RawTexture2D>,   // Depth
         UniqueAttachment<RawTexture2D>, // Position/Draw
         UniqueAttachment<RawTexture2D>, // Normals
-        UniqueAttachment<RawTexture2D>  // Albedo/Spec
+        UniqueAttachment<RawTexture2D>, // Albedo/Spec
+        UniqueAttachment<RawTexture2D>  // ObjectID
     >;
 
     UniqueTexture2D depth_;
@@ -44,7 +47,8 @@ public:
             depth,
             { size, { gl::GL_RGBA16F     } },
             { size, { gl::GL_RGBA8_SNORM } },
-            { size, { gl::GL_RGBA8       } }
+            { size, { gl::GL_RGBA8       } },
+            { size, { gl::GL_R32UI       } }
         }
     {
         using enum GLenum;
@@ -55,6 +59,9 @@ public:
             .set_min_mag_filters(GL_NEAREST, GL_NEAREST);
 
         tgt_.color_attachment<Slot::albedo_spec>().texture().bind()
+            .set_min_mag_filters(GL_NEAREST, GL_NEAREST);
+
+        tgt_.color_attachment<Slot::object_id>().texture().bind()
             .set_min_mag_filters(GL_NEAREST, GL_NEAREST);
     }
 
@@ -88,6 +95,10 @@ public:
 
     RawTexture2D<GLConst> albedo_spec_texture() const noexcept {
         return tgt_.color_attachment<Slot::albedo_spec>().texture();
+    }
+
+    RawTexture2D<GLConst> object_id_texture() const noexcept {
+        return tgt_.color_attachment<Slot::object_id>().texture();
     }
 
     Size2I size() const noexcept {
@@ -153,6 +164,10 @@ public:
                 // been in the main target before the pass.
                 glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
                 glClear(GL_COLOR_BUFFER_BIT);
+
+                // The ObjectID buffer is cleared with the null sentinel value.
+                const entt::id_type null_color{ entt::null };
+                glClearBufferuiv(GL_COLOR, 3, &null_color);
             });
     }
 

@@ -10,6 +10,7 @@
 #include "Mesh.hpp"
 #include "DefaultResources.hpp"
 #include <entt/core/type_traits.hpp>
+#include <entt/entity/entity.hpp>
 #include <entt/entt.hpp>
 
 
@@ -78,9 +79,9 @@ void DeferredGeometryStage::operator()(
                 : material_ds_view.each())
             {
                 auto model_transform = get_mtransform(entity, transform);
-                ashp.uniform("model", model_transform.model())
-                    .uniform("normal_model", model_transform.normal_model());
-
+                ashp.uniform("model",        model_transform.model())
+                    .uniform("normal_model", model_transform.normal_model())
+                    .uniform("object_id",    entt::to_integral(entity));
 
                 apply_ds_materials(entity, ashp);
                 mesh.draw();
@@ -102,8 +103,9 @@ void DeferredGeometryStage::operator()(
                 : material_dsn_view.each())
             {
                 auto model_transform = get_mtransform(entity, transform);
-                ashp.uniform("model", model_transform.model())
-                    .uniform("normal_model", model_transform.normal_model());
+                ashp.uniform("model",        model_transform.model())
+                    .uniform("normal_model", model_transform.normal_model())
+                    .uniform("object_id",    entt::to_integral(entity));
 
                 apply_ds_materials(entity, ashp);
                 mat_normal.normal->bind_to_unit_index(2);
