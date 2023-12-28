@@ -1,6 +1,7 @@
 #pragma once
 #include "AssimpModelLoader.hpp"
 #include "Attachments.hpp"
+#include "ComponentLoaders.hpp"
 #include "FrustumCuller.hpp"
 #include "GLTextures.hpp"
 #include "ImGuiApplicationAssembly.hpp"
@@ -17,6 +18,8 @@
 #include "components/Model.hpp"
 #include "components/Path.hpp"
 #include "components/Name.hpp"
+#include "hooks/TerrainComponentRegistryHook.hpp"
+#include "stages/TerrainGeometryStage.hpp"
 #include "tags/ShadowCasting.hpp"
 #include "RenderEngine.hpp"
 #include "Shared.hpp"
@@ -109,6 +112,7 @@ public:
         );
 
         auto defgeom     = rengine_.make_primary_stage<DeferredGeometryStage>(gbuffer.target().get_write_view());
+        auto terraingeom = rengine_.make_primary_stage<TerrainGeometryStage>(gbuffer.target().get_write_view());
 
         auto defshad     = rengine_.make_primary_stage<DeferredShadingStage>(
             gbuffer.target().get_read_view(),
@@ -173,6 +177,7 @@ public:
         rengine_.add_next_primary_stage(std::move(csmapping));
         rengine_.add_next_primary_stage(std::move(gbuffer));
         rengine_.add_next_primary_stage(std::move(defgeom));
+        rengine_.add_next_primary_stage(std::move(terraingeom));
         rengine_.add_next_primary_stage(std::move(defshad));
         rengine_.add_next_primary_stage(std::move(plightboxes));
         rengine_.add_next_primary_stage(std::move(cullspheres));
@@ -186,10 +191,11 @@ public:
         rengine_.add_next_overlay_stage(std::move(gbugger));
 
 
-        imgui_.registry_hooks().add_hook("Lights", imguihooks::LightComponentsRegistryHook());
-        imgui_.registry_hooks().add_hook("Models", imguihooks::ModelComponentsRegistryHook());
-        imgui_.registry_hooks().add_hook("Camera", imguihooks::PerspectiveCameraHook(cam_));
-        imgui_.registry_hooks().add_hook("Skybox", imguihooks::SkyboxRegistryHook());
+        imgui_.registry_hooks().add_hook("Lights",  imguihooks::LightComponentsRegistryHook());
+        imgui_.registry_hooks().add_hook("Models",  imguihooks::ModelComponentsRegistryHook());
+        imgui_.registry_hooks().add_hook("Camera",  imguihooks::PerspectiveCameraHook(cam_));
+        imgui_.registry_hooks().add_hook("Skybox",  imguihooks::SkyboxRegistryHook());
+        imgui_.registry_hooks().add_hook("Terrain", imguihooks::TerrainComponentRegistryHook());
 
         init_registry();
     }
@@ -286,32 +292,7 @@ inline void DemoScene::init_registry() {
     });
     r.emplace<tags::ShadowCasting>(e);
 
-    components::Skybox skybox{ std::make_shared<UniqueCubemap>() };
-    skybox.cubemap->bind()
-        .and_then([&](BoundCubemap<GLMutable>& cubemap) {
-            attach_data_to_cubemap(
-                cubemap,
-                CubemapData::from_files(
-                    VPath("data/skyboxes/lake/right.png"),
-                    VPath("data/skyboxes/lake/left.png"),
-                    VPath("data/skyboxes/lake/top.png"),
-                    VPath("data/skyboxes/lake/bottom.png"),
-                    VPath("data/skyboxes/lake/front.png"),
-                    VPath("data/skyboxes/lake/back.png")
-                ),
-                gl::GL_SRGB_ALPHA
-            );
-        })
-        // FIXME: There's gotta be a better place to put this.
-        // Maybe a create_skybox() function or something...
-        .set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-        .set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-        .set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
-        .set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
-        .set_parameter(GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-
-    r.emplace<components::Skybox>(r.create(), std::move(skybox));
-
+    load_skybox_into(entt::handle{ r, r.create() }, VPath("data/skyboxes/yokohama/skybox.json"));
 }
 
 

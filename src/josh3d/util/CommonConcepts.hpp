@@ -58,5 +58,19 @@ template<typename T, template<template<typename...> typename...> typename Templa
 concept template_template_specialization_of = is_template_template_specialization<T, TemplateOfTemplate>::value;
 
 
+template<typename CallableT, typename Signature>
+struct signature_test;
+
+template<typename CallableT, typename RetT, typename ...ArgTs>
+struct signature_test<CallableT, RetT(ArgTs...)> {
+    static constexpr bool is_invocable = std::is_invocable_v<CallableT, ArgTs...>;
+    static constexpr bool is_same_return_type = std::is_same_v<std::invoke_result_t<CallableT, ArgTs...>, RetT>;
+};
+
+template<typename CallableT, typename Signature>
+concept of_signature =
+    signature_test<CallableT, Signature>::is_invocable &&
+    signature_test<CallableT, Signature>::is_same_return_type;
+
 
 } // namespace josh

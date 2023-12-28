@@ -29,6 +29,7 @@ set(SUBTARGETS
     render
     resource
     scene
+    terrain
     util
 )
 
@@ -74,7 +75,12 @@ subtarget_link_internal(
 subtarget_link_internal(
     engine
         PUBLIC
-            data filesystem gl render resource scene
+            data filesystem gl render resource scene terrain util
+)
+subtarget_link_internal(
+    terrain
+        PUBLIC
+            data gl scene resource util layout imgui #[[ well... ]]
 )
 subtarget_link_internal(
     render
@@ -90,8 +96,8 @@ subtarget_link_internal(
 )
 subtarget_link_internal(
     data
-        PUBLIC
-            filesystem util layout
+        INTERFACE
+            filesystem #[[ ShaderSource can probably have from_file moved to resource ]] util layout
 )
 subtarget_link_internal(
     input
@@ -143,11 +149,14 @@ foreach(SUBTARGET IN ITEMS ${SUBTARGETS})
 endforeach()
 
 
-target_link_libraries(josh3d-data     PRIVATE   stb::stb assimp::assimp)
+# target_link_libraries(josh3d-data)
 target_link_libraries(josh3d-engine   PUBLIC    glfwpp::glfwpp EnTT::EnTT)
 target_link_libraries(josh3d-gl       PUBLIC    glbinding::glbinding)
 target_link_libraries(josh3d-imgui    PUBLIC    imgui::imgui PRIVATE glfwpp::glfwpp)
-target_link_libraries(josh3d-resource PUBLIC    #[[ should be private ]] assimp::assimp)
+target_link_libraries(josh3d-resource
+    PUBLIC assimp::assimp #[[ should be private ]]
+    PRIVATE stb::stb nlohmann_json::nlohmann_json
+)
 # target_link_libraries(josh3d-render)
 # target_link_libraries(josh3d-layout)
 target_link_libraries(josh3d-scene    INTERFACE EnTT::EnTT)

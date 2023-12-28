@@ -5,6 +5,7 @@
         "glbinding",
         "glfw3",
         "doctest",
+        "nlohmann-json",
         "glm",
         "stb",
         "assimp",

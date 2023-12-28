@@ -1,6 +1,8 @@
 #pragma once
-#include "TextureData.hpp"
+#include "ImageData.hpp"
+#include "Filesystem.hpp"
 #include "Shared.hpp"
+#include "TextureHelpers.hpp"
 #include "ThreadsafeQueue.hpp"
 #include "ThreadPool.hpp"
 #include <algorithm>
@@ -378,7 +380,9 @@ private:
 
 template<>
 inline Shared<TextureData> AsyncDataPool<File, TextureData>::load_data_from(const File& file) {
-    return std::make_shared<TextureData>(TextureData::from_file(file));
+    return std::make_shared<TextureData>(
+        load_image_from_file<TextureData::pixel_type>(file)
+    );
 }
 
 

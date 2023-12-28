@@ -1,75 +1,83 @@
 #include "TextureHelpers.hpp"
-#include <glbinding/gl/enum.h>
-
-
-using namespace gl;
+#include "Filesystem.hpp"
+#include "MallocSupport.hpp"
+#include "Pixels.hpp"
+#include "ShaderSource.hpp"
+#include "Size.hpp"
+#include <stb_image.h>
+#include <nlohmann/json.hpp>
+#include <string>
 
 
 namespace josh {
+namespace detail {
 
 
-static GLenum get_default_format(size_t n_channels) noexcept {
-    switch (n_channels) {
-        case 1ull: return GL_RED;
-        case 2ull: return GL_RG;
-        case 3ull: return GL_RGB;
-        case 4ull: return GL_RGBA;
-        default:   return GL_RED;
+template<typename ChanT>
+ImageStorage<ChanT> load_image_from_file_impl(
+    const File& file, size_t n_channels, bool vflip)
+{
+    stbi_set_flip_vertically_on_load(vflip);
+    int width, height, n_channels_out;
+
+    ChanT* data;
+    if constexpr (std::same_as<ChanT, ubyte_t>) {
+        data = stbi_load(
+            file.path().c_str(),
+            &width, &height, &n_channels_out,
+            int(n_channels)
+        );
+    } else if constexpr (std::same_as<ChanT, float>) {
+        data = stbi_loadf(
+            file.path().c_str(),
+            &width, &height, &n_channels_out,
+            int(n_channels)
+        );
+    } else {
+        static_assert(sizeof(ChanT) == 0);
     }
-}
 
-
-void attach_data_to_texture(BoundTexture2D<GLMutable>& tex,
-    const TextureData& data, GLenum internal_format)
-{
-    GLenum format = get_default_format(data.n_channels());
-    attach_data_to_texture(tex, data, internal_format, format);
-}
-
-
-void attach_data_to_texture(BoundTexture2D<GLMutable>& tex,
-    const TextureData& data, GLenum internal_format, GLenum format)
-{
-    tex.specify_image(
-        Size2I{ data.image_size() },
-        TexSpec{ internal_format },
-        TexPackSpec{ format, GL_UNSIGNED_BYTE },
-        data.data()
-    );
-}
-
-
-void attach_data_to_cubemap(BoundCubemap<GLMutable>& cube,
-    const CubemapData& data, GLenum internal_format)
-{
-    for (GLint face_id{ 0 }; face_id < data.data().size(); ++face_id) {
-        const auto& face = data.data()[face_id];
-        GLenum format = get_default_format(face.n_channels());
-        cube.specify_face_image(
-            face_id,
-            Size2I{ face.image_size() },
-            TexSpec{ internal_format },
-            TexPackSpec{ format, GL_UNSIGNED_BYTE },
-            face.data()
+    if (!data) {
+        throw error::ImageReadingError(
+            file.path(), stbi_failure_reason()
         );
     }
+
+    return {
+        unique_malloc_ptr<ChanT[]>{ data },
+        Size2S(width, height)
+    };
 }
 
 
-void attach_data_to_cubemap(BoundCubemap<GLMutable>& cube,
-    const CubemapData& data, GLenum internal_format, GLenum format)
-{
-    for (GLint face_id{ 0 }; face_id < data.data().size(); ++face_id) {
-        const auto& face = data.data()[face_id];
-        cube.specify_face_image(
-            face_id,
-            Size2I{ face.image_size() },
-            TexSpec{ internal_format },
-            TexPackSpec{ format, GL_UNSIGNED_BYTE },
-            face.data()
-        );
-    }
+template
+ImageStorage<ubyte_t> load_image_from_file_impl<ubyte_t>(
+    const File &file, size_t n_channels, bool vflip);
+
+template
+ImageStorage<float>   load_image_from_file_impl<float>(
+    const File &file, size_t n_channels, bool vflip);
+
+
+std::array<File, 6> parse_cubemap_json_for_files(const File& json_file) {
+    // FIXME: read_file comes from the wrong place.
+    std::string contents = read_file(json_file);
+
+    Directory base_dir{ json_file.path().parent_path() };
+    using json = nlohmann::json;
+    json j = json::parse(contents);
+
+    auto at = [&](const char* key) {
+        return File(base_dir.path() / j.at(key).template get<std::string>());
+    };
+
+    return {
+        at("posx"), at("negx"),
+        at("posy"), at("negy"),
+        at("posz"), at("negz")
+    };
 }
 
 
+} // namespace detail
 } // namespace josh

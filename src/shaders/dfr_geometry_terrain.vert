@@ -23,3 +23,4 @@ void main() {
 
     normal = normalize(normal_model * in_normal);
 }
+
