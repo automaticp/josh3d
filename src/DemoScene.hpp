@@ -241,7 +241,7 @@ inline void DemoScene::configure_input() {
 
     input_freecam_.configure(input_);
 
-    input_.set_keybind(glfw::KeyCode::T, [this](const KeyCallbackArgs& args) {
+    input_.bind_key(glfw::KeyCode::T, [this](const KeyCallbackArgs& args) {
         if (args.is_released()) {
             imgui_.toggle_hidden();
         }
@@ -301,9 +301,10 @@ inline void DemoScene::init_registry() {
 inline void DemoScene::update_input_blocker_from_imgui_io_state() {
 
     auto wants = imgui_.get_io_wants();
+    input_blocker_.block_keys = wants.capture_keyboard;
     // FIXME: Need a way to stop the ImGui window from recieving
     // mouse events when I'm in free cam.
-    input_blocker_.block_keys = wants.capture_keyboard;
+    input_blocker_.block_mouse_buttons = wants.capture_mouse;
     input_blocker_.block_scroll =
         wants.capture_mouse &&
         input_freecam_.state().is_cursor_mode;

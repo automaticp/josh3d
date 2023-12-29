@@ -173,28 +173,28 @@ inline void InputFreeCamera::configure(BasicRebindableInput& input) {
             }
         };
 
-    input.set_keybind(config_.up,
+    input.bind_key(config_.up,
         [&, this](const KeyCallbackArgs& args) { to_state(args, state_.up); });
-    input.set_keybind(config_.down,
+    input.bind_key(config_.down,
         [&, this](const KeyCallbackArgs& args) { to_state(args, state_.down); });
-    input.set_keybind(config_.left,
+    input.bind_key(config_.left,
         [&, this](const KeyCallbackArgs& args) { to_state(args, state_.left); });
-    input.set_keybind(config_.right,
+    input.bind_key(config_.right,
         [&, this](const KeyCallbackArgs& args) { to_state(args, state_.right); });
-    input.set_keybind(config_.forward,
+    input.bind_key(config_.forward,
         [&, this](const KeyCallbackArgs& args) { to_state(args, state_.forward); });
-    input.set_keybind(config_.back,
+    input.bind_key(config_.back,
         [&, this](const KeyCallbackArgs& args) { to_state(args, state_.back); });
 
 
-    input.set_keybind(config_.close_window,
+    input.bind_key(config_.close_window,
         [] (const KeyCallbackArgs& args) {
             if (args.is_released()) {
                 args.window.setShouldClose(true);
             }
         });
 
-    input.set_keybind(config_.toggle_cursor,
+    input.bind_key(config_.toggle_cursor,
         [&, this] (const KeyCallbackArgs& args) {
             if (args.is_released()) {
                 state_.is_cursor_mode ^= true;
