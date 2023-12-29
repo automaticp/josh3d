@@ -65,7 +65,7 @@ public:
         );
     }
 
-    BoundReadFramebuffer& set_read_buffer(GLenum attachment) const {
+    BoundReadFramebuffer& set_read_buffer(GLenum attachment) {
         gl::glReadBuffer(attachment);
         return *this;
     }
