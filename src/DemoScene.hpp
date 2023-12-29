@@ -2,27 +2,26 @@
 #include "AssimpModelLoader.hpp"
 #include "Attachments.hpp"
 #include "ComponentLoaders.hpp"
+#include "EnumUtils.hpp"
 #include "FrustumCuller.hpp"
 #include "GLTextures.hpp"
 #include "ImGuiApplicationAssembly.hpp"
-#include "TextureHelpers.hpp"
 #include "PerspectiveCamera.hpp"
-#include "CubemapData.hpp"
 #include "ImGuiRegistryHooks.hpp"
 #include "ImGuiStageHooks.hpp"
 #include "Input.hpp"
 #include "InputFreeCamera.hpp"
 #include "LightCasters.hpp"
+#include "SharedStorage.hpp"
 #include "WindowSizeCache.hpp"
 #include "FrameTimer.hpp"
-#include "components/Model.hpp"
 #include "components/Path.hpp"
 #include "components/Name.hpp"
+#include "tags/Selected.hpp"
 #include "hooks/TerrainComponentRegistryHook.hpp"
 #include "stages/TerrainGeometryStage.hpp"
 #include "tags/ShadowCasting.hpp"
 #include "RenderEngine.hpp"
-#include "Shared.hpp"
 #include "Transform.hpp"
 #include "VPath.hpp"
 #include "VirtualFilesystem.hpp"
@@ -99,7 +98,6 @@ public:
     DemoScene(glfw::Window& window)
         : window_{ window }
     {
-        configure_input();
 
         auto psmapping    = rengine_.make_primary_stage<PointShadowMappingStage>();
         auto csmapping    = rengine_.make_primary_stage<CascadedShadowMappingStage>(csm_info_builder_.view_output());
@@ -111,11 +109,13 @@ public:
             ViewAttachment<RawTexture2D>{ rengine_.main_depth() }
         );
 
+        auto gbuffer_read_view = gbuffer.target().get_read_view();
+
         auto defgeom     = rengine_.make_primary_stage<DeferredGeometryStage>(gbuffer.target().get_write_view());
         auto terraingeom = rengine_.make_primary_stage<TerrainGeometryStage>(gbuffer.target().get_write_view());
 
         auto defshad     = rengine_.make_primary_stage<DeferredShadingStage>(
-            gbuffer.target().get_read_view(),
+            gbuffer_read_view,
             psmapping.target().view_output(),
             csmapping.target().view_output()
         );
@@ -197,6 +197,8 @@ public:
         imgui_.registry_hooks().add_hook("Skybox",  imguihooks::SkyboxRegistryHook());
         imgui_.registry_hooks().add_hook("Terrain", imguihooks::TerrainComponentRegistryHook());
 
+        configure_input(gbuffer_read_view);
+
         init_registry();
     }
 
@@ -227,7 +229,7 @@ public:
     }
 
 private:
-    void configure_input();
+    void configure_input(SharedStorageView<GBuffer> gbuffer);
     void init_registry();
     void update_input_blocker_from_imgui_io_state();
 
@@ -237,7 +239,7 @@ private:
 
 
 
-inline void DemoScene::configure_input() {
+inline void DemoScene::configure_input(SharedStorageView<GBuffer> gbuffer) {
 
     input_freecam_.configure(input_);
 
@@ -246,6 +248,43 @@ inline void DemoScene::configure_input() {
             imgui_.toggle_hidden();
         }
     });
+
+    input_.bind_mouse_button(glfw::MouseButton::Left,
+        [gbuffer=std::move(gbuffer), this](const MouseButtonCallbackArgs& args) {
+            if (args.is_pressed()) {
+                auto [x, y] = args.window.getCursorPos();
+                auto [sz_x, sz_y] = args.window.getFramebufferSize();
+                int ix = int(x);
+                int iy = int(y);
+
+                using namespace gl;
+
+                entt::id_type id{ entt::null };
+
+                auto attachment_id =
+                    GL_COLOR_ATTACHMENT0 + to_underlying(GBuffer::Slot::object_id);
+
+                gbuffer->bind_read().set_read_buffer(attachment_id).and_then([&] {
+                    // FIXME: Is this off-by-one?
+                    glReadPixels(ix, sz_y - iy, 1, 1, GL_RED_INTEGER, GL_UNSIGNED_INT, &id);
+                }).unbind();
+
+
+                entt::handle target_handle{ registry_, entt::entity{ id } };
+                const bool had_selection =
+                    target_handle.valid() && target_handle.any_of<tags::Selected>();
+
+                // Deselect all selected.
+                registry_.clear<tags::Selected>();
+
+                // Uhh...
+                if (!had_selection && target_handle.valid()) {
+                    target_handle.emplace<tags::Selected>();
+                }
+
+            }
+        }
+    );
 
     window_.framebufferSizeEvent.setCallback(
         [this](glfw::Window& /* window */ , int w, int h) {
