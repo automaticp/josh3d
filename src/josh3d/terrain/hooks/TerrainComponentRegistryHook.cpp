@@ -2,6 +2,7 @@
 #include "ImageData.hpp"
 #include "Pixels.hpp"
 #include "ImGuiHelpers.hpp"
+#include "ImGuiComponentWidgets.hpp"
 #include "NoiseGenerators.hpp"
 #include "Size.hpp"
 #include "TerrainGenerators.hpp"

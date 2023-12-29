@@ -1,5 +1,6 @@
 #include "ModelComponentsRegistryHook.hpp"
 #include "ImGuiHelpers.hpp"
+#include "ImGuiComponentWidgets.hpp"
 #include "components/Materials.hpp"
 #include "components/Model.hpp"
 #include "components/Name.hpp"
