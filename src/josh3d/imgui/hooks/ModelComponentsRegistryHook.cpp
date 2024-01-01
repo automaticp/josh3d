@@ -95,7 +95,7 @@ static void mesh_subwidget(entt::handle mesh) {
         entt::to_entity(mesh.entity()), culled_cstr, name))
     {
 
-        ImGui::TransformWidget(&mesh.get<Transform>());
+        imgui::TransformWidget(&mesh.get<Transform>());
 
         bool is_alpha_tested = mesh.all_of<tags::AlphaTested>();
         if (ImGui::Checkbox("Alpha-Testing", &is_alpha_tested)) {
@@ -133,7 +133,7 @@ static void mesh_subwidget(entt::handle mesh) {
                 if (ImGui::TreeNode("Diffuse")) {
                     ImGui::Unindent();
 
-                    ImGui::ImageGL(void_id(material->diffuse->id()), imsize(*material->diffuse));
+                    imgui::ImageGL(void_id(material->diffuse->id()), imsize(*material->diffuse));
 
                     ImGui::Indent();
                     ImGui::TreePop();
@@ -144,7 +144,7 @@ static void mesh_subwidget(entt::handle mesh) {
                 if (ImGui::TreeNode("Specular")) {
                     ImGui::Unindent();
 
-                    ImGui::ImageGL(void_id(material->specular->id()), imsize(*material->specular));
+                    imgui::ImageGL(void_id(material->specular->id()), imsize(*material->specular));
 
                     ImGui::DragFloat(
                         "Shininess", &material->shininess,
@@ -160,7 +160,7 @@ static void mesh_subwidget(entt::handle mesh) {
                 if (ImGui::TreeNode("Normal")) {
                     ImGui::Unindent();
 
-                    ImGui::ImageGL(void_id(material->normal->id()), imsize(*material->normal));
+                    imgui::ImageGL(void_id(material->normal->id()), imsize(*material->normal));
 
                     ImGui::Indent();
                     ImGui::TreePop();
@@ -213,7 +213,7 @@ void ModelComponentsRegistryHook::model_list_widget(
         if (display_node) {
             ImGui::TextUnformatted(path_cstr);
 
-            ImGui::TransformWidget(&transform);
+            imgui::TransformWidget(&transform);
 
             for (auto mesh_entity : model_component.meshes()) {    ;
                 mesh_subwidget({ registry, mesh_entity });

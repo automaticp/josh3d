@@ -1,5 +1,4 @@
 #pragma once
-#include "Transform.hpp"
 #include <concepts>
 #include <type_traits>
 #include <functional>
@@ -149,7 +148,7 @@ template<typename ValT, typename ActionF>
 
 
 
-namespace ImGui {
+namespace josh::imgui {
 
 
 // Wrapper of ImGui::Image that flips the image UVs
@@ -159,11 +158,11 @@ inline void ImageGL(ImTextureID image_id,
     const ImVec4& tint_color = { 1.0f, 1.0f, 1.0f, 1.0f },
     const ImVec4& border_color = { 1.0f, 1.0f, 1.0f, 1.0f }) noexcept
 {
-    Image(
+    ImGui::Image(
         image_id, size, ImVec2{ 0.f, 1.f }, ImVec2{ 1.f, 0.f },
         tint_color, border_color
     );
 }
 
 
-} // namespace ImGui
+} // namespace josh::imgui

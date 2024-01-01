@@ -61,7 +61,7 @@ void TerrainComponentRegistryHook::operator()(entt::registry& registry) {
     {
         if (ImGui::TreeNode(void_id(e), "Terrain Chunk %d", entt::to_entity(e))) {
 
-            ImGui::TransformWidget(&transform);
+            imgui::TransformWidget(&transform);
 
             ImGui::TreePop();
         }

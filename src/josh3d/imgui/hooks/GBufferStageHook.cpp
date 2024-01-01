@@ -19,7 +19,7 @@ void GBufferStageHook::operator()() {
     if (ImGui::TreeNode("Position/Draw")) {
 
         ImGui::Unindent();
-        ImGui::ImageGL(void_id(gbuffer_->position_draw_texture().id()), imsize());
+        imgui::ImageGL(void_id(gbuffer_->position_draw_texture().id()), imsize());
         ImGui::Indent();
 
         ImGui::TreePop();
@@ -29,7 +29,7 @@ void GBufferStageHook::operator()() {
     if (ImGui::TreeNode("Normals")) {
 
         ImGui::Unindent();
-        ImGui::ImageGL(void_id(gbuffer_->normals_texture().id()), imsize());
+        imgui::ImageGL(void_id(gbuffer_->normals_texture().id()), imsize());
         ImGui::Indent();
 
         ImGui::TreePop();
@@ -40,7 +40,7 @@ void GBufferStageHook::operator()() {
         ImGui::Unindent();
         // Doesn't really work with the default imgui backend setup.
         // Since alpha influences transparency, low specularity is not visible.
-        ImGui::ImageGL(void_id(gbuffer_->albedo_spec_texture().id()), imsize());
+        imgui::ImageGL(void_id(gbuffer_->albedo_spec_texture().id()), imsize());
         ImGui::Indent();
 
         ImGui::TreePop();

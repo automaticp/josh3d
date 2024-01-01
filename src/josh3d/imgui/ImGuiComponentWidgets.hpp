@@ -1,10 +1,19 @@
 #pragma once
+#include "GLObjects.hpp"
+#include "ImGuiHelpers.hpp"
+#include "components/Mesh.hpp"
+#include "components/Model.hpp"
+#include "components/Materials.hpp"
 #include "components/Name.hpp"
+#include "components/Path.hpp"
 #include "components/Transform.hpp"
+#include "components/VPath.hpp"
+#include <cassert>
+#include <entt/entity/entity.hpp>
 #include <imgui.h>
 
 
-namespace ImGui {
+namespace josh::imgui {
 
 
 inline bool TransformWidget(josh::components::Transform* transform) noexcept {
@@ -13,7 +22,7 @@ inline bool TransformWidget(josh::components::Transform* transform) noexcept {
 
     feedback |= ImGui::DragFloat3(
         "Position", glm::value_ptr(transform->position()),
-        0.2f, -100.f, 100.f
+        0.2f, -FLT_MAX, FLT_MAX
     );
 
     // FIXME: This is slightly more usable, but the singularity for Pitch around 90d
@@ -52,8 +61,131 @@ inline bool TransformWidget(josh::components::Transform* transform) noexcept {
 
 
 inline void NameWidget(josh::components::Name* name) noexcept {
-    ImGui::TextUnformatted(name->name.c_str());
+    ImGui::Text("Name: %s", name->name.c_str());
 }
 
 
-} // namespace josh
+inline void PathWidget(josh::components::Path* path) noexcept {
+    ImGui::Text("Path: %s", path->c_str());
+}
+
+
+inline void VPathWidget(josh::components::VPath* vpath) noexcept {
+    ImGui::Text("VPath: %s", vpath->path().c_str());
+}
+
+
+inline void MeshWidget(entt::handle mesh_handle) noexcept {
+
+    if (auto name = mesh_handle.try_get<components::Name>()) {
+        ImGui::Text("Mesh [%d]: %s", entt::to_entity(mesh_handle.entity()), name->name.c_str());
+    } else {
+        ImGui::Text("Mesh [%d]", entt::to_entity(mesh_handle.entity()));
+    }
+
+    if (auto tf = mesh_handle.try_get<components::Transform>()) {
+        TransformWidget(tf);
+    }
+
+    if (ImGui::TreeNode("Material")) {
+
+        // FIXME:
+        // There's gotta be a better way.
+        auto get_size = [](RawTexture2D<GLConst> tex) -> Size2I {
+            Size2I out{ 0, 0 };
+            tex.bind()
+                .and_then([&] {
+                    using enum GLenum;
+                    gl::glGetTexLevelParameteriv(tex.target_type, 0, GL_TEXTURE_WIDTH,  &out.width);
+                    gl::glGetTexLevelParameteriv(tex.target_type, 0, GL_TEXTURE_HEIGHT, &out.height);
+                })
+                .unbind();
+            return out;
+        };
+
+        // FIXME: Not sure if scaling to max size is always preferrable.
+        auto imsize = [&](RawTexture2D<GLConst> tex) -> ImVec2 {
+            const float w = ImGui::GetContentRegionAvail().x;
+            const float h = w / get_size(tex).aspect_ratio();
+            return { w, h };
+        };
+
+        if (auto material = mesh_handle.try_get<components::MaterialDiffuse>()) {
+            if (ImGui::TreeNode("Diffuse")) {
+                ImGui::Unindent();
+
+                ImageGL(void_id(material->diffuse->id()), imsize(*material->diffuse));
+
+                ImGui::Indent();
+                ImGui::TreePop();
+            }
+        }
+
+        if (auto material = mesh_handle.try_get<components::MaterialSpecular>()) {
+            if (ImGui::TreeNode("Specular")) {
+                ImGui::Unindent();
+
+                ImageGL(void_id(material->specular->id()), imsize(*material->specular));
+
+                ImGui::DragFloat(
+                    "Shininess", &material->shininess,
+                    1.0f, 0.1f, 1.e4f, "%.3f", ImGuiSliderFlags_Logarithmic
+                );
+
+                ImGui::Indent();
+                ImGui::TreePop();
+            }
+        }
+
+        if (auto material = mesh_handle.try_get<components::MaterialNormal>()) {
+            if (ImGui::TreeNode("Normal")) {
+                ImGui::Unindent();
+
+                ImageGL(void_id(material->normal->id()), imsize(*material->normal));
+
+                ImGui::Indent();
+                ImGui::TreePop();
+            }
+        }
+
+        ImGui::TreePop();
+    }
+
+}
+
+
+inline void ModelWidget(entt::handle model_handle) noexcept {
+
+    if (auto name = model_handle.try_get<components::Name>()) {
+        ImGui::Text("Model [%d]: %s", entt::to_entity(model_handle.entity()), name->name.c_str());
+    } else {
+        ImGui::Text("Model [%d]", entt::to_entity(model_handle.entity()));
+    }
+
+    if (auto tf = model_handle.try_get<components::Transform>()) {
+        TransformWidget(tf);
+    }
+
+    if (auto path = model_handle.try_get<components::Path>()) {
+        imgui::PathWidget(path);
+    }
+
+    if (auto vpath = model_handle.try_get<components::VPath>()) {
+        imgui::VPathWidget(vpath);
+    }
+
+    if (ImGui::TreeNode("Meshes")) {
+
+        auto model = model_handle.try_get<components::Model>();
+        assert(model);
+
+        for (auto mesh_entity : model->meshes()) {    ;
+            MeshWidget({ *model_handle.registry(), mesh_entity });
+        }
+
+        ImGui::TreePop();
+    }
+
+}
+
+} // namespace josh::imgui
