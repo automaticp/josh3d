@@ -17,6 +17,7 @@
 #include "FrameTimer.hpp"
 #include "components/Path.hpp"
 #include "components/Name.hpp"
+#include "hooks/OverlaySelectedStageHook.hpp"
 #include "stages/OverlaySelectedStage.hpp"
 #include "tags/Selected.hpp"
 #include "hooks/TerrainComponentRegistryHook.hpp"
@@ -172,6 +173,8 @@ public:
         imgui_.stage_hooks().add_overlay_hook("GBuffer Debug Overlay",
             imguihooks::OverlayGBufferDebugStageHook(gbugger));
 
+        imgui_.stage_hooks().add_overlay_hook("Selected Object Highlight",
+            imguihooks::OverlaySelectedStageHook(selected));
 
 
         rengine_.add_next_primary_stage(std::move(psmapping));
