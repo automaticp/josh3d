@@ -17,6 +17,7 @@
 #include "FrameTimer.hpp"
 #include "components/Path.hpp"
 #include "components/Name.hpp"
+#include "stages/OverlaySelectedStage.hpp"
 #include "tags/Selected.hpp"
 #include "hooks/TerrainComponentRegistryHook.hpp"
 #include "stages/TerrainGeometryStage.hpp"
@@ -133,7 +134,7 @@ public:
         // auto whatsgamma  = rengine_.make_postprocess_stage<PostprocessGammaCorrectionStage>();
 
         auto gbugger     = rengine_.make_overlay_stage<OverlayGBufferDebugStage>(gbuffer.target().get_read_view());
-
+        auto selected    = rengine_.make_overlay_stage<OverlaySelectedStage>();
 
         imgui_.stage_hooks().add_primary_hook("Point Shadow Mapping",
             imguihooks::PointShadowMappingStageHook(psmapping));
@@ -189,7 +190,7 @@ public:
         rengine_.add_next_postprocess_stage(std::move(fxaaaaaaa));
 
         rengine_.add_next_overlay_stage(std::move(gbugger));
-
+        rengine_.add_next_overlay_stage(std::move(selected));
 
         imgui_.registry_hooks().add_hook("Lights",  imguihooks::LightComponentsRegistryHook());
         imgui_.registry_hooks().add_hook("Models",  imguihooks::ModelComponentsRegistryHook());
