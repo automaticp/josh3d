@@ -17,4 +17,5 @@ target_link_libraries(josh3d-demo
         glbinding::glbinding
         glfwpp::glfwpp
         imgui::imgui
+        cxxopts::cxxopts
 )

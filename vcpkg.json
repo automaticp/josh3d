@@ -5,6 +5,7 @@
         "glbinding",
         "glfw3",
         "doctest",
+        "cxxopts",
         "nlohmann-json",
         "glm",
         "stb",
