@@ -33,7 +33,19 @@ inline size_t calculate_view_size(auto entt_view) noexcept {
 }
 
 
-
+// Removes a tag from the entity if it has one,
+// adds a tag to the entity if it doesn't.
+// Returns true if the tag was added, false if it was removed.
+template<typename TagT>
+inline bool switch_tag(entt::handle handle) noexcept {
+    if (handle.any_of<TagT>()) {
+        handle.remove<TagT>();
+        return false;
+    } else {
+        handle.emplace<TagT>();
+        return true;
+    }
+}
 
 
 

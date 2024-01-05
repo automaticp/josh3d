@@ -1,9 +1,11 @@
 #pragma once
 #include "ImGuiContextWrapper.hpp"
+#include "ImGuiSelected.hpp"
 #include "ImGuiWindowSettings.hpp"
 #include "ImGuiVFSControl.hpp"
 #include "ImGuiStageHooks.hpp"
 #include "ImGuiRegistryHooks.hpp"
+#include "ImGuiSelected.hpp"
 #include "AvgFrameTimeCounter.hpp"
 #include <cstring>
 #include <string>
@@ -38,6 +40,7 @@ private:
     ImGuiVFSControl     vfs_control_;
     ImGuiStageHooks     stage_hooks_;
     ImGuiRegistryHooks  registry_hooks_;
+    ImGuiSelected       selected_menu_;
 
     AvgFrameTimeCounter avg_frame_timer_{ 0.500f };
     // Well, lets hope the FPS doesn't exceed 99k.

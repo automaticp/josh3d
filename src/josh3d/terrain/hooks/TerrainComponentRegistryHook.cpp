@@ -2,6 +2,7 @@
 #include "ImageData.hpp"
 #include "Pixels.hpp"
 #include "ImGuiHelpers.hpp"
+#include "ImGuiComponentWidgets.hpp"
 #include "NoiseGenerators.hpp"
 #include "Size.hpp"
 #include "TerrainGenerators.hpp"
@@ -60,7 +61,7 @@ void TerrainComponentRegistryHook::operator()(entt::registry& registry) {
     {
         if (ImGui::TreeNode(void_id(e), "Terrain Chunk %d", entt::to_entity(e))) {
 
-            ImGui::TransformWidget(&transform);
+            imgui::TransformWidget(&transform);
 
             ImGui::TreePop();
         }

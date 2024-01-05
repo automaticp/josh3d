@@ -54,7 +54,7 @@ void josh::imguihooks::PostprocessBloomStageHook::operator()() {
         const float w = ImGui::GetContentRegionAvail().x;
         const float h = w / stage_.blur_texture_size().aspect_ratio();
 
-        ImGui::ImageGL(void_id(stage_.blur_texture().id()), { w, h });
+        imgui::ImageGL(void_id(stage_.blur_texture().id()), { w, h });
 
         ImGui::Indent();
 

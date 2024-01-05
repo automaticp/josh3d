@@ -8,6 +8,10 @@ bool ImGuiInputBlocker::is_key_blocked(const KeyCallbackArgs&) const {
     return ImGui::GetIO().WantCaptureKeyboard;
 }
 
+bool ImGuiInputBlocker::is_mouse_button_blocked(const MouseButtonCallbackArgs&) const {
+    return ImGui::GetIO().WantCaptureMouse;
+}
+
 bool ImGuiInputBlocker::is_cursor_blocked(const CursorPosCallbackArgs&) const {
     return ImGui::GetIO().WantCaptureMouse;
 }

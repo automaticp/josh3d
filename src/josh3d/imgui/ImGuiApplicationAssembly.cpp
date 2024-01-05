@@ -1,6 +1,7 @@
 #include "ImGuiApplicationAssembly.hpp"
 #include "FrameTimer.hpp"
 #include "ImGuiHelpers.hpp"
+#include "ImGuiSelected.hpp"
 #include "Size.hpp"
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -18,6 +19,7 @@ ImGuiApplicationAssembly::ImGuiApplicationAssembly(
     , vfs_control_{ vfs }
     , stage_hooks_{}
     , registry_hooks_{ registry }
+    , selected_menu_{ registry }
 {}
 
 
@@ -138,6 +140,10 @@ void ImGuiApplicationAssembly::draw_widgets() {
             registry_hooks_ .display();
         } ImGui::End();
 
+        if (ImGui::Begin("Selected")) {
+            selected_menu_.display();
+        } ImGui::End();
+
         ImGui::PopStyleColor();
     }
 
@@ -165,6 +171,7 @@ void ImGuiApplicationAssembly::reset_dockspace(ImGuiID dockspace_id) {
 
     ImGui::DockBuilderDockWindow("VFS",      left_id);
     ImGui::DockBuilderDockWindow("Registry", left_id);
+    ImGui::DockBuilderDockWindow("Selected", left_id);
     ImGui::DockBuilderDockWindow("Render Stages", right_id);
     ImGui::DockBuilderDockWindow("Window",        right_top_id);
     ImGui::DockBuilderDockWindow("ImGui",         right_top_id);

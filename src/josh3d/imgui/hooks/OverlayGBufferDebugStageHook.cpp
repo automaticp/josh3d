@@ -16,7 +16,8 @@ void josh::imguihooks::OverlayGBufferDebugStageHook::operator()() {
         "Depth",
         "Depth (Linear)",
         "Normals",
-        "Draw Region"
+        "Draw Region",
+        "Object ID"
     };
 
     using Mode = OverlayGBufferDebugStage::OverlayMode;

@@ -35,6 +35,7 @@ public:
         depth_linear = 5,
         normals      = 6,
         draw_region  = 7,
+        object_id    = 8,
     };
 
     OverlayMode mode{ OverlayMode::none };
@@ -49,11 +50,12 @@ public:
             return;
         }
 
-        gbuffer_->position_draw_texture()   .bind_to_unit_index(0);
-        gbuffer_->normals_texture()         .bind_to_unit_index(1);
-        gbuffer_->albedo_spec_texture()     .bind_to_unit_index(2);
-        gbuffer_->depth_texture()           .bind_to_unit_index(3);
-        // engine   .screen_depth()            .bind_to_unit_index(3);
+        gbuffer_->position_draw_texture().bind_to_unit_index(0);
+        gbuffer_->normals_texture()      .bind_to_unit_index(1);
+        gbuffer_->albedo_spec_texture()  .bind_to_unit_index(2);
+        gbuffer_->depth_texture()        .bind_to_unit_index(3);
+        gbuffer_->object_id_texture()    .bind_to_unit_index(4);
+        // engine   .screen_depth()         .bind_to_unit_index(3);
 
         sp_.use()
             .uniform("mode",              to_underlying(mode))
@@ -63,6 +65,7 @@ public:
             .uniform("tex_normals",       1)
             .uniform("tex_albedo_spec",   2)
             .uniform("tex_depth",         3)
+            .uniform("tex_object_id",     4)
             .and_then([&] {
                 engine.draw_fullscreen_quad();
             });

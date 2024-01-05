@@ -115,6 +115,16 @@ struct KeyCallbackArgs {
     bool is_repeated() const noexcept { return state == glfw::KeyState::Repeat; }
 };
 
+struct MouseButtonCallbackArgs {
+    glfw::Window& window;
+    glfw::MouseButton button;
+    glfw::MouseButtonState state;
+    glfw::ModifierKeyBit mods;
+
+    bool is_pressed() const noexcept { return state == glfw::MouseButtonState::Press; }
+    bool is_released() const noexcept { return state == glfw::MouseButtonState::Release; }
+};
+
 struct CursorPosCallbackArgs {
     glfw::Window& window;
     double xpos;
@@ -144,6 +154,7 @@ can also be implemented, although the practical usefullness of that is so far un
 class IInputBlocker {
 public:
     virtual bool is_key_blocked(const KeyCallbackArgs&) const = 0;
+    virtual bool is_mouse_button_blocked(const MouseButtonCallbackArgs&) const = 0;
     virtual bool is_cursor_blocked(const CursorPosCallbackArgs&) const = 0;
     virtual bool is_scroll_blocked(const ScrollCallbackArgs&) const = 0;
     virtual ~IInputBlocker() = default;
@@ -152,17 +163,20 @@ public:
 class NonBlockingInputBlocker final : public IInputBlocker {
 public:
     bool is_key_blocked(const KeyCallbackArgs&) const override { return false; }
+    bool is_mouse_button_blocked(const MouseButtonCallbackArgs&) const override { return false; }
     bool is_cursor_blocked(const CursorPosCallbackArgs&) const override { return false; };
     bool is_scroll_blocked(const ScrollCallbackArgs&) const override { return false; };
 };
 
 class SimpleInputBlocker final : public IInputBlocker {
 public:
-    bool block_keys  { false };
-    bool block_cursor{ false };
-    bool block_scroll{ false };
+    bool block_keys         { false };
+    bool block_mouse_buttons{ false };
+    bool block_cursor       { false };
+    bool block_scroll       { false };
 
     bool is_key_blocked(const KeyCallbackArgs&) const override { return block_keys; }
+    bool is_mouse_button_blocked(const MouseButtonCallbackArgs&) const override { return block_mouse_buttons; }
     bool is_cursor_blocked(const CursorPosCallbackArgs&) const override { return block_cursor; };
     bool is_scroll_blocked(const ScrollCallbackArgs&) const override { return block_scroll; };
 };
@@ -176,8 +190,10 @@ to implement. But works okay for testing and demos.
 */
 class BasicRebindableInput {
 public:
-    using key_t = decltype(glfw::KeyCode::A);
-    using keymap_t = std::unordered_map<key_t, std::function<void(const KeyCallbackArgs&)>>;
+    using key_t     = decltype(glfw::KeyCode::A);
+    using mbutton_t = decltype(glfw::MouseButton::Left);
+    using keymap_t      = std::unordered_map<key_t, std::function<void(const KeyCallbackArgs&)>>;
+    using mbutton_map_t = std::unordered_map<mbutton_t, std::function<void(const MouseButtonCallbackArgs&)>>;
 
 private:
     glfw::Window& window_;
@@ -186,6 +202,8 @@ private:
     IInputBlocker* blocker_;
 
     keymap_t keymap_;
+    mbutton_map_t mbutton_map_;
+
 
 public:
     explicit BasicRebindableInput(glfw::Window& window)
@@ -198,6 +216,7 @@ public:
         }
     {
         enable_key_callback();
+        enable_mouse_button_callback();
     }
 
     BasicRebindableInput(glfw::Window& window, IInputBlocker& input_blocker)
@@ -205,20 +224,37 @@ public:
         , blocker_{ &input_blocker }
     {
         enable_key_callback();
+        enable_mouse_button_callback();
     }
 
 
     glfw::Window& window() noexcept { return window_; }
     const glfw::Window& window() const noexcept { return window_; }
 
-    void set_keybind(key_t key, std::function<void(const KeyCallbackArgs&)> callback) {
+    void bind_key(key_t key,
+        std::function<void(const KeyCallbackArgs&)> callback)
+    {
         keymap_.insert_or_assign(key, std::move(callback));
+    }
+
+    void bind_mouse_button(mbutton_t mouse_button,
+        std::function<void(const MouseButtonCallbackArgs&)> callback)
+    {
+        mbutton_map_.insert_or_assign(mouse_button, std::move(callback));
     }
 
     void enable_key_callback() {
         window_.keyEvent.setCallback(
             [this](auto&&... args) {
                 invoke_on_key({ std::forward<decltype(args)>(args)... });
+            }
+        );
+    }
+
+    void enable_mouse_button_callback() {
+        window_.mouseButtonEvent.setCallback(
+            [this](auto&&... args) {
+                invoke_on_mouse_button({ std::forward<decltype(args)>(args)... });
             }
         );
     }
@@ -263,16 +299,17 @@ public:
         );
     }
 
-
-
-    void reset_keymap(const keymap_t& new_keymap) noexcept(noexcept(keymap_ = new_keymap)) {
-        keymap_ = new_keymap;
+    void reset_keymap(keymap_t new_key_map)
+        noexcept(noexcept(keymap_ = std::move(new_key_map)))
+    {
+        keymap_ = std::move(new_key_map);
     }
 
-    void reset_keymap(keymap_t&& new_keymap) noexcept(noexcept(keymap_ = std::move(new_keymap))) {
-        keymap_ = std::move(new_keymap);
+    void reset_mouse_button_map(mbutton_map_t new_map)
+        noexcept(noexcept(mbutton_map_ = std::move(new_map)))
+    {
+        mbutton_map_ = std::move(new_map);
     }
-
 
 
 private:
@@ -294,6 +331,15 @@ private:
         if (!blocker_->is_key_blocked(args)) {
             auto it = keymap_.find(args.key);
             if (it != keymap_.end()) {
+                std::invoke(it->second, args);
+            }
+        }
+    }
+
+    void invoke_on_mouse_button(const MouseButtonCallbackArgs& args) {
+        if (!blocker_->is_mouse_button_blocked(args)) {
+            auto it = mbutton_map_.find(args.button);
+            if (it != mbutton_map_.end()) {
                 std::invoke(it->second, args);
             }
         }
