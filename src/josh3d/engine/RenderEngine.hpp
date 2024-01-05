@@ -12,8 +12,6 @@
 #include <entt/fwd.hpp>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/gl.h>
-#include <cassert>
-#include <concepts>
 #include <functional>
 #include <utility>
 #include <vector>
@@ -59,38 +57,6 @@ class RenderEngineOverlayInterface;
 
 
 
-/*
-
-There are multiple modes of operation in terms of render targets and framebuffers:
-
-1. No postprocessing:
-    Primary draws are made to the default backbuffer.
-
-2. One postprocessing stage:
-    Primary draws are made to the backbuffer of PPDB (no swapping).
-    The postprocessing draw is made directly to the default backbuffer.
-
-    FIXME: this is actually wrong because PPDB has no depth buffer
-    that can be sampled later. The color can be overwritten there,
-    but we need the scene depth to be preserved after primary stages.
-
-3. Multiple postprocessing stages:
-    Primary draws are made to the backbuffer of PPDB (no swapping).
-    The postprocessing draws are made to the PPDB backbuffers, until
-    the last draw, whic is made to the default backbuffer.
-
-
-This is inflexible, as the screen cannot be sampled in the primary stages.
-Will have to think about it more.
-
-TODO: This is also not how it's implemented currently, as the primary draws
-are always made to the "main_target", and then blitted to either
-the PPDB backbuffer or the default framebuffer depending on the presence
-of postprocessing. Regardless, this is wasteful, redo with corrections from
-above.
-
-
-*/
 class RenderEngine {
 private:
     friend RenderEngineCommonInterface;
