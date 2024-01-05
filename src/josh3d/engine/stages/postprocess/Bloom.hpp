@@ -1,4 +1,5 @@
 #pragma once
+#include "DefaultResources.hpp"
 #include "GLObjects.hpp"
 #include "Attachments.hpp"
 #include "GLTextures.hpp"
@@ -119,8 +120,7 @@ public:
                     .uniform("screen_color", 0);
                 engine.screen_color().bind_to_unit_index(0);
 
-                engine.postprocess_renderer().draw();
-
+                globals::quad_primitive_mesh().draw();
             });
         });
 
@@ -141,7 +141,7 @@ public:
                             .texture()
                             .bind_to_unit_index(0);
 
-                        engine.postprocess_renderer().draw();
+                        globals::quad_primitive_mesh().draw();
                     });
                 });
             }

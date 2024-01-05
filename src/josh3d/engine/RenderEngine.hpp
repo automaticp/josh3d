@@ -1,10 +1,10 @@
 #pragma once
+#include "DefaultResources.hpp"
 #include "GLFramebuffer.hpp"
 #include "GLMutability.hpp"
 #include "PerspectiveCamera.hpp"
 #include "FrameTimer.hpp"
 #include "GLObjects.hpp"
-#include "PostprocessRenderer.hpp"
 #include "RenderTarget.hpp"
 #include "Size.hpp"
 #include "RenderStage.hpp"
@@ -126,8 +126,6 @@ private:
     };
 
     inline static const RawFramebuffer<GLMutable> default_fbo_{ 0 };
-
-    PostprocessRenderer pp_renderer_;
 
 
 public:
@@ -282,10 +280,6 @@ private:
     {}
 
 public:
-    PostprocessRenderer& postprocess_renderer() const noexcept {
-        return engine_.pp_renderer_;
-    }
-
     RawTexture2D<GLConst> screen_color() const noexcept {
         return engine_.main_swapchain_.front_target().color_attachment().texture();
     }
@@ -302,8 +296,8 @@ public:
     // You have to call screen_color() again and bind the returned texture
     // in order to sample the screen in the next call to draw().
     void draw() const {
-        engine_.main_swapchain_.draw_and_swap([this] {
-            engine_.pp_renderer_.draw();
+        engine_.main_swapchain_.draw_and_swap([] {
+            globals::quad_primitive_mesh().draw();
         });
     }
 
@@ -313,8 +307,8 @@ public:
     //
     // Used as an optimization for draws that either override or blend with the screen.
     void draw_to_front() const {
-        engine_.main_swapchain_.front_target().bind_draw().and_then([this] {
-            engine_.pp_renderer_.draw();
+        engine_.main_swapchain_.front_target().bind_draw().and_then([] {
+            globals::quad_primitive_mesh().draw();
         });
     }
 
@@ -333,14 +327,10 @@ private:
     {}
 
 public:
-    PostprocessRenderer& postprocess_renderer() const noexcept {
-        return engine_.pp_renderer_;
-    }
-
     // Emit the draw call on the screen quad and draw directly to the default buffer.
     void draw_fullscreen_quad() const {
-        engine_.default_fbo_.bind_draw().and_then([this] {
-            engine_.pp_renderer_.draw();
+        engine_.default_fbo_.bind_draw().and_then([] {
+            globals::quad_primitive_mesh().draw();
         });
     }
 
