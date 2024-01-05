@@ -28,14 +28,14 @@ private:
     UniqueShaderProgram sp_stencil_prep_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/non_instanced.vert"))
-            .load_frag(VPath("src/shaders/overlay_selected_stencil_prep.frag"))
+            .load_frag(VPath("src/shaders/ovl_selected_stencil_prep.frag"))
             .get()
     };
 
     UniqueShaderProgram sp_highlight_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
-            .load_frag(VPath("src/shaders/overlay_selected_highlight.frag"))
+            .load_frag(VPath("src/shaders/ovl_selected_highlight.frag"))
             .get()
     };
 

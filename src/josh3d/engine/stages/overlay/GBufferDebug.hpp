@@ -22,7 +22,7 @@ private:
     UniqueShaderProgram sp_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
-            .load_frag(VPath("src/shaders/pp_gbuffer_debug.frag"))
+            .load_frag(VPath("src/shaders/ovl_gbuffer_debug.frag"))
             .get()
     };
 
