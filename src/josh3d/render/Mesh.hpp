@@ -43,27 +43,48 @@ public:
             .unbind();
     }
 
-    void draw() const {
-        using enum GLenum;
 
+    void draw(GLenum draw_mode = gl::GL_TRIANGLES) const {
         if (is_indexed()) {
-            vao_.bind().draw_elements(GL_TRIANGLES, num_elements_, GL_UNSIGNED_INT);
+            draw_elements(draw_mode);
         } else {
-            vao_.bind().draw_arrays(GL_TRIANGLES, 0, num_vertices_);
+            draw_arrays(draw_mode);
         }
     }
 
-    void draw_instanced(GLsizei instance_count) const {
+    void draw_arrays(GLenum draw_mode = gl::GL_TRIANGLES) const {
         using enum GLenum;
+        vao_.bind().draw_arrays(draw_mode, 0, num_vertices_);
+    }
 
+    void draw_elements(GLenum draw_mode = gl::GL_TRIANGLES) const {
+        using enum GLenum;
+        vao_.bind().draw_elements(draw_mode, num_elements_, GL_UNSIGNED_INT);
+    }
+
+
+    void draw_instanced(GLsizei instance_count, GLenum draw_mode = gl::GL_TRIANGLES) const {
+        using enum GLenum;
         if (is_indexed()) {
             vao_.bind()
-                .draw_elements_instanced(GL_TRIANGLES, num_elements_, GL_UNSIGNED_INT, instance_count);
+                .draw_elements_instanced(draw_mode, num_elements_, GL_UNSIGNED_INT, instance_count);
         } else {
             vao_.bind()
-                .draw_arrays_instanced(GL_TRIANGLES, 0, num_vertices_, instance_count);
+                .draw_arrays_instanced(draw_mode, 0, num_vertices_, instance_count);
         }
     }
+
+    void draw_arrays_instanced(GLsizei instance_count, GLenum draw_mode = gl::GL_TRIANGLES) const {
+        vao_.bind()
+            .draw_arrays_instanced(draw_mode, 0, num_vertices_, instance_count);
+    }
+
+    void draw_elements_instanced(GLsizei instance_count, GLenum draw_mode = gl::GL_TRIANGLES) const {
+        using enum GLenum;
+        vao_.bind()
+            .draw_elements_instanced(draw_mode, num_elements_, GL_UNSIGNED_INT, instance_count);
+    }
+
 
     bool is_indexed() const noexcept { return bool(num_elements_); }
 
