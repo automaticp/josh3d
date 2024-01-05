@@ -19,12 +19,12 @@
 namespace josh {
 
 
-
 struct CascadeParams {
     alignas(layout::base_alignment_of_vec4)  glm::mat4 projview{};
     alignas(layout::base_alignment_of_vec3)  glm::vec3 scale{};
     alignas(layout::base_alignment_of_float) float     z_split{};
 };
+
 
 // FIXME: figure out proper incapsulation for resizing
 // and uploading data, etc.
@@ -58,6 +58,14 @@ public:
 };
 
 
+} // namespace josh
+
+
+
+
+namespace josh::stages::primary {
+
+
 /*
 CascadeViewsBuilder
 |-> CascadeViews
@@ -66,7 +74,7 @@ CascadeViewsBuilder
                                    |-> CascadedeShadowMappingStage
                                        |-> CascadedShadowMaps -> DeferredShadingStage
 */
-class CascadedShadowMappingStage {
+class CascadedShadowMapping {
 private:
     SharedStorageView<CascadeViews>   input_;
     SharedStorage<CascadedShadowMaps> output_;
@@ -93,7 +101,7 @@ private:
     };
 
 public:
-    CascadedShadowMappingStage(
+    CascadedShadowMapping(
         SharedStorageView<CascadeViews> cascade_info_input,
         size_t max_cascades = 12)
         : input_{ std::move(cascade_info_input) }
@@ -123,10 +131,10 @@ private:
 
 
 
-inline void CascadedShadowMappingStage::resize_maps(const Size2I& new_size) {
+inline void CascadedShadowMapping::resize_maps(const Size2I& new_size) {
     auto& maps = output_->dir_shadow_maps_tgt;
     maps.resize_all(new_size);
 }
 
 
-} // namespace josh
+} // namespace josh::stages::primary

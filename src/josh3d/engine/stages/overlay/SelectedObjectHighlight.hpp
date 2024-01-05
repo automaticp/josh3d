@@ -18,10 +18,12 @@
 #include <entt/entt.hpp>
 
 
-namespace josh {
 
 
-class OverlaySelectedStage {
+namespace josh::stages::overlay {
+
+
+class SelectedObjectHighlight {
 private:
     UniqueShaderProgram sp_stencil_prep_{
         ShaderBuilder()
@@ -188,4 +190,4 @@ public:
 };
 
 
-} // namespace josh
+} // namespace josh::stages::overlay

@@ -1,6 +1,6 @@
 #pragma once
+#include "stages/primary/GBufferStorage.hpp"
 #include "EnumUtils.hpp"
-#include "GBufferStage.hpp"
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
 #include "SharedStorage.hpp"
@@ -12,9 +12,10 @@
 
 
 
-namespace josh {
+namespace josh::stages::overlay {
 
-class OverlayGBufferDebugStage {
+
+class GBufferDebug {
 private:
     SharedStorageView<GBuffer> gbuffer_;
 
@@ -40,7 +41,7 @@ public:
 
     OverlayMode mode{ OverlayMode::none };
 
-    OverlayGBufferDebugStage(SharedStorageView<GBuffer> gbuffer)
+    GBufferDebug(SharedStorageView<GBuffer> gbuffer)
         : gbuffer_{ std::move(gbuffer) }
     {}
 
@@ -75,5 +76,5 @@ public:
 };
 
 
-} // namespace josh
+} // namespace josh::stages::overlay
 

@@ -11,10 +11,11 @@
 
 
 
-namespace josh {
+
+namespace josh::stages::primary {
 
 
-class PointLightSourceBoxStage {
+class PointLightBox {
 private:
     UniqueShaderProgram sp_{
         ShaderBuilder()
@@ -23,7 +24,6 @@ private:
             .get()
     };
 
-
     Mesh box_{ globals::box_primitive_data() };
 
 public:
@@ -31,7 +31,7 @@ public:
     bool  display{ true };
 
 public:
-    PointLightSourceBoxStage() = default;
+    PointLightBox() = default;
 
     void operator()(const RenderEnginePrimaryInterface& engine, const entt::registry& registry) {
         using namespace gl;
@@ -66,6 +66,4 @@ public:
 };
 
 
-
-
-} // namespace josh
+} // namespace josh::stages::primary

@@ -4,15 +4,15 @@
 #include "ShaderBuilder.hpp"
 #include "SharedStorage.hpp"
 #include "VPath.hpp"
-#include "stages/GBufferStage.hpp"
+#include "stages/primary/GBufferStorage.hpp"
 #include <entt/entity/fwd.hpp>
 #include <utility>
 
 
-namespace josh {
+namespace josh::stages::primary {
 
 
-class TerrainGeometryStage {
+class TerrainGeometry {
 private:
     UniqueShaderProgram sp_{
         ShaderBuilder()
@@ -24,7 +24,7 @@ private:
     SharedStorageMutableView<GBuffer> gbuffer_;
 
 public:
-    TerrainGeometryStage(SharedStorageMutableView<GBuffer> gbuffer_view)
+    TerrainGeometry(SharedStorageMutableView<GBuffer> gbuffer_view)
         : gbuffer_{ std::move(gbuffer_view) }
     {}
 
@@ -32,4 +32,4 @@ public:
 };
 
 
-} // namespace josh
+} // namespace josh::stages::primary

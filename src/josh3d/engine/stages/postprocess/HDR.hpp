@@ -9,9 +9,11 @@
 
 
 
-namespace josh {
 
-class PostprocessHDRStage {
+namespace josh::stages::postprocess {
+
+
+class HDR {
 private:
     UniqueShaderProgram sp_{
         ShaderBuilder()
@@ -42,6 +44,4 @@ public:
 };
 
 
-
-
-} // namespace josh
+} // namespace josh::stages::postprocess

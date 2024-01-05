@@ -1,4 +1,4 @@
-#include "CascadedShadowMappingStage.hpp"
+#include "CascadedShadowMapping.hpp"
 #include "GLMutability.hpp"
 #include "GLShaders.hpp"
 #include "Logging.hpp"
@@ -19,10 +19,10 @@
 using namespace gl;
 
 
-namespace josh {
+namespace josh::stages::primary {
 
 
-void CascadedShadowMappingStage::operator()(
+void CascadedShadowMapping::operator()(
     const RenderEnginePrimaryInterface& engine,
     const entt::registry& registry)
 {
@@ -37,7 +37,7 @@ void CascadedShadowMappingStage::operator()(
 
 
 
-void CascadedShadowMappingStage::resize_cascade_storage_if_needed() {
+void CascadedShadowMapping::resize_cascade_storage_if_needed() {
     auto& maps = output_->dir_shadow_maps_tgt.depth_attachment();
 
     const size_t new_size = input_->cascades.size();
@@ -114,7 +114,7 @@ static void draw_all_world_geometry_with_alpha_test(
 
 
 
-void CascadedShadowMappingStage::map_dir_light_shadow_cascade(
+void CascadedShadowMapping::map_dir_light_shadow_cascade(
     const RenderEnginePrimaryInterface&,
     const entt::registry& registry)
 {
@@ -199,6 +199,4 @@ void CascadedShadowMappingStage::map_dir_light_shadow_cascade(
 }
 
 
-
-
-} // namespace josh
+} // namespace josh::stages::primary

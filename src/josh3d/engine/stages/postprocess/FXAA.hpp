@@ -8,10 +8,11 @@
 
 
 
-namespace josh {
+
+namespace josh::stages::postprocess {
 
 
-class PostprocessFXAAStage {
+class FXAA {
 private:
     UniqueShaderProgram sp_{
         ShaderBuilder()
@@ -51,4 +52,4 @@ public:
 };
 
 
-} // namespace josh
+} // namespace josh::stages::postprocess

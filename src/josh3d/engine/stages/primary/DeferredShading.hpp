@@ -5,19 +5,19 @@
 #include "SSBOWithIntermediateBuffer.hpp"
 #include "ShaderBuilder.hpp"
 #include "SharedStorage.hpp"
-#include "GBufferStage.hpp"
+#include "GBufferStorage.hpp"
 #include "VPath.hpp"
-#include "stages/PointShadowMappingStage.hpp"
-#include "stages/CascadedShadowMappingStage.hpp"
+#include "stages/primary/PointShadowMapping.hpp"
+#include "stages/primary/CascadedShadowMapping.hpp"
 #include <entt/entity/fwd.hpp>
 #include <glbinding/gl/enum.h>
 #include <utility>
 
 
-namespace josh {
+namespace josh::stages::primary {
 
 
-class DeferredShadingStage {
+class DeferredShading {
 public:
     struct PointShadowParams {
         glm::vec2 bias_bounds{ 0.0001f, 0.08f };
@@ -69,7 +69,7 @@ public:
     DirShadowParams dir_params;
     bool enable_csm_debug{ false };
 
-    DeferredShadingStage(
+    DeferredShading(
         SharedStorageView<GBuffer>            gbuffer,
         SharedStorageView<PointShadowMaps>    input_psm,
         SharedStorageView<CascadedShadowMaps> input_csm)
@@ -89,6 +89,4 @@ private:
 };
 
 
-
-
-} // namespace josh
+} // namespace josh::stages::primary

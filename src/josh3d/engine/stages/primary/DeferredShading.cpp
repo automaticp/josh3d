@@ -1,4 +1,4 @@
-#include "DeferredShadingStage.hpp"
+#include "DeferredShading.hpp"
 #include "DefaultResources.hpp"
 #include "GLShaders.hpp"
 #include "LightCasters.hpp"
@@ -11,11 +11,11 @@
 
 using namespace gl;
 
-namespace josh {
+
+namespace josh::stages::primary {
 
 
-
-void DeferredShadingStage::operator()(
+void DeferredShading::operator()(
     const RenderEnginePrimaryInterface& engine,
     const entt::registry& registry)
 {
@@ -32,7 +32,7 @@ void DeferredShadingStage::operator()(
 }
 
 
-void DeferredShadingStage::draw_main(
+void DeferredShading::draw_main(
     const RenderEnginePrimaryInterface& engine,
     const entt::registry& registry)
 {
@@ -101,7 +101,7 @@ void DeferredShadingStage::draw_main(
 }
 
 
-void DeferredShadingStage::draw_debug_csm(
+void DeferredShading::draw_debug_csm(
     const RenderEnginePrimaryInterface& engine,
     const entt::registry& registry)
 {
@@ -132,13 +132,12 @@ void DeferredShadingStage::draw_debug_csm(
 }
 
 
-
-void DeferredShadingStage::update_cascade_buffer() {
+void DeferredShading::update_cascade_buffer() {
     cascade_params_ssbo_.bind().update(input_csm_->params);
 }
 
 
-void DeferredShadingStage::update_point_light_buffers(
+void DeferredShading::update_point_light_buffers(
     const entt::registry& registry)
 {
 
@@ -163,7 +162,4 @@ void DeferredShadingStage::update_point_light_buffers(
 }
 
 
-
-
-
-} // namespace josh
+} // namespace josh::stages::primary

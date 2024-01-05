@@ -3,14 +3,13 @@
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
 #include "VPath.hpp"
-#include <cmath>
 #include <entt/fwd.hpp>
 #include <glm/matrix.hpp>
 
 
 
-namespace josh {
 
+namespace josh::stages::postprocess {
 
 
 /*
@@ -35,7 +34,7 @@ for uniform density is a given and is assumed default.
 Everything else (linear, exponential sqared, etc.) is non-physical
 and is not considered here as a base model.
 */
-class PostprocessFogStage {
+class Fog {
 public:
     enum class FogType {
         none, uniform, barometric
@@ -180,5 +179,5 @@ private:
 };
 
 
-} // namespace josh
+} // namespace josh::stages::postprocess
 

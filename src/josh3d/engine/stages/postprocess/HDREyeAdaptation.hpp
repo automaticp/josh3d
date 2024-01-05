@@ -7,19 +7,20 @@
 #include "VPath.hpp"
 #include "Size.hpp"
 #include <array>
-#include <chrono>
 #include <entt/entt.hpp>
 #include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
 #include <glbinding/gl/types.h>
-#include <numeric>
 #include <cmath>
 
 
-namespace josh {
 
-class PostprocessHDREyeAdaptationStage {
+
+namespace josh::stages::postprocess {
+
+
+class HDREyeAdaptation {
 private:
     UniqueShaderProgram tonemap_sp_{
         ShaderBuilder()
@@ -75,7 +76,7 @@ public:
     bool   use_adaptation { true  };
     size_t num_y_sample_blocks{ 64    };
 
-    PostprocessHDREyeAdaptationStage() noexcept {
+    HDREyeAdaptation() noexcept {
         auto dims = dispatch_dimensions(num_y_sample_blocks, 1.0f);
         resize_intermediate_buffer(dims);
 
@@ -209,6 +210,4 @@ private:
 };
 
 
-
-
-} // namespace josh
+} // namespace josh::stages::postprocess

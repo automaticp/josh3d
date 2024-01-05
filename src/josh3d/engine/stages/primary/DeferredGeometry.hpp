@@ -1,5 +1,5 @@
 #pragma once
-#include "GBufferStage.hpp"
+#include "stages/primary/GBufferStorage.hpp"
 #include "GLShaders.hpp"
 #include "RenderStage.hpp"
 #include "ShaderBuilder.hpp"
@@ -9,11 +9,10 @@
 
 
 
-namespace josh {
+namespace josh::stages::primary {
 
 
-
-class DeferredGeometryStage {
+class DeferredGeometry {
 private:
     UniqueShaderProgram sp_ds{
         ShaderBuilder()
@@ -34,7 +33,7 @@ private:
     SharedStorageMutableView<GBuffer> gbuffer_;
 
 public:
-    DeferredGeometryStage(SharedStorageMutableView<GBuffer> gbuffer_view)
+    DeferredGeometry(SharedStorageMutableView<GBuffer> gbuffer_view)
         : gbuffer_{ std::move(gbuffer_view) }
     {}
 
@@ -43,6 +42,4 @@ public:
 };
 
 
-
-
-} // namespace josh
+} // namespace josh::stages::primary

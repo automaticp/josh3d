@@ -14,11 +14,10 @@
 
 
 
-namespace josh {
+namespace josh::stages::primary {
 
 
-// TODO: Rename to SkyStage?
-class SkyboxStage {
+class Sky {
 public:
     enum class SkyType {
         none, debug, skybox, procedural
@@ -170,4 +169,4 @@ private:
 };
 
 
-} // namspace josh
+} // namespace josh::stages::primary

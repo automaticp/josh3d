@@ -16,13 +16,14 @@
 #include <range/v3/view/generate_n.hpp>
 #include <cassert>
 #include <cstddef>
-#include <vector>
 
 
 
-namespace josh {
 
-class PostprocessBloomStage {
+namespace josh::stages::postprocess {
+
+
+class Bloom {
 private:
     UniqueShaderProgram sp_extract_{
         ShaderBuilder()
@@ -74,7 +75,7 @@ private:
     size_t old_gaussian_samples_{ 4 };
 
 public:
-    PostprocessBloomStage() {
+    Bloom() {
         update_gaussian_blur_weights();
     }
 
@@ -202,7 +203,7 @@ private:
 
 };
 
-inline void PostprocessBloomStage::update_gaussian_blur_weights()
+inline void Bloom::update_gaussian_blur_weights()
 {
     // FIXME: The weights are not normalized over the range of x
     // leading to a noticable loss of color yield when
@@ -218,5 +219,4 @@ inline void PostprocessBloomStage::update_gaussian_blur_weights()
 }
 
 
-
-} // namespace josh
+} // namespace josh::stages::postprocess

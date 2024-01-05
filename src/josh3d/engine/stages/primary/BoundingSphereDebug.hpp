@@ -11,10 +11,10 @@
 #include <entt/entt.hpp>
 
 
-namespace josh {
+namespace josh::stages::primary {
 
 
-class BoundingSphereDebugStage {
+class BoundingSphereDebug {
 private:
     UniqueShaderProgram sp_{
         ShaderBuilder()
@@ -78,4 +78,4 @@ public:
 };
 
 
-} // namespace josh
+} // namespace josh::stages::primary

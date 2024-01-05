@@ -1,4 +1,4 @@
-#include "PointShadowMappingStage.hpp"
+#include "PointShadowMapping.hpp"
 #include "GLMutability.hpp"
 #include "tags/ShadowCasting.hpp"
 #include "tags/AlphaTested.hpp"
@@ -17,10 +17,10 @@
 using namespace gl;
 
 
-namespace josh {
+namespace josh::stages::primary {
 
 
-void PointShadowMappingStage::operator()(
+void PointShadowMapping::operator()(
     const RenderEnginePrimaryInterface& engine,
     const entt::registry& registry)
 {
@@ -35,7 +35,7 @@ void PointShadowMappingStage::operator()(
 
 
 
-void PointShadowMappingStage::resize_cubemap_array_storage_if_needed(
+void PointShadowMapping::resize_cubemap_array_storage_if_needed(
     const entt::registry& registry)
 {
 
@@ -80,7 +80,7 @@ static void draw_all_world_geometry_no_alpha_test(
 
 
 
-void PointShadowMappingStage::map_point_shadows(
+void PointShadowMapping::map_point_shadows(
     const RenderEnginePrimaryInterface&,
     const entt::registry& registry)
 {
@@ -218,6 +218,4 @@ static void draw_all_world_geometry_with_alpha_test(
 }
 
 
-
-
-} // namespace josh
+} // namespace josh::stages::primary

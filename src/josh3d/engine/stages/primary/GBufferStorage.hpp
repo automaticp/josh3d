@@ -112,7 +112,10 @@ public:
 };
 
 
+} // namespace josh
 
+
+namespace josh::stages::primary {
 
 
 /*
@@ -120,16 +123,16 @@ Provides the storage for the GBuffer and clears it on each pass.
 
 Place it before any other stages that draw into the GBuffer.
 */
-class GBufferStage {
+class GBufferStorage {
 private:
     SharedStorage<GBuffer> gbuffer_;
 
 public:
-    GBufferStage(const Size2I& size)
+    GBufferStorage(const Size2I& size)
         : gbuffer_{ size }
     {}
 
-    GBufferStage(const Size2I& size, const ViewAttachment<RawTexture2D>& depth)
+    GBufferStorage(const Size2I& size, const ViewAttachment<RawTexture2D>& depth)
         : gbuffer_{ size, depth }
     {}
 
@@ -174,7 +177,4 @@ public:
 };
 
 
-
-
-
-} // namespace josh
+} // namespace josh::stages::primary

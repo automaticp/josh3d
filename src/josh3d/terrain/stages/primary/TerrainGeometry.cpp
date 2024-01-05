@@ -1,4 +1,4 @@
-#include "TerrainGeometryStage.hpp"
+#include "TerrainGeometry.hpp"
 #include "GLMutability.hpp"
 #include "GLShaders.hpp"
 #include "RenderEngine.hpp"
@@ -7,10 +7,12 @@
 #include <entt/entt.hpp>
 
 
-namespace josh {
 
 
-void TerrainGeometryStage::operator()(
+namespace josh::stages::primary {
+
+
+void TerrainGeometry::operator()(
     const RenderEnginePrimaryInterface& engine,
     const entt::registry& registry)
 {
@@ -42,7 +44,4 @@ void TerrainGeometryStage::operator()(
 }
 
 
-
-
-
-} // namespace josh
+} // namespace josh::stages::primary

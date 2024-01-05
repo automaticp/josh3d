@@ -41,7 +41,13 @@ public:
 };
 
 
-class PointShadowMappingStage {
+} // namespace josh
+
+
+namespace josh::stages::primary {
+
+
+class PointShadowMapping {
 private:
     SharedStorage<PointShadowMaps> output_;
 
@@ -64,7 +70,7 @@ private:
 
 
 public:
-    PointShadowMappingStage() = default;
+    PointShadowMapping() = default;
 
     void operator()(
         const RenderEnginePrimaryInterface& engine,
@@ -92,10 +98,10 @@ private:
 
 
 
-inline void PointShadowMappingStage::resize_maps(const Size2I& new_size) {
+inline void PointShadowMapping::resize_maps(const Size2I& new_size) {
     auto& maps_tgt = output_->point_shadow_maps_tgt;
     maps_tgt.resize_all(new_size);
 }
 
 
-} // namespace josh
+} // namespace josh::stages::primary

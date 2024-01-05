@@ -1,4 +1,4 @@
-#include "DeferredGeometryStage.hpp"
+#include "DeferredGeometry.hpp"
 #include "GLMutability.hpp"
 #include "GLShaders.hpp"
 #include "components/ChildMesh.hpp"
@@ -16,10 +16,10 @@
 
 using namespace gl;
 
-namespace josh {
+namespace josh::stages::primary {
 
 
-void DeferredGeometryStage::operator()(
+void DeferredGeometry::operator()(
     const RenderEnginePrimaryInterface& engine,
     const entt::registry& registry)
 {
@@ -119,4 +119,4 @@ void DeferredGeometryStage::operator()(
 
 
 
-} // namespace josh
+} // namespace josh::stages::primary

@@ -10,9 +10,10 @@
 
 
 
-namespace josh {
+namespace josh::stages::postprocess {
 
-class PostprocessGammaCorrectionStage {
+
+class GammaCorrection {
 private:
     UniqueShaderProgram sp_{
         ShaderBuilder()
@@ -51,6 +52,4 @@ public:
 };
 
 
-
-
-} // namespace josh
+} // namespace josh::stages::postprocess
