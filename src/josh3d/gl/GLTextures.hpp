@@ -644,7 +644,7 @@ template<> struct BoundTexImpl<BoundCubemapArray, GLMutable>
 The magic happens here.
 */
 #define JOSH3D_GENERATE_TEXTURE_CLASSES(tex_name, target_enum)                 \
-    template<mutability_tag MutT>                                              \
+    template<mutability_tag MutT = GLMutable>                                  \
     class Bound##tex_name                                                      \
         : public detail::BoundTexImpl<Bound##tex_name, MutT>                   \
     {                                                                          \
@@ -653,7 +653,7 @@ The magic happens here.
         Bound##tex_name() = default;                                           \
     };                                                                         \
                                                                                \
-    template<mutability_tag MutT>                                              \
+    template<mutability_tag MutT = GLMutable>                                  \
     class Raw##tex_name                                                        \
         : public RawTextureHandle<MutT>                                        \
         , public detail::Bindable##tex_name<MutT>                              \

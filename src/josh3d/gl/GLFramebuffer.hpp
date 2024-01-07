@@ -26,7 +26,7 @@ template<mutability_tag MutT> class RawFramebuffer;
 
 
 
-template<mutability_tag MutT>
+template<mutability_tag MutT = GLMutable>
 class BoundReadFramebuffer
     : public detail::AndThen<BoundReadFramebuffer<MutT>>
 {
@@ -73,7 +73,7 @@ public:
 };
 
 
-template<mutability_tag MutT>
+template<mutability_tag MutT = GLMutable>
 class BoundDrawFramebuffer
     : public detail::AndThen<BoundDrawFramebuffer<MutT>>
 {
@@ -208,7 +208,7 @@ public:
 
 
 
-template<mutability_tag MutT>
+template<mutability_tag MutT = GLMutable>
 class RawFramebuffer
     : public RawFramebufferHandle<MutT>
     , public detail::ObjectHandleTypeInfo<RawFramebuffer, MutT>

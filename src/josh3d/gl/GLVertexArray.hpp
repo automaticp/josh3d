@@ -150,7 +150,7 @@ template<> struct BoundVAOImpl<GLMutable>
 
 
 
-template<mutability_tag MutT>
+template<mutability_tag MutT = GLMutable>
 class BoundVAO
     : public detail::BoundVAOImpl<MutT>
 {
@@ -160,7 +160,7 @@ private:
 };
 
 
-template<mutability_tag MutT>
+template<mutability_tag MutT = GLMutable>
 class RawVAO
     : public RawVertexArrayHandle<MutT>
     , public detail::ObjectHandleTypeInfo<RawVAO, MutT>

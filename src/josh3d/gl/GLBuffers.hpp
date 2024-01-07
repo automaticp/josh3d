@@ -13,7 +13,6 @@
 #include <glbinding/gl/gl.h>
 #include <glbinding/gl/types.h>
 #include <cassert>
-#include <cstddef>
 #include <span>
 
 
@@ -413,7 +412,7 @@ JOSH3D_SPECIALIZE_INDEXED_IMPL(SSBO, gl::GL_SHADER_STORAGE_BUFFER)
 
 
 #define JOSH3D_GENERATE_BUFFER_CLASSES(buf_name, target_enum)                 \
-    template<mutability_tag MutT>                                             \
+    template<mutability_tag MutT = GLMutable>                                 \
     class Bound##buf_name                                                     \
         : public detail::BoundBufferImpl<Bound##buf_name, MutT>               \
     {                                                                         \
@@ -422,7 +421,7 @@ JOSH3D_SPECIALIZE_INDEXED_IMPL(SSBO, gl::GL_SHADER_STORAGE_BUFFER)
         Bound##buf_name() = default;                                          \
     };                                                                        \
                                                                               \
-    template<mutability_tag MutT>                                             \
+    template<mutability_tag MutT = GLMutable>                                 \
     class BoundIndexed##buf_name                                              \
         : public detail::BoundBufferIndexedImpl<                              \
             BoundIndexed##buf_name, MutT>                                     \
@@ -433,7 +432,7 @@ JOSH3D_SPECIALIZE_INDEXED_IMPL(SSBO, gl::GL_SHADER_STORAGE_BUFFER)
             BoundIndexed##buf_name, MutT>::BoundBufferIndexedImpl;            \
     };                                                                        \
                                                                               \
-    template<mutability_tag MutT>                                             \
+    template<mutability_tag MutT = GLMutable>                                 \
     class Raw##buf_name                                                       \
         : public RawBufferHandle<MutT>                                        \
         , public detail::Bindable##buf_name<MutT>                             \
