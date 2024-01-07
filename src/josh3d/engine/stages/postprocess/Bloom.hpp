@@ -1,12 +1,13 @@
 #pragma once
 #include "DefaultResources.hpp"
+#include "GLBuffers.hpp"
+#include "GLMutability.hpp"
 #include "GLObjects.hpp"
 #include "Attachments.hpp"
 #include "GLTextures.hpp"
 #include "RenderTarget.hpp"
 #include "SwapChain.hpp"
 #include "RenderEngine.hpp"
-#include "SSBOWithIntermediateBuffer.hpp"
 #include "ShaderBuilder.hpp"
 #include "Size.hpp"
 #include "VPath.hpp"
@@ -71,13 +72,13 @@ private:
         make_blur_target(), make_blur_target()
     };
 
-    SSBOWithIntermediateBuffer<float> weights_ssbo_{ 0 };
-    float  old_gaussian_sample_range_{ 1.8f };
-    size_t old_gaussian_samples_{ 4 };
+    UniqueSSBO weights_ssbo_;
+    float  old_gaussian_sample_range_{ 1.f };
+    size_t old_gaussian_samples_{ 0 }; // Must be different from the gaussian_samples on costruction...
 
 public:
     Bloom() {
-        update_gaussian_blur_weights();
+        update_gaussian_blur_weights_if_needed();
     }
 
 
@@ -87,8 +88,8 @@ public:
     bool      use_bloom{ true };
 
 
-    float  gaussian_sample_range{ old_gaussian_sample_range_ };
-    size_t gaussian_samples{ old_gaussian_samples_ };
+    float  gaussian_sample_range{ 1.8f };
+    size_t gaussian_samples{ 4 };
 
 
     RawTexture2D<GLConst> blur_texture() const noexcept {
@@ -108,9 +109,8 @@ public:
             blur_chain_.resize_all(engine.window_size());
         }
 
-        if (gaussian_weights_need_updating()) {
-            update_gaussian_blur_weights();
-        }
+        update_gaussian_blur_weights_if_needed();
+
 
         // Extract
         blur_chain_.draw_and_swap([&, this] {
@@ -125,7 +125,7 @@ public:
         });
 
         // Blur
-        weights_ssbo_.bind().and_then([&, this] {
+        weights_ssbo_.bind_to_index(0).and_then([&, this] {
 
             for (size_t i{ 0 }; i < (2 * blur_iterations); ++i) {
                 blur_chain_.draw_and_swap([&, this] {
@@ -146,7 +146,8 @@ public:
                 });
             }
 
-        });
+        })
+        .unbind();
 
         // Blend
         sp_blend_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
@@ -165,11 +166,18 @@ public:
 
 private:
     // From -x to +x binned into 2 * n_samples + 1.
-    void update_gaussian_blur_weights();
+    void update_gaussian_blur_weights_if_needed();
 
-    bool gaussian_weights_need_updating() const noexcept {
-        return gaussian_sample_range != old_gaussian_sample_range_ ||
-            gaussian_samples != old_gaussian_samples_;
+    size_t gaussian_weights_buffer_size() const noexcept {
+        return (gaussian_samples * 2) + 1;
+    }
+
+    bool gaussian_weights_buffer_needs_resizing() const noexcept {
+        return gaussian_samples != old_gaussian_samples_;
+    }
+
+    bool gaussian_weight_values_need_updating() const noexcept {
+        return gaussian_sample_range != old_gaussian_sample_range_;
     }
 
     // Uniformly bins the normal distribution from x0 to x1.
@@ -203,19 +211,49 @@ private:
 
 };
 
-inline void Bloom::update_gaussian_blur_weights()
-{
+
+inline void Bloom::update_gaussian_blur_weights_if_needed() {
     // FIXME: The weights are not normalized over the range of x
     // leading to a noticable loss of color yield when
     // the range is too high. Is this okay?
-    weights_ssbo_.bind().update(
-        generate_binned_gaussian_no_tails(
-            -gaussian_sample_range, gaussian_sample_range,
-            (gaussian_samples * 2) + 1
-        )
-    );
+
+    using enum GLenum;
+
+    auto update_weights = [this](BoundIndexedSSBO<GLMutable>& ssbo) {
+        std::span<float> mapped =
+            ssbo.map_for_write<float>(0, gaussian_weights_buffer_size());
+
+        auto generated =
+            generate_binned_gaussian_no_tails(
+                -gaussian_sample_range, gaussian_sample_range,
+                gaussian_weights_buffer_size()
+            );
+
+        std::ranges::copy(generated, mapped.begin());
+
+        ssbo.unmap_current();
+    };
+
+
+    if (gaussian_weights_buffer_needs_resizing()) {
+
+        weights_ssbo_.bind_to_index(0)
+            .allocate_data<float>(gaussian_weights_buffer_size(), GL_STATIC_DRAW)
+            .and_then(update_weights)
+            .unbind();
+
+    } else if (gaussian_weight_values_need_updating()) {
+
+        weights_ssbo_.bind_to_index(0)
+            .and_then(update_weights)
+            .unbind();
+
+    }
+
+
     old_gaussian_sample_range_ = gaussian_sample_range;
-    old_gaussian_samples_ = gaussian_samples;
+    old_gaussian_samples_      = gaussian_samples;
+
 }
 
 
