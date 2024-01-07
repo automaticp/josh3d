@@ -27,7 +27,7 @@ void TerrainComponents::operator()(entt::registry& registry) {
 
 
         auto mesh_data =
-            generate_terrain_mesh(size, [&](size_t x, size_t y) { return hdata.at(x, y).r; });
+            generate_terrain_mesh(size, [&](const Index2S& idx) { return hdata.at(idx).r; });
 
         Mesh mesh{ mesh_data };
 
