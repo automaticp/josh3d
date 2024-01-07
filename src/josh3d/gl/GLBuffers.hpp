@@ -81,16 +81,26 @@ struct BindableBufferIndexed {
         return { binding_index };
     }
 
-    BoundIndexedT<MutT> bind_range_to_index(
-        GLintptr offset, GLsizeiptr size, GLuint index) const noexcept
+    BoundIndexedT<MutT> bind_byte_range_to_index(
+        GLintptr offset_bytes, GLsizeiptr size_bytes, GLuint index) const noexcept
     {
         gl::glBindBufferRange(
             TargetV, index,
             static_cast<const CRTP<MutT>&>(*this).id(),
-            offset, size
+            offset_bytes, size_bytes
         );
         return { index };
     }
+
+    template<typename T>
+    BoundIndexedT<MutT> bind_range_to_index(
+        GLintptr elem_offset, GLsizeiptr elem_count, GLuint index) const noexcept
+    {
+        return bind_byte_range_to_index(
+            elem_offset * sizeof(T), elem_count * sizeof(T), index
+        );
+    }
+
 };
 
 
@@ -119,7 +129,8 @@ private:
     GLuint index_;
 public:
     BoundBufferIndexedBase(GLuint index) : index_{ index } {}
-    void unbind() const noexcept { gl::glBindBufferBase(TargetV, index_, 0); }
+    static void unbind_at_index(GLuint index) noexcept { gl::glBindBufferBase(TargetV, index, 0); }
+    void unbind() const noexcept { unbind_at_index(index_); }
     GLuint binding_index() const noexcept { return index_; }
 };
 
