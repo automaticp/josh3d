@@ -76,7 +76,7 @@ inline void attach_depth_or_depth_stencil(
     BoundDrawFramebuffer<GLMutable>& bfbo, DepthAttachmentT& attachment)
 {
     GLenum attachment_point = [&](GLenum internal_format) -> GLenum {
-        switch(internal_format) {
+        switch (internal_format) {
             using enum GLenum;
             case GL_DEPTH_COMPONENT:
             case GL_DEPTH_COMPONENT16:

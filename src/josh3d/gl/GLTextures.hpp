@@ -447,13 +447,22 @@ inline GLenum best_unpack_format(
 inline GLenum best_unpack_type(
     GLenum target, GLenum internal_format) noexcept
 {
-    GLint type;
-    gl::glGetInternalformativ(
-        target, internal_format,
-        gl::GL_TEXTURE_IMAGE_TYPE,
-        1, &type
-    );
-    return static_cast<GLenum>(type);
+    switch (internal_format) {
+        using enum GLenum;
+        // * swearing *
+        case GL_DEPTH24_STENCIL8:
+            return GL_UNSIGNED_INT_24_8;
+        case GL_DEPTH32F_STENCIL8:
+            return GL_FLOAT_32_UNSIGNED_INT_24_8_REV;
+        default:
+            GLint type;
+            gl::glGetInternalformativ(
+                target, internal_format,
+                gl::GL_TEXTURE_IMAGE_TYPE,
+                1, &type
+            );
+            return static_cast<GLenum>(type);
+    }
 }
 
 
