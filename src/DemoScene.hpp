@@ -25,7 +25,6 @@
 #include "components/Path.hpp"
 #include "components/Name.hpp"
 
-#include "stages/primary/BoundingSphereDebug.hpp"
 #include "stages/primary/CascadedShadowMapping.hpp"
 #include "stages/primary/PointShadowMapping.hpp"
 #include "stages/primary/GBufferStorage.hpp"
@@ -40,8 +39,8 @@
 #include "stages/postprocess/Fog.hpp"
 #include "stages/overlay/GBufferDebug.hpp"
 #include "stages/overlay/SelectedObjectHighlight.hpp"
+#include "stages/overlay/BoundingSphereDebug.hpp"
 
-#include "hooks/primary/BoundingSphereDebug.hpp"
 #include "hooks/primary/CascadedShadowMapping.hpp"
 #include "hooks/primary/PointShadowMapping.hpp"
 #include "hooks/primary/GBufferStorage.hpp"
@@ -54,6 +53,7 @@
 #include "hooks/postprocess/Fog.hpp"
 #include "hooks/overlay/GBufferDebug.hpp"
 #include "hooks/overlay/SelectedObjectHighlight.hpp"
+#include "hooks/overlay/BoundingSphereDebug.hpp"
 #include "hooks/registry/LightComponents.hpp"
 #include "hooks/registry/ModelComponents.hpp"
 #include "hooks/registry/TerrainComponents.hpp"
@@ -138,9 +138,6 @@ public:
         auto plightboxes =
             rengine_.make_primary_stage<stages::primary::PointLightBox>();
 
-        auto cullspheres =
-            rengine_.make_primary_stage<stages::primary::BoundingSphereDebug>();
-
         auto sky =
             rengine_.make_primary_stage<stages::primary::Sky>();
 
@@ -167,6 +164,8 @@ public:
         auto selected =
             rengine_.make_overlay_stage<stages::overlay::SelectedObjectHighlight>();
 
+        auto cullspheres =
+            rengine_.make_overlay_stage<stages::overlay::BoundingSphereDebug>();
 
 
 
@@ -185,8 +184,6 @@ public:
         imgui_.stage_hooks().add_primary_hook("Point Light Boxes",
             imguihooks::primary::PointLightBox(plightboxes));
 
-        imgui_.stage_hooks().add_primary_hook("Bounding Spheres",
-            imguihooks::primary::BoundingSphereDebug(cullspheres));
 
         imgui_.stage_hooks().add_primary_hook("Sky",
             imguihooks::primary::Sky(sky));
@@ -203,11 +200,15 @@ public:
         imgui_.stage_hooks().add_postprocess_hook("FXAA",
             imguihooks::postprocess::FXAA(fxaaaaaaa));
 
+
         imgui_.stage_hooks().add_overlay_hook("GBuffer Debug Overlay",
             imguihooks::overlay::GBufferDebug(gbugger));
 
         imgui_.stage_hooks().add_overlay_hook("Selected Object Highlight",
             imguihooks::overlay::SelectedObjectHighlight(selected));
+
+        imgui_.stage_hooks().add_overlay_hook("Bounding Spheres",
+            imguihooks::overlay::BoundingSphereDebug(cullspheres));
 
 
         rengine_.add_next_primary_stage(std::move(psmapping));
@@ -217,7 +218,6 @@ public:
         rengine_.add_next_primary_stage(std::move(terraingeom));
         rengine_.add_next_primary_stage(std::move(defshad));
         rengine_.add_next_primary_stage(std::move(plightboxes));
-        rengine_.add_next_primary_stage(std::move(cullspheres));
         rengine_.add_next_primary_stage(std::move(sky));
 
         rengine_.add_next_postprocess_stage(std::move(fog));
@@ -227,6 +227,8 @@ public:
 
         rengine_.add_next_overlay_stage(std::move(gbugger));
         rengine_.add_next_overlay_stage(std::move(selected));
+        rengine_.add_next_overlay_stage(std::move(cullspheres));
+
 
         imgui_.registry_hooks().add_hook("Lights",  imguihooks::registry::LightComponents());
         imgui_.registry_hooks().add_hook("Models",  imguihooks::registry::ModelComponents());
