@@ -51,7 +51,7 @@ public:
     {
 
         if (!show_overlay) { return; }
-
+        if (registry.view<tags::Selected>().empty()) { return; }
 
         using namespace gl;
 
