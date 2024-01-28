@@ -104,7 +104,7 @@ private:
     >;
 
     UniqueAttachment<RawTexture2D> depth_{
-        window_size_, { gl::GL_DEPTH_COMPONENT32F }
+        window_size_, { gl::GL_DEPTH24_STENCIL8 }
     };
 
     MainTarget make_main_target() {
