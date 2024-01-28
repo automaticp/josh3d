@@ -41,7 +41,9 @@ private:
 
 public:
     bool show_overlay{ true };
+
     glm::vec4 outline_color   { 1.0f, 0.612f, 0.0f, 0.8f };
+    float     outline_width   { 5.f };
     glm::vec4 inner_fill_color{ 1.0f, 0.612f, 0.0f, 0.2f };
 
 
@@ -119,7 +121,7 @@ public:
                     // for a GL_TRIANGLES draws, not GL_LINES.
                     // Trying to mesh.draw(GL_LINES) results in missing edges.
                     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-                    glLineWidth(10.f);
+                    glLineWidth(2.f * outline_width); // Times 2 cause half is cut by inner fill.
                     glEnable(GL_LINE_SMOOTH);
 
                     mesh.draw();
