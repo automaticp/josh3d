@@ -41,7 +41,7 @@ void RenderEngine::render() {
             using enum GLenum;
             default_fbo_.bind_draw()
                 .blit_from(front, window_size_, window_size_,
-                    GL_COLOR_BUFFER_BIT, GL_NEAREST);
+                    GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
         })
         .unbind();
 

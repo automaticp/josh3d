@@ -1,10 +1,10 @@
 #pragma once
+#include "DefaultResources.hpp"
 #include "GLFramebuffer.hpp"
 #include "GLMutability.hpp"
 #include "PerspectiveCamera.hpp"
 #include "FrameTimer.hpp"
 #include "GLObjects.hpp"
-#include "PostprocessRenderer.hpp"
 #include "RenderTarget.hpp"
 #include "Size.hpp"
 #include "RenderStage.hpp"
@@ -12,8 +12,6 @@
 #include <entt/fwd.hpp>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/gl.h>
-#include <cassert>
-#include <concepts>
 #include <functional>
 #include <utility>
 #include <vector>
@@ -59,38 +57,6 @@ class RenderEngineOverlayInterface;
 
 
 
-/*
-
-There are multiple modes of operation in terms of render targets and framebuffers:
-
-1. No postprocessing:
-    Primary draws are made to the default backbuffer.
-
-2. One postprocessing stage:
-    Primary draws are made to the backbuffer of PPDB (no swapping).
-    The postprocessing draw is made directly to the default backbuffer.
-
-    FIXME: this is actually wrong because PPDB has no depth buffer
-    that can be sampled later. The color can be overwritten there,
-    but we need the scene depth to be preserved after primary stages.
-
-3. Multiple postprocessing stages:
-    Primary draws are made to the backbuffer of PPDB (no swapping).
-    The postprocessing draws are made to the PPDB backbuffers, until
-    the last draw, whic is made to the default backbuffer.
-
-
-This is inflexible, as the screen cannot be sampled in the primary stages.
-Will have to think about it more.
-
-TODO: This is also not how it's implemented currently, as the primary draws
-are always made to the "main_target", and then blitted to either
-the PPDB backbuffer or the default framebuffer depending on the presence
-of postprocessing. Regardless, this is wasteful, redo with corrections from
-above.
-
-
-*/
 class RenderEngine {
 private:
     friend RenderEngineCommonInterface;
@@ -138,7 +104,7 @@ private:
     >;
 
     UniqueAttachment<RawTexture2D> depth_{
-        window_size_, { gl::GL_DEPTH_COMPONENT32F }
+        window_size_, { gl::GL_DEPTH24_STENCIL8 }
     };
 
     MainTarget make_main_target() {
@@ -160,8 +126,6 @@ private:
     };
 
     inline static const RawFramebuffer<GLMutable> default_fbo_{ 0 };
-
-    PostprocessRenderer pp_renderer_;
 
 
 public:
@@ -316,10 +280,6 @@ private:
     {}
 
 public:
-    PostprocessRenderer& postprocess_renderer() const noexcept {
-        return engine_.pp_renderer_;
-    }
-
     RawTexture2D<GLConst> screen_color() const noexcept {
         return engine_.main_swapchain_.front_target().color_attachment().texture();
     }
@@ -336,8 +296,8 @@ public:
     // You have to call screen_color() again and bind the returned texture
     // in order to sample the screen in the next call to draw().
     void draw() const {
-        engine_.main_swapchain_.draw_and_swap([this] {
-            engine_.pp_renderer_.draw();
+        engine_.main_swapchain_.draw_and_swap([] {
+            globals::quad_primitive_mesh().draw();
         });
     }
 
@@ -347,8 +307,8 @@ public:
     //
     // Used as an optimization for draws that either override or blend with the screen.
     void draw_to_front() const {
-        engine_.main_swapchain_.front_target().bind_draw().and_then([this] {
-            engine_.pp_renderer_.draw();
+        engine_.main_swapchain_.front_target().bind_draw().and_then([] {
+            globals::quad_primitive_mesh().draw();
         });
     }
 
@@ -367,14 +327,10 @@ private:
     {}
 
 public:
-    PostprocessRenderer& postprocess_renderer() const noexcept {
-        return engine_.pp_renderer_;
-    }
-
     // Emit the draw call on the screen quad and draw directly to the default buffer.
     void draw_fullscreen_quad() const {
-        engine_.default_fbo_.bind_draw().and_then([this] {
-            engine_.pp_renderer_.draw();
+        engine_.default_fbo_.bind_draw().and_then([] {
+            globals::quad_primitive_mesh().draw();
         });
     }
 

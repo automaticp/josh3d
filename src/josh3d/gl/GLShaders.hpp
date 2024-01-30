@@ -22,7 +22,7 @@ template<mutability_tag MutT> class RawShaderProgram;
 
 
 
-template<mutability_tag MutT>
+template<mutability_tag MutT = GLMutable>
 class RawShader
     : public RawShaderHandle<MutT>
     , public detail::ObjectHandleTypeInfo<RawShader, MutT>
@@ -46,7 +46,7 @@ public:
 
 
 
-template<mutability_tag MutT>
+template<mutability_tag MutT = GLMutable>
 class ActiveShaderProgram
     : public detail::AndThen<ActiveShaderProgram<MutT>>
 {
@@ -172,7 +172,7 @@ public:
 
 
 
-template<mutability_tag MutT>
+template<mutability_tag MutT = GLMutable>
 class RawShaderProgram
     : public RawShaderProgramHandle<MutT>
     , public detail::ObjectHandleTypeInfo<RawShaderProgram, MutT>

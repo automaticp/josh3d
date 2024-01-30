@@ -1,7 +1,9 @@
 #pragma once
 #include "CommonConcepts.hpp" // IWYU pragma: keep
-#include <concepts>
 #include <cstddef>
+
+
+// See also Index.hpp
 
 
 namespace josh {
@@ -53,8 +55,8 @@ struct Size2 {
             height == other.height;
     }
 
-
 };
+
 
 // Common specializations.
 // Closer to OpenGL conventions than to standard library.
@@ -136,8 +138,6 @@ using Size3U = Size3<unsigned int>;
 using Size3S = Size3<size_t>;
 using Size3F = Size3<float>;
 using Size3D = Size3<double>;
-
-
 
 
 } // namespace josh

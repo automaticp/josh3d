@@ -37,7 +37,7 @@ template<> struct GLTexSizeImpl<gl::GL_RENDERBUFFER> { using type = Size2I; };
 
 
 
-template<mutability_tag MutT>
+template<mutability_tag MutT = GLMutable>
 class BoundRenderbuffer
     : public detail::AndThen<BoundRenderbuffer<MutT>>
     , public detail::GLTexInfo<gl::GL_RENDERBUFFER>
@@ -95,7 +95,7 @@ public:
 
 
 
-template<mutability_tag MutT>
+template<mutability_tag MutT = GLMutable>
 class RawRenderbuffer
     : public RawRenderbufferHandle<MutT>
     , public detail::ObjectHandleTypeInfo<RawRenderbuffer, MutT>

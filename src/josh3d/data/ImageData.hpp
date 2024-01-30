@@ -2,6 +2,7 @@
 #include "MallocSupport.hpp"
 #include "Pixels.hpp"
 #include "Size.hpp"
+#include "Index.hpp"
 
 
 namespace josh {
@@ -59,10 +60,10 @@ public:
           PixelT* end()         noexcept { return begin() + n_pixels(); }
     const PixelT* end()   const noexcept { return begin() + n_pixels(); }
 
-    auto at(size_t x, size_t y) const noexcept
-        -> const PixelT& { return data_[x + y * width()]; }
-    auto at(size_t x, size_t y) noexcept
-        -> PixelT&       { return data_[x + y * width()]; }
+    auto at(const Index2S& idx) const noexcept
+        -> const PixelT& { return data_[idx.x + idx.y * width()]; }
+    auto at(const Index2S& idx) noexcept
+        -> PixelT&       { return data_[idx.x + idx.y * width()]; }
 
 };
 

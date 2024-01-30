@@ -13,7 +13,6 @@
 #include <glbinding/gl/gl.h>
 #include <glbinding/gl/types.h>
 #include <cassert>
-#include <cstddef>
 #include <span>
 
 
@@ -81,16 +80,26 @@ struct BindableBufferIndexed {
         return { binding_index };
     }
 
-    BoundIndexedT<MutT> bind_range_to_index(
-        GLintptr offset, GLsizeiptr size, GLuint index) const noexcept
+    BoundIndexedT<MutT> bind_byte_range_to_index(
+        GLintptr offset_bytes, GLsizeiptr size_bytes, GLuint index) const noexcept
     {
         gl::glBindBufferRange(
             TargetV, index,
             static_cast<const CRTP<MutT>&>(*this).id(),
-            offset, size
+            offset_bytes, size_bytes
         );
         return { index };
     }
+
+    template<typename T>
+    BoundIndexedT<MutT> bind_range_to_index(
+        GLintptr elem_offset, GLsizeiptr elem_count, GLuint index) const noexcept
+    {
+        return bind_byte_range_to_index(
+            elem_offset * sizeof(T), elem_count * sizeof(T), index
+        );
+    }
+
 };
 
 
@@ -119,7 +128,8 @@ private:
     GLuint index_;
 public:
     BoundBufferIndexedBase(GLuint index) : index_{ index } {}
-    void unbind() const noexcept { gl::glBindBufferBase(TargetV, index_, 0); }
+    static void unbind_at_index(GLuint index) noexcept { gl::glBindBufferBase(TargetV, index, 0); }
+    void unbind() const noexcept { unbind_at_index(index_); }
     GLuint binding_index() const noexcept { return index_; }
 };
 
@@ -402,7 +412,7 @@ JOSH3D_SPECIALIZE_INDEXED_IMPL(SSBO, gl::GL_SHADER_STORAGE_BUFFER)
 
 
 #define JOSH3D_GENERATE_BUFFER_CLASSES(buf_name, target_enum)                 \
-    template<mutability_tag MutT>                                             \
+    template<mutability_tag MutT = GLMutable>                                 \
     class Bound##buf_name                                                     \
         : public detail::BoundBufferImpl<Bound##buf_name, MutT>               \
     {                                                                         \
@@ -411,7 +421,7 @@ JOSH3D_SPECIALIZE_INDEXED_IMPL(SSBO, gl::GL_SHADER_STORAGE_BUFFER)
         Bound##buf_name() = default;                                          \
     };                                                                        \
                                                                               \
-    template<mutability_tag MutT>                                             \
+    template<mutability_tag MutT = GLMutable>                                 \
     class BoundIndexed##buf_name                                              \
         : public detail::BoundBufferIndexedImpl<                              \
             BoundIndexed##buf_name, MutT>                                     \
@@ -422,7 +432,7 @@ JOSH3D_SPECIALIZE_INDEXED_IMPL(SSBO, gl::GL_SHADER_STORAGE_BUFFER)
             BoundIndexed##buf_name, MutT>::BoundBufferIndexedImpl;            \
     };                                                                        \
                                                                               \
-    template<mutability_tag MutT>                                             \
+    template<mutability_tag MutT = GLMutable>                                 \
     class Raw##buf_name                                                       \
         : public RawBufferHandle<MutT>                                        \
         , public detail::Bindable##buf_name<MutT>                             \

@@ -447,13 +447,22 @@ inline GLenum best_unpack_format(
 inline GLenum best_unpack_type(
     GLenum target, GLenum internal_format) noexcept
 {
-    GLint type;
-    gl::glGetInternalformativ(
-        target, internal_format,
-        gl::GL_TEXTURE_IMAGE_TYPE,
-        1, &type
-    );
-    return static_cast<GLenum>(type);
+    switch (internal_format) {
+        using enum GLenum;
+        // * swearing *
+        case GL_DEPTH24_STENCIL8:
+            return GL_UNSIGNED_INT_24_8;
+        case GL_DEPTH32F_STENCIL8:
+            return GL_FLOAT_32_UNSIGNED_INT_24_8_REV;
+        default:
+            GLint type;
+            gl::glGetInternalformativ(
+                target, internal_format,
+                gl::GL_TEXTURE_IMAGE_TYPE,
+                1, &type
+            );
+            return static_cast<GLenum>(type);
+    }
 }
 
 
@@ -644,7 +653,7 @@ template<> struct BoundTexImpl<BoundCubemapArray, GLMutable>
 The magic happens here.
 */
 #define JOSH3D_GENERATE_TEXTURE_CLASSES(tex_name, target_enum)                 \
-    template<mutability_tag MutT>                                              \
+    template<mutability_tag MutT = GLMutable>                                  \
     class Bound##tex_name                                                      \
         : public detail::BoundTexImpl<Bound##tex_name, MutT>                   \
     {                                                                          \
@@ -653,7 +662,7 @@ The magic happens here.
         Bound##tex_name() = default;                                           \
     };                                                                         \
                                                                                \
-    template<mutability_tag MutT>                                              \
+    template<mutability_tag MutT = GLMutable>                                  \
     class Raw##tex_name                                                        \
         : public RawTextureHandle<MutT>                                        \
         , public detail::Bindable##tex_name<MutT>                              \

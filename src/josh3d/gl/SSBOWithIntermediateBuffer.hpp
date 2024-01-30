@@ -122,9 +122,6 @@ for cases where instancing is desired, or that it is your only option anyway
 for cases where it's not.
 
 Requires T to be trivially copyable for obvious reasons (SSBO does memcpy).
-
-Perhaps a mapped buffer would be a more fitting solution here, but I don't
-have much experience with them to fully say that.
 */
 template<typename T> requires (std::is_trivially_copyable_v<T>)
 class SSBOWithIntermediateBuffer {

@@ -3,6 +3,7 @@
 #include "MeshData.hpp"
 #include "VertexPNT.hpp"
 #include "Size.hpp"
+#include "Index.hpp"
 #include <cassert>
 #include <glm/glm.hpp>
 
@@ -10,7 +11,7 @@
 namespace josh {
 
 
-template<of_signature<float(size_t, size_t)> MappingF>
+template<of_signature<float(const Index2S&)> MappingF>
 [[nodiscard]] inline MeshData<VertexPNT> generate_terrain_mesh(
     Size2S num_vertices_xy, MappingF&& mapping_fun)
 {
@@ -30,7 +31,7 @@ template<of_signature<float(size_t, size_t)> MappingF>
             v.tex_uv.t = float(yid) / float(size_y - 1);
 
             v.position.x = v.tex_uv.s;
-            v.position.y = std::invoke(std::forward<MappingF>(mapping_fun), xid, yid);
+            v.position.y = std::invoke(std::forward<MappingF>(mapping_fun), Index2S{ xid, yid });
             v.position.z = v.tex_uv.t;
 
             // Replaced later in a second pass.
