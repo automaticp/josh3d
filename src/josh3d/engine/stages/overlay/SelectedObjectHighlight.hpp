@@ -43,7 +43,7 @@ public:
     bool show_overlay{ true };
 
     glm::vec4 outline_color   { 1.0f, 0.612f, 0.0f, 0.8f };
-    float     outline_width   { 5.f };
+    float     outline_width   { 4.f };
     glm::vec4 inner_fill_color{ 1.0f, 0.612f, 0.0f, 0.2f };
 
 

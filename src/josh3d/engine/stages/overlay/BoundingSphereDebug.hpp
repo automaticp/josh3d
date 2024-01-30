@@ -32,7 +32,7 @@ public:
     bool selected_only{ true  };
 
     glm::vec3 line_color{ 1.f, 1.f, 1.f };
-    float     line_width{ 3.f };
+    float     line_width{ 2.f };
 
     void operator()(
         const RenderEngineOverlayInterface& engine,
