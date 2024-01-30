@@ -27,7 +27,7 @@ class SelectedObjectHighlight {
 private:
     UniqueShaderProgram sp_stencil_prep_{
         ShaderBuilder()
-            .load_vert(VPath("src/shaders/non_instanced.vert"))
+            .load_vert(VPath("src/shaders/basic_mesh.vert"))
             .load_frag(VPath("src/shaders/ovl_selected_stencil_prep.frag"))
             .get()
     };

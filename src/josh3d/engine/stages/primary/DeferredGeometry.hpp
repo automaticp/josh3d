@@ -16,7 +16,7 @@ class DeferredGeometry {
 private:
     UniqueShaderProgram sp_ds{
         ShaderBuilder()
-            .load_vert(VPath("src/shaders/non_instanced.vert"))
+            .load_vert(VPath("src/shaders/basic_mesh.vert"))
             .load_frag(VPath("src/shaders/dfr_geometry_mat_ds.frag"))
             .define("ENABLE_ALPHA_TESTING")
             .get()

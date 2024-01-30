@@ -20,7 +20,7 @@ class BoundingSphereDebug {
 private:
     UniqueShaderProgram sp_{
         ShaderBuilder()
-            .load_vert(VPath("src/shaders/non_instanced.vert"))
+            .load_vert(VPath("src/shaders/basic_mesh.vert"))
             .load_frag(VPath("src/shaders/light_source.frag"))
             .get()
     };
