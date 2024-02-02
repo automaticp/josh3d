@@ -2,6 +2,7 @@
 #include "ImGuiComponentWidgets.hpp"
 #include "components/ChildMesh.hpp"
 #include "components/Mesh.hpp"
+#include "components/Model.hpp"
 #include "components/Name.hpp"
 #include "components/Path.hpp"
 #include "tags/Selected.hpp"
@@ -30,6 +31,8 @@ void ImGuiSelected::display() {
                     ImGui::TreePop();
                 }
             }
+        } else if (auto model = handle.try_get<components::Model>()) {
+            imgui::ModelWidget(handle);
         }
 
         // TODO:
