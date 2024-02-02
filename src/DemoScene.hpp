@@ -100,7 +100,7 @@ private:
     CascadeViewsBuilder csm_info_builder_{ 5 };
     FrustumCuller culler_{ registry_ };
 
-    ImGuiApplicationAssembly imgui_{ window_, registry_, vfs() };
+    ImGuiApplicationAssembly imgui_{ window_, registry_, cam_, vfs() };
 
 public:
     DemoScene(glfw::Window& window)

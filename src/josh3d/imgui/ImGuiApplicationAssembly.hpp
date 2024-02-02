@@ -7,6 +7,8 @@
 #include "ImGuiRegistryHooks.hpp"
 #include "ImGuiSelected.hpp"
 #include "AvgFrameTimeCounter.hpp"
+#include "ImGuizmoGizmos.hpp"
+#include "PerspectiveCamera.hpp"
 #include <cstring>
 #include <string>
 #include <entt/fwd.hpp>
@@ -41,6 +43,7 @@ private:
     ImGuiStageHooks     stage_hooks_;
     ImGuiRegistryHooks  registry_hooks_;
     ImGuiSelected       selected_menu_;
+    ImGuizmoGizmos      gizmos_;
 
     AvgFrameTimeCounter avg_frame_timer_{ 0.500f };
     // Well, lets hope the FPS doesn't exceed 99k.
@@ -63,7 +66,8 @@ public:
     float background_alpha{ 0.8f };
 
     ImGuiApplicationAssembly(
-        glfw::Window& window, entt::registry& registry, VirtualFilesystem& vfs);
+        glfw::Window& window, entt::registry& registry, const PerspectiveCamera& cam, VirtualFilesystem& vfs
+    );
 
     ImGuiStageHooks::HooksContainer&       stage_hooks() noexcept { return stage_hooks_.hooks(); }
     const ImGuiStageHooks::HooksContainer& stage_hooks() const noexcept { return stage_hooks_.hooks(); }

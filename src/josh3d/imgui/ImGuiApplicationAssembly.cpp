@@ -2,6 +2,8 @@
 #include "FrameTimer.hpp"
 #include "ImGuiHelpers.hpp"
 #include "ImGuiSelected.hpp"
+#include "ImGuizmoGizmos.hpp"
+#include "PerspectiveCamera.hpp"
 #include "Size.hpp"
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -13,13 +15,18 @@ namespace josh {
 
 
 ImGuiApplicationAssembly::ImGuiApplicationAssembly(
-    glfw::Window& window, entt::registry& registry, VirtualFilesystem& vfs)
+    glfw::Window& window,
+    entt::registry& registry,
+    const PerspectiveCamera& cam,
+    VirtualFilesystem& vfs
+)
     : context_{ window }
     , window_settings_{ window }
     , vfs_control_{ vfs }
     , stage_hooks_{}
     , registry_hooks_{ registry }
     , selected_menu_{ registry }
+    , gizmos_{ cam, registry }
 {}
 
 
@@ -55,6 +62,7 @@ void ImGuiApplicationAssembly::new_frame() {
     );
 
     context_.new_frame();
+    gizmos_.new_frame();
 }
 
 
@@ -152,6 +160,7 @@ void ImGuiApplicationAssembly::draw_widgets() {
 
 void ImGuiApplicationAssembly::display() {
     draw_widgets();
+    gizmos_.display();
     context_.render();
 }
 
