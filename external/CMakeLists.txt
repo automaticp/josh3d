@@ -68,6 +68,12 @@ set_target_properties(imgui::imgui PROPERTIES IMPORTED_GLOBAL TRUE)
 
 
 
+# === Imguizmo ===
+find_package(imguizmo CONFIG REQUIRED)
+set_target_properties(imguizmo::imguizmo PROPERTIES IMPORTED_GLOBAL TRUE)
+
+
+
 # === range-v3 ===
 
 find_package(range-v3 CONFIG REQUIRED)
