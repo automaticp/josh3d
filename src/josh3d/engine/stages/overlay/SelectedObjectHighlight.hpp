@@ -5,6 +5,7 @@
 #include "GLShaders.hpp"
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
+#include "components/Model.hpp"
 #include "components/Transform.hpp"
 #include "tags/Selected.hpp"
 #include "components/Mesh.hpp"
@@ -97,13 +98,33 @@ public:
                 // and that will include 0 and 1 too. Also, importantly, this excludes
                 // previously drawn outlines, so they are not overwritten.
 
-                for (GLint object_mask{ 255 };
-                    auto [e, mesh, tf]
-                        : registry.view<tags::Selected, components::Mesh, components::Transform>().each())
-                {
-                    auto full_tf = get_full_mesh_transform({ registry, e }, tf);
-                    ashp.uniform("model", full_tf.mtransform().model());
+                for (
+                    GLint object_mask{ 255 };
+                    auto [e, tf] : registry.view<tags::Selected, components::Transform>().each()
+                ) {
 
+                    // Draws either a singular Mesh, or all Meshes in a Model
+                    // as a *single object*. Multiple meshes of a selected Model
+                    // will share the same outline without overlap.
+                    auto draw_func = [&](entt::entity e) {
+                        if (auto mesh = registry.try_get<components::Mesh>(e)) {
+
+                            auto full_tf = get_full_mesh_transform({ registry, e }, tf);
+                            ashp.uniform("model", full_tf.mtransform().model());
+                            mesh->draw();
+
+                        } else if (auto model = registry.try_get<components::Model>(e)) {
+
+                            for (const entt::entity& mesh_ent : model->meshes()) {
+
+                                if (auto mesh_tf = registry.try_get<components::Transform>(mesh_ent)) {
+                                    auto full_tf = tf * (*mesh_tf);
+                                    ashp.uniform("model", full_tf.mtransform().model());
+                                    registry.get<components::Mesh>(mesh_ent).draw();
+                                }
+                            }
+                        }
+                    };
 
                     // Draw outline as lines, replacing everything except
                     // outlines of the previously drawn objects.
@@ -124,7 +145,7 @@ public:
                     glLineWidth(2.f * outline_width); // Times 2 cause half is cut by inner fill.
                     glEnable(GL_LINE_SMOOTH);
 
-                    mesh.draw();
+                    draw_func(e);
 
 
                     // Solid-Fill the insides of the object by drawing it again,
@@ -141,7 +162,7 @@ public:
 
                     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-                    mesh.draw();
+                    draw_func(e);
 
 
                     if (object_mask > 1) { --object_mask; }
