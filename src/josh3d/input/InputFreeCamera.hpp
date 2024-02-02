@@ -14,8 +14,8 @@ namespace josh {
 
 struct InputFreeCameraConfig {
     using key_t = decltype(glfw::KeyCode::A);
-    key_t up            { key_t::Space };
-    key_t down          { key_t::LeftShift };
+    key_t up            { key_t::R };
+    key_t down          { key_t::F };
     key_t left          { key_t::A };
     key_t right         { key_t::D };
     key_t forward       { key_t::W };

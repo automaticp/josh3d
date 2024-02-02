@@ -20,6 +20,7 @@
 #include "VPath.hpp"
 #include "VirtualFilesystem.hpp"
 
+#include "components/ChildMesh.hpp"
 #include "tags/Selected.hpp"
 #include "tags/ShadowCasting.hpp"
 #include "components/Path.hpp"
@@ -60,6 +61,7 @@
 #include "hooks/registry/SkyboxComponents.hpp"
 #include "hooks/registry/PerspectiveCamera.hpp"
 
+#include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
 #include <glbinding/gl/enum.h>
 #include <glfwpp/window.h>
@@ -310,7 +312,22 @@ inline void DemoScene::configure_input(SharedStorageView<GBuffer> gbuffer) {
                 }).unbind();
 
 
-                entt::handle target_handle{ registry_, entt::entity{ id } };
+                entt::handle provoking_handle{ registry_, entt::entity{ id } };
+
+                entt::handle target_handle = [&]() -> entt::handle {
+                    if (args.mods & glfw::ModifierKeyBit::Control) {
+                        // Select mesh (same id as returned)
+                        return provoking_handle;
+                    } else {
+                        // Select the whole model if it's a ChildMesh
+                        if (auto as_child = provoking_handle.try_get<components::ChildMesh>()) {
+                            return { registry_, as_child->parent };
+                        }
+                        // Fallback for everything else.
+                        return provoking_handle;
+                    }
+                }();
+
                 const bool had_selection =
                     target_handle.valid() && target_handle.any_of<tags::Selected>();
 
