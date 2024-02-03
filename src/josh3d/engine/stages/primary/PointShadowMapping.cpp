@@ -173,8 +173,7 @@ static void draw_all_world_geometry_no_alpha_test(
     auto draw_from_view = [&](auto view) {
         for (auto [entity, transform, mesh] : view.each()) {
             ashp.uniform("model",
-                get_full_mesh_transform({ registry, entity }, transform)
-                    .mtransform().model());
+                get_full_mesh_mtransform({ registry, entity }, transform.mtransform()).model());
             mesh.draw();
         }
     };
@@ -210,8 +209,7 @@ static void draw_all_world_geometry_with_alpha_test(
     {
         diffuse.diffuse->bind_to_unit_index(0);
         ashp.uniform("model",
-            get_full_mesh_transform({ registry, entity }, transform)
-                .mtransform().model());
+            get_full_mesh_mtransform({ registry, entity }, transform.mtransform()).model());
         mesh.draw();
     }
 

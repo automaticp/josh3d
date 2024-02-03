@@ -68,7 +68,7 @@ public:
     }
 
 
-    Transform operator*(const Transform& other) const noexcept {
+    [[deprecated]] Transform operator*(const Transform& other) const noexcept {
         return {
             this->position_ + other.position_,
             this->rotation_ * other.rotation_,

@@ -5,21 +5,40 @@
 
 
 
+
 namespace josh {
 
 
-// Late bound parent transform application.
+// Late bound parent-to-child transform chaining.
 // Consider inverting your view filtering logic as an alternative.
-inline Transform get_full_mesh_transform(
+inline auto get_full_mesh_mtransform(
     entt::const_handle mesh_handle,
-    const Transform& mesh_transform) noexcept
+    const MTransform& mesh_mtransform
+) noexcept
+    -> MTransform
 {
     if (auto as_child = mesh_handle.try_get<components::ChildMesh>()) {
         const Transform& parent_transform =
             mesh_handle.registry()->get<Transform>(as_child->parent);
-        return parent_transform * mesh_transform;
+        return parent_transform.mtransform() * mesh_mtransform;
     } else {
-        return mesh_transform;
+        return mesh_mtransform;
+    }
+}
+
+
+// Late bound parent-to-child transform chaining.
+inline auto get_full_mesh_mtransform(entt::const_handle mesh_handle) noexcept
+    -> MTransform
+{
+    const Transform& mesh_transform = mesh_handle.get<Transform>();
+
+    if (auto as_child = mesh_handle.try_get<components::ChildMesh>()) {
+        const Transform& parent_transform =
+            mesh_handle.registry()->get<Transform>(as_child->parent);
+        return parent_transform.mtransform() * mesh_transform.mtransform();
+    } else {
+        return mesh_transform.mtransform();
     }
 }
 

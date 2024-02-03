@@ -109,8 +109,8 @@ public:
                     auto draw_func = [&](entt::entity e) {
                         if (auto mesh = registry.try_get<components::Mesh>(e)) {
 
-                            auto full_tf = get_full_mesh_transform({ registry, e }, tf);
-                            ashp.uniform("model", full_tf.mtransform().model());
+                            auto full_mtf = get_full_mesh_mtransform({ registry, e }, tf.mtransform());
+                            ashp.uniform("model", full_mtf.model());
                             mesh->draw();
 
                         } else if (auto model = registry.try_get<components::Model>(e)) {
@@ -118,8 +118,8 @@ public:
                             for (const entt::entity& mesh_ent : model->meshes()) {
 
                                 if (auto mesh_tf = registry.try_get<components::Transform>(mesh_ent)) {
-                                    auto full_tf = tf * (*mesh_tf);
-                                    ashp.uniform("model", full_tf.mtransform().model());
+                                    auto full_mtf = tf.mtransform() * mesh_tf->mtransform();
+                                    ashp.uniform("model", full_mtf.model());
                                     registry.get<components::Mesh>(mesh_ent).draw();
                                 }
                             }

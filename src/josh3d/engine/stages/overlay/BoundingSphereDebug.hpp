@@ -60,14 +60,22 @@ public:
                         const Transform& transform,
                         const components::BoundingSphere& sphere)
                     {
-                        auto full_transform = get_full_mesh_transform({ registry, entity }, transform);
+                        const auto full_mtransform =
+                            get_full_mesh_mtransform({ registry, entity }, transform.mtransform());
 
-                        const glm::vec3 sphere_scale =
-                            glm::vec3{ sphere.scaled_radius(full_transform.scaling()) };
+                        const glm::mat4 world_mat = full_mtransform.model();
 
-                        const auto sphere_transf = Transform()
-                            .translate(full_transform.position())
-                            .scale(sphere_scale);
+                        // FIXME: Kinda broken, see FrustumCuller.
+                        const glm::vec3 sphere_center{ world_mat[3] };
+                        const glm::vec3 mesh_scaling{
+                            glm::length(world_mat[0]),
+                            glm::length(world_mat[1]),
+                            glm::length(world_mat[2])
+                        };
+
+                        const glm::vec3 sphere_scale = glm::vec3{ sphere.scaled_radius(mesh_scaling) };
+
+                        const auto sphere_transf = Transform().translate(sphere_center).scale(sphere_scale);
 
                         ashp.uniform("model", sphere_transf.mtransform().model());
                         sphere_.draw();
