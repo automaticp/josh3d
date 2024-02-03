@@ -82,6 +82,10 @@ public:
     void new_frame();
     void display();
 
+
+    auto get_active_gizmo_operation() const noexcept -> GizmoOperation { return gizmos_.active_operation; }
+    void set_active_gizmo_operation(GizmoOperation op) noexcept { gizmos_.active_operation = op; }
+
     ImGuiIOWants get_io_wants() const noexcept;
 
 };
