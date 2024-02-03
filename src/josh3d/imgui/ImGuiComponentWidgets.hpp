@@ -77,6 +77,8 @@ inline void VPathWidget(josh::components::VPath* vpath) noexcept {
 
 inline void MeshWidget(entt::handle mesh_handle) noexcept {
 
+    ImGui::PushID(void_id(mesh_handle.entity()));
+
     if (auto name = mesh_handle.try_get<components::Name>()) {
         ImGui::Text("Mesh [%d]: %s", entt::to_entity(mesh_handle.entity()), name->name.c_str());
     } else {
@@ -151,10 +153,14 @@ inline void MeshWidget(entt::handle mesh_handle) noexcept {
         ImGui::TreePop();
     }
 
+    ImGui::PopID();
+
 }
 
 
 inline void ModelWidget(entt::handle model_handle) noexcept {
+
+    ImGui::PushID(void_id(model_handle.entity()));
 
     if (auto name = model_handle.try_get<components::Name>()) {
         ImGui::Text("Model [%d]: %s", entt::to_entity(model_handle.entity()), name->name.c_str());
@@ -185,6 +191,8 @@ inline void ModelWidget(entt::handle model_handle) noexcept {
 
         ImGui::TreePop();
     }
+
+    ImGui::PopID();
 
 }
 
