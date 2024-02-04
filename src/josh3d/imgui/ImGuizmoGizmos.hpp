@@ -13,6 +13,12 @@ enum class GizmoOperation {
 };
 
 
+enum class GizmoSpace {
+    world,
+    local
+};
+
+
 class ImGuizmoGizmos {
 private:
     const PerspectiveCamera& cam_;
@@ -20,6 +26,7 @@ private:
 
 public:
     GizmoOperation active_operation{ GizmoOperation::translation };
+    GizmoSpace     active_space    { GizmoSpace::world            };
 
     ImGuizmoGizmos(const PerspectiveCamera& ref_camera, entt::registry& registry)
         : cam_     { ref_camera }

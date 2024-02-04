@@ -50,15 +50,37 @@ void ImGuiApplicationAssembly::new_frame() {
     avg_frame_timer_.update(globals::frame_timer.delta<float>());
 
     std::snprintf(
-        fps_str_.data(), fps_str_.size(),
+        fps_str_.data(), fps_str_.size() + 1,
         fps_str_fmt_,
         1.f / avg_frame_timer_.get_current_average()
     );
 
     std::snprintf(
-        frametime_str_.data(), frametime_str_.size(),
+        frametime_str_.data(), frametime_str_.size() + 1,
         frametime_str_fmt_,
         avg_frame_timer_.get_current_average() * 1.E3f // s -> ms
+    );
+
+    std::snprintf(
+        gizmo_info_str_.data(), gizmo_info_str_.size() + 1,
+        gizmo_info_str_fmt_,
+        [this]() -> char {
+            switch (active_gizmo_space()) {
+                using enum GizmoSpace;
+                case world: return 'W';
+                case local: return 'L';
+                default:    return ' ';
+            }
+        }(),
+        [this]() -> char {
+            switch (active_gizmo_operation()) {
+                using enum GizmoOperation;
+                case translation: return 'T';
+                case rotation:    return 'R';
+                case scaling:     return 'S';
+                default:          return ' ';
+            }
+        }()
     );
 
     context_.new_frame();
@@ -108,12 +130,15 @@ void ImGuiApplicationAssembly::draw_widgets() {
         if (ImGui::BeginMainMenuBar()) {
             ImGui::TextUnformatted("Josh3D-Demo");
 
+            const float size_gizmo     = ImGui::CalcTextSize(gizmo_info_str_template_).x;
             const float size_fps       = ImGui::CalcTextSize(fps_str_template_).x;
             const float size_frametime = ImGui::CalcTextSize(frametime_str_template_).x;
-            const float offset = size_fps + size_frametime;
-            ImGui::SameLine(ImGui::GetContentRegionMax().x - offset);
+
+            ImGui::SameLine(ImGui::GetContentRegionMax().x - (size_gizmo + size_fps + size_frametime));
+            ImGui::TextUnformatted(gizmo_info_str_.c_str());
+            ImGui::SameLine(ImGui::GetContentRegionMax().x - (size_fps + size_frametime));
             ImGui::TextUnformatted(fps_str_.c_str());
-            ImGui::SameLine(ImGui::GetContentRegionMax().x - size_frametime);
+            ImGui::SameLine(ImGui::GetContentRegionMax().x - (size_frametime));
             ImGui::TextUnformatted(frametime_str_.c_str());
 
             ImGui::EndMainMenuBar();

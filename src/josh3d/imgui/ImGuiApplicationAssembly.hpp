@@ -54,8 +54,12 @@ private:
     static constexpr const char* frametime_str_template_{ "Frametime: xxxxx.xms" };
     static constexpr const char* frametime_str_fmt_     { "Frametime: %.1fms"    };
 
-    std::string fps_str_      { fps_str_template_       };
-    std::string frametime_str_{ frametime_str_template_ };
+    static constexpr const char* gizmo_info_str_template_{ "Gizmo: xx   "   };
+    static constexpr const char* gizmo_info_str_fmt_     { "Gizmo: %c%c   " };
+
+    std::string fps_str_       { fps_str_template_        };
+    std::string frametime_str_ { frametime_str_template_  };
+    std::string gizmo_info_str_{ gizmo_info_str_template_ };
 
     bool hidden_{ false };
 
@@ -83,8 +87,12 @@ public:
     void display();
 
 
-    auto get_active_gizmo_operation() const noexcept -> GizmoOperation { return gizmos_.active_operation; }
-    void set_active_gizmo_operation(GizmoOperation op) noexcept { gizmos_.active_operation = op; }
+    GizmoOperation&       active_gizmo_operation() noexcept { return gizmos_.active_operation; }
+    const GizmoOperation& active_gizmo_operation() const noexcept { return gizmos_.active_operation; }
+
+    GizmoSpace&       active_gizmo_space() noexcept { return gizmos_.active_space; }
+    const GizmoSpace& active_gizmo_space() const noexcept { return gizmos_.active_space; }
+
 
     ImGuiIOWants get_io_wants() const noexcept;
 

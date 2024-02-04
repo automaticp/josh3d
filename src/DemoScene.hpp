@@ -347,15 +347,28 @@ inline void DemoScene::configure_input(SharedStorageView<GBuffer> gbuffer) {
     input_.bind_mouse_button(glfw::MouseButton::Middle,
         [&, this](const MouseButtonCallbackArgs& args) {
             if (args.is_pressed()) {
-                switch (imgui_.get_active_gizmo_operation()) {
+                switch (imgui_.active_gizmo_operation()) {
                     using enum GizmoOperation;
-                    case translation: imgui_.set_active_gizmo_operation(rotation);    break;
-                    case rotation:    imgui_.set_active_gizmo_operation(scaling);     break;
-                    case scaling:     imgui_.set_active_gizmo_operation(translation); break;
+                    case translation: imgui_.active_gizmo_operation() = rotation;    break;
+                    case rotation:    imgui_.active_gizmo_operation() = scaling;     break;
+                    case scaling:     imgui_.active_gizmo_operation() = translation; break;
                 }
             }
         }
     );
+
+    input_.bind_mouse_button(glfw::MouseButton::Right,
+        [&, this](const MouseButtonCallbackArgs& args) {
+            if (args.is_pressed()) {
+                switch (imgui_.active_gizmo_space()) {
+                    using enum GizmoSpace;
+                    case world: imgui_.active_gizmo_space() = local; break;
+                    case local: imgui_.active_gizmo_space() = world; break;
+                }
+            }
+        }
+    );
+
 
     window_.framebufferSizeEvent.setCallback(
         [this](glfw::Window& /* window */ , int w, int h) {

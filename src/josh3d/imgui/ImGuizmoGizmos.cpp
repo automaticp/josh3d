@@ -23,7 +23,6 @@ void ImGuizmoGizmos::new_frame() {
     ImGuizmo::SetImGuiContext(ImGui::GetCurrentContext());
     ImGuiIO& io = ImGui::GetIO();
     ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
-    // ImGuizmo::SetDrawlist(ImGui::GetWindowDrawList());
 }
 
 
@@ -37,12 +36,8 @@ void ImGuizmoGizmos::display() {
 
         if (auto transform = some_selected.try_get<components::Transform>()) {
 
-            auto mtransform = transform->mtransform();
-
-            auto view_mat = cam_.view_mat();
-            auto proj_mat = cam_.projection_mat();
-
-            glm::mat4 delta_mat{};
+            const glm::mat4 view_mat = cam_.view_mat();
+            const glm::mat4 proj_mat = cam_.projection_mat();
 
             ImGuizmo::OPERATION op = [&] {
                 switch (active_operation) {
@@ -54,33 +49,62 @@ void ImGuizmoGizmos::display() {
                 }
             }();
 
-            ImGuizmo::MODE mode = ImGuizmo::WORLD;
-            if (active_operation == GizmoOperation::scaling) {
-                // Only local scaling makes sense, since non-local scaling
-                // is not representable in Transform.
-                mode = ImGuizmo::LOCAL;
-            }
+            ImGuizmo::MODE mode = [&] {
+                switch (active_space) {
+                    case GizmoSpace::world:
+                        if (active_operation != GizmoOperation::scaling) {
+                            return ImGuizmo::WORLD;
+                        } else /* op is scaling */ {
+                            // Only local scaling makes sense, since non-local scaling
+                            // (in a rotated basis) is not representable in Transform.
+                            //
+                            // Blender does some funky stuff to support "world-space scaling"
+                            // but it's not what you'd expect (i.e. not skew) and is not intuitive either way.
+                            return ImGuizmo::LOCAL;
+                        }
+                    case GizmoSpace::local:
+                        return ImGuizmo::LOCAL;
+                    default:
+                        assert(false);
+                }
+            }();
 
-            if (!some_selected.all_of<components::ChildMesh>()) {
-                // FIXME: This branch is redundant and should be rewritten
-                // to handle models, orphaned meshes and child meshes in one go.
 
-                auto transform_mat = mtransform.model();
+            /*
+                [As Root]:
+                    root_mat
+                        -> Manipulate(root_mat)
+                            -> Assign New TRS = Decompose(root_mat)
+
+                [As Child]:
+                    child_mat
+                        -> world_mat = parent_mat * child_mat
+                            -> Manipulate(world_mat)
+                                -> new_child_mat = parent_mat^-1 * world_mat
+                                    -> Assign New TRS = Decompose(new_child_mat)
+            */
+
+
+            if (!some_selected.all_of<components::ChildMesh>()) /* is a root or orphaned object */ {
+
+                // TODO: This is kinda redundant with the other branch repeating
+                // most of the code here, but whatever for now.
+
+                glm::mat4 root_mat = transform->mtransform().model();
 
                 ImGuizmo::Manipulate(
                     glm::value_ptr(view_mat),
                     glm::value_ptr(proj_mat),
                     op,
                     mode,
-                    glm::value_ptr(transform_mat),
-                    glm::value_ptr(delta_mat)
+                    glm::value_ptr(root_mat)
                 );
 
                 glm::vec3 new_translation;
                 glm::vec3 new_rotation;
                 glm::vec3 new_scaling;
                 ImGuizmo::DecomposeMatrixToComponents(
-                    glm::value_ptr(transform_mat),
+                    glm::value_ptr(root_mat),
                     glm::value_ptr(new_translation),
                     glm::value_ptr(new_rotation),
                     glm::value_ptr(new_scaling)
@@ -94,30 +118,25 @@ void ImGuizmoGizmos::display() {
                         transform->rotation() = glm::quat(glm::radians(new_rotation));
                         break;
                     case GizmoOperation::scaling:
-                        // FIXME: Scaling does not seem to work correctly, investigate later.
                         transform->scaling()  = new_scaling;
                         break;
                 }
 
-            } else /* is a ChildMesh */ {
-                entt::entity parent_ent    = some_selected.get<components::ChildMesh>().parent;
-                const Transform& parent_tf = registry_.get<components::Transform>(parent_ent);
-                glm::mat4 parent_mat       = parent_tf.mtransform().model();
-                glm::mat4 child_mat        = mtransform.model();
+            } else /* is a child Mesh */ {
 
-                glm::mat4 world_mat        = parent_mat * child_mat;
+                const entt::entity parent_ent = some_selected.get<components::ChildMesh>().parent;
+                const glm::mat4 parent_mat    = registry_.get<components::Transform>(parent_ent).mtransform().model();
+                const glm::mat4 child_mat     = transform->mtransform().model();
+
+                glm::mat4 world_mat = parent_mat * child_mat;
 
                 ImGuizmo::Manipulate(
                     glm::value_ptr(view_mat),
                     glm::value_ptr(proj_mat),
                     op,
                     mode,
-                    glm::value_ptr(world_mat),
-                    glm::value_ptr(delta_mat) // Use it when transforming multiple objects at once
+                    glm::value_ptr(world_mat)
                 );
-
-
-                // Local -> World -> Apply Delta -> Local -> Set Position, Orientation, Scale
 
                 glm::mat4 new_local_mat = glm::inverse(parent_mat) * world_mat;
                 glm::vec3 new_local_translation;
