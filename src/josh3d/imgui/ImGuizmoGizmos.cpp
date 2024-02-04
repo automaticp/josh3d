@@ -54,6 +54,13 @@ void ImGuizmoGizmos::display() {
                 }
             }();
 
+            ImGuizmo::MODE mode = ImGuizmo::WORLD;
+            if (active_operation == GizmoOperation::scaling) {
+                // Only local scaling makes sense, since non-local scaling
+                // is not representable in Transform.
+                mode = ImGuizmo::LOCAL;
+            }
+
             if (!some_selected.all_of<components::ChildMesh>()) {
                 // FIXME: This branch is redundant and should be rewritten
                 // to handle models, orphaned meshes and child meshes in one go.
@@ -64,7 +71,7 @@ void ImGuizmoGizmos::display() {
                     glm::value_ptr(view_mat),
                     glm::value_ptr(proj_mat),
                     op,
-                    ImGuizmo::WORLD,
+                    mode,
                     glm::value_ptr(transform_mat),
                     glm::value_ptr(delta_mat)
                 );
@@ -104,7 +111,7 @@ void ImGuizmoGizmos::display() {
                     glm::value_ptr(view_mat),
                     glm::value_ptr(proj_mat),
                     op,
-                    ImGuizmo::WORLD,
+                    mode,
                     glm::value_ptr(world_mat),
                     glm::value_ptr(delta_mat) // Use it when transforming multiple objects at once
                 );
