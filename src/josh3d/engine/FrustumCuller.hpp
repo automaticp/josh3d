@@ -36,21 +36,17 @@ public:
 
         for (auto [entity, _, transform, sphere] : cullable_meshes_view.each()) {
 
-            // FIXME: This is currently broken for the Meshes with non-uniform scaling.
+            // FIXME: This seems to be currently broken for the Meshes with non-uniform scaling.
             // Most likely, when the objects are stretched along axis that do not belong
             // to the local basis of the Mesh.
             //
             // How does that even happen?
             // Investigate later, this needs to be rewritten anyway.
-            const glm::mat4 world_mat =
-                get_full_mesh_mtransform({ registry_, entity }, transform.mtransform()).model();
+            const MTransform world_mtf =
+                get_full_mesh_mtransform({ registry_, entity }, transform.mtransform());
 
-            const glm::vec3 sphere_center{ world_mat[3] };
-            const glm::vec3 mesh_scaling{  // This is inefficient and could be improved
-                glm::length(world_mat[0]), // by directly multiplying the scaling
-                glm::length(world_mat[1]), // of the Transform components. I think.
-                glm::length(world_mat[2])  // But I've juggled razor blades enough for now.
-            };
+            const glm::vec3 sphere_center = world_mtf.decompose_position();
+            const glm::vec3 mesh_scaling  = world_mtf.decompose_local_scale();
 
             const float scaled_radius = sphere.scaled_radius(mesh_scaling);
 
