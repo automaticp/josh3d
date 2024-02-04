@@ -6,6 +6,8 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
+#include <glm/gtx/norm.hpp>
+#include <glm/gtx/quaternion.hpp>
 
 
 namespace josh {
@@ -21,6 +23,10 @@ and also queried at the same time.
 Transformations are order-independent.
 
 Should be the default choice.
+
+Caveat is that it does not represent skew, and so it is not fully
+equivalent to a 4x4 homogeneous transformation matrix. Scaling
+only applies along the local basis.
 */
 class Transform {
 private:
@@ -68,9 +74,12 @@ public:
     }
 
 
-    [[deprecated]] Transform operator*(const Transform& other) const noexcept {
+    [[deprecated("The Transform does not describe the Skew transformation, therefore, \
+        it cannot properly propagate Scaling after Rotation. This operator is not equivalent \
+        to a model matrix multiplication. Do not use this.")]]
+    Transform operator*(const Transform& other) const noexcept {
         return {
-            this->position_ + other.position_,
+            this->position_ + this->scale_ * (this->rotation_ * other.position_),
             this->rotation_ * other.rotation_,
             this->scale_    * other.scale_
         };
@@ -122,7 +131,8 @@ Transformations are order-dependent,
 translate->rotate->scale for most sane results.
 
 Read matrix multiplication left-to-right: T * R * S.
-Primarily used for rendering, use plain Transform in other cases.
+Primarily used for rendering and parent-child transformation chaining,
+use plain Transform in other cases.
 */
 class MTransform {
 private:
@@ -133,7 +143,7 @@ public:
 
     explicit(false) MTransform(const glm::mat4& model) : model_{ model } {}
 
-    glm::mat4 model() const noexcept {
+    const glm::mat4& model() const noexcept {
         return model_;
     }
 
@@ -185,6 +195,22 @@ public:
     MTransform operator*(const MTransform& other) const noexcept {
         return { this->model() * other.model() };
     }
+
+
+    glm::vec3 decompose_position() const noexcept {
+        return { model_[3] };
+    }
+
+    glm::vec3 decompose_local_scale() const noexcept {
+        return glm::sqrt(
+            glm::vec3{
+                glm::length2(model_[0]),
+                glm::length2(model_[1]),
+                glm::length2(model_[2])
+            }
+        );
+    }
+
 
 };
 
