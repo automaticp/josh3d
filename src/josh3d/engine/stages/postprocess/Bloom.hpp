@@ -77,20 +77,19 @@ private:
     size_t old_gaussian_samples_{ 0 }; // Must be different from the gaussian_samples on costruction...
 
 public:
-    Bloom() {
-        update_gaussian_blur_weights_if_needed();
-    }
-
-
     glm::vec2 threshold_bounds{ 0.05f, 1.0f };
     size_t    blur_iterations{ 1 };
     float     offset_scale{ 1.f };
     bool      use_bloom{ true };
 
-
     float  gaussian_sample_range{ 1.8f };
     size_t gaussian_samples{ 4 };
 
+    Bloom();
+
+    void operator()(
+        const RenderEnginePostprocessInterface& engine,
+        const entt::registry&);
 
     RawTexture2D<GLConst> blur_texture() const noexcept {
         return blur_chain_.front_target().color_attachment().texture();
@@ -99,70 +98,6 @@ public:
     Size2I blur_texture_size() const noexcept {
         return blur_chain_.front_target().color_attachment().size();
     }
-
-    void operator()(const RenderEnginePostprocessInterface& engine, const entt::registry&) {
-
-        if (!use_bloom) { return; }
-
-        if (engine.window_size() != blur_chain_.back_target().color_attachment().size()) {
-            // TODO: Might be part of Attachment::resize() to skip redundant resizes
-            blur_chain_.resize_all(engine.window_size());
-        }
-
-        update_gaussian_blur_weights_if_needed();
-
-
-        // Extract
-        blur_chain_.draw_and_swap([&, this] {
-            sp_extract_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
-
-                ashp.uniform("threshold_bounds", threshold_bounds)
-                    .uniform("screen_color", 0);
-                engine.screen_color().bind_to_unit_index(0);
-
-                globals::quad_primitive_mesh().draw();
-            });
-        });
-
-        // Blur
-        weights_ssbo_.bind_to_index(0).and_then([&, this] {
-
-            for (size_t i{ 0 }; i < (2 * blur_iterations); ++i) {
-                blur_chain_.draw_and_swap([&, this] {
-                    sp_twopass_gaussian_blur_.use().and_then([&, this](
-                        ActiveShaderProgram<GLMutable>& ashp)
-                    {
-
-                        ashp.uniform("blur_horizontally", bool(i % 2))
-                            .uniform("offset_scale",      offset_scale)
-                            .uniform("screen_color",      0);
-                        blur_chain_.front_target()
-                            .color_attachment()
-                            .texture()
-                            .bind_to_unit_index(0);
-
-                        globals::quad_primitive_mesh().draw();
-                    });
-                });
-            }
-
-        })
-        .unbind();
-
-        // Blend
-        sp_blend_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
-
-            ashp.uniform("screen_color", 0)
-                .uniform("bloom_color",  1);
-            engine.screen_color().bind_to_unit_index(0);
-            blur_chain_.front_target().color_attachment().texture().bind_to_unit_index(1);
-
-            engine.draw();
-
-        });
-
-    }
-
 
 private:
     // From -x to +x binned into 2 * n_samples + 1.
@@ -180,36 +115,123 @@ private:
         return gaussian_sample_range != old_gaussian_sample_range_;
     }
 
-    // Uniformly bins the normal distribution from x0 to x1.
-    // Does not preserve the sum as the tails are not accounted for.
-    // Accounting for tails can make them biased during sampling.
-    // Does not normalize the resulting bins.
-    static auto generate_binned_gaussian_no_tails(float from, float to,
-        size_t n_bins) noexcept
-    {
-        assert(to > from);
-
-        const float step{ (to - from) / float(n_bins) };
-        float current_x{ from };
-        float previous_cdf = gaussian_cdf(from);
-
-        return ranges::views::generate_n(
-            [=]() mutable {
-                current_x += step;
-                const float current_cdf{ gaussian_cdf(current_x) };
-                const float diff = current_cdf - previous_cdf;
-                previous_cdf = current_cdf;
-                return diff;
-            },
-            n_bins
-        );
-    }
-
-    static float gaussian_cdf(float x) noexcept {
-        return (1.f + std::erf(x / std::sqrt(2.f))) / 2.f;
-    }
-
 };
+
+
+
+
+inline Bloom::Bloom() {
+    update_gaussian_blur_weights_if_needed();
+}
+
+
+
+
+inline void Bloom::operator()(
+    const RenderEnginePostprocessInterface& engine, const entt::registry&)
+{
+
+    if (!use_bloom) { return; }
+
+    if (engine.window_size() != blur_chain_.back_target().color_attachment().size()) {
+        // TODO: Might be part of Attachment::resize() to skip redundant resizes
+        blur_chain_.resize_all(engine.window_size());
+    }
+
+    update_gaussian_blur_weights_if_needed();
+
+
+    // Extract
+    blur_chain_.draw_and_swap([&, this] {
+        sp_extract_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
+
+            ashp.uniform("threshold_bounds", threshold_bounds)
+                .uniform("screen_color", 0);
+            engine.screen_color().bind_to_unit_index(0);
+
+            globals::quad_primitive_mesh().draw();
+        });
+    });
+
+    // Blur
+    weights_ssbo_.bind_to_index(0).and_then([&, this] {
+
+        for (size_t i{ 0 }; i < (2 * blur_iterations); ++i) {
+            blur_chain_.draw_and_swap([&, this] {
+                sp_twopass_gaussian_blur_.use().and_then([&, this](
+                    ActiveShaderProgram<GLMutable>& ashp)
+                {
+
+                    ashp.uniform("blur_horizontally", bool(i % 2))
+                        .uniform("offset_scale",      offset_scale)
+                        .uniform("screen_color",      0);
+                    blur_chain_.front_target()
+                        .color_attachment()
+                        .texture()
+                        .bind_to_unit_index(0);
+
+                    globals::quad_primitive_mesh().draw();
+                });
+            });
+        }
+
+    })
+    .unbind();
+
+    // Blend
+    sp_blend_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
+
+        ashp.uniform("screen_color", 0)
+            .uniform("bloom_color",  1);
+        engine.screen_color().bind_to_unit_index(0);
+        blur_chain_.front_target().color_attachment().texture().bind_to_unit_index(1);
+
+        engine.draw();
+
+    });
+
+}
+
+
+
+
+namespace detail {
+
+
+inline float gaussian_cdf(float x) noexcept {
+    return (1.f + std::erf(x / std::sqrt(2.f))) / 2.f;
+}
+
+
+// Uniformly bins the normal distribution from x0 to x1.
+// Does not preserve the sum as the tails are not accounted for.
+// Accounting for tails can make them biased during sampling.
+// Does not normalize the resulting bins.
+inline auto generate_binned_gaussian_no_tails(
+    float from, float to, size_t n_bins) noexcept
+{
+    assert(to > from);
+
+    const float step{ (to - from) / float(n_bins) };
+    float current_x{ from };
+    float previous_cdf = gaussian_cdf(from);
+
+    return ranges::views::generate_n(
+        [=]() mutable {
+            current_x += step;
+            const float current_cdf{ gaussian_cdf(current_x) };
+            const float diff = current_cdf - previous_cdf;
+            previous_cdf = current_cdf;
+            return diff;
+        },
+        n_bins
+    );
+}
+
+
+} // namespace detail
+
+
 
 
 inline void Bloom::update_gaussian_blur_weights_if_needed() {
@@ -219,12 +241,12 @@ inline void Bloom::update_gaussian_blur_weights_if_needed() {
 
     using enum GLenum;
 
-    auto update_weights = [this](BoundIndexedSSBO<GLMutable>& ssbo) {
+    auto update_weights = [this](BoundIndexedSSBO<>& ssbo) {
         std::span<float> mapped =
             ssbo.map_for_write<float>(0, gaussian_weights_buffer_size());
 
         auto generated =
-            generate_binned_gaussian_no_tails(
+            detail::generate_binned_gaussian_no_tails(
                 -gaussian_sample_range, gaussian_sample_range,
                 gaussian_weights_buffer_size()
             );
@@ -255,6 +277,8 @@ inline void Bloom::update_gaussian_blur_weights_if_needed() {
     old_gaussian_samples_      = gaussian_samples;
 
 }
+
+
 
 
 } // namespace josh::stages::postprocess

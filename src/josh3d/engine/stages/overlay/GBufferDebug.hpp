@@ -45,35 +45,46 @@ public:
         : gbuffer_{ std::move(gbuffer) }
     {}
 
-    void operator()(const RenderEngineOverlayInterface& engine, const entt::registry&) {
-
-        if (mode == OverlayMode::none) {
-            return;
-        }
-
-        gbuffer_->position_draw_texture().bind_to_unit_index(0);
-        gbuffer_->normals_texture()      .bind_to_unit_index(1);
-        gbuffer_->albedo_spec_texture()  .bind_to_unit_index(2);
-        gbuffer_->depth_texture()        .bind_to_unit_index(3);
-        gbuffer_->object_id_texture()    .bind_to_unit_index(4);
-        // engine   .screen_depth()         .bind_to_unit_index(3);
-
-        sp_.use()
-            .uniform("mode",              to_underlying(mode))
-            .uniform("z_near",            engine.camera().get_params().z_near)
-            .uniform("z_far",             engine.camera().get_params().z_far)
-            .uniform("tex_position_draw", 0)
-            .uniform("tex_normals",       1)
-            .uniform("tex_albedo_spec",   2)
-            .uniform("tex_depth",         3)
-            .uniform("tex_object_id",     4)
-            .and_then([&] {
-                engine.draw_fullscreen_quad();
-            });
-
-    }
+    void operator()(
+        const RenderEngineOverlayInterface& engine,
+        const entt::registry&);
 
 };
+
+
+
+
+inline void GBufferDebug::operator()(
+    const RenderEngineOverlayInterface& engine, const entt::registry&)
+{
+
+    if (mode == OverlayMode::none) {
+        return;
+    }
+
+    gbuffer_->position_draw_texture().bind_to_unit_index(0);
+    gbuffer_->normals_texture()      .bind_to_unit_index(1);
+    gbuffer_->albedo_spec_texture()  .bind_to_unit_index(2);
+    gbuffer_->depth_texture()        .bind_to_unit_index(3);
+    gbuffer_->object_id_texture()    .bind_to_unit_index(4);
+    // engine   .screen_depth()         .bind_to_unit_index(3);
+
+    sp_.use()
+        .uniform("mode",              to_underlying(mode))
+        .uniform("z_near",            engine.camera().get_params().z_near)
+        .uniform("z_far",             engine.camera().get_params().z_far)
+        .uniform("tex_position_draw", 0)
+        .uniform("tex_normals",       1)
+        .uniform("tex_albedo_spec",   2)
+        .uniform("tex_depth",         3)
+        .uniform("tex_object_id",     4)
+        .and_then([&] {
+            engine.draw_fullscreen_quad();
+        });
+
+}
+
+
 
 
 } // namespace josh::stages::overlay

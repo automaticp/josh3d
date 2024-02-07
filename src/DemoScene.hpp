@@ -104,172 +104,10 @@ private:
     ImGuiApplicationAssembly imgui_{ window_, registry_, cam_, vfs() };
 
 public:
-    DemoScene(glfw::Window& window)
-        : window_{ window }
-    {
-
-        auto psmapping =
-            rengine_.make_primary_stage<stages::primary::PointShadowMapping>();
-
-        auto csmapping =
-            rengine_.make_primary_stage<stages::primary::CascadedShadowMapping>(csm_info_builder_.view_output());
-
-        auto gbuffer =
-            rengine_.make_primary_stage<stages::primary::GBufferStorage>(
-                rengine_.window_size(),
-                // This is me sharing the depth target between the GBuffer and the
-                // main framebuffer of the RenderEngine, so that deferred and forward draws
-                // would overlap properly. Seems to work so far...
-                ViewAttachment<RawTexture2D>{ rengine_.main_depth() }
-            );
-
-        auto gbuffer_read_view = gbuffer.target().get_read_view();
-
-        auto defgeom =
-            rengine_.make_primary_stage<stages::primary::DeferredGeometry>(gbuffer.target().get_write_view());
-
-        auto terraingeom =
-            rengine_.make_primary_stage<stages::primary::TerrainGeometry>(gbuffer.target().get_write_view());
-
-        auto defshad =
-            rengine_.make_primary_stage<stages::primary::DeferredShading>(
-                gbuffer_read_view,
-                psmapping.target().view_output(),
-                csmapping.target().view_output()
-            );
-
-        auto plightboxes =
-            rengine_.make_primary_stage<stages::primary::PointLightBox>();
-
-        auto sky =
-            rengine_.make_primary_stage<stages::primary::Sky>();
-
-
-        auto fog =
-            rengine_.make_postprocess_stage<stages::postprocess::Fog>();
-
-        auto blooming =
-            rengine_.make_postprocess_stage<stages::postprocess::Bloom>();
-
-        auto hdreyeing =
-            rengine_.make_postprocess_stage<stages::postprocess::HDREyeAdaptation>();
-
-        auto fxaaaaaaa =
-            rengine_.make_postprocess_stage<stages::postprocess::FXAA>();
-
-        // auto whatsgamma =
-        //     rengine_.make_postprocess_stage<stages::postprocess::GammaCorrection>();
-
-
-        auto gbugger =
-            rengine_.make_overlay_stage<stages::overlay::GBufferDebug>(gbuffer.target().get_read_view());
-
-        auto selected =
-            rengine_.make_overlay_stage<stages::overlay::SelectedObjectHighlight>();
-
-        auto cullspheres =
-            rengine_.make_overlay_stage<stages::overlay::BoundingSphereDebug>();
-
-
-
-        imgui_.stage_hooks().add_primary_hook("Point Shadow Mapping",
-            imguihooks::primary::PointShadowMapping(psmapping));
-
-        imgui_.stage_hooks().add_primary_hook("Cascaded Shadow Mapping",
-            imguihooks::primary::CascadedShadowMapping(csm_info_builder_, csmapping));
-
-        imgui_.stage_hooks().add_primary_hook("GBuffer",
-            imguihooks::primary::GBufferStorage(gbuffer));
-
-        imgui_.stage_hooks().add_primary_hook("Deferred Shading",
-            imguihooks::primary::DeferredShading(defshad));
-
-        imgui_.stage_hooks().add_primary_hook("Point Light Boxes",
-            imguihooks::primary::PointLightBox(plightboxes));
-
-
-        imgui_.stage_hooks().add_primary_hook("Sky",
-            imguihooks::primary::Sky(sky));
-
-        imgui_.stage_hooks().add_postprocess_hook("Fog",
-            imguihooks::postprocess::Fog(fog));
-
-        imgui_.stage_hooks().add_postprocess_hook("Bloom",
-            imguihooks::postprocess::Bloom(blooming));
-
-        imgui_.stage_hooks().add_postprocess_hook("HDR Eye Adaptation",
-            imguihooks::postprocess::HDREyeAdaptation(hdreyeing));
-
-        imgui_.stage_hooks().add_postprocess_hook("FXAA",
-            imguihooks::postprocess::FXAA(fxaaaaaaa));
-
-
-        imgui_.stage_hooks().add_overlay_hook("GBuffer Debug Overlay",
-            imguihooks::overlay::GBufferDebug(gbugger));
-
-        imgui_.stage_hooks().add_overlay_hook("Selected Object Highlight",
-            imguihooks::overlay::SelectedObjectHighlight(selected));
-
-        imgui_.stage_hooks().add_overlay_hook("Bounding Spheres",
-            imguihooks::overlay::BoundingSphereDebug(cullspheres));
-
-
-        rengine_.add_next_primary_stage(std::move(psmapping));
-        rengine_.add_next_primary_stage(std::move(csmapping));
-        rengine_.add_next_primary_stage(std::move(gbuffer));
-        rengine_.add_next_primary_stage(std::move(defgeom));
-        rengine_.add_next_primary_stage(std::move(terraingeom));
-        rengine_.add_next_primary_stage(std::move(defshad));
-        rengine_.add_next_primary_stage(std::move(plightboxes));
-        rengine_.add_next_primary_stage(std::move(sky));
-
-        rengine_.add_next_postprocess_stage(std::move(fog));
-        rengine_.add_next_postprocess_stage(std::move(blooming));
-        rengine_.add_next_postprocess_stage(std::move(hdreyeing));
-        rengine_.add_next_postprocess_stage(std::move(fxaaaaaaa));
-
-        rengine_.add_next_overlay_stage(std::move(gbugger));
-        rengine_.add_next_overlay_stage(std::move(selected));
-        rengine_.add_next_overlay_stage(std::move(cullspheres));
-
-
-        imgui_.registry_hooks().add_hook("Lights",  imguihooks::registry::LightComponents());
-        imgui_.registry_hooks().add_hook("Models",  imguihooks::registry::ModelComponents());
-        imgui_.registry_hooks().add_hook("Skybox",  imguihooks::registry::SkyboxComponents());
-        imgui_.registry_hooks().add_hook("Terrain", imguihooks::registry::TerrainComponents());
-        imgui_.registry_hooks().add_hook("Camera",  imguihooks::registry::PerspectiveCamera(cam_));
-
-
-        configure_input(gbuffer_read_view);
-
-        init_registry();
-    }
-
+    DemoScene(glfw::Window& window);
     void process_input() {}
-
-    void update() {
-        update_input_blocker_from_imgui_io_state();
-
-        input_freecam_.update();
-
-        csm_info_builder_.build_from_camera(rengine_.camera(),
-            // FIXME: Scuffed, but who finds the light?
-            registry_.view<light::Directional>().storage().begin()->direction);
-
-        // TODO: Cull for shadow mapping
-        // culler_.cull_from_bounding_spheres<tags::CulledFromCascadedShadowMapping>(csm_info_builder_.view_output()->cascades.back().frustum);
-        culler_.cull_from_bounding_spheres<tags::Culled>(cam_.get_frustum_as_planes());
-    }
-
-    void render() {
-
-        imgui_.new_frame();
-
-        rengine_.render();
-
-        imgui_.display();
-
-    }
+    void update();
+    void render();
 
 private:
     void configure_input(SharedStorageView<GBuffer> gbuffer);
@@ -278,6 +116,175 @@ private:
 
 };
 
+
+
+
+inline DemoScene::DemoScene(glfw::Window& window)
+    : window_{ window }
+{
+
+    auto psmapping =
+        rengine_.make_primary_stage<stages::primary::PointShadowMapping>();
+
+    auto csmapping =
+        rengine_.make_primary_stage<stages::primary::CascadedShadowMapping>(csm_info_builder_.view_output());
+
+    auto gbuffer =
+        rengine_.make_primary_stage<stages::primary::GBufferStorage>(
+            rengine_.window_size(),
+            // This is me sharing the depth target between the GBuffer and the
+            // main framebuffer of the RenderEngine, so that deferred and forward draws
+            // would overlap properly. Seems to work so far...
+            ViewAttachment<RawTexture2D>{ rengine_.main_depth() }
+        );
+
+    auto gbuffer_read_view = gbuffer.target().get_read_view();
+
+    auto defgeom =
+        rengine_.make_primary_stage<stages::primary::DeferredGeometry>(gbuffer.target().get_write_view());
+
+    auto terraingeom =
+        rengine_.make_primary_stage<stages::primary::TerrainGeometry>(gbuffer.target().get_write_view());
+
+    auto defshad =
+        rengine_.make_primary_stage<stages::primary::DeferredShading>(
+            gbuffer_read_view,
+            psmapping.target().view_output(),
+            csmapping.target().view_output()
+        );
+
+    auto plightboxes =
+        rengine_.make_primary_stage<stages::primary::PointLightBox>();
+
+    auto sky =
+        rengine_.make_primary_stage<stages::primary::Sky>();
+
+
+    auto fog =
+        rengine_.make_postprocess_stage<stages::postprocess::Fog>();
+
+    auto blooming =
+        rengine_.make_postprocess_stage<stages::postprocess::Bloom>();
+
+    auto hdreyeing =
+        rengine_.make_postprocess_stage<stages::postprocess::HDREyeAdaptation>();
+
+    auto fxaaaaaaa =
+        rengine_.make_postprocess_stage<stages::postprocess::FXAA>();
+
+    // auto whatsgamma =
+    //     rengine_.make_postprocess_stage<stages::postprocess::GammaCorrection>();
+
+
+    auto gbugger =
+        rengine_.make_overlay_stage<stages::overlay::GBufferDebug>(gbuffer.target().get_read_view());
+
+    auto selected =
+        rengine_.make_overlay_stage<stages::overlay::SelectedObjectHighlight>();
+
+    auto cullspheres =
+        rengine_.make_overlay_stage<stages::overlay::BoundingSphereDebug>();
+
+
+
+    imgui_.stage_hooks().add_primary_hook("Point Shadow Mapping",
+        imguihooks::primary::PointShadowMapping(psmapping));
+
+    imgui_.stage_hooks().add_primary_hook("Cascaded Shadow Mapping",
+        imguihooks::primary::CascadedShadowMapping(csm_info_builder_, csmapping));
+
+    imgui_.stage_hooks().add_primary_hook("GBuffer",
+        imguihooks::primary::GBufferStorage(gbuffer));
+
+    imgui_.stage_hooks().add_primary_hook("Deferred Shading",
+        imguihooks::primary::DeferredShading(defshad));
+
+    imgui_.stage_hooks().add_primary_hook("Point Light Boxes",
+        imguihooks::primary::PointLightBox(plightboxes));
+
+
+    imgui_.stage_hooks().add_primary_hook("Sky",
+        imguihooks::primary::Sky(sky));
+
+    imgui_.stage_hooks().add_postprocess_hook("Fog",
+        imguihooks::postprocess::Fog(fog));
+
+    imgui_.stage_hooks().add_postprocess_hook("Bloom",
+        imguihooks::postprocess::Bloom(blooming));
+
+    imgui_.stage_hooks().add_postprocess_hook("HDR Eye Adaptation",
+        imguihooks::postprocess::HDREyeAdaptation(hdreyeing));
+
+    imgui_.stage_hooks().add_postprocess_hook("FXAA",
+        imguihooks::postprocess::FXAA(fxaaaaaaa));
+
+
+    imgui_.stage_hooks().add_overlay_hook("GBuffer Debug Overlay",
+        imguihooks::overlay::GBufferDebug(gbugger));
+
+    imgui_.stage_hooks().add_overlay_hook("Selected Object Highlight",
+        imguihooks::overlay::SelectedObjectHighlight(selected));
+
+    imgui_.stage_hooks().add_overlay_hook("Bounding Spheres",
+        imguihooks::overlay::BoundingSphereDebug(cullspheres));
+
+
+    rengine_.add_next_primary_stage(std::move(psmapping));
+    rengine_.add_next_primary_stage(std::move(csmapping));
+    rengine_.add_next_primary_stage(std::move(gbuffer));
+    rengine_.add_next_primary_stage(std::move(defgeom));
+    rengine_.add_next_primary_stage(std::move(terraingeom));
+    rengine_.add_next_primary_stage(std::move(defshad));
+    rengine_.add_next_primary_stage(std::move(plightboxes));
+    rengine_.add_next_primary_stage(std::move(sky));
+
+    rengine_.add_next_postprocess_stage(std::move(fog));
+    rengine_.add_next_postprocess_stage(std::move(blooming));
+    rengine_.add_next_postprocess_stage(std::move(hdreyeing));
+    rengine_.add_next_postprocess_stage(std::move(fxaaaaaaa));
+
+    rengine_.add_next_overlay_stage(std::move(gbugger));
+    rengine_.add_next_overlay_stage(std::move(selected));
+    rengine_.add_next_overlay_stage(std::move(cullspheres));
+
+
+    imgui_.registry_hooks().add_hook("Lights",  imguihooks::registry::LightComponents());
+    imgui_.registry_hooks().add_hook("Models",  imguihooks::registry::ModelComponents());
+    imgui_.registry_hooks().add_hook("Skybox",  imguihooks::registry::SkyboxComponents());
+    imgui_.registry_hooks().add_hook("Terrain", imguihooks::registry::TerrainComponents());
+    imgui_.registry_hooks().add_hook("Camera",  imguihooks::registry::PerspectiveCamera(cam_));
+
+
+    configure_input(gbuffer_read_view);
+
+    init_registry();
+}
+
+
+
+
+inline void DemoScene::update() {
+    update_input_blocker_from_imgui_io_state();
+
+    input_freecam_.update();
+
+    csm_info_builder_.build_from_camera(rengine_.camera(),
+        // FIXME: Scuffed, but who finds the light?
+        registry_.view<light::Directional>().storage().begin()->direction);
+
+    // TODO: Cull for shadow mapping
+    // culler_.cull_from_bounding_spheres<tags::CulledFromCascadedShadowMapping>(csm_info_builder_.view_output()->cascades.back().frustum);
+    culler_.cull_from_bounding_spheres<tags::Culled>(cam_.get_frustum_as_planes());
+}
+
+
+
+
+inline void DemoScene::render() {
+    imgui_.new_frame();
+    rengine_.render();
+    imgui_.display();
+}
 
 
 
@@ -437,5 +444,6 @@ inline void DemoScene::update_input_blocker_from_imgui_io_state() {
 
 
 } // namespace leaksjosh
+
 
 using leaksjosh::DemoScene;

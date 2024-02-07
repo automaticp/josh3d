@@ -150,7 +150,8 @@ public:
     }
 
 
-    void operator()(const RenderEnginePrimaryInterface& engine,
+    void operator()(
+        const RenderEnginePrimaryInterface& engine,
         const entt::registry&)
     {
         using namespace gl;

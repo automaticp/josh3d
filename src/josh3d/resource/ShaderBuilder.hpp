@@ -1,5 +1,6 @@
 #pragma once
 #include "Filesystem.hpp"
+#include "GLMutability.hpp"
 #include "GLObjects.hpp"
 #include "GLScalars.hpp"
 #include "GLShaders.hpp"
@@ -89,39 +90,45 @@ public:
     }
 
 
-    [[nodiscard]]
-    UniqueShaderProgram get() {
-
-        UniqueShaderProgram sp;
-
-        for (auto& shader : shaders_) {
-
-            for (auto& define : defines_) {
-                const bool was_found =
-                    shader.source.find_and_insert_as_next_line("#version", define.get_define_string());
-
-                assert(was_found);
-            }
-            compile_from_source_and_attach_to(sp, shader);
-
-        }
-
-        sp.link();
-
-        return sp;
-    }
-
-private:
-    static void compile_from_source_and_attach_to(
-        RawShaderProgram<GLMutable> sp, const UnevaluatedShader& shader_info)
-    {
-        UniqueShader new_shader{ shader_info.type };
-        new_shader.set_source(shader_info.source.text().c_str());
-        new_shader.compile();
-        sp.attach_shader(new_shader);
-    }
+    [[nodiscard]] UniqueShaderProgram get();
 
 };
+
+
+
+
+[[nodiscard]]
+inline auto ShaderBuilder::get()
+    -> UniqueShaderProgram
+{
+    UniqueShaderProgram sp;
+
+    auto compile_from_source_and_attach =
+        [&sp](const UnevaluatedShader& shader_info) {
+            UniqueShader new_shader{ shader_info.type };
+            new_shader.set_source(shader_info.source.text().c_str());
+            new_shader.compile();
+            sp.attach_shader(new_shader);
+        };
+
+    for (auto& shader : shaders_) {
+
+        for (auto& define : defines_) {
+            const bool was_found =
+                shader.source.find_and_insert_as_next_line("#version", define.get_define_string());
+
+            assert(was_found);
+        }
+        compile_from_source_and_attach(shader);
+
+    }
+
+    sp.link();
+
+    return sp;
+}
+
+
 
 
 } // namespace josh

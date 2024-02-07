@@ -30,26 +30,34 @@ public:
 
     void operator()(
         const RenderEnginePostprocessInterface& engine,
-        const entt::registry&)
-    {
-        if (!use_fxaa) { return; }
-
-
-        engine.screen_color().bind_to_unit_index(0);
-
-        sp_.use()
-            .uniform("color", 0)
-            .uniform("gamma", gamma)
-            .uniform("absolute_contrast_threshold", absolute_contrast_threshold)
-            .uniform("relative_contrast_threshold", relative_contrast_threshold)
-            .and_then([&] {
-                engine.draw();
-            });
-
-    }
-
+        const entt::registry&);
 
 };
+
+
+
+
+inline void FXAA::operator()(
+    const RenderEnginePostprocessInterface& engine,
+    const entt::registry&)
+{
+    if (!use_fxaa) { return; }
+
+
+    engine.screen_color().bind_to_unit_index(0);
+
+    sp_.use()
+        .uniform("color", 0)
+        .uniform("gamma", gamma)
+        .uniform("absolute_contrast_threshold", absolute_contrast_threshold)
+        .uniform("relative_contrast_threshold", relative_contrast_threshold)
+        .and_then([&] {
+            engine.draw();
+        });
+
+}
+
+
 
 
 } // namespace josh::stages::postprocess
