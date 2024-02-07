@@ -4,6 +4,7 @@
 #include "GLObjects.hpp"
 #include "GLScalars.hpp"
 #include "GLShaders.hpp"
+#include "ReadFile.hpp"
 #include "ShaderSource.hpp"
 #include <string>
 #include <utility>
@@ -11,7 +12,6 @@
 
 
 namespace josh {
-
 
 
 class ShaderBuilder {
@@ -35,7 +35,7 @@ private:
 
 public:
     ShaderBuilder& load_shader(const File& file, GLenum type) {
-        shaders_.emplace_back(ShaderSource::from_file(file), type);
+        shaders_.emplace_back(ShaderSource(read_file(file)), type);
         return *this;
     }
 

@@ -1,40 +1,11 @@
 #pragma once
-#include "Filesystem.hpp"
-#include "RuntimeError.hpp"
 #include <string>
 #include <utility>
-#include <fstream>
 #include <string_view>
 #include <algorithm>
 
 
 namespace josh {
-
-namespace error {
-
-class FileReadingError final : public RuntimeError {
-public:
-    static constexpr auto prefix = "Cannot Read File: ";
-    Path path;
-    FileReadingError(Path path)
-        : RuntimeError(prefix, path)
-        , path{ std::move(path) }
-    {}
-};
-
-} // namespace error
-
-
-inline std::string read_file(const File& file) {
-    std::ifstream ifs{ file.path() };
-    if (ifs.fail()) {
-        throw error::FileReadingError(file.path());
-    }
-
-    return std::string{
-        std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>()
-    };
-}
 
 
 class ShaderSource {
@@ -42,22 +13,10 @@ private:
     std::string text_;
 
 public:
-    template<typename Reader, typename... Args>
-    ShaderSource(Reader&& reader, Args&&... args) : text_{ reader(std::forward<Args>(args)...) } {}
-
     explicit ShaderSource(std::string text) : text_{ std::move(text) } {}
 
-    static ShaderSource from_file(const File& file) {
-        return ShaderSource{ read_file(file) };
-    }
-
-    operator const std::string& () const noexcept {
-        return text_;
-    }
-
-    const std::string& text() const noexcept {
-        return text_;
-    }
+    operator const std::string&() const noexcept { return text_; }
+    const std::string& text() const noexcept { return text_; }
 
     bool find_and_replace(std::string_view target, std::string_view replacement) {
         auto pos = text_.find(target);

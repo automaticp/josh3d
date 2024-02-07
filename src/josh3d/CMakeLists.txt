@@ -70,8 +70,7 @@ subtarget_link_internal(engine     PUBLIC data filesystem gl render resource sce
 subtarget_link_internal(terrain    PUBLIC data gl scene resource util layout imgui #[[ well... ]])
 subtarget_link_internal(render     INTERFACE data gl util layout)
 subtarget_link_internal(resource   PUBLIC data filesystem gl scene util layout PRIVATE render)
-# ShaderSource can probably have from_file moved to resource so that we don't depend on filesystem
-subtarget_link_internal(data       INTERFACE filesystem util layout)
+subtarget_link_internal(data       INTERFACE util layout)
 subtarget_link_internal(input      INTERFACE util scene)
 subtarget_link_internal(gl         PUBLIC util layout)
 subtarget_link_internal(scene      INTERFACE util layout)

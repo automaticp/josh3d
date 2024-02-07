@@ -2,7 +2,7 @@
 #include "Filesystem.hpp"
 #include "MallocSupport.hpp"
 #include "Pixels.hpp"
-#include "ShaderSource.hpp"
+#include "ReadFile.hpp"
 #include "Size.hpp"
 #include <stb_image.h>
 #include <nlohmann/json.hpp>
@@ -60,7 +60,7 @@ ImageStorage<float>   load_image_from_file_impl<float>(
 
 
 std::array<File, 6> parse_cubemap_json_for_files(const File& json_file) {
-    // FIXME: read_file comes from the wrong place.
+
     std::string contents = read_file(json_file);
 
     Directory base_dir{ json_file.path().parent_path() };
