@@ -65,66 +65,21 @@ function(subtarget_link_internal SUBTARGET)
 endfunction()
 
 
-subtarget_link_internal(
-    imgui
-        PUBLIC
-            engine filesystem input util
-        PRIVATE
-            data gl scene resource
-)
-subtarget_link_internal(
-    engine
-        PUBLIC
-            data filesystem gl render resource scene terrain util
-)
-subtarget_link_internal(
-    terrain
-        PUBLIC
-            data gl scene resource util layout imgui #[[ well... ]]
-)
-subtarget_link_internal(
-    render
-        INTERFACE
-            data gl util layout
-)
-subtarget_link_internal(
-    resource
-        PUBLIC
-            data filesystem gl scene util layout
-        PRIVATE
-            render
-)
-subtarget_link_internal(
-    data
-        INTERFACE
-            filesystem #[[ ShaderSource can probably have from_file moved to resource ]] util layout
-)
-subtarget_link_internal(
-    input
-        INTERFACE
-            util scene
-)
-subtarget_link_internal(
-    gl
-        PUBLIC
-            util layout
-)
-subtarget_link_internal(
-    scene
-        INTERFACE
-            util layout
-)
-subtarget_link_internal(
-    filesystem
-        PUBLIC
-            util
-)
-subtarget_link_internal(
-    layout
-)
-subtarget_link_internal(
-    util
-)
+subtarget_link_internal(imgui      PUBLIC engine filesystem input util PRIVATE data gl scene resource)
+subtarget_link_internal(engine     PUBLIC data filesystem gl render resource scene terrain util)
+subtarget_link_internal(terrain    PUBLIC data gl scene resource util layout imgui #[[ well... ]])
+subtarget_link_internal(render     INTERFACE data gl util layout)
+subtarget_link_internal(resource   PUBLIC data filesystem gl scene util layout PRIVATE render)
+# ShaderSource can probably have from_file moved to resource so that we don't depend on filesystem
+subtarget_link_internal(data       INTERFACE filesystem util layout)
+subtarget_link_internal(input      INTERFACE util scene)
+subtarget_link_internal(gl         PUBLIC util layout)
+subtarget_link_internal(scene      INTERFACE util layout)
+subtarget_link_internal(filesystem PUBLIC util)
+subtarget_link_internal(layout)
+subtarget_link_internal(util)
+
+
 
 
 # Common external dependencies.
@@ -153,10 +108,7 @@ endforeach()
 target_link_libraries(josh3d-engine   PUBLIC    glfwpp::glfwpp EnTT::EnTT)
 target_link_libraries(josh3d-gl       PUBLIC    glbinding::glbinding)
 target_link_libraries(josh3d-imgui    PUBLIC    imgui::imgui imguizmo::imguizmo PRIVATE glfwpp::glfwpp)
-target_link_libraries(josh3d-resource
-    PUBLIC assimp::assimp #[[ should be private ]]
-    PRIVATE stb::stb nlohmann_json::nlohmann_json
-)
+target_link_libraries(josh3d-resource PUBLIC assimp::assimp #[[ should be private ]] PRIVATE stb::stb nlohmann_json::nlohmann_json)
 # target_link_libraries(josh3d-render)
 # target_link_libraries(josh3d-layout)
 target_link_libraries(josh3d-scene    INTERFACE EnTT::EnTT)
