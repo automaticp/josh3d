@@ -114,6 +114,10 @@ private:
             { window_size_, { GL_RGBA16F }}
         };
 
+        tgt.depth_attachment().texture().bind()
+            .set_min_mag_filters(GL_NEAREST, GL_NEAREST)
+            .set_wrap_st(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+
         tgt.color_attachment().texture().bind()
             .set_min_mag_filters(GL_LINEAR, GL_LINEAR)
             .set_wrap_st(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);

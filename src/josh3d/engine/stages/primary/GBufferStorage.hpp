@@ -53,16 +53,20 @@ public:
     {
         using enum GLenum;
         tgt_.color_attachment<Slot::position_draw>().texture().bind()
-            .set_min_mag_filters(GL_NEAREST, GL_NEAREST);
+            .set_min_mag_filters(GL_NEAREST, GL_NEAREST)
+            .set_wrap_st(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 
         tgt_.color_attachment<Slot::normals>().texture().bind()
-            .set_min_mag_filters(GL_NEAREST, GL_NEAREST);
+            .set_min_mag_filters(GL_NEAREST, GL_NEAREST)
+            .set_wrap_st(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 
         tgt_.color_attachment<Slot::albedo_spec>().texture().bind()
-            .set_min_mag_filters(GL_NEAREST, GL_NEAREST);
+            .set_min_mag_filters(GL_NEAREST, GL_NEAREST)
+            .set_wrap_st(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 
         tgt_.color_attachment<Slot::object_id>().texture().bind()
-            .set_min_mag_filters(GL_NEAREST, GL_NEAREST);
+            .set_min_mag_filters(GL_NEAREST, GL_NEAREST)
+            .set_wrap_st(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
     }
 
     GBuffer(const Size2I& size)

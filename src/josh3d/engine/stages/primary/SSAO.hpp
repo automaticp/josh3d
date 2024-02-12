@@ -202,6 +202,10 @@ inline void SSAO::operator()(
         .uniform("tex_position_draw", 0)
         .uniform("tex_normals",       1)
         .and_then([this] {
+            // Ideally, we should use custom sampler objects here
+            // to guarantee that we are sampling in CLAMP_TO_EDGE
+            // mode, independent of what the GBuffer sets,
+            // but I'm lazy, oh well...
             gbuffer_->position_draw_texture().bind_to_unit_index(0);
             gbuffer_->normals_texture()      .bind_to_unit_index(1);
             sampling_kernel_.bind_to_index(0);
