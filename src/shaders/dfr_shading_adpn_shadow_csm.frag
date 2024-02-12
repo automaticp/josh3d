@@ -33,6 +33,9 @@ uniform sampler2D tex_position_draw;
 uniform sampler2D tex_normals;
 uniform sampler2D tex_albedo_spec;
 
+uniform sampler2D tex_ambient_occlusion;
+uniform bool      use_ambient_occlusion = false;
+
 uniform AmbientLight ambient_light;
 uniform DirectionalLight dir_light;
 
@@ -194,9 +197,20 @@ void main() {
             tex_specular.r * illumination_factor;
     }
 
-
     // Ambient light.
-    result_color += ambient_light.color * tex_diffuse;
+
+    if (use_ambient_occlusion) {
+        float ambient_occlusion = texture(tex_ambient_occlusion, tex_coords).r;
+        result_color +=
+            ambient_light.color * tex_diffuse *
+            (1.0 - ambient_occlusion);
+    } else {
+        result_color +=
+            ambient_light.color * tex_diffuse;
+    }
+
+
+
 
     frag_color = vec4(result_color, 1.0);
 

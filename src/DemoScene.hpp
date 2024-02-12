@@ -22,6 +22,10 @@
 #include "VirtualFilesystem.hpp"
 
 #include "components/ChildMesh.hpp"
+#include "hooks/overlay/SSAODebug.hpp"
+#include "hooks/primary/SSAO.hpp"
+#include "stages/overlay/SSAODebug.hpp"
+#include "stages/primary/SSAO.hpp"
 #include "tags/Selected.hpp"
 #include "tags/ShadowCasting.hpp"
 #include "components/Path.hpp"
@@ -146,11 +150,15 @@ inline DemoScene::DemoScene(glfw::Window& window)
     auto terraingeom =
         rengine_.make_primary_stage<stages::primary::TerrainGeometry>(gbuffer.target().get_write_view());
 
+    auto ssao =
+        rengine_.make_primary_stage<stages::primary::SSAO>(gbuffer.target().get_read_view());
+
     auto defshad =
         rengine_.make_primary_stage<stages::primary::DeferredShading>(
             gbuffer_read_view,
             psmapping.target().view_output(),
-            csmapping.target().view_output()
+            csmapping.target().view_output(),
+            ssao.target().get_occlusion_texture()
         );
 
     auto plightboxes =
@@ -179,6 +187,12 @@ inline DemoScene::DemoScene(glfw::Window& window)
     auto gbugger =
         rengine_.make_overlay_stage<stages::overlay::GBufferDebug>(gbuffer.target().get_read_view());
 
+    auto ssaobugger =
+        rengine_.make_overlay_stage<stages::overlay::SSAODebug>(
+            ssao.target().get_noisy_occlusion_texture(),
+            ssao.target().get_occlusion_texture()
+        );
+
     auto selected =
         rengine_.make_overlay_stage<stages::overlay::SelectedObjectHighlight>();
 
@@ -195,6 +209,9 @@ inline DemoScene::DemoScene(glfw::Window& window)
 
     imgui_.stage_hooks().add_primary_hook("GBuffer",
         imguihooks::primary::GBufferStorage(gbuffer));
+
+    imgui_.stage_hooks().add_primary_hook("SSAO",
+        imguihooks::primary::SSAO(ssao));
 
     imgui_.stage_hooks().add_primary_hook("Deferred Shading",
         imguihooks::primary::DeferredShading(defshad));
@@ -222,6 +239,9 @@ inline DemoScene::DemoScene(glfw::Window& window)
     imgui_.stage_hooks().add_overlay_hook("GBuffer Debug Overlay",
         imguihooks::overlay::GBufferDebug(gbugger));
 
+    imgui_.stage_hooks().add_overlay_hook("SSAO Debug Overlay",
+        imguihooks::overlay::SSAODebug(ssaobugger));
+
     imgui_.stage_hooks().add_overlay_hook("Selected Object Highlight",
         imguihooks::overlay::SelectedObjectHighlight(selected));
 
@@ -234,6 +254,7 @@ inline DemoScene::DemoScene(glfw::Window& window)
     rengine_.add_next_primary_stage(std::move(gbuffer));
     rengine_.add_next_primary_stage(std::move(defgeom));
     rengine_.add_next_primary_stage(std::move(terraingeom));
+    rengine_.add_next_primary_stage(std::move(ssao));
     rengine_.add_next_primary_stage(std::move(defshad));
     rengine_.add_next_primary_stage(std::move(plightboxes));
     rengine_.add_next_primary_stage(std::move(sky));
@@ -244,6 +265,7 @@ inline DemoScene::DemoScene(glfw::Window& window)
     rengine_.add_next_postprocess_stage(std::move(fxaaaaaaa));
 
     rengine_.add_next_overlay_stage(std::move(gbugger));
+    rengine_.add_next_overlay_stage(std::move(ssaobugger));
     rengine_.add_next_overlay_stage(std::move(selected));
     rengine_.add_next_overlay_stage(std::move(cullspheres));
 

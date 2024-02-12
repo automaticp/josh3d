@@ -51,6 +51,7 @@ private:
     SharedStorageView<GBuffer>            gbuffer_;
     SharedStorageView<PointShadowMaps>    input_psm_;
     SharedStorageView<CascadedShadowMaps> input_csm_;
+    RawTexture2D<GLConst>                 ambient_occlusion_;
 
     SSBOWithIntermediateBuffer<light::Point> plights_with_shadows_ssbo_{
         1, gl::GL_DYNAMIC_DRAW
@@ -67,15 +68,19 @@ private:
 public:
     PointShadowParams point_params;
     DirShadowParams dir_params;
-    bool enable_csm_debug{ false };
+    bool use_ambient_occlusion{ true  };
+    bool enable_csm_debug     { false };
 
     DeferredShading(
         SharedStorageView<GBuffer>            gbuffer,
         SharedStorageView<PointShadowMaps>    input_psm,
-        SharedStorageView<CascadedShadowMaps> input_csm)
+        SharedStorageView<CascadedShadowMaps> input_csm,
+        RawTexture2D<GLConst> ambient_occlusion
+    )
         : gbuffer_  { std::move(gbuffer) }
         , input_psm_{ std::move(input_psm) }
         , input_csm_{ std::move(input_csm) }
+        , ambient_occlusion_{ ambient_occlusion }
     {}
 
     void operator()(const RenderEnginePrimaryInterface&,

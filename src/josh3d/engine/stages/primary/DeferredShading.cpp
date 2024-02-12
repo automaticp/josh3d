@@ -42,10 +42,14 @@ void DeferredShading::draw_main(
         gbuffer_->position_draw_texture().bind_to_unit_index(0);
         gbuffer_->normals_texture()      .bind_to_unit_index(1);
         gbuffer_->albedo_spec_texture()  .bind_to_unit_index(2);
+        ambient_occlusion_               .bind_to_unit_index(5);
 
-        ashp.uniform("tex_position_draw", 0)
-            .uniform("tex_normals",       1)
-            .uniform("tex_albedo_spec",   2);
+        ashp.uniform("tex_position_draw",     0)
+            .uniform("tex_normals",           1)
+            .uniform("tex_albedo_spec",       2);
+
+        ashp.uniform("use_ambient_occlusion", use_ambient_occlusion)
+            .uniform("tex_ambient_occlusion", 5);
 
         for (auto [_, ambi]
             : registry.view<light::Ambient>().each())
