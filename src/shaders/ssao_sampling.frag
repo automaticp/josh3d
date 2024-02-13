@@ -24,11 +24,6 @@ layout (std430, binding = 0) restrict readonly buffer KernelSamplesBlock {
 mat3 get_random_tbn_matrix(vec3 normal);
 
 
-bool should_discard() {
-    return texture(tex_position_draw, tex_coords).a == 0.0;
-}
-
-
 // ws - world space,
 // ts - tangent space,
 // vs - view space,
@@ -37,10 +32,12 @@ bool should_discard() {
 // nss - normalized screen space (ndc/2 + 1/2) (in [0, 1], for texture sampling)
 void main() {
 
-    if (should_discard()) discard;
+    vec4 pos_draw = texture(tex_position_draw, tex_coords);
 
-    vec3 frag_pos_ws    = texture(tex_position_draw, tex_coords).xyz;
-    vec3 frag_normal_ws = texture(tex_normals,       tex_coords).xyz;
+    if (pos_draw.a == 0.0) discard;
+
+    vec3 frag_pos_ws    = pos_draw.xyz;
+    vec3 frag_normal_ws = texture(tex_normals, tex_coords).xyz;
 
     mat3 tbn = get_random_tbn_matrix(frag_normal_ws);
 
@@ -54,7 +51,11 @@ void main() {
         vec3 sample_pos_ndc = sample_pos_cs.xyz / sample_pos_cs.w;
         vec3 sample_pos_nss = sample_pos_ndc * 0.5 + 0.5;
 
-        vec4 reference_pos_ws = vec4(texture(tex_position_draw, sample_pos_nss.xy).xyz, 1.0);
+        vec4 ref_pos_draw = texture(tex_position_draw, sample_pos_nss.xy);
+        // FIXME: Kinda scuffed? Any better way?
+        if (ref_pos_draw.a == 0.0) continue;
+
+        vec4 reference_pos_ws = vec4(ref_pos_draw.xyz, 1.0);
         vec4 reference_pos_vs = view * reference_pos_ws;
 
         // TODO: Who are you?
