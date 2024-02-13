@@ -83,6 +83,7 @@ private:
     // But it is not convolution in a mathematical sense, no?
     UniqueSSBO sampling_kernel_;
     GLsizeiptr kernel_size_{ 16 };
+    float min_sample_angle_rad_{ glm::radians(5.f) };
 
     void regenerate_kernels();
 
@@ -95,6 +96,9 @@ public:
 
     size_t get_kernel_size() const noexcept { return kernel_size_; }
     void   set_kernel_size(size_t new_size) { kernel_size_ = new_size; regenerate_kernels(); }
+
+    float get_min_sample_angle_from_surface_rad() const noexcept { return min_sample_angle_rad_; }
+    void  set_min_sample_angle_from_surface_rad(float angle_rad) { min_sample_angle_rad_ = angle_rad; regenerate_kernels(); }
 
     auto get_occlusion_texture() const noexcept -> RawTexture2D<GLConst>;
     auto get_noisy_occlusion_texture() const noexcept -> RawTexture2D<GLConst>;
@@ -145,15 +149,17 @@ inline void SSAO::regenerate_kernels() {
                 // biased towards the covering-box vertices. Bad math is bad math, eeehhh...
                 //
                 // 3d gaussian distribution is spherically-symmetric so we use that.
-                glm::vec4 vec{
-                    gaussian_dist(urbg),
-                    gaussian_dist(urbg),
-                    gaussian_dist(urbg),
-                    0.0f
-                };
-                vec.z = glm::abs(vec.z);
-
-                vec = glm::normalize(vec);
+                glm::vec4 vec;
+                do {
+                    vec = glm::vec4{
+                        gaussian_dist(urbg),
+                        gaussian_dist(urbg),
+                        gaussian_dist(urbg),
+                        0.0f
+                    };
+                    vec.z = glm::abs(vec.z);
+                    vec   = glm::normalize(vec);
+                } while (glm::dot(glm::vec3{ vec }, glm::vec3{ 0.f, 0.f, 1.f }) < glm::sin(min_sample_angle_rad_));
 
                 // Scaling our vector by random r in range [0, 1) will produce
                 // the distribution of points in the final kernel with density
