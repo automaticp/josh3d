@@ -104,7 +104,7 @@ void main() {
             out_color = vec3(texture(tex_albedo_spec, tex_coords).a);
             break;
         case 3: // position
-            out_color = texture(tex_position_draw, tex_coords).xyz;
+            out_color = mod((texture(tex_position_draw, tex_coords).xyz + 1.0), 20.0) * 0.05;
             break;
         case 4: // depth
             out_color = vec3(texture(tex_depth, tex_coords).r);
