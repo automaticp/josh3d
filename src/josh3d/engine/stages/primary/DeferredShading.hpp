@@ -67,9 +67,12 @@ private:
 
 public:
     PointShadowParams point_params;
-    DirShadowParams dir_params;
-    bool use_ambient_occlusion{ true  };
-    bool enable_csm_debug     { false };
+    DirShadowParams   dir_params;
+
+    bool  use_ambient_occlusion  { true };
+    float ambient_occlusion_power{ 0.8 };
+
+    bool  enable_csm_debug{ false };
 
     DeferredShading(
         SharedStorageView<GBuffer>            gbuffer,

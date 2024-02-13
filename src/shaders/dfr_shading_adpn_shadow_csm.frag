@@ -35,6 +35,7 @@ uniform sampler2D tex_albedo_spec;
 
 uniform sampler2D tex_ambient_occlusion;
 uniform bool      use_ambient_occlusion = false;
+uniform float     ambient_occlusion_power = 1.0;
 
 uniform AmbientLight ambient_light;
 uniform DirectionalLight dir_light;
@@ -203,7 +204,7 @@ void main() {
         float ambient_occlusion = texture(tex_ambient_occlusion, tex_coords).r;
         result_color +=
             ambient_light.color * tex_diffuse *
-            (1.0 - ambient_occlusion);
+            pow(1.0 - ambient_occlusion, ambient_occlusion_power);
     } else {
         result_color +=
             ambient_light.color * tex_diffuse;

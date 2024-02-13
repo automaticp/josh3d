@@ -48,8 +48,9 @@ void DeferredShading::draw_main(
             .uniform("tex_normals",           1)
             .uniform("tex_albedo_spec",       2);
 
-        ashp.uniform("use_ambient_occlusion", use_ambient_occlusion)
-            .uniform("tex_ambient_occlusion", 5);
+        ashp.uniform("use_ambient_occlusion",   use_ambient_occlusion)
+            .uniform("ambient_occlusion_power", ambient_occlusion_power)
+            .uniform("tex_ambient_occlusion",   5);
 
         for (auto [_, ambi]
             : registry.view<light::Ambient>().each())

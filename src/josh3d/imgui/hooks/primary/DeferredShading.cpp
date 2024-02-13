@@ -7,6 +7,11 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, DeferredShading) {
 
     ImGui::Checkbox("Use Ambient Occlusion", &stage_.use_ambient_occlusion);
 
+    ImGui::SliderFloat(
+        "AO Power", &stage_.ambient_occlusion_power,
+        0.01f, 100.f, "%.2f", ImGuiSliderFlags_Logarithmic
+    );
+
 
     if (ImGui::TreeNode("Point Shadows")) {
 
