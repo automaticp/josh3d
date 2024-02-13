@@ -27,4 +27,9 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, SSAO) {
         "%.3f", ImGuiSliderFlags_Logarithmic
     );
 
+    ImGui::SliderFloat(
+        "Bias", &stage_.bias, 0.0001f, 100.f,
+        "%.4f", ImGuiSliderFlags_Logarithmic
+    );
+
 }

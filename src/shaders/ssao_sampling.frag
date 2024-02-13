@@ -13,6 +13,7 @@ uniform float z_near;
 uniform float z_far;
 
 uniform float radius;
+uniform float bias;
 
 layout (std430, binding = 0) restrict readonly buffer KernelSamplesBlock {
     vec4 kernel_samples[];
@@ -64,7 +65,8 @@ void main() {
             radius / abs(reference_pos_vs.z - sample_pos_vs.z)
         );
 
-        occlusion += float(reference_pos_vs.z >= sample_pos_vs.z) * range_correction;
+        occlusion +=
+            float(reference_pos_vs.z >= sample_pos_vs.z + bias) * range_correction;
     }
 
     frag_color = occlusion / float(num_samples);

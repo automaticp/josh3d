@@ -91,6 +91,8 @@ public:
     // Switch to false if you want to skip the whole stage.
     bool  enable_occlusion_sampling{ true };
     float radius{ 0.2f };
+    float bias{ 0.01f }; // Can't wait to do another reciever plane algo...
+
 
     SSAO(SharedStorageView<GBuffer> gbuffer);
 
@@ -205,6 +207,7 @@ inline void SSAO::operator()(
         .uniform("z_near", cam_params.z_near)
         .uniform("z_far",  cam_params.z_far)
         .uniform("radius", radius)
+        .uniform("bias",   bias)
         .uniform("tex_position_draw", 0)
         .uniform("tex_normals",       1)
         .and_then([this] {
