@@ -1,5 +1,6 @@
 #include "SSAO.hpp"
 #include "detail/SimpleStageHookMacro.hpp"
+#include "stages/primary/SSAO.hpp"
 #include <glm/trigonometric.hpp>
 #include <imgui.h>
 
@@ -31,5 +32,32 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, SSAO) {
         "Bias", &stage_.bias, 0.0001f, 100.f,
         "%.4f", ImGuiSliderFlags_Logarithmic
     );
+
+
+    using NoiseMode = stages::primary::SSAO::NoiseMode;
+
+    const char* noise_mode_names[] = {
+        "Sampled",
+        "Generated"
+    };
+
+    int mode_id = to_underlying(stage_.noise_mode);
+    if (ImGui::ListBox("Noise Mode", &mode_id,
+            noise_mode_names, std::size(noise_mode_names), 2))
+    {
+        stage_.noise_mode = NoiseMode{ mode_id };
+    }
+
+
+    ImGui::BeginDisabled(stage_.noise_mode != NoiseMode::sampled_from_texture);
+    Size2I noise_size = stage_.get_noise_texture_size();
+    if (ImGui::SliderInt2("Noise Size", &noise_size.width,
+        1, 128))
+    {
+        stage_.set_noise_texture_size(noise_size);
+    }
+    ImGui::EndDisabled();
+
+
 
 }

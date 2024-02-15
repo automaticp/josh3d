@@ -1,12 +1,16 @@
 #pragma once
 #include "Attachments.hpp"
 #include "DefaultResources.hpp"
+#include "EnumUtils.hpp"
 #include "GLObjects.hpp"
 #include "GLTextures.hpp"
+#include "ImageData.hpp"
+#include "Pixels.hpp"
 #include "RenderEngine.hpp"
 #include "RenderTarget.hpp"
 #include "ShaderBuilder.hpp"
 #include "SharedStorage.hpp"
+#include "TextureHelpers.hpp"
 #include "VPath.hpp"
 #include "GLScalars.hpp"
 #include "stages/primary/GBufferStorage.hpp"
@@ -15,6 +19,7 @@
 #include <glm/ext/quaternion_geometric.hpp>
 #include <span>
 #include <random>
+#include <vector>
 
 
 
@@ -77,6 +82,11 @@ private:
 
     SharedStorageView<GBuffer> gbuffer_;
 
+
+    UniqueTexture2D noise_texture_;
+    Size2I noise_size_{ 16, 16 };
+
+
     // It's still unclear to me why they call it "kernel".
     // I get that it *sounds like* convolution:
     //   "for each pixel get N samples and reduce that to one value"
@@ -85,13 +95,21 @@ private:
     GLsizeiptr kernel_size_{ 16 };
     float min_sample_angle_rad_{ glm::radians(5.f) };
 
+
+    inline static thread_local std::mt19937 urbg_{};
     void regenerate_kernels();
+    void regenerate_noise();
 
 public:
     // Switch to false if you want to skip the whole stage.
     bool  enable_occlusion_sampling{ true };
     float radius{ 0.2f };
     float bias{ 0.01f }; // Can't wait to do another reciever plane algo...
+
+    enum class NoiseMode : GLint {
+        sampled_from_texture = 0,
+        generated_in_shader  = 1
+    } noise_mode{ NoiseMode::generated_in_shader };
 
 
     SSAO(SharedStorageView<GBuffer> gbuffer);
@@ -101,6 +119,9 @@ public:
 
     float get_min_sample_angle_from_surface_rad() const noexcept { return min_sample_angle_rad_; }
     void  set_min_sample_angle_from_surface_rad(float angle_rad) { min_sample_angle_rad_ = angle_rad; regenerate_kernels(); }
+
+    Size2I get_noise_texture_size() const noexcept { return noise_size_; }
+    void   set_noise_texture_size(Size2I new_size) { noise_size_ = new_size; regenerate_noise(); }
 
     auto get_occlusion_texture() const noexcept -> RawTexture2D<GLConst>;
     auto get_noisy_occlusion_texture() const noexcept -> RawTexture2D<GLConst>;
@@ -115,6 +136,7 @@ inline SSAO::SSAO(SharedStorageView<GBuffer> gbuffer)
     : gbuffer_{ std::move(gbuffer) }
 {
     regenerate_kernels();
+    regenerate_noise();
 }
 
 
@@ -133,7 +155,6 @@ inline auto SSAO::get_noisy_occlusion_texture() const noexcept
 
 
 inline void SSAO::regenerate_kernels() {
-    thread_local std::mt19937 urbg;
     std::normal_distribution<float>       gaussian_dist;
     std::uniform_real_distribution<float> uniform_dist;
 
@@ -154,9 +175,9 @@ inline void SSAO::regenerate_kernels() {
                 glm::vec4 vec;
                 do {
                     vec = glm::vec4{
-                        gaussian_dist(urbg),
-                        gaussian_dist(urbg),
-                        gaussian_dist(urbg),
+                        gaussian_dist(urbg_),
+                        gaussian_dist(urbg_),
+                        gaussian_dist(urbg_),
                         0.0f
                     };
                     vec.z = glm::abs(vec.z);
@@ -166,7 +187,7 @@ inline void SSAO::regenerate_kernels() {
                 // Scaling our vector by random r in range [0, 1) will produce
                 // the distribution of points in the final kernel with density
                 // falling off as r^-2. (Volume element in spherical coordinates is ~ r^2 * dr)
-                vec *= uniform_dist(urbg);
+                vec *= uniform_dist(urbg_);
                 // TODO: Do we want r^-3 instead? If so, why?
                 // What's the actual distribution of this that models physics as close as possible?
                 //
@@ -188,6 +209,43 @@ inline void SSAO::regenerate_kernels() {
 
 
 
+inline void SSAO::regenerate_noise() {
+    std::normal_distribution<float> gaussian_dist;
+
+    // TODO: We can skip this allocation by mapping a pixel unpack buffer,
+    // but there's no implementation of it in GLBuffers. One day...
+    ImageData<pixel::RGBF> noise_image{ Size2S(noise_size_) };
+
+    auto random_vec = [&]() -> pixel::RGBF {
+        // We really don't care about magnitude since we just orthonormalize
+        // this vector in the shader. So no need to normalize here.
+        return {
+            gaussian_dist(urbg_),
+            gaussian_dist(urbg_),
+            gaussian_dist(urbg_)
+        };
+    };
+
+    std::ranges::generate(noise_image, random_vec);
+
+
+    using enum GLenum;
+
+    noise_texture_.bind()
+        .and_then([&](BoundTexture2D<>& tex) {
+            attach_data_to_texture(tex, noise_image, GL_RGB16F);
+        })
+        // TODO: I wonder if setting filtering to linear and offseting differently
+        // each repeat will produce better results?
+        .set_min_mag_filters(GL_NEAREST, GL_NEAREST)
+        .set_wrap_st(GL_REPEAT, GL_REPEAT)
+        .unbind();
+
+}
+
+
+
+
 inline void SSAO::operator()(
     const RenderEnginePrimaryInterface& engine,
     const entt::registry&)
@@ -201,6 +259,14 @@ inline void SSAO::operator()(
 
     auto& cam_params = engine.camera().get_params();
 
+    // This is inverse of "noise scale" from learnopengl.
+    // This is the size of a noise texture in uv coordinates of the screen
+    // assuming the size of a pixel is the same for both.
+    glm::vec2 noise_size{
+        float(noise_size_.width)  / float(engine.window_size().width),
+        float(noise_size_.height) / float(engine.window_size().height),
+    };
+
     sp_sampling_.use()
         .uniform("view",   engine.camera().view_mat())
         .uniform("proj",   engine.camera().projection_mat())
@@ -210,6 +276,9 @@ inline void SSAO::operator()(
         .uniform("bias",   bias)
         .uniform("tex_position_draw", 0)
         .uniform("tex_normals",       1)
+        .uniform("tex_noise",         2)
+        .uniform("noise_size",        noise_size)
+        .uniform("noise_mode",        to_underlying(noise_mode))
         .and_then([this] {
             // Ideally, we should use custom sampler objects here
             // to guarantee that we are sampling in CLAMP_TO_EDGE
@@ -217,6 +286,7 @@ inline void SSAO::operator()(
             // but I'm lazy, oh well...
             gbuffer_->position_draw_texture().bind_to_unit_index(0);
             gbuffer_->normals_texture()      .bind_to_unit_index(1);
+            noise_texture_                   .bind_to_unit_index(2);
             sampling_kernel_.bind_to_index(0);
 
             noisy_target_.bind_draw().and_then([] {
