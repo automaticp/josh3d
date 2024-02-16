@@ -17,9 +17,9 @@
 #include <entt/entity/fwd.hpp>
 #include <glbinding/gl/enum.h>
 #include <glm/ext/quaternion_geometric.hpp>
+#include <glm/gtc/matrix_inverse.hpp>
 #include <span>
 #include <random>
-#include <vector>
 
 
 
@@ -110,6 +110,11 @@ public:
         sampled_from_texture = 0,
         generated_in_shader  = 1
     } noise_mode{ NoiseMode::generated_in_shader };
+
+    enum class PositionSource : GLint {
+        gbuffer = 0,
+        depth   = 1
+    } position_source{ PositionSource::depth };
 
 
     SSAO(SharedStorageView<GBuffer> gbuffer);
@@ -267,18 +272,27 @@ inline void SSAO::operator()(
         float(noise_size_.height) / float(engine.window_size().height),
     };
 
+    glm::mat4 view_mat    = engine.camera().view_mat();
+    glm::mat3 normal_view = glm::transpose(glm::inverse(view_mat));
+    glm::mat4 proj_mat    = engine.camera().projection_mat();
+    glm::mat4 inv_proj    = glm::inverse(proj_mat);
+
     sp_sampling_.use()
-        .uniform("view",   engine.camera().view_mat())
-        .uniform("proj",   engine.camera().projection_mat())
-        .uniform("z_near", cam_params.z_near)
-        .uniform("z_far",  cam_params.z_far)
-        .uniform("radius", radius)
-        .uniform("bias",   bias)
+        .uniform("view",        view_mat)
+        .uniform("normal_view", normal_view)
+        .uniform("proj",        proj_mat)
+        .uniform("inv_proj",    inv_proj)
+        .uniform("z_near",      cam_params.z_near)
+        .uniform("z_far",       cam_params.z_far)
+        .uniform("radius",      radius)
+        .uniform("bias",        bias)
         .uniform("tex_position_draw", 0)
         .uniform("tex_normals",       1)
-        .uniform("tex_noise",         2)
+        .uniform("tex_depth",         2)
+        .uniform("tex_noise",         3)
         .uniform("noise_size",        noise_size)
         .uniform("noise_mode",        to_underlying(noise_mode))
+        .uniform("position_source",   to_underlying(position_source))
         .and_then([this] {
             // Ideally, we should use custom sampler objects here
             // to guarantee that we are sampling in CLAMP_TO_EDGE
@@ -286,7 +300,8 @@ inline void SSAO::operator()(
             // but I'm lazy, oh well...
             gbuffer_->position_draw_texture().bind_to_unit_index(0);
             gbuffer_->normals_texture()      .bind_to_unit_index(1);
-            noise_texture_                   .bind_to_unit_index(2);
+            gbuffer_->depth_texture()        .bind_to_unit_index(2);
+            noise_texture_                   .bind_to_unit_index(3);
             sampling_kernel_.bind_to_index(0);
 
             noisy_target_.bind_draw().and_then([] {

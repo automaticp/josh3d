@@ -6,12 +6,15 @@ out float frag_color;
 
 uniform sampler2D tex_position_draw;
 uniform sampler2D tex_normals;
+uniform sampler2D tex_depth;
 
 uniform sampler2D tex_noise;
 uniform vec2      noise_size; // vec2(0.1, 0.1) for a 16x16 texture on a 160x160 screen
 
 uniform mat4  view;
+uniform mat3  normal_view;
 uniform mat4  proj;
+uniform mat4  inv_proj;
 uniform float z_near;
 uniform float z_far;
 
@@ -29,46 +32,52 @@ enum class NoiseMode : GLint {
     generated_in_shader  = 1
 } noise_mode;
 */
-uniform int noise_mode = 0;
+const   int noise_mode_sampled   = 0;
+const   int noise_mode_generated = 1;
+uniform int noise_mode = noise_mode_generated;
+
+/*
+enum class PositionSource : GLint {
+    gbuffer = 0,
+    depth   = 1
+} position_source;
+*/
+const   int position_source_gbuffer = 0;
+const   int position_source_depth   = 1;
+uniform int position_source = position_source_gbuffer;
 
 
-
+vec3 get_random_vector();
 mat3 get_random_tbn_matrix(vec3 normal);
+
+vec4 get_frag_pos_vs(vec2 uv);
+vec3 get_frag_normal_vs(vec2 uv);
 
 
 // ws - world space,
 // ts - tangent space,
 // vs - view space,
-// cs - clip space,
+// cs - clip/projection space,
 // ndc - normalized device coordinates
 // nss - normalized screen space (ndc/2 + 1/2) (in [0, 1], for texture sampling)
 void main() {
 
-    vec4 pos_draw = texture(tex_position_draw, tex_coords);
+    vec4 frag_pos_vs    = get_frag_pos_vs(tex_coords);
+    if (any(isinf(frag_pos_vs))) discard;
+    vec3 frag_normal_vs = get_frag_normal_vs(tex_coords);
+    mat3 tbn_vs         = get_random_tbn_matrix(frag_normal_vs);
 
-    if (pos_draw.a == 0.0) discard;
-
-    vec3 frag_pos_ws    = pos_draw.xyz;
-    vec3 frag_normal_ws = texture(tex_normals, tex_coords).xyz;
-
-    mat3 tbn = get_random_tbn_matrix(frag_normal_ws);
 
     int num_samples = kernel_samples.length();
     float occlusion = 0.0;
     for (int i = 0; i < num_samples; ++i) {
         vec3 sample_pos_ts  = kernel_samples[i].xyz;
-        vec4 sample_pos_ws  = vec4((tbn * (radius * sample_pos_ts)) + frag_pos_ws, 1.0);
-        vec4 sample_pos_vs  = view * sample_pos_ws;
+        vec4 sample_pos_vs  = vec4((tbn_vs * (radius * sample_pos_ts)) + frag_pos_vs.xyz, 1.0);
         vec4 sample_pos_cs  = proj * sample_pos_vs;
         vec3 sample_pos_ndc = sample_pos_cs.xyz / sample_pos_cs.w;
         vec3 sample_pos_nss = sample_pos_ndc * 0.5 + 0.5;
 
-        vec4 ref_pos_draw = texture(tex_position_draw, sample_pos_nss.xy);
-        // FIXME: Kinda scuffed? Any better way?
-        if (ref_pos_draw.a == 0.0) continue;
-
-        vec4 reference_pos_ws = vec4(ref_pos_draw.xyz, 1.0);
-        vec4 reference_pos_vs = view * reference_pos_ws;
+        vec4 reference_pos_vs = get_frag_pos_vs(sample_pos_nss.xy);
 
         // TODO: Who are you?
         float range_correction = smoothstep(
@@ -86,7 +95,43 @@ void main() {
 
 
 
-vec3 get_random_vector();
+float get_vs_depth(float screen_z) {
+    return (z_near * z_far) /
+        (z_far - screen_z * (z_far - z_near));
+}
+
+
+vec4 get_frag_pos_vs(vec2 uv) {
+    switch (position_source) {
+        case position_source_depth:
+        {
+            float screen_z = texture(tex_depth, uv).r;
+            float clip_w   = get_vs_depth(screen_z);
+            vec4  pos_nss  = vec4(vec3(uv, screen_z), 1.0);
+            vec4  pos_ndc  = pos_nss * 2.0 - 1.0;
+            vec4  pos_cs   = pos_ndc * clip_w;
+            vec4  pos_vs   = inv_proj * pos_cs;
+            const float far_plane_correction = (1.0 - step(1.0, screen_z)); // Clamp to INF at z_far
+            return pos_vs / far_plane_correction;
+        }
+        default:
+        case position_source_gbuffer:
+        {
+            vec4 pos_ws_draw = texture(tex_position_draw, uv);
+            // Will return inf if no draw...
+            return view * vec4(pos_ws_draw.xyz / pos_ws_draw.a, 1.0);
+        }
+    }
+}
+
+
+vec3 get_frag_normal_vs(vec2 uv) {
+    vec3 frag_normal_ws = texture(tex_normals, uv).xyz;
+    return normalize(normal_view * frag_normal_ws);
+}
+
+
+
 
 
 mat3 get_random_tbn_matrix(vec3 normal) {
@@ -144,8 +189,10 @@ vec3 get_random_vector() {
         // The visual difference is much more noticable though,
         // the pcg-based generation has no visible tiling on flat surfaces,
         // therefore it's probably a better default.
-        case 0:  return sample_random_vector();
-        case 1:  return generate_random_vector();
-        default: return generate_random_vector();
+        case noise_mode_sampled:
+            return sample_random_vector();
+        default:
+        case noise_mode_generated:
+            return generate_random_vector();
     }
 }
