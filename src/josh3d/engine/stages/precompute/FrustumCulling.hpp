@@ -1,11 +1,13 @@
 #pragma once
 #include "Mesh.hpp"
+#include "RenderEngine.hpp"
 #include "tags/Culled.hpp"
 #include "components/BoundingSphere.hpp"
 #include "components/ChildMesh.hpp"
 #include "Transform.hpp"
 #include "ViewFrustum.hpp"
 #include "ECSHelpers.hpp"
+#include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
 #include <glm/ext/scalar_common.hpp>
 #include <algorithm>
@@ -14,35 +16,41 @@
 
 
 
-namespace josh {
+namespace josh::stages::precompute {
 
 
-class FrustumCuller {
-private:
-    entt::registry& registry_;
-
+class FrustumCulling {
 public:
-    FrustumCuller(entt::registry& registry)
-        : registry_{ registry }
-    {}
+    void operator()(const RenderEnginePrecomputeInterface& engine, entt::registry& registry);
 
+private:
     template<typename CullTagT = tags::Culled>
-    void cull_from_bounding_spheres(const ViewFrustumAsPlanes& frustum);
-
+    void cull_from_bounding_spheres(entt::registry& registry, const ViewFrustumAsPlanes& frustum);
 };
 
 
 
 
+inline void FrustumCulling::operator()(
+    const RenderEnginePrecomputeInterface& engine,
+    entt::registry& registry)
+{
+    cull_from_bounding_spheres<tags::Culled>(registry, engine.camera().get_frustum_as_planes());
+}
+
+
+
+
 template<typename CullTagT>
-void FrustumCuller::cull_from_bounding_spheres(
+void FrustumCulling::cull_from_bounding_spheres(
+    entt::registry& registry,
     const ViewFrustumAsPlanes& frustum)
 {
     // Assume the frustum has been correctly
     // transformed with the camera's transforms into world-space.
 
     auto cullable_meshes_view =
-        std::as_const(registry_).view<Mesh, Transform, components::BoundingSphere>();
+        std::as_const(registry).view<Mesh, Transform, components::BoundingSphere>();
 
     for (auto [entity, _, transform, sphere] : cullable_meshes_view.each()) {
 
@@ -53,7 +61,7 @@ void FrustumCuller::cull_from_bounding_spheres(
         // How does that even happen?
         // Investigate later, this needs to be rewritten anyway.
         const MTransform world_mtf =
-            get_full_mesh_mtransform({ registry_, entity }, transform.mtransform());
+            get_full_mesh_mtransform({ registry, entity }, transform.mtransform());
 
         const glm::vec3 sphere_center = world_mtf.decompose_position();
         const glm::vec3 mesh_scaling  = world_mtf.decompose_local_scale();
@@ -79,14 +87,14 @@ void FrustumCuller::cull_from_bounding_spheres(
             is_fully_in_front_of(frustum.bottom()) ||
             is_fully_in_front_of(frustum.top());
 
-        const bool was_culled = registry_.all_of<CullTagT>(entity);
+        const bool was_culled = registry.all_of<CullTagT>(entity);
 
         // TODO: Add support for additive culling?
         if (should_be_culled != was_culled) {
             if (should_be_culled) /* as it wasn't previously */ {
-                registry_.emplace<CullTagT>(entity);
+                registry.emplace<CullTagT>(entity);
             } else /* should now be un-culled */ {
-                registry_.erase<CullTagT>(entity);
+                registry.erase<CullTagT>(entity);
             }
         }
 
@@ -99,4 +107,4 @@ void FrustumCuller::cull_from_bounding_spheres(
 
 
 
-} // namespace josh
+} // namespace josh::stages::precompute

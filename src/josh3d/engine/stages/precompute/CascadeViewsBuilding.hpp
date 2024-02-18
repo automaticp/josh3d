@@ -1,4 +1,6 @@
 #pragma once
+#include "LightCasters.hpp"
+#include "RenderEngine.hpp"
 #include "ViewFrustum.hpp"
 #include "SharedStorage.hpp"
 #include "PerspectiveCamera.hpp"
@@ -20,7 +22,7 @@ struct CascadeView {
     ViewFrustumAsPlanes frustum;
     glm::mat4 view;
     glm::mat4 projection;
-    float z_split;
+    float     z_split;
 };
 
 
@@ -34,7 +36,15 @@ struct CascadeViews {
 };
 
 
-class CascadeViewsBuilder {
+} // namespace josh
+
+
+
+
+namespace josh::stages::precompute {
+
+
+class CascadeViewsBuilding {
 private:
     SharedStorage<CascadeViews> output_;
 
@@ -45,24 +55,37 @@ public:
     //
     // Exceeding max_cascades of the CascadedShadowMappingStage
     // might yield surprising results.
-    size_t num_cascades_to_build;
+    size_t num_cascades_to_build{ 5 };
 
-    CascadeViewsBuilder(size_t num_cascades = 1)
-        : num_cascades_to_build{ num_cascades }
-    {}
-
-    SharedStorageView<CascadeViews> view_output() const noexcept {
+    SharedStorageView<CascadeViews> share_output_view() const noexcept {
         return output_.share_view();
     }
 
-    void build_from_camera(const PerspectiveCamera& cam, const glm::vec3& light_dir) noexcept;
+    const CascadeViews& view_output() const noexcept { return *output_; }
 
+    void operator()(const RenderEnginePrecomputeInterface& engine, entt::registry& registry);
+
+private:
+    void build_from_camera(const PerspectiveCamera& cam, const glm::vec3& light_dir) noexcept;
 };
 
 
 
 
-inline void CascadeViewsBuilder::build_from_camera(
+inline void CascadeViewsBuilding::operator()(
+    const RenderEnginePrecomputeInterface& engine,
+    entt::registry& registry)
+{
+    build_from_camera(
+        engine.camera(),
+        registry.view<light::Directional>().storage().begin()->direction
+    );
+}
+
+
+
+
+inline void CascadeViewsBuilding::build_from_camera(
     const PerspectiveCamera& cam, const glm::vec3& light_dir) noexcept
 {
 
@@ -210,4 +233,6 @@ inline void CascadeViewsBuilder::build_from_camera(
 
 
 
-} // namespace josh
+} // namespace josh::stages::precompute
+
+
