@@ -70,10 +70,7 @@ public:
     }
 
     GBuffer(const Size2I& size)
-        : GBuffer{
-            size,
-            { this->depth_ }
-        }
+        : GBuffer{ size, { this->depth_ } }
     {
         using enum GLenum;
         depth_.bind()
@@ -119,6 +116,8 @@ public:
 } // namespace josh
 
 
+
+
 namespace josh::stages::primary {
 
 
@@ -140,12 +139,16 @@ public:
         : gbuffer_{ size, depth }
     {}
 
-    SharedStorageMutableView<GBuffer> get_write_view() noexcept {
+    SharedStorageMutableView<GBuffer> share_write_view() noexcept {
         return gbuffer_.share_mutable_view();
     }
 
-    SharedStorageView<GBuffer> get_read_view() const noexcept {
+    SharedStorageView<GBuffer> share_read_view() const noexcept {
         return gbuffer_.share_view();
+    }
+
+    const GBuffer& view_gbuffer() const noexcept {
+        return *gbuffer_;
     }
 
 

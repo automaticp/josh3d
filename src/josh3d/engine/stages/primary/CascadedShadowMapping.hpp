@@ -6,12 +6,12 @@
 #include "ShaderBuilder.hpp"
 #include "SharedStorage.hpp"
 #include "VPath.hpp"
-#include "CascadeViewsBuilder.hpp"
-#include <algorithm>
-#include <cassert>
+#include "stages/precompute/CascadeViewsBuilding.hpp"
 #include <entt/entity/fwd.hpp>
 #include <glbinding/gl/enum.h>
 #include <glm/glm.hpp>
+#include <algorithm>
+#include <cassert>
 #include <limits>
 #include <vector>
 
@@ -110,8 +110,12 @@ public:
         assert(input_->cascades.size() < max_cascades_);
     }
 
-    SharedStorageView<CascadedShadowMaps> view_output() const noexcept {
+    SharedStorageView<CascadedShadowMaps> share_output_view() const noexcept {
         return output_.share_view();
+    }
+
+    const CascadedShadowMaps& view_output() const noexcept {
+        return *output_;
     }
 
     size_t max_cascades() const noexcept { return max_cascades_; }
