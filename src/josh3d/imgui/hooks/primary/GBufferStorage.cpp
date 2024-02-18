@@ -1,13 +1,17 @@
 #include "GBufferStorage.hpp"
+#include "detail/SimpleStageHookMacro.hpp"
 #include "ImGuiHelpers.hpp"
 #include <imgui.h>
 
 
-namespace josh::imguihooks::primary {
 
 
-void GBufferStorage::operator()() {
-    const float aspect = gbuffer_->size().aspect_ratio();
+JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, GBufferStorage) {
+
+    // TODO: This is largely useless now that we have a GBufferDebug overlay.
+
+    const GBuffer& gbuffer = stage_.view_gbuffer();
+    const float aspect = gbuffer.size().aspect_ratio();
 
     auto imsize = [&]() -> ImVec2 {
         const float w = ImGui::GetContentRegionAvail().x;
@@ -15,11 +19,10 @@ void GBufferStorage::operator()() {
         return { w, h };
     };
 
-
     if (ImGui::TreeNode("Position/Draw")) {
 
         ImGui::Unindent();
-        imgui::ImageGL(void_id(gbuffer_->position_draw_texture().id()), imsize());
+        imgui::ImageGL(void_id(gbuffer.position_draw_texture().id()), imsize());
         ImGui::Indent();
 
         ImGui::TreePop();
@@ -29,7 +32,7 @@ void GBufferStorage::operator()() {
     if (ImGui::TreeNode("Normals")) {
 
         ImGui::Unindent();
-        imgui::ImageGL(void_id(gbuffer_->normals_texture().id()), imsize());
+        imgui::ImageGL(void_id(gbuffer.normals_texture().id()), imsize());
         ImGui::Indent();
 
         ImGui::TreePop();
@@ -40,7 +43,7 @@ void GBufferStorage::operator()() {
         ImGui::Unindent();
         // Doesn't really work with the default imgui backend setup.
         // Since alpha influences transparency, low specularity is not visible.
-        imgui::ImageGL(void_id(gbuffer_->albedo_spec_texture().id()), imsize());
+        imgui::ImageGL(void_id(gbuffer.albedo_spec_texture().id()), imsize());
         ImGui::Indent();
 
         ImGui::TreePop();
@@ -48,6 +51,3 @@ void GBufferStorage::operator()() {
 
 
 }
-
-
-} // namespace josh::imguihooks::primary
