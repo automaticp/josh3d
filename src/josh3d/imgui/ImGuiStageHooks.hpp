@@ -42,11 +42,16 @@ public:
         };
 
         // FIXME: Multimap with typeid as key?
+        std::vector<HookEntry> precompute_hook_entries_;
         std::vector<HookEntry> primary_hook_entries_;
         std::vector<HookEntry> pp_hook_entries_;
         std::vector<HookEntry> overlay_hook_entries_;
 
     public:
+        void add_precompute_hook(std::string name, UniqueFunction<void()> stage_hook) {
+            precompute_hook_entries_.emplace_back(std::move(stage_hook), std::move(name));
+        }
+
         void add_primary_hook(std::string name, UniqueFunction<void()> stage_hook) {
             primary_hook_entries_.emplace_back(std::move(stage_hook), std::move(name));
         }
