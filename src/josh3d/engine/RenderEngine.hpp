@@ -26,9 +26,17 @@ namespace josh {
 
 /*
 Implementation base for wrapper types that constrain the actions avaliable
-to be done with the engine during primary and postprocessing stages.
+to be done with the engine during various stages.
 */
 class RenderEngineCommonInterface;
+
+
+/*
+A wrapper object that constrains the set of actions avaliable
+during precompute stages. Passed to the precompute stages
+as a proxy for RenderEngine.
+*/
+class RenderEnginePrecomputeInterface;
 
 
 /*
@@ -60,6 +68,7 @@ class RenderEngineOverlayInterface;
 class RenderEngine {
 private:
     friend RenderEngineCommonInterface;
+    friend RenderEnginePrecomputeInterface;
     friend RenderEnginePrimaryInterface;
     friend RenderEnginePostprocessInterface;
     friend RenderEngineOverlayInterface;
@@ -86,6 +95,7 @@ private:
         size_t num_stages() const noexcept { return stages_.size(); }
     };
 
+    StageContainer<detail::AnyPrecomputeStage>  precompute_;
     StageContainer<detail::AnyPrimaryStage>     primary_;
     StageContainer<detail::AnyPostprocessStage> postprocess_;
     StageContainer<detail::AnyOverlayStage>     overlay_;
@@ -136,8 +146,12 @@ public:
     // Enables RGB -> sRGB conversion at the end of the postprocessing pass.
     bool enable_srgb_conversion{ true };
 
-    RenderEngine(entt::registry& registry, PerspectiveCamera& cam,
-        const Size2I& window_size, const FrameTimer& frame_timer)
+    RenderEngine(
+        entt::registry& registry,
+        PerspectiveCamera& cam,
+        const Size2I& window_size,
+        const FrameTimer& frame_timer
+    )
         : registry_{ registry }
         , cam_{ cam }
         , window_size_{ window_size }
@@ -150,6 +164,11 @@ public:
     }
 
     void render();
+
+    template<precompute_render_stage StageT, typename ...Args>
+    [[nodiscard]] PrecomputeStage<StageT> make_precompute_stage(Args&&... args) {
+        return PrecomputeStage<StageT>(StageT(std::forward<Args>(args)...));
+    }
 
     template<primary_render_stage StageT, typename ...Args>
     [[nodiscard]] PrimaryStage<StageT> make_primary_stage(Args&&... args) {
@@ -168,12 +187,31 @@ public:
 
 
     template<typename StageT>
+    StageT& add_next_precompute_stage(PrecomputeStage<StageT>&& stage) {
+        StageT& ref = stage.target();
+        precompute_.emplace_back(detail::AnyPrecomputeStage(std::move(stage.stage_)));
+        return ref;
+    }
+
+    template<typename ...StageTs>
+    void add_next_precompute_stages(PrecomputeStage<StageTs>&&... stages) {
+        (add_next_precompute_stage(std::forward<decltype(stages)>(stages)), ...);
+    }
+
+
+    template<typename StageT>
     StageT& add_next_primary_stage(PrimaryStage<StageT>&& stage) {
         // A lot of this relies on pointer/storage stability of UniqueFunction.
         StageT& ref = stage.target();
         primary_.emplace_back(detail::AnyPrimaryStage(std::move(stage.stage_)));
         return ref;
     }
+
+    template<typename ...StageTs>
+    void add_next_primary_stages(PrimaryStage<StageTs>&&... stages) {
+        (add_next_primary_stage(std::forward<decltype(stages)>(stages)), ...);
+    }
+
 
     template<typename StageT>
     StageT& add_next_postprocess_stage(PostprocessStage<StageT>&& stage) {
@@ -182,12 +220,24 @@ public:
         return ref;
     }
 
+    template<typename ...StageTs>
+    void add_next_postprocess_stages(PostprocessStage<StageTs>&&... stages) {
+        (add_next_postprocess_stage(std::forward<decltype(stages)>(stages)), ...);
+    }
+
+
     template<typename StageT>
     StageT& add_next_overlay_stage(OverlayStage<StageT>&& stage) {
         StageT& ref = stage.target();
         overlay_.emplace_back(detail::AnyOverlayStage(std::move(stage.stage_)));
         return ref;
     }
+
+    template<typename ...StageTs>
+    void add_next_overlay_stages(OverlayStage<StageTs>&&... stages) {
+        (add_next_overlay_stage(std::forward<decltype(stages)>(stages)), ...);
+    }
+
 
     RawTexture2D<GLMutable> main_depth()       noexcept { return depth_.texture(); }
     RawTexture2D<GLConst>   main_depth() const noexcept { return depth_.texture(); }
@@ -207,6 +257,7 @@ public:
     }
 
 private:
+    void execute_precompute_stages();
     void render_primary_stages();
     void render_postprocess_stages();
     void render_overlay_stages();
@@ -229,6 +280,21 @@ public:
     const PerspectiveCamera& camera() const noexcept { return engine_.cam_; }
     const Size2I& window_size() const noexcept { return engine_.window_size_; }
     const FrameTimer& frame_timer() const noexcept { return engine_.frame_timer_; }
+};
+
+
+
+
+
+
+
+
+class RenderEnginePrecomputeInterface : public RenderEngineCommonInterface {
+private:
+    friend class RenderEngine;
+    RenderEnginePrecomputeInterface(RenderEngine& engine)
+        : RenderEngineCommonInterface(engine)
+    {}
 };
 
 

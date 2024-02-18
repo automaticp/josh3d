@@ -20,6 +20,9 @@ void RenderEngine::render() {
     params.aspect_ratio = window_size_.aspect_ratio();
     cam_.update_params(params);
 
+    // Precompute.
+    execute_precompute_stages();
+
 
     main_swapchain_.back_target().bind_draw()
         .and_then([] { glClear(GL_DEPTH_BUFFER_BIT); });
@@ -72,6 +75,13 @@ void RenderEngine::render() {
 }
 
 
+
+
+void RenderEngine::execute_precompute_stages() {
+    precompute_.each([this](auto& stage) {
+        stage(RenderEnginePrecomputeInterface{ *this }, registry_);
+    });
+}
 
 
 void RenderEngine::render_primary_stages() {
