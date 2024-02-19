@@ -13,8 +13,12 @@
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/gl.h>
 #include <functional>
+#include <ranges>
+#include <string>
 #include <utility>
 #include <vector>
+
+
 
 
 // WIP
@@ -65,6 +69,10 @@ class RenderEngineOverlayInterface;
 
 
 
+
+
+
+
 class RenderEngine {
 private:
     friend RenderEngineCommonInterface;
@@ -73,32 +81,11 @@ private:
     friend RenderEnginePostprocessInterface;
     friend RenderEngineOverlayInterface;
 
-    template<typename T>
-    class StageContainer {
-    private:
-        std::vector<T> stages_;
-        size_t current_{};
-    public:
-        template<typename ...Args>
-        decltype(auto) emplace_back(Args&&... args) {
-            return stages_.emplace_back(std::forward<Args>(args)...);
-        }
 
-        template<typename Func>
-        void each(Func&& func) {
-            for (current_ = 0; current_ < stages_.size(); ++current_) {
-                std::forward<Func>(func)(stages_[current_]);
-            }
-        }
-
-        size_t current_idx() const noexcept { return current_; }
-        size_t num_stages() const noexcept { return stages_.size(); }
-    };
-
-    StageContainer<detail::AnyPrecomputeStage>  precompute_;
-    StageContainer<detail::AnyPrimaryStage>     primary_;
-    StageContainer<detail::AnyPostprocessStage> postprocess_;
-    StageContainer<detail::AnyOverlayStage>     overlay_;
+    std::vector<PrecomputeStage>  precompute_;
+    std::vector<PrimaryStage>     primary_;
+    std::vector<PostprocessStage> postprocess_;
+    std::vector<OverlayStage>     overlay_;
 
     entt::registry& registry_;
 
@@ -165,77 +152,47 @@ public:
 
     void render();
 
-    template<precompute_render_stage StageT, typename ...Args>
-    [[nodiscard]] PrecomputeStage<StageT> make_precompute_stage(Args&&... args) {
-        return PrecomputeStage<StageT>(StageT(std::forward<Args>(args)...));
+
+    auto precompute_stages_view()  noexcept { return std::views::all(precompute_);  }
+    auto primary_stages_view()     noexcept { return std::views::all(primary_);     }
+    auto postprocess_stages_view() noexcept { return std::views::all(postprocess_); }
+    auto overlay_stages_view()     noexcept { return std::views::all(overlay_);   }
+
+
+    template<precompute_render_stage StageT>
+    void add_next_precompute_stage(std::string name, StageT&& stage) {
+        precompute_.emplace_back(
+            PrecomputeStage{
+                std::move(name), AnyPrecomputeStage{ std::forward<StageT>(stage) }
+            }
+        );
     }
 
-    template<primary_render_stage StageT, typename ...Args>
-    [[nodiscard]] PrimaryStage<StageT> make_primary_stage(Args&&... args) {
-        return PrimaryStage<StageT>(StageT(std::forward<Args>(args)...));
+    template<primary_render_stage StageT>
+    void add_next_primary_stage(std::string name, StageT&& stage) {
+        primary_.emplace_back(
+            PrimaryStage{
+                std::move(name), AnyPrimaryStage{ std::forward<StageT>(stage) }
+            }
+        );
     }
 
-    template<postprocess_render_stage StageT, typename ...Args>
-    [[nodiscard]] PostprocessStage<StageT> make_postprocess_stage(Args&&... args) {
-        return PostprocessStage<StageT>(StageT(std::forward<Args>(args)...));
+    template<postprocess_render_stage StageT>
+    void add_next_postprocess_stage(std::string name, StageT&& stage) {
+        postprocess_.emplace_back(
+            PostprocessStage{
+                std::move(name), AnyPostprocessStage{ std::forward<StageT>(stage) }
+            }
+        );
     }
 
-    template<overlay_render_stage StageT, typename ...Args>
-    [[nodiscard]] OverlayStage<StageT> make_overlay_stage(Args&&... args) {
-        return OverlayStage<StageT>(StageT(std::forward<Args>(args)...));
-    }
-
-
-    template<typename StageT>
-    StageT& add_next_precompute_stage(PrecomputeStage<StageT>&& stage) {
-        StageT& ref = stage.target();
-        precompute_.emplace_back(detail::AnyPrecomputeStage(std::move(stage.stage_)));
-        return ref;
-    }
-
-    template<typename ...StageTs>
-    void add_next_precompute_stages(PrecomputeStage<StageTs>&&... stages) {
-        (add_next_precompute_stage(std::forward<decltype(stages)>(stages)), ...);
-    }
-
-
-    template<typename StageT>
-    StageT& add_next_primary_stage(PrimaryStage<StageT>&& stage) {
-        // A lot of this relies on pointer/storage stability of UniqueFunction.
-        StageT& ref = stage.target();
-        primary_.emplace_back(detail::AnyPrimaryStage(std::move(stage.stage_)));
-        return ref;
-    }
-
-    template<typename ...StageTs>
-    void add_next_primary_stages(PrimaryStage<StageTs>&&... stages) {
-        (add_next_primary_stage(std::forward<decltype(stages)>(stages)), ...);
-    }
-
-
-    template<typename StageT>
-    StageT& add_next_postprocess_stage(PostprocessStage<StageT>&& stage) {
-        StageT& ref = stage.target();
-        postprocess_.emplace_back(detail::AnyPostprocessStage(std::move(stage.stage_)));
-        return ref;
-    }
-
-    template<typename ...StageTs>
-    void add_next_postprocess_stages(PostprocessStage<StageTs>&&... stages) {
-        (add_next_postprocess_stage(std::forward<decltype(stages)>(stages)), ...);
-    }
-
-
-    template<typename StageT>
-    StageT& add_next_overlay_stage(OverlayStage<StageT>&& stage) {
-        StageT& ref = stage.target();
-        overlay_.emplace_back(detail::AnyOverlayStage(std::move(stage.stage_)));
-        return ref;
-    }
-
-    template<typename ...StageTs>
-    void add_next_overlay_stages(OverlayStage<StageTs>&&... stages) {
-        (add_next_overlay_stage(std::forward<decltype(stages)>(stages)), ...);
+    template<overlay_render_stage StageT>
+    void add_next_overlay_stage(std::string name, StageT&& stage) {
+        overlay_.emplace_back(
+            OverlayStage{
+                std::move(name), AnyOverlayStage{ std::forward<StageT>(stage) }
+            }
+        );
     }
 
 
@@ -261,6 +218,10 @@ private:
     void render_primary_stages();
     void render_postprocess_stages();
     void render_overlay_stages();
+
+    template<typename StagesContainerT, typename REInterfaceT>
+    void execute_stages(StagesContainerT&& stages, REInterfaceT&& engine_interface);
+
 };
 
 

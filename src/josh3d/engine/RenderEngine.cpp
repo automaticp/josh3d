@@ -1,11 +1,14 @@
 #include "RenderEngine.hpp"
 #include "GLFramebuffer.hpp"
 #include "GLMutability.hpp"
+#include "GLObjects.hpp"
 #include "RenderStage.hpp"
+#include <chrono>
 #include <entt/entt.hpp>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/gl.h>
-#include <cassert>
+
+
 
 
 using namespace gl;
@@ -20,21 +23,24 @@ void RenderEngine::render() {
     params.aspect_ratio = window_size_.aspect_ratio();
     cam_.update_params(params);
 
+
     // Precompute.
     execute_precompute_stages();
 
 
+    // Primary.
     main_swapchain_.back_target().bind_draw()
         .and_then([] { glClear(GL_DEPTH_BUFFER_BIT); });
-
-
 
     glEnable(GL_DEPTH_TEST);
     render_primary_stages(); // To swapchain backbuffer.
     glDisable(GL_DEPTH_TEST);
 
+
+    // Postprocess.
     main_swapchain_.swap_buffers();
     render_postprocess_stages(); // To swapchain (swap each draw).
+
 
     // Blit front to default (opt. sRGB)
     if (enable_srgb_conversion) { glEnable(GL_FRAMEBUFFER_SRGB); }
@@ -68,6 +74,8 @@ void RenderEngine::render() {
     // communicate through SharedStorage and the like, but
     // might be reasonable just as the assumption about stable registry.
 
+
+    // Overlay.
     render_overlay_stages(); // To default framebuffer
 
     // Present.
@@ -77,31 +85,45 @@ void RenderEngine::render() {
 
 
 
-void RenderEngine::execute_precompute_stages() {
-    precompute_.each([this](auto& stage) {
-        stage(RenderEnginePrecomputeInterface{ *this }, registry_);
-    });
+template<typename StagesContainerT, typename REInterfaceT>
+void RenderEngine::execute_stages(
+    StagesContainerT&& stages,
+    REInterfaceT&& engine_interface)
+{
+    for (auto& stage : std::forward<StagesContainerT>(stages)) {
+        stage.resolve_available_time_queries();
+        UniqueTimerQuery tquery;
+        tquery.begin_query();
+
+        auto t0 = std::chrono::steady_clock::now();
+
+        stage.get()(std::forward<REInterfaceT>(engine_interface), registry_);
+
+        auto t1 = std::chrono::steady_clock::now();
+        stage.cpu_timer_.update(std::chrono::duration<float>(t1 - t0).count(), frame_timer_.delta<float>());
+
+        tquery.end_query();
+        stage.emplace_new_time_query(std::move(tquery), frame_timer_.delta<float>());
+    }
 }
 
+
+
+
+void RenderEngine::execute_precompute_stages() {
+    execute_stages(precompute_, RenderEnginePrecomputeInterface{ *this });
+}
 
 void RenderEngine::render_primary_stages() {
-    primary_.each([this](auto& stage) {
-        stage(RenderEnginePrimaryInterface{ *this }, registry_);
-    });
+    execute_stages(primary_, RenderEnginePrimaryInterface{ *this });
 }
-
 
 void RenderEngine::render_postprocess_stages() {
-    postprocess_.each([this](auto& stage) {
-        stage(RenderEnginePostprocessInterface{ *this }, registry_);
-    });
+    execute_stages(postprocess_, RenderEnginePostprocessInterface{ *this });
 }
 
-
 void RenderEngine::render_overlay_stages() {
-    overlay_.each([this](auto& stage) {
-        stage(RenderEngineOverlayInterface{ *this }, registry_);
-    });
+    execute_stages(overlay_, RenderEngineOverlayInterface{ *this });
 }
 
 
