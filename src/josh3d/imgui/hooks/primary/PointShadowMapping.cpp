@@ -1,29 +1,18 @@
+#include "detail/SimpleStageHookMacro.hpp"
 #include "PointShadowMapping.hpp"
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 
 
-namespace josh::imguihooks::primary {
-
-
-void PointShadowMapping::operator()() {
-
-    ImGui::SliderInt(
-        "New Resolution", &resolution_,
-        128, 8192, "%d", ImGuiSliderFlags_Logarithmic
-    );
+JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, PointShadowMapping) {
 
     auto& maps = stage_.view_output().point_shadow_maps_tgt.depth_attachment();
 
-    const bool change_res = ImGui::Button("Change Resolution");
-    ImGui::SameLine();
-    ImGui::Text(
-        "%d -> %d",
-        maps.size().width, resolution_
-    );
-
-    if (change_res) {
-        stage_.resize_maps({ resolution_, resolution_ });
+    int resolution = maps.size().width;
+    if (ImGui::SliderInt("New Resolution", &resolution,
+        128, 8192, "%d", ImGuiSliderFlags_Logarithmic))
+    {
+        stage_.resize_maps(Size2I{ resolution, resolution });
     }
 
     ImGui::DragFloat2(
@@ -33,5 +22,3 @@ void PointShadowMapping::operator()() {
 
 }
 
-
-} // namespace josh::imguihooks::primary
