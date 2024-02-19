@@ -24,8 +24,15 @@ public:
         : averaging_interval{ averaging_interval }
     {}
 
-    // Call once every frame.
+    // Call once every frame. Shorthand for `update(delta_time, delta_time)`.
     void update(seconds_t delta_time);
+
+    // `slice_delta_time` is what you want to *measure*,
+    // `total_delta_time` controls how often you want to update the average.
+    //
+    // This can be used to update "every N frames" if `total_delta_time`
+    // is constant between calls.
+    void update(seconds_t slice_delta_time, seconds_t total_delta_time);
 
     // If the averaging_interval is updated, the last
     // average value will still be calculated with the
@@ -44,11 +51,18 @@ private:
 
 
 inline void AvgFrameTimeCounter::update(seconds_t delta_time) {
+    update(delta_time, delta_time);
+}
+
+
+inline void AvgFrameTimeCounter::update(
+    seconds_t slice_delta_time, seconds_t total_delta_time)
+{
 
     ++num_frames_since_last_reset_;
 
-    total_within_interval_ += delta_time;
-    left_until_reset_      -= delta_time;
+    total_within_interval_ += slice_delta_time;
+    left_until_reset_      -= total_delta_time;
 
     if (left_until_reset_ < 0.0f) {
 
