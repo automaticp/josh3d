@@ -4,11 +4,13 @@
 #include "ImGuiSelected.hpp"
 #include "ImGuizmoGizmos.hpp"
 #include "PerspectiveCamera.hpp"
+#include "RenderEngine.hpp"
 #include "Size.hpp"
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <cstdio>
-#include <iterator>
+
+
 
 
 namespace josh {
@@ -16,6 +18,7 @@ namespace josh {
 
 ImGuiApplicationAssembly::ImGuiApplicationAssembly(
     glfw::Window& window,
+    RenderEngine& engine,
     entt::registry& registry,
     const PerspectiveCamera& cam,
     VirtualFilesystem& vfs
@@ -23,7 +26,7 @@ ImGuiApplicationAssembly::ImGuiApplicationAssembly(
     : context_{ window }
     , window_settings_{ window }
     , vfs_control_{ vfs }
-    , stage_hooks_{}
+    , stage_hooks_{ engine }
     , registry_hooks_{ registry }
     , selected_menu_{ registry }
     , gizmos_{ cam, registry }

@@ -1,14 +1,20 @@
 #pragma once
+#include "RenderEngine.hpp"
+#include "RenderStage.hpp"
 #include "UniqueFunction.hpp"
-#include <string>
+#include <typeindex>
 #include <utility>
-#include <vector>
 
 
 
 
 namespace josh {
 
+
+template<typename StageHookT>
+concept specifies_target_stage = requires {
+    typename StageHookT::target_stage_type;
+};
 
 
 /*
@@ -26,49 +32,69 @@ a general Render Stages debug window.
     [Stage 1]
       <Your hook here>
     ...
+
+TODO: Rename to ImGuiEngineHooks or similar.
 */
 class ImGuiStageHooks {
 public:
     class HooksContainer {
     private:
         friend ImGuiStageHooks;
-        struct HookEntry {
-            HookEntry(UniqueFunction<void()> hook, std::string name)
-                : hook(std::move(hook)), name(std::move(name))
-            {}
 
-            UniqueFunction<void()> hook;
-            std::string name;
-        };
+        template<typename AnyStageT>
+        using Hook = UniqueFunction<void(AnyStageT&)>;
+        template<typename AnyStageT>
+        using HookMap = std::unordered_map<std::type_index, Hook<AnyStageT>>;
 
-        // FIXME: Multimap with typeid as key?
-        std::vector<HookEntry> precompute_hook_entries_;
-        std::vector<HookEntry> primary_hook_entries_;
-        std::vector<HookEntry> pp_hook_entries_;
-        std::vector<HookEntry> overlay_hook_entries_;
+        HookMap<AnyPrecomputeStage>  precompute_hooks_;
+        HookMap<AnyPrimaryStage>     primary_hooks_;
+        HookMap<AnyPostprocessStage> postprocess_hooks_;
+        HookMap<AnyOverlayStage>     overlay_hooks_;
 
     public:
-        void add_precompute_hook(std::string name, UniqueFunction<void()> stage_hook) {
-            precompute_hook_entries_.emplace_back(std::move(stage_hook), std::move(name));
+        // TODO: Add interface that allows to explicitly specify target stage type.
+
+        template<specifies_target_stage StageHookT>
+        void add_precompute_hook(StageHookT&& hook) {
+            precompute_hooks_.insert_or_assign(
+                std::type_index(typeid(typename StageHookT::target_stage_type)),
+                std::forward<StageHookT>(hook)
+            );
         }
 
-        void add_primary_hook(std::string name, UniqueFunction<void()> stage_hook) {
-            primary_hook_entries_.emplace_back(std::move(stage_hook), std::move(name));
+        template<specifies_target_stage StageHookT>
+        void add_primary_hook(StageHookT&& hook) {
+            primary_hooks_.insert_or_assign(
+                std::type_index(typeid(typename StageHookT::target_stage_type)),
+                std::forward<StageHookT>(hook)
+            );
         }
 
-        void add_postprocess_hook(std::string name, UniqueFunction<void()> postprocess_hook) {
-            pp_hook_entries_.emplace_back(std::move(postprocess_hook), std::move(name));
+        template<specifies_target_stage StageHookT>
+        void add_postprocess_hook(StageHookT&& hook) {
+            postprocess_hooks_.insert_or_assign(
+                std::type_index(typeid(typename StageHookT::target_stage_type)),
+                std::forward<StageHookT>(hook)
+            );
         }
 
-        void add_overlay_hook(std::string name, UniqueFunction<void()> overlay_hook) {
-            overlay_hook_entries_.emplace_back(std::move(overlay_hook), std::move(name));
+        template<specifies_target_stage StageHookT>
+        void add_overlay_hook(StageHookT&& hook) {
+            overlay_hooks_.insert_or_assign(
+                std::type_index(typeid(typename StageHookT::target_stage_type)),
+                std::forward<StageHookT>(hook)
+            );
         }
+
     };
 
 private:
     HooksContainer hooks_container_;
+    RenderEngine&  engine_;
 
 public:
+    ImGuiStageHooks(RenderEngine& engine) : engine_{ engine } {}
+
     HooksContainer&       hooks() noexcept       { return hooks_container_; }
     const HooksContainer& hooks() const noexcept { return hooks_container_; }
 
