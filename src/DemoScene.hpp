@@ -103,7 +103,7 @@ private:
         globals::window_size.size_ref(), globals::frame_timer
     };
 
-    ImGuiApplicationAssembly imgui_{ window_, registry_, cam_, vfs() };
+    ImGuiApplicationAssembly imgui_{ window_, rengine_, registry_, cam_, vfs() };
 
 public:
     DemoScene(glfw::Window& window);
@@ -126,180 +126,95 @@ inline DemoScene::DemoScene(glfw::Window& window)
 {
 
 
-    auto csmbuilder =
-        rengine_.make_precompute_stage<stages::precompute::CascadeViewsBuilding>();
+    auto csmbuilder    = stages::precompute::CascadeViewsBuilding();
+    auto frustumculler = stages::precompute::FrustumCulling();
 
-    auto frustumculler =
-        rengine_.make_precompute_stage<stages::precompute::FrustumCulling>();
-
-
-
-
-    auto psmapping =
-        rengine_.make_primary_stage<stages::primary::PointShadowMapping>();
-
-    auto csmapping =
-        rengine_.make_primary_stage<stages::primary::CascadedShadowMapping>(
-            csmbuilder.target().share_output_view()
-        );
-
-    auto gbuffer =
-        rengine_.make_primary_stage<stages::primary::GBufferStorage>(
+    auto psmapping   = stages::primary::PointShadowMapping();
+    auto csmapping   = stages::primary::CascadedShadowMapping(csmbuilder.share_output_view());
+    auto gbuffer     =
+        stages::primary::GBufferStorage(
             rengine_.window_size(),
             // This is me sharing the depth target between the GBuffer and the
             // main framebuffer of the RenderEngine, so that deferred and forward draws
             // would overlap properly. Seems to work so far...
             ViewAttachment<RawTexture2D>{ rengine_.main_depth() }
         );
-
-    auto gbuffer_read_view = gbuffer.target().share_read_view();
-
-    auto defgeom =
-        rengine_.make_primary_stage<stages::primary::DeferredGeometry>(gbuffer.target().share_write_view());
-
-    auto terraingeom =
-        rengine_.make_primary_stage<stages::primary::TerrainGeometry>(gbuffer.target().share_write_view());
-
-    auto ssao =
-        rengine_.make_primary_stage<stages::primary::SSAO>(gbuffer.target().share_read_view());
-
-    auto defshad =
-        rengine_.make_primary_stage<stages::primary::DeferredShading>(
-            gbuffer_read_view,
-            psmapping.target().share_output_view(),
-            csmapping.target().share_output_view(),
-            ssao.target().get_occlusion_texture()
+    auto defgeom     = stages::primary::DeferredGeometry(gbuffer.share_write_view());
+    auto terraingeom = stages::primary::TerrainGeometry(gbuffer.share_write_view());
+    auto ssao        = stages::primary::SSAO(gbuffer.share_read_view());
+    auto defshad     =
+        stages::primary::DeferredShading(
+            gbuffer.share_read_view(),
+            psmapping.share_output_view(),
+            csmapping.share_output_view(),
+            ssao.get_occlusion_texture()
         );
-
-    auto plightboxes =
-        rengine_.make_primary_stage<stages::primary::PointLightBox>();
-
-    auto sky =
-        rengine_.make_primary_stage<stages::primary::Sky>();
+    auto plightboxes = stages::primary::PointLightBox();
+    auto sky         = stages::primary::Sky();
 
 
+    auto fog       = stages::postprocess::Fog();
+    auto blooming  = stages::postprocess::Bloom();
+    auto hdreyeing = stages::postprocess::HDREyeAdaptation();
+    auto fxaaaaaaa = stages::postprocess::FXAA();
 
 
-    auto fog =
-        rengine_.make_postprocess_stage<stages::postprocess::Fog>();
-
-    auto blooming =
-        rengine_.make_postprocess_stage<stages::postprocess::Bloom>();
-
-    auto hdreyeing =
-        rengine_.make_postprocess_stage<stages::postprocess::HDREyeAdaptation>();
-
-    auto fxaaaaaaa =
-        rengine_.make_postprocess_stage<stages::postprocess::FXAA>();
-
-    // auto whatsgamma =
-    //     rengine_.make_postprocess_stage<stages::postprocess::GammaCorrection>();
-
-
-
-
-    auto gbugger =
-        rengine_.make_overlay_stage<stages::overlay::GBufferDebug>(gbuffer.target().share_read_view());
-
-    auto ssaobugger =
-        rengine_.make_overlay_stage<stages::overlay::SSAODebug>(
-            ssao.target().get_noisy_occlusion_texture(),
-            ssao.target().get_occlusion_texture()
+    auto gbugger     = stages::overlay::GBufferDebug(gbuffer.share_read_view());
+    auto ssaobugger  = stages::overlay::SSAODebug(
+            ssao.get_noisy_occlusion_texture(),
+            ssao.get_occlusion_texture()
         );
-
-    auto selected =
-        rengine_.make_overlay_stage<stages::overlay::SelectedObjectHighlight>();
-
-    auto cullspheres =
-        rengine_.make_overlay_stage<stages::overlay::BoundingSphereDebug>();
+    auto selected    = stages::overlay::SelectedObjectHighlight();
+    auto cullspheres = stages::overlay::BoundingSphereDebug();
 
 
-
-
-    imgui_.stage_hooks().add_precompute_hook("CSM Views",
-        imguihooks::precompute::CascadeViewsBuilding(csmbuilder));
-
-
-    imgui_.stage_hooks().add_primary_hook("Point Shadow Mapping",
-        imguihooks::primary::PointShadowMapping(psmapping));
-
-    imgui_.stage_hooks().add_primary_hook("Cascaded Shadow Mapping",
-        imguihooks::primary::CascadedShadowMapping(csmapping));
-
-    // imgui_.stage_hooks().add_primary_hook("GBuffer",
-    //     imguihooks::primary::GBufferStorage(gbuffer));
-
-    imgui_.stage_hooks().add_primary_hook("SSAO",
-        imguihooks::primary::SSAO(ssao));
-
-    imgui_.stage_hooks().add_primary_hook("Deferred Shading",
-        imguihooks::primary::DeferredShading(defshad));
-
-    imgui_.stage_hooks().add_primary_hook("Point Light Boxes",
-        imguihooks::primary::PointLightBox(plightboxes));
-
-
-    imgui_.stage_hooks().add_primary_hook("Sky",
-        imguihooks::primary::Sky(sky));
-
-    imgui_.stage_hooks().add_postprocess_hook("Fog",
-        imguihooks::postprocess::Fog(fog));
-
-    imgui_.stage_hooks().add_postprocess_hook("Bloom",
-        imguihooks::postprocess::Bloom(blooming));
-
-    imgui_.stage_hooks().add_postprocess_hook("HDR Eye Adaptation",
-        imguihooks::postprocess::HDREyeAdaptation(hdreyeing));
-
-    imgui_.stage_hooks().add_postprocess_hook("FXAA",
-        imguihooks::postprocess::FXAA(fxaaaaaaa));
-
-
-    imgui_.stage_hooks().add_overlay_hook("GBuffer Debug Overlay",
-        imguihooks::overlay::GBufferDebug(gbugger));
-
-    imgui_.stage_hooks().add_overlay_hook("SSAO Debug Overlay",
-        imguihooks::overlay::SSAODebug(ssaobugger));
-
-    imgui_.stage_hooks().add_overlay_hook("Selected Object Highlight",
-        imguihooks::overlay::SelectedObjectHighlight(selected));
-
-    imgui_.stage_hooks().add_overlay_hook("Bounding Spheres",
-        imguihooks::overlay::BoundingSphereDebug(cullspheres));
+    // FIXME: We need this for later, but for the wrong reasons (mouse picking).
+    auto gbuffer_read_view = gbuffer.share_read_view();
 
 
 
 
+    imgui_.stage_hooks().add_precompute_hook(imguihooks::precompute::CascadeViewsBuilding());
+    imgui_.stage_hooks().add_primary_hook(imguihooks::primary::PointShadowMapping());
+    imgui_.stage_hooks().add_primary_hook(imguihooks::primary::CascadedShadowMapping());
+    imgui_.stage_hooks().add_primary_hook(imguihooks::primary::SSAO());
+    imgui_.stage_hooks().add_primary_hook(imguihooks::primary::DeferredShading());
+    imgui_.stage_hooks().add_primary_hook(imguihooks::primary::PointLightBox());
+    imgui_.stage_hooks().add_primary_hook(imguihooks::primary::Sky());
+    imgui_.stage_hooks().add_postprocess_hook(imguihooks::postprocess::Fog());
+    imgui_.stage_hooks().add_postprocess_hook(imguihooks::postprocess::Bloom());
+    imgui_.stage_hooks().add_postprocess_hook(imguihooks::postprocess::HDREyeAdaptation());
+    imgui_.stage_hooks().add_postprocess_hook(imguihooks::postprocess::FXAA());
+    imgui_.stage_hooks().add_overlay_hook(imguihooks::overlay::GBufferDebug());
+    imgui_.stage_hooks().add_overlay_hook(imguihooks::overlay::SSAODebug());
+    imgui_.stage_hooks().add_overlay_hook(imguihooks::overlay::SelectedObjectHighlight());
+    imgui_.stage_hooks().add_overlay_hook(imguihooks::overlay::BoundingSphereDebug());
 
-    rengine_.add_next_precompute_stages(
-        std::move(csmbuilder)
-    );
 
-    rengine_.add_next_primary_stages(
-        std::move(psmapping),
-        std::move(csmapping),
-        std::move(gbuffer),
-        std::move(defgeom),
-        std::move(terraingeom),
-        std::move(ssao),
-        std::move(defshad),
-        std::move(plightboxes),
-        std::move(sky)
-    );
 
-    rengine_.add_next_postprocess_stages(
-        std::move(fog),
-        std::move(blooming),
-        std::move(hdreyeing),
-        std::move(fxaaaaaaa)
-    );
 
-    rengine_.add_next_overlay_stages(
-        std::move(gbugger),
-        std::move(ssaobugger),
-        std::move(selected),
-        std::move(cullspheres)
-    );
+    rengine_.add_next_precompute_stage("CSM Views",       std::move(csmbuilder));
+    rengine_.add_next_precompute_stage("Frustum Culling", std::move(frustumculler));
+
+    rengine_.add_next_primary_stage("Point Shadow Mapping",      std::move(psmapping));
+    rengine_.add_next_primary_stage("Cascaded Shadow Mapping",   std::move(csmapping));
+    rengine_.add_next_primary_stage("GBuffer",                   std::move(gbuffer));
+    rengine_.add_next_primary_stage("Deferred Mesh Geometry",    std::move(defgeom));
+    rengine_.add_next_primary_stage("Deferred Terrain Geometry", std::move(terraingeom));
+    rengine_.add_next_primary_stage("SSAO",                      std::move(ssao));
+    rengine_.add_next_primary_stage("Deferred Shading",          std::move(defshad));
+    rengine_.add_next_primary_stage("Point Light Boxes",         std::move(plightboxes));
+    rengine_.add_next_primary_stage("Sky",                       std::move(sky));
+
+    rengine_.add_next_postprocess_stage("Fog",                std::move(fog));
+    rengine_.add_next_postprocess_stage("Bloom",              std::move(blooming));
+    rengine_.add_next_postprocess_stage("HDR Eye Adaptation", std::move(hdreyeing));
+    rengine_.add_next_postprocess_stage("FXAA",               std::move(fxaaaaaaa));
+
+    rengine_.add_next_overlay_stage("GBuffer Debug",             std::move(gbugger));
+    rengine_.add_next_overlay_stage("SSAO Debug",                std::move(ssaobugger));
+    rengine_.add_next_overlay_stage("Selected Object Highlight", std::move(selected));
+    rengine_.add_next_overlay_stage("Bounding Spheres",          std::move(cullspheres));
 
 
 
@@ -358,6 +273,7 @@ inline void DemoScene::configure_input(SharedStorageView<GBuffer> gbuffer) {
 
                 entt::id_type id{ entt::null };
 
+                // FIXME: This should probably be handled in a precompute stage.
                 auto attachment_id =
                     GL_COLOR_ATTACHMENT0 + to_underlying(GBuffer::Slot::object_id);
 
