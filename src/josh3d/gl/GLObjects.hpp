@@ -6,6 +6,7 @@
 #include "GLTextures.hpp"     // IWYU pragma: export
 #include "GLFramebuffer.hpp"  // IWYU pragma: export
 #include "GLRenderbuffer.hpp" // IWYU pragma: export
+#include "GLQueries.hpp"      // IWYU pragma: export
 #include "GLUnique.hpp"       // IWYU pragma: export
 
 
@@ -32,6 +33,8 @@ JOSH3D_ALIAS_UNIQUE(UBO)
 
 JOSH3D_ALIAS_UNIQUE(Shader)
 JOSH3D_ALIAS_UNIQUE(ShaderProgram)
+
+JOSH3D_ALIAS_UNIQUE(TimerQuery)
 
 #undef JOSH3D_ALIAS_UNIQUE
 
