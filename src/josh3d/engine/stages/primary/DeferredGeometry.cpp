@@ -67,6 +67,13 @@ void DeferredGeometry::operator()(
 
     gbuffer_->bind_draw().and_then([&, this] {
 
+        // FIXME: Poor interaction with alpha-testing.
+        if (enable_backface_culling) {
+            glEnable(GL_CULL_FACE);
+        } else {
+            glDisable(GL_CULL_FACE);
+        }
+
         sp_ds.use().and_then([&](ActiveShaderProgram<GLMutable>& ashp) {
 
             ashp.uniform("projection", projection)

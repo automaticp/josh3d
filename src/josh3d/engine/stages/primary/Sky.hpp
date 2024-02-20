@@ -93,6 +93,7 @@ inline void Sky::draw_debug_skybox(
 
         glDepthMask(GL_FALSE);
         glDepthFunc(GL_LEQUAL);
+        glDisable(GL_CULL_FACE);
 
         globals::debug_skybox_cubemap().bind_to_unit_index(0);
         sp_skybox_.use()
@@ -128,6 +129,7 @@ inline void Sky::draw_skybox(
 
             glDepthMask(GL_FALSE);
             glDepthFunc(GL_LEQUAL);
+            glDisable(GL_CULL_FACE);
 
             skybox.cubemap->bind_to_unit_index(0);
             sp_skybox_.use()

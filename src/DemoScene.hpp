@@ -20,6 +20,7 @@
 #include "components/ChildMesh.hpp"
 #include "hooks/overlay/SSAODebug.hpp"
 #include "hooks/precompute/CascadeViewsBuilding.hpp"
+#include "hooks/primary/DeferredGeometry.hpp"
 #include "hooks/primary/SSAO.hpp"
 #include "stages/overlay/SSAODebug.hpp"
 #include "stages/precompute/CascadeViewsBuilding.hpp"
@@ -174,6 +175,7 @@ inline DemoScene::DemoScene(glfw::Window& window)
     imgui_.stage_hooks().add_hook(imguihooks::precompute::CascadeViewsBuilding());
     imgui_.stage_hooks().add_hook(imguihooks::primary::PointShadowMapping());
     imgui_.stage_hooks().add_hook(imguihooks::primary::CascadedShadowMapping());
+    imgui_.stage_hooks().add_hook(imguihooks::primary::DeferredGeometry());
     imgui_.stage_hooks().add_hook(imguihooks::primary::SSAO());
     imgui_.stage_hooks().add_hook(imguihooks::primary::DeferredShading());
     imgui_.stage_hooks().add_hook(imguihooks::primary::PointLightBox());
