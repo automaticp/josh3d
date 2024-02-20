@@ -7,6 +7,7 @@
 #include <entt/entt.hpp>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/gl.h>
+#include <utility>
 
 
 
@@ -90,20 +91,30 @@ void RenderEngine::execute_stages(
     StagesContainerT&& stages,
     REInterfaceT&& engine_interface)
 {
-    for (auto& stage : std::forward<StagesContainerT>(stages)) {
-        stage.resolve_available_time_queries();
-        UniqueTimerQuery tquery;
-        tquery.begin_query();
+    if (capture_stage_timings) {
+        for (auto& stage : std::forward<StagesContainerT>(stages)) {
+            stage.resolve_available_time_queries();
 
-        auto t0 = std::chrono::steady_clock::now();
+            stage.cpu_timer_.averaging_interval = stage_timing_averaging_interval_s;
+            stage.gpu_timer_.averaging_interval = stage_timing_averaging_interval_s;
 
-        stage.get()(std::forward<REInterfaceT>(engine_interface), registry_);
+            UniqueTimerQuery tquery;
+            tquery.begin_query();
 
-        auto t1 = std::chrono::steady_clock::now();
-        stage.cpu_timer_.update(std::chrono::duration<float>(t1 - t0).count(), frame_timer_.delta<float>());
+            auto t0 = std::chrono::steady_clock::now();
 
-        tquery.end_query();
-        stage.emplace_new_time_query(std::move(tquery), frame_timer_.delta<float>());
+            stage.get()(std::forward<REInterfaceT>(engine_interface), registry_);
+
+            auto t1 = std::chrono::steady_clock::now();
+            stage.cpu_timer_.update(std::chrono::duration<float>(t1 - t0).count(), frame_timer_.delta<float>());
+
+            tquery.end_query();
+            stage.emplace_new_time_query(std::move(tquery), frame_timer_.delta<float>());
+        }
+    } else {
+        for (auto& stage : std::forward<StagesContainerT>(stages)) {
+            stage.get()(std::forward<REInterfaceT>(engine_interface), registry_);
+        }
     }
 }
 
