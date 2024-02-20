@@ -27,9 +27,7 @@ public:
     bool use_exposure{ true };
     float exposure{ 1.0f };
 
-    void operator()(
-        const RenderEnginePostprocessInterface& engine,
-        const entt::registry&);
+    void operator()(RenderEnginePostprocessInterface& engine);
 
 };
 
@@ -37,7 +35,7 @@ public:
 
 
 inline void HDR::operator()(
-    const RenderEnginePostprocessInterface& engine, const entt::registry&)
+    RenderEnginePostprocessInterface& engine)
 {
     using namespace gl;
 

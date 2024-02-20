@@ -157,10 +157,7 @@ public:
     }
 
 
-    void operator()(
-        const RenderEnginePrimaryInterface& engine,
-        const entt::registry&)
-    {
+    void operator()(RenderEnginePrimaryInterface& engine) {
         using namespace gl;
 
         if (engine.window_size() != gbuffer_->size()) {

@@ -120,10 +120,11 @@ public:
 
     size_t max_cascades() const noexcept { return max_cascades_; }
 
-    void operator()(const RenderEnginePrimaryInterface& engine,
-        const entt::registry& registry);
-
     void resize_maps(const Size2I& new_size);
+
+
+    void operator()(RenderEnginePrimaryInterface& engine);
+
 
 private:
     void resize_cascade_storage_if_needed();

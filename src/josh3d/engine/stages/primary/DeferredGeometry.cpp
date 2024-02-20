@@ -20,9 +20,9 @@ namespace josh::stages::primary {
 
 
 void DeferredGeometry::operator()(
-    const RenderEnginePrimaryInterface& engine,
-    const entt::registry& registry)
+    RenderEnginePrimaryInterface& engine)
 {
+    const auto& registry = engine.registry();
 
     const auto projection = engine.camera().projection_mat();
     const auto view = engine.camera().view_mat();

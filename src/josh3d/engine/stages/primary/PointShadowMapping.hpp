@@ -72,9 +72,7 @@ private:
 public:
     PointShadowMapping() = default;
 
-    void operator()(
-        const RenderEnginePrimaryInterface& engine,
-        const entt::registry& registry);
+    void operator()(RenderEnginePrimaryInterface& engine);
 
     SharedStorageView<PointShadowMaps> share_output_view() const noexcept {
         return output_.share_view();
@@ -91,9 +89,7 @@ private:
     void resize_cubemap_array_storage_if_needed(
         const entt::registry& registry);
 
-    void map_point_shadows(
-        const RenderEnginePrimaryInterface& engine,
-        const entt::registry& registry);
+    void map_point_shadows(RenderEnginePrimaryInterface& engine);
 
 };
 

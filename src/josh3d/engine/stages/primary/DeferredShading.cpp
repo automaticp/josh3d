@@ -16,26 +16,25 @@ namespace josh::stages::primary {
 
 
 void DeferredShading::operator()(
-    const RenderEnginePrimaryInterface& engine,
-    const entt::registry& registry)
+    RenderEnginePrimaryInterface& engine)
 {
 
-    update_point_light_buffers(registry);
+    update_point_light_buffers(engine.registry());
     update_cascade_buffer();
 
     if (enable_csm_debug) {
-        draw_debug_csm(engine, registry);
+        draw_debug_csm(engine);
     } else {
-        draw_main(engine, registry);
+        draw_main(engine);
     }
 
 }
 
 
 void DeferredShading::draw_main(
-    const RenderEnginePrimaryInterface& engine,
-    const entt::registry& registry)
+    RenderEnginePrimaryInterface& engine)
 {
+    const auto& registry = engine.registry();
 
     sp_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
 
@@ -107,9 +106,10 @@ void DeferredShading::draw_main(
 
 
 void DeferredShading::draw_debug_csm(
-    const RenderEnginePrimaryInterface& engine,
-    const entt::registry& registry)
+    RenderEnginePrimaryInterface& engine)
 {
+    const auto& registry = engine.registry();
+
     sp_cascade_debug_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
 
         gbuffer_->position_draw_texture().bind_to_unit_index(0);

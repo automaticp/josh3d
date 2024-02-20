@@ -34,9 +34,7 @@ public:
     glm::vec3 line_color{ 1.f, 1.f, 1.f };
     float     line_width{ 2.f };
 
-    void operator()(
-        const RenderEngineOverlayInterface& engine,
-        const entt::registry& registry);
+    void operator()(RenderEngineOverlayInterface& engine);
 
 };
 
@@ -44,9 +42,9 @@ public:
 
 
 inline void BoundingSphereDebug::operator()(
-    const RenderEngineOverlayInterface& engine,
-    const entt::registry& registry)
+    RenderEngineOverlayInterface& engine)
 {
+    const auto& registry = engine.registry();
 
     if (!display) { return; }
     if (selected_only && registry.view<tags::Selected>().empty()) { return; }

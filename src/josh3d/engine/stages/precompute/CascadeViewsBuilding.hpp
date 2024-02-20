@@ -63,7 +63,7 @@ public:
 
     const CascadeViews& view_output() const noexcept { return *output_; }
 
-    void operator()(const RenderEnginePrecomputeInterface& engine, entt::registry& registry);
+    void operator()(RenderEnginePrecomputeInterface& engine);
 
 private:
     void build_from_camera(const PerspectiveCamera& cam, const glm::vec3& light_dir) noexcept;
@@ -73,12 +73,11 @@ private:
 
 
 inline void CascadeViewsBuilding::operator()(
-    const RenderEnginePrecomputeInterface& engine,
-    entt::registry& registry)
+    RenderEnginePrecomputeInterface& engine)
 {
     build_from_camera(
         engine.camera(),
-        registry.view<light::Directional>().storage().begin()->direction
+        engine.registry().view<light::Directional>().storage().begin()->direction
     );
 }
 

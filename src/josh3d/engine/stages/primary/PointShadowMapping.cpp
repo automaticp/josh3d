@@ -21,12 +21,11 @@ namespace josh::stages::primary {
 
 
 void PointShadowMapping::operator()(
-    const RenderEnginePrimaryInterface& engine,
-    const entt::registry& registry)
+    RenderEnginePrimaryInterface& engine)
 {
-    resize_cubemap_array_storage_if_needed(registry);
+    resize_cubemap_array_storage_if_needed(engine.registry());
 
-    map_point_shadows(engine, registry);
+    map_point_shadows(engine);
 
     auto [w, h] = engine.window_size();
     glViewport(0, 0, w, h);
@@ -81,9 +80,10 @@ static void draw_all_world_geometry_no_alpha_test(
 
 
 void PointShadowMapping::map_point_shadows(
-    const RenderEnginePrimaryInterface&,
-    const entt::registry& registry)
+    RenderEnginePrimaryInterface& engine)
 {
+    const auto& registry = engine.registry();
+
     auto& maps_tgt = output_->point_shadow_maps_tgt;
     auto& maps = maps_tgt.depth_attachment();
 

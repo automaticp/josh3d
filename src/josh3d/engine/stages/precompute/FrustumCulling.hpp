@@ -3,14 +3,12 @@
 #include "RenderEngine.hpp"
 #include "tags/Culled.hpp"
 #include "components/BoundingSphere.hpp"
-#include "components/ChildMesh.hpp"
 #include "Transform.hpp"
 #include "ViewFrustum.hpp"
 #include "ECSHelpers.hpp"
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
 #include <glm/ext/scalar_common.hpp>
-#include <algorithm>
 #include <utility>
 
 
@@ -21,21 +19,25 @@ namespace josh::stages::precompute {
 
 class FrustumCulling {
 public:
-    void operator()(const RenderEnginePrecomputeInterface& engine, entt::registry& registry);
+    void operator()(RenderEnginePrecomputeInterface& engine);
 
 private:
     template<typename CullTagT = tags::Culled>
-    void cull_from_bounding_spheres(entt::registry& registry, const ViewFrustumAsPlanes& frustum);
+    void cull_from_bounding_spheres(
+        entt::registry& registry,
+        const ViewFrustumAsPlanes& frustum);
 };
 
 
 
 
 inline void FrustumCulling::operator()(
-    const RenderEnginePrecomputeInterface& engine,
-    entt::registry& registry)
+    RenderEnginePrecomputeInterface& engine)
 {
-    cull_from_bounding_spheres<tags::Culled>(registry, engine.camera().get_frustum_as_planes());
+    cull_from_bounding_spheres<tags::Culled>(
+        engine.registry(),
+        engine.camera().get_frustum_as_planes()
+    );
 }
 
 

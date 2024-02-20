@@ -47,9 +47,7 @@ public:
     float     outline_width   { 4.f };
     glm::vec4 inner_fill_color{ 1.0f, 0.612f, 0.0f, 0.2f };
 
-    void operator()(
-        const RenderEngineOverlayInterface& engine,
-        const entt::registry& registry);
+    void operator()(RenderEngineOverlayInterface& engine);
 
 };
 
@@ -57,9 +55,9 @@ public:
 
 
 inline void SelectedObjectHighlight::operator()(
-    const RenderEngineOverlayInterface& engine,
-    const entt::registry& registry)
+    RenderEngineOverlayInterface& engine)
 {
+    const auto& registry = engine.registry();
 
     if (!show_overlay) { return; }
     if (registry.view<tags::Selected>().empty()) { return; }

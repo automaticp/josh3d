@@ -23,12 +23,11 @@ namespace josh::stages::primary {
 
 
 void CascadedShadowMapping::operator()(
-    const RenderEnginePrimaryInterface& engine,
-    const entt::registry& registry)
+    RenderEnginePrimaryInterface& engine)
 {
     resize_cascade_storage_if_needed();
 
-    map_dir_light_shadow_cascade(engine, registry);
+    map_dir_light_shadow_cascade(engine, engine.registry());
 
     auto [w, h] = engine.window_size();
     glViewport(0, 0, w, h);

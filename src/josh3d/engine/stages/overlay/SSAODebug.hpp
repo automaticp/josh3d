@@ -40,9 +40,7 @@ public:
         , occlusion_      { occlusion_texture }
     {}
 
-    void operator()(
-        const RenderEngineOverlayInterface& engine,
-        const entt::registry&);
+    void operator()(RenderEngineOverlayInterface& engine);
 
 };
 
@@ -50,8 +48,7 @@ public:
 
 
 inline void SSAODebug::operator()(
-    const RenderEngineOverlayInterface& engine,
-    const entt::registry&)
+    RenderEngineOverlayInterface& engine)
 {
 
     if (mode == OverlayMode::none) {

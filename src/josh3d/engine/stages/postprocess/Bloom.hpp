@@ -87,9 +87,7 @@ public:
 
     Bloom();
 
-    void operator()(
-        const RenderEnginePostprocessInterface& engine,
-        const entt::registry&);
+    void operator()(RenderEnginePostprocessInterface& engine);
 
     RawTexture2D<GLConst> blur_texture() const noexcept {
         return blur_chain_.front_target().color_attachment().texture();
@@ -128,7 +126,7 @@ inline Bloom::Bloom() {
 
 
 inline void Bloom::operator()(
-    const RenderEnginePostprocessInterface& engine, const entt::registry&)
+    RenderEnginePostprocessInterface& engine)
 {
 
     if (!use_bloom) { return; }

@@ -21,47 +21,21 @@ class RenderEngineOverlayInterface;
 
 
 template<typename StageT>
-concept precompute_render_stage =
-    std::invocable<StageT, const RenderEnginePrecomputeInterface&, entt::registry&>;
-
+concept precompute_render_stage  = std::invocable<StageT, RenderEnginePrecomputeInterface&>;
 template<typename StageT>
-concept primary_render_stage =
-    std::invocable<StageT, const RenderEnginePrimaryInterface&, const entt::registry&>;
-
+concept primary_render_stage     = std::invocable<StageT, RenderEnginePrimaryInterface&>;
 template<typename StageT>
-concept postprocess_render_stage =
-    std::invocable<StageT, const RenderEnginePostprocessInterface&, const entt::registry&>;
-
+concept postprocess_render_stage = std::invocable<StageT, RenderEnginePostprocessInterface&>;
 template<typename StageT>
-concept overlay_render_stage =
-    std::invocable<StageT, const RenderEngineOverlayInterface&, const entt::registry&>;
+concept overlay_render_stage     = std::invocable<StageT, RenderEngineOverlayInterface&>;
 
 
 
 
-/*
-Type erased precompute stage stored inside the RenderEngine stages container.
-*/
-using AnyPrecomputeStage =
-    UniqueFunction<void(const RenderEnginePrecomputeInterface&, entt::registry&)>;
-
-/*
-Type erased primary stage stored inside the RenderEngine stages container.
-*/
-using AnyPrimaryStage =
-    UniqueFunction<void(const RenderEnginePrimaryInterface&, const entt::registry&)>;
-
-/*
-Type erased postfx stage stored inside the RenderEngine stages container.
-*/
-using AnyPostprocessStage =
-    UniqueFunction<void(const RenderEnginePostprocessInterface&, const entt::registry&)>;
-
-/*
-Type erased overlay stage stored inside the RenderEngine stages container.
-*/
-using AnyOverlayStage =
-    UniqueFunction<void(const RenderEngineOverlayInterface&, const entt::registry&)>;
+using AnyPrecomputeStage  = UniqueFunction<void(RenderEnginePrecomputeInterface&)>;
+using AnyPrimaryStage     = UniqueFunction<void(RenderEnginePrimaryInterface&)>;
+using AnyPostprocessStage = UniqueFunction<void(RenderEnginePostprocessInterface&)>;
+using AnyOverlayStage     = UniqueFunction<void(RenderEngineOverlayInterface&)>;
 
 
 

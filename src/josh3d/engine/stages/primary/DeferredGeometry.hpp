@@ -37,7 +37,7 @@ public:
         : gbuffer_{ std::move(gbuffer_view) }
     {}
 
-    void operator()(const RenderEnginePrimaryInterface&, const entt::registry&);
+    void operator()(RenderEnginePrimaryInterface&);
 
 };
 

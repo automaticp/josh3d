@@ -88,8 +88,8 @@ void RenderEngine::render() {
 
 template<typename StagesContainerT, typename REInterfaceT>
 void RenderEngine::execute_stages(
-    StagesContainerT&& stages,
-    REInterfaceT&& engine_interface)
+    StagesContainerT& stages,
+    REInterfaceT& engine_interface)
 {
     if (capture_stage_timings) {
         for (auto& stage : std::forward<StagesContainerT>(stages)) {
@@ -103,7 +103,9 @@ void RenderEngine::execute_stages(
 
             auto t0 = std::chrono::steady_clock::now();
 
-            stage.get()(std::forward<REInterfaceT>(engine_interface), registry_);
+
+            stage.get()(engine_interface);
+
 
             auto t1 = std::chrono::steady_clock::now();
             stage.cpu_timer_.update(std::chrono::duration<float>(t1 - t0).count(), frame_timer_.delta<float>());
@@ -113,7 +115,7 @@ void RenderEngine::execute_stages(
         }
     } else {
         for (auto& stage : std::forward<StagesContainerT>(stages)) {
-            stage.get()(std::forward<REInterfaceT>(engine_interface), registry_);
+            stage.get()(engine_interface);
         }
     }
 }
@@ -122,19 +124,23 @@ void RenderEngine::execute_stages(
 
 
 void RenderEngine::execute_precompute_stages() {
-    execute_stages(precompute_, RenderEnginePrecomputeInterface{ *this });
+    RenderEnginePrecomputeInterface proxy{ *this };
+    execute_stages(precompute_, proxy);
 }
 
 void RenderEngine::render_primary_stages() {
-    execute_stages(primary_, RenderEnginePrimaryInterface{ *this });
+    RenderEnginePrimaryInterface proxy{ *this };
+    execute_stages(primary_, proxy);
 }
 
 void RenderEngine::render_postprocess_stages() {
-    execute_stages(postprocess_, RenderEnginePostprocessInterface{ *this });
+    RenderEnginePostprocessInterface proxy{ *this };
+    execute_stages(postprocess_, proxy);
 }
 
 void RenderEngine::render_overlay_stages() {
-    execute_stages(overlay_, RenderEngineOverlayInterface{ *this });
+    RenderEngineOverlayInterface proxy{ *this };
+    execute_stages(overlay_, proxy);
 }
 
 

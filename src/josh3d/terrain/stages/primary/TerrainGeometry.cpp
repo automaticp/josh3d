@@ -13,9 +13,9 @@ namespace josh::stages::primary {
 
 
 void TerrainGeometry::operator()(
-    const RenderEnginePrimaryInterface& engine,
-    const entt::registry& registry)
+    RenderEnginePrimaryInterface& engine)
 {
+    const auto& registry = engine.registry();
 
     gbuffer_->bind_draw().and_then([&] {
         sp_.use().and_then([&](ActiveShaderProgram<GLMutable>& ashp) {

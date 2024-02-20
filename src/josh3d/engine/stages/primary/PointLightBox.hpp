@@ -33,10 +33,12 @@ public:
 public:
     PointLightBox() = default;
 
-    void operator()(const RenderEnginePrimaryInterface& engine, const entt::registry& registry) {
+    void operator()(RenderEnginePrimaryInterface& engine) {
         using namespace gl;
 
         if (!display) { return; }
+
+        const auto& registry = engine.registry();
 
         sp_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
 

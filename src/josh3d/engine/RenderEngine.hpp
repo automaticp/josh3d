@@ -226,7 +226,7 @@ private:
     void render_overlay_stages();
 
     template<typename StagesContainerT, typename REInterfaceT>
-    void execute_stages(StagesContainerT&& stages, REInterfaceT&& engine_interface);
+    void execute_stages(StagesContainerT& stages, REInterfaceT& engine_interface);
 
 };
 
@@ -240,13 +240,13 @@ private:
 class RenderEngineCommonInterface {
 protected:
     RenderEngine& engine_;
-
-public:
     RenderEngineCommonInterface(RenderEngine& engine) : engine_{ engine } {}
 
-    const PerspectiveCamera& camera() const noexcept { return engine_.cam_; }
-    const Size2I& window_size() const noexcept { return engine_.window_size_; }
-    const FrameTimer& frame_timer() const noexcept { return engine_.frame_timer_; }
+public:
+    const entt::registry&    registry()    const noexcept { return engine_.registry_; }
+    const PerspectiveCamera& camera()      const noexcept { return engine_.cam_; }
+    const Size2I&            window_size() const noexcept { return engine_.window_size_; }
+    const FrameTimer&        frame_timer() const noexcept { return engine_.frame_timer_; }
 };
 
 
@@ -262,6 +262,11 @@ private:
     RenderEnginePrecomputeInterface(RenderEngine& engine)
         : RenderEngineCommonInterface(engine)
     {}
+
+public:
+          entt::registry& registry()       noexcept { return engine_.registry_; }
+    const entt::registry& registry() const noexcept { return engine_.registry_; }
+
 };
 
 
@@ -285,7 +290,7 @@ public:
     // Note that it is illegal to bind any framebuffer object as
     // a Draw framebuffer within the callable.
     template<typename CallableT, typename ...Args>
-    void draw(CallableT&& draw_func, Args&&... args) const {
+    void draw(CallableT&& draw_func, Args&&... args) {
 
         engine_.main_swapchain_.back_target().bind_draw()
             .and_then([&] {
@@ -332,7 +337,7 @@ public:
     // The screen color texture is INVALIDATED for sampling after this call.
     // You have to call screen_color() again and bind the returned texture
     // in order to sample the screen in the next call to draw().
-    void draw() const {
+    void draw() {
         engine_.main_swapchain_.draw_and_swap([] {
             globals::quad_primitive_mesh().draw();
         });
@@ -343,7 +348,7 @@ public:
     // DOES NOT advance the chain. You CANNOT SAMPLE THE SCREEN COLOR during this draw.
     //
     // Used as an optimization for draws that either override or blend with the screen.
-    void draw_to_front() const {
+    void draw_to_front() {
         engine_.main_swapchain_.front_target().bind_draw().and_then([] {
             globals::quad_primitive_mesh().draw();
         });
@@ -365,7 +370,7 @@ private:
 
 public:
     // Emit the draw call on the screen quad and draw directly to the default buffer.
-    void draw_fullscreen_quad() const {
+    void draw_fullscreen_quad() {
         engine_.default_fbo_.bind_draw().and_then([] {
             globals::quad_primitive_mesh().draw();
         });
@@ -377,7 +382,7 @@ public:
     // Note that it is illegal to bind any framebuffer object as
     // a Draw framebuffer within the callable.
     template<typename CallableT, typename ...Args>
-    void draw(CallableT&& draw_func, Args&&... args) const {
+    void draw(CallableT&& draw_func, Args&&... args) {
 
         engine_.default_fbo_.bind_draw()
             .and_then([&] {

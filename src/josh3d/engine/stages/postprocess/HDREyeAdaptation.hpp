@@ -98,9 +98,7 @@ public:
     static constexpr GLsizeiptr batch_size = 128;
 
 
-    void operator()(
-        const RenderEnginePostprocessInterface& engine,
-        const entt::registry&);
+    void operator()(RenderEnginePostprocessInterface& engine);
 
 private:
     static Size2S dispatch_dimensions(size_t num_y_samples, float aspect_ratio) noexcept {
@@ -144,8 +142,7 @@ inline void HDREyeAdaptation::set_screen_value(float new_value) noexcept {
 
 
 inline void HDREyeAdaptation::operator()(
-    const RenderEnginePostprocessInterface& engine,
-    const entt::registry&)
+    RenderEnginePostprocessInterface& engine)
 {
     using namespace gl;
 
