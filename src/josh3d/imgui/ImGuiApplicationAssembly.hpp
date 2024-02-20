@@ -3,7 +3,7 @@
 #include "ImGuiSelected.hpp"
 #include "ImGuiWindowSettings.hpp"
 #include "ImGuiVFSControl.hpp"
-#include "ImGuiStageHooks.hpp"
+#include "ImGuiEngineHooks.hpp"
 #include "ImGuiRegistryHooks.hpp"
 #include "ImGuiSelected.hpp"
 #include "AvgFrameTimeCounter.hpp"
@@ -42,7 +42,7 @@ private:
     ImGuiContextWrapper context_;
     ImGuiWindowSettings window_settings_;
     ImGuiVFSControl     vfs_control_;
-    ImGuiStageHooks     stage_hooks_;
+    ImGuiEngineHooks     stage_hooks_;
     ImGuiRegistryHooks  registry_hooks_;
     ImGuiSelected       selected_menu_;
     ImGuizmoGizmos      gizmos_;
@@ -79,8 +79,8 @@ public:
         VirtualFilesystem& vfs
     );
 
-    ImGuiStageHooks::HooksContainer&       stage_hooks() noexcept { return stage_hooks_.hooks(); }
-    const ImGuiStageHooks::HooksContainer& stage_hooks() const noexcept { return stage_hooks_.hooks(); }
+    ImGuiEngineHooks::HooksContainer&       stage_hooks() noexcept { return stage_hooks_.hooks(); }
+    const ImGuiEngineHooks::HooksContainer& stage_hooks() const noexcept { return stage_hooks_.hooks(); }
 
     ImGuiRegistryHooks::HooksContainer&       registry_hooks() noexcept { return registry_hooks_.hooks(); }
     const ImGuiRegistryHooks::HooksContainer& registry_hooks() const noexcept { return registry_hooks_.hooks(); }

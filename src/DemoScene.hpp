@@ -5,10 +5,7 @@
 #include "EnumUtils.hpp"
 #include "GLTextures.hpp"
 #include "ImGuiApplicationAssembly.hpp"
-#include "ImGuizmoGizmos.hpp"
 #include "PerspectiveCamera.hpp"
-#include "ImGuiRegistryHooks.hpp"
-#include "ImGuiStageHooks.hpp"
 #include "Input.hpp"
 #include "InputFreeCamera.hpp"
 #include "LightCasters.hpp"
@@ -174,21 +171,21 @@ inline DemoScene::DemoScene(glfw::Window& window)
 
 
 
-    imgui_.stage_hooks().add_precompute_hook(imguihooks::precompute::CascadeViewsBuilding());
-    imgui_.stage_hooks().add_primary_hook(imguihooks::primary::PointShadowMapping());
-    imgui_.stage_hooks().add_primary_hook(imguihooks::primary::CascadedShadowMapping());
-    imgui_.stage_hooks().add_primary_hook(imguihooks::primary::SSAO());
-    imgui_.stage_hooks().add_primary_hook(imguihooks::primary::DeferredShading());
-    imgui_.stage_hooks().add_primary_hook(imguihooks::primary::PointLightBox());
-    imgui_.stage_hooks().add_primary_hook(imguihooks::primary::Sky());
-    imgui_.stage_hooks().add_postprocess_hook(imguihooks::postprocess::Fog());
-    imgui_.stage_hooks().add_postprocess_hook(imguihooks::postprocess::Bloom());
-    imgui_.stage_hooks().add_postprocess_hook(imguihooks::postprocess::HDREyeAdaptation());
-    imgui_.stage_hooks().add_postprocess_hook(imguihooks::postprocess::FXAA());
-    imgui_.stage_hooks().add_overlay_hook(imguihooks::overlay::GBufferDebug());
-    imgui_.stage_hooks().add_overlay_hook(imguihooks::overlay::SSAODebug());
-    imgui_.stage_hooks().add_overlay_hook(imguihooks::overlay::SelectedObjectHighlight());
-    imgui_.stage_hooks().add_overlay_hook(imguihooks::overlay::BoundingSphereDebug());
+    imgui_.stage_hooks().add_hook(imguihooks::precompute::CascadeViewsBuilding());
+    imgui_.stage_hooks().add_hook(imguihooks::primary::PointShadowMapping());
+    imgui_.stage_hooks().add_hook(imguihooks::primary::CascadedShadowMapping());
+    imgui_.stage_hooks().add_hook(imguihooks::primary::SSAO());
+    imgui_.stage_hooks().add_hook(imguihooks::primary::DeferredShading());
+    imgui_.stage_hooks().add_hook(imguihooks::primary::PointLightBox());
+    imgui_.stage_hooks().add_hook(imguihooks::primary::Sky());
+    imgui_.stage_hooks().add_hook(imguihooks::postprocess::Fog());
+    imgui_.stage_hooks().add_hook(imguihooks::postprocess::Bloom());
+    imgui_.stage_hooks().add_hook(imguihooks::postprocess::HDREyeAdaptation());
+    imgui_.stage_hooks().add_hook(imguihooks::postprocess::FXAA());
+    imgui_.stage_hooks().add_hook(imguihooks::overlay::GBufferDebug());
+    imgui_.stage_hooks().add_hook(imguihooks::overlay::SSAODebug());
+    imgui_.stage_hooks().add_hook(imguihooks::overlay::SelectedObjectHighlight());
+    imgui_.stage_hooks().add_hook(imguihooks::overlay::BoundingSphereDebug());
 
 
 
