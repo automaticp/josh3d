@@ -20,11 +20,13 @@
 #include "components/ChildMesh.hpp"
 #include "hooks/overlay/SSAODebug.hpp"
 #include "hooks/precompute/CascadeViewsBuilding.hpp"
+#include "hooks/precompute/TransformResolution.hpp"
 #include "hooks/primary/DeferredGeometry.hpp"
 #include "hooks/primary/SSAO.hpp"
 #include "stages/overlay/SSAODebug.hpp"
 #include "stages/precompute/CascadeViewsBuilding.hpp"
 #include "stages/precompute/FrustumCulling.hpp"
+#include "stages/precompute/TransformResolution.hpp"
 #include "stages/primary/SSAO.hpp"
 #include "tags/Selected.hpp"
 #include "tags/ShadowCasting.hpp"
@@ -126,6 +128,8 @@ inline DemoScene::DemoScene(glfw::Window& window)
 
     auto csmbuilder    = stages::precompute::CascadeViewsBuilding();
     auto frustumculler = stages::precompute::FrustumCulling();
+    auto tfresolution  = stages::precompute::TransformResolution();
+
 
     auto psmapping   = stages::primary::PointShadowMapping();
     auto csmapping   = stages::primary::CascadedShadowMapping(csmbuilder.share_output_view());
@@ -173,6 +177,7 @@ inline DemoScene::DemoScene(glfw::Window& window)
 
 
     imgui_.stage_hooks().add_hook(imguihooks::precompute::CascadeViewsBuilding());
+    imgui_.stage_hooks().add_hook(imguihooks::precompute::TransformResolution());
     imgui_.stage_hooks().add_hook(imguihooks::primary::PointShadowMapping());
     imgui_.stage_hooks().add_hook(imguihooks::primary::CascadedShadowMapping());
     imgui_.stage_hooks().add_hook(imguihooks::primary::DeferredGeometry());
@@ -192,8 +197,9 @@ inline DemoScene::DemoScene(glfw::Window& window)
 
 
 
-    rengine_.add_next_precompute_stage("CSM Views",       std::move(csmbuilder));
-    rengine_.add_next_precompute_stage("Frustum Culling", std::move(frustumculler));
+    rengine_.add_next_precompute_stage("CSM Views",            std::move(csmbuilder));
+    rengine_.add_next_precompute_stage("Frustum Culling",      std::move(frustumculler));
+    rengine_.add_next_precompute_stage("Transfrom Resolution", std::move(tfresolution));
 
     rengine_.add_next_primary_stage("Point Shadow Mapping",      std::move(psmapping));
     rengine_.add_next_primary_stage("Cascaded Shadow Mapping",   std::move(csmapping));

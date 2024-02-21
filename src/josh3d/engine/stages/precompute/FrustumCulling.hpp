@@ -5,7 +5,6 @@
 #include "components/BoundingSphere.hpp"
 #include "Transform.hpp"
 #include "ViewFrustum.hpp"
-#include "ECSHelpers.hpp"
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
 #include <glm/ext/scalar_common.hpp>
@@ -52,9 +51,9 @@ void FrustumCulling::cull_from_bounding_spheres(
     // transformed with the camera's transforms into world-space.
 
     auto cullable_meshes_view =
-        std::as_const(registry).view<Mesh, Transform, components::BoundingSphere>();
+        std::as_const(registry).view<Mesh, MTransform, components::BoundingSphere>();
 
-    for (auto [entity, _, transform, sphere] : cullable_meshes_view.each()) {
+    for (auto [entity, _, world_mtf, sphere] : cullable_meshes_view.each()) {
 
         // FIXME: This seems to be currently broken for the Meshes with non-uniform scaling.
         // Most likely, when the objects are stretched along axis that do not belong
@@ -62,8 +61,6 @@ void FrustumCulling::cull_from_bounding_spheres(
         //
         // How does that even happen?
         // Investigate later, this needs to be rewritten anyway.
-        const MTransform world_mtf =
-            get_full_mesh_mtransform({ registry, entity }, transform.mtransform());
 
         const glm::vec3 sphere_center = world_mtf.decompose_position();
         const glm::vec3 mesh_scaling  = world_mtf.decompose_local_scale();
