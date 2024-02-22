@@ -3,13 +3,12 @@
 #include "ImGuiSelected.hpp"
 #include "ImGuiWindowSettings.hpp"
 #include "ImGuiVFSControl.hpp"
-#include "ImGuiStageHooks.hpp"
+#include "ImGuiEngineHooks.hpp"
 #include "ImGuiRegistryHooks.hpp"
 #include "ImGuiSelected.hpp"
 #include "AvgFrameTimeCounter.hpp"
 #include "ImGuizmoGizmos.hpp"
 #include "PerspectiveCamera.hpp"
-#include <cstring>
 #include <string>
 #include <entt/fwd.hpp>
 
@@ -18,6 +17,9 @@ namespace glfw { class Window; }
 
 
 namespace josh {
+
+
+class RenderEngine;
 
 
 struct ImGuiIOWants {
@@ -40,7 +42,7 @@ private:
     ImGuiContextWrapper context_;
     ImGuiWindowSettings window_settings_;
     ImGuiVFSControl     vfs_control_;
-    ImGuiStageHooks     stage_hooks_;
+    ImGuiEngineHooks     stage_hooks_;
     ImGuiRegistryHooks  registry_hooks_;
     ImGuiSelected       selected_menu_;
     ImGuizmoGizmos      gizmos_;
@@ -70,11 +72,15 @@ public:
     float background_alpha{ 0.8f };
 
     ImGuiApplicationAssembly(
-        glfw::Window& window, entt::registry& registry, const PerspectiveCamera& cam, VirtualFilesystem& vfs
+        glfw::Window& window,
+        RenderEngine& engine,
+        entt::registry& registry,
+        const PerspectiveCamera& cam,
+        VirtualFilesystem& vfs
     );
 
-    ImGuiStageHooks::HooksContainer&       stage_hooks() noexcept { return stage_hooks_.hooks(); }
-    const ImGuiStageHooks::HooksContainer& stage_hooks() const noexcept { return stage_hooks_.hooks(); }
+    ImGuiEngineHooks::HooksContainer&       stage_hooks() noexcept { return stage_hooks_.hooks(); }
+    const ImGuiEngineHooks::HooksContainer& stage_hooks() const noexcept { return stage_hooks_.hooks(); }
 
     ImGuiRegistryHooks::HooksContainer&       registry_hooks() noexcept { return registry_hooks_.hooks(); }
     const ImGuiRegistryHooks::HooksContainer& registry_hooks() const noexcept { return registry_hooks_.hooks(); }

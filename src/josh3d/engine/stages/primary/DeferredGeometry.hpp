@@ -33,11 +33,15 @@ private:
     SharedStorageMutableView<GBuffer> gbuffer_;
 
 public:
+    // FIXME: This for now does not consider alpha-tested objects properly.
+    // So it's off by default.
+    bool enable_backface_culling{ false };
+
     DeferredGeometry(SharedStorageMutableView<GBuffer> gbuffer_view)
         : gbuffer_{ std::move(gbuffer_view) }
     {}
 
-    void operator()(const RenderEnginePrimaryInterface&, const entt::registry&);
+    void operator()(RenderEnginePrimaryInterface&);
 
 };
 

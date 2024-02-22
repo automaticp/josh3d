@@ -26,9 +26,7 @@ public:
     float gamma{ 2.2f };
     bool use_srgb{ true };
 
-    void operator()(
-        const RenderEnginePostprocessInterface& engine,
-        const entt::registry&);
+    void operator()(RenderEnginePostprocessInterface& engine);
 
 };
 
@@ -36,8 +34,7 @@ public:
 
 
 inline void GammaCorrection::operator()(
-    const RenderEnginePostprocessInterface& engine,
-    const entt::registry&)
+    RenderEnginePostprocessInterface& engine)
 {
 
     using namespace gl;

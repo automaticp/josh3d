@@ -1,9 +1,9 @@
 #pragma once
-#include "GLShaders.hpp"
 #include "RenderEngine.hpp"
 #include "RenderTarget.hpp"
 #include "ShaderBuilder.hpp"
 #include "SharedStorage.hpp"
+#include "GLObjects.hpp"
 #include "VPath.hpp"
 #include <entt/entity/fwd.hpp>
 #include <glbinding/gl/enum.h>
@@ -72,13 +72,13 @@ private:
 public:
     PointShadowMapping() = default;
 
-    void operator()(
-        const RenderEnginePrimaryInterface& engine,
-        const entt::registry& registry);
+    void operator()(RenderEnginePrimaryInterface& engine);
 
-    SharedStorageView<PointShadowMaps> view_output() const noexcept {
+    SharedStorageView<PointShadowMaps> share_output_view() const noexcept {
         return output_.share_view();
     }
+
+    const PointShadowMaps& view_output() const noexcept { return *output_; }
 
     void resize_maps(const Size2I& new_size);
 
@@ -89,9 +89,7 @@ private:
     void resize_cubemap_array_storage_if_needed(
         const entt::registry& registry);
 
-    void map_point_shadows(
-        const RenderEnginePrimaryInterface& engine,
-        const entt::registry& registry);
+    void map_point_shadows(RenderEnginePrimaryInterface& engine);
 
 };
 

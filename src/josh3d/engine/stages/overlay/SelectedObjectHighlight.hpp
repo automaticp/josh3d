@@ -1,11 +1,11 @@
 #pragma once
 #include "DefaultResources.hpp"
-#include "ECSHelpers.hpp"
 #include "GLObjects.hpp"
 #include "GLShaders.hpp"
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
 #include "components/Model.hpp"
+#include "components/TerrainChunk.hpp"
 #include "components/Transform.hpp"
 #include "tags/Selected.hpp"
 #include "components/Mesh.hpp"
@@ -47,9 +47,7 @@ public:
     float     outline_width   { 4.f };
     glm::vec4 inner_fill_color{ 1.0f, 0.612f, 0.0f, 0.2f };
 
-    void operator()(
-        const RenderEngineOverlayInterface& engine,
-        const entt::registry& registry);
+    void operator()(RenderEngineOverlayInterface& engine);
 
 };
 
@@ -57,9 +55,9 @@ public:
 
 
 inline void SelectedObjectHighlight::operator()(
-    const RenderEngineOverlayInterface& engine,
-    const entt::registry& registry)
+    RenderEngineOverlayInterface& engine)
 {
+    const auto& registry = engine.registry();
 
     if (!show_overlay) { return; }
     if (registry.view<tags::Selected>().empty()) { return; }
@@ -108,7 +106,7 @@ inline void SelectedObjectHighlight::operator()(
 
             for (
                 GLint object_mask{ 255 };
-                auto [e, tf] : registry.view<tags::Selected, components::Transform>().each()
+                auto [e, world_mtf] : registry.view<tags::Selected, components::MTransform>().each()
             ) {
 
                 // Draws either a singular Mesh, or all Meshes in a Model
@@ -117,20 +115,24 @@ inline void SelectedObjectHighlight::operator()(
                 auto draw_func = [&](entt::entity e) {
                     if (auto mesh = registry.try_get<components::Mesh>(e)) {
 
-                        auto full_mtf = get_full_mesh_mtransform({ registry, e }, tf.mtransform());
-                        ashp.uniform("model", full_mtf.model());
+                        ashp.uniform("model", world_mtf.model());
                         mesh->draw();
 
                     } else if (auto model = registry.try_get<components::Model>(e)) {
 
                         for (const entt::entity& mesh_ent : model->meshes()) {
 
-                            if (auto mesh_tf = registry.try_get<components::Transform>(mesh_ent)) {
-                                auto full_mtf = tf.mtransform() * mesh_tf->mtransform();
-                                ashp.uniform("model", full_mtf.model());
-                                registry.get<components::Mesh>(mesh_ent).draw();
-                            }
+                            const auto& mesh_world_mtf = registry.get<components::MTransform>(mesh_ent);
+                            ashp.uniform("model", mesh_world_mtf.model());
+                            registry.get<components::Mesh>(mesh_ent).draw();
+
                         }
+
+                    } else if (auto terrain_chunk = registry.try_get<components::TerrainChunk>(e)) {
+
+                        ashp.uniform("model", world_mtf.model());
+                        terrain_chunk->mesh.draw();
+
                     }
                 };
 

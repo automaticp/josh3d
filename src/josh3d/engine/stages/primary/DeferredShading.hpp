@@ -86,14 +86,13 @@ public:
         , ambient_occlusion_{ ambient_occlusion }
     {}
 
-    void operator()(const RenderEnginePrimaryInterface&,
-        const entt::registry&);
+    void operator()(RenderEnginePrimaryInterface&);
 
 private:
     void update_point_light_buffers(const entt::registry& registry);
     void update_cascade_buffer();
-    void draw_main(const RenderEnginePrimaryInterface& engine, const entt::registry& registry);
-    void draw_debug_csm(const RenderEnginePrimaryInterface& engine, const entt::registry& registry);
+    void draw_main(RenderEnginePrimaryInterface& engine);
+    void draw_debug_csm(RenderEnginePrimaryInterface& engine);
 };
 
 

@@ -23,12 +23,11 @@ namespace josh::stages::primary {
 
 
 void CascadedShadowMapping::operator()(
-    const RenderEnginePrimaryInterface& engine,
-    const entt::registry& registry)
+    RenderEnginePrimaryInterface& engine)
 {
     resize_cascade_storage_if_needed();
 
-    map_dir_light_shadow_cascade(engine, registry);
+    map_dir_light_shadow_cascade(engine, engine.registry());
 
     auto [w, h] = engine.window_size();
     glViewport(0, 0, w, h);
@@ -59,9 +58,8 @@ static void draw_all_world_geometry_no_alpha_test(
     // Assumes that projection and view are already set.
 
     auto draw_from_view = [&](auto view) {
-        for (auto [entity, transform, mesh] : view.each()) {
-            ashp.uniform("model",
-                get_full_mesh_mtransform({ registry, entity }, transform.mtransform()).model());
+        for (auto [entity, world_mtf, mesh] : view.each()) {
+            ashp.uniform("model", world_mtf.model());
             mesh.draw();
         }
     };
@@ -72,13 +70,13 @@ static void draw_all_world_geometry_no_alpha_test(
     // Both ignore Alpha-Testing.
 
     draw_from_view(
-        registry.view<Transform, Mesh>(
+        registry.view<MTransform, Mesh>(
             entt::exclude<tags::AlphaTested, tags::CulledFromCSM>
         )
     );
 
     draw_from_view(
-        registry.view<Transform, Mesh, tags::AlphaTested>(
+        registry.view<MTransform, Mesh, tags::AlphaTested>(
             entt::exclude<components::MaterialDiffuse, tags::CulledFromCSM>
         )
     );
@@ -94,16 +92,15 @@ static void draw_all_world_geometry_with_alpha_test(
     ashp.uniform("material.diffuse", 0);
 
     auto meshes_with_alpha_view =
-        registry.view<Transform, Mesh, components::MaterialDiffuse, tags::AlphaTested>(
+        registry.view<MTransform, Mesh, components::MaterialDiffuse, tags::AlphaTested>(
             entt::exclude<tags::CulledFromCSM>
         );
 
-    for (auto [entity, transform, mesh, diffuse]
+    for (auto [entity, world_mtf, mesh, diffuse]
         : meshes_with_alpha_view.each())
     {
         diffuse.diffuse->bind_to_unit_index(0);
-        ashp.uniform("model",
-            get_full_mesh_mtransform({ registry, entity }, transform.mtransform()).model());
+        ashp.uniform("model", world_mtf.model());
         mesh.draw();
     }
 

@@ -48,20 +48,18 @@ public:
     SkyType sky_type{ SkyType::skybox };
     ProceduralSkyParams procedural_sky_params{};
 
-    void operator()(
-        const RenderEnginePrimaryInterface& engine,
-        const entt::registry& registry);
+    void operator()(RenderEnginePrimaryInterface& engine);
 
 private:
     void draw_debug_skybox(
-        const RenderEnginePrimaryInterface& engine);
+        RenderEnginePrimaryInterface& engine);
 
     void draw_skybox(
-        const RenderEnginePrimaryInterface& engine,
+        RenderEnginePrimaryInterface& engine,
         const entt::registry& registry);
 
     void draw_procedural_sky(
-        const RenderEnginePrimaryInterface& engine,
+        RenderEnginePrimaryInterface& engine,
         const entt::registry& registry);
 
 };
@@ -69,16 +67,14 @@ private:
 
 
 
-inline void Sky::operator()(
-    const RenderEnginePrimaryInterface& engine,
-    const entt::registry& registry)
+inline void Sky::operator()(RenderEnginePrimaryInterface& engine)
 {
     switch (sky_type) {
         using enum SkyType;
         case none:       return;
-        case debug:      draw_debug_skybox(engine);             break;
-        case skybox:     draw_skybox(engine, registry);         break;
-        case procedural: draw_procedural_sky(engine, registry); break;
+        case debug:      draw_debug_skybox(engine);                      break;
+        case skybox:     draw_skybox(engine, engine.registry());         break;
+        case procedural: draw_procedural_sky(engine, engine.registry()); break;
     }
 }
 
@@ -86,7 +82,7 @@ inline void Sky::operator()(
 
 
 inline void Sky::draw_debug_skybox(
-    const RenderEnginePrimaryInterface& engine)
+    RenderEnginePrimaryInterface& engine)
 {
     using namespace gl;
 
@@ -97,6 +93,7 @@ inline void Sky::draw_debug_skybox(
 
         glDepthMask(GL_FALSE);
         glDepthFunc(GL_LEQUAL);
+        glDisable(GL_CULL_FACE);
 
         globals::debug_skybox_cubemap().bind_to_unit_index(0);
         sp_skybox_.use()
@@ -118,7 +115,7 @@ inline void Sky::draw_debug_skybox(
 
 
 inline void Sky::draw_skybox(
-    const RenderEnginePrimaryInterface& engine,
+    RenderEnginePrimaryInterface& engine,
     const entt::registry& registry)
 {
     using namespace gl;
@@ -132,6 +129,7 @@ inline void Sky::draw_skybox(
 
             glDepthMask(GL_FALSE);
             glDepthFunc(GL_LEQUAL);
+            glDisable(GL_CULL_FACE);
 
             skybox.cubemap->bind_to_unit_index(0);
             sp_skybox_.use()
@@ -155,7 +153,7 @@ inline void Sky::draw_skybox(
 
 
 inline void Sky::draw_procedural_sky(
-    const RenderEnginePrimaryInterface& engine,
+    RenderEnginePrimaryInterface& engine,
     const entt::registry& registry)
 {
     using namespace gl;

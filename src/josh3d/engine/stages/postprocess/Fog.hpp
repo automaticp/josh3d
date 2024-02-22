@@ -81,13 +81,11 @@ public:
     UniformFogParams    uniform_fog_params{};
     BarometricFogParams barometric_fog_params{};
 
-    void operator()(
-        const RenderEnginePostprocessInterface& engine,
-        const entt::registry&);
+    void operator()(RenderEnginePostprocessInterface& engine);
 
 private:
-    void draw_uniform_fog(const RenderEnginePostprocessInterface& engine);
-    void draw_barometric_fog(const RenderEnginePostprocessInterface& engine);
+    void draw_uniform_fog(RenderEnginePostprocessInterface& engine);
+    void draw_barometric_fog(RenderEnginePostprocessInterface& engine);
 
 };
 
@@ -95,8 +93,7 @@ private:
 
 
 inline void Fog::operator()(
-    const RenderEnginePostprocessInterface& engine,
-    const entt::registry&)
+    RenderEnginePostprocessInterface& engine)
 {
     switch (fog_type) {
         using enum FogType;
@@ -110,7 +107,7 @@ inline void Fog::operator()(
 
 
 inline void Fog::draw_uniform_fog(
-    const RenderEnginePostprocessInterface& engine)
+    RenderEnginePostprocessInterface& engine)
 {
 
     const auto& cam = engine.camera();
@@ -152,7 +149,7 @@ inline void Fog::draw_uniform_fog(
 
 
 inline void Fog::draw_barometric_fog(
-    const RenderEnginePostprocessInterface& engine)
+    RenderEnginePostprocessInterface& engine)
 {
 
     const auto& cam = engine.camera();

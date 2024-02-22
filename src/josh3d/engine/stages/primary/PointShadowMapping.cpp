@@ -21,12 +21,11 @@ namespace josh::stages::primary {
 
 
 void PointShadowMapping::operator()(
-    const RenderEnginePrimaryInterface& engine,
-    const entt::registry& registry)
+    RenderEnginePrimaryInterface& engine)
 {
-    resize_cubemap_array_storage_if_needed(registry);
+    resize_cubemap_array_storage_if_needed(engine.registry());
 
-    map_point_shadows(engine, registry);
+    map_point_shadows(engine);
 
     auto [w, h] = engine.window_size();
     glViewport(0, 0, w, h);
@@ -81,9 +80,10 @@ static void draw_all_world_geometry_no_alpha_test(
 
 
 void PointShadowMapping::map_point_shadows(
-    const RenderEnginePrimaryInterface&,
-    const entt::registry& registry)
+    RenderEnginePrimaryInterface& engine)
 {
+    const auto& registry = engine.registry();
+
     auto& maps_tgt = output_->point_shadow_maps_tgt;
     auto& maps = maps_tgt.depth_attachment();
 
@@ -171,9 +171,8 @@ static void draw_all_world_geometry_no_alpha_test(
     // Assumes that projection and view are already set.
 
     auto draw_from_view = [&](auto view) {
-        for (auto [entity, transform, mesh] : view.each()) {
-            ashp.uniform("model",
-                get_full_mesh_mtransform({ registry, entity }, transform.mtransform()).model());
+        for (auto [entity, world_mtf, mesh] : view.each()) {
+            ashp.uniform("model", world_mtf.model());
             mesh.draw();
         }
     };
@@ -184,11 +183,11 @@ static void draw_all_world_geometry_no_alpha_test(
     // Both ignore Alpha-Testing.
 
     draw_from_view(
-        registry.view<Transform, Mesh>(entt::exclude<tags::AlphaTested>)
+        registry.view<MTransform, Mesh>(entt::exclude<tags::AlphaTested>)
     );
 
     draw_from_view(
-        registry.view<Transform, Mesh, tags::AlphaTested>(entt::exclude<components::MaterialDiffuse>)
+        registry.view<MTransform, Mesh, tags::AlphaTested>(entt::exclude<components::MaterialDiffuse>)
     );
 
 }
@@ -202,14 +201,13 @@ static void draw_all_world_geometry_with_alpha_test(
     ashp.uniform("material.diffuse", 0);
 
     auto meshes_with_alpha_view =
-        registry.view<Transform, Mesh, components::MaterialDiffuse, tags::AlphaTested>();
+        registry.view<MTransform, Mesh, components::MaterialDiffuse, tags::AlphaTested>();
 
-    for (auto [entity, transform, mesh, diffuse]
+    for (auto [entity, world_mtf, mesh, diffuse]
         : meshes_with_alpha_view.each())
     {
         diffuse.diffuse->bind_to_unit_index(0);
-        ashp.uniform("model",
-            get_full_mesh_mtransform({ registry, entity }, transform.mtransform()).model());
+        ashp.uniform("model", world_mtf.model());
         mesh.draw();
     }
 

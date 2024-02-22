@@ -6,6 +6,7 @@ namespace josh::components {
 
 
 using josh::Transform;
+using josh::MTransform;
 
 
 } // namespace josh::components

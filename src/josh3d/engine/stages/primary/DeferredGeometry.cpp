@@ -20,27 +20,17 @@ namespace josh::stages::primary {
 
 
 void DeferredGeometry::operator()(
-    const RenderEnginePrimaryInterface& engine,
-    const entt::registry& registry)
+    RenderEnginePrimaryInterface& engine)
 {
+    const auto& registry = engine.registry();
 
     const auto projection = engine.camera().projection_mat();
     const auto view = engine.camera().view_mat();
 
-    const auto get_mtransform = [&](entt::entity e, const Transform& transform)
-        -> MTransform
-    {
-        if (auto as_child = registry.try_get<components::ChildMesh>(e); as_child) {
-            return registry.get<Transform>(as_child->parent).mtransform() * transform.mtransform();
-        } else {
-            return transform.mtransform();
-        }
-    };
-
     // Exclude to not draw the same meshes twice.
 
-    auto material_ds_view = registry.view<Transform, Mesh>(entt::exclude<components::MaterialNormal, tags::Culled>);
-    auto material_dsn_view = registry.view<Transform, Mesh, components::MaterialNormal>(entt::exclude<tags::Culled>);
+    auto material_ds_view = registry.view<MTransform, Mesh>(entt::exclude<components::MaterialNormal, tags::Culled>);
+    auto material_dsn_view = registry.view<MTransform, Mesh, components::MaterialNormal>(entt::exclude<tags::Culled>);
 
     // TODO: Mutual exclusions like these are generally
     // uncomfortable to do in EnTT. Is there a better way?
@@ -67,6 +57,13 @@ void DeferredGeometry::operator()(
 
     gbuffer_->bind_draw().and_then([&, this] {
 
+        // FIXME: Poor interaction with alpha-testing.
+        if (enable_backface_culling) {
+            glEnable(GL_CULL_FACE);
+        } else {
+            glDisable(GL_CULL_FACE);
+        }
+
         sp_ds.use().and_then([&](ActiveShaderProgram<GLMutable>& ashp) {
 
             ashp.uniform("projection", projection)
@@ -75,12 +72,11 @@ void DeferredGeometry::operator()(
             ashp.uniform("material.diffuse",  0)
                 .uniform("material.specular", 1);
 
-            for (auto [entity, transform, mesh]
+            for (auto [entity, world_mtf, mesh]
                 : material_ds_view.each())
             {
-                auto model_transform = get_mtransform(entity, transform);
-                ashp.uniform("model",        model_transform.model())
-                    .uniform("normal_model", model_transform.normal_model())
+                ashp.uniform("model",        world_mtf.model())
+                    .uniform("normal_model", world_mtf.normal_model())
                     .uniform("object_id",    entt::to_integral(entity));
 
                 apply_ds_materials(entity, ashp);
@@ -99,12 +95,11 @@ void DeferredGeometry::operator()(
                 .uniform("material.specular", 1)
                 .uniform("material.normal",   2);
 
-            for (auto [entity, transform, mesh, mat_normal]
+            for (auto [entity, world_mtf, mesh, mat_normal]
                 : material_dsn_view.each())
             {
-                auto model_transform = get_mtransform(entity, transform);
-                ashp.uniform("model",        model_transform.model())
-                    .uniform("normal_model", model_transform.normal_model())
+                ashp.uniform("model",        world_mtf.model())
+                    .uniform("normal_model", world_mtf.normal_model())
                     .uniform("object_id",    entt::to_integral(entity));
 
                 apply_ds_materials(entity, ashp);

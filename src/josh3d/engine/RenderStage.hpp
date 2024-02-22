@@ -1,177 +1,121 @@
 #pragma once
+#include "AvgFrameTimeCounter.hpp"
+#include "GLObjects.hpp"
+#include "RingBuffer.hpp"
 #include "UniqueFunction.hpp"
-#include <concepts>
 #include <entt/entity/fwd.hpp>
 #include <entt/fwd.hpp>
+#include <concepts>
+#include <typeinfo>
+#include <typeindex>
 
 
 namespace josh {
 
+
 class RenderEngine;
+class RenderEnginePrecomputeInterface;
 class RenderEnginePrimaryInterface;
 class RenderEnginePostprocessInterface;
 class RenderEngineOverlayInterface;
 
 
 template<typename StageT>
-concept primary_render_stage =
-    std::invocable<StageT, const RenderEnginePrimaryInterface&, const entt::registry&>;
-
+concept precompute_render_stage  = std::invocable<StageT, RenderEnginePrecomputeInterface&>;
 template<typename StageT>
-concept postprocess_render_stage =
-    std::invocable<StageT, const RenderEnginePostprocessInterface&, const entt::registry&>;
-
+concept primary_render_stage     = std::invocable<StageT, RenderEnginePrimaryInterface&>;
 template<typename StageT>
-concept overlay_render_stage =
-    std::invocable<StageT, const RenderEngineOverlayInterface&, const entt::registry&>;
-
-
-/*
-A generic container for primary stages that preserves the type of the stored callable.
-Used to separate the construction of the stage from addition to the rendering engine.
-*/
-template<primary_render_stage StageT>
-class PrimaryStage {
-private:
-    UniqueFunction<void(const RenderEnginePrimaryInterface&, const entt::registry&)> stage_;
-
-    // Only constructible from RenderEngine.
-    // Could be because RenderEngine would want to do some bookkeeping.
-    friend RenderEngine;
-    PrimaryStage(StageT&& stage) : stage_{ std::move(stage) } {}
-
-public:
-    StageT& target() noexcept { return stage_.target_unchecked<StageT>(); }
-    const StageT& target() const noexcept { return stage_.target_unchecked<StageT>(); }
-
-    operator StageT&() noexcept { return target(); }
-    operator const StageT&() const noexcept { return target(); }
-
-};
-
-
-
-/*
-A generic container for postfx stages that preserves the type of the stored callable.
-Used to separate the construction of the stage from addition to the rendering engine.
-*/
-template<postprocess_render_stage StageT>
-class PostprocessStage {
-private:
-    UniqueFunction<void(const RenderEnginePostprocessInterface&, const entt::registry&)> stage_;
-
-    // All these friendships are here, because nested class
-    // definitions are a pain to work with and can't be
-    // forward declared in most cases.
-    friend RenderEngine;
-    PostprocessStage(StageT&& stage) : stage_{ std::move(stage) } {}
-
-public:
-    StageT& target() noexcept { return stage_.target_unchecked<StageT>(); }
-    const StageT& target() const noexcept { return stage_.target_unchecked<StageT>(); }
-
-    operator StageT&() noexcept { return target(); }
-    operator const StageT&() const noexcept { return target(); }
-
-};
+concept postprocess_render_stage = std::invocable<StageT, RenderEnginePostprocessInterface&>;
+template<typename StageT>
+concept overlay_render_stage     = std::invocable<StageT, RenderEngineOverlayInterface&>;
 
 
 
 
-/*
-A generic container for overlay stages that preserves the type of the stored callable.
-Used to separate the construction of the stage from addition to the rendering engine.
-*/
-template<overlay_render_stage StageT>
-class OverlayStage {
-private:
-    UniqueFunction<void(const RenderEngineOverlayInterface&, const entt::registry&)> stage_;
+using AnyPrecomputeStage  = UniqueFunction<void(RenderEnginePrecomputeInterface&)>;
+using AnyPrimaryStage     = UniqueFunction<void(RenderEnginePrimaryInterface&)>;
+using AnyPostprocessStage = UniqueFunction<void(RenderEnginePostprocessInterface&)>;
+using AnyOverlayStage     = UniqueFunction<void(RenderEngineOverlayInterface&)>;
 
-    friend RenderEngine;
-    OverlayStage(StageT&& stage) : stage_{ std::move(stage) } {}
 
-public:
-    StageT& target() noexcept { return stage_.target_unchecked<StageT>(); }
-    const StageT& target() const noexcept { return stage_.target_unchecked<StageT>(); }
-
-    operator StageT&() noexcept { return target(); }
-    operator const StageT&() const noexcept { return target(); }
-
-};
 
 
 namespace detail {
 
 
 /*
-Type erased primary stage stored inside the RenderEngine stages container.
+A bunch of stuff about a stage thrown together for some basic
+coherency. Private details are exposed to the RenderEngine.
+Public interface is for the stage iterator interface.
+
+Don't ask questions, I'm confused myself.
 */
-class AnyPrimaryStage {
+template<typename AnyStageT>
+class Stage {
 private:
     friend RenderEngine;
 
-    using stage_t =
-        UniqueFunction<void(const RenderEnginePrimaryInterface&, const entt::registry&)>;
+    std::string           name_;
+    AnyStageT             stage_;
+    const std::type_info* type_info_;
+    AvgFrameTimeCounter   cpu_timer_{};
+    AvgFrameTimeCounter   gpu_timer_{}; // Will need to preserve frame delta per query.
 
-    stage_t stage_;
+    // TODO: Probably encapsulate this "GPU Timer" stuff into a type.
+    struct TimeQueryRequest {
+        UniqueTimerQuery query;
+        float frame_time_delta_s;
+    };
+    BadRingBuffer<TimeQueryRequest> time_queries_;
 
-    AnyPrimaryStage(stage_t&& stage) : stage_{ std::move(stage) } {}
+    // Do this after querying the time interval.
+    void emplace_new_time_query(UniqueTimerQuery query, float frame_time_delta_s) {
+        time_queries_.emplace_front(std::move(query), frame_time_delta_s);
+    }
+
+    void resolve_available_time_queries() {
+        while (!time_queries_.is_empty() &&
+            time_queries_.back().query.is_available())
+        {
+            TimeQueryRequest query_request = time_queries_.pop_back();
+            auto slice_delta_s = std::chrono::duration<float>(query_request.query.result());
+            gpu_timer_.update(slice_delta_s.count(), query_request.frame_time_delta_s);
+        }
+    }
+
+
+    Stage(std::string name, AnyStageT&& stage)
+        : name_{ std::move(name) }
+        , stage_{ std::move(stage) }
+        , type_info_{ &stage_.target_type() }
+    {}
 
 public:
-    void operator()(const RenderEnginePrimaryInterface& engine, const entt::registry& registry) {
-        stage_(engine, registry);
-    }
+    // Something about exposing not only the public interface of the stage
+    // but also it's lifetime and ownership really makes me wish for a nuclear winter.
+    //
+    // Do we need a FunctionRef?
+          AnyStageT&      get()              noexcept { return stage_;      }
+    const AnyStageT&      get()        const noexcept { return stage_;      }
+    const std::string&    name()       const noexcept { return name_;       }
+    const std::type_info& stage_type() const noexcept { return *type_info_; }
+          std::type_index stage_type_index() const noexcept { return { stage_type() }; }
+
+    const AvgFrameTimeCounter& cpu_frametimer() const noexcept { return cpu_timer_; }
+    const AvgFrameTimeCounter& gpu_frametimer() const noexcept { return gpu_timer_; }
+
 };
-
-
-
-
-/*
-Type erased postfx stage stored inside the RenderEngine stages container.
-*/
-class AnyPostprocessStage {
-private:
-    friend RenderEngine;
-
-    using stage_t =
-        UniqueFunction<void(const RenderEnginePostprocessInterface&, const entt::registry&)>;
-
-    stage_t stage_;
-
-    AnyPostprocessStage(stage_t&& stage) : stage_{ std::move(stage) } {}
-
-public:
-    void operator()(const RenderEnginePostprocessInterface& engine, const entt::registry& registry) {
-        stage_(engine, registry);
-    }
-};
-
-
-
-
-
-/*
-Type erased overlay stage stored inside the RenderEngine stages container.
-*/
-class AnyOverlayStage {
-private:
-    friend RenderEngine;
-
-    using stage_t =
-        UniqueFunction<void(const RenderEngineOverlayInterface&, const entt::registry&)>;
-
-    stage_t stage_;
-
-    AnyOverlayStage(stage_t&& stage) : stage_{ std::move(stage) } {}
-public:
-    void operator()(const RenderEngineOverlayInterface& engine, const entt::registry& registry) {
-        stage_(engine, registry);
-    }
-};
-
 
 
 } // namespace detail
+
+
+
+
+using PrecomputeStage  = detail::Stage<AnyPrecomputeStage>;
+using PrimaryStage     = detail::Stage<AnyPrimaryStage>;
+using PostprocessStage = detail::Stage<AnyPostprocessStage>;
+using OverlayStage     = detail::Stage<AnyOverlayStage>;
 
 
 

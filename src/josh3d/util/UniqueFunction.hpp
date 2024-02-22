@@ -1,5 +1,6 @@
 #pragma once
 #include "CommonConcepts.hpp" // IWYU pragma: keep (concepts)
+#include "AnyRef.hpp"
 #include <concepts>
 #include <cstddef>
 #include <memory>
@@ -38,6 +39,8 @@ private:
     public:
         virtual ResT operator()(ArgTs...) = 0;
         virtual const std::type_info& type() const noexcept = 0;
+        virtual AnyRef      any_ref()       noexcept = 0;
+        virtual AnyConstRef any_ref() const noexcept = 0;
         virtual ~UFBase() = default;
     };
 
@@ -47,13 +50,12 @@ private:
         CallableT target;
 
         UFConcrete(CallableT&& target) : target{ std::move(target) } {}
-        ResT operator()(ArgTs... args) override {
-            return std::invoke(target, std::forward<ArgTs>(args)...);
-        }
+        ResT operator()(ArgTs... args) override { return std::invoke(target, std::forward<ArgTs>(args)...); }
 
-        const std::type_info& type() const noexcept override {
-            return typeid(CallableT);
-        }
+        const std::type_info& type() const noexcept override { return typeid(CallableT); }
+
+        AnyRef      any_ref()       noexcept override { return AnyRef{ target }; }
+        AnyConstRef any_ref() const noexcept override { return AnyConstRef{ target }; }
 
     };
 
@@ -78,13 +80,24 @@ public:
         return std::invoke(*target_ptr_, std::forward<ArgTs>(args)...);
     }
 
+
+    AnyRef target_as_any() noexcept {
+        assert(target_ptr_ && "UniqueFunction had no target");
+        return target_ptr_->any_ref();
+    }
+
+    AnyConstRef target_as_any() const noexcept {
+        assert(target_ptr_ && "UniqueFunction had no target");
+        return target_ptr_->any_ref();
+    }
+
     template<typename CallableT>
-    CallableT* target() noexcept {
+    CallableT* target_ptr() noexcept {
         return try_get_target<CallableT>();
     }
 
     template<typename CallableT>
-    const CallableT* target() const noexcept {
+    const CallableT* target_ptr() const noexcept {
         return try_get_target<CallableT>();
     }
 
@@ -100,7 +113,7 @@ public:
 
 
     const std::type_info& target_type() const noexcept {
-        if (!target_ptr_) { return typeid(void); }
+        assert(target_ptr_ && "UniqueFunction had no target");
         return target_ptr_->type();
     }
 

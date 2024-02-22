@@ -131,7 +131,8 @@ public:
     auto get_occlusion_texture() const noexcept -> RawTexture2D<GLConst>;
     auto get_noisy_occlusion_texture() const noexcept -> RawTexture2D<GLConst>;
 
-    void operator()(const RenderEnginePrimaryInterface& engine, const entt::registry& registry);
+    void operator()(RenderEnginePrimaryInterface& engine);
+
 };
 
 
@@ -252,8 +253,7 @@ inline void SSAO::regenerate_noise() {
 
 
 inline void SSAO::operator()(
-    const RenderEnginePrimaryInterface& engine,
-    const entt::registry&)
+    RenderEnginePrimaryInterface& engine)
 {
     using enum GLenum;
 

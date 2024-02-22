@@ -13,8 +13,12 @@
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/gl.h>
 #include <functional>
+#include <ranges>
+#include <string>
 #include <utility>
 #include <vector>
+
+
 
 
 // WIP
@@ -26,9 +30,17 @@ namespace josh {
 
 /*
 Implementation base for wrapper types that constrain the actions avaliable
-to be done with the engine during primary and postprocessing stages.
+to be done with the engine during various stages.
 */
 class RenderEngineCommonInterface;
+
+
+/*
+A wrapper object that constrains the set of actions avaliable
+during precompute stages. Passed to the precompute stages
+as a proxy for RenderEngine.
+*/
+class RenderEnginePrecomputeInterface;
 
 
 /*
@@ -57,38 +69,23 @@ class RenderEngineOverlayInterface;
 
 
 
+
+
+
+
 class RenderEngine {
 private:
     friend RenderEngineCommonInterface;
+    friend RenderEnginePrecomputeInterface;
     friend RenderEnginePrimaryInterface;
     friend RenderEnginePostprocessInterface;
     friend RenderEngineOverlayInterface;
 
-    template<typename T>
-    class StageContainer {
-    private:
-        std::vector<T> stages_;
-        size_t current_{};
-    public:
-        template<typename ...Args>
-        decltype(auto) emplace_back(Args&&... args) {
-            return stages_.emplace_back(std::forward<Args>(args)...);
-        }
 
-        template<typename Func>
-        void each(Func&& func) {
-            for (current_ = 0; current_ < stages_.size(); ++current_) {
-                std::forward<Func>(func)(stages_[current_]);
-            }
-        }
-
-        size_t current_idx() const noexcept { return current_; }
-        size_t num_stages() const noexcept { return stages_.size(); }
-    };
-
-    StageContainer<detail::AnyPrimaryStage>     primary_;
-    StageContainer<detail::AnyPostprocessStage> postprocess_;
-    StageContainer<detail::AnyOverlayStage>     overlay_;
+    std::vector<PrecomputeStage>  precompute_;
+    std::vector<PrimaryStage>     primary_;
+    std::vector<PostprocessStage> postprocess_;
+    std::vector<OverlayStage>     overlay_;
 
     entt::registry& registry_;
 
@@ -134,10 +131,20 @@ private:
 
 public:
     // Enables RGB -> sRGB conversion at the end of the postprocessing pass.
-    bool enable_srgb_conversion{ true };
+    bool  enable_srgb_conversion{ true };
+    // Enables profiling of GPU/CPU times taken per each stage.
+    bool  capture_stage_timings { true };
+    // The wall-time interval between updates of the timers, in seconds.
+    // Note that the GPU timing is asyncronous and might lag behind by a frame or two.
+    float stage_timing_averaging_interval_s{ 0.5f };
 
-    RenderEngine(entt::registry& registry, PerspectiveCamera& cam,
-        const Size2I& window_size, const FrameTimer& frame_timer)
+
+    RenderEngine(
+        entt::registry& registry,
+        PerspectiveCamera& cam,
+        const Size2I& window_size,
+        const FrameTimer& frame_timer
+    )
         : registry_{ registry }
         , cam_{ cam }
         , window_size_{ window_size }
@@ -151,43 +158,49 @@ public:
 
     void render();
 
-    template<primary_render_stage StageT, typename ...Args>
-    [[nodiscard]] PrimaryStage<StageT> make_primary_stage(Args&&... args) {
-        return PrimaryStage<StageT>(StageT(std::forward<Args>(args)...));
-    }
 
-    template<postprocess_render_stage StageT, typename ...Args>
-    [[nodiscard]] PostprocessStage<StageT> make_postprocess_stage(Args&&... args) {
-        return PostprocessStage<StageT>(StageT(std::forward<Args>(args)...));
-    }
-
-    template<overlay_render_stage StageT, typename ...Args>
-    [[nodiscard]] OverlayStage<StageT> make_overlay_stage(Args&&... args) {
-        return OverlayStage<StageT>(StageT(std::forward<Args>(args)...));
-    }
+    auto precompute_stages_view()  noexcept { return std::views::all(precompute_);  }
+    auto primary_stages_view()     noexcept { return std::views::all(primary_);     }
+    auto postprocess_stages_view() noexcept { return std::views::all(postprocess_); }
+    auto overlay_stages_view()     noexcept { return std::views::all(overlay_);   }
 
 
-    template<typename StageT>
-    StageT& add_next_primary_stage(PrimaryStage<StageT>&& stage) {
-        // A lot of this relies on pointer/storage stability of UniqueFunction.
-        StageT& ref = stage.target();
-        primary_.emplace_back(detail::AnyPrimaryStage(std::move(stage.stage_)));
-        return ref;
+    template<precompute_render_stage StageT>
+    void add_next_precompute_stage(std::string name, StageT&& stage) {
+        precompute_.emplace_back(
+            PrecomputeStage{
+                std::move(name), AnyPrecomputeStage{ std::forward<StageT>(stage) }
+            }
+        );
     }
 
-    template<typename StageT>
-    StageT& add_next_postprocess_stage(PostprocessStage<StageT>&& stage) {
-        StageT& ref = stage.target();
-        postprocess_.emplace_back(detail::AnyPostprocessStage(std::move(stage.stage_)));
-        return ref;
+    template<primary_render_stage StageT>
+    void add_next_primary_stage(std::string name, StageT&& stage) {
+        primary_.emplace_back(
+            PrimaryStage{
+                std::move(name), AnyPrimaryStage{ std::forward<StageT>(stage) }
+            }
+        );
     }
 
-    template<typename StageT>
-    StageT& add_next_overlay_stage(OverlayStage<StageT>&& stage) {
-        StageT& ref = stage.target();
-        overlay_.emplace_back(detail::AnyOverlayStage(std::move(stage.stage_)));
-        return ref;
+    template<postprocess_render_stage StageT>
+    void add_next_postprocess_stage(std::string name, StageT&& stage) {
+        postprocess_.emplace_back(
+            PostprocessStage{
+                std::move(name), AnyPostprocessStage{ std::forward<StageT>(stage) }
+            }
+        );
     }
+
+    template<overlay_render_stage StageT>
+    void add_next_overlay_stage(std::string name, StageT&& stage) {
+        overlay_.emplace_back(
+            OverlayStage{
+                std::move(name), AnyOverlayStage{ std::forward<StageT>(stage) }
+            }
+        );
+    }
+
 
     RawTexture2D<GLMutable> main_depth()       noexcept { return depth_.texture(); }
     RawTexture2D<GLConst>   main_depth() const noexcept { return depth_.texture(); }
@@ -207,9 +220,14 @@ public:
     }
 
 private:
+    void execute_precompute_stages();
     void render_primary_stages();
     void render_postprocess_stages();
     void render_overlay_stages();
+
+    template<typename StagesContainerT, typename REInterfaceT>
+    void execute_stages(StagesContainerT& stages, REInterfaceT& engine_interface);
+
 };
 
 
@@ -222,13 +240,33 @@ private:
 class RenderEngineCommonInterface {
 protected:
     RenderEngine& engine_;
-
-public:
     RenderEngineCommonInterface(RenderEngine& engine) : engine_{ engine } {}
 
-    const PerspectiveCamera& camera() const noexcept { return engine_.cam_; }
-    const Size2I& window_size() const noexcept { return engine_.window_size_; }
-    const FrameTimer& frame_timer() const noexcept { return engine_.frame_timer_; }
+public:
+    const entt::registry&    registry()    const noexcept { return engine_.registry_; }
+    const PerspectiveCamera& camera()      const noexcept { return engine_.cam_; }
+    const Size2I&            window_size() const noexcept { return engine_.window_size_; }
+    const FrameTimer&        frame_timer() const noexcept { return engine_.frame_timer_; }
+};
+
+
+
+
+
+
+
+
+class RenderEnginePrecomputeInterface : public RenderEngineCommonInterface {
+private:
+    friend class RenderEngine;
+    RenderEnginePrecomputeInterface(RenderEngine& engine)
+        : RenderEngineCommonInterface(engine)
+    {}
+
+public:
+          entt::registry& registry()       noexcept { return engine_.registry_; }
+    const entt::registry& registry() const noexcept { return engine_.registry_; }
+
 };
 
 
@@ -252,7 +290,7 @@ public:
     // Note that it is illegal to bind any framebuffer object as
     // a Draw framebuffer within the callable.
     template<typename CallableT, typename ...Args>
-    void draw(CallableT&& draw_func, Args&&... args) const {
+    void draw(CallableT&& draw_func, Args&&... args) {
 
         engine_.main_swapchain_.back_target().bind_draw()
             .and_then([&] {
@@ -299,7 +337,7 @@ public:
     // The screen color texture is INVALIDATED for sampling after this call.
     // You have to call screen_color() again and bind the returned texture
     // in order to sample the screen in the next call to draw().
-    void draw() const {
+    void draw() {
         engine_.main_swapchain_.draw_and_swap([] {
             globals::quad_primitive_mesh().draw();
         });
@@ -310,7 +348,7 @@ public:
     // DOES NOT advance the chain. You CANNOT SAMPLE THE SCREEN COLOR during this draw.
     //
     // Used as an optimization for draws that either override or blend with the screen.
-    void draw_to_front() const {
+    void draw_to_front() {
         engine_.main_swapchain_.front_target().bind_draw().and_then([] {
             globals::quad_primitive_mesh().draw();
         });
@@ -332,7 +370,7 @@ private:
 
 public:
     // Emit the draw call on the screen quad and draw directly to the default buffer.
-    void draw_fullscreen_quad() const {
+    void draw_fullscreen_quad() {
         engine_.default_fbo_.bind_draw().and_then([] {
             globals::quad_primitive_mesh().draw();
         });
@@ -344,7 +382,7 @@ public:
     // Note that it is illegal to bind any framebuffer object as
     // a Draw framebuffer within the callable.
     template<typename CallableT, typename ...Args>
-    void draw(CallableT&& draw_func, Args&&... args) const {
+    void draw(CallableT&& draw_func, Args&&... args) {
 
         engine_.default_fbo_.bind_draw()
             .and_then([&] {

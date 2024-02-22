@@ -4,11 +4,13 @@
 #include "ImGuiSelected.hpp"
 #include "ImGuizmoGizmos.hpp"
 #include "PerspectiveCamera.hpp"
+#include "RenderEngine.hpp"
 #include "Size.hpp"
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <cstdio>
-#include <iterator>
+
+
 
 
 namespace josh {
@@ -16,6 +18,7 @@ namespace josh {
 
 ImGuiApplicationAssembly::ImGuiApplicationAssembly(
     glfw::Window& window,
+    RenderEngine& engine,
     entt::registry& registry,
     const PerspectiveCamera& cam,
     VirtualFilesystem& vfs
@@ -23,7 +26,7 @@ ImGuiApplicationAssembly::ImGuiApplicationAssembly(
     : context_{ window }
     , window_settings_{ window }
     , vfs_control_{ vfs }
-    , stage_hooks_{}
+    , stage_hooks_{ engine }
     , registry_hooks_{ registry }
     , selected_menu_{ registry }
     , gizmos_{ cam, registry }
@@ -157,24 +160,25 @@ void ImGuiApplicationAssembly::draw_widgets() {
 
         } ImGui::End();
 
-        if (ImGui::Begin("VFS")) {
-            vfs_control_.display();
-        } ImGui::End();
-
         if (ImGui::Begin("Window")) {
             window_settings_.display();
         } ImGui::End();
 
-        if (ImGui::Begin("Render Stages")) {
+        if (ImGui::Begin("Render Engine")) {
             stage_hooks_.display();
         } ImGui::End();
 
-        if (ImGui::Begin("Registry")) {
-            registry_hooks_ .display();
+
+        if (ImGui::Begin("VFS")) {
+            vfs_control_.display();
         } ImGui::End();
 
         if (ImGui::Begin("Selected")) {
             selected_menu_.display();
+        } ImGui::End();
+
+        if (ImGui::Begin("Registry")) {
+            registry_hooks_ .display();
         } ImGui::End();
 
         ImGui::PopStyleColor();
@@ -201,14 +205,12 @@ void ImGuiApplicationAssembly::reset_dockspace(ImGuiID dockspace_id) {
     h_split -= 1.f;
     auto right_id = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Right, 1.f / h_split, nullptr, &dockspace_id);
 
-    auto right_top_id = ImGui::DockBuilderSplitNode(right_id, ImGuiDir_Up,    1.f / 6.f, nullptr, &right_id);
-
-    ImGui::DockBuilderDockWindow("VFS",      left_id);
     ImGui::DockBuilderDockWindow("Registry", left_id);
     ImGui::DockBuilderDockWindow("Selected", left_id);
-    ImGui::DockBuilderDockWindow("Render Stages", right_id);
-    ImGui::DockBuilderDockWindow("Window",        right_top_id);
-    ImGui::DockBuilderDockWindow("ImGui",         right_top_id);
+    ImGui::DockBuilderDockWindow("VFS",      left_id);
+    ImGui::DockBuilderDockWindow("Render Engine", right_id);
+    ImGui::DockBuilderDockWindow("Window",        right_id);
+    ImGui::DockBuilderDockWindow("ImGui",         right_id);
 
     ImGui::DockBuilderFinish(dockspace_id);
 }

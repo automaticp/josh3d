@@ -3,9 +3,7 @@
 #include "detail/MagicConstructorsMacro.hpp"
 #include "GLMutability.hpp"
 #include "CommonConcepts.hpp" // IWYU pragma: keep
-#include "GLScalars.hpp"
-#include <concepts>
-#include <utility>
+#include <concepts>           // IWYU pragma: keep
 
 
 
@@ -74,6 +72,7 @@ JOSH3D_GENERATE_KIND_HANDLE(Framebuffer)
 JOSH3D_GENERATE_KIND_HANDLE(Renderbuffer)
 JOSH3D_GENERATE_KIND_HANDLE(Shader)
 JOSH3D_GENERATE_KIND_HANDLE(ShaderProgram)
+JOSH3D_GENERATE_KIND_HANDLE(Query)
 
 #undef JOSH3D_GENERATE_KIND_HANDLE
 
@@ -87,6 +86,8 @@ Can go from GLMutable to GLConst through this:
     RawTexture2D<GLConst>::object_handle_type_template<GLMutable> -> RawTexture2D<GLMutable>
 
 Also there's probably a cleaner way.
+
+TODO: Remove this. Use mutability_traits.
 */
 template<
     template<typename/* clangd crashes if I put a concept here */> typename TemplateCRTP,

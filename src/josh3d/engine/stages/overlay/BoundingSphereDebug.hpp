@@ -34,9 +34,7 @@ public:
     glm::vec3 line_color{ 1.f, 1.f, 1.f };
     float     line_width{ 2.f };
 
-    void operator()(
-        const RenderEngineOverlayInterface& engine,
-        const entt::registry& registry);
+    void operator()(RenderEngineOverlayInterface& engine);
 
 };
 
@@ -44,9 +42,9 @@ public:
 
 
 inline void BoundingSphereDebug::operator()(
-    const RenderEngineOverlayInterface& engine,
-    const entt::registry& registry)
+    RenderEngineOverlayInterface& engine)
 {
+    const auto& registry = engine.registry();
 
     if (!display) { return; }
     if (selected_only && registry.view<tags::Selected>().empty()) { return; }
@@ -65,15 +63,13 @@ inline void BoundingSphereDebug::operator()(
             engine.draw([&, this] {
 
                 auto per_mesh_draw_func = [&] (
-                    entt::entity entity,
-                    const Transform& transform,
+                    const entt::entity& entity [[maybe_unused]],
+                    const MTransform& world_mtf,
                     const components::BoundingSphere& sphere)
                 {
-                    const auto full_mtransform =
-                        get_full_mesh_mtransform({ registry, entity }, transform.mtransform());
 
-                    const glm::vec3 sphere_center = full_mtransform.decompose_position();
-                    const glm::vec3 mesh_scaling  = full_mtransform.decompose_local_scale();
+                    const glm::vec3 sphere_center = world_mtf.decompose_position();
+                    const glm::vec3 mesh_scaling  = world_mtf.decompose_local_scale();
 
                     const glm::vec3 sphere_scale = glm::vec3{ sphere.scaled_radius(mesh_scaling) };
 

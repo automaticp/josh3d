@@ -28,9 +28,7 @@ public:
     float absolute_contrast_threshold = 0.0312f; // gamma-dependant
     float relative_contrast_threshold = 0.125f;
 
-    void operator()(
-        const RenderEnginePostprocessInterface& engine,
-        const entt::registry&);
+    void operator()(RenderEnginePostprocessInterface& engine);
 
 };
 
@@ -38,8 +36,7 @@ public:
 
 
 inline void FXAA::operator()(
-    const RenderEnginePostprocessInterface& engine,
-    const entt::registry&)
+    RenderEnginePostprocessInterface& engine)
 {
     if (!use_fxaa) { return; }
 

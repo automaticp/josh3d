@@ -45,9 +45,7 @@ public:
         : gbuffer_{ std::move(gbuffer) }
     {}
 
-    void operator()(
-        const RenderEngineOverlayInterface& engine,
-        const entt::registry&);
+    void operator()(RenderEngineOverlayInterface& engine);
 
 };
 
@@ -55,7 +53,7 @@ public:
 
 
 inline void GBufferDebug::operator()(
-    const RenderEngineOverlayInterface& engine, const entt::registry&)
+    RenderEngineOverlayInterface& engine)
 {
 
     if (mode == OverlayMode::none) {

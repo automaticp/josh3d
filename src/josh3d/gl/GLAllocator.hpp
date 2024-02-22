@@ -3,6 +3,7 @@
 #include "GLMutability.hpp"   // IWYU pragma: keep
 #include "GLKindHandles.hpp"
 #include "GLScalars.hpp"
+#include <glbinding/gl/functions.h>
 #include <glbinding/gl/gl.h>
 #include <concepts>
 
@@ -11,6 +12,7 @@ namespace josh {
 
 
 namespace detail {
+
 
 struct TextureAllocator {
     static GLuint request() noexcept {
@@ -85,6 +87,18 @@ struct ShaderProgramAllocator {
     }
 };
 
+struct QueryAllocator {
+    static GLuint request() noexcept {
+        GLuint id;
+        gl::glGenQueries(1, &id);
+        return id;
+    }
+    static void release(GLuint id) noexcept {
+        gl::glDeleteQueries(1, &id);
+    }
+};
+
+
 } // namespace detail
 
 
@@ -111,6 +125,7 @@ JOSH3D_SPECIALIZE_ALLOCATOR(Framebuffer)
 JOSH3D_SPECIALIZE_ALLOCATOR(Renderbuffer)
 JOSH3D_SPECIALIZE_ALLOCATOR(Shader)
 JOSH3D_SPECIALIZE_ALLOCATOR(ShaderProgram)
+JOSH3D_SPECIALIZE_ALLOCATOR(Query)
 
 #undef JOSH3D_SPECIALIZE_ALLOCATOR
 

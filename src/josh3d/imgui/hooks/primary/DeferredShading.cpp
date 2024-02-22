@@ -34,7 +34,7 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, DeferredShading) {
     }
 
 
-    if (ImGui::TreeNode("Directional Shadow Cascades")) {
+    if (ImGui::TreeNode("CSM Shadows")) {
 
         ImGui::SliderFloat(
             "Base Bias, tx",
