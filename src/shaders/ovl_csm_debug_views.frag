@@ -15,7 +15,8 @@ uniform struct DirectionalLight {
 
 
 struct CascadeParams {
-    mat4 projview;
+    mat4  projview;
+    vec3  scale;
     float z_split;
 };
 
@@ -93,5 +94,6 @@ void main() {
         }
     }
 
-    frag_color = vec4(result_color, 1.0);
+    const float inv_gamma = 1.0 / 2.2;
+    frag_color = vec4(pow(result_color, vec3(inv_gamma)), 1.0);
 }

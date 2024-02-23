@@ -22,11 +22,7 @@ void DeferredShading::operator()(
     update_point_light_buffers(engine.registry());
     update_cascade_buffer();
 
-    if (enable_csm_debug) {
-        draw_debug_csm(engine);
-    } else {
-        draw_main(engine);
-    }
+    draw_main(engine);
 
 }
 
@@ -105,36 +101,6 @@ void DeferredShading::draw_main(
 }
 
 
-void DeferredShading::draw_debug_csm(
-    RenderEnginePrimaryInterface& engine)
-{
-    const auto& registry = engine.registry();
-
-    sp_cascade_debug_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
-
-        gbuffer_->position_draw_texture().bind_to_unit_index(0);
-        gbuffer_->normals_texture()      .bind_to_unit_index(1);
-
-        ashp.uniform("tex_position_draw", 0)
-            .uniform("tex_normals",       1);
-
-        // FIXME:
-        // This will crash if the storage is empty. HAVE FUN.
-        const auto& dir_light = *registry.storage<light::Directional>().rbegin();
-
-        ashp.uniform("dir_light.color",     dir_light.color)
-            .uniform("dir_light.direction", dir_light.direction);
-
-
-
-        engine.draw([] {
-            glDisable(GL_DEPTH_TEST);
-            globals::quad_primitive_mesh().draw();
-            glEnable(GL_DEPTH_TEST);
-        });
-    });
-
-}
 
 
 void DeferredShading::update_cascade_buffer() {

@@ -41,13 +41,6 @@ private:
             .get()
     };
 
-    UniqueShaderProgram sp_cascade_debug_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/dfr_shading.vert"))
-            .load_frag(VPath("src/shaders/dfr_shading_csm_debug.frag"))
-            .get()
-    };
-
     SharedStorageView<GBuffer>            gbuffer_;
     SharedStorageView<PointShadowMaps>    input_psm_;
     SharedStorageView<CascadedShadowMaps> input_csm_;
@@ -72,8 +65,6 @@ public:
     bool  use_ambient_occlusion  { true };
     float ambient_occlusion_power{ 0.8 };
 
-    bool  enable_csm_debug{ false };
-
     DeferredShading(
         SharedStorageView<GBuffer>            gbuffer,
         SharedStorageView<PointShadowMaps>    input_psm,
@@ -92,7 +83,6 @@ private:
     void update_point_light_buffers(const entt::registry& registry);
     void update_cascade_buffer();
     void draw_main(RenderEnginePrimaryInterface& engine);
-    void draw_debug_csm(RenderEnginePrimaryInterface& engine);
 };
 
 

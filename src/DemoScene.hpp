@@ -18,11 +18,13 @@
 #include "VirtualFilesystem.hpp"
 
 #include "components/ChildMesh.hpp"
+#include "hooks/overlay/CSMDebug.hpp"
 #include "hooks/overlay/SSAODebug.hpp"
 #include "hooks/precompute/CascadeViewsBuilding.hpp"
 #include "hooks/precompute/TransformResolution.hpp"
 #include "hooks/primary/DeferredGeometry.hpp"
 #include "hooks/primary/SSAO.hpp"
+#include "stages/overlay/CSMDebug.hpp"
 #include "stages/overlay/SSAODebug.hpp"
 #include "stages/precompute/CascadeViewsBuilding.hpp"
 #include "stages/precompute/FrustumCulling.hpp"
@@ -162,10 +164,15 @@ inline DemoScene::DemoScene(glfw::Window& window)
 
 
     auto gbugger     = stages::overlay::GBufferDebug(gbuffer.share_read_view());
+    auto csmbugger   = stages::overlay::CSMDebug(
+        gbuffer.share_read_view(),
+        csmbuilder.share_output_view(),
+        csmapping.share_output_view()
+    );
     auto ssaobugger  = stages::overlay::SSAODebug(
-            ssao.get_noisy_occlusion_texture(),
-            ssao.get_occlusion_texture()
-        );
+        ssao.get_noisy_occlusion_texture(),
+        ssao.get_occlusion_texture()
+    );
     auto selected    = stages::overlay::SelectedObjectHighlight();
     auto cullspheres = stages::overlay::BoundingSphereDebug();
 
@@ -190,6 +197,7 @@ inline DemoScene::DemoScene(glfw::Window& window)
     imgui_.stage_hooks().add_hook(imguihooks::postprocess::HDREyeAdaptation());
     imgui_.stage_hooks().add_hook(imguihooks::postprocess::FXAA());
     imgui_.stage_hooks().add_hook(imguihooks::overlay::GBufferDebug());
+    imgui_.stage_hooks().add_hook(imguihooks::overlay::CSMDebug());
     imgui_.stage_hooks().add_hook(imguihooks::overlay::SSAODebug());
     imgui_.stage_hooks().add_hook(imguihooks::overlay::SelectedObjectHighlight());
     imgui_.stage_hooks().add_hook(imguihooks::overlay::BoundingSphereDebug());
@@ -217,6 +225,7 @@ inline DemoScene::DemoScene(glfw::Window& window)
     rengine_.add_next_postprocess_stage("FXAA",               std::move(fxaaaaaaa));
 
     rengine_.add_next_overlay_stage("GBuffer Debug",             std::move(gbugger));
+    rengine_.add_next_overlay_stage("CSM Debug",                 std::move(csmbugger));
     rengine_.add_next_overlay_stage("SSAO Debug",                std::move(ssaobugger));
     rengine_.add_next_overlay_stage("Selected Object Highlight", std::move(selected));
     rengine_.add_next_overlay_stage("Bounding Spheres",          std::move(cullspheres));
