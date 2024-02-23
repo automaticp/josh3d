@@ -1,6 +1,7 @@
 #pragma once
 #include "GLMutability.hpp"   // IWYU pragma: export
 #include "GLBuffers.hpp"      // IWYU pragma: export
+#include "GLSamplers.hpp"     // IWYU pragma: export
 #include "GLVertexArray.hpp"  // IWYU pragma: export
 #include "GLShaders.hpp"      // IWYU pragma: export
 #include "GLTextures.hpp"     // IWYU pragma: export
@@ -35,6 +36,8 @@ JOSH3D_ALIAS_UNIQUE(Shader)
 JOSH3D_ALIAS_UNIQUE(ShaderProgram)
 
 JOSH3D_ALIAS_UNIQUE(TimerQuery)
+
+JOSH3D_ALIAS_UNIQUE(Sampler)
 
 #undef JOSH3D_ALIAS_UNIQUE
 

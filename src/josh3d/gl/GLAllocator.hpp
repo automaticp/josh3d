@@ -6,6 +6,7 @@
 #include <glbinding/gl/functions.h>
 #include <glbinding/gl/gl.h>
 #include <concepts>
+#include <glbinding/gl/types.h>
 
 
 namespace josh {
@@ -98,6 +99,16 @@ struct QueryAllocator {
     }
 };
 
+struct SamplerAllocator {
+    static GLuint request() noexcept {
+        GLuint id;
+        gl::glGenSamplers(1, &id);
+        return id;
+    }
+    static void release(GLuint id) noexcept {
+        gl::glDeleteSamplers(1, &id);
+    }
+};
 
 } // namespace detail
 
@@ -126,6 +137,7 @@ JOSH3D_SPECIALIZE_ALLOCATOR(Renderbuffer)
 JOSH3D_SPECIALIZE_ALLOCATOR(Shader)
 JOSH3D_SPECIALIZE_ALLOCATOR(ShaderProgram)
 JOSH3D_SPECIALIZE_ALLOCATOR(Query)
+JOSH3D_SPECIALIZE_ALLOCATOR(Sampler)
 
 #undef JOSH3D_SPECIALIZE_ALLOCATOR
 
