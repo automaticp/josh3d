@@ -19,7 +19,7 @@ template<mutability_tag MutT> class RawSampler;
 template<mutability_tag MutT> class BoundSampler;
 
 
-template<mutability_tag MutT>
+template<mutability_tag MutT = GLMutable>
 class BoundSampler
     : public detail::AndThen<BoundSampler<MutT>>
 {
