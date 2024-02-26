@@ -11,6 +11,7 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/geometric.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <glm/gtc/round.hpp>
 #include <glm/gtx/orthonormalize.hpp>
 #include <vector>
 
@@ -31,6 +32,7 @@ Some info about view frustums that were constructed from camera.
 */
 struct CascadeViews {
     std::vector<CascadeView> cascades;
+    Size2I resolution{ 2048, 2048 };
     // TODO:
     // ViewFrustumAsPlanes bounding_frustum;
 };
@@ -44,7 +46,7 @@ struct CascadeViews {
 namespace josh::stages::precompute {
 
 
-class CascadeViewsBuilding {
+class CSMSetup {
 private:
     SharedStorage<CascadeViews> output_;
 
@@ -56,6 +58,9 @@ public:
     // Exceeding max_cascades of the CascadedShadowMappingStage
     // might yield surprising results.
     size_t num_cascades_to_build{ 5 };
+
+    // Per-cascade resolution
+    Size2I resolution{ 2048, 2048 };
 
     SharedStorageView<CascadeViews> share_output_view() const noexcept {
         return output_.share_view();
@@ -72,7 +77,7 @@ private:
 
 
 
-inline void CascadeViewsBuilding::operator()(
+inline void CSMSetup::operator()(
     RenderEnginePrecomputeInterface& engine)
 {
     build_from_camera(
@@ -84,9 +89,11 @@ inline void CascadeViewsBuilding::operator()(
 
 
 
-inline void CascadeViewsBuilding::build_from_camera(
+inline void CSMSetup::build_from_camera(
     const PerspectiveCamera& cam, const glm::vec3& light_dir) noexcept
 {
+
+    output_->resolution = resolution;
 
     // WARN: This is still heavily WIP.
 
@@ -207,11 +214,45 @@ inline void CascadeViewsBuilding::build_from_camera(
 
         float split_side = split_fun_practical(i);
 
-        float b = -split_side / 2.f;
-        float t = +split_side / 2.f;
         float l = -split_side / 2.f;
         float r = +split_side / 2.f;
+        float b = -split_side / 2.f;
+        float t = +split_side / 2.f;
 
+        auto snap_to_grid = [&](float& l, float& r, float& b, float& t) {
+            // FIXME: This, as any other world-space computation will completely
+            // break down when far away from the origin.
+            // The addition and subtraction of `center.x` will obliterate
+            // the contribution of a small pixel-scale correction fairly quickly too.
+
+            // This is a position of the shadowcam in space oriented like
+            // the shadow view but centered on the world origin.
+            const glm::vec3 center =
+                glm::mat3{ shadow_look_at } * shadow_cam_position;
+
+            // Size of a single shadowmap pixel in shadowmap view-space.
+            Size2F px_scale{
+                split_side / float(resolution.width),
+                split_side / float(resolution.height)
+            };
+
+            // Frustum bounds in world-space oriented as shadowcam.
+            float bv = b + center.y;
+            float tv = t + center.y;
+            float lv = l + center.x;
+            float rv = r + center.x;
+
+            // glm::floorMultiple uses subtraction in lower precision space,
+            // instead of divide-floor-multiply which floors in higher precision.
+            // Kinda suboptimal, oh well, this is broken anyway.
+            l = glm::floorMultiple(lv, px_scale.width)  - center.x;
+            r = glm::floorMultiple(rv, px_scale.width)  - center.x;
+            b = glm::floorMultiple(bv, px_scale.height) - center.y;
+            t = glm::floorMultiple(tv, px_scale.height) - center.y;
+
+        };
+
+        snap_to_grid(l, r, b, t);
 
         const glm::mat4 shadow_projection =
             glm::ortho(l, r, b, t, z_near, z_far);

@@ -20,13 +20,13 @@
 #include "components/ChildMesh.hpp"
 #include "hooks/overlay/CSMDebug.hpp"
 #include "hooks/overlay/SSAODebug.hpp"
-#include "hooks/precompute/CascadeViewsBuilding.hpp"
+#include "hooks/precompute/CSMSetup.hpp"
 #include "hooks/precompute/TransformResolution.hpp"
 #include "hooks/primary/DeferredGeometry.hpp"
 #include "hooks/primary/SSAO.hpp"
 #include "stages/overlay/CSMDebug.hpp"
 #include "stages/overlay/SSAODebug.hpp"
-#include "stages/precompute/CascadeViewsBuilding.hpp"
+#include "stages/precompute/CSMSetup.hpp"
 #include "stages/precompute/FrustumCulling.hpp"
 #include "stages/precompute/TransformResolution.hpp"
 #include "stages/primary/SSAO.hpp"
@@ -128,7 +128,7 @@ inline DemoScene::DemoScene(glfw::Window& window)
 {
 
 
-    auto csmbuilder    = stages::precompute::CascadeViewsBuilding();
+    auto csmbuilder    = stages::precompute::CSMSetup();
     auto frustumculler = stages::precompute::FrustumCulling();
     auto tfresolution  = stages::precompute::TransformResolution();
 
@@ -183,7 +183,7 @@ inline DemoScene::DemoScene(glfw::Window& window)
 
 
 
-    imgui_.stage_hooks().add_hook(imguihooks::precompute::CascadeViewsBuilding());
+    imgui_.stage_hooks().add_hook(imguihooks::precompute::CSMSetup());
     imgui_.stage_hooks().add_hook(imguihooks::precompute::TransformResolution());
     imgui_.stage_hooks().add_hook(imguihooks::primary::PointShadowMapping());
     imgui_.stage_hooks().add_hook(imguihooks::primary::CascadedShadowMapping());
@@ -205,7 +205,7 @@ inline DemoScene::DemoScene(glfw::Window& window)
 
 
 
-    rengine_.add_next_precompute_stage("CSM Views",            std::move(csmbuilder));
+    rengine_.add_next_precompute_stage("CSM Setup",            std::move(csmbuilder));
     rengine_.add_next_precompute_stage("Frustum Culling",      std::move(frustumculler));
     rengine_.add_next_precompute_stage("Transfrom Resolution", std::move(tfresolution));
 

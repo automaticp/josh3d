@@ -4,7 +4,7 @@
 #include "GLTextures.hpp"
 #include "LightCasters.hpp"
 #include "SSBOWithIntermediateBuffer.hpp"
-#include "stages/precompute/CascadeViewsBuilding.hpp"
+#include "stages/precompute/CSMSetup.hpp"
 #include "stages/primary/CascadedShadowMapping.hpp"
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"

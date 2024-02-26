@@ -6,13 +6,11 @@
 #include "ShaderBuilder.hpp"
 #include "SharedStorage.hpp"
 #include "VPath.hpp"
-#include "stages/precompute/CascadeViewsBuilding.hpp"
+#include "stages/precompute/CSMSetup.hpp"
 #include <entt/entity/fwd.hpp>
 #include <glbinding/gl/enum.h>
 #include <glm/glm.hpp>
-#include <algorithm>
 #include <cassert>
-#include <limits>
 #include <vector>
 
 
@@ -120,9 +118,6 @@ public:
 
     size_t max_cascades() const noexcept { return max_cascades_; }
 
-    void resize_maps(const Size2I& new_size);
-
-
     void operator()(RenderEnginePrimaryInterface& engine);
 
 
@@ -134,12 +129,6 @@ private:
 };
 
 
-
-
-inline void CascadedShadowMapping::resize_maps(const Size2I& new_size) {
-    auto& maps = output_->dir_shadow_maps_tgt;
-    maps.resize_all(new_size);
-}
 
 
 } // namespace josh::stages::primary

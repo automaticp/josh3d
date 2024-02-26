@@ -39,13 +39,16 @@ void CascadedShadowMapping::operator()(
 void CascadedShadowMapping::resize_cascade_storage_if_needed() {
     auto& maps = output_->dir_shadow_maps_tgt.depth_attachment();
 
-    const size_t new_size = input_->cascades.size();
-    const size_t old_size = maps.size().depth;
+    const Size2I new_resolution = input_->resolution;
+    const size_t new_depth      = input_->cascades.size();
+
+    const Size3I new_size{ new_resolution, new_depth };
+    const Size3I old_size = maps.size();
 
     if (new_size != old_size) {
-        maps.resize(Size3I{ Size2I{ maps.size() }, new_size });
+        maps.resize(new_size);
         // FIXME: Is this needed?
-        output_->params.resize(new_size);
+        // output_->params.resize(new_size);
     }
 }
 
