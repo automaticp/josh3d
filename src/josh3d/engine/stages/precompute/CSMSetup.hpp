@@ -57,10 +57,13 @@ public:
     //
     // Exceeding max_cascades of the CascadedShadowMappingStage
     // might yield surprising results.
-    size_t num_cascades_to_build{ 5 };
+    size_t num_cascades_to_build{ 4 };
 
     // Per-cascade resolution
     Size2I resolution{ 2048, 2048 };
+
+    float split_log_weight{ 0.95f };
+    float split_bias{ 0.f };
 
     SharedStorageView<CascadeViews> share_output_view() const noexcept {
         return output_.share_view();
@@ -204,15 +207,16 @@ inline void CSMSetup::build_from_camera(
         return max_scale * float(split_id + 1) / float(num_cascades_to_build);
     };
 
-    // TODO: Might be weightable and also have a bias parameter.
-    auto split_fun_practical = [&](size_t split_id) {
-        return (split_fun_log(split_id) + split_fun_uniform(split_id)) / 2.f;
+    auto split_fun_practical = [&](size_t split_id, float log_weight, float bias) {
+        log_weight = glm::clamp(log_weight, 0.f, 1.f);
+        return    (log_weight) * split_fun_log(split_id) +
+            (1.f - log_weight) * split_fun_uniform(split_id) + bias;
     };
 
     output_->cascades.clear();
     for (size_t i{ 0 }; i < num_cascades_to_build; ++i) {
 
-        float split_side = split_fun_practical(i);
+        float split_side = split_fun_practical(i, split_log_weight, split_bias);
 
         float l = -split_side / 2.f;
         float r = +split_side / 2.f;
@@ -225,7 +229,7 @@ inline void CSMSetup::build_from_camera(
             // The addition and subtraction of `center.x` will obliterate
             // the contribution of a small pixel-scale correction fairly quickly too.
 
-            // This is a position of the shadowcam in space oriented like
+            // This is a position of the shadowcam in space that's oriented like
             // the shadow view but centered on the world origin.
             const glm::vec3 center =
                 glm::mat3{ shadow_look_at } * shadow_cam_position;

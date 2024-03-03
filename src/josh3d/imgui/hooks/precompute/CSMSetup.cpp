@@ -20,4 +20,7 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(precompute, CSMSetup) {
         stage_.resolution = Size2I{ resolution, resolution };
     }
 
+    ImGui::SliderFloat("Log Weight", &stage_.split_log_weight, 0.f, 1.f);
+    ImGui::DragFloat("Split Bias", &stage_.split_bias, 1.f, 0.f, FLT_MAX, "%.1f");
+
 }
