@@ -101,7 +101,7 @@ void adddsda_remove_later_im_sorry() {
     RawTexture3D<GLMutable> t3d{ 9203 };
     t3d.allocate_storage({ 12, 23, 2 }, PixelInternalFormat::RGBA8, NumLevels{ 7 });
     t3d.invalidate_image_region({ 0, 0, 0 }, { 1, 1, 1 }, 6);
-    t3d.sub_image_region({}, { 12, 23, 2 }, arr, 0);
+    t3d.sub_image_region({}, { 12, 23, 2 }, arr, MipLevel{ 0 });
     t3d.generate_mipmaps();
     tex.bind_to_readonly_image_unit(ImageUnitFormat::RGBA16, 0, MipLevel{ 0 });
     // tex.bind_layer_to_read_image_unit(0, {}, 0);
@@ -114,6 +114,7 @@ void adddsda_remove_later_im_sorry() {
     pixel::RGBA pixel_data[16 * 16];
     // tex.allocate_storage({ 512, 512 }, { PixelInternalFormat::Compressed_RGBA_BPTC_UNorm }, 7);
     tex.fill_image(pixel::RGBAF{ 1.f, 0.f, 0.f, 1.f });
+
     tex.sub_image_region({ 127, 127 }, { 16, 16 }, pixel_data);
     tex.generate_mipmaps();
 
@@ -128,6 +129,18 @@ void adddsda_remove_later_im_sorry() {
 
     RawCubemapArray<> c{ 9 };
     c.allocate_storage({ 64, 64 }, 6, PixelInternalFormat::RGBA8, NumLevels{ 5 });
+
+    {
+        RawTexture2D t2d{ 2 };
+        RawTexture3D t3d{ 3 };
+        t2d.copy_image_region_to({}, { 512, 512 }, t3d, { 0, 0, 8 });
+        t3d.copy_image_region_to({}, { 64,  64  }, t2d, { 0, 0 });
+        RawTextureBuffer<> bu{ 9 };
+
+    }
+
+
+
 
 }
 
