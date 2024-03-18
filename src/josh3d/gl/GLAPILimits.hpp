@@ -1,4 +1,5 @@
 #pragma once
+#include "GLScalars.hpp"
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/gl.h>
 
@@ -26,6 +27,11 @@ inline auto aliased_line_width_range() noexcept -> RangeF {
 }
 
 
+inline auto max_color_attachments() noexcept -> GLuint {
+    GLint result;
+    gl::glGetIntegerv(gl::GL_MAX_COLOR_ATTACHMENTS, &result);
+    return GLuint(result);
+}
 
 
 } // namespace josh::glapi::limits

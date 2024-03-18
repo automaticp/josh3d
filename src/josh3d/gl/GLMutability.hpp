@@ -133,20 +133,27 @@ template<typename MutT>
 concept gl_mutable = std::same_as<MutT, GLMutable>;
 
 
+template<typename FromMutT, typename ToMutU>
+concept convertible_mutability_to =
+    std::same_as<FromMutT, ToMutU> ||
+    (gl_mutable<FromMutT> && gl_const<ToMutU>);
 
 
 template<typename RawH>
 struct mutability_traits;
 
-template<template<typename> typename RawTemplate, mutability_tag MutT>
-struct mutability_traits<RawTemplate<MutT>> {
-    using mutability          = MutT;
-    using opposite_mutability = MutT::opposite_mutability;
-    template<mutability_tag MutU>
-    using type_template       = RawTemplate<MutU>;
-    using const_type          = RawTemplate<GLConst>;
-    using mutable_type        = RawTemplate<GLMutable>;
-    using opposite_type       = RawTemplate<opposite_mutability>;
+
+template<template<typename...> typename RawTemplate, mutability_tag MutT, typename ...OtherTs>
+struct mutability_traits<RawTemplate<MutT, OtherTs...>> {
+    using mutability                 = MutT;
+    using opposite_mutability        = MutT::opposite_mutability;
+    template<typename ...ArgTs>
+    using type_template              = RawTemplate<ArgTs...>;
+    using const_type                 = RawTemplate<GLConst, OtherTs...>;
+    using mutable_type               = RawTemplate<GLMutable, OtherTs...>;
+    using opposite_type              = RawTemplate<opposite_mutability, OtherTs...>;
+    static constexpr bool is_mutable = gl_mutable<mutability>;
+    static constexpr bool is_const   = gl_const<mutability>;
 };
 
 

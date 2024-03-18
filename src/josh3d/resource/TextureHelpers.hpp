@@ -143,7 +143,7 @@ void attach_data_to_texture(BoundTexture2D<GLMutable>& tex,
 {
     using tr = pixel_pack_traits<PixelT>;
     tex.specify_image(
-        Size2I{ data.size() }, spec, TexPackSpec{ tr::format, tr::type }, data.data()
+        Size2I{ data.size() }, spec, TexPackSpec{ GLenum(tr::format), GLenum(tr::type) }, data.data()
     );
 }
 
@@ -157,7 +157,7 @@ void attach_data_to_cubemap(BoundCubemap<GLMutable>& cube,
         const auto& face = data.sides()[face_id];
         cube.specify_face_image(
             face_id,
-            Size2I{ face.size() }, spec, TexPackSpec{ tr::format, tr::type }, face.data()
+            Size2I{ face.size() }, spec, TexPackSpec{ GLenum(tr::format), GLenum(tr::type) }, face.data()
         );
     }
 }
@@ -184,7 +184,7 @@ void attach_data_to_cubemap_as_skybox(BoundCubemap<GLMutable>& cube,
         }
         cube.specify_face_image(
             target_face_id,
-            Size2I{ face.size() }, spec, TexPackSpec{ tr::format, tr::type }, face.data()
+            Size2I{ face.size() }, spec, TexPackSpec{ GLenum(tr::format), GLenum(tr::type) }, face.data()
         );
     }
     using enum GLenum;

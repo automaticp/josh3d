@@ -73,4 +73,8 @@ concept of_signature =
     signature_test<CallableT, Signature>::is_same_return_type;
 
 
+template<typename T>
+concept trivially_copyable = std::is_trivially_copyable_v<T>;
+
+
 } // namespace josh

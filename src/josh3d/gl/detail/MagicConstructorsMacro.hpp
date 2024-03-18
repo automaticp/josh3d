@@ -1,6 +1,6 @@
 #pragma once
 #include "GLMutability.hpp" // IWYU pragma: keep
-#include <utility>
+#include <utility>          // IWYU pragma: keep
 
 
 
@@ -82,3 +82,52 @@ macro that does exactly that. Wonderful.
     = delete;
 
 
+
+/*
+Macro used to escape commas "," in macro arguments.
+
+Could probably be moved somewhere else.
+*/
+#define JOSH3D_SINGLE_ARG(...) __VA_ARGS__
+
+
+
+
+#define JOSH3D_MAGIC_CONSTRUCTORS_CONVERSION(Self, MT, Parent)                                                              \
+    Self(const Self&) noexcept            = default;                                                                        \
+    Self(Self&&) noexcept                 = default;                                                                        \
+    Self& operator=(const Self&) noexcept = default;                                                                        \
+    Self& operator=(Self&&) noexcept      = default;                                                                        \
+                                                                                                                            \
+    Self(const MT::mutable_type& other) noexcept requires gl_const<typename MT::mutability> : Parent{ other } {}            \
+    Self(MT::mutable_type&& other) noexcept      requires gl_const<typename MT::mutability> : Parent{ std::move(other) } {} \
+    Self& operator=(const MT::mutable_type& other) noexcept requires gl_const<typename MT::mutability> {                    \
+        Parent::operator=(other);                                                                                           \
+        return *this;                                                                                                       \
+    }                                                                                                                       \
+    Self& operator=(MT::mutable_type&& other) noexcept      requires gl_const<typename MT::mutability> {                    \
+        Parent::operator=(std::move(other));                                                                                \
+        return *this;                                                                                                       \
+    }                                                                                                                       \
+    Self(const MT::const_type&) noexcept            requires gl_mutable<typename MT::mutability> = delete;                  \
+    Self(MT::const_type&&) noexcept                 requires gl_mutable<typename MT::mutability> = delete;                  \
+    Self& operator=(const MT::const_type&) noexcept requires gl_mutable<typename MT::mutability> = delete;                  \
+    Self& operator=(MT::const_type&&) noexcept      requires gl_mutable<typename MT::mutability> = delete;
+
+
+#define JOSH3D_MAGIC_CONSTRUCTORS_FROM_ID(Self, Parent)  \
+    using id_type = Parent::id_type;                     \
+    explicit Self(id_type id) noexcept : Parent{ id } {}
+
+
+/*
+Alternative version of the macro above that works with types
+that have extra template arguments besides mutability.
+
+Self   - Name of the template type as within the class body, without the template arguments.
+MT     - mutability_traits of the type. Equivalent to mutability_traits<Self> within class body.
+Parent - parent type to delegate construction to. Most likely is RawGLHandle<MutT>.
+*/
+#define JOSH3D_MAGIC_CONSTRUCTORS_2(Self, MT, Parent)                                                               \
+    JOSH3D_MAGIC_CONSTRUCTORS_FROM_ID(JOSH3D_SINGLE_ARG(Self), JOSH3D_SINGLE_ARG(Parent))                           \
+    JOSH3D_MAGIC_CONSTRUCTORS_CONVERSION(JOSH3D_SINGLE_ARG(Self), JOSH3D_SINGLE_ARG(MT), JOSH3D_SINGLE_ARG(Parent))

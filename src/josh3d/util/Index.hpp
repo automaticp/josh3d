@@ -19,8 +19,11 @@ concept index_representable =
 
 template<index_representable NumericT>
 struct Index2 {
-    NumericT x;
-    NumericT y;
+    NumericT x{};
+    NumericT y{};
+
+    // It is often desirable to specify null-offset.
+    constexpr Index2() noexcept = default;
 
     constexpr Index2(NumericT x, NumericT y) noexcept
         : x{ x }
@@ -59,9 +62,11 @@ using Index2D = Index2<double>;
 
 template<index_representable NumericT>
 struct Index3 {
-    NumericT x;
-    NumericT y;
-    NumericT z;
+    NumericT x{};
+    NumericT y{};
+    NumericT z{};
+
+    constexpr Index3() noexcept = default;
 
     constexpr Index3(NumericT x, NumericT y, NumericT z)
         : x{ x }

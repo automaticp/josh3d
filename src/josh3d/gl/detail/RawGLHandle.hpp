@@ -16,13 +16,15 @@ handle that has no knowledge of its type or allocation method.
 
 Models a raw `void*` or `const void*` depending on mutability.
 */
-template<mutability_tag MutT>
-class RawGLHandle : public MutT {
+template<mutability_tag MutT, typename IdType = GLuint>
+class RawGLHandle {
+public:
+    using id_type = IdType;
+
 protected:
-    // Maybe I could make something like: enum class GLHandle : GLuint {}; ?
-    GLuint id_; // Should this be private?
-    GLuint reset_id(GLuint new_id = GLuint{ 0 }) noexcept {
-        GLuint old_id{ id_ };
+    id_type id_; // Should this be private?
+    id_type reset_id(id_type new_id = id_type{ 0 }) noexcept {
+        id_type old_id{ id_ };
         id_ = new_id;
         return old_id;
     }
@@ -30,7 +32,7 @@ protected:
     friend RawGLHandle<GLConst>;
 public:
 
-    explicit RawGLHandle(GLuint id) : id_{ id } {}
+    explicit RawGLHandle(id_type id) : id_{ id } {}
 
     RawGLHandle(const RawGLHandle&)     = default;
     RawGLHandle(RawGLHandle&&) noexcept = default;
@@ -77,9 +79,9 @@ public:
     RawGLHandle& operator=(RawGLHandle<GLConst>&&) noexcept
         requires gl_mutable<MutT> = delete;
 
-
-    GLuint id() const noexcept { return id_; }
-    explicit operator GLuint() const noexcept { return id_; }
+    // Returns the underlying OpenGL ID (aka. Name) of the object.
+    id_type id() const noexcept { return id_; }
+    explicit operator id_type() const noexcept { return id_; }
 };
 
 

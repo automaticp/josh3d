@@ -1,5 +1,6 @@
 #pragma once
 #include "CommonConcepts.hpp" // IWYU pragma: keep
+#include "Index.hpp"
 #include <cstddef>
 
 
@@ -58,6 +59,22 @@ struct Size2 {
 };
 
 
+template<typename NumT>
+constexpr Size2<NumT> operator-(const Index2<NumT>& lhs, const Index2<NumT>& rhs) noexcept {
+    return { lhs.x - rhs.x, lhs.y - rhs.y };
+}
+
+template<typename NumT>
+constexpr Index2<NumT> operator+(const Index2<NumT>& lhs, const Size2<NumT>& rhs) noexcept {
+    return { lhs.x + rhs.width, lhs.y + rhs.height };
+}
+
+template<typename NumT>
+constexpr Index2<NumT> operator+(const Size2<NumT>& lhs, const Index2<NumT>& rhs) noexcept {
+    return rhs + lhs;
+}
+
+
 // Common specializations.
 // Closer to OpenGL conventions than to standard library.
 using Size2I = Size2<int>;
@@ -65,6 +82,10 @@ using Size2U = Size2<unsigned int>;
 using Size2S = Size2<size_t>;
 using Size2F = Size2<float>;
 using Size2D = Size2<double>;
+
+
+
+
 
 
 
@@ -133,11 +154,29 @@ struct Size3 {
 };
 
 
+template<typename NumT>
+constexpr Size3<NumT> operator-(const Index3<NumT>& lhs, const Index3<NumT>& rhs) noexcept {
+    return { lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z };
+}
+
+template<typename NumT>
+constexpr Index3<NumT> operator+(const Index3<NumT>& lhs, const Size3<NumT>& rhs) noexcept {
+    return { lhs.x + rhs.width, lhs.y + rhs.height, lhs.z + rhs.depth };
+}
+
+template<typename NumT>
+constexpr Index3<NumT> operator+(const Size3<NumT>& lhs, const Index3<NumT>& rhs) noexcept {
+    return rhs + lhs;
+}
+
+
 using Size3I = Size3<int>;
 using Size3U = Size3<unsigned int>;
 using Size3S = Size3<size_t>;
 using Size3F = Size3<float>;
 using Size3D = Size3<double>;
+
+
 
 
 } // namespace josh

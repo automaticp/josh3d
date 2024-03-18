@@ -25,6 +25,13 @@ constexpr auto to_underlying(EnumT enum_value) noexcept
 }
 
 
+template<typename To, enumeration FromEnumT>
+constexpr auto enum_cast(FromEnumT enum_value) noexcept
+    -> To
+{
+    return static_cast<To>(to_underlying(enum_value));
+}
+
 
 
 
