@@ -414,7 +414,7 @@ public:
     // Wraps `glNamedBufferSubData`.
     //
     // Will copy `src_buf.size()` elements from `src_buf` to this Buffer.
-    void sub_data(std::span<const T> src_buf, GLsizeiptr elem_offset = 0) const noexcept
+    void upload_data(std::span<const T> src_buf, GLsizeiptr elem_offset = 0) const noexcept
         requires gl_mutable<mutability>
     {
         gl::glNamedBufferSubData(
@@ -426,7 +426,7 @@ public:
     // Wraps `glGetNamedBufferSubData`.
     //
     // Will copy `dst_buf.size()` elements from this Buffer to `dst_buf`.
-    void get_sub_data_into(
+    void download_data_into(
         std::span<T> dst_buf, GLsizeiptr elem_offset = 0) const noexcept
     {
         gl::glGetNamedBufferSubData(
@@ -440,7 +440,7 @@ public:
     // Will copy `src_elem_count` elements from this Buffer to `dst_buffer`.
     // No alignment or layout is considered. Copies bytes directly, similar to `memcpy`.
     template<typename DstT = T>
-    void copy_sub_data_to(
+    void copy_data_to(
         mt::template type_template<GLMutable, DstT> dst_buffer,
         GLsizeiptr src_elem_count,
         GLintptr src_elem_offset = 0,
@@ -642,16 +642,16 @@ public:
 
 
     template<convertible_mutability_to<MutT> MutU, typename T>
-    RawUntypedBuffer(RawBuffer<MutU, T> typed_buffer)
+    RawUntypedBuffer(RawBuffer<T, MutU> typed_buffer)
         : RawUntypedBuffer{ typed_buffer.id() }
     {}
 
     // Explicit cast to a typed buffer, similar to a `static_cast` from a `void*`.
     template<typename T>
     auto as_typed() const noexcept
-        -> RawBuffer<MutT, T>
+        -> RawBuffer<T, MutT>
     {
-        return RawBuffer<MutT, T>{ this->id() };
+        return RawBuffer<T, MutT>{ this->id() };
     }
 
 };

@@ -15,6 +15,12 @@
 namespace josh::dsa {
 namespace {
 
+
+
+
+// Buffers
+
+
 template<typename T>
 using UniqueBuffer = GLUnique<RawBuffer<T>>;
 
@@ -37,6 +43,9 @@ void buffer_operations() noexcept {
 
     buf.flush_mapped_range(0, 1);
     buf.unmap_current();
+
+    RawUntypedBuffer<> ubuf = buf;
+
 }
 
 
@@ -61,7 +70,7 @@ namespace {
 
 
 [[maybe_unused]]
-void shadheoadioqu() {
+void program_operations() {
     RawShaderProgram<> p{ 902 };
     // RawVertexShader<> sh{ 99 };
     // p.attach_shader(sh);
@@ -75,6 +84,12 @@ void shadheoadioqu() {
 
 
 
+
+
+
+// Textures
+
+
 [[maybe_unused]]
 inline void foooo(Layer layer) noexcept {
     static_cast<GLint>(layer);
@@ -82,7 +97,7 @@ inline void foooo(Layer layer) noexcept {
 
 
 [[maybe_unused]]
-void adddsda_remove_later_im_sorry() {
+void texture_operations() {
     RawTexture2D<GLMutable> tex{ 32 };
     tex.set_sampler_wrap_all(Wrap::ClampToEdge);
     tex.set_sampler_min_mag_filters(MinFilter::LinearMipmapLinear, MagFilter::Linear);
@@ -94,14 +109,14 @@ void adddsda_remove_later_im_sorry() {
     // tex.allocate_storage(Size2I{1, 1}, TexSpec{ PixelInternalFormat::Compressed_SRGBA_BPTC_UNorm });
     tex.allocate_storage({ 1, 1 }, PixelInternalFormat::Compressed_SRGBA_BPTC_UNorm, NumLevels{ 7 });
     pixel::RGBA arr[4];
-    tex.sub_image_region({ 0, 0 }, { 2, 2 }, arr);
+    tex.upload_image_region({ 0, 0 }, { 2, 2 }, arr);
 
     RawTexture2DArray<> t2darr{ 732 };
     t2darr.allocate_storage({ 16, 16 }, 32, PixelInternalFormat::RGBA32F, NumLevels{ 5 });
     RawTexture3D<GLMutable> t3d{ 9203 };
     t3d.allocate_storage({ 12, 23, 2 }, PixelInternalFormat::RGBA8, NumLevels{ 7 });
-    t3d.invalidate_image_region({ 0, 0, 0 }, { 1, 1, 1 }, 6);
-    t3d.sub_image_region({}, { 12, 23, 2 }, arr, MipLevel{ 0 });
+    t3d.invalidate_image_region({ 0, 0, 0 }, { 1, 1, 1 }, MipLevel{ 6 });
+    t3d.upload_image_region({}, { 12, 23, 2 }, arr, MipLevel{ 0 });
     t3d.generate_mipmaps();
     tex.bind_to_readonly_image_unit(ImageUnitFormat::RGBA16, 0, MipLevel{ 0 });
     // tex.bind_layer_to_read_image_unit(0, {}, 0);
@@ -115,7 +130,7 @@ void adddsda_remove_later_im_sorry() {
     // tex.allocate_storage({ 512, 512 }, { PixelInternalFormat::Compressed_RGBA_BPTC_UNorm }, 7);
     tex.fill_image(pixel::RGBAF{ 1.f, 0.f, 0.f, 1.f });
 
-    tex.sub_image_region({ 127, 127 }, { 16, 16 }, pixel_data);
+    tex.upload_image_region({ 127, 127 }, { 16, 16 }, pixel_data);
     tex.generate_mipmaps();
 
     tex.set_sampler_min_mag_filters(MinFilter::LinearMipmapLinear, MagFilter::Nearest);
@@ -136,13 +151,43 @@ void adddsda_remove_later_im_sorry() {
         t2d.copy_image_region_to({}, { 512, 512 }, t3d, { 0, 0, 8 });
         t3d.copy_image_region_to({}, { 64,  64  }, t2d, { 0, 0 });
         RawTextureBuffer<> bu{ 9 };
-
     }
 
-
+    RawTextureBuffer<> buft{ 3 };
+    RawTextureRectangle<> rect{ 1 };
+    rect.set_sampler_min_mag_filters(MinFilterNoLOD::Linear, MagFilter::Linear);
 
 
 }
+
+
+
+
+
+// Framebuffer
+
+
+[[maybe_unused]]
+void framebuffer_operations() {
+    RawFramebuffer<> fb{  99 };
+    fb.blit_to(fb, {}, { 100, 100 }, {}, { 200, 200 }, BlitBuffers::Color, BlitFilter::Linear);
+    RawDefaultFramebuffer<> dfb;
+    dfb.specify_default_buffers_for_draw(DefaultFramebufferBuffer::BackLeft, DefaultFramebufferBuffer::BackRight);
+    RawTexture2D<> tx{ 90 };
+    RawTexture2DArray<> txa{ 99 };
+    RawTexture2DMS<> txms{ 90 };
+    fb.attach_texture_to_color_buffer(tx, 0, MipLevel{ 0 });
+    fb.attach_texture_to_color_buffer(txms, 1);
+    fb.attach_texture_to_stencil_buffer(tx);
+    fb.attach_texture_layer_to_color_buffer(txa, Layer{ 3 }, 1, MipLevel{ 0 });
+
+}
+
+
+
+
+
+
 
 
 

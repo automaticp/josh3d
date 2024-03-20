@@ -618,20 +618,5 @@ inline void detail::FramebufferDSAInterface_Common<CRTP>::blit_to(
 
 
 
-void daidfhaoriewhqoir() {
-    RawFramebuffer<> fb{  99 };
-    fb.blit_to(fb, {}, { 100, 100 }, {}, { 200, 200 }, BlitBuffers::Color, BlitFilter::Linear);
-    RawDefaultFramebuffer<> dfb;
-    dfb.specify_default_buffers_for_draw(DefaultFramebufferBuffer::BackLeft, DefaultFramebufferBuffer::BackRight);
-    RawTexture2D<> tx{ 90 };
-    RawTexture2DArray<> txa{ 99 };
-    RawTexture2DMS<> txms{ 90 };
-    fb.attach_texture_to_color_buffer(tx, 0, MipLevel{ 0 });
-    fb.attach_texture_to_color_buffer(txms, 1);
-    fb.attach_texture_to_stencil_buffer(tx);
-    fb.attach_texture_layer_to_color_buffer(txa, Layer{ 3 }, 1, MipLevel{ 0 });
-
-}
-
 
 } // namespace josh::dsa
