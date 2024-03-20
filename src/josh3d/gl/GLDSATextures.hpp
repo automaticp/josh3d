@@ -1,6 +1,7 @@
 #pragma once
 #include "CommonConcepts.hpp" // IWYU pragma: keep
 #include "GLAPI.hpp"
+#include "GLDSABuffers.hpp"
 #include "GLKind.hpp"
 #include "GLScalars.hpp"
 #include "GLMutability.hpp"
@@ -96,6 +97,16 @@ enum class Swizzle : GLuint {
 };
 
 
+struct SwizzleRGBA {
+    Swizzle r{ Swizzle::Red   };
+    Swizzle g{ Swizzle::Green };
+    Swizzle b{ Swizzle::Blue  };
+    Swizzle a{ Swizzle::Alpha };
+};
+
+
+
+
 enum class CompareOp : GLuint {
     LEqual   = GLuint(gl::GL_LEQUAL),
     GEqual   = GLuint(gl::GL_GEQUAL),
@@ -112,6 +123,35 @@ enum class DepthStencilTarget : GLuint {
     DepthComponent = GLuint(gl::GL_DEPTH_COMPONENT),
     StencilIndex   = GLuint(gl::GL_STENCIL_INDEX),
 };
+
+
+
+
+
+// These types are used in border color and clear color API.
+// They exist mostly because we want to return a single value from get_*border_color* calls.
+// They are not recommended as a pixel format in pixel transfer operations.
+struct RGBAUNorm {
+    GLfloat r{}, g{}, b{}, a{};
+};
+
+struct RGBASNorm {
+    GLint r{}, g{}, b{}, a{};
+};
+
+struct RGBAF {
+    GLfloat r{}, g{}, b{}, a{};
+};
+
+struct RGBAI {
+    GLint r{}, g{}, b{}, a{};
+};
+
+struct RGBAUI {
+    GLuint r{}, g{}, b{}, a{};
+};
+
+
 
 
 
@@ -299,6 +339,16 @@ enum class PixelInternalFormat : GLuint {
     Compressed_R11_EAC_SNorm              = GLuint(gl::GL_COMPRESSED_SIGNED_R11_EAC),
     Compressed_RG11_EAC                   = GLuint(gl::GL_COMPRESSED_RG11_EAC),
     Compressed_RG11_EAC_SNorm             = GLuint(gl::GL_COMPRESSED_SIGNED_RG11_EAC),
+    // GL_EXT_texture_compression_s3tc
+    Compressed_RGB_S3TC_DXT1_EXT          = GLuint(gl::GL_COMPRESSED_RGB_S3TC_DXT1_EXT),
+    Compressed_RGBA_S3TC_DXT1_EXT         = GLuint(gl::GL_COMPRESSED_RGBA_S3TC_DXT1_EXT),
+    Compressed_RGBA_S3TC_DXT3_EXT         = GLuint(gl::GL_COMPRESSED_RGBA_S3TC_DXT3_EXT),
+    Compressed_RGBA_S3TC_DXT5_EXT         = GLuint(gl::GL_COMPRESSED_RGBA_S3TC_DXT5_EXT),
+    // GL_EXT_texture_sRGB
+    Compressed_SRGB_S3TC_DXT1_EXT         = GLuint(gl::GL_COMPRESSED_SRGB_S3TC_DXT1_EXT),
+    Compressed_SRGBA_S3TC_DXT1_EXT        = GLuint(gl::GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT),
+    Compressed_SRGBA_S3TC_DXT3_EXT        = GLuint(gl::GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT),
+    Compressed_SRGBA_S3TC_DXT5_EXT        = GLuint(gl::GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT),
 };
 
 
@@ -321,6 +371,16 @@ enum class CompressedInternalFormat : GLuint {
     Compressed_R11_EAC_SNorm              = GLuint(gl::GL_COMPRESSED_SIGNED_R11_EAC),
     Compressed_RG11_EAC                   = GLuint(gl::GL_COMPRESSED_RG11_EAC),
     Compressed_RG11_EAC_SNorm             = GLuint(gl::GL_COMPRESSED_SIGNED_RG11_EAC),
+    // GL_EXT_texture_compression_s3tc
+    Compressed_RGB_S3TC_DXT1_EXT          = GLuint(gl::GL_COMPRESSED_RGB_S3TC_DXT1_EXT),
+    Compressed_RGBA_S3TC_DXT1_EXT         = GLuint(gl::GL_COMPRESSED_RGBA_S3TC_DXT1_EXT),
+    Compressed_RGBA_S3TC_DXT3_EXT         = GLuint(gl::GL_COMPRESSED_RGBA_S3TC_DXT3_EXT),
+    Compressed_RGBA_S3TC_DXT5_EXT         = GLuint(gl::GL_COMPRESSED_RGBA_S3TC_DXT5_EXT),
+    // GL_EXT_texture_sRGB
+    Compressed_SRGB_S3TC_DXT1_EXT         = GLuint(gl::GL_COMPRESSED_SRGB_S3TC_DXT1_EXT),
+    Compressed_SRGBA_S3TC_DXT1_EXT        = GLuint(gl::GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT),
+    Compressed_SRGBA_S3TC_DXT3_EXT        = GLuint(gl::GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT),
+    Compressed_SRGBA_S3TC_DXT5_EXT        = GLuint(gl::GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT),
 };
 
 
@@ -411,6 +471,26 @@ enum class BufferTextureInternalFormat : GLuint {
 };
 
 
+enum class PixelComponent {
+    Red,
+    Green,
+    Blue,
+    Alpha,
+    Depth,
+    Stencil,
+    SharedExponent,
+};
+
+
+enum class PixelComponentType : GLuint {
+    None            = GLuint(gl::GL_NONE),
+    SNorm           = GLuint(gl::GL_SIGNED_NORMALIZED),
+    UNorm           = GLuint(gl::GL_UNSIGNED_NORMALIZED),
+    Float           = GLuint(gl::GL_FLOAT),
+    Integer         = GLuint(gl::GL_INT),
+    UnsignedInteger = GLuint(gl::GL_UNSIGNED_INT)
+};
+
 
 
 
@@ -475,7 +555,7 @@ template<> struct texture_resolution<TextureTarget::TextureRectangle> { using ty
 template<> struct texture_resolution<TextureTarget::TextureBuffer>    { using type = Size1I; };
 
 
-template<TextureTarget TargetV> struct texture_resolution_dims : size_dims<texture_resolution<TargetV>> {};
+template<TextureTarget TargetV> struct texture_resolution_dims : size_dims<typename texture_resolution<TargetV>::type> {};
 
 
 template<TextureTarget> struct texture_region_dims;
@@ -630,14 +710,25 @@ struct texture_traits : texture_target_traits<RawTextureH::target_type> {};
 namespace detail {
 
 
+// This is inserted in every mixin type at the top.
+// Saves some redundant lines that accumulate over ~30 mixin types.
+// Assumes template parameters of `typename CRTP` and `TextureTarget TargetV`.
+#define JOSH3D_TEXTURE_MIXIN_HEADER                                                  \
+private:                                                                             \
+    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); } \
+    using mt = mutability_traits<CRTP>;                                              \
+    using tt = texture_target_traits<TargetV>;                                       \
+public:
+
+
+
+
+
 
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_Queries_ResolutionAndExtent {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
+    JOSH3D_TEXTURE_MIXIN_HEADER
 private:
     GLsizei get_size_1d_impl(GLint level) const noexcept {
         GLint width;
@@ -694,7 +785,7 @@ private:
     auto get_extent_impl(MipLevel level) const noexcept
         -> tt::extent_type
     {
-        if constexpr (tt::region_ndims == 1) {
+        if constexpr        (tt::region_ndims == 1) {
             return get_size_1d_impl(level);
         } else if constexpr (tt::region_ndims == 2) {
             return get_size_2d_impl(level);
@@ -747,11 +838,7 @@ public:
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_Queries_ViewLike_NumLayers {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
-public:
+    JOSH3D_TEXTURE_MIXIN_HEADER
 
     // Wraps `glGetTextureParameteriv` with `pname = GL_TEXTURE_VIEW_NUM_LAYERS`.
     auto get_num_layers() const noexcept
@@ -770,11 +857,7 @@ public:
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_Queries_ViewLike_MinLayer {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
-public:
+    JOSH3D_TEXTURE_MIXIN_HEADER
 
     auto get_min_view_layer() const noexcept
         -> GLsizei
@@ -791,11 +874,7 @@ public:
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_Queries_ViewLike_Levels {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
-public:
+    JOSH3D_TEXTURE_MIXIN_HEADER
 
     auto get_num_storage_levels() const noexcept
         -> NumLevels
@@ -858,10 +937,7 @@ struct TextureDSAInterface_Queries_ViewLike
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_Queries_NumArrayElements {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
+    JOSH3D_TEXTURE_MIXIN_HEADER
 private:
     auto get_num_array_elements_impl(MipLevel level) const noexcept
         -> GLsizei
@@ -885,18 +961,10 @@ private:
     }
 public:
 
-    // Wraps `glGetTextureLevelParameteriv` with `pname = GL_TEXTURE_[HEIGHT|DEPTH]`.
-    auto get_num_array_elements(MipLevel level = MipLevel{ 0 }) const noexcept
-        -> GLsizei
-            requires tt::is_array && tt::has_lod
-    {
-        return get_num_array_elements_impl(level);
-    }
-
     // Wraps `glGetTextureLevelParameteriv` with `pname = GL_TEXTURE_[HEIGHT|DEPTH]` and `level = 0`.
     auto get_num_array_elements() const noexcept
         -> GLsizei
-            requires tt::is_array && (!tt::has_lod)
+            requires tt::is_array
     {
         return get_num_array_elements_impl(MipLevel{ 0 });
     }
@@ -909,11 +977,7 @@ public:
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_Queries_MultisampleParams {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
-public:
+    JOSH3D_TEXTURE_MIXIN_HEADER
 
     // Wraps `glGetTextureLevelParameteriv` with `pname = GL_TEXTURE_SAMPLES` and `level = 0`.
     auto get_num_samples() const noexcept
@@ -942,34 +1006,15 @@ public:
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_Queries_InternalFormat {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
-private:
-    auto get_internal_format_impl(MipLevel level) const noexcept
-        -> PixelInternalFormat
-    {
-        GLenum internal_format;
-        gl::glGetTextureLevelParameteriv(self_id(), level, gl::GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
-        return enum_cast<PixelInternalFormat>(internal_format);
-    }
-public:
-
-    // Wraps `glGetTextureLevelParameteriv` with `pname = GL_TEXTURE_INTERNAL_FORMAT`.
-    auto get_internal_format(MipLevel level = MipLevel{ 0 }) const noexcept
-        -> PixelInternalFormat
-            requires tt::has_lod
-    {
-        return get_internal_format_impl(level);
-    }
+    JOSH3D_TEXTURE_MIXIN_HEADER
 
     // Wraps `glGetTextureLevelParameteriv` with `pname = GL_TEXTURE_INTERNAL_FORMAT` and `level = 0`.
     auto get_internal_format() const noexcept
         -> PixelInternalFormat
-            requires (!tt::has_lod)
     {
-        return get_internal_format_impl(MipLevel{ 0 });
+        GLenum internal_format;
+        gl::glGetTextureLevelParameteriv(self_id(), 0, gl::GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
+        return enum_cast<PixelInternalFormat>(internal_format);
     }
 
 };
@@ -983,11 +1028,7 @@ public:
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_Queries_ImageFormatCompatibility {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
-public:
+    JOSH3D_TEXTURE_MIXIN_HEADER
 
     auto get_image_unit_format_compatibility() const noexcept
         -> ImageUnitFormatCompatibility
@@ -1008,29 +1049,15 @@ public:
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_Queries_Compressed {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
-public:
+    JOSH3D_TEXTURE_MIXIN_HEADER
 
-    bool is_compressed(MipLevel level = MipLevel{ 0 }) const noexcept
-        requires tt::has_lod
-    {
-        GLboolean compressed;
-        gl::glGetTextureLevelParameteriv(self_id(), level, gl::GL_TEXTURE_COMPRESSED, &compressed);
-        return bool(compressed);
-    }
-
-    bool is_compressed() const noexcept
-        requires (!tt::has_lod)
-    {
+    bool is_compressed() const noexcept {
         GLboolean compressed;
         gl::glGetTextureLevelParameteriv(self_id(), 0, gl::GL_TEXTURE_COMPRESSED, &compressed);
         return bool(compressed);
     }
 
-    auto get_compressed_image_size_in_bytes(MipLevel level = MipLevel{ 0 }) const noexcept
+    auto get_compressed_image_size_bytes(MipLevel level = MipLevel{ 0 }) const noexcept
         -> GLsizei
             requires tt::has_lod
     {
@@ -1039,7 +1066,7 @@ public:
         return size_bytes;
     }
 
-    auto get_compressed_image_size_in_bytes() const noexcept
+    auto get_compressed_image_size_bytes() const noexcept
         -> GLsizei
             requires (!tt::has_lod)
     {
@@ -1055,6 +1082,111 @@ public:
 
 
 
+template<typename CRTP, TextureTarget TargetV>
+struct TextureDSAInterface_Queries_BufferTexture {
+    JOSH3D_TEXTURE_MIXIN_HEADER
+private:
+    // TODO: Is this actually supported though?
+    GLuint get_attached_buffer_impl() const noexcept {
+        GLenum buf; // enum because that's unsigned int.
+        gl::glGetTextureLevelParameteriv(self_id(), 0, gl::GL_TEXTURE_BUFFER_DATA_STORE_BINDING, &buf);
+        return enum_cast<GLuint>(buf);
+    }
+public:
+
+    bool has_buffer_attached() const noexcept {
+        return bool(get_attached_buffer_impl());
+    }
+
+    auto get_attached_buffer() const noexcept
+        -> RawUntypedBuffer<GLMutable>
+            requires mt::is_mutable
+    {
+        return RawUntypedBuffer<GLMutable>::from_id(get_attached_buffer_impl());
+    }
+
+    auto get_attached_buffer() const noexcept
+        -> RawUntypedBuffer<GLConst>
+            requires mt::is_const
+    {
+        return RawUntypedBuffer<GLConst>::from_id(get_attached_buffer_impl());
+    }
+
+    auto get_attached_buffer_size_bytes() const noexcept
+        -> GLsizeiptr
+    {
+        GLsizei size;
+        gl::glGetTextureLevelParameteriv(self_id(), 0, gl::GL_TEXTURE_BUFFER_SIZE, &size);
+        return GLsizeiptr(size);
+    }
+
+    auto get_attached_buffer_offset_bytes() const noexcept
+        -> GLintptr
+    {
+        GLint offset;
+        gl::glGetTextureLevelParameteriv(self_id(), 0, gl::GL_TEXTURE_BUFFER_OFFSET, &offset);
+        return GLintptr(offset);
+    }
+
+
+};
+
+
+
+
+
+
+template<typename CRTP, TextureTarget TargetV>
+struct TextureDSAInterface_Queries_ComponentSizeType {
+    JOSH3D_TEXTURE_MIXIN_HEADER
+
+    // TODO: Is this in bits?
+    template<PixelComponent ComponentV>
+    auto _get_component_size() const noexcept
+        -> GLsizei
+    {
+        auto size = [&](GLenum pname) -> GLsizei {
+            MipLevel level{ 0 };
+            GLsizei size;
+            gl::glGetTextureLevelParameteriv(
+                self_id(), level, pname, &size
+            );
+            return size;
+        };
+        if constexpr      (ComponentV == PixelComponent::Red)            { return size(gl::GL_TEXTURE_RED_SIZE);     }
+        else if constexpr (ComponentV == PixelComponent::Green)          { return size(gl::GL_TEXTURE_GREEN_SIZE);   }
+        else if constexpr (ComponentV == PixelComponent::Blue)           { return size(gl::GL_TEXTURE_BLUE_SIZE);    }
+        else if constexpr (ComponentV == PixelComponent::Alpha)          { return size(gl::GL_TEXTURE_ALPHA_SIZE);   }
+        else if constexpr (ComponentV == PixelComponent::Depth)          { return size(gl::GL_TEXTURE_DEPTH_SIZE);   }
+        else if constexpr (ComponentV == PixelComponent::Stencil)        { return size(gl::GL_TEXTURE_STENCIL_SIZE); }
+        else if constexpr (ComponentV == PixelComponent::SharedExponent) { return size(gl::GL_TEXTURE_SHARED_SIZE);  }
+        else { static_assert(false); }
+    }
+
+    template<PixelComponent ComponentV>
+    auto get_component_type() const noexcept
+        -> PixelComponentType
+            requires
+                (ComponentV != PixelComponent::Stencil) &&
+                (ComponentV != PixelComponent::SharedExponent)
+    {
+        auto type = [&](GLenum pname) -> PixelComponentType {
+            MipLevel level{ 0 };
+            GLenum type;
+            gl::glGetTextureLevelParameteriv(
+                self_id(), level, pname, &type
+            );
+            return enum_cast<PixelComponentType>(type);
+        };
+        if constexpr      (ComponentV == PixelComponent::Red)   { return type(gl::GL_TEXTURE_RED_SIZE);   }
+        else if constexpr (ComponentV == PixelComponent::Green) { return type(gl::GL_TEXTURE_GREEN_SIZE); }
+        else if constexpr (ComponentV == PixelComponent::Blue)  { return type(gl::GL_TEXTURE_BLUE_SIZE);  }
+        else if constexpr (ComponentV == PixelComponent::Alpha) { return type(gl::GL_TEXTURE_ALPHA_SIZE); }
+        else if constexpr (ComponentV == PixelComponent::Depth) { return type(gl::GL_TEXTURE_DEPTH_SIZE); }
+    }
+
+};
+
 
 
 
@@ -1067,6 +1199,7 @@ template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_Queries
     : TextureDSAInterface_Queries_ResolutionAndExtent<CRTP, TargetV>
     , TextureDSAInterface_Queries_InternalFormat<CRTP, TargetV>
+    , TextureDSAInterface_Queries_ComponentSizeType<CRTP, TargetV>
     , TextureDSAInterface_Queries_ViewLike<CRTP, TargetV>
     , conditional_mixin_t<
         texture_target_traits<TargetV>::is_array,
@@ -1081,9 +1214,10 @@ struct TextureDSAInterface_Queries
         texture_target_traits<TargetV>::supports_compressed_internal_format,
         TextureDSAInterface_Queries_Compressed<CRTP, TargetV>
     >
-    // TODO: Component size/type (p. 598)
-    // TODO: Buffer texture queries (p. 599)
-
+    , conditional_mixin_t<
+        TargetV == TextureTarget::TextureBuffer,
+        TextureDSAInterface_Queries_BufferTexture<CRTP, TargetV>
+    >
 {};
 
 
@@ -1100,25 +1234,33 @@ struct TextureDSAInterface_Queries
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_SamplerParameters_CompareMode {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
-public:
+    JOSH3D_TEXTURE_MIXIN_HEADER
 
     // Compare Func.
 
+    // Wraps `glTextureParameteri` with `pname = GL_TEXTURE_COMPARE_FUNC`.
     void set_sampler_compare_func(CompareOp compare_func) const noexcept
-        requires mt::is_mutable && (!tt::is_multisample)
+        requires mt::is_mutable
     {
         gl::glTextureParameteri(self_id(), gl::GL_TEXTURE_COMPARE_FUNC, enum_cast<GLenum>(compare_func));
+    }
+
+    // Wraps `glGetTextureParameteriv` with `pname = GL_TEXTURE_COMPARE_FUNC`.
+    auto get_sampler_compare_func() const noexcept
+        -> CompareOp
+    {
+        GLenum op;
+        gl::glGetTextureParameteriv(self_id(), gl::GL_TEXTURE_COMPARE_FUNC, &op);
+        return enum_cast<CompareOp>(op);
     }
 
 
     // Compare Mode.
 
-    void set_sampler_compare_ref_to_texture(bool enable_compare_mode) const noexcept
-        requires mt::is_mutable && (!tt::is_multisample)
+    // Wraps `glTextureParameteri` with `pname = GL_TEXTURE_COMPARE_MODE`.
+    // Passes `GL_COMPARE_REF_TO_TEXTURE` if `enable_compare_mode` is `true`, `GL_NONE` otherwise.
+    void set_sampler_compare_ref_depth_to_texture(bool enable_compare_mode) const noexcept
+        requires mt::is_mutable
     {
         gl::glTextureParameteri(
             self_id(), gl::GL_TEXTURE_COMPARE_MODE,
@@ -1126,43 +1268,103 @@ public:
         );
     }
 
+    // Wraps `glGetTextureParameteriv` with `pname = GL_TEXTURE_COMPARE_MODE`.
+    // Returns `true` if the result is `GL_COMPARE_REF_TO_TEXTURE`, `false` otherwise.
+    bool get_sampler_compare_ref_depth_to_texture() const noexcept {
+        GLenum mode;
+        gl::glGetTextureParameteriv(self_id(), gl::GL_TEXTURE_COMPARE_MODE, mode);
+        return mode == gl::GL_COMPARE_REF_TO_TEXTURE;
+    }
+
 };
 
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_SamplerParameters_LOD {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
-public:
+    JOSH3D_TEXTURE_MIXIN_HEADER
 
     // LOD Bias.
 
+    // Wraps `glTextureParameterf` with `pname = GL_TEXTURE_LOD_BIAS`.
     void set_sampler_lod_bias(GLfloat bias) const noexcept
-        requires mt::is_mutable && tt::has_lod
+        requires mt::is_mutable
     {
         gl::glTextureParameterf(self_id(), gl::GL_TEXTURE_LOD_BIAS, bias);
     }
 
+    // Wraps `glGetTextureParameterfv` with `pname = GL_TEXTURE_LOD_BIAS`.
+    auto get_sampler_lod_bias() const noexcept
+        -> GLfloat
+    {
+        GLfloat bias;
+        gl::glGetTextureParameterfv(self_id(), gl::GL_TEXTURE_LOD_BIAS, &bias);
+        return bias;
+    }
+
+
 
     // Min/Max LOD.
 
-    void set_sampler_min_max_lod(GLfloat min_lod, GLfloat max_lod) const noexcept
-        requires mt::is_mutable && tt::has_lod
+    // Wraps `glTextureParameterf` with `pname = GL_TEXTURE_MIN_LOD`.
+    void set_sampler_min_lod(GLfloat min_lod) const noexcept
+        requires mt::is_mutable
     {
         gl::glTextureParameterf(self_id(), gl::GL_TEXTURE_MIN_LOD, min_lod);
+    }
+
+    // Wraps `glTextureParameterf` with `pname = GL_TEXTURE_MAX_LOD`.
+    void set_sampler_max_lod(GLfloat max_lod) const noexcept
+        requires mt::is_mutable
+    {
         gl::glTextureParameterf(self_id(), gl::GL_TEXTURE_MAX_LOD, max_lod);
     }
+
+    // Wraps `glTextureParameterf` with `pname = GL_TEXTURE_[MIN|MAX]_LOD`.
+    void set_sampler_min_max_lod(GLfloat min_lod, GLfloat max_lod) const noexcept
+        requires mt::is_mutable
+    {
+        set_sampler_min_lod(min_lod);
+        set_sampler_max_lod(max_lod);
+    }
+
+    // Wraps `glGetTextureParameterfv` with `pname = GL_TEXTURE_MIN_LOD`.
+    auto get_sampler_min_lod() const noexcept
+        -> GLfloat
+    {
+        GLfloat min_lod;
+        gl::glGetTextureParameterfv(self_id(), gl::GL_TEXTURE_MIN_LOD, &min_lod);
+        return min_lod;
+    }
+
+    // Wraps `glGetTextureParameterfv` with `pname = GL_TEXTURE_MAX_LOD`.
+    auto get_sampler_max_lod() const noexcept
+        -> GLfloat
+    {
+        GLfloat max_lod;
+        gl::glGetTextureParameterfv(self_id(), gl::GL_TEXTURE_MAX_LOD, &max_lod);
+        return max_lod;
+    }
+
 
 
     // Max Anisotropy.
 
+    // Wraps `glTextureParameterf` with `pname = GL_TEXTURE_MAX_ANISOTROPY`.
     void set_sampler_max_anisotropy(GLfloat max_anisotropy) const noexcept
-        requires mt::is_mutable && tt::has_lod
+        requires mt::is_mutable
     {
         gl::glTextureParameterf(self_id(), gl::GL_TEXTURE_MAX_ANISOTROPY, max_anisotropy);
     }
+
+    // Wraps `glGetTextureParameterfv` with `pname = GL_TEXTURE_MAX_ANISOTROPY`.
+    auto get_sampler_max_anisotropy() const noexcept
+        -> GLfloat
+    {
+        GLfloat max_anisotropy;
+        gl::glGetTextureParameterfv(self_id(), gl::GL_TEXTURE_MAX_ANISOTROPY, &max_anisotropy);
+        return max_anisotropy;
+    }
+
 
 };
 
@@ -1171,29 +1373,48 @@ public:
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_SamplerParameters_MinMagFilters {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
-public:
+    JOSH3D_TEXTURE_MIXIN_HEADER
 
     // Min/Mag Filters.
 
-    void set_sampler_min_mag_filters(MinFilter min_filter, MagFilter mag_filter) const noexcept
+    // Wraps `glTextureParameteri` with `pname = GL_TEXTURE_MIN_FILTER`.
+    void set_sampler_min_filter(MinFilter min_filter) const noexcept
         requires mt::is_mutable && tt::has_lod
     {
         gl::glTextureParameteri(self_id(), gl::GL_TEXTURE_MIN_FILTER, enum_cast<GLenum>(min_filter));
-        gl::glTextureParameteri(self_id(), gl::GL_TEXTURE_MAG_FILTER, enum_cast<GLenum>(mag_filter));
     }
 
-    void set_sampler_min_mag_filters(MinFilterNoLOD min_filter, MagFilter mag_filter) const noexcept
+    // Wraps `glTextureParameteri` with `pname = GL_TEXTURE_MIN_FILTER`.
+    void set_sampler_min_filter(MinFilterNoLOD min_filter) const noexcept
         requires mt::is_mutable
     {
         gl::glTextureParameteri(self_id(), gl::GL_TEXTURE_MIN_FILTER, enum_cast<GLenum>(min_filter));
+    }
+
+    // Wraps `glTextureParameteri` with `pname = GL_TEXTURE_MAG_FILTER`.
+    void set_sampler_mag_filter(MagFilter mag_filter) const noexcept
+        requires mt::is_mutable
+    {
         gl::glTextureParameteri(self_id(), gl::GL_TEXTURE_MAG_FILTER, enum_cast<GLenum>(mag_filter));
     }
 
+    // Wraps `glTextureParameteri` with `pname = GL_TEXTURE_[MIN|MAG]_FILTER`.
+    void set_sampler_min_mag_filters(MinFilter min_filter, MagFilter mag_filter) const noexcept
+        requires mt::is_mutable && tt::has_lod
+    {
+        set_sampler_min_filter(min_filter);
+        set_sampler_mag_filter(mag_filter);
+    }
 
+    // Wraps `glTextureParameteri` with `pname = GL_TEXTURE_[MIN|MAG]_FILTER`.
+    void set_sampler_min_mag_filters(MinFilterNoLOD min_filter, MagFilter mag_filter) const noexcept
+        requires mt::is_mutable
+    {
+        set_sampler_min_filter(min_filter);
+        set_sampler_mag_filter(mag_filter);
+    }
+
+    // Wraps `glGetTextureParameteriv` with `pname = GL_TEXTURE_MIN_FILTER`.
     auto get_sampler_min_filter() const noexcept
         -> MinFilter
             requires tt::has_lod
@@ -1203,6 +1424,7 @@ public:
         return enum_cast<MinFilter>(result);
     }
 
+    // Wraps `glGetTextureParameteriv` with `pname = GL_TEXTURE_MIN_FILTER`.
     auto get_sampler_min_filter() const noexcept
         -> MinFilterNoLOD
             requires (!tt::has_lod)
@@ -1212,6 +1434,7 @@ public:
         return enum_cast<MinFilterNoLOD>(result);
     }
 
+    // Wraps `glGetTextureParameteriv` with `pname = GL_TEXTURE_MAG_FILTER`.
     auto get_sampler_mag_filter() const noexcept
         -> MagFilter
     {
@@ -1227,36 +1450,127 @@ public:
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_SamplerParameters_BorderColor {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
-public:
+    JOSH3D_TEXTURE_MIXIN_HEADER
 
-    // Border Color.
-
-    void set_sampler_border_color(std::span<const GLfloat, 4> rgbaf_array) const noexcept
+    // Wraps `glTextureParameterfv` with `pname = GL_TEXTURE_BORDER_COLOR`.
+    void set_sampler_border_color_unorm(GLfloat r, GLfloat g, GLfloat b, GLfloat a) const noexcept
         requires mt::is_mutable
     {
-        gl::glTextureParameterfv(self_id(), gl::GL_TEXTURE_BORDER_COLOR, rgbaf_array.data());
+        GLfloat rgbaf[4]{ r, g, b, a };
+        gl::glTextureParameterfv(self_id(), gl::GL_TEXTURE_BORDER_COLOR, rgbaf);
     }
 
-    void set_sampler_border_color_snorm(std::span<const GLint, 4> rgba_array) const noexcept
+    // Wraps `glTextureParameterfv` with `pname = GL_TEXTURE_BORDER_COLOR`.
+    void set_sampler_border_color_unorm(RGBAUNorm rgba) const noexcept
         requires mt::is_mutable
     {
-        gl::glTextureParameteriv(self_id(), gl::GL_TEXTURE_BORDER_COLOR, rgba_array.data());
+        set_sampler_border_color_unorm(rgba.r, rgba.g, rgba.b, rgba.a);
     }
 
-    void set_sampler_border_color_integer(std::span<const GLint, 4> rgbai_array) const noexcept
+    // Wraps `glTextureParameteriv` with `pname = GL_TEXTURE_BORDER_COLOR`.
+    void set_sampler_border_color_snorm(GLint r, GLint g, GLint b, GLint a) const noexcept
         requires mt::is_mutable
     {
-        gl::glTextureParameterIiv(self_id(), gl::GL_TEXTURE_BORDER_COLOR, rgbai_array.data());
+        GLint rgba_snorm[4]{ r, g, b, a };
+        gl::glTextureParameteriv(self_id(), gl::GL_TEXTURE_BORDER_COLOR, rgba_snorm);
     }
 
-    void set_sampler_border_color_integer(std::span<const GLuint, 4> rgbaui_array) const noexcept
+    // Wraps `glTextureParameteriv` with `pname = GL_TEXTURE_BORDER_COLOR`.
+    void set_sampler_border_color_snorm(RGBASNorm rgba) const noexcept
         requires mt::is_mutable
     {
-        gl::glTextureParameterIuiv(self_id(), gl::GL_TEXTURE_BORDER_COLOR, rgbaui_array.data());
+        set_sampler_border_color_snorm(rgba.r, rgba.g, rgba.b, rgba.a);
+    }
+
+    // Wraps `glTextureParameterfv` with `pname = GL_TEXTURE_BORDER_COLOR`.
+    void set_sampler_border_color_float(GLfloat r, GLfloat g, GLfloat b, GLfloat a) const noexcept
+        requires mt::is_mutable
+    {
+        GLfloat rgbaf[4]{ r, g, b, a };
+        gl::glTextureParameterfv(self_id(), gl::GL_TEXTURE_BORDER_COLOR, rgbaf);
+    }
+
+    // Wraps `glTextureParameterfv` with `pname = GL_TEXTURE_BORDER_COLOR`.
+    void set_sampler_border_color_float(RGBAF rgba) const noexcept
+        requires mt::is_mutable
+    {
+        set_sampler_border_color_float(rgba.r, rgba.g, rgba.b, rgba.a);
+    }
+
+
+    // Wraps `glTextureParameterIiv` with `pname = GL_TEXTURE_BORDER_COLOR`.
+    void set_sampler_border_color_integer(GLint r, GLint g, GLint b, GLint a) const noexcept
+        requires mt::is_mutable
+    {
+        GLint rgbai[4]{ r, g, b, a };
+        gl::glTextureParameterIiv(self_id(), gl::GL_TEXTURE_BORDER_COLOR, rgbai);
+    }
+
+    // Wraps `glTextureParameterIiv` with `pname = GL_TEXTURE_BORDER_COLOR`.
+    void set_sampler_border_color_integer(RGBAI rgba) const noexcept
+        requires mt::is_mutable
+    {
+        set_sampler_border_color_integer(rgba.r, rgba.g, rgba.b, rgba.a);
+    }
+
+    // Wraps `glTextureParameterIuiv` with `pname = GL_TEXTURE_BORDER_COLOR`.
+    void set_sampler_border_color_unsigned_integer(GLuint r, GLuint g, GLuint b, GLuint a) const noexcept
+        requires mt::is_mutable
+    {
+        GLuint rgbaui[4]{ r, g, b, a };
+        gl::glTextureParameterIuiv(self_id(), gl::GL_TEXTURE_BORDER_COLOR, rgbaui);
+    }
+
+    // Wraps `glTextureParameterIuiv` with `pname = GL_TEXTURE_BORDER_COLOR`.
+    void set_sampler_border_color_unsigned_integer(RGBAUI rgba) const noexcept
+        requires mt::is_mutable
+    {
+        set_sampler_border_color_unsigned_integer(rgba.r, rgba.g, rgba.b, rgba.a);
+    }
+
+    // Wraps `glGetTextureParameterfv` with `pname = GL_TEXTURE_BORDER_COLOR`.
+    auto get_sampler_border_color_unorm() const noexcept
+        -> RGBAUNorm
+    {
+        GLfloat rgba[4];
+        gl::glGetTextureParameterfv(self_id(), gl::GL_TEXTURE_BORDER_COLOR, rgba);
+        return { rgba[0], rgba[1], rgba[2], rgba[3] };
+    }
+
+    // Wraps `glGetTextureParameteriv` with `pname = GL_TEXTURE_BORDER_COLOR`.
+    auto get_sampler_border_color_snorm() const noexcept
+        -> RGBASNorm
+    {
+        GLint rgba[4];
+        gl::glGetTextureParameteriv(self_id(), gl::GL_TEXTURE_BORDER_COLOR, rgba);
+        return { rgba[0], rgba[1], rgba[2], rgba[3] };
+    }
+
+    // Wraps `glGetTextureParameterfv` with `pname = GL_TEXTURE_BORDER_COLOR`.
+    auto get_sampler_border_color_float() const noexcept
+        -> RGBAF
+    {
+        GLfloat rgba[4];
+        gl::glGetTextureParameterfv(self_id(), gl::GL_TEXTURE_BORDER_COLOR, rgba);
+        return { rgba[0], rgba[1], rgba[2], rgba[3] };
+    }
+
+    // Wraps `glGetTextureParameterIiv` with `pname = GL_TEXTURE_BORDER_COLOR`.
+    auto get_sampler_border_color_integer() const noexcept
+        -> RGBAI
+    {
+        GLint rgba[4];
+        gl::glGetTextureParameterIiv(self_id(), gl::GL_TEXTURE_BORDER_COLOR, rgba);
+        return { rgba[0], rgba[1], rgba[2], rgba[3] };
+    }
+
+    // Wraps `glGetTextureParameterIuiv` with `pname = GL_TEXTURE_BORDER_COLOR`.
+    auto get_sampler_border_color_unsigned_integer() const noexcept
+        -> RGBAUI
+    {
+        GLuint rgba[4];
+        gl::glGetTextureParameterIuiv(self_id(), gl::GL_TEXTURE_BORDER_COLOR, rgba);
+        return { rgba[0], rgba[1], rgba[2], rgba[3] };
     }
 
 };
@@ -1266,42 +1580,73 @@ public:
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_SamplerParameters_Wrap {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
-public:
+    JOSH3D_TEXTURE_MIXIN_HEADER
 
     // Wrap.
 
-    void set_sampler_wrap(Wrap wrap_s) const noexcept
-        requires mt::is_mutable && (tt::resolution_ndims == 1)
+    // Wraps `glTextureParameteri` with `pname = GL_TEXTURE_WRAP_S`.
+    void set_sampler_wrap_s(Wrap wrap_s) const noexcept
+        requires mt::is_mutable && (tt::resolution_ndims >= 1)
     {
         gl::glTextureParameteri(self_id(), gl::GL_TEXTURE_WRAP_S, enum_cast<GLenum>(wrap_s));
     }
 
-    void set_sampler_wrap(Wrap wrap_s, Wrap wrap_t) const noexcept
-        requires mt::is_mutable && (tt::resolution_ndims == 2)
+    // Wraps `glTextureParameteri` with `pname = GL_TEXTURE_WRAP_T`.
+    void set_sampler_wrap_t(Wrap wrap_t) const noexcept
+        requires mt::is_mutable && (tt::resolution_ndims >= 2)
     {
-        gl::glTextureParameteri(self_id(), gl::GL_TEXTURE_WRAP_S, enum_cast<GLenum>(wrap_s));
         gl::glTextureParameteri(self_id(), gl::GL_TEXTURE_WRAP_T, enum_cast<GLenum>(wrap_t));
     }
 
-    void set_sampler_wrap(Wrap wrap_s, Wrap wrap_t, Wrap wrap_r) const noexcept
-        requires mt::is_mutable && (tt::resolution_ndims == 3)
+    // Wraps `glTextureParameteri` with `pname = GL_TEXTURE_WRAP_R`.
+    void set_sampler_wrap_r(Wrap wrap_r) const noexcept
+        requires mt::is_mutable && (tt::resolution_ndims >= 3)
     {
-        gl::glTextureParameteri(self_id(), gl::GL_TEXTURE_WRAP_S, enum_cast<GLenum>(wrap_s));
-        gl::glTextureParameteri(self_id(), gl::GL_TEXTURE_WRAP_T, enum_cast<GLenum>(wrap_t));
         gl::glTextureParameteri(self_id(), gl::GL_TEXTURE_WRAP_R, enum_cast<GLenum>(wrap_r));
     }
 
+    // Wraps `glTextureParameteri` with `pname = GL_TEXTURE_WRAP_[S|T|R]`.
     void set_sampler_wrap_all(Wrap wrap_str) const noexcept
         requires mt::is_mutable
     {
-        if constexpr      (tt::wrap_ndims == 1) { set_sampler_wrap(wrap_str);                     }
-        else if constexpr (tt::wrap_ndims == 2) { set_sampler_wrap(wrap_str, wrap_str);           }
-        else if constexpr (tt::wrap_ndims == 3) { set_sampler_wrap(wrap_str, wrap_str, wrap_str); }
+        if constexpr        (tt::resolution_ndims == 1) {
+            set_sampler_wrap_s(wrap_str);
+        } else if constexpr (tt::resolution_ndims == 2) {
+            set_sampler_wrap_s(wrap_str);
+            set_sampler_wrap_t(wrap_str);
+        } else if constexpr (tt::resolution_ndims == 3) {
+            set_sampler_wrap_s(wrap_str);
+            set_sampler_wrap_t(wrap_str);
+            set_sampler_wrap_r(wrap_str);
+        }
         else { static_assert(false); }
+    }
+
+    // Wraps `glGetTextureParameteriv` with `pname = GL_TEXTURE_WRAP_S`.
+    Wrap get_sampler_wrap_s() const noexcept
+        requires (tt::resolution_ndims >= 1)
+    {
+        GLenum wrap;
+        gl::glGetTextureParameteriv(self_id(), gl::GL_TEXTURE_WRAP_S, &wrap);
+        return enum_cast<Wrap>(wrap);
+    }
+
+    // Wraps `glGetTextureParameteriv` with `pname = GL_TEXTURE_WRAP_T`.
+    Wrap get_sampler_wrap_t() const noexcept
+        requires (tt::resolution_ndims >= 2)
+    {
+        GLenum wrap;
+        gl::glGetTextureParameteriv(self_id(), gl::GL_TEXTURE_WRAP_T, &wrap);
+        return enum_cast<Wrap>(wrap);
+    }
+
+    // Wraps `glGetTextureParameteriv` with `pname = GL_TEXTURE_WRAP_R`.
+    Wrap get_sampler_wrap_r() const noexcept
+        requires (tt::resolution_ndims >= 3)
+    {
+        GLenum wrap;
+        gl::glGetTextureParameteriv(self_id(), gl::GL_TEXTURE_WRAP_R, &wrap);
+        return enum_cast<Wrap>(wrap);
     }
 
 };
@@ -1337,11 +1682,7 @@ struct TextureDSAInterface_SamplerParameters
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_TextureParameters_Swizzle {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
-public:
+    JOSH3D_TEXTURE_MIXIN_HEADER
 
     void set_swizzle_rgba(
         Swizzle red, Swizzle green, Swizzle based, Swizzle alpha) const noexcept
@@ -1354,6 +1695,25 @@ public:
         gl::glTextureParameteriv(self_id(), gl::GL_TEXTURE_SWIZZLE_RGBA, params);
     }
 
+    void set_swizzle_rgba(SwizzleRGBA swizzle_rgba) const noexcept
+        requires mt::is_mutable
+    {
+        set_swizzle_rgba(swizzle_rgba.r, swizzle_rgba.g, swizzle_rgba.b, swizzle_rgba.a);
+    }
+
+    auto get_swizzle_rgba() const noexcept
+        -> SwizzleRGBA
+    {
+        GLenum params[4];
+        gl::glGetTextureParameteriv(self_id(), gl::GL_TEXTURE_SWIZZLE_RGBA, params);
+        return SwizzleRGBA{
+            enum_cast<Swizzle>(params[0]),
+            enum_cast<Swizzle>(params[1]),
+            enum_cast<Swizzle>(params[2]),
+            enum_cast<Swizzle>(params[3]),
+        };
+    }
+
 };
 
 
@@ -1361,11 +1721,7 @@ public:
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_TextureParameters_BaseAndMaxLODs {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
-public:
+    JOSH3D_TEXTURE_MIXIN_HEADER
 
     void set_base_lod(MipLevel level) const noexcept
         requires mt::is_mutable
@@ -1373,10 +1729,27 @@ public:
         gl::glTextureParameteri(self_id(), gl::GL_TEXTURE_BASE_LEVEL, level);
     }
 
+    auto get_base_lod() const noexcept
+        -> MipLevel
+    {
+        GLint level;
+        gl::glGetTextureParameteriv(self_id(), gl::GL_TEXTURE_BASE_LEVEL, &level);
+        return MipLevel{ level };
+    }
+
+
     void set_max_lod(MipLevel max_level) const noexcept
         requires mt::is_mutable
     {
         gl::glTextureParameteri(self_id(), gl::GL_TEXTURE_MAX_LEVEL, max_level);
+    }
+
+    auto get_max_lod() const noexcept
+        -> MipLevel
+    {
+        GLint max_level;
+        gl::glGetTextureParameteriv(self_id(), gl::GL_TEXTURE_MAX_LOD, max_level);
+        return MipLevel{ max_level };
     }
 
 };
@@ -1386,11 +1759,7 @@ public:
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_TextureParameters_StencilTexturing {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
-public:
+    JOSH3D_TEXTURE_MIXIN_HEADER
 
     void set_depth_stencil_sampling_target(DepthStencilTarget target_to_sample) const noexcept
         requires mt::is_mutable // Is this a good idea?
@@ -1449,11 +1818,7 @@ struct TextureDSAInterface_TextureParameters
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_Bind_ToTextureUnit {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
-public:
+    JOSH3D_TEXTURE_MIXIN_HEADER
 
     void bind_to_texture_unit(GLuint unit_index) const noexcept {
         gl::glBindTextureUnit(unit_index, self_id());
@@ -1466,10 +1831,7 @@ public:
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_Bind_ToImageUnit {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
+    JOSH3D_TEXTURE_MIXIN_HEADER
 private:
     void bind_to_image_unit_impl(
         GLuint index, ImageUnitFormat format, GLenum access, GLint level) const noexcept
@@ -1535,10 +1897,7 @@ public:
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_Bind_ToImageUnitLayered {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
+    JOSH3D_TEXTURE_MIXIN_HEADER
 private:
     void bind_layer_to_image_unit_impl(
         GLuint index, ImageUnitFormat format, GLenum access, GLint layer, GLint level) const noexcept
@@ -1677,11 +2036,7 @@ inline void texture_storage_3d_ms(
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_AllocateStorage {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
-public:
+    JOSH3D_TEXTURE_MIXIN_HEADER
 
     // Overload for `Texture[1|2|3]D`, `Cubemap`.
     void allocate_storage(
@@ -1845,10 +2200,7 @@ inline GLenum best_unpack_type(
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_ImageOperations_Upload {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
+    JOSH3D_TEXTURE_MIXIN_HEADER
 private:
 
     void upload_image_region_impl(
@@ -1860,7 +2212,7 @@ private:
         GLint                  mip_level) const noexcept
             requires mt::is_mutable
     {
-        if constexpr (tt::region_ndims == 1) {
+        if constexpr        (tt::region_ndims == 1) {
             texture_sub_image_1d(self_id(), offset, extent, format, type, data, mip_level);
         } else if constexpr (tt::region_ndims == 2) {
             texture_sub_image_2d(self_id(), offset, extent, format, type, data, mip_level);
@@ -1924,10 +2276,7 @@ public:
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_ImageOperations_Download {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
+    JOSH3D_TEXTURE_MIXIN_HEADER
 private:
 
     void download_image_region_into_impl(
@@ -2012,10 +2361,7 @@ public:
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_ImageOperations_Copy {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
+    JOSH3D_TEXTURE_MIXIN_HEADER
 private:
 
     // The interpretation of the name depends on the value of the corresponding target parameter.
@@ -2197,10 +2543,7 @@ public:
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_ImageOperations_Fill {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
+    JOSH3D_TEXTURE_MIXIN_HEADER
 private:
     void fill_image_impl(
         PixelDataFormat        format,
@@ -2338,10 +2681,7 @@ public:
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_ImageOperations_Clear {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
+    JOSH3D_TEXTURE_MIXIN_HEADER
 private:
     void clear_image_impl(MipLevel level) const noexcept {
         // This is one of those functions that requires you to specify *correct* type and format
@@ -2425,11 +2765,7 @@ public:
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_ImageOperations_Invalidate {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
-public:
+    JOSH3D_TEXTURE_MIXIN_HEADER
 
     void invalidate_image(MipLevel level = MipLevel{ 0 }) const noexcept
         requires mt::is_mutable && tt::has_lod
@@ -2493,12 +2829,9 @@ public:
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_ImageOperations_UploadCompressed {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
-public:
+    JOSH3D_TEXTURE_MIXIN_HEADER
 
+    // TODO:
     void _upload_compressed_image_region() const noexcept {}
 
 };
@@ -2509,12 +2842,9 @@ public:
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_ImageOperations_DownloadCompressed {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
-public:
+    JOSH3D_TEXTURE_MIXIN_HEADER
 
+    // TODO:
     // void _download_compressed_image_into() const noexcept {}
     void _download_compressed_image_region_into() const noexcept {}
 
@@ -2526,12 +2856,9 @@ public:
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_ImageOperations_UploadFromReadFramebuffer {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
-public:
+    JOSH3D_TEXTURE_MIXIN_HEADER
 
+    // TODO:
     void _upload_image_region_from_active_read_framebuffer() const noexcept
         requires mt::is_mutable
     {
@@ -2545,11 +2872,7 @@ public:
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_ImageOperations_GenerateMipmaps {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
-public:
+    JOSH3D_TEXTURE_MIXIN_HEADER
 
     // Wraps `glGenerateTextureMipmap`.
     void generate_mipmaps() const noexcept
@@ -2564,11 +2887,7 @@ public:
 
 template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_ImageOperations_AttachBuffer {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-    using tt = texture_target_traits<TargetV>;
-public:
+    JOSH3D_TEXTURE_MIXIN_HEADER
 
     template<of_kind<GLKind::Buffer> BufferT>
         // Are we taking ownership over the storage?

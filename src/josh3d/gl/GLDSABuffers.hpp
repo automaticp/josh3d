@@ -108,13 +108,13 @@ enum class BufferMappingPreviousContents : GLuint {
 
 
 enum class BufferTarget : GLuint {
-    VertexArray      = GLuint(gl::GL_ARRAY_BUFFER),
-    ElementArray     = GLuint(gl::GL_ELEMENT_ARRAY_BUFFER),
+    // VertexArray      = GLuint(gl::GL_ARRAY_BUFFER),
+    // ElementArray     = GLuint(gl::GL_ELEMENT_ARRAY_BUFFER),
     DispatchIndirect = GLuint(gl::GL_DISPATCH_INDIRECT_BUFFER),
     DrawIndirect     = GLuint(gl::GL_DRAW_INDIRECT_BUFFER),
     PixelPack        = GLuint(gl::GL_PIXEL_PACK_BUFFER),
     PixelUnpack      = GLuint(gl::GL_PIXEL_UNPACK_BUFFER),
-    Texture          = GLuint(gl::GL_TEXTURE_BUFFER),
+    // Texture          = GLuint(gl::GL_TEXTURE_BUFFER),
     // QUERY target is redundant in presence of `glGetQueryBufferObjectui64v`.
     // Query            = GLuint(gl::GL_QUERY_BUFFER),
     // COPY_READ/WRITE targets are redundant in presence of DSA copy commands.

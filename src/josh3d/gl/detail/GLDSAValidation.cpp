@@ -2,6 +2,7 @@
 #include "GLDSABuffers.hpp"
 #include "GLDSAFenceSync.hpp"
 #include "GLDSAFramebuffer.hpp"
+#include "GLDSASampler.hpp"
 #include "GLDSATextures.hpp"
 #include "GLDSAQueries.hpp"
 #include "GLDSAShaders.hpp"
@@ -122,7 +123,7 @@ void texture_operations() {
     // tex.bind_layer_to_read_image_unit(0, {}, 0);
     t3d.bind_layer_to_readonly_image_unit(Layer{ 0 }, ImageUnitFormat::RGBA8, 0);
 
-    tex.set_sampler_compare_ref_to_texture(true);
+    tex.set_sampler_compare_ref_depth_to_texture(true);
     tex.set_sampler_compare_func(CompareOp::NotEqual);
 
     // UniqueTexture2D tex{};
@@ -140,6 +141,8 @@ void texture_operations() {
     RawTexture2D t1{ 1 };
     RawTexture2D<GLMutable> t2{ 2 };
     t2 = t1;
+    tex.set_sampler_wrap_s(Wrap::ClampToBorder);
+    tex.set_sampler_wrap_all(Wrap::Repeat);
 
 
     RawCubemapArray<> c{ 9 };
@@ -157,11 +160,16 @@ void texture_operations() {
     RawTextureRectangle<> rect{ 1 };
     rect.set_sampler_min_mag_filters(MinFilterNoLOD::Linear, MagFilter::Linear);
 
-
 }
 
 
+// Samplers
 
+[[maybe_unused]]
+void sampler_operations() {
+    auto s = RawSampler<>::from_id(0);
+
+}
 
 
 // Framebuffer

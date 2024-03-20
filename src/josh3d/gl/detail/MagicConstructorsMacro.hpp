@@ -115,8 +115,9 @@ Could probably be moved somewhere else.
     Self& operator=(MT::const_type&&) noexcept      requires gl_mutable<typename MT::mutability> = delete;
 
 
-#define JOSH3D_MAGIC_CONSTRUCTORS_FROM_ID(Self, Parent)  \
-    using id_type = Parent::id_type;                     \
+#define JOSH3D_MAGIC_CONSTRUCTORS_FROM_ID(Self, Parent)                       \
+    using id_type = Parent::id_type;                                          \
+    static constexpr Self from_id(id_type id) noexcept { return Self{ id }; } \
     explicit Self(id_type id) noexcept : Parent{ id } {}
 
 
