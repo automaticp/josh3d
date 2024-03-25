@@ -6,6 +6,7 @@
 #include "GLMutability.hpp"
 #include "detail/MagicConstructorsMacro.hpp"
 #include "detail/RawGLHandle.hpp"
+#include "detail/StrongScalar.hpp"
 #include <glbinding/gl/boolean.h>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
@@ -22,11 +23,9 @@ class RawShaderProgram;
 
 
 
-struct Location {
-    GLint value{};
-    constexpr explicit Location(GLint location) noexcept : value{ location } {}
-    constexpr operator GLint() const noexcept { return value; }
-};
+JOSH3D_DEFINE_STRONG_SCALAR(Location, GLint)
+
+
 
 
 template<typename ...Args>

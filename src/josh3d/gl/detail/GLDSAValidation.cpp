@@ -1,4 +1,3 @@
-#pragma once
 #include "GLDSABuffers.hpp"
 #include "GLDSAFenceSync.hpp"
 #include "GLDSAFramebuffer.hpp"
@@ -7,9 +6,11 @@
 #include "GLDSAQueries.hpp"
 #include "GLDSAShaders.hpp"
 #include "GLDSAShaderProgram.hpp"
+#include "GLDSAVertexArrays.hpp"
 #include "GLDSAAllocator.hpp"
 #include "GLDSAUnique.hpp"
-
+#include "GLAPICore.hpp"
+#include <array>
 
 
 
@@ -160,6 +161,21 @@ void texture_operations() {
     RawTextureRectangle<> rect{ 1 };
     rect.set_sampler_min_mag_filters(MinFilterNoLOD::Linear, MagFilter::Linear);
 
+
+
+    {
+        using UniqueTexture2D = GLUnique<RawTexture2D<>>;
+
+        UniqueTexture2D tex;
+        tex.allocate_storage({ 1024, 1024 }, PixelInternalFormat::RGB16F, NumLevels{ 1 });
+        tex.set_sampler_min_mag_filters(MinFilter::Linear, MagFilter::Linear);
+
+        auto tms = RawTexture2DMSArray<>::from_id(0);
+        tms.allocate_storage({ 1024, 1024 }, 12, PixelInternalFormat::RGBA8, NumSamples{ 4 }, SampleLocations::NotFixed);
+
+    }
+
+
 }
 
 
@@ -189,12 +205,64 @@ void framebuffer_operations() {
     fb.attach_texture_to_stencil_buffer(tx);
     fb.attach_texture_layer_to_color_buffer(txa, Layer{ 3 }, 1, MipLevel{ 0 });
 
+
+    // glapi::enable(Capability::ScissorTest);
 }
 
 
 
+} // namespace
+struct MalformedVertex {
+    float          xyz[3];
+};
 
 
+template<> struct attribute_traits<MalformedVertex> {
+    using specs_type = std::tuple<
+        AttributeTypeF
+    >;
+
+    static constexpr specs_type specs{
+        AttributeTypeF::Float
+    };
+};
+namespace {
+
+
+
+// Vertex Arrays
+
+[[maybe_unused]]
+void vertex_array_operations() {
+    auto vao = RawVertexArray<>::from_id(9);
+    vao.specify_float_attribute             (AttributeIndex{ 0 }, AttributeTypeF::Float,    AttributeComponents::RGB);
+    vao.specify_integer_attribute           (AttributeIndex{ 1 }, AttributeTypeI::UInt,     AttributeComponents::Red);
+    vao.specify_float_attribute_normalized  (AttributeIndex{ 2 }, AttributeTypeNorm::UByte, AttributeComponents::RGBA);
+    vao.associate_attribute_with_buffer_slot(AttributeIndex{ 0 }, VertexBufferSlot{ 0 });
+    vao.associate_attribute_with_buffer_slot(AttributeIndex{ 1 }, VertexBufferSlot{ 0 });
+    vao.associate_attribute_with_buffer_slot(AttributeIndex{ 2 }, VertexBufferSlot{ 0 });
+
+    auto buf = RawBuffer<float>::from_id(0);
+
+    // vao.specify_custom_attributes<MalformedVertex>(AttributeIndex{ 0 });
+    vao.specify_custom_attributes<PackedVertex>(AttributeIndex{ 2 });
+
+    vao.specify_float_attribute(
+        AttributeIndex{ 0 }, AttributeTypeF::Float, AttributeComponents::RGBA, OffsetBytes{ 0 }
+    );
+
+    vao.attach_vertex_buffer(
+        VertexBufferSlot{ 0 }, buf, OffsetBytes{ 0 }, StrideBytes{ 0 }
+    );
+
+    vao.associate_attribute_with_buffer_slot(
+        AttributeIndex{ 0 }, VertexBufferSlot{ 0 }
+    );
+
+    vao.enable_attribute(
+        AttributeIndex{ 0 }
+    );
+}
 
 
 

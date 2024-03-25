@@ -1,7 +1,7 @@
 #pragma once
 
 
-namespace josh::dsa {
+namespace josh {
 
 
 /*
@@ -33,4 +33,4 @@ concept of_kind = requires {
 
 
 
-} // namespace josh::dsa
+} // namespace josh

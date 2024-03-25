@@ -50,18 +50,18 @@ public:
         size_ = new_size;
     }
 
-    template<size_representable NumericT = int>
-    Size2<NumericT> size() const noexcept {
+    template<extent_representable NumericT = int>
+    Extent2<NumericT> size() const noexcept {
         return size_;
     }
 
     Size2I& size_ref() noexcept { return size_; }
     const Size2I& size_ref() const noexcept { return size_; }
 
-    template<size_representable NumericT = int>
+    template<extent_representable NumericT = int>
     NumericT width() const noexcept { return static_cast<NumericT>(size_.width); }
 
-    template<size_representable NumericT = int>
+    template<extent_representable NumericT = int>
     NumericT height() const noexcept { return static_cast<NumericT>(size_.height); }
 
 };

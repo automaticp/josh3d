@@ -114,7 +114,7 @@ int main(int argc, const char* argv[]) {
         .scaleToMonitor = true,
         .srgbCapable    = true,
         .contextVersionMajor = 4,
-        .contextVersionMinor = 5,
+        .contextVersionMinor = 6,
         .openglProfile = glfw::OpenGlProfile::Core,
     }.apply();
 

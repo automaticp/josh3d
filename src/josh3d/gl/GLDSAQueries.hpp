@@ -1,5 +1,6 @@
 #pragma once
 #include "GLAPI.hpp"
+#include "GLAPIQueries.hpp"
 #include "GLDSABuffers.hpp"
 #include "GLKind.hpp"
 #include "GLScalars.hpp"
@@ -8,6 +9,7 @@
 #include "detail/MagicConstructorsMacro.hpp"
 #include "detail/RawGLHandle.hpp"
 #include "detail/ConditionalMixin.hpp"
+#include "detail/StaticAssertFalseMacro.hpp"
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
 #include <chrono>
@@ -84,8 +86,7 @@ public:
     auto result() const noexcept
         -> result_type
     {
-        // TODO: Assert that no query buffer is bound.
-
+        assert(glapi::queries::bound_id(Binding::QueryBuffer) == 0);
         if constexpr (std::same_as<result_type, GLuint64>) {
             GLuint64 result;
             gl::glGetQueryObjectui64v(self_id(), gl::GL_QUERY_RESULT, &result);
@@ -94,7 +95,7 @@ public:
             GLint64 result;
             gl::glGetQueryObjecti64v(self_id(), gl::GL_QUERY_RESULT, &result);
             return std::chrono::nanoseconds{ result };
-        } else { static_assert(false); }
+        } else { JOSH3D_STATIC_ASSERT_FALSE(result_type); }
     }
 
     // Wraps `glGetQueryBufferObjectui64v` with `pname = GL_QUERY_RESULT`.

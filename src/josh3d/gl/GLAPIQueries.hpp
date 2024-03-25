@@ -1,5 +1,8 @@
 #pragma once
+#include "EnumUtils.hpp"
+#include "GLAPIBinding.hpp"
 #include "GLScalars.hpp"
+#include "detail/GLAPIGet.hpp"
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/gl.h>
 #include <chrono>
@@ -8,6 +11,7 @@
 // Various queries of the OpenGL state.
 // Specific queries are added here on a per-need basis.
 namespace josh::glapi::queries {
+
 
 
 // Wraps `glGetInteger64v` with `pname = GL_TIMESTAMP`.
@@ -28,6 +32,26 @@ inline std::chrono::nanoseconds current_time() noexcept {
 
 
 
+// Wraps `glGetIntegerv` with `pname = binding`.
+//
+// Returns the id (name) currently bound to the specified binding.
+inline auto bound_id(Binding binding) noexcept
+    -> GLuint
+{
+    return detail::get_integer(enum_cast<GLenum>(binding));
+}
 
-} // namespace josh::glapi::limits
+
+// Wraps `glGetIntegeri_v` with `pname = binding`.
+//
+// Returns the id (name) currently bound to the specified indexed binding slot.
+inline auto bound_id_indexed(BindingIndexed binding, GLuint index) noexcept
+    -> GLuint
+{
+    return detail::get_integer_indexed(enum_cast<GLenum>(binding), index);
+}
+
+
+
+} // namespace josh::glapi::queries
 

@@ -7,6 +7,7 @@
 #include "EnumUtils.hpp"
 #include "detail/MagicConstructorsMacro.hpp"
 #include "detail/RawGLHandle.hpp"
+#include "detail/StrongScalar.hpp"
 #include <glbinding/gl/bitfield.h>
 #include <span>
 #include <cassert>
@@ -14,6 +15,10 @@
 
 namespace josh::dsa {
 
+
+
+JOSH3D_DEFINE_STRONG_SCALAR(OffsetBytes, GLsizeiptr)
+JOSH3D_DEFINE_STRONG_SCALAR(OffsetElems, GLsizeiptr)
 
 
 

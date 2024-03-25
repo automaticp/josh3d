@@ -12,6 +12,8 @@
 #include "detail/ConditionalMixin.hpp"
 #include "detail/MagicConstructorsMacro.hpp"
 #include "detail/RawGLHandle.hpp"
+#include "detail/StaticAssertFalseMacro.hpp"
+#include "detail/StrongScalar.hpp"
 #include <cstddef>
 #include <glbinding/gl/boolean.h>
 #include <glbinding/gl/enum.h>
@@ -24,10 +26,6 @@
 
 namespace josh::dsa {
 
-
-// TODO: Make a strong type.
-using Size1I  = GLsizei;
-using Index1I = GLsizei;
 
 
 namespace detail {
@@ -166,11 +164,7 @@ To using strong integer types:
     `fbo.attach_texture_layer_to_color_buffer(tex, Layer{ 3 }, 1, MipLevel{ 0 });`
 
 */
-struct Layer {
-    GLint value{};
-    constexpr explicit Layer(GLint layer) noexcept : value{ layer } {}
-    constexpr operator GLint() const noexcept { return value; }
-};
+JOSH3D_DEFINE_STRONG_SCALAR(Layer, GLint)
 
 
 /*
@@ -184,18 +178,8 @@ To using strong integer types:
     `fbo.attach_texture_layer_to_color_buffer(tex, Layer{ 3 }, 1, MipLevel{ 0 });`
 
 */
-struct MipLevel {
-    GLint value{};
-    constexpr explicit MipLevel(GLint level) noexcept : value{ level } {}
-    constexpr operator GLint() const noexcept { return value; }
-};
-
-
-struct NumLevels {
-    GLsizei value{};
-    constexpr explicit NumLevels(GLsizei levels) noexcept : value{ levels } {}
-    constexpr operator GLint() const noexcept { return value; }
-};
+JOSH3D_DEFINE_STRONG_SCALAR(MipLevel, GLint)
+JOSH3D_DEFINE_STRONG_SCALAR(NumLevels, GLsizei)
 
 
 
@@ -208,11 +192,7 @@ implementation-dependent. However, the resulting value for TEXTURE_SAMPLES
 is guaranteed to be greater than or equal to samples and no more than the next
 larger sample count supported by the implementation."
 */
-struct NumSamples {
-    GLsizei value{};
-    constexpr explicit NumSamples(GLsizei samples) noexcept : value{ samples } {}
-    constexpr operator GLsizei() const noexcept { return value; }
-};
+JOSH3D_DEFINE_STRONG_SCALAR(NumSamples, GLsizei)
 
 
 enum struct SampleLocations : bool {
@@ -536,9 +516,9 @@ template<> struct supports_compressed_internal_format<TextureTarget::Texture2DMS
 
 
 template<typename> struct size_dims;
-template<> struct size_dims<Size1I>                      : std::integral_constant<size_t, 1> {};
-template<specialization_of<Size2> S> struct size_dims<S> : std::integral_constant<size_t, 2> {};
-template<specialization_of<Size3> S> struct size_dims<S> : std::integral_constant<size_t, 3> {};
+template<specialization_of<Extent1> S> struct size_dims<S> : std::integral_constant<size_t, 1> {};
+template<specialization_of<Extent2> S> struct size_dims<S> : std::integral_constant<size_t, 2> {};
+template<specialization_of<Extent3> S> struct size_dims<S> : std::integral_constant<size_t, 3> {};
 
 
 template<TextureTarget> struct texture_resolution;
@@ -573,9 +553,9 @@ template<> struct texture_region_dims<TextureTarget::TextureBuffer>    : std::in
 
 
 template<size_t NDimsV> struct texture_region_dims_traits;
-template<> struct texture_region_dims_traits<1> { using offset_type = Index1I; using extent_type = Size1I; };
-template<> struct texture_region_dims_traits<2> { using offset_type = Index2I; using extent_type = Size2I;  };
-template<> struct texture_region_dims_traits<3> { using offset_type = Index3I; using extent_type = Size3I;  };
+template<> struct texture_region_dims_traits<1> { using offset_type = Offset1I; using extent_type = Extent1I; };
+template<> struct texture_region_dims_traits<2> { using offset_type = Offset2I; using extent_type = Extent2I; };
+template<> struct texture_region_dims_traits<3> { using offset_type = Offset3I; using extent_type = Extent3I; };
 
 
 template<TextureTarget TargetV> struct texture_region_traits {
@@ -758,7 +738,7 @@ private:
             return get_size_2d_impl(level);
         } else if constexpr (tt::resolution_ndims == 3) {
             return get_size_3d_impl(level);
-        } else { static_assert(false); }
+        } else { JOSH3D_STATIC_ASSERT_FALSE(tt); }
     }
 public:
 
@@ -795,7 +775,7 @@ private:
             } else {
                 return get_size_3d_impl(level);
             }
-        } else { static_assert(false); }
+        } else { JOSH3D_STATIC_ASSERT_FALSE(tt); }
     }
 public:
 
@@ -1160,7 +1140,7 @@ struct TextureDSAInterface_Queries_ComponentSizeType {
         else if constexpr (ComponentV == PixelComponent::Depth)          { return size(gl::GL_TEXTURE_DEPTH_SIZE);   }
         else if constexpr (ComponentV == PixelComponent::Stencil)        { return size(gl::GL_TEXTURE_STENCIL_SIZE); }
         else if constexpr (ComponentV == PixelComponent::SharedExponent) { return size(gl::GL_TEXTURE_SHARED_SIZE);  }
-        else { static_assert(false); }
+        else { JOSH3D_STATIC_ASSERT_FALSE(tt); }
     }
 
     template<PixelComponent ComponentV>
@@ -1619,7 +1599,7 @@ struct TextureDSAInterface_SamplerParameters_Wrap {
             set_sampler_wrap_t(wrap_str);
             set_sampler_wrap_r(wrap_str);
         }
-        else { static_assert(false); }
+        else { JOSH3D_STATIC_ASSERT_FALSE(tt); }
     }
 
     // Wraps `glGetTextureParameteriv` with `pname = GL_TEXTURE_WRAP_S`.
@@ -2051,7 +2031,7 @@ struct TextureDSAInterface_AllocateStorage {
             texture_storage_2d(self_id(), resolution, internal_format, num_levels);
         } else if constexpr (tt::resolution_ndims == 3) {
             texture_storage_3d(self_id(), resolution, internal_format, num_levels);
-        } else { static_assert(false); }
+        } else { JOSH3D_STATIC_ASSERT_FALSE(tt); }
     }
 
     // TODO: You can't actually allocate storage for the buffer texture. Or do a lot of other operations.
@@ -2066,7 +2046,7 @@ struct TextureDSAInterface_AllocateStorage {
             texture_storage_1d(self_id(), resolution, internal_format, 1);
         } else if constexpr (tt::resolution_ndims == 2) {
             texture_storage_2d(self_id(), resolution, internal_format, 1);
-        } else { static_assert(false); }
+        } else { JOSH3D_STATIC_ASSERT_FALSE(tt); }
     }
 
     // Overload for `Texture[1|2]DArray`, `CubemapArray`.
@@ -2085,7 +2065,7 @@ struct TextureDSAInterface_AllocateStorage {
             } else {
                 texture_storage_3d(self_id(), Size3I{ resolution, num_array_elements }, internal_format, num_levels);
             }
-        } else { static_assert(false); }
+        } else { JOSH3D_STATIC_ASSERT_FALSE(tt); }
     }
 
     // Overload for `Texture2DMS`.
@@ -2098,7 +2078,7 @@ struct TextureDSAInterface_AllocateStorage {
     {
         if constexpr (tt::resolution_ndims == 2) {
             texture_storage_2d_ms(self_id(), resolution, internal_format, num_samples, sample_locations);
-        } else { static_assert(false); }
+        } else { JOSH3D_STATIC_ASSERT_FALSE(tt); }
     }
 
     // Overload for `Texture2DMSArray`.
@@ -2112,7 +2092,7 @@ struct TextureDSAInterface_AllocateStorage {
     {
         if constexpr (tt::resolution_ndims == 2) {
             texture_storage_3d_ms(self_id(), Size3I{ resolution, num_array_elements }, internal_format, num_samples, sample_locations);
-        } else { static_assert(false); }
+        } else { JOSH3D_STATIC_ASSERT_FALSE(tt); }
     }
 
 
@@ -2218,7 +2198,7 @@ private:
             texture_sub_image_2d(self_id(), offset, extent, format, type, data, mip_level);
         } else if constexpr (tt::region_ndims == 3) {
             texture_sub_image_3d(self_id(), offset, extent, format, type, data, mip_level);
-        } else { static_assert(false); }
+        } else { JOSH3D_STATIC_ASSERT_FALSE(tt); }
     }
 
 public:
@@ -2303,7 +2283,7 @@ private:
         if constexpr      (tt::region_ndims == 1) { download({ offset, 0, 0 }, { extent, 1, 1 }); }
         else if constexpr (tt::region_ndims == 2) { download({ offset,    0 }, { extent,    1 }); }
         else if constexpr (tt::region_ndims == 3) { download({ offset       }, { extent       }); }
-        else { static_assert(false); }
+        else { JOSH3D_STATIC_ASSERT_FALSE(tt); }
     }
 
 public:
@@ -2422,7 +2402,7 @@ private:
         else if constexpr (sdims == 3 && ddims == 1) { copy({ sof       }, { sex, 1, 1 }, { dof, 0, 0 }); }
         else if constexpr (sdims == 3 && ddims == 2) { copy({ sof       }, { sex,    1 }, { dof,    0 }); }
         else if constexpr (sdims == 3 && ddims == 3) { copy({ sof       }, { sex       }, { dof       }); }
-        else { static_assert(false); }
+        else { JOSH3D_STATIC_ASSERT_FALSE(tt); }
     }
 
 public:
@@ -2624,7 +2604,7 @@ private:
         if constexpr      (tt::region_ndims == 1) { fill({ offset, 0, 0 }, { extent, 1, 1 }); }
         else if constexpr (tt::region_ndims == 2) { fill({ offset,    0 }, { extent,    1 }); }
         else if constexpr (tt::region_ndims == 3) { fill({ offset       }, { extent       }); }
-        else { static_assert(false); }
+        else { JOSH3D_STATIC_ASSERT_FALSE(tt); }
     }
 public:
 
@@ -2737,7 +2717,7 @@ private:
         if constexpr      (tt::region_ndims == 1) { clear({ offset, 0, 0 }, { extent, 1, 1 }); }
         else if constexpr (tt::region_ndims == 2) { clear({ offset,    0 }, { extent,    1 }); }
         else if constexpr (tt::region_ndims == 3) { clear({ offset       }, { extent       }); }
-        else { static_assert(false); }
+        else { JOSH3D_STATIC_ASSERT_FALSE(tt); }
     }
 public:
 
@@ -2801,7 +2781,7 @@ private:
         if constexpr      (tt::region_ndims == 1) { invalidate({ offset, 0, 0 }, { extent, 1, 1 }); }
         else if constexpr (tt::region_ndims == 2) { invalidate({ offset,    0 }, { extent,    1 }); }
         else if constexpr (tt::region_ndims == 3) { invalidate({ offset       }, { extent       }); }
-        else { static_assert(false); }
+        else { JOSH3D_STATIC_ASSERT_FALSE(tt); }
     }
 public:
 
@@ -2988,6 +2968,7 @@ struct TextureDSAInterface
 
 
 
+#undef JOSH3D_TEXTURE_MIXIN_HEADER
 
 } // namespace detail
 
