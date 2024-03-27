@@ -81,7 +81,7 @@ struct ShaderAllocator {
     }
 };
 
-struct ShaderProgramAllocator {
+struct ProgramAllocator {
     using request_arg_type = void;
     static GLuint request() noexcept {
         return gl::glCreateProgram();
@@ -150,7 +150,7 @@ JOSH3D_SPECIALIZE_DSA_ALLOCATOR(VertexArray)
 JOSH3D_SPECIALIZE_DSA_ALLOCATOR(Framebuffer)
 JOSH3D_SPECIALIZE_DSA_ALLOCATOR(Renderbuffer)
 JOSH3D_SPECIALIZE_DSA_ALLOCATOR(Shader)
-JOSH3D_SPECIALIZE_DSA_ALLOCATOR(ShaderProgram)
+JOSH3D_SPECIALIZE_DSA_ALLOCATOR(Program)
 JOSH3D_SPECIALIZE_DSA_ALLOCATOR(FenceSync)
 JOSH3D_SPECIALIZE_DSA_ALLOCATOR(Query)
 JOSH3D_SPECIALIZE_DSA_ALLOCATOR(Sampler)

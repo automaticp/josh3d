@@ -1,5 +1,6 @@
 #pragma once
 #include "GLAPI.hpp"
+#include "GLAPIBinding.hpp"
 #include "GLDSABuffers.hpp"
 #include "GLKind.hpp"
 #include "GLScalars.hpp"
@@ -16,7 +17,7 @@
 
 
 
-namespace josh::dsa {
+namespace josh {
 
 
 enum class AttributeTypeF : GLuint {
@@ -152,6 +153,11 @@ struct AttributeSpecD {
 
 
 
+
+
+namespace dsa {
+
+
 template<typename VertexT>
 struct attribute_traits;
 
@@ -187,6 +193,7 @@ concept specializes_attribute_traits =
     detail::valid_tuple_of_attribute_specs<std::remove_cvref_t<decltype(attribute_traits<VertexT>::specs)>>;
 
 
+/*
 
 struct MyVertex {
     float    xyz[3];
@@ -233,6 +240,8 @@ template<> struct attribute_traits<PackedVertex> {
         AttributeSpecNorm{ AttributeTypeNorm::Byte,   AttributeComponents::RG,  OffsetBytes{ offsetof(PackedVertex, tangents_xy) } },
     };
 };
+
+*/
 
 
 
@@ -670,6 +679,31 @@ public:
 
 
 
+template<typename CRTP>
+struct VertexArrayDSAInterface_Bind {
+private:
+    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
+    using mt = mutability_traits<CRTP>;
+public:
+    [[nodiscard("BindTokens have to be provided to an API call that expects bound state.")]]
+    auto bind() const noexcept
+        -> BindToken<Binding::VertexArray>
+    {
+        gl::glBindVertexArray(self_id());
+        return { self_id() };
+    }
+};
+
+
+
+
+
+
+
+
+
+
+
 
 template<typename CRTP>
 struct VertexArrayDSAInterface
@@ -678,6 +712,7 @@ struct VertexArrayDSAInterface
     , VertexArrayDSAInterface_BindingToAttributeAssociation<CRTP>
     , VertexArrayDSAInterface_EnableDisableAttributeAccess<CRTP>
     , VertexArrayDSAInterface_Queries<CRTP>
+    , VertexArrayDSAInterface_Bind<CRTP>
 {
 private:
     GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
@@ -705,6 +740,7 @@ public:
 
 
 namespace detail {
+// TODO: Remove later.
 using josh::detail::RawGLHandle;
 } // namespace detail
 
@@ -720,4 +756,5 @@ public:
 };
 
 
-} // namespace josh::dsa
+} // namespace dsa
+} // namespace josh

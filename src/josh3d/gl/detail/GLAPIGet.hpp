@@ -21,6 +21,20 @@ inline auto get_boolean_indexed(GLenum pname, GLuint index) noexcept {
     return bool(result);
 }
 
+template<size_t N>
+inline auto get_booleanv(GLenum pname) noexcept {
+    std::array<GLboolean, N> result;
+    gl::glGetBooleanv(pname, result.data());
+    return result;
+}
+
+template<size_t N>
+inline auto get_booleanv_indexed(GLenum pname, GLuint index) noexcept {
+    std::array<GLboolean, N> result;
+    gl::glGetBooleani_v(pname, index, result.data());
+    return result;
+}
+
 
 
 
@@ -118,6 +132,8 @@ inline auto get_floatv_indexed(GLenum pname, GLuint index) noexcept {
 namespace queries::detail {
     using josh::glapi::detail::get_boolean;
     using josh::glapi::detail::get_boolean_indexed;
+    using josh::glapi::detail::get_booleanv;
+    using josh::glapi::detail::get_booleanv_indexed;
     using josh::glapi::detail::get_integer;
     using josh::glapi::detail::get_integer_indexed;
     using josh::glapi::detail::get_integerv;
@@ -134,6 +150,8 @@ namespace queries::detail {
 namespace limits::detail {
     using josh::glapi::detail::get_boolean;
     using josh::glapi::detail::get_boolean_indexed;
+    using josh::glapi::detail::get_booleanv;
+    using josh::glapi::detail::get_booleanv_indexed;
     using josh::glapi::detail::get_integer;
     using josh::glapi::detail::get_integer_indexed;
     using josh::glapi::detail::get_integerv;

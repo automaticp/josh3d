@@ -1,5 +1,6 @@
 #include "EnumUtils.hpp"
 #include "GLAPI.hpp"
+#include "GLAPICommonTypes.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLAPIQueries.hpp"
 #include "GLDSAQueries.hpp"
@@ -8,11 +9,15 @@
 #include "Index.hpp"
 #include "Region.hpp"
 #include "Size.hpp"
+#include "PixelPackTraits.hpp"
 #include "detail/GLAPIGet.hpp"
 #include "detail/StrongScalar.hpp"
+#include "detail/EnumCompatability.hpp"
 #include <cassert>
+#include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
+#include <glbinding/gl/types.h>
 #include <span>
 
 
@@ -316,12 +321,19 @@ enum class Capability : GLuint {
     Blending                   = GLuint(gl::GL_BLEND),
 
     Multisampling              = GLuint(gl::GL_MULTISAMPLE),
-    SampleShading              = GLuint(gl::GL_SAMPLE_SHADING),
+    PerSampleShading           = GLuint(gl::GL_SAMPLE_SHADING),
+
+    SRGBConversion             = GLuint(gl::GL_FRAMEBUFFER_SRGB),
+
+    Dithering                  = GLuint(gl::GL_DITHER),
+
+    ColorLogicalOp             = GLuint(gl::GL_COLOR_LOGIC_OP),
 
     ProgramSpecifiedPointSize  = GLuint(gl::GL_PROGRAM_POINT_SIZE),
 
-    AntialiasedLines           = GLuint(gl::GL_LINE_SMOOTH),
-    AntialiasedPolygons        = GLuint(gl::GL_POLYGON_SMOOTH),
+    AntialiasedPoints   [[deprecated]] = GLuint(gl::GL_POINT_SMOOTH),
+    AntialiasedLines    [[deprecated]] = GLuint(gl::GL_LINE_SMOOTH),
+    AntialiasedPolygons [[deprecated]] = GLuint(gl::GL_POLYGON_SMOOTH),
 
     FaceCulling                = GLuint(gl::GL_CULL_FACE),
 
@@ -678,19 +690,6 @@ inline auto get_scissor_region_indexed(GLuint viewport_index) noexcept
 // Section: Stencil Test [17.3.3].
 
 
-// TODO: The same enum is used in Textures. Keep one.
-enum class CompareOp : GLuint {
-    LEqual   = GLuint(gl::GL_LEQUAL),
-    GEqual   = GLuint(gl::GL_GEQUAL),
-    Less     = GLuint(gl::GL_LESS),
-    Greater  = GLuint(gl::GL_GREATER),
-    Equal    = GLuint(gl::GL_EQUAL),
-    NotEqual = GLuint(gl::GL_NOTEQUAL),
-    Always   = GLuint(gl::GL_ALWAYS),
-    Never    = GLuint(gl::GL_NEVER),
-};
-
-
 enum class StencilOp : GLuint {
     Keep              = GLuint(gl::GL_KEEP),
     SetZero           = GLuint(gl::GL_ZERO),
@@ -848,29 +847,628 @@ inline auto get_depth_test_condition_compare_op() noexcept
 // Section: Blending [17.3.6].
 
 
-// TODO:
-
 enum class BlendEquation : GLuint {
-    FuncAdd             = GLuint(gl::GL_FUNC_ADD),
-    FuncSubtract        = GLuint(gl::GL_FUNC_SUBTRACT),
-    FuncReverseSubtract = GLuint(gl::GL_FUNC_REVERSE_SUBTRACT),
-    Min                 = GLuint(gl::GL_MIN),
-    Max                 = GLuint(gl::GL_MAX),
+    FactorAdd             = GLuint(gl::GL_FUNC_ADD),
+    FactorSubtract        = GLuint(gl::GL_FUNC_SUBTRACT),
+    FactorReverseSubtract = GLuint(gl::GL_FUNC_REVERSE_SUBTRACT),
+    Min                   = GLuint(gl::GL_MIN),
+    Max                   = GLuint(gl::GL_MAX),
+};
+
+// For consistency with `BlendFactor*` we have RGB and Alpha variants.
+enum class BlendEquationRGB : GLuint {
+    FactorAdd             = GLuint(gl::GL_FUNC_ADD),
+    FactorSubtract        = GLuint(gl::GL_FUNC_SUBTRACT),
+    FactorReverseSubtract = GLuint(gl::GL_FUNC_REVERSE_SUBTRACT),
+    Min                   = GLuint(gl::GL_MIN),
+    Max                   = GLuint(gl::GL_MAX),
 };
 
 
+// For consistency with `BlendFactor*` we have RGB and Alpha variants.
+enum class BlendEquationAlpha : GLuint {
+    FactorAdd             = GLuint(gl::GL_FUNC_ADD),
+    FactorSubtract        = GLuint(gl::GL_FUNC_SUBTRACT),
+    FactorReverseSubtract = GLuint(gl::GL_FUNC_REVERSE_SUBTRACT),
+    Min                   = GLuint(gl::GL_MIN),
+    Max                   = GLuint(gl::GL_MAX),
+};
+
+
+JOSH3D_DECLARE_ENUMS_AS_EQUAL(BlendEquation, BlendEquationRGB)
+JOSH3D_DECLARE_ENUMS_AS_EQUAL(BlendEquation, BlendEquationAlpha)
+
+
+// "Factor" is a replacement term for "Function" that is more accurate
+// for majority of cases and while less generic, a lot more clear on what it represents.
 enum class BlendFactor : GLuint {
+    Zero                  = GLuint(gl::GL_ZERO),
+    One                   = GLuint(gl::GL_ONE),
+    SrcColor              = GLuint(gl::GL_SRC_COLOR),
+    OneMinusSrcColor      = GLuint(gl::GL_ONE_MINUS_SRC_COLOR),
+    DstColor              = GLuint(gl::GL_DST_COLOR),
+    OneMinusDstColor      = GLuint(gl::GL_ONE_MINUS_DST_COLOR),
+    SrcAlpha              = GLuint(gl::GL_SRC_ALPHA),
+    OneMinusSrcAlpha      = GLuint(gl::GL_ONE_MINUS_SRC_ALPHA),
+    DstAlpha              = GLuint(gl::GL_DST_ALPHA),
+    OneMinusDstAlpha      = GLuint(gl::GL_ONE_MINUS_DST_ALPHA),
+    ConstantColor         = GLuint(gl::GL_CONSTANT_COLOR),
+    OneMinusConstantColor = GLuint(gl::GL_ONE_MINUS_CONSTANT_COLOR),
+    ConstantAlpha         = GLuint(gl::GL_CONSTANT_ALPHA),
+    OneMinusConstantAlpha = GLuint(gl::GL_ONE_MINUS_CONSTANT_ALPHA),
+    SrcAlphaSaturate      = GLuint(gl::GL_SRC_ALPHA_SATURATE),
+    Src1Color             = GLuint(gl::GL_SRC1_COLOR),
+    OneMinusSrc1Color     = GLuint(gl::GL_ONE_MINUS_SRC1_COLOR),
+    Src1Alpha             = GLuint(gl::GL_SRC1_ALPHA),
+    OneMinusSrc1Alpha     = GLuint(gl::GL_ONE_MINUS_SRC1_ALPHA),
+};
+
+
+enum class BlendFactorRGB : GLuint {
+    Zero                  = GLuint(gl::GL_ZERO),
+    One                   = GLuint(gl::GL_ONE),
+    SrcColor              = GLuint(gl::GL_SRC_COLOR),
+    OneMinusSrcColor      = GLuint(gl::GL_ONE_MINUS_SRC_COLOR),
+    DstColor              = GLuint(gl::GL_DST_COLOR),
+    OneMinusDstColor      = GLuint(gl::GL_ONE_MINUS_DST_COLOR),
+    SrcAlpha              = GLuint(gl::GL_SRC_ALPHA),
+    OneMinusSrcAlpha      = GLuint(gl::GL_ONE_MINUS_SRC_ALPHA),
+    DstAlpha              = GLuint(gl::GL_DST_ALPHA),
+    OneMinusDstAlpha      = GLuint(gl::GL_ONE_MINUS_DST_ALPHA),
+    ConstantColor         = GLuint(gl::GL_CONSTANT_COLOR),
+    OneMinusConstantColor = GLuint(gl::GL_ONE_MINUS_CONSTANT_COLOR),
+    ConstantAlpha         = GLuint(gl::GL_CONSTANT_ALPHA),
+    OneMinusConstantAlpha = GLuint(gl::GL_ONE_MINUS_CONSTANT_ALPHA),
+    SrcAlphaSaturate      = GLuint(gl::GL_SRC_ALPHA_SATURATE),
+    Src1Color             = GLuint(gl::GL_SRC1_COLOR),
+    OneMinusSrc1Color     = GLuint(gl::GL_ONE_MINUS_SRC1_COLOR),
+    Src1Alpha             = GLuint(gl::GL_SRC1_ALPHA),
+    OneMinusSrc1Alpha     = GLuint(gl::GL_ONE_MINUS_SRC1_ALPHA),
+};
+
+
+enum class BlendFactorAlpha : GLuint {
+    Zero                  = GLuint(gl::GL_ZERO),
+    One                   = GLuint(gl::GL_ONE),
+    SrcColor              = GLuint(gl::GL_SRC_COLOR),
+    OneMinusSrcColor      = GLuint(gl::GL_ONE_MINUS_SRC_COLOR),
+    DstColor              = GLuint(gl::GL_DST_COLOR),
+    OneMinusDstColor      = GLuint(gl::GL_ONE_MINUS_DST_COLOR),
+    SrcAlpha              = GLuint(gl::GL_SRC_ALPHA),
+    OneMinusSrcAlpha      = GLuint(gl::GL_ONE_MINUS_SRC_ALPHA),
+    DstAlpha              = GLuint(gl::GL_DST_ALPHA),
+    OneMinusDstAlpha      = GLuint(gl::GL_ONE_MINUS_DST_ALPHA),
+    ConstantColor         = GLuint(gl::GL_CONSTANT_COLOR),
+    OneMinusConstantColor = GLuint(gl::GL_ONE_MINUS_CONSTANT_COLOR),
+    ConstantAlpha         = GLuint(gl::GL_CONSTANT_ALPHA),
+    OneMinusConstantAlpha = GLuint(gl::GL_ONE_MINUS_CONSTANT_ALPHA),
+    SrcAlphaSaturate      = GLuint(gl::GL_SRC_ALPHA_SATURATE),
+    Src1Color             = GLuint(gl::GL_SRC1_COLOR),
+    OneMinusSrc1Color     = GLuint(gl::GL_ONE_MINUS_SRC1_COLOR),
+    Src1Alpha             = GLuint(gl::GL_SRC1_ALPHA),
+    OneMinusSrc1Alpha     = GLuint(gl::GL_ONE_MINUS_SRC1_ALPHA),
+};
+
+
+JOSH3D_DECLARE_ENUMS_AS_EQUAL(BlendFactor, BlendFactorRGB)
+JOSH3D_DECLARE_ENUMS_AS_EQUAL(BlendFactor, BlendFactorAlpha)
+
+
+
+namespace glapi {
+
+inline void set_blend_equation(
+    BlendEquation equation) noexcept
+{
+    gl::glBlendEquation(enum_cast<GLenum>(equation));
+}
+
+inline void set_blend_equation_per_rgb_alpha(
+    BlendEquationRGB   rgb_equation,
+    BlendEquationAlpha alpha_equation) noexcept
+{
+    gl::glBlendEquationSeparate(
+        enum_cast<GLenum>(rgb_equation),
+        enum_cast<GLenum>(alpha_equation)
+    );
+}
+
+
+inline void set_blend_equation_indexed(
+    GLuint        draw_buf_index,
+    BlendEquation equation) noexcept
+{
+    gl::glBlendEquationi(draw_buf_index, enum_cast<GLenum>(equation));
+}
+
+inline void set_blend_equation_per_rgb_alpha_indexed(
+    GLuint             draw_buf_index,
+    BlendEquationRGB   rgb_equation,
+    BlendEquationAlpha alpha_equation) noexcept
+{
+    gl::glBlendEquationSeparatei(
+        draw_buf_index,
+        enum_cast<GLenum>(rgb_equation),
+        enum_cast<GLenum>(alpha_equation)
+    );
+}
+
+
+
+
+inline void set_blend_factors(
+    BlendFactor src_factor,
+    BlendFactor dst_factor) noexcept
+{
+    gl::glBlendFunc(
+        enum_cast<GLenum>(src_factor),
+        enum_cast<GLenum>(dst_factor)
+    );
+}
+
+// WARNING: The argument order is different from `glBlendFuncSeparate`.
+inline void set_blend_factors_per_rgb_alpha(
+    BlendFactorRGB   src_rgb_factor,
+    BlendFactorAlpha src_alpha_factor,
+    BlendFactorRGB   dst_rgb_factor,
+    BlendFactorAlpha dst_alpha_factor) noexcept
+{
+    gl::glBlendFuncSeparate(
+        enum_cast<GLenum>(src_rgb_factor),
+        enum_cast<GLenum>(dst_rgb_factor),
+        enum_cast<GLenum>(src_alpha_factor),
+        enum_cast<GLenum>(dst_alpha_factor)
+    );
+}
+
+
+inline void set_blend_factors_indexed(
+    GLuint      draw_buf_index,
+    BlendFactor src_factor,
+    BlendFactor dst_factor) noexcept
+{
+    gl::glBlendFunci(
+        draw_buf_index,
+        enum_cast<GLenum>(src_factor),
+        enum_cast<GLenum>(dst_factor)
+    );
+}
+
+inline void set_blend_factors_per_rgb_alpha_indexed(
+    GLuint           draw_buf_index,
+    BlendFactorRGB   src_rgb_factor,
+    BlendFactorAlpha src_alpha_factor,
+    BlendFactorRGB   dst_rgb_factor,
+    BlendFactorAlpha dst_alpha_factor) noexcept
+{
+    gl::glBlendFuncSeparatei(
+        draw_buf_index,
+        enum_cast<GLenum>(src_rgb_factor),
+        enum_cast<GLenum>(dst_rgb_factor),
+        enum_cast<GLenum>(src_alpha_factor),
+        enum_cast<GLenum>(dst_alpha_factor)
+    );
+}
+
+
+
+
+inline void set_blend_constant_color(
+    GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha) noexcept
+{
+    gl::glBlendColor(red, green, blue, alpha);
+}
+
+
+namespace limits {
+inline GLint max_draw_buffers() noexcept {
+    return detail::get_integer(gl::GL_MAX_DRAW_BUFFERS);
+}
+inline GLint max_dual_source_draw_buffers() noexcept {
+    return detail::get_integer(gl::GL_MAX_DUAL_SOURCE_DRAW_BUFFERS);
+}
+} // namespace limits
+
+
+// TODO: Getters.
+
+
+} // namespace glapi
+
+
+
+
+
+// Section: sRGB Conversion [17.3.7].
+// Capability only.
+
+
+// Section: Dithering [17.3.8].
+// Capability only.
+
+
+// Section: Logical Operation [17.3.9].
+
+
+enum class LogicOp : GLuint {
+    SetZero       = GLuint(gl::GL_CLEAR),
+    SrcAndDst     = GLuint(gl::GL_AND),
+    SrcAndNotDst  = GLuint(gl::GL_AND_REVERSE),
+    Src           = GLuint(gl::GL_COPY),
+    NotSrcAndDst  = GLuint(gl::GL_AND_INVERTED),
+    Dst           = GLuint(gl::GL_NOOP),
+    SrcXorDst     = GLuint(gl::GL_XOR),
+    SrcOrDst      = GLuint(gl::GL_OR),
+    Not_SrcOrDst  = GLuint(gl::GL_NOR),
+    Not_SrcXorDst = GLuint(gl::GL_EQUIV),
+    NotDst        = GLuint(gl::GL_INVERT),
+    SrcOrNotDst   = GLuint(gl::GL_OR_REVERSE),
+    NotSrc        = GLuint(gl::GL_COPY_INVERTED),
+    NotSrcOrDst   = GLuint(gl::GL_OR_INVERTED),
+    Not_SrcAndDst = GLuint(gl::GL_NAND),
+    SetOne        = GLuint(gl::GL_SET),
 };
 
 
 namespace glapi {
 
-inline void _set_blend_equation() noexcept;
-inline void _set_blend_factors() noexcept;
-inline void _set_blend_constant_color() noexcept;
+inline void set_logical_operation(LogicOp operation) noexcept {
+    gl::glLogicOp(enum_cast<GLenum>(operation));
+}
+
+inline auto get_logical_operation() noexcept
+    -> LogicOp
+{
+    return detail::get_enum<LogicOp>(gl::GL_LOGIC_OP_MODE);
+}
+
+} // namespace glapi
+
+
+
+
+
+
+
+
+// Section: Fine Control of Buffer Updates (Write Masks) [17.4.2].
+
+
+struct ColorMask {
+    bool red;
+    bool green;
+    bool blue;
+    bool alpha;
+};
+
+
+namespace glapi {
+
+inline void set_color_mask(
+    GLboolean red,
+    GLboolean green,
+    GLboolean blue,
+    GLboolean alpha) noexcept
+{
+    gl::glColorMask(red, green, blue, alpha);
+}
+
+inline void set_color_mask_indexed(
+    GLuint    draw_buf_index,
+    GLboolean red,
+    GLboolean green,
+    GLboolean blue,
+    GLboolean alpha) noexcept
+{
+    gl::glColorMaski(draw_buf_index, red, green, blue, alpha);
+}
+
+inline auto get_color_mask() noexcept
+    -> ColorMask
+{
+    auto [r, g, b, a] = detail::get_booleanv<4>(gl::GL_COLOR_WRITEMASK);
+    return {
+        bool(r),
+        bool(g),
+        bool(b),
+        bool(a)
+    };
+}
+
+inline auto get_color_mask_indexed(GLuint draw_buf_index) noexcept
+    -> ColorMask
+{
+    auto [r, g, b, a] = detail::get_booleanv_indexed<4>(gl::GL_COLOR_WRITEMASK, draw_buf_index);
+    return {
+        bool(r),
+        bool(g),
+        bool(b),
+        bool(a)
+    };
+}
+
+
+
+
+inline void set_depth_mask(GLboolean mask) noexcept {
+    gl::glDepthMask(mask);
+}
+
+inline bool get_depth_mask() noexcept {
+    return detail::get_boolean(gl::GL_DEPTH_WRITEMASK);
+}
+
+
+
+
+inline void set_stencil_mask(GLuint write_mask) noexcept {
+    gl::glStencilMask(write_mask);
+}
+
+inline void set_stencil_mask_per_face(Face face, GLuint write_mask) noexcept {
+    gl::glStencilMaskSeparate(enum_cast<GLenum>(face), write_mask);
+}
+
+inline GLuint get_stencil_mask(Face face) noexcept {
+    GLenum pname{ face == Face::Front ? gl::GL_STENCIL_WRITEMASK : gl::GL_STENCIL_BACK_WRITEMASK };
+    return detail::get_integer(pname);
+}
+
 
 
 } // namespace glapi
+
+
+
+
+
+
+
+
+
+
+// Section: Clearing the Buffers [17.4.3].
+
+
+namespace glapi {
+
+inline void clear(BufferMask buffers) noexcept {
+    return gl::glClear(enum_cast<gl::ClearBufferMask>(buffers));
+}
+
+inline void set_clear_color(
+    GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha) noexcept
+{
+    return gl::glClearColor(red, green, blue, alpha);
+}
+
+inline void set_clear_depth(GLfloat depth) noexcept {
+    gl::glClearDepthf(depth);
+}
+
+inline void set_clear_depth(GLdouble depth) noexcept {
+    gl::glClearDepth(depth);
+}
+
+inline void set_clear_stencil_value(GLint stencil_value) noexcept {
+    gl::glClearStencil(stencil_value);
+}
+
+// TODO: Getters
+
+} // namespace glapi
+
+
+
+
+
+
+
+
+
+// Section: Pixel Storage Modes and PBOs [8.4.1, 18.2.2].
+
+
+// Parameter Name                 Type    Initial Value    Valid Range
+// UNPACK_SWAP_BYTES              boolean FALSE            TRUE/FALSE
+// UNPACK_LSB_FIRST               boolean FALSE            TRUE/FALSE
+// UNPACK_ROW_LENGTH              integer 0                [0, ∞)
+// UNPACK_SKIP_ROWS               integer 0                [0, ∞)
+// UNPACK_SKIP_PIXELS             integer 0                [0, ∞)
+// UNPACK_ALIGNMENT               integer 4                1,2,4,8
+// UNPACK_IMAGE_HEIGHT            integer 0                [0, ∞)
+// UNPACK_SKIP_IMAGES             integer 0                [0, ∞)
+// UNPACK_COMPRESSED_BLOCK_WIDTH  integer 0                [0, ∞)
+// UNPACK_COMPRESSED_BLOCK_HEIGHT integer 0                [0, ∞)
+// UNPACK_COMPRESSED_BLOCK_DEPTH  integer 0                [0, ∞)
+// UNPACK_COMPRESSED_BLOCK_SIZE   integer 0                [0, ∞)
+
+
+// Parameter Name                 Type    Initial Value    Valid Range
+// PACK_SWAP_BYTES                boolean FALSE            TRUE/FALSE
+// PACK_LSB_FIRST                 boolean FALSE            TRUE/FALSE
+// PACK_ROW_LENGTH                integer 0                [0, ∞)
+// PACK_SKIP_ROWS                 integer 0                [0, ∞)
+// PACK_SKIP_PIXELS               integer 0                [0, ∞)
+// PACK_ALIGNMENT                 integer 4                1,2,4,8
+// PACK_IMAGE_HEIGHT              integer 0                [0, ∞)
+// PACK_SKIP_IMAGES               integer 0                [0, ∞)
+// PACK_COMPRESSED_BLOCK_WIDTH    integer 0                [0, ∞)
+// PACK_COMPRESSED_BLOCK_HEIGHT   integer 0                [0, ∞)
+// PACK_COMPRESSED_BLOCK_DEPTH    integer 0                [0, ∞)
+// PACK_COMPRESSED_BLOCK_SIZE     integer 0                [0, ∞)
+
+
+
+namespace glapi {
+
+// TOO MUCH BOILERPLATE
+
+#define JOSH3D_DEFINE_PIXEL_PACK_BOOL_FUNCS(FName, PName)    \
+    inline void set_##FName(bool value) noexcept {           \
+        gl::glPixelStorei(gl::GL_##PName, GLboolean(value)); \
+    }                                                        \
+    inline bool get_##FName() noexcept {                     \
+        return detail::get_boolean(gl::GL_##PName);          \
+    }
+
+JOSH3D_DEFINE_PIXEL_PACK_BOOL_FUNCS(pixel_unpack_swap_bytes, UNPACK_SWAP_BYTES)
+JOSH3D_DEFINE_PIXEL_PACK_BOOL_FUNCS(pixel_unpack_lsb_first,  UNPACK_LSB_FIRST )
+
+JOSH3D_DEFINE_PIXEL_PACK_BOOL_FUNCS(pixel_pack_swap_bytes,   PACK_SWAP_BYTES  )
+JOSH3D_DEFINE_PIXEL_PACK_BOOL_FUNCS(pixel_pack_lsb_first,    PACK_LSB_FIRST   )
+
+
+#define JOSH3D_DEFINE_PIXEL_PACK_INT_FUNCS(FName, PName) \
+    inline void set_##FName(GLint value) noexcept {      \
+        gl::glPixelStorei(gl::GL_##PName, value);        \
+    }                                                    \
+    inline GLint get_##FName() noexcept {                \
+        return detail::get_integer(gl::GL_##PName);      \
+    }
+
+JOSH3D_DEFINE_PIXEL_PACK_INT_FUNCS(pixel_unpack_row_length,              UNPACK_ROW_LENGTH             )
+JOSH3D_DEFINE_PIXEL_PACK_INT_FUNCS(pixel_unpack_skip_rows,               UNPACK_SKIP_ROWS              )
+JOSH3D_DEFINE_PIXEL_PACK_INT_FUNCS(pixel_unpack_skip_pixels,             UNPACK_SKIP_PIXELS            )
+JOSH3D_DEFINE_PIXEL_PACK_INT_FUNCS(pixel_unpack_alignment,               UNPACK_ALIGNMENT              )
+JOSH3D_DEFINE_PIXEL_PACK_INT_FUNCS(pixel_unpack_image_height,            UNPACK_IMAGE_HEIGHT           )
+JOSH3D_DEFINE_PIXEL_PACK_INT_FUNCS(pixel_unpack_skip_images,             UNPACK_SKIP_IMAGES            )
+JOSH3D_DEFINE_PIXEL_PACK_INT_FUNCS(pixel_unpack_compressed_block_width,  UNPACK_COMPRESSED_BLOCK_WIDTH )
+JOSH3D_DEFINE_PIXEL_PACK_INT_FUNCS(pixel_unpack_compressed_block_height, UNPACK_COMPRESSED_BLOCK_HEIGHT)
+JOSH3D_DEFINE_PIXEL_PACK_INT_FUNCS(pixel_unpack_compressed_block_depth,  UNPACK_COMPRESSED_BLOCK_DEPTH )
+JOSH3D_DEFINE_PIXEL_PACK_INT_FUNCS(pixel_unpack_compressed_block_size,   UNPACK_COMPRESSED_BLOCK_SIZE  )
+
+JOSH3D_DEFINE_PIXEL_PACK_INT_FUNCS(pixel_pack_row_length,                PACK_ROW_LENGTH             )
+JOSH3D_DEFINE_PIXEL_PACK_INT_FUNCS(pixel_pack_skip_rows,                 PACK_SKIP_ROWS              )
+JOSH3D_DEFINE_PIXEL_PACK_INT_FUNCS(pixel_pack_skip_pixels,               PACK_SKIP_PIXELS            )
+JOSH3D_DEFINE_PIXEL_PACK_INT_FUNCS(pixel_pack_alignment,                 PACK_ALIGNMENT              )
+JOSH3D_DEFINE_PIXEL_PACK_INT_FUNCS(pixel_pack_image_height,              PACK_IMAGE_HEIGHT           )
+JOSH3D_DEFINE_PIXEL_PACK_INT_FUNCS(pixel_pack_skip_images,               PACK_SKIP_IMAGES            )
+JOSH3D_DEFINE_PIXEL_PACK_INT_FUNCS(pixel_pack_compressed_block_width,    PACK_COMPRESSED_BLOCK_WIDTH )
+JOSH3D_DEFINE_PIXEL_PACK_INT_FUNCS(pixel_pack_compressed_block_height,   PACK_COMPRESSED_BLOCK_HEIGHT)
+JOSH3D_DEFINE_PIXEL_PACK_INT_FUNCS(pixel_pack_compressed_block_depth,    PACK_COMPRESSED_BLOCK_DEPTH )
+JOSH3D_DEFINE_PIXEL_PACK_INT_FUNCS(pixel_pack_compressed_block_size,     PACK_COMPRESSED_BLOCK_SIZE  )
+
+
+#undef JOSH3D_DEFINE_PIXEL_PACK_BOOL_FUNCS
+#undef JOSH3D_DEFINE_PIXEL_PACK_INT_FUNCS
+
+} // namespace glapi
+
+
+
+
+
+
+
+
+
+// Section: Reading Pixels [18.2].
+
+
+enum class ReadColorClamping : GLuint {
+    Enabled   = GLuint(gl::GL_TRUE),
+    Disabled  = GLuint(gl::GL_FALSE),
+    FixedOnly = GLuint(gl::GL_FIXED_ONLY),
+};
+
+
+namespace glapi {
+
+
+inline void read_pixels_into(
+    BindToken<Binding::ReadFramebuffer> bound_read_framebuffer [[maybe_unused]],
+    const Region2I&                     region,
+    PixelDataFormat                     format,
+    PixelDataType                       type,
+    std::span<GLubyte>                  dst_buf) noexcept
+{
+    assert(queries::bound_id(Binding::ReadFramebuffer) == bound_read_framebuffer.id());
+    assert(queries::bound_id(Binding::PixelPackBuffer) == 0);
+    gl::glReadnPixels(
+        region.offset.x,     region.offset.y,
+        region.extent.width, region.extent.height,
+        enum_cast<GLenum>(format), enum_cast<GLenum>(type),
+        GLsizei(dst_buf.size()),
+        dst_buf.data()
+    );
+}
+
+template<specifies_pixel_pack_traits PixelT>
+inline void read_pixels_into(
+    BindToken<Binding::ReadFramebuffer> bound_read_framebuffer [[maybe_unused]],
+    const Region2I&                     region,
+    std::span<PixelT>                   dst_buf) noexcept
+{
+    using pptr = pixel_pack_traits<PixelT>;
+    read_pixels_into(bound_read_framebuffer, region, pptr::format, pptr::type, dst_buf);
+}
+
+
+inline void read_pixels_to_pixel_pack_buffer(
+    BindToken<Binding::ReadFramebuffer> bound_read_framebuffer [[maybe_unused]],
+    const Region2I&                     region,
+    PixelDataFormat                     format,
+    PixelDataType                       type,
+    BindToken<Binding::PixelPackBuffer> bound_pack_buffer [[maybe_unused]],
+    OffsetBytes                         offset_bytes) noexcept
+{
+    assert(queries::bound_id(Binding::ReadFramebuffer) == bound_read_framebuffer.id());
+    assert(queries::bound_id(Binding::PixelPackBuffer) == bound_pack_buffer.id());
+    gl::glReadPixels(
+        region.offset.x,     region.offset.y,
+        region.extent.width, region.extent.height,
+        enum_cast<GLenum>(format), enum_cast<GLenum>(type),
+        reinterpret_cast<void*>(offset_bytes.value) // NOLINT(performance-no-int-to-ptr)
+    );
+}
+
+
+
+inline void set_read_color_clamping(bool enabled) noexcept {
+    // TODO:
+    // glbinding takes GLboolean and GL_FIXED_ONLY is impossible to pass.
+    // This is fixed in later versions so we should probably upgrade.
+    gl::glClampColor(gl::GL_CLAMP_READ_COLOR, enabled);
+}
+
+inline auto get_read_color_clamping() noexcept
+    -> ReadColorClamping
+{
+    // We return full set: TRUE, FALSE and FIXED_ONLY as that's safer.
+    // Keep in mind that the default value for CLAMP_READ_COLOR is exactly FIXED_ONLY.
+    return detail::get_enum<ReadColorClamping>(gl::GL_CLAMP_READ_COLOR);
+}
+
+
+
+} // namespace glapi
+
+
+
+
+
+
+
+
+
+// Section: Compute Shaders [19]
+
+// TODO:
+namespace glapi::limits {
+
+// _max_compute_workgroups_x
+// _max_compute_workgroups_y
+// _max_compute_workgroups_z
+// _max_compute_workgroup_invocations
+// _max_compute_workgroup_size_x
+// _max_compute_workgroup_size_y
+// _max_compute_workgroup_size_z
+
+
+} // namespace glapi::limits
+
+
 
 
 
@@ -1014,11 +1612,11 @@ inline void begin_conditional_render(
     ConditionalRenderCondition      condition_mode = ConditionalRenderCondition::Normal) noexcept
         requires
             // A little awkward...
-            (QueryT::target_type == dsa::QueryTarget::SamplesPassed)                   ||
-            (QueryT::target_type == dsa::QueryTarget::AnySamplesPassed)                ||
-            (QueryT::target_type == dsa::QueryTarget::AnySamplesPassedConservative)    ||
-            (QueryT::target_type == dsa::QueryTarget::TransformFeedbackOverflow)       ||
-            (QueryT::target_type == dsa::QueryTarget::TransformFeedbackStreamOverflow)
+            (QueryT::target_type == QueryTarget::SamplesPassed)                   ||
+            (QueryT::target_type == QueryTarget::AnySamplesPassed)                ||
+            (QueryT::target_type == QueryTarget::AnySamplesPassedConservative)    ||
+            (QueryT::target_type == QueryTarget::TransformFeedbackOverflow)       ||
+            (QueryT::target_type == QueryTarget::TransformFeedbackStreamOverflow)
 {
     // I just hope the compiler understands "my intent".
     const auto mode = ConditionalRenderMode{

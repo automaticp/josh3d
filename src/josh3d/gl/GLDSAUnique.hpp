@@ -2,7 +2,7 @@
 #include "CommonConcepts.hpp" // IWYU pragma: keep
 #include "GLDSAAllocator.hpp"
 #include "GLMutability.hpp"
-#include <concepts>
+#include <concepts>           // IWYU pragma: keep
 #include <type_traits>
 
 

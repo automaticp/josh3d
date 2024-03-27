@@ -18,7 +18,7 @@ enum class GLKind {
     DefaultFramebuffer, // No allocation.
     Renderbuffer,
     Shader,
-    ShaderProgram,
+    Program,
     FenceSync,
     Query,
     Sampler

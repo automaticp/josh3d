@@ -1,6 +1,7 @@
 #pragma once
 #include "EnumUtils.hpp"
 #include "GLAPI.hpp"
+#include "GLAPIBinding.hpp"
 #include "GLKind.hpp"
 #include "GLScalars.hpp"
 #include "GLMutability.hpp"
@@ -15,29 +16,10 @@
 
 
 
-namespace josh::dsa {
-
-
-template<mutability_tag MutT>
-class RawShaderProgram;
-
+namespace josh {
 
 
 JOSH3D_DEFINE_STRONG_SCALAR(Location, GLint)
-
-
-
-
-template<typename ...Args>
-struct uniform_traits; // { static void set(RawShaderProgram<GLMutable> program, Location location, const Args&... args) noexcept; }
-
-
-template<typename ...Args>
-concept specialized_uniform_traits_set = requires(RawShaderProgram<GLMutable> program, Location location, Args&&... args) {
-    uniform_traits<Args...>::set(program, location, args...);
-};
-
-
 
 
 enum class ProgramResource : GLuint {
@@ -53,16 +35,32 @@ enum class ProgramResource : GLuint {
 };
 
 
-namespace detail {
-using josh::detail::RawGLHandle;
-} // namespace detail
+
+
+namespace dsa {
+
+
+
+template<mutability_tag MutT>
+class RawProgram;
+
+
+template<typename ...Args>
+struct uniform_traits; // { static void set(RawProgram<GLMutable> program, Location location, const Args&... args) noexcept; }
+
+
+template<typename ...Args>
+concept specialized_uniform_traits_set = requires(RawProgram<GLMutable> program, Location location, Args&&... args) {
+    uniform_traits<Args...>::set(program, location, args...);
+};
+
 
 
 namespace detail {
 
 
 template<typename CRTP>
-struct ShaderProgramDSAInterface_ResourceQueries {
+struct ProgramDSAInterface_ResourceQueries {
 private:
     GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
     using mutability = mutability_traits<CRTP>::mutability;
@@ -100,8 +98,8 @@ public:
 
 
 template<typename CRTP>
-struct ShaderProgramDSAInterface_Uniforms
-    : ShaderProgramDSAInterface_ResourceQueries<CRTP>
+struct ProgramDSAInterface_Uniforms
+    : ProgramDSAInterface_ResourceQueries<CRTP>
 {
 private:
     GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
@@ -283,20 +281,45 @@ public:
 
 
 
+
+
 template<typename CRTP>
-struct ShaderProgramDSAInterface
-    : ShaderProgramDSAInterface_Uniforms<CRTP>
+struct ProgramDSAInterface_Use {
+private:
+    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
+    using mt = mutability_traits<CRTP>;
+public:
+
+    // Wraps `glUseProgram`.
+    [[nodiscard("BindTokens have to be provided to an API call that expects bound state.")]]
+    auto use() const noexcept
+        -> BindToken<Binding::Program>
+    {
+        gl::glUseProgram(self_id());
+        return { self_id() };
+    }
+
+};
+
+
+
+
+
+
+
+
+
+
+template<typename CRTP>
+struct ProgramDSAInterface
+    : ProgramDSAInterface_Uniforms<CRTP>
+    , ProgramDSAInterface_Use<CRTP>
 {
 private:
     GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
     using mt = mutability_traits<CRTP>;
     using mutability = mutability_traits<CRTP>::mutability;
 public:
-
-    // Wraps `glUseProgram`.
-    void use() const noexcept {
-        gl::glUseProgram(self_id());
-    }
 
     // Wraps `glAttachShader`.
     template<of_kind<GLKind::Shader> ShaderT>
@@ -374,30 +397,33 @@ public:
 
 
 
+// TODO: Remove later.
+using josh::detail::RawGLHandle;
+
 } // namespace detail
 
 
 template<mutability_tag MutT = GLMutable>
-class RawShaderProgram
+class RawProgram
     : public detail::RawGLHandle<MutT>
-    , public detail::ShaderProgramDSAInterface<RawShaderProgram<MutT>>
+    , public detail::ProgramDSAInterface<RawProgram<MutT>>
 {
 public:
-    static constexpr GLKind kind_type = GLKind::ShaderProgram;
-    JOSH3D_MAGIC_CONSTRUCTORS_2(RawShaderProgram, mutability_traits<RawShaderProgram>, detail::RawGLHandle<MutT>)
+    static constexpr GLKind kind_type = GLKind::Program;
+    JOSH3D_MAGIC_CONSTRUCTORS_2(RawProgram, mutability_traits<RawProgram>, detail::RawGLHandle<MutT>)
 };
-static_assert(sizeof(RawShaderProgram<GLMutable>) == sizeof(RawShaderProgram<GLConst>));
+static_assert(sizeof(RawProgram<GLMutable>) == sizeof(RawProgram<GLConst>));
 
 
 
-template<> struct uniform_traits<GLint>     { static void set(RawShaderProgram<> program, Location location, GLint v)    noexcept { program.set_uniform_int   (location, v);    } };
-template<> struct uniform_traits<GLuint>    { static void set(RawShaderProgram<> program, Location location, GLuint v)   noexcept { program.set_uniform_uint  (location, v);    } };
-template<> struct uniform_traits<GLfloat>   { static void set(RawShaderProgram<> program, Location location, GLfloat v)  noexcept { program.set_uniform_float (location, v);    } };
-template<> struct uniform_traits<GLdouble>  { static void set(RawShaderProgram<> program, Location location, GLdouble v) noexcept { program.set_uniform_double(location, v);    } };
+template<> struct uniform_traits<GLint>     { static void set(RawProgram<> program, Location location, GLint v)    noexcept { program.set_uniform_int   (location, v);    } };
+template<> struct uniform_traits<GLuint>    { static void set(RawProgram<> program, Location location, GLuint v)   noexcept { program.set_uniform_uint  (location, v);    } };
+template<> struct uniform_traits<GLfloat>   { static void set(RawProgram<> program, Location location, GLfloat v)  noexcept { program.set_uniform_float (location, v);    } };
+template<> struct uniform_traits<GLdouble>  { static void set(RawProgram<> program, Location location, GLdouble v) noexcept { program.set_uniform_double(location, v);    } };
 
 
 
 
 
-
-} // namespace josh::dsa
+} // namespace dsa
+} // namespace josh

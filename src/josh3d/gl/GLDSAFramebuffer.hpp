@@ -1,6 +1,8 @@
 #pragma once
 #include "GLAPI.hpp"
+#include "GLAPIBinding.hpp"
 #include "GLAPILimits.hpp"
+#include "GLAPICommonTypes.hpp"
 #include "GLKind.hpp"
 #include "GLScalars.hpp"
 #include "GLMutability.hpp"
@@ -19,36 +21,12 @@
 
 
 
-namespace josh::dsa {
-
-
-template<mutability_tag MutT>
-class RawFramebuffer;
-
-template<mutability_tag MutT>
-class RawDefaultFramebuffer;
-
-
-
-namespace detail {
-using josh::detail::RawGLHandle;
-} // namespace detail
+namespace josh {
 
 
 enum class BlitFilter : GLuint {
     Nearest = GLuint(gl::GL_NEAREST),
     Linear  = GLuint(gl::GL_LINEAR),
-};
-
-
-enum class BlitBuffers : GLuint {
-    Color              = GLuint(gl::GL_COLOR_BUFFER_BIT),
-    Depth              = GLuint(gl::GL_DEPTH_BUFFER_BIT),
-    Stencil            = GLuint(gl::GL_STENCIL_BUFFER_BIT),
-    ColorDepth         = Color | Depth,
-    ColorStencil       = Color | Stencil,
-    DepthStencil       = Depth | Stencil,
-    ColorDepthStencil  = Color | Depth | Stencil,
 };
 
 
@@ -93,8 +71,47 @@ enum class DefaultFramebufferBuffer : GLuint {
 
 
 
+namespace dsa {
+
+template<mutability_tag MutT>
+class RawFramebuffer;
+
+template<mutability_tag MutT>
+class RawDefaultFramebuffer;
+
 
 namespace detail {
+
+
+template<typename CRTP>
+struct FramebufferDSAInterface_Bind {
+private:
+    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
+    using mutability = mutability_traits<CRTP>::mutability;
+public:
+
+    // Wraps `glBindFramebuffer` with `target = GL_READ_FRAMEBUFFER`.
+    [[nodiscard("BindTokens have to be provided to an API call that expects bound state.")]]
+    auto bind_read() const noexcept
+        -> BindToken<Binding::ReadFramebuffer>
+    {
+        gl::glBindFramebuffer(gl::GL_READ_FRAMEBUFFER, self_id());
+        return { self_id() };
+    }
+
+    // Wraps `glBindFramebuffer` with `target = GL_DRAW_FRAMEBUFFER`.
+    [[nodiscard("BindTokens have to be provided to an API call that expects bound state.")]]
+    auto bind_draw() const noexcept
+        -> BindToken<Binding::DrawFramebuffer>
+            requires gl_mutable<mutability>
+    {
+        gl::glBindFramebuffer(gl::GL_DRAW_FRAMEBUFFER, self_id());
+        return { self_id() };
+    }
+
+};
+
+
 
 
 template<typename CRTP>
@@ -103,32 +120,22 @@ private:
     GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
     using mutability = mutability_traits<CRTP>::mutability;
 public:
-    // Wraps `glBindFramebuffer` with `target = GL_READ_FRAMEBUFFER`.
-    void bind_read() const noexcept {
-        gl::glBindFramebuffer(gl::GL_READ_FRAMEBUFFER, self_id());
-    }
-
-    // Wraps `glBindFramebuffer` with `target = GL_DRAW_FRAMEBUFFER`.
-    void bind_draw() const noexcept
-        requires gl_mutable<mutability>
-    {
-        gl::glBindFramebuffer(gl::GL_DRAW_FRAMEBUFFER, self_id());
-    }
-
 
     // Wraps `glBlitNamedFramebuffer`.
     void blit_to(
         RawFramebuffer<GLMutable> dst,
-        const Index2I& src_offset, const Size2I& src_extent,
-        const Index2I& dst_offset, const Size2I& dst_extent,
-        BlitBuffers buffers, BlitFilter filter) const noexcept;
+        const Region2I&           src_region,
+        const Region2I&           dst_region,
+        BufferMask                buffers,
+        BlitFilter                filter) const noexcept;
 
     // Wraps `glBlitNamedFramebuffer`.
     void blit_to(
         RawDefaultFramebuffer<GLMutable> dst,
-        const Index2I& src_offset, const Size2I& src_extent,
-        const Index2I& dst_offset, const Size2I& dst_extent,
-        BlitBuffers buffers, BlitFilter filter) const noexcept;
+        const Region2I&                  src_region,
+        const Region2I&                  dst_region,
+        BufferMask                       buffers,
+        BlitFilter                       filter) const noexcept;
 
 
     // Wraps `glCheckNamedFramebufferStatus` with `target = GL_DRAW_FRAMEBUFFER`.
@@ -425,7 +432,7 @@ public:
     }
 
 
-
+    // TODO:
     void _attach_renderbuffer_to_color_buffer() const noexcept {}
     void _attach_renderbuffer_to_depth_buffer() const noexcept {}
     void _attach_renderbuffer_to_stencil_buffer() const noexcept {}
@@ -535,6 +542,7 @@ public:
 template<typename CRTP>
 struct FramebufferDSAInterface
     : FramebufferDSAInterface_Common<CRTP>
+    , FramebufferDSAInterface_Bind<CRTP>
     , FramebufferDSAInterface_Attachments<CRTP>
 {};
 
@@ -542,10 +550,15 @@ struct FramebufferDSAInterface
 template<typename CRTP>
 struct DefaultFramebufferDSAInterface
     : FramebufferDSAInterface_Common<CRTP>
+    , FramebufferDSAInterface_Bind<CRTP>
     , DefaultFramebufferDSAInterface_Attachments<CRTP>
 {};
 
 
+
+
+// TODO: Remove later.
+using josh::detail::RawGLHandle;
 
 } // namespace detail
 
@@ -585,16 +598,21 @@ public:
 template<typename CRTP>
 inline void detail::FramebufferDSAInterface_Common<CRTP>::blit_to(
     RawFramebuffer<GLMutable> dst,
-    const Index2I& src_offset, const Size2I& src_extent,
-    const Index2I& dst_offset, const Size2I& dst_extent,
-    BlitBuffers buffers, BlitFilter filter) const noexcept
+    const Region2I&           src_region,
+    const Region2I&           dst_region,
+    BufferMask                buffers,
+    BlitFilter                filter) const noexcept
 {
-    Index2I src_offset_end = src_offset + src_extent;
-    Index2I dst_offset_end = dst_offset + dst_extent;
+    const Offset2I& src_offset     = src_region.offset;
+    const Offset2I& dst_offset     = dst_region.offset;
+    const Offset2I  src_offset_end = src_region.offset + src_region.extent;
+    const Offset2I  dst_offset_end = dst_region.offset + dst_region.extent;
     gl::glBlitNamedFramebuffer(
         self_id(), dst.id(),
-        src_offset.x, src_offset.y, src_offset_end.x, src_offset_end.y,
-        dst_offset.x, dst_offset.y, dst_offset_end.x, dst_offset_end.y,
+        src_offset.x,     src_offset.y,
+        src_offset_end.x, src_offset_end.y,
+        dst_offset.x,     dst_offset.y,
+        dst_offset_end.x, dst_offset_end.y,
         enum_cast<gl::ClearBufferMask>(buffers),
         enum_cast<GLenum>(filter)
     );
@@ -604,14 +622,14 @@ inline void detail::FramebufferDSAInterface_Common<CRTP>::blit_to(
 template<typename CRTP>
 inline void detail::FramebufferDSAInterface_Common<CRTP>::blit_to(
     RawDefaultFramebuffer<GLMutable> dst [[maybe_unused]],
-    const Index2I& src_offset, const Size2I& src_extent,
-    const Index2I& dst_offset, const Size2I& dst_extent,
-    BlitBuffers buffers, BlitFilter filter) const noexcept
+    const Region2I&                  src_region,
+    const Region2I&                  dst_region,
+    BufferMask                       buffers,
+    BlitFilter                       filter) const noexcept
 {
     blit_to(
         RawFramebuffer<GLMutable>{ 0 },
-        src_offset, src_extent,
-        dst_offset, dst_extent,
+        src_region, dst_region,
         buffers, filter
     );
 }
@@ -619,4 +637,5 @@ inline void detail::FramebufferDSAInterface_Common<CRTP>::blit_to(
 
 
 
-} // namespace josh::dsa
+} // namespace dsa
+} // namespace josh

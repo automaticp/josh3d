@@ -1,10 +1,10 @@
 #pragma once
 #include "GLAPI.hpp"
+#include "GLAPICommonTypes.hpp"
 #include "GLKind.hpp"
 #include "GLScalars.hpp"
 #include "GLMutability.hpp"
 #include "EnumUtils.hpp"
-#include "GLDSATextures.hpp"
 #include "detail/MagicConstructorsMacro.hpp"
 #include "detail/RawGLHandle.hpp"
 
@@ -16,8 +16,6 @@ namespace josh::dsa {
 
 
 namespace detail {
-using josh::detail::RawGLHandle;
-
 
 
 template<typename CRTP>
@@ -457,6 +455,9 @@ struct SamplerDSAInterface
 {};
 
 
+
+// TODO: Remove later.
+using josh::detail::RawGLHandle;
 
 
 } // namspace detail

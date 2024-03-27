@@ -11,17 +11,20 @@
 #include <chrono>
 
 
-namespace josh::dsa {
+namespace josh {
 
 
+
+// TODO: Remove namespace.
+namespace dsa {
 enum class SyncWaitResult : GLuint {
     HasSignaled        = GLuint(gl::GL_CONDITION_SATISFIED),
     HasAlreadySignaled = GLuint(gl::GL_ALREADY_SIGNALED),
     TimeoutExpired     = GLuint(gl::GL_TIMEOUT_EXPIRED),
     WaitFailed         = GLuint(gl::GL_WAIT_FAILED),
 };
-
-
+} // namespace dsa
+namespace dsa {
 
 
 template<mutability_tag MutT = GLMutable>
@@ -73,5 +76,5 @@ public:
 
 
 
-
-} // namespace josh::dsa
+} // namespace dsa
+} // namespace josh

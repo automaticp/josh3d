@@ -235,7 +235,7 @@ inline void CSMSetup::build_from_camera(
                 glm::mat3{ shadow_look_at } * shadow_cam_position;
 
             // Size of a single shadowmap pixel in shadowmap view-space.
-            Size2F px_scale{
+            Extent2F px_scale{
                 split_side / float(resolution.width),
                 split_side / float(resolution.height)
             };

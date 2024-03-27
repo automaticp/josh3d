@@ -1,24 +1,22 @@
 #pragma once
 #include "CommonConcepts.hpp" // IWYU pragma: keep
 #include "GLAPI.hpp"
+#include "GLAPIBinding.hpp"
+#include "GLAPICommonTypes.hpp"
 #include "GLKind.hpp"
 #include "GLScalars.hpp"
 #include "GLMutability.hpp"
 #include "EnumUtils.hpp"
 #include "detail/MagicConstructorsMacro.hpp"
 #include "detail/RawGLHandle.hpp"
-#include "detail/StrongScalar.hpp"
+#include "detail/StaticAssertFalseMacro.hpp"
 #include <glbinding/gl/bitfield.h>
+#include <glbinding/gl/enum.h>
 #include <span>
 #include <cassert>
 
 
-namespace josh::dsa {
-
-
-
-JOSH3D_DEFINE_STRONG_SCALAR(OffsetBytes, GLsizeiptr)
-JOSH3D_DEFINE_STRONG_SCALAR(OffsetElems, GLsizeiptr)
+namespace josh {
 
 
 
@@ -29,14 +27,14 @@ class RawUntypedBuffer;
 
 
 
+// TODO: Remove any mention of:
+// enum class StorageType {
+//     Mutable,
+//     Immutable,
+// };
 
-enum class BufferStorageType {
-    Mutable,
-    Immutable,
-};
 
-
-enum class BufferStorageMode : GLuint {
+enum class StorageMode : GLuint {
     StaticServer  = GLuint(gl::GL_NONE_BIT),            // STATIC_DRAW
     DynamicServer = GLuint(gl::GL_DYNAMIC_STORAGE_BIT), // DYNAMIC_DRAW
     StaticClient  = GLuint(gl::GL_CLIENT_STORAGE_BIT),  // STATIC_READ
@@ -57,7 +55,7 @@ enum class BufferUsageHint : GLuint {
 };
 
 
-enum class BufferStoragePermittedMapping : GLuint {
+enum class PermittedMapping : GLuint {
     NoMapping                   = GLuint(gl::GL_NONE_BIT),
 
     Read                        = GLuint(gl::GL_MAP_READ_BIT),
@@ -74,20 +72,20 @@ enum class BufferStoragePermittedMapping : GLuint {
 };
 
 
-enum class BufferMappingPersistence : GLuint {
+enum class MappingPersistence : GLuint {
     NotPersistent      = GLuint(gl::GL_NONE_BIT),
     Persistent         = GLuint(gl::GL_MAP_PERSISTENT_BIT),
     PersistentCoherent = Persistent | GLuint(gl::GL_MAP_COHERENT_BIT),
 };
 
 
-enum class BufferMappingReadAccess : GLuint {
+enum class MappingReadAccess : GLuint {
     Synchronized   = GLuint(gl::GL_NONE_BIT),
     Unsynchronized = GLuint(gl::GL_MAP_UNSYNCHRONIZED_BIT),
 };
 
 
-enum class BufferMappingWriteAccess : GLuint {
+enum class MappingWriteAccess : GLuint {
     Synchronized                      = GLuint(gl::GL_NONE_BIT),
     Unsynchronized                    = GLuint(gl::GL_MAP_UNSYNCHRONIZED_BIT),
     SynchronizedMustFlushExplicitly   = Synchronized | GLuint(gl::GL_MAP_FLUSH_EXPLICIT_BIT),
@@ -95,7 +93,7 @@ enum class BufferMappingWriteAccess : GLuint {
 };
 
 
-enum class BufferMappingReadWriteAccess : GLuint {
+enum class MappingReadWriteAccess : GLuint {
     Synchronized                      = GLuint(gl::GL_NONE_BIT),
     Unsynchronized                    = GLuint(gl::GL_MAP_UNSYNCHRONIZED_BIT),
     SynchronizedMustFlushExplicitly   = Synchronized | GLuint(gl::GL_MAP_FLUSH_EXPLICIT_BIT),
@@ -103,7 +101,7 @@ enum class BufferMappingReadWriteAccess : GLuint {
 };
 
 
-enum class BufferMappingPreviousContents : GLuint {
+enum class MappingPreviousContents : GLuint {
     DoNotInvalidate       = GLuint(gl::GL_NONE_BIT),
     InvalidateAll         = GLuint(gl::GL_MAP_INVALIDATE_BUFFER_BIT),
     InvalidateMappedRange = GLuint(gl::GL_MAP_INVALIDATE_RANGE_BIT),
@@ -117,6 +115,7 @@ enum class BufferTarget : GLuint {
     // ElementArray     = GLuint(gl::GL_ELEMENT_ARRAY_BUFFER),
     DispatchIndirect = GLuint(gl::GL_DISPATCH_INDIRECT_BUFFER),
     DrawIndirect     = GLuint(gl::GL_DRAW_INDIRECT_BUFFER),
+    Parameter        = GLuint(gl::GL_PARAMETER_BUFFER),
     PixelPack        = GLuint(gl::GL_PIXEL_PACK_BUFFER),
     PixelUnpack      = GLuint(gl::GL_PIXEL_UNPACK_BUFFER),
     // Texture          = GLuint(gl::GL_TEXTURE_BUFFER),
@@ -140,6 +139,7 @@ enum class BufferTargetIndexed : GLuint {
 
 
 
+namespace dsa {
 
 
 namespace detail {
@@ -202,15 +202,15 @@ public:
     }
 
     // Wraps `glGetNamedBufferParameteri64v` with `pname = GL_BUFFER_IMMUTABLE_STORAGE`.
-    BufferStorageType get_storage_type() const noexcept {
-        GLboolean is_immutable;
-        gl::glGetNamedBufferParameteriv(
-            self_id(), gl::GL_BUFFER_IMMUTABLE_STORAGE, &is_immutable
-        );
-        return is_immutable == gl::GL_TRUE ?
-            BufferStorageType::Immutable :
-            BufferStorageType::Mutable;
-    }
+    // StorageType get_storage_type() const noexcept {
+    //     GLboolean is_immutable;
+    //     gl::glGetNamedBufferParameteriv(
+    //         self_id(), gl::GL_BUFFER_IMMUTABLE_STORAGE, &is_immutable
+    //     );
+    //     return is_immutable == gl::GL_TRUE ?
+    //         StorageType::Immutable :
+    //         StorageType::Mutable;
+    // }
 };
 
 
@@ -246,18 +246,21 @@ private:
 public:
     // Wraps `glBindBuffer`.
     template<BufferTarget TargetV>
-    void bind() const noexcept {
-        gl::glBindBuffer(
-            GLenum{ to_underlying(TargetV) }, self_id()
-        );
+    [[nodiscard("BindTokens have to be provided to an API call that expects bound state.")]]
+    auto bind() const noexcept {
+        gl::glBindBuffer(enum_cast<GLenum>(TargetV), self_id());
+        if constexpr      (TargetV == BufferTarget::DispatchIndirect) { return BindToken<Binding::DispatchIndirectBuffer>{ self_id() }; }
+        else if constexpr (TargetV == BufferTarget::DrawIndirect)     { return BindToken<Binding::DrawIndirectBuffer>    { self_id() }; }
+        else if constexpr (TargetV == BufferTarget::Parameter)        { return BindToken<Binding::ParameterBuffer>       { self_id() }; }
+        else if constexpr (TargetV == BufferTarget::PixelPack)        { return BindToken<Binding::PixelPackBuffer>       { self_id() }; }
+        else if constexpr (TargetV == BufferTarget::PixelUnpack)      { return BindToken<Binding::PixelUnpackBuffer>     { self_id() }; }
+        else { JOSH3D_STATIC_ASSERT_FALSE(CRTP); }
     }
 
     // Wraps `glBindBufferBase`.
     template<BufferTargetIndexed TargetV>
     void bind_to_index(GLuint index) const noexcept {
-        gl::glBindBufferBase(
-            GLenum{ to_underlying(TargetV) }, index, self_id()
-        );
+        gl::glBindBufferBase(enum_cast<GLenum>(TargetV), index, self_id());
     }
 
 };
@@ -288,13 +291,14 @@ public:
     //
     // Returns `true` if unmapping succeded, `false` otherwise.
     //
-    // `glUnmapBuffer` returns `GL_TRUE` unless the data store contents
+    // " `glUnmapBuffer` returns `GL_TRUE` unless the data store contents
     // have become corrupt during the time the data store was mapped.
     // This can occur for system-specific reasons that affect
     // the availability of graphics memory, such as screen mode changes.
     // In such situations, `GL_FALSE` is returned and the data store contents
-    // are undefined. An application must detect this rare condition
-    // and reinitialize the data store.
+    // are undefined. The application must detect this rare condition
+    // and reinitialize the data store."
+    [[nodiscard]]
     bool unmap_current() const noexcept {
         GLboolean unmapping_succeded = gl::glUnmapNamedBuffer(self_id());
         return unmapping_succeded == gl::GL_TRUE;
@@ -326,13 +330,15 @@ public:
     // Wraps `glBindBufferRange`.
     template<BufferTargetIndexed TargetV>
     void bind_range_to_index(
-        GLintptr elem_offset, GLsizeiptr elem_count,
-        GLuint index) const noexcept
+        OffsetElems elem_offset,
+        NumElems    elem_count,
+        GLuint      index) const noexcept
     {
         gl::glBindBufferRange(
-            GLenum{ to_underlying(TargetV) },
+            enum_cast<GLenum>(TargetV),
             index, this->id(),
-            elem_offset * sizeof(T), elem_count * sizeof(T)
+            elem_offset.value * sizeof(T),
+            elem_count.value  * sizeof(T)
         );
     }
 
@@ -342,39 +348,40 @@ public:
     // Wraps `glGetNamedBufferParameteri64v` with `pname = GL_BUFFER_SIZE`.
     //
     // Equivalent to `get_size_bytes()` divided by `sizeof(T)`.
-    GLsizeiptr get_num_elements() const noexcept {
-        return this->get_size_bytes() / sizeof(T);
+    NumElems get_num_elements() const noexcept {
+        return NumElems{ this->get_size_bytes() / sizeof(T) };
     }
 
 
     // Mutable Storage Allocation.
 
+    // NOT SUPPORTED.
 
     // Wraps `glNamedBufferData` with `usage = usage_hint`.
     //
     // Creates mutable storage and initializes it with the contents of `src_buf`.
-    void specify_data(
-        std::span<const T> src_buf,
-        BufferUsageHint usage_hint = BufferUsageHint::StaticDraw) const noexcept
-            requires gl_mutable<mutability>
-    {
-        gl::glNamedBufferData(
-            self_id(), src_buf.size_bytes(), src_buf.data(), enum_cast<GLenum>(usage_hint)
-        );
-    }
+    // void specify_data(
+    //     std::span<const T> src_buf,
+    //     BufferUsageHint usage_hint = BufferUsageHint::StaticDraw) const noexcept
+    //         requires gl_mutable<mutability>
+    // {
+    //     gl::glNamedBufferData(
+    //         self_id(), src_buf.size_bytes(), src_buf.data(), enum_cast<GLenum>(usage_hint)
+    //     );
+    // }
 
     // Wraps `glNamedBufferData`.
     //
     // Creates mutable storage leaving the contents undefined.
-    void allocate_data(
-        GLsizeiptr num_elements,
-        BufferUsageHint usage_hint = BufferUsageHint::StaticDraw) const noexcept
-            requires gl_mutable<mutability>
-    {
-        gl::glNamedBufferData(
-            self_id(), num_elements * sizeof(T), nullptr, enum_cast<GLenum>(usage_hint)
-        );
-    }
+    // void allocate_data(
+    //     GLsizeiptr num_elements,
+    //     BufferUsageHint usage_hint = BufferUsageHint::StaticDraw) const noexcept
+    //         requires gl_mutable<mutability>
+    // {
+    //     gl::glNamedBufferData(
+    //         self_id(), num_elements * sizeof(T), nullptr, enum_cast<GLenum>(usage_hint)
+    //     );
+    // }
 
 
     // Immutable Storage Allocation.
@@ -384,8 +391,8 @@ public:
     // Creates immutable storage and initializes it with the contents of `src_buf`.
     void specify_storage(
         std::span<const T> src_buf,
-        BufferStorageMode             storage_mode = BufferStorageMode::DynamicServer,
-        BufferStoragePermittedMapping mapping_mode = BufferStoragePermittedMapping::ReadWrite) const noexcept
+        StorageMode        storage_mode = StorageMode::DynamicServer,
+        PermittedMapping   mapping_mode = PermittedMapping::ReadWrite) const noexcept
             requires gl_mutable<mutability>
     {
         gl::BufferStorageMask flags{
@@ -400,16 +407,16 @@ public:
     //
     // Creates immutable storage leaving the contents undefined.
     void allocate_storage(
-        GLsizeiptr num_elements,
-        BufferStorageMode             storage_mode = BufferStorageMode::DynamicServer,
-        BufferStoragePermittedMapping mapping_mode = BufferStoragePermittedMapping::ReadWrite) const noexcept
+        NumElems         num_elements,
+        StorageMode      storage_mode = StorageMode::DynamicServer,
+        PermittedMapping mapping_mode = PermittedMapping::ReadWrite) const noexcept
             requires gl_mutable<mutability>
     {
         gl::BufferStorageMask flags{
             to_underlying(storage_mode) | to_underlying(mapping_mode)
         };
         gl::glNamedBufferStorage(
-            self_id(), num_elements * sizeof(T), nullptr, flags
+            self_id(), num_elements.value * sizeof(T), nullptr, flags
         );
     }
 
@@ -419,11 +426,14 @@ public:
     // Wraps `glNamedBufferSubData`.
     //
     // Will copy `src_buf.size()` elements from `src_buf` to this Buffer.
-    void upload_data(std::span<const T> src_buf, GLsizeiptr elem_offset = 0) const noexcept
-        requires gl_mutable<mutability>
+    void upload_data(
+        std::span<const T> src_buf,
+        OffsetElems        elem_offset = OffsetElems{ 0 }) const noexcept
+            requires gl_mutable<mutability>
     {
         gl::glNamedBufferSubData(
-            self_id(), elem_offset * sizeof(T),
+            self_id(),
+            elem_offset.value * sizeof(T),
             src_buf.size_bytes(), src_buf.data()
         );
     }
@@ -432,10 +442,12 @@ public:
     //
     // Will copy `dst_buf.size()` elements from this Buffer to `dst_buf`.
     void download_data_into(
-        std::span<T> dst_buf, GLsizeiptr elem_offset = 0) const noexcept
+        std::span<T> dst_buf,
+        OffsetElems  elem_offset = OffsetElems{ 0 }) const noexcept
     {
         gl::glGetNamedBufferSubData(
-            self_id(), elem_offset * sizeof(T),
+            self_id(),
+            elem_offset.value * sizeof(T),
             dst_buf.size_bytes(), dst_buf.data()
         );
     }
@@ -446,17 +458,17 @@ public:
     // No alignment or layout is considered. Copies bytes directly, similar to `memcpy`.
     template<typename DstT = T>
     void copy_data_to(
-        mt::template type_template<GLMutable, DstT> dst_buffer,
-        GLsizeiptr src_elem_count,
-        GLintptr src_elem_offset = 0,
-        GLintptr dst_elem_offset = 0) const noexcept
+        mt::template type_template<DstT, GLMutable> dst_buffer,
+        NumElems                                    src_elem_count,
+        OffsetElems                                 src_elem_offset = OffsetElems{ 0 },
+        OffsetElems                                 dst_elem_offset = OffsetElems{ 0 }) const noexcept
     {
         gl::glCopyNamedBufferSubData(
             self_id(),
             dst_buffer.id(),
-            src_elem_offset * sizeof(T),
-            dst_elem_offset * sizeof(DstT),
-            src_elem_count  * sizeof(T)
+            src_elem_offset.value * sizeof(T),
+            dst_elem_offset.value * sizeof(DstT),
+            src_elem_count.value  * sizeof(T)
         );
     }
 
@@ -471,11 +483,15 @@ public:
     }
 
     // Wraps `glInvalidateBufferSubData`.
-    void invalidate_subrange(GLintptr elem_offset, GLsizeiptr elem_count) const noexcept
-        requires gl_mutable<mutability>
+    void invalidate_subrange(
+        OffsetElems elem_offset,
+        NumElems    elem_count) const noexcept
+            requires gl_mutable<mutability>
     {
         gl::glInvalidateBufferSubData(
-            self_id(), elem_offset * sizeof(T), elem_count * sizeof(T)
+            self_id(),
+            elem_offset.value * sizeof(T),
+            elem_count.value  * sizeof(T)
         );
     }
 
@@ -484,9 +500,10 @@ public:
 
     // Wraps `glMapNamedBufferRange` with `access = GL_MAP_READ_BIT | read_access | persistence`.
     [[nodiscard]] std::span<const T> map_range_for_read(
-        GLintptr elem_offset, GLsizeiptr elem_count,
-        BufferMappingReadAccess  read_access = BufferMappingReadAccess::Synchronized,
-        BufferMappingPersistence persistence = BufferMappingPersistence::NotPersistent) const noexcept
+        OffsetElems        elem_offset,
+        NumElems           elem_count,
+        MappingReadAccess  read_access = MappingReadAccess::Synchronized,
+        MappingPersistence persistence = MappingPersistence::NotPersistent) const noexcept
     {
         gl::BufferAccessMask access{
             to_underlying(persistence) | to_underlying(read_access)
@@ -501,18 +518,19 @@ public:
     //
     // Maps the entire buffer.
     [[nodiscard]] std::span<const T> map_for_read(
-        BufferMappingReadAccess  read_access = BufferMappingReadAccess::Synchronized,
-        BufferMappingPersistence persistence = BufferMappingPersistence::NotPersistent) const noexcept
+        MappingReadAccess  read_access = MappingReadAccess::Synchronized,
+        MappingPersistence persistence = MappingPersistence::NotPersistent) const noexcept
     {
-        return map_for_read(0, get_num_elements(), persistence, read_access);
+        return map_for_read(OffsetElems{ 0 }, get_num_elements(), persistence, read_access);
     }
 
     // Wraps `glMapNamedBufferRange` with `access = GL_MAP_WRITE_BIT | write_access | previous_contents | persistence`.
     [[nodiscard]] std::span<T> map_range_for_write(
-        GLintptr elem_offset, GLsizeiptr elem_count,
-        BufferMappingWriteAccess      write_access      = BufferMappingWriteAccess::Synchronized,
-        BufferMappingPreviousContents previous_contents = BufferMappingPreviousContents::DoNotInvalidate,
-        BufferMappingPersistence      persistence       = BufferMappingPersistence::NotPersistent) const noexcept
+        OffsetElems             elem_offset,
+        NumElems                elem_count,
+        MappingWriteAccess      write_access      = MappingWriteAccess::Synchronized,
+        MappingPreviousContents previous_contents = MappingPreviousContents::DoNotInvalidate,
+        MappingPersistence      persistence       = MappingPersistence::NotPersistent) const noexcept
             requires gl_mutable<mutability>
     {
         gl::BufferAccessMask access{
@@ -528,19 +546,20 @@ public:
     //
     // Maps the entire buffer.
     [[nodiscard]] std::span<T> map_for_write(
-        BufferMappingWriteAccess      write_access      = BufferMappingWriteAccess::Synchronized,
-        BufferMappingPreviousContents previous_contents = BufferMappingPreviousContents::DoNotInvalidate,
-        BufferMappingPersistence      persistence       = BufferMappingPersistence::NotPersistent) const noexcept
+        MappingWriteAccess      write_access      = MappingWriteAccess::Synchronized,
+        MappingPreviousContents previous_contents = MappingPreviousContents::DoNotInvalidate,
+        MappingPersistence      persistence       = MappingPersistence::NotPersistent) const noexcept
             requires gl_mutable<mutability>
     {
-        return map_for_write(0, get_num_elements(), write_access, previous_contents, persistence);
+        return map_for_write(OffsetElems{ 0 }, get_num_elements(), write_access, previous_contents, persistence);
     }
 
     // Wraps `glMapNamedBufferRange` with `access = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | readwrite_access | persistence`.
     [[nodiscard]] std::span<T> map_range_for_readwrite(
-        GLintptr elem_offset, GLsizeiptr elem_count,
-        BufferMappingReadWriteAccess readwrite_access = BufferMappingReadWriteAccess::Synchronized,
-        BufferMappingPersistence     persistence      = BufferMappingPersistence::NotPersistent) const noexcept
+        OffsetElems            elem_offset,
+        NumElems               elem_count,
+        MappingReadWriteAccess readwrite_access = MappingReadWriteAccess::Synchronized,
+        MappingPersistence     persistence      = MappingPersistence::NotPersistent) const noexcept
             requires gl_mutable<mutability>
     {
         gl::BufferAccessMask access{
@@ -556,31 +575,35 @@ public:
     //
     // Maps the entire buffer.
     [[nodiscard]] std::span<T> map_for_readwrite(
-        BufferMappingReadWriteAccess readwrite_access = BufferMappingReadWriteAccess::Synchronized,
-        BufferMappingPersistence     persistence      = BufferMappingPersistence::NotPersistent) const noexcept
+        MappingReadWriteAccess readwrite_access = MappingReadWriteAccess::Synchronized,
+        MappingPersistence     persistence      = MappingPersistence::NotPersistent) const noexcept
             requires gl_mutable<mutability>
     {
-        return map_for_readwrite(0, get_num_elements(), readwrite_access, persistence);
+        return map_for_readwrite(OffsetElems{ 0 }, get_num_elements(), readwrite_access, persistence);
     }
 
 
     // Mapped Buffer Control.
 
     // Wraps `glUnmapNamedBuffer`.
-    GLboolean unmap_current() const noexcept {
+    bool unmap_current() const noexcept {
         GLboolean unmapping_succeded = gl::glUnmapNamedBuffer(self_id());
-        return unmapping_succeded;
+        return bool(unmapping_succeded);
     }
 
     // Wraps `glFlushMappedNamedBufferRange`.
     //
     // The buffer object must previously have been mapped with the
     // `BufferMapping[Read]WriteAccess` equal to one of the `*MustFlushExplicitly` options.
-    void flush_mapped_range(GLintptr elem_offset, GLsizeiptr elem_count) const noexcept
-        requires gl_mutable<mutability>
+    void flush_mapped_range(
+        OffsetElems elem_offset,
+        NumElems    elem_count) const noexcept
+            requires gl_mutable<mutability>
     {
         gl::glFlushMappedNamedBufferRange(
-            self_id(), elem_offset * sizeof(T), elem_count * sizeof(T)
+            self_id(),
+            elem_offset.value * sizeof(T),
+            elem_count.value  * sizeof(T)
         );
     }
 
@@ -593,6 +616,7 @@ public:
 
 
 namespace detail {
+// TODO: Remove Later.
 using josh::detail::RawGLHandle;
 } // namespace detail
 
@@ -618,7 +642,7 @@ public:
 
 
 // Lil namespace break, donnt worry aboutit
-} namespace josh {
+} // namespace dsa
 template<trivially_copyable T, mutability_tag MutT>
 struct mutability_traits<dsa::RawBuffer<T, MutT>> {
     using mutability                 = MutT;
@@ -631,7 +655,7 @@ struct mutability_traits<dsa::RawBuffer<T, MutT>> {
     static constexpr bool is_mutable = gl_mutable<mutability>;
     static constexpr bool is_const   = gl_const<mutability>;
 };
-} namespace josh::dsa {
+namespace dsa {
 
 
 
@@ -663,5 +687,5 @@ public:
 
 
 
-
-} // namespace josh::dsa
+} // namespace dsa
+} // namespace josh

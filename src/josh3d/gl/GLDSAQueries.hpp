@@ -17,7 +17,7 @@
 
 
 
-namespace josh::dsa {
+namespace josh {
 
 
 enum class QueryTarget : GLuint {
@@ -42,6 +42,11 @@ enum class QueryTarget : GLuint {
     TransformFeedbackOverflow          = GLuint(gl::GL_TRANSFORM_FEEDBACK_OVERFLOW),
     TransformFeedbackStreamOverflow    = GLuint(gl::GL_TRANSFORM_FEEDBACK_STREAM_OVERFLOW),
 };
+
+
+
+
+namespace dsa {
 
 
 namespace detail {
@@ -259,5 +264,5 @@ JOSH3D_GENERATE_DSA_QUERY_CLASSES(TransformFeedbackStreamOverflow)
 
 
 
-
-} // namespace josh::dsa
+} // namespace dsa
+} // namespace josh

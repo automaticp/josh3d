@@ -2,14 +2,17 @@
 #include "CommonConcepts.hpp" // IWYU pragma: keep
 #include "GLAPI.hpp"
 #include "GLDSABuffers.hpp"
+#include "GLAPICommonTypes.hpp"
 #include "GLKind.hpp"
 #include "GLScalars.hpp"
 #include "GLMutability.hpp"
 #include "EnumUtils.hpp"
 #include "Index.hpp"
 #include "PixelPackTraits.hpp"
+#include "Region.hpp"
 #include "Size.hpp"
 #include "detail/ConditionalMixin.hpp"
+#include "detail/EnumCompatability.hpp"
 #include "detail/MagicConstructorsMacro.hpp"
 #include "detail/RawGLHandle.hpp"
 #include "detail/StaticAssertFalseMacro.hpp"
@@ -24,13 +27,9 @@
 #include <utility>
 
 
-namespace josh::dsa {
+namespace josh {
 
 
-
-namespace detail {
-using josh::detail::conditional_mixin_t;
-}
 
 
 /*
@@ -57,32 +56,6 @@ enum class TextureTarget : GLuint {
 
 
 
-enum class MinFilter : GLuint {
-    Nearest              = GLuint(gl::GL_NEAREST),
-    Linear               = GLuint(gl::GL_LINEAR),
-    NearestMipmapNearest = GLuint(gl::GL_NEAREST_MIPMAP_NEAREST),
-    NearestMipmapLinear  = GLuint(gl::GL_NEAREST_MIPMAP_LINEAR),
-    LinearMipmapNearest  = GLuint(gl::GL_LINEAR_MIPMAP_NEAREST),
-    LinearMipmapLinear   = GLuint(gl::GL_LINEAR_MIPMAP_LINEAR),
-};
-
-enum class MinFilterNoLOD : GLuint {
-    Nearest = GLuint(gl::GL_NEAREST),
-    Linear  = GLuint(gl::GL_LINEAR),
-};
-
-enum class MagFilter : GLuint {
-    Nearest = GLuint(gl::GL_NEAREST),
-    Linear  = GLuint(gl::GL_LINEAR),
-};
-
-enum class Wrap : GLuint {
-    Repeat                = GLuint(gl::GL_REPEAT),
-    MirroredRepeat        = GLuint(gl::GL_MIRRORED_REPEAT),
-    ClampToEdge           = GLuint(gl::GL_CLAMP_TO_EDGE),
-    MirrorThenClampToEdge = GLuint(gl::GL_MIRROR_CLAMP_TO_EDGE),
-    ClampToBorder         = GLuint(gl::GL_CLAMP_TO_BORDER),
-};
 
 
 enum class Swizzle : GLuint {
@@ -103,51 +76,12 @@ struct SwizzleRGBA {
 };
 
 
-
-
-enum class CompareOp : GLuint {
-    LEqual   = GLuint(gl::GL_LEQUAL),
-    GEqual   = GLuint(gl::GL_GEQUAL),
-    Less     = GLuint(gl::GL_LESS),
-    Greater  = GLuint(gl::GL_GREATER),
-    Equal    = GLuint(gl::GL_EQUAL),
-    NotEqual = GLuint(gl::GL_NOTEQUAL),
-    Always   = GLuint(gl::GL_ALWAYS),
-    Never    = GLuint(gl::GL_NEVER),
-};
-
-
 enum class DepthStencilTarget : GLuint {
     DepthComponent = GLuint(gl::GL_DEPTH_COMPONENT),
     StencilIndex   = GLuint(gl::GL_STENCIL_INDEX),
 };
 
 
-
-
-
-// These types are used in border color and clear color API.
-// They exist mostly because we want to return a single value from get_*border_color* calls.
-// They are not recommended as a pixel format in pixel transfer operations.
-struct RGBAUNorm {
-    GLfloat r{}, g{}, b{}, a{};
-};
-
-struct RGBASNorm {
-    GLint r{}, g{}, b{}, a{};
-};
-
-struct RGBAF {
-    GLfloat r{}, g{}, b{}, a{};
-};
-
-struct RGBAI {
-    GLint r{}, g{}, b{}, a{};
-};
-
-struct RGBAUI {
-    GLuint r{}, g{}, b{}, a{};
-};
 
 
 
@@ -209,7 +143,7 @@ constants listed in tables 8.12-8.13, as one of the generic compressed internal
 format symbolic constants listed in table 8.14, or as one of the specific compressed
 internal format symbolic constants (if listed in table 8.14)."
 */
-enum class PixelInternalFormat : GLuint {
+enum class InternalFormat : GLuint {
     // Base Internal Formats.
     Red            = GLuint(gl::GL_RED),
     RG             = GLuint(gl::GL_RG),
@@ -363,6 +297,8 @@ enum class CompressedInternalFormat : GLuint {
     Compressed_SRGBA_S3TC_DXT5_EXT        = GLuint(gl::GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT),
 };
 
+JOSH3D_DECLARE_ENUM_AS_SUPERSET(InternalFormat, CompressedInternalFormat)
+
 
 enum class ImageUnitFormat : GLuint {
     RGBA32F        = GLuint(gl::GL_RGBA32F),        // rgba32f
@@ -405,6 +341,8 @@ enum class ImageUnitFormat : GLuint {
     R16_SNorm      = GLuint(gl::GL_R16_SNORM),      // r16_snorm
     R8_SNorm       = GLuint(gl::GL_R8_SNORM),       // r8_snorm
 };
+
+JOSH3D_DECLARE_ENUM_AS_SUPERSET(InternalFormat, ImageUnitFormat)
 
 
 enum class ImageUnitFormatCompatibility : GLuint {
@@ -450,6 +388,8 @@ enum class BufferTextureInternalFormat : GLuint {
     RGBA32UI = GLuint(gl::GL_RGBA32UI),
 };
 
+JOSH3D_DECLARE_ENUM_AS_SUPERSET(InternalFormat, BufferTextureInternalFormat)
+
 
 enum class PixelComponent {
     Red,
@@ -474,6 +414,8 @@ enum class PixelComponentType : GLuint {
 
 
 
+
+namespace dsa {
 
 
 namespace detail {
@@ -553,22 +495,17 @@ template<> struct texture_region_dims<TextureTarget::TextureBuffer>    : std::in
 
 
 template<size_t NDimsV> struct texture_region_dims_traits;
-template<> struct texture_region_dims_traits<1> { using offset_type = Offset1I; using extent_type = Extent1I; };
-template<> struct texture_region_dims_traits<2> { using offset_type = Offset2I; using extent_type = Extent2I; };
-template<> struct texture_region_dims_traits<3> { using offset_type = Offset3I; using extent_type = Extent3I; };
+template<> struct texture_region_dims_traits<1> { using offset_type = Offset1I; using extent_type = Extent1I; using region_type = Region1I; };
+template<> struct texture_region_dims_traits<2> { using offset_type = Offset2I; using extent_type = Extent2I; using region_type = Region2I; };
+template<> struct texture_region_dims_traits<3> { using offset_type = Offset3I; using extent_type = Extent3I; using region_type = Region3I; };
 
 
 template<TextureTarget TargetV> struct texture_region_traits {
     using offset_type = texture_region_dims_traits<texture_region_dims<TargetV>::value>::offset_type;
     using extent_type = texture_region_dims_traits<texture_region_dims<TargetV>::value>::extent_type;
+    using region_type = texture_region_dims_traits<texture_region_dims<TargetV>::value>::region_type;
     static constexpr GLsizeiptr ndims = texture_region_dims<TargetV>::value;
 };
-
-
-template<TextureTarget TargetV> struct texture_wrap_dims           : std::integral_constant<size_t, 2> {};
-template<> struct texture_wrap_dims<TextureTarget::Texture1D>      : std::integral_constant<size_t, 1> {};
-template<> struct texture_wrap_dims<TextureTarget::Texture1DArray> : std::integral_constant<size_t, 1> {};
-template<> struct texture_wrap_dims<TextureTarget::Texture3D>      : std::integral_constant<size_t, 3> {};
 
 
 
@@ -626,8 +563,13 @@ struct texture_target_traits {
     using offset_type = detail::texture_region_traits<TargetV>::offset_type;
 
     /*
+    Region is a pair of Offset and Extent of the same dimensionality.
+    */
+    using region_type = detail::texture_region_traits<TargetV>::region_type;
+
+    /*
     Number of dimensions needed to fully define a texture Region.
-    Applies to both Offset and Extent types.
+    Applies to both Offset, Extent and Region types.
     */
     static constexpr GLsizeiptr region_ndims = detail::texture_region_dims<TargetV>::value;
 
@@ -702,6 +644,9 @@ public:
 
 
 
+// TODO: Remove later.
+using josh::detail::conditional_mixin_t;
+
 
 
 
@@ -755,7 +700,7 @@ public:
         -> tt::resolution_type
             requires (!tt::has_lod)
     {
-        return get_resolution_impl(0);
+        return get_resolution_impl(MipLevel{ 0 });
     }
 
 
@@ -990,11 +935,11 @@ struct TextureDSAInterface_Queries_InternalFormat {
 
     // Wraps `glGetTextureLevelParameteriv` with `pname = GL_TEXTURE_INTERNAL_FORMAT` and `level = 0`.
     auto get_internal_format() const noexcept
-        -> PixelInternalFormat
+        -> InternalFormat
     {
         GLenum internal_format;
         gl::glGetTextureLevelParameteriv(self_id(), 0, gl::GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
-        return enum_cast<PixelInternalFormat>(internal_format);
+        return enum_cast<InternalFormat>(internal_format);
     }
 
 };
@@ -1961,7 +1906,7 @@ struct TextureDSAInterface_Bind
 
 inline void texture_storage_1d(
     GLuint id, const Size1I& size,
-    PixelInternalFormat internal_format, GLsizei levels) noexcept
+    InternalFormat internal_format, GLsizei levels) noexcept
 {
     gl::glTextureStorage1D(
         id, levels, enum_cast<GLenum>(internal_format), size
@@ -1970,7 +1915,7 @@ inline void texture_storage_1d(
 
 inline void texture_storage_2d(
     GLuint id, const Size2I& size,
-    PixelInternalFormat internal_format, GLsizei levels) noexcept
+    InternalFormat internal_format, GLsizei levels) noexcept
 {
     gl::glTextureStorage2D(
         id, levels, enum_cast<GLenum>(internal_format), size.width, size.height
@@ -1979,7 +1924,7 @@ inline void texture_storage_2d(
 
 inline void texture_storage_2d_ms(
     GLuint id, const Size2I& size,
-    PixelInternalFormat internal_format,
+    InternalFormat internal_format,
     NumSamples num_samples, SampleLocations sample_locations) noexcept
 {
     gl::glTextureStorage2DMultisample(
@@ -1990,7 +1935,7 @@ inline void texture_storage_2d_ms(
 
 inline void texture_storage_3d(
     GLuint id, const Size3I& size,
-    PixelInternalFormat internal_format, GLsizei levels) noexcept
+    InternalFormat internal_format, GLsizei levels) noexcept
 {
     gl::glTextureStorage3D(
         id, levels, enum_cast<GLenum>(internal_format), size.width, size.height, size.depth
@@ -1999,7 +1944,7 @@ inline void texture_storage_3d(
 
 inline void texture_storage_3d_ms(
     GLuint id, const Size3I& size,
-    PixelInternalFormat internal_format,
+    InternalFormat internal_format,
     NumSamples num_samples, SampleLocations sample_locations) noexcept
 {
     gl::glTextureStorage3DMultisample(
@@ -2021,7 +1966,7 @@ struct TextureDSAInterface_AllocateStorage {
     // Overload for `Texture[1|2|3]D`, `Cubemap`.
     void allocate_storage(
         const tt::resolution_type& resolution,
-        PixelInternalFormat        internal_format,
+        InternalFormat             internal_format,
         NumLevels                  num_levels = NumLevels{ 1 }) const noexcept
             requires mt::is_mutable && tt::has_lod && (!tt::is_array)
     {
@@ -2034,12 +1979,12 @@ struct TextureDSAInterface_AllocateStorage {
         } else { JOSH3D_STATIC_ASSERT_FALSE(tt); }
     }
 
-    // TODO: You can't actually allocate storage for the buffer texture. Or do a lot of other operations.
-    //
-    // Overload for `TextureBuffer`, `TextureRectangle`.
+
+
+    // Overload for `TextureRectangle`.
     void allocate_storage(
         const tt::resolution_type& resolution,
-        PixelInternalFormat        internal_format) const noexcept
+        InternalFormat             internal_format) const noexcept
             requires mt::is_mutable && (!tt::has_lod) && (!tt::is_array) && (!tt::is_multisample)
     {
         if constexpr (tt::resolution_ndims == 1) {
@@ -2053,7 +1998,7 @@ struct TextureDSAInterface_AllocateStorage {
     void allocate_storage(
         const tt::resolution_type& resolution,
         GLsizei                    num_array_elements,
-        PixelInternalFormat        internal_format,
+        InternalFormat             internal_format,
         NumLevels                  num_levels = NumLevels{ 1 }) const noexcept
             requires mt::is_mutable && tt::has_lod && tt::is_array
     {
@@ -2071,7 +2016,7 @@ struct TextureDSAInterface_AllocateStorage {
     // Overload for `Texture2DMS`.
     void allocate_storage(
         const tt::resolution_type& resolution,
-        PixelInternalFormat        internal_format,
+        InternalFormat             internal_format,
         NumSamples                 num_samples      = NumSamples{ 1 },
         SampleLocations            sample_locations = SampleLocations::NotFixed) const noexcept
             requires mt::is_mutable && tt::is_multisample && (!tt::is_array)
@@ -2085,7 +2030,7 @@ struct TextureDSAInterface_AllocateStorage {
     void allocate_storage(
         const tt::resolution_type& resolution,
         GLsizei                    num_array_elements,
-        PixelInternalFormat        internal_format,
+        InternalFormat             internal_format,
         NumSamples                 num_samples      = NumSamples{ 1 },
         SampleLocations            sample_locations = SampleLocations::NotFixed) const noexcept
             requires mt::is_mutable && tt::is_multisample && tt::is_array
@@ -2184,8 +2129,7 @@ struct TextureDSAInterface_ImageOperations_Upload {
 private:
 
     void upload_image_region_impl(
-        const tt::offset_type& offset,
-        const tt::extent_type& extent,
+        const tt::region_type& region,
         PixelDataFormat        format,
         PixelDataType          type,
         const void*            data,
@@ -2193,60 +2137,56 @@ private:
             requires mt::is_mutable
     {
         if constexpr        (tt::region_ndims == 1) {
-            texture_sub_image_1d(self_id(), offset, extent, format, type, data, mip_level);
+            texture_sub_image_1d(self_id(), region.offset, region.extent, format, type, data, mip_level);
         } else if constexpr (tt::region_ndims == 2) {
-            texture_sub_image_2d(self_id(), offset, extent, format, type, data, mip_level);
+            texture_sub_image_2d(self_id(), region.offset, region.extent, format, type, data, mip_level);
         } else if constexpr (tt::region_ndims == 3) {
-            texture_sub_image_3d(self_id(), offset, extent, format, type, data, mip_level);
+            texture_sub_image_3d(self_id(), region.offset, region.extent, format, type, data, mip_level);
         } else { JOSH3D_STATIC_ASSERT_FALSE(tt); }
     }
 
 public:
 
     void upload_image_region(
-        const tt::offset_type& offset,
-        const tt::extent_type& extent,
+        const tt::region_type& region,
         PixelDataFormat        format,
         PixelDataType          type,
         const void*            data,
         MipLevel               level = MipLevel{ 0 }) const noexcept
             requires mt::is_mutable && tt::has_lod
     {
-        upload_image_region_impl(offset, extent, format, type, data, level);
+        upload_image_region_impl(region, format, type, data, level);
     }
 
     void upload_image_region(
-        const tt::offset_type& offset,
-        const tt::extent_type& extent,
+        const tt::region_type& region,
         PixelDataFormat        format,
         PixelDataType          type,
         const void*            data) const noexcept
             requires mt::is_mutable && (!tt::has_lod)
     {
-        upload_image_region_impl(offset, extent, format, type, data, 0);
+        upload_image_region_impl(region, format, type, data, MipLevel{ 0 });
     }
 
     template<specifies_pixel_pack_traits PixelT>
     void upload_image_region(
-        const tt::offset_type& offset,
-        const tt::extent_type& extent,
+        const tt::region_type& region,
         const PixelT*          data,
         MipLevel               level = MipLevel{ 0 }) const noexcept
             requires mt::is_mutable && tt::has_lod
     {
         using pptr = pixel_pack_traits<PixelT>;
-        upload_image_region_impl(offset, extent, pptr::format, pptr::type, data, level);
+        upload_image_region_impl(region, pptr::format, pptr::type, data, level);
     }
 
     template<specifies_pixel_pack_traits PixelT>
     void upload_image_region(
-        const tt::offset_type& offset,
-        const tt::extent_type& extent,
+        const tt::region_type& region,
         const PixelT*          data) const noexcept
             requires mt::is_mutable && (!tt::has_lod)
     {
         using pptr = pixel_pack_traits<PixelT>;
-        upload_image_region_impl(offset, extent, pptr::format, pptr::type, data, 0);
+        upload_image_region_impl(region, pptr::format, pptr::type, data, MipLevel{ 0 });
     }
 
 };
@@ -2260,8 +2200,7 @@ struct TextureDSAInterface_ImageOperations_Download {
 private:
 
     void download_image_region_into_impl(
-        const tt::offset_type& offset,
-        const tt::extent_type& extent,
+        const tt::region_type& region,
         PixelDataFormat        format,
         PixelDataType          type,
         std::span<GLubyte>     dst_buf,
@@ -2275,11 +2214,13 @@ private:
                 self_id(), level,
                 offset.x,     offset.y,      offset.z,
                 extent.width, extent.height, extent.depth,
-                enum_cast<GLenum>(format), enum_cast<GLenum>(type)  ,
+                enum_cast<GLenum>(format), enum_cast<GLenum>(type),
                 dst_buf.size(),
                 dst_buf.data()
             );
         };
+        auto& offset = region.offset;
+        auto& extent = region.extent;
         if constexpr      (tt::region_ndims == 1) { download({ offset, 0, 0 }, { extent, 1, 1 }); }
         else if constexpr (tt::region_ndims == 2) { download({ offset,    0 }, { extent,    1 }); }
         else if constexpr (tt::region_ndims == 3) { download({ offset       }, { extent       }); }
@@ -2289,49 +2230,45 @@ private:
 public:
 
     void download_image_region_into(
-        const tt::offset_type& offset,
-        const tt::extent_type& extent,
+        const tt::region_type& region,
         PixelDataFormat        format,
         PixelDataType          type,
         std::span<GLubyte>     dst_buf,
         MipLevel               level = MipLevel{ 0 }) const noexcept
             requires tt::has_lod
     {
-        download_image_region_into_impl(offset, extent, format, type, dst_buf, level);
+        download_image_region_into_impl(region, format, type, dst_buf, level);
     }
 
     void download_image_region_into(
-        const tt::offset_type& offset,
-        const tt::extent_type& extent,
+        const tt::region_type& region,
         PixelDataFormat        format,
         PixelDataType          type,
         std::span<GLubyte>     dst_buf) const noexcept
             requires (!tt::has_lod)
     {
-        download_image_region_into_impl(offset, extent, format, type, dst_buf, 0);
+        download_image_region_into_impl(region, format, type, dst_buf, MipLevel{ 0 });
     }
 
     template<specifies_pixel_pack_traits PixelT>
     void download_image_region_into(
-        const tt::offset_type& offset,
-        const tt::extent_type& extent,
+        const tt::region_type& region,
         std::span<PixelT>      dst_buf,
         MipLevel               level = MipLevel{ 0 }) const noexcept
             requires tt::has_lod
     {
         using pptr = pixel_pack_traits<PixelT>;
-        download_image_region_into_impl(offset, extent, pptr::format, pptr::type, dst_buf, level);
+        download_image_region_into_impl(region, pptr::format, pptr::type, dst_buf, level);
     }
 
     template<specifies_pixel_pack_traits PixelT>
     void download_image_region_into(
-        const tt::offset_type& offset,
-        const tt::extent_type& extent,
+        const tt::region_type& region,
         std::span<PixelT>      dst_buf) const noexcept
             requires (!tt::has_lod)
     {
         using pptr = pixel_pack_traits<PixelT>;
-        download_image_region_into_impl(offset, extent, pptr::format, pptr::type, dst_buf, 0);
+        download_image_region_into_impl(region, pptr::format, pptr::type, dst_buf, MipLevel{ 0 });
     }
 
 };
@@ -2373,9 +2310,9 @@ private:
         MipLevel                                        dst_level) const noexcept
     {
         auto copy = [&, this] (
-            const Index3I& src_offset,
-            const Size3I&  src_extent,
-            const Index3I& dst_offset)
+            const Offset3I& src_offset,
+            const Extent3I& src_extent,
+            const Offset3I& dst_offset)
         {
             gl::glCopyImageSubData(
                 self_id(), static_cast<GLenum>(TargetV), src_level,
@@ -2476,7 +2413,7 @@ public:
         MipLevel                                        src_level = MipLevel{ 0 }) const noexcept
             requires tt::has_lod
     {
-        copy_image_region_to_impl<DstTextureT>(src_offset, src_extent, dst_texture, dst_offset, src_level, 0);
+        copy_image_region_to_impl<DstTextureT>(src_offset, src_extent, dst_texture, dst_offset, src_level, MipLevel{ 0 });
     }
 
     // Src No LOD, Dst LOD.
@@ -2495,7 +2432,7 @@ public:
         MipLevel                                        dst_level = MipLevel{ 0 }) const noexcept
             requires (!tt::has_lod)
     {
-        copy_image_region_to_impl<DstTextureT>(src_offset, src_extent, dst_texture, dst_offset, 0, dst_level);
+        copy_image_region_to_impl<DstTextureT>(src_offset, src_extent, dst_texture, dst_offset, MipLevel{ 0 }, dst_level);
     }
 
     // Src No LOD, Dst No LOD.
@@ -2513,7 +2450,7 @@ public:
         const texture_traits<DstTextureT>::offset_type& dst_offset) const noexcept
             requires (!tt::has_lod)
     {
-        copy_image_region_to_impl<DstTextureT>(src_offset, src_extent, dst_texture, dst_offset, 0, 0);
+        copy_image_region_to_impl<DstTextureT>(src_offset, src_extent, dst_texture, dst_offset, MipLevel{ 0 }, MipLevel{ 0 });
     }
 
 };
@@ -2554,7 +2491,7 @@ public:
         const void*            data) const noexcept
             requires mt::is_mutable && (!tt::has_lod)
     {
-        fill_image_impl(format, type, data, 0);
+        fill_image_impl(format, type, data, MipLevel{ 0 });
     }
 
     template<specifies_pixel_pack_traits PixelT>
@@ -2573,7 +2510,7 @@ public:
             requires mt::is_mutable && (!tt::has_lod)
     {
         using pptr = pixel_pack_traits<PixelT>;
-        fill_image_impl(pptr::format, pptr::type, &pixel_value, 0);
+        fill_image_impl(pptr::format, pptr::type, &pixel_value, MipLevel{ 0 });
     }
 
 
@@ -2583,8 +2520,7 @@ public:
 
 private:
     void fill_image_region_impl(
-        const tt::offset_type& offset,
-        const tt::extent_type& extent,
+        const tt::region_type& region,
         PixelDataFormat        format,
         PixelDataType          type,
         const void*            data,
@@ -2601,6 +2537,8 @@ private:
                 enum_cast<GLenum>(format), enum_cast<GLenum>(type), data
             );
         };
+        auto& offset = region.offset;
+        auto& extent = region.extent;
         if constexpr      (tt::region_ndims == 1) { fill({ offset, 0, 0 }, { extent, 1, 1 }); }
         else if constexpr (tt::region_ndims == 2) { fill({ offset,    0 }, { extent,    1 }); }
         else if constexpr (tt::region_ndims == 3) { fill({ offset       }, { extent       }); }
@@ -2609,49 +2547,45 @@ private:
 public:
 
     void fill_image_region(
-        const tt::offset_type& offset,
-        const tt::extent_type& extent,
+        const tt::region_type& region,
         PixelDataFormat        format,
         PixelDataType          type,
         const void*            data,
         MipLevel               level = MipLevel{ 0 }) const noexcept
             requires mt::is_mutable && tt::has_lod
     {
-        fill_image_region_impl(offset, extent, format, type, data, level);
+        fill_image_region_impl(region, format, type, data, level);
     }
 
     void fill_image_region(
-        const tt::offset_type& offset,
-        const tt::extent_type& extent,
+        const tt::region_type& region,
         PixelDataFormat        format,
         PixelDataType          type,
         const void*            data) const noexcept
             requires mt::is_mutable && (!tt::has_lod)
     {
-        fill_image_region_impl(offset, extent, format, type, data, 0);
+        fill_image_region_impl(region, format, type, data, MipLevel{ 0 });
     }
 
     template<specifies_pixel_pack_traits PixelT>
     void fill_image_region(
-        const tt::offset_type& offset,
-        const tt::extent_type& extent,
+        const tt::region_type& region,
         const PixelT&          pixel_value,
         MipLevel               level = MipLevel{ 0 }) const noexcept
             requires mt::is_mutable && tt::has_lod
     {
         using pptr = pixel_pack_traits<PixelT>;
-        fill_image_region_impl(offset, extent, pptr::format, pptr::type, &pixel_value, level);
+        fill_image_region_impl(region, pptr::format, pptr::type, &pixel_value, level);
     }
 
     template<specifies_pixel_pack_traits PixelT>
     void fill_image_region(
-        const tt::offset_type& offset,
-        const tt::extent_type& extent,
+        const tt::region_type& region,
         const PixelT&          pixel_value) const noexcept
             requires mt::is_mutable && (!tt::has_lod)
     {
         using pptr = pixel_pack_traits<PixelT>;
-        fill_image_region_impl(offset, extent, pptr::format, pptr::type, &pixel_value, 0);
+        fill_image_region_impl(region, pptr::format, pptr::type, &pixel_value, MipLevel{ 0 });
     }
 
 };
@@ -2666,7 +2600,7 @@ private:
     void clear_image_impl(MipLevel level) const noexcept {
         // This is one of those functions that requires you to specify *correct* type and format
         // even though there's no data to unpack and the pointer is NULL. Insane.
-        PixelInternalFormat internal_format = this->get_internal_format(level);
+        InternalFormat internal_format = this->get_internal_format(level);
         GLenum format = best_unpack_format(enum_cast<GLenum>(TargetV), enum_cast<GLenum>(internal_format));
         GLenum type   = best_unpack_type  (enum_cast<GLenum>(TargetV), enum_cast<GLenum>(internal_format));
         gl::glClearTexImage(
@@ -2685,7 +2619,7 @@ public:
     void clear_image() const noexcept
         requires mt::is_mutable && (!tt::has_lod)
     {
-        clear_image_impl(0);
+        clear_image_impl(MipLevel{ 0 });
     }
 
 
@@ -2693,13 +2627,12 @@ public:
 
 private:
     void clear_image_region_impl(
-        const tt::offset_type& offset,
-        const tt::extent_type& extent,
+        const tt::region_type& region,
         MipLevel               level) const noexcept
     {
         // This is one of those functions that requires you to specify *correct* type and format
         // even though there's no data to unpack and the pointer is NULL. Insane.
-        PixelInternalFormat internal_format = this->get_internal_format(level);
+        InternalFormat internal_format = this->get_internal_format(level);
         GLenum format = best_unpack_format(enum_cast<GLenum>(TargetV), enum_cast<GLenum>(internal_format));
         GLenum type   = best_unpack_type  (enum_cast<GLenum>(TargetV), enum_cast<GLenum>(internal_format));
 
@@ -2714,6 +2647,7 @@ private:
                 format, type, nullptr
             );
         };
+        auto& [offset, extent] = region;
         if constexpr      (tt::region_ndims == 1) { clear({ offset, 0, 0 }, { extent, 1, 1 }); }
         else if constexpr (tt::region_ndims == 2) { clear({ offset,    0 }, { extent,    1 }); }
         else if constexpr (tt::region_ndims == 3) { clear({ offset       }, { extent       }); }
@@ -2722,20 +2656,18 @@ private:
 public:
 
     void clear_image_region(
-        const tt::offset_type& offset,
-        const tt::extent_type& extent,
+        const tt::region_type& region,
         MipLevel               level = MipLevel{ 0 }) const noexcept
             requires mt::is_mutable && tt::has_lod
     {
-        clear_image_region_impl(offset, extent, level);
+        clear_image_region_impl(region, level);
     }
 
     void clear_image_region(
-        const tt::offset_type& offset,
-        const tt::extent_type& extent) const noexcept
+        const tt::region_type& region) const noexcept
             requires mt::is_mutable && (!tt::has_lod)
     {
-        clear_image_region_impl(offset, extent, 0);
+        clear_image_region_impl(region, MipLevel{ 0 });
     }
 
 };
@@ -2756,7 +2688,7 @@ struct TextureDSAInterface_ImageOperations_Invalidate {
     void invalidate_image() const noexcept
         requires mt::is_mutable && (!tt::has_lod)
     {
-        gl::glInvalidateTexImage(self_id(), 0);
+        gl::glInvalidateTexImage(self_id(), MipLevel{ 0 });
     }
 
 
@@ -2764,8 +2696,7 @@ struct TextureDSAInterface_ImageOperations_Invalidate {
 
 private:
     void invalidate_image_region_impl(
-        const tt::offset_type& offset,
-        const tt::extent_type& extent,
+        const tt::region_type& region,
         MipLevel               level) const noexcept
     {
         auto invalidate = [&, this] (
@@ -2778,6 +2709,7 @@ private:
                 extent.width, extent.height, extent.depth
             );
         };
+        auto& [offset, extent] = region;
         if constexpr      (tt::region_ndims == 1) { invalidate({ offset, 0, 0 }, { extent, 1, 1 }); }
         else if constexpr (tt::region_ndims == 2) { invalidate({ offset,    0 }, { extent,    1 }); }
         else if constexpr (tt::region_ndims == 3) { invalidate({ offset       }, { extent       }); }
@@ -2786,20 +2718,18 @@ private:
 public:
 
     void invalidate_image_region(
-        const tt::offset_type& offset,
-        const tt::extent_type& extent,
+        const tt::region_type& region,
         MipLevel               level = MipLevel{ 0 }) const noexcept
             requires mt::is_mutable && tt::has_lod
     {
-        invalidate_image_region_impl(offset, extent, level);
+        invalidate_image_region_impl(region, level);
     }
 
     void invalidate_image_region(
-        const tt::offset_type& offset,
-        const tt::extent_type& extent) const noexcept
+        const tt::region_type& region) const noexcept
             requires mt::is_mutable && (!tt::has_lod)
     {
-        invalidate_image_region_impl(offset, extent, 0);
+        invalidate_image_region_impl(region, MipLevel{ 0 });
     }
 
 };
@@ -3014,5 +2944,5 @@ JOSH3D_GENERATE_DSA_TEXTURE_CLASSES(TextureBuffer)
 
 
 
-
-} // namespace josh::dsa
+} // namespace dsa
+} // namespace josh
