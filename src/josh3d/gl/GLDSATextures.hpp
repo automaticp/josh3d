@@ -8,7 +8,7 @@
 #include "GLMutability.hpp"
 #include "EnumUtils.hpp"
 #include "Index.hpp"
-#include "PixelPackTraits.hpp"
+#include "GLPixelPackTraits.hpp"
 #include "Region.hpp"
 #include "Size.hpp"
 #include "detail/ConditionalMixin.hpp"
@@ -2908,7 +2908,12 @@ struct TextureDSAInterface
 
 namespace detail {
 
+// TODO: Remove later.
 using josh::detail::RawGLHandle;
+
+// Strange hack to access in Helpers.
+template<TextureTarget TargetV>
+struct texture_target_raw_mutable_type;
 
 } // namespace detail
 
@@ -2925,6 +2930,9 @@ using josh::detail::RawGLHandle;
         static constexpr GLKind        kind_type   = GLKind::Texture;                                         \
         static constexpr TextureTarget target_type = TextureTarget::Name;                                     \
         JOSH3D_MAGIC_CONSTRUCTORS_2(Raw##Name, mutability_traits<Raw##Name<MutT>>, detail::RawGLHandle<MutT>) \
+    };                                                                                                        \
+    template<> struct detail::texture_target_raw_mutable_type<TextureTarget::Name> {                          \
+        using type = Raw##Name<GLMutable>;                                                                    \
     };                                                                                                        \
     static_assert(sizeof(Raw##Name<GLMutable>) == sizeof(Raw##Name<GLConst>));
 

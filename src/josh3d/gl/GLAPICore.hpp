@@ -9,7 +9,7 @@
 #include "Index.hpp"
 #include "Region.hpp"
 #include "Size.hpp"
-#include "PixelPackTraits.hpp"
+#include "GLPixelPackTraits.hpp"
 #include "detail/GLAPIGet.hpp"
 #include "detail/StrongScalar.hpp"
 #include "detail/EnumCompatability.hpp"
@@ -604,6 +604,37 @@ inline GLfloat get_polygon_offset_bias_clamp() noexcept {
 }
 
 } // namespace glapi
+
+
+
+
+
+
+
+
+
+
+
+// Section: Viewport Control [???].
+
+
+namespace glapi {
+
+inline void set_viewport(const Region2I& viewport_region) noexcept {
+    auto& [offset, extent] = viewport_region;
+    gl::glViewport(offset.x, offset.y, extent.width, extent.height);
+}
+
+
+// TODO:
+// See scissor test.
+inline void _set_viewport_indexed() noexcept;
+inline void _set_viewports() noexcept;
+
+
+} // namespace glapi
+
+
 
 
 

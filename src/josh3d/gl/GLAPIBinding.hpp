@@ -163,7 +163,7 @@ Which is more verbose, so do this instead.
 // These are the mixin types that can call `bind()`, `use()`, etc.
 // We befriend them and not the final RawObject types, as friendship isn't transitive like that.
 namespace dsa::detail {
-template<typename> struct BufferDSAInterface_Bindable;
+template<typename> struct BufferDSAInterface_Bind;
 template<typename> struct VertexArrayDSAInterface_Bind;
 template<typename> struct ShaderProgramDSAInterface_Use;
 template<typename> struct FramebufferDSAInterface_Bind;
@@ -173,11 +173,11 @@ template<typename> struct FramebufferDSAInterface_Bind;
 // If a bind-dependant operation can be replaced with a DSA-style one, we do that
 // instead and skip the respective BindToken definition.
 
-JOSH3D_DEFINE_BIND_TOKEN(DispatchIndirectBuffer, template<typename> friend struct dsa::detail::BufferDSAInterface_Bindable;)
-JOSH3D_DEFINE_BIND_TOKEN(DrawIndirectBuffer,     template<typename> friend struct dsa::detail::BufferDSAInterface_Bindable;)
-JOSH3D_DEFINE_BIND_TOKEN(ParameterBuffer,        template<typename> friend struct dsa::detail::BufferDSAInterface_Bindable;)
-JOSH3D_DEFINE_BIND_TOKEN(PixelPackBuffer,        template<typename> friend struct dsa::detail::BufferDSAInterface_Bindable;)
-JOSH3D_DEFINE_BIND_TOKEN(PixelUnpackBuffer,      template<typename> friend struct dsa::detail::BufferDSAInterface_Bindable;)
+JOSH3D_DEFINE_BIND_TOKEN(DispatchIndirectBuffer, template<typename> friend struct dsa::detail::BufferDSAInterface_Bind;)
+JOSH3D_DEFINE_BIND_TOKEN(DrawIndirectBuffer,     template<typename> friend struct dsa::detail::BufferDSAInterface_Bind;)
+JOSH3D_DEFINE_BIND_TOKEN(ParameterBuffer,        template<typename> friend struct dsa::detail::BufferDSAInterface_Bind;)
+JOSH3D_DEFINE_BIND_TOKEN(PixelPackBuffer,        template<typename> friend struct dsa::detail::BufferDSAInterface_Bind;)
+JOSH3D_DEFINE_BIND_TOKEN(PixelUnpackBuffer,      template<typename> friend struct dsa::detail::BufferDSAInterface_Bind;)
 JOSH3D_DEFINE_BIND_TOKEN(VertexArray,            template<typename> friend struct dsa::detail::VertexArrayDSAInterface_Bind;)
 JOSH3D_DEFINE_BIND_TOKEN(Program,                template<typename> friend struct dsa::detail::ShaderProgramDSAInterface_Use;)
 JOSH3D_DEFINE_BIND_TOKEN(ReadFramebuffer,        template<typename> friend struct dsa::detail::FramebufferDSAInterface_Bind;)

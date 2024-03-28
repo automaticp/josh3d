@@ -12,6 +12,7 @@
 #include "detail/StaticAssertFalseMacro.hpp"
 #include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/enum.h>
+#include <glbinding/gl/functions.h>
 #include <span>
 #include <cassert>
 
@@ -27,12 +28,6 @@ class RawUntypedBuffer;
 
 
 
-// TODO: Remove any mention of:
-// enum class StorageType {
-//     Mutable,
-//     Immutable,
-// };
-
 
 enum class StorageMode : GLuint {
     StaticServer  = GLuint(gl::GL_NONE_BIT),            // STATIC_DRAW
@@ -42,70 +37,91 @@ enum class StorageMode : GLuint {
 };
 
 
-enum class BufferUsageHint : GLuint {
-    StaticDraw  = GLuint(gl::GL_STATIC_DRAW),
-    StaticRead  = GLuint(gl::GL_STATIC_READ),
-    StaticCopy  = GLuint(gl::GL_STATIC_COPY),
-    DynamicDraw = GLuint(gl::GL_DYNAMIC_DRAW),
-    DynamicRead = GLuint(gl::GL_DYNAMIC_READ),
-    DynamicCopy = GLuint(gl::GL_DYNAMIC_COPY),
-    StreamDraw  = GLuint(gl::GL_STREAM_DRAW),
-    StreamRead  = GLuint(gl::GL_STREAM_READ),
-    StreamCopy  = GLuint(gl::GL_STREAM_COPY),
-};
-
-
 enum class PermittedMapping : GLuint {
     NoMapping                   = GLuint(gl::GL_NONE_BIT),
-
     Read                        = GLuint(gl::GL_MAP_READ_BIT),
     Write                       = GLuint(gl::GL_MAP_WRITE_BIT),
     ReadWrite                   = Read | Write,
-
-    ReadPersistent              = Read      | GLuint(gl::GL_MAP_PERSISTENT_BIT),
-    WritePersistent             = Write     | GLuint(gl::GL_MAP_PERSISTENT_BIT),
-    ReadWritePersistent         = ReadWrite | GLuint(gl::GL_MAP_PERSISTENT_BIT),
-
-    ReadPersistentCoherent      = ReadPersistent      | GLuint(gl::GL_MAP_COHERENT_BIT),
-    WritePersistentCoherent     = WritePersistent     | GLuint(gl::GL_MAP_COHERENT_BIT),
-    ReadWritePersistentCoherent = ReadWritePersistent | GLuint(gl::GL_MAP_COHERENT_BIT),
 };
 
 
-enum class MappingPersistence : GLuint {
+enum class PermittedPersistence : GLuint {
     NotPersistent      = GLuint(gl::GL_NONE_BIT),
     Persistent         = GLuint(gl::GL_MAP_PERSISTENT_BIT),
     PersistentCoherent = Persistent | GLuint(gl::GL_MAP_COHERENT_BIT),
 };
 
 
-enum class MappingReadAccess : GLuint {
-    Synchronized   = GLuint(gl::GL_NONE_BIT),
-    Unsynchronized = GLuint(gl::GL_MAP_UNSYNCHRONIZED_BIT),
+
+
+struct StoragePolicies {
+    StorageMode          storage_mode          = StorageMode::DynamicServer;
+    PermittedMapping     permitted_mapping     = PermittedMapping::ReadWrite;
+    PermittedPersistence permitted_persistence = PermittedPersistence::NotPersistent;
 };
 
 
-enum class MappingWriteAccess : GLuint {
-    Synchronized                      = GLuint(gl::GL_NONE_BIT),
-    Unsynchronized                    = GLuint(gl::GL_MAP_UNSYNCHRONIZED_BIT),
-    SynchronizedMustFlushExplicitly   = Synchronized | GLuint(gl::GL_MAP_FLUSH_EXPLICIT_BIT),
-    UnsynchronizedMustFlushExplicitly = Unsynchronized | GLuint(gl::GL_MAP_FLUSH_EXPLICIT_BIT),
+
+
+
+
+
+
+/*
+Buffer mapping flags but split so that you can't pass the wrong combination
+for each respective mapping access.
+*/
+
+
+enum class MappingAccess : GLuint {
+    Read      = GLuint(gl::GL_MAP_READ_BIT),
+    Write     = GLuint(gl::GL_MAP_WRITE_BIT),
+    ReadWrite = Read | Write,
 };
 
 
-enum class MappingReadWriteAccess : GLuint {
-    Synchronized                      = GLuint(gl::GL_NONE_BIT),
-    Unsynchronized                    = GLuint(gl::GL_MAP_UNSYNCHRONIZED_BIT),
-    SynchronizedMustFlushExplicitly   = Synchronized | GLuint(gl::GL_MAP_FLUSH_EXPLICIT_BIT),
-    UnsynchronizedMustFlushExplicitly = Unsynchronized | GLuint(gl::GL_MAP_FLUSH_EXPLICIT_BIT),
+
+
+
+
+enum class PendingOperations : GLuint {
+    SynchronizeOnMap = GLuint(gl::GL_NONE_BIT),
+    DoNotSynchronize = GLuint(gl::GL_MAP_UNSYNCHRONIZED_BIT),
 };
 
 
-enum class MappingPreviousContents : GLuint {
+// Do you have one?
+enum class FlushPolicy : GLuint {
+    AutomaticOnUnmap   = GLuint(gl::GL_NONE_BIT),
+    MustFlushExplicity = GLuint(gl::GL_MAP_FLUSH_EXPLICIT_BIT),
+};
+
+
+enum class PreviousContents : GLuint {
     DoNotInvalidate       = GLuint(gl::GL_NONE_BIT),
     InvalidateAll         = GLuint(gl::GL_MAP_INVALIDATE_BUFFER_BIT),
     InvalidateMappedRange = GLuint(gl::GL_MAP_INVALIDATE_RANGE_BIT),
 };
+
+
+enum class Persistence : GLuint {
+    NotPersistent      = GLuint(gl::GL_NONE_BIT),
+    Persistent         = GLuint(gl::GL_MAP_PERSISTENT_BIT),
+    PersistentCoherent = Persistent | GLuint(gl::GL_MAP_COHERENT_BIT),
+};
+
+
+
+
+// Return type for querying all policies at once.
+struct MappingPolicies {
+    MappingAccess     access;
+    PendingOperations pending_operations = PendingOperations::SynchronizeOnMap;
+    FlushPolicy       flush_policy       = FlushPolicy::AutomaticOnUnmap;
+    PreviousContents  previous_contents  = PreviousContents::DoNotInvalidate;
+    Persistence       persistence        = Persistence::NotPersistent;
+};
+
 
 
 
@@ -201,46 +217,38 @@ public:
         return size;
     }
 
-    // Wraps `glGetNamedBufferParameteri64v` with `pname = GL_BUFFER_IMMUTABLE_STORAGE`.
-    // StorageType get_storage_type() const noexcept {
-    //     GLboolean is_immutable;
-    //     gl::glGetNamedBufferParameteriv(
-    //         self_id(), gl::GL_BUFFER_IMMUTABLE_STORAGE, &is_immutable
-    //     );
-    //     return is_immutable == gl::GL_TRUE ?
-    //         StorageType::Immutable :
-    //         StorageType::Mutable;
-    // }
+private:
+    GLuint get_storage_mode_flags() const noexcept {
+        GLenum flags;
+        gl::glGetNamedBufferParameteriv(self_id(), gl::GL_BUFFER_STORAGE_FLAGS, flags);
+        return enum_cast<GLuint>(flags);
+    }
+public:
+
+    // Wraps `glGetNamedBufferParameteriv` with `pname = GL_BUFFER_STORAGE_FLAGS`.
+    auto get_storage_policies() const noexcept
+        -> StoragePolicies
+    {
+        const GLuint flags = get_storage_mode_flags();
+
+        constexpr GLuint mode_mask        = GLuint(gl::GL_DYNAMIC_STORAGE_BIT | gl::GL_CLIENT_STORAGE_BIT);
+        constexpr GLuint mapping_mask     = GLuint(gl::GL_MAP_READ_BIT | gl::GL_MAP_WRITE_BIT);
+        constexpr GLuint persistence_mask = GLuint(gl::GL_MAP_PERSISTENT_BIT | gl::GL_MAP_COHERENT_BIT);
+
+        return {
+            .storage_mode          = StorageMode         { flags & mode_mask        },
+            .permitted_mapping     = PermittedMapping    { flags & mapping_mask     },
+            .permitted_persistence = PermittedPersistence{ flags & persistence_mask },
+        };
+    }
+
 };
 
 
 
-/*
-TODO: Now that I think about it, we could completely invert
-the responsibility of binding, and delegate it to some
-context object instead.
 
-So that instead of individual objects supporting some bind
-function:
-
-    RawBuffer<GLMutable, float> buf;
-    buf.bind_to_index<BufferTarget::shader_storage>(2);
-
-We would instead have a Context type which accepts GL objects
-for binding:
-
-    GLContext context;
-    RawBuffer<GLMutable, float> buf;
-
-    context.ssbo_slots().bind_to_index(buf, 2);
-    context.active_shader_program().bind(shp);
-    context.draw_framebuffer().bind(fbo);
-    context.vertex_attributes().bind(vao);
-    context.draw_elements();
-    context.ssbo_slots().unbind_at_index(2);
-*/
 template<typename CRTP>
-struct BufferDSAInterface_Bindable {
+struct BufferDSAInterface_Bind {
 private:
     GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
 public:
@@ -269,23 +277,213 @@ public:
 
 
 
-
-template<typename CRTP>
-struct UntypedBufferDSAInterface
-    : BufferDSAInterface_Bindable<CRTP>
-    , BufferDSAInterface_CommonQueries<CRTP>
-{
+template<typename CRTP, typename T>
+struct BufferDSAInterface_Mapping {
 private:
     GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
+    const CRTP& self() const noexcept { return static_cast<const CRTP&>(*this); }
     using mt = mutability_traits<CRTP>;
-    using mutability = mt::mutability;
 public:
-    // Wraps `glInvalidateBufferData`.
-    void invalidate_contents() const noexcept
-        requires gl_mutable<mutability>
+
+    // Wraps `glMapNamedBufferRange` with `access = GL_MAP_READ_BIT | [flags]`.
+    [[nodiscard]] std::span<const T> map_range_for_read(
+        OffsetElems       elem_offset,
+        NumElems          elem_count,
+        PendingOperations pending_ops  = PendingOperations::SynchronizeOnMap,
+        Persistence       persistence  = Persistence::NotPersistent) const noexcept
     {
-        gl::glInvalidateBufferData(self_id());
+        gl::BufferAccessMask access{
+            to_underlying(pending_ops) |
+            to_underlying(persistence)
+        };
+        return map_buffer_range_impl<T>(
+            self_id(), elem_offset, elem_count,
+            access, gl::GL_MAP_READ_BIT
+        );
     }
+
+    // Wraps `glMapNamedBufferRange` with `offset = 0`, `length = get_size_bytes()` and `access = GL_MAP_READ_BIT | [flags]`.
+    //
+    // Maps the entire buffer.
+    [[nodiscard]] std::span<const T> map_for_read(
+        PendingOperations pending_ops = PendingOperations::SynchronizeOnMap,
+        Persistence       persistence = Persistence::NotPersistent) const noexcept
+    {
+        return map_for_read(OffsetElems{ 0 }, self().get_num_elements(), pending_ops, persistence);
+    }
+
+    // Wraps `glMapNamedBufferRange` with `access = GL_MAP_WRITE_BIT | [flags]`.
+    [[nodiscard]] std::span<T> map_range_for_write(
+        OffsetElems       elem_offset,
+        NumElems          elem_count,
+        PendingOperations pending_ops       = PendingOperations::SynchronizeOnMap,
+        FlushPolicy       flush_policy      = FlushPolicy::AutomaticOnUnmap,
+        PreviousContents  previous_contents = PreviousContents::DoNotInvalidate,
+        Persistence       persistence       = Persistence::NotPersistent) const noexcept
+            requires mt::is_mutable
+    {
+        gl::BufferAccessMask access{
+            to_underlying(pending_ops)       |
+            to_underlying(flush_policy)      |
+            to_underlying(previous_contents) |
+            to_underlying(persistence)
+        };
+        return map_buffer_range_impl<T>(
+            self_id(), elem_offset, elem_count,
+            access, gl::GL_MAP_WRITE_BIT
+        );
+    }
+
+    // Wraps `glMapNamedBufferRange` with `offset = 0`, `length = get_size_bytes()` and `access = GL_MAP_WRITE_BIT | [flags]`.
+    //
+    // Maps the entire buffer.
+    [[nodiscard]] std::span<T> map_for_write(
+        PendingOperations pending_ops       = PendingOperations::SynchronizeOnMap,
+        FlushPolicy       flush_policy      = FlushPolicy::AutomaticOnUnmap,
+        PreviousContents  previous_contents = PreviousContents::DoNotInvalidate,
+        Persistence       persistence       = Persistence::NotPersistent) const noexcept
+            requires mt::is_mutable
+    {
+        return map_for_write(OffsetElems{ 0 }, self().get_num_elements(), pending_ops, flush_policy, previous_contents, persistence);
+    }
+
+    // Wraps `glMapNamedBufferRange` with `access = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | [flags]`.
+    [[nodiscard]] std::span<T> map_range_for_readwrite(
+        OffsetElems       elem_offset,
+        NumElems          elem_count,
+        PendingOperations pending_ops = PendingOperations::SynchronizeOnMap,
+        FlushPolicy       flush_polcy = FlushPolicy::AutomaticOnUnmap,
+        Persistence       persistence = Persistence::NotPersistent) const noexcept
+            requires mt::is_mutable
+    {
+        gl::BufferAccessMask access{
+            to_underlying(pending_ops)  |
+            to_underlying(flush_polcy) |
+            to_underlying(persistence)
+        };
+        return map_buffer_range_impl<T>(
+            self_id(), elem_offset, elem_count,
+            access, (gl::GL_MAP_READ_BIT | gl::GL_MAP_WRITE_BIT)
+        );
+    }
+
+    // Wraps `glMapNamedBufferRange` with `offset = 0`, `length = get_size_bytes()` and `access = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | [flags]`.
+    //
+    // Maps the entire buffer.
+    [[nodiscard]] std::span<T> map_for_readwrite(
+        PendingOperations      pending_ops = PendingOperations::SynchronizeOnMap,
+        FlushPolicy            flush_polcy = FlushPolicy::AutomaticOnUnmap,
+        Persistence            persistence = Persistence::NotPersistent) const noexcept
+            requires mt::is_mutable
+    {
+        return map_for_readwrite(OffsetElems{ 0 }, self().get_num_elements(), pending_ops, flush_polcy, persistence);
+    }
+
+
+    // Wraps `glGetNamedBufferParameteriv` with `pname = GL_BUFFER_MAPPED`.
+    bool is_currently_mapped() const noexcept {
+        GLboolean is_mapped;
+        gl::glGetNamedBufferParameteriv(self_id(), gl::GL_BUFFER_MAPPED, &is_mapped);
+        return bool(is_mapped);
+    }
+
+    // Wraps `glGetNamedBufferParameteri64v` with `pname = GL_BUFFER_MAP_OFFSET` divided by element size.
+    OffsetElems get_current_mapping_offset() const noexcept {
+        GLint64 offset_bytes;
+        gl::glGetNamedBufferParameteri64v(self_id(), gl::GL_BUFFER_MAP_OFFSET, &offset_bytes);
+        return OffsetElems{ offset_bytes / sizeof(T) };
+    }
+
+    // Wraps `glGetNamedBufferParameteri64v` with `pname = GL_BUFFER_MAP_LENGTH` divided by element size.
+    NumElems get_current_mapping_size() const noexcept {
+        GLint64 size_bytes;
+        gl::glGetNamedBufferParameteri64v(self_id(), gl::GL_BUFFER_MAP_LENGTH, &size_bytes);
+        return NumElems{ size_bytes / sizeof(T) };
+    }
+
+
+private:
+    GLuint get_mapping_access_flags() const noexcept {
+        GLenum flags;
+        gl::glGetNamedBufferParameteriv(self_id(), gl::GL_BUFFER_ACCESS_FLAGS, &flags);
+        return enum_cast<GLuint>(flags);
+    }
+public:
+
+    auto get_current_mapping_policies() const noexcept
+        -> MappingPolicies
+    {
+        const GLuint flags = get_mapping_access_flags();
+
+        constexpr GLuint access_mask            = GLuint(gl::GL_MAP_READ_BIT | gl::GL_MAP_WRITE_BIT);
+        constexpr GLuint pending_mask           = GLuint(gl::GL_MAP_UNSYNCHRONIZED_BIT);
+        constexpr GLuint flush_mask             = GLuint(gl::GL_MAP_FLUSH_EXPLICIT_BIT);
+        constexpr GLuint previous_contents_mask = GLuint(gl::GL_MAP_INVALIDATE_BUFFER_BIT | gl::GL_MAP_INVALIDATE_RANGE_BIT);
+        constexpr GLuint persistence_mask       = GLuint(gl::GL_MAP_PERSISTENT_BIT | gl::GL_MAP_COHERENT_BIT);
+
+        return {
+            .access             = MappingAccess    { flags & access_mask            },
+            .pending_operations = PendingOperations{ flags & pending_mask           },
+            .flush_policy       = FlushPolicy      { flags & flush_mask             },
+            .previous_contents  = PreviousContents { flags & previous_contents_mask },
+            .persistence        = Persistence      { flags & persistence_mask       },
+        };
+    }
+
+
+    auto get_current_mapping_access() const noexcept
+        -> MappingAccess
+    {
+        constexpr GLuint access_mask = GLuint(gl::GL_MAP_READ_BIT | gl::GL_MAP_WRITE_BIT);
+        return MappingAccess{ get_mapping_access_flags() & access_mask };
+    }
+
+
+private:
+    std::span<T> get_current_mapping_span_impl() const noexcept {
+        NumElems num_elements = get_current_mapping_size();
+        const void* ptr;
+        gl::glGetNamedBufferPointerv(self_id(), gl::GL_BUFFER_MAP_POINTER, &ptr);
+        return { static_cast<T*>(ptr), num_elements };
+    }
+public:
+
+    // Wraps `glGetNamedBufferPointerv` with `pname = GL_BUFFER_MAP_POINTER`.
+    //
+    // **Warning:** The current `MappingAccess` must be `Read` or `ReadWrite`, otherwise the behavior is undefined.
+    // It is recommended to preserve the original span returned from `map[_range]_for_[read|write]` calls instead.
+    [[nodiscard]]
+    std::span<const T> get_current_mapping_span_for_read() const noexcept {
+        assert(get_current_mapping_access() == MappingAccess::Read || get_current_mapping_access() == MappingAccess::ReadWrite);
+        return get_current_mapping_span_impl();
+    }
+
+    // Wraps `glGetNamedBufferPointerv` with `pname = GL_BUFFER_MAP_POINTER`.
+    //
+    // **Warning:** The current `MappingAccess` must be `Write` or `ReadWrite`, otherwise the behavior is undefined.
+    // It is recommended to preserve the original span returned from `map[_range]_for_[read|write]` calls instead.
+    [[nodiscard]]
+    std::span<T> get_current_mapping_span_for_write() const noexcept
+        requires mt::is_mutable
+    {
+        assert(get_current_mapping_access() == MappingAccess::Write || get_current_mapping_access() == MappingAccess::ReadWrite);
+        return get_current_mapping_span_impl();
+    }
+
+    // Wraps `glGetNamedBufferPointerv` with `pname = GL_BUFFER_MAP_POINTER`.
+    //
+    // **Warning:** The current `MappingAccess` must be `ReadWrite`, otherwise the behavior is undefined.
+    // It is recommended to preserve the original span returned from `map[_range]_for_[read|write]` calls instead.
+    [[nodiscard]]
+    std::span<T> get_current_mapping_span_for_readwrite() const noexcept
+        requires mt::is_mutable
+    {
+        assert(get_current_mapping_access() == MappingAccess::ReadWrite);
+        return get_current_mapping_span_impl();
+    }
+
+
+
 
     // Wraps `glUnmapNamedBuffer`.
     //
@@ -304,6 +502,48 @@ public:
         return unmapping_succeded == gl::GL_TRUE;
     }
 
+    // Wraps `glFlushMappedNamedBufferRange`.
+    //
+    // The buffer object must previously have been mapped with the
+    // `BufferMapping[Read]WriteAccess` equal to one of the `*MustFlushExplicitly` options.
+    void flush_mapped_range(
+        OffsetElems elem_offset,
+        NumElems    elem_count) const noexcept
+            requires mt::is_mutable
+    {
+        gl::glFlushMappedNamedBufferRange(
+            self_id(),
+            elem_offset.value * sizeof(T),
+            elem_count.value  * sizeof(T)
+        );
+    }
+
+};
+
+
+
+
+
+
+
+
+template<typename CRTP>
+struct UntypedBufferDSAInterface
+    : BufferDSAInterface_Bind<CRTP>
+    , BufferDSAInterface_CommonQueries<CRTP>
+{
+private:
+    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
+    using mt = mutability_traits<CRTP>;
+    using mutability = mt::mutability;
+public:
+    // Wraps `glInvalidateBufferData`.
+    void invalidate_contents() const noexcept
+        requires gl_mutable<mutability>
+    {
+        gl::glInvalidateBufferData(self_id());
+    }
+
 };
 
 
@@ -315,13 +555,13 @@ public:
 
 template<typename CRTP, typename T>
 struct TypedBufferDSAInterface
-    : BufferDSAInterface_Bindable<CRTP>
+    : BufferDSAInterface_Bind<CRTP>
+    , BufferDSAInterface_Mapping<CRTP, T>
     , BufferDSAInterface_CommonQueries<CRTP>
 {
 private:
     GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
     using mt = mutability_traits<CRTP>;
-    using mutability = mt::mutability;
 public:
 
 
@@ -353,67 +593,42 @@ public:
     }
 
 
-    // Mutable Storage Allocation.
-
-    // NOT SUPPORTED.
-
-    // Wraps `glNamedBufferData` with `usage = usage_hint`.
-    //
-    // Creates mutable storage and initializes it with the contents of `src_buf`.
-    // void specify_data(
-    //     std::span<const T> src_buf,
-    //     BufferUsageHint usage_hint = BufferUsageHint::StaticDraw) const noexcept
-    //         requires gl_mutable<mutability>
-    // {
-    //     gl::glNamedBufferData(
-    //         self_id(), src_buf.size_bytes(), src_buf.data(), enum_cast<GLenum>(usage_hint)
-    //     );
-    // }
-
-    // Wraps `glNamedBufferData`.
-    //
-    // Creates mutable storage leaving the contents undefined.
-    // void allocate_data(
-    //     GLsizeiptr num_elements,
-    //     BufferUsageHint usage_hint = BufferUsageHint::StaticDraw) const noexcept
-    //         requires gl_mutable<mutability>
-    // {
-    //     gl::glNamedBufferData(
-    //         self_id(), num_elements * sizeof(T), nullptr, enum_cast<GLenum>(usage_hint)
-    //     );
-    // }
-
-
     // Immutable Storage Allocation.
 
-    // Wraps `glNamedBufferStorage` with `flags = storage_mode | mapping_mode`.
+    // Wraps `glNamedBufferStorage` with `flags = storage_mode | mapping_policy | persistence_policy`.
     //
     // Creates immutable storage and initializes it with the contents of `src_buf`.
     void specify_storage(
-        std::span<const T> src_buf,
-        StorageMode        storage_mode = StorageMode::DynamicServer,
-        PermittedMapping   mapping_mode = PermittedMapping::ReadWrite) const noexcept
-            requires gl_mutable<mutability>
+        std::span<const T>   src_buf,
+        StorageMode          storage_mode       = StorageMode::DynamicServer,
+        PermittedMapping     mapping_policy     = PermittedMapping::ReadWrite,
+        PermittedPersistence persistence_policy = PermittedPersistence::NotPersistent) const noexcept
+            requires mt::is_mutable
     {
         gl::BufferStorageMask flags{
-            to_underlying(storage_mode) | to_underlying(mapping_mode)
+            to_underlying(storage_mode)       |
+            to_underlying(mapping_policy)     |
+            to_underlying(persistence_policy)
         };
         gl::glNamedBufferStorage(
             self_id(), src_buf.size_bytes(), src_buf.data(), flags
         );
     }
 
-    // Wraps `glNamedBufferStorage` with `data = nullptr` and `flags = storage_mode | mapping_mode`.
+    // Wraps `glNamedBufferStorage` with `data = nullptr` and `flags = storage_mode | mapping_policy | persistence_policy`.
     //
     // Creates immutable storage leaving the contents undefined.
     void allocate_storage(
-        NumElems         num_elements,
-        StorageMode      storage_mode = StorageMode::DynamicServer,
-        PermittedMapping mapping_mode = PermittedMapping::ReadWrite) const noexcept
-            requires gl_mutable<mutability>
+        NumElems             num_elements,
+        StorageMode          storage_mode       = StorageMode::DynamicServer,
+        PermittedMapping     mapping_policy     = PermittedMapping::ReadWrite,
+        PermittedPersistence persistence_policy = PermittedPersistence::NotPersistent) const noexcept
+            requires mt::is_mutable
     {
         gl::BufferStorageMask flags{
-            to_underlying(storage_mode) | to_underlying(mapping_mode)
+            to_underlying(storage_mode)       |
+            to_underlying(mapping_policy)     |
+            to_underlying(persistence_policy)
         };
         gl::glNamedBufferStorage(
             self_id(), num_elements.value * sizeof(T), nullptr, flags
@@ -429,7 +644,7 @@ public:
     void upload_data(
         std::span<const T> src_buf,
         OffsetElems        elem_offset = OffsetElems{ 0 }) const noexcept
-            requires gl_mutable<mutability>
+            requires mt::is_mutable
     {
         gl::glNamedBufferSubData(
             self_id(),
@@ -477,7 +692,7 @@ public:
 
     // Wraps `glInvalidateBufferData`.
     void invalidate_contents() const noexcept
-        requires gl_mutable<mutability>
+        requires mt::is_mutable
     {
         gl::glInvalidateBufferData(self_id());
     }
@@ -486,7 +701,7 @@ public:
     void invalidate_subrange(
         OffsetElems elem_offset,
         NumElems    elem_count) const noexcept
-            requires gl_mutable<mutability>
+            requires mt::is_mutable
     {
         gl::glInvalidateBufferSubData(
             self_id(),
@@ -495,117 +710,6 @@ public:
         );
     }
 
-
-    // Buffer Mapping.
-
-    // Wraps `glMapNamedBufferRange` with `access = GL_MAP_READ_BIT | read_access | persistence`.
-    [[nodiscard]] std::span<const T> map_range_for_read(
-        OffsetElems        elem_offset,
-        NumElems           elem_count,
-        MappingReadAccess  read_access = MappingReadAccess::Synchronized,
-        MappingPersistence persistence = MappingPersistence::NotPersistent) const noexcept
-    {
-        gl::BufferAccessMask access{
-            to_underlying(persistence) | to_underlying(read_access)
-        };
-        return map_buffer_range_impl<T>(
-            self_id(), elem_offset, elem_count,
-            access, gl::GL_MAP_READ_BIT
-        );
-    }
-
-    // Wraps `glMapNamedBufferRange` with `offset = 0`, `length = get_size_bytes()` and `access = GL_MAP_READ_BIT | read_access | persistence`.
-    //
-    // Maps the entire buffer.
-    [[nodiscard]] std::span<const T> map_for_read(
-        MappingReadAccess  read_access = MappingReadAccess::Synchronized,
-        MappingPersistence persistence = MappingPersistence::NotPersistent) const noexcept
-    {
-        return map_for_read(OffsetElems{ 0 }, get_num_elements(), persistence, read_access);
-    }
-
-    // Wraps `glMapNamedBufferRange` with `access = GL_MAP_WRITE_BIT | write_access | previous_contents | persistence`.
-    [[nodiscard]] std::span<T> map_range_for_write(
-        OffsetElems             elem_offset,
-        NumElems                elem_count,
-        MappingWriteAccess      write_access      = MappingWriteAccess::Synchronized,
-        MappingPreviousContents previous_contents = MappingPreviousContents::DoNotInvalidate,
-        MappingPersistence      persistence       = MappingPersistence::NotPersistent) const noexcept
-            requires gl_mutable<mutability>
-    {
-        gl::BufferAccessMask access{
-            to_underlying(write_access) | to_underlying(previous_contents) | to_underlying(persistence)
-        };
-        return map_buffer_range_impl<T>(
-            self_id(), elem_offset, elem_count,
-            access, gl::GL_MAP_WRITE_BIT
-        );
-    }
-
-    // Wraps `glMapNamedBufferRange` with `offset = 0`, `length = get_size_bytes()` and `access = GL_MAP_WRITE_BIT | write_access | previous_contents | persistence`.
-    //
-    // Maps the entire buffer.
-    [[nodiscard]] std::span<T> map_for_write(
-        MappingWriteAccess      write_access      = MappingWriteAccess::Synchronized,
-        MappingPreviousContents previous_contents = MappingPreviousContents::DoNotInvalidate,
-        MappingPersistence      persistence       = MappingPersistence::NotPersistent) const noexcept
-            requires gl_mutable<mutability>
-    {
-        return map_for_write(OffsetElems{ 0 }, get_num_elements(), write_access, previous_contents, persistence);
-    }
-
-    // Wraps `glMapNamedBufferRange` with `access = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | readwrite_access | persistence`.
-    [[nodiscard]] std::span<T> map_range_for_readwrite(
-        OffsetElems            elem_offset,
-        NumElems               elem_count,
-        MappingReadWriteAccess readwrite_access = MappingReadWriteAccess::Synchronized,
-        MappingPersistence     persistence      = MappingPersistence::NotPersistent) const noexcept
-            requires gl_mutable<mutability>
-    {
-        gl::BufferAccessMask access{
-            to_underlying(readwrite_access) | to_underlying(persistence)
-        };
-        return map_buffer_range_impl<T>(
-            self_id(), elem_offset, elem_count,
-            access, (gl::GL_MAP_READ_BIT | gl::GL_MAP_WRITE_BIT)
-        );
-    }
-
-    // Wraps `glMapNamedBufferRange` with `offset = 0`, `length = get_size_bytes()` and `access = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | readwrite_access | persistence`.
-    //
-    // Maps the entire buffer.
-    [[nodiscard]] std::span<T> map_for_readwrite(
-        MappingReadWriteAccess readwrite_access = MappingReadWriteAccess::Synchronized,
-        MappingPersistence     persistence      = MappingPersistence::NotPersistent) const noexcept
-            requires gl_mutable<mutability>
-    {
-        return map_for_readwrite(OffsetElems{ 0 }, get_num_elements(), readwrite_access, persistence);
-    }
-
-
-    // Mapped Buffer Control.
-
-    // Wraps `glUnmapNamedBuffer`.
-    bool unmap_current() const noexcept {
-        GLboolean unmapping_succeded = gl::glUnmapNamedBuffer(self_id());
-        return bool(unmapping_succeded);
-    }
-
-    // Wraps `glFlushMappedNamedBufferRange`.
-    //
-    // The buffer object must previously have been mapped with the
-    // `BufferMapping[Read]WriteAccess` equal to one of the `*MustFlushExplicitly` options.
-    void flush_mapped_range(
-        OffsetElems elem_offset,
-        NumElems    elem_count) const noexcept
-            requires gl_mutable<mutability>
-    {
-        gl::glFlushMappedNamedBufferRange(
-            self_id(),
-            elem_offset.value * sizeof(T),
-            elem_count.value  * sizeof(T)
-        );
-    }
 
 };
 

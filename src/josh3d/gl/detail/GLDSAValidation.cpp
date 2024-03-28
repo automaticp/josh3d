@@ -12,6 +12,7 @@
 #include "GLDSAAllocator.hpp"
 #include "GLDSAUnique.hpp"
 #include "GLAPICore.hpp"
+#include "GLObjectHelpers.hpp"
 #include <array>
 
 
@@ -38,14 +39,18 @@ void buffer_operations() noexcept {
     auto mapped = buf.map_range_for_write(
         OffsetElems{ 0 },
         NumElems{ 1 },
-        MappingWriteAccess::SynchronizedMustFlushExplicitly,
-        MappingPreviousContents::InvalidateMappedRange,
-        MappingPersistence::NotPersistent);
+        PendingOperations::SynchronizeOnMap,
+        FlushPolicy::MustFlushExplicity,
+        PreviousContents::InvalidateMappedRange,
+        Persistence::NotPersistent);
 
-    mapped[0] = 1.f;
+    do {
 
-    buf.flush_mapped_range(OffsetElems{ 0 }, NumElems{ 1 });
-    buf.unmap_current();
+        mapped[0] = 1.f;
+        buf.flush_mapped_range(OffsetElems{ 0 }, NumElems{ 1 });
+
+    } while(!buf.unmap_current());
+
 
     RawUntypedBuffer<> ubuf = buf;
 
@@ -63,12 +68,12 @@ void buffer_operations() noexcept {
 //     }
 // };
 
-template<size_t S>
-struct uniform_traits<GLint, GLfloat[S]> {
-    static void set(RawProgram<> program, Location location, GLsizei count, const GLfloat* data) noexcept {
-        program.set_uniform_floatv(location, count, data);
-    }
-};
+// template<size_t S>
+// struct uniform_traits<GLint, GLfloat[S]> {
+//     static void set(RawProgram<> program, Location location, GLsizei count, const GLfloat* data) noexcept {
+//         program.set_uniform_floatv(location, count, data);
+//     }
+// };
 namespace {
 
 
@@ -82,7 +87,7 @@ void program_operations() {
     glm::vec3 v{};
     // p.uniform("color", glm::vec3{ 1.f, 0.f, 1.f });
     // p.uniform("color", v);
-
+    p.uniform("", 1.f);
 }
 
 
@@ -111,15 +116,15 @@ void texture_operations() {
     // tex.allocate_storage({1, 1}, { enum_cast<PixelInternalFormat>(gl::GL_SIGNED_RGB_UNSIGNED_ALPHA_NV) });
     // tex.allocate_storage(Size2I{1, 1}, TexSpec{ PixelInternalFormat::Compressed_SRGBA_BPTC_UNorm });
     tex.allocate_storage({ 1, 1 }, InternalFormat::Compressed_SRGBA_BPTC_UNorm, NumLevels{ 7 });
-    pixel::RGBA arr[4];
-    tex.upload_image_region({ { 0, 0 }, { 2, 2 } }, arr);
+    // pixel::RGBA arr[4];
+    // tex.upload_image_region({ { 0, 0 }, { 2, 2 } }, arr);
 
     RawTexture2DArray<> t2darr{ 732 };
     t2darr.allocate_storage({ 16, 16 }, 32, InternalFormat::RGBA32F, NumLevels{ 5 });
     RawTexture3D<GLMutable> t3d{ 9203 };
     t3d.allocate_storage({ 12, 23, 2 }, InternalFormat::RGBA8, NumLevels{ 7 });
     t3d.invalidate_image_region({ { 0, 0, 0 }, { 1, 1, 1 } }, MipLevel{ 6 });
-    t3d.upload_image_region({ {}, { 12, 23, 2 } }, arr, MipLevel{ 0 });
+    // t3d.upload_image_region({ {}, { 12, 23, 2 } }, arr, MipLevel{ 0 });
     t3d.generate_mipmaps();
     tex.bind_to_readonly_image_unit(ImageUnitFormat::RGBA16, 0, MipLevel{ 0 });
     // tex.bind_layer_to_read_image_unit(0, {}, 0);
@@ -129,11 +134,11 @@ void texture_operations() {
     tex.set_sampler_compare_func(CompareOp::NotEqual);
 
     // UniqueTexture2D tex{};
-    pixel::RGBA pixel_data[16 * 16];
+    // pixel::RGBA pixel_data[16 * 16];
     // tex.allocate_storage({ 512, 512 }, { PixelInternalFormat::Compressed_RGBA_BPTC_UNorm }, 7);
-    tex.fill_image(pixel::RGBAF{ 1.f, 0.f, 0.f, 1.f });
+    // tex.fill_image(pixel::RGBAF{ 1.f, 0.f, 0.f, 1.f });
 
-    tex.upload_image_region({ { 127, 127 }, { 16, 16 } }, pixel_data);
+    // tex.upload_image_region({ { 127, 127 }, { 16, 16 } }, pixel_data);
     tex.generate_mipmaps();
 
     tex.set_sampler_min_mag_filters(MinFilter::LinearMipmapLinear, MagFilter::Nearest);
@@ -165,8 +170,6 @@ void texture_operations() {
 
 
     {
-        using UniqueTexture2D = GLUnique<RawTexture2D<>>;
-
         UniqueTexture2D tex;
         tex.allocate_storage({ 1024, 1024 }, InternalFormat::RGB16F, NumLevels{ 1 });
         tex.set_sampler_min_mag_filters(MinFilter::Linear, MagFilter::Linear);
@@ -175,6 +178,10 @@ void texture_operations() {
         tms.allocate_storage({ 1024, 1024 }, 12, InternalFormat::RGBA8, NumSamples{ 4 }, SampleLocations::NotFixed);
 
     }
+
+    max_num_levels({ 4096, 4096, 4096 }).value;
+    // n.value;
+    allocate_texture<TextureTarget::Texture3D>(Size3I{ 0, 0, 0 }, InternalFormat::RGBA, NumLevels{ 7 });
 
 
 }
@@ -212,20 +219,20 @@ void framebuffer_operations() {
 
 
 } // namespace
-struct MalformedVertex {
-    float          xyz[3];
-};
+// struct MalformedVertex {
+//     float          xyz[3];
+// };
 
 
-template<> struct attribute_traits<MalformedVertex> {
-    using specs_type = std::tuple<
-        AttributeTypeF
-    >;
+// template<> struct attribute_traits<MalformedVertex> {
+//     using specs_type = std::tuple<
+//         AttributeTypeF
+//     >;
 
-    static constexpr specs_type specs{
-        AttributeTypeF::Float
-    };
-};
+//     static constexpr specs_type specs{
+//         AttributeTypeF::Float
+//     };
+// };
 namespace {
 
 
