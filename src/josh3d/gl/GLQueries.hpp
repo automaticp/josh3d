@@ -1,7 +1,7 @@
 #pragma once
 #include "GLAPI.hpp"
 #include "GLAPIQueries.hpp"
-#include "GLDSABuffers.hpp"
+#include "GLBuffers.hpp"
 #include "GLKind.hpp"
 #include "GLScalars.hpp"
 #include "GLMutability.hpp"

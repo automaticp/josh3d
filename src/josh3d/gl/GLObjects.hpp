@@ -1,15 +1,15 @@
 #pragma once
 #include "CommonConcepts.hpp"    // IWYU pragma: keep
-#include "GLDSABuffers.hpp"      // IWYU pragma: export
-#include "GLDSAFenceSync.hpp"    // IWYU pragma: export
-#include "GLDSAFramebuffer.hpp"  // IWYU pragma: export
-#include "GLDSAProgram.hpp"      // IWYU pragma: export
-#include "GLDSAQueries.hpp"      // IWYU pragma: export
-#include "GLDSASampler.hpp"      // IWYU pragma: export
-#include "GLDSAShaders.hpp"      // IWYU pragma: export
-#include "GLDSATextures.hpp"     // IWYU pragma: export
-#include "GLDSAVertexArrays.hpp" // IWYU pragma: export
-#include "GLDSAUnique.hpp"       // IWYU pragma: export
+#include "GLBuffers.hpp"      // IWYU pragma: export
+#include "GLFenceSync.hpp"    // IWYU pragma: export
+#include "GLFramebuffer.hpp"  // IWYU pragma: export
+#include "GLProgram.hpp"      // IWYU pragma: export
+#include "GLQueries.hpp"      // IWYU pragma: export
+#include "GLSampler.hpp"      // IWYU pragma: export
+#include "GLShaders.hpp"      // IWYU pragma: export
+#include "GLTextures.hpp"     // IWYU pragma: export
+#include "GLVertexArray.hpp"  // IWYU pragma: export
+#include "GLUnique.hpp"       // IWYU pragma: export
 
 
 

@@ -11,7 +11,7 @@
 #include "Size.hpp"
 #include "detail/MagicConstructorsMacro.hpp"
 #include "detail/RawGLHandle.hpp"
-#include "GLDSATextures.hpp"
+#include "GLTextures.hpp"
 #include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>

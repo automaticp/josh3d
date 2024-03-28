@@ -3,7 +3,7 @@
 #include "GLAPICommonTypes.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLAPIQueries.hpp"
-#include "GLDSAQueries.hpp"
+#include "GLQueries.hpp"
 #include "GLKind.hpp"
 #include "GLScalars.hpp"
 #include "Index.hpp"

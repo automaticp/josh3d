@@ -1,7 +1,6 @@
 #pragma once
+#include "GLAPI.hpp"
 #include "GLScalars.hpp"
-#include <glbinding/gl/enum.h>
-#include <glbinding/gl/gl.h>
 
 
 // Various implementation limits of the OpenGL API.

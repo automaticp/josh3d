@@ -1,6 +1,6 @@
 #pragma once
 #include "CommonConcepts.hpp" // IWYU pragma: keep
-#include "GLDSAAllocator.hpp"
+#include "GLAllocator.hpp"
 #include "GLMutability.hpp"
 #include <concepts>           // IWYU pragma: keep
 #include <type_traits>

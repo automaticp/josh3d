@@ -1,7 +1,7 @@
 #pragma once
 #include "CommonConcepts.hpp" // IWYU pragma: keep
 #include "GLAPI.hpp"
-#include "GLDSABuffers.hpp"
+#include "GLBuffers.hpp"
 #include "GLAPICommonTypes.hpp"
 #include "GLKind.hpp"
 #include "GLScalars.hpp"

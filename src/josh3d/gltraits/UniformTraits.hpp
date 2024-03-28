@@ -1,6 +1,6 @@
 #pragma once
 #include "GLUniformTraits.hpp"
-#include "GLDSAProgram.hpp"
+#include "GLProgram.hpp"
 #include <glm/fwd.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
