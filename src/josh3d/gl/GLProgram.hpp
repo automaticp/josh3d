@@ -5,6 +5,7 @@
 #include "GLKind.hpp"
 #include "GLScalars.hpp"
 #include "GLMutability.hpp"
+#include "DecayToRaw.hpp"
 #include "detail/MagicConstructorsMacro.hpp"
 #include "detail/RawGLHandle.hpp"
 #include <glbinding/gl/boolean.h>
@@ -310,7 +311,7 @@ public:
     void attach_shader(const ShaderT& shader) const noexcept
         requires mt::is_mutable
     {
-        gl::glAttachShader(self_id(), shader.id());
+        gl::glAttachShader(self_id(), decay_to_raw(shader).id());
     }
 
     // Wraps `glDetachShader`.
@@ -318,7 +319,7 @@ public:
     void detach_shader(const ShaderT& shader) const noexcept
         requires mt::is_mutable
     {
-        gl::glDetachShader(self_id(), shader.id());
+        gl::glDetachShader(self_id(), decay_to_raw(shader).id());
     }
 
     // Wraps `glLinkProgram`.
@@ -402,6 +403,7 @@ static_assert(sizeof(RawProgram<GLMutable>) == sizeof(RawProgram<GLConst>));
 } // namespace dsa
 
 
+template<> struct uniform_traits<bool>      { static void set(dsa::RawProgram<> program, Location location, bool v)     noexcept { program.set_uniform_int   (location, v);    } };
 template<> struct uniform_traits<GLint>     { static void set(dsa::RawProgram<> program, Location location, GLint v)    noexcept { program.set_uniform_int   (location, v);    } };
 template<> struct uniform_traits<GLuint>    { static void set(dsa::RawProgram<> program, Location location, GLuint v)   noexcept { program.set_uniform_uint  (location, v);    } };
 template<> struct uniform_traits<GLfloat>   { static void set(dsa::RawProgram<> program, Location location, GLfloat v)  noexcept { program.set_uniform_float (location, v);    } };

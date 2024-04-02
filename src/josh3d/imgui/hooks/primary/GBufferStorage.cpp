@@ -11,7 +11,7 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, GBufferStorage) {
     // TODO: This is largely useless now that we have a GBufferDebug overlay.
 
     const GBuffer& gbuffer = stage_.view_gbuffer();
-    const float aspect = gbuffer.size().aspect_ratio();
+    const float aspect = gbuffer.resolution().aspect_ratio();
 
     auto imsize = [&]() -> ImVec2 {
         const float w = ImGui::GetContentRegionAvail().x;

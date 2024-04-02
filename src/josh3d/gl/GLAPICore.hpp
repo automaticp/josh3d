@@ -1,3 +1,4 @@
+#include "DecayToRaw.hpp"
 #include "EnumUtils.hpp"
 #include "GLAPI.hpp"
 #include "GLAPICommonTypes.hpp"
@@ -211,8 +212,14 @@ inline auto _recommended_max_num_indices_per_draw() noexcept {
 
 
 
-inline void _dispatch_compute() noexcept {
-    // gl::glDispatchCompute()
+inline void dispatch_compute(
+    BindToken<Binding::Program> bound_program [[maybe_unused]],
+    GLuint                      num_groups_x,
+    GLuint                      num_groups_y,
+    GLuint                      num_groups_z) noexcept
+{
+    assert(bound_program.id() == queries::bound_id(Binding::Program));
+    gl::glDispatchCompute(num_groups_x, num_groups_y, num_groups_z);
 }
 
 
@@ -383,6 +390,54 @@ inline bool is_enabled_indexed(CapabilityIndexed cap, GLuint index) noexcept {
 
 
 } // namespace glapi
+
+
+
+
+
+
+
+
+
+// Section: Shader Memory Access Synchronization [7.13.2]
+
+
+enum class BarrierMask : GLuint {
+    VertexAttribArrayBit  = GLuint(gl::GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT),
+    ElementArrayBit       = GLuint(gl::GL_ELEMENT_ARRAY_BARRIER_BIT),
+    UniformBit            = GLuint(gl::GL_UNIFORM_BARRIER_BIT),
+    TextureFetchBit       = GLuint(gl::GL_TEXTURE_FETCH_BARRIER_BIT),
+    ShaderImageAccessBit  = GLuint(gl::GL_SHADER_IMAGE_ACCESS_BARRIER_BIT),
+    CommandBit            = GLuint(gl::GL_COMMAND_BARRIER_BIT),
+    PixelBufferBit        = GLuint(gl::GL_PIXEL_BUFFER_BARRIER_BIT),
+    TextureUpdateBit      = GLuint(gl::GL_TEXTURE_UPDATE_BARRIER_BIT),
+    BufferUpdateBit       = GLuint(gl::GL_BUFFER_UPDATE_BARRIER_BIT),
+    ClientMappedBufferBit = GLuint(gl::GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT),
+    QueryBufferBit        = GLuint(gl::GL_QUERY_BUFFER_BARRIER_BIT),
+    FramebufferBit        = GLuint(gl::GL_FRAMEBUFFER_BARRIER_BIT),
+    TransformFeedbackBit  = GLuint(gl::GL_TRANSFORM_FEEDBACK_BARRIER_BIT),
+    AtomicCounterBit      = GLuint(gl::GL_ATOMIC_COUNTER_BARRIER_BIT),
+    ShaderStorageBit      = GLuint(gl::GL_SHADER_STORAGE_BARRIER_BIT),
+    AllBits               = GLuint(gl::GL_ALL_BARRIER_BITS),
+};
+
+inline BarrierMask operator|(const BarrierMask& lhs, const BarrierMask& rhs) noexcept {
+    return BarrierMask{ to_underlying(lhs) | to_underlying(rhs) };
+}
+
+
+
+namespace glapi {
+
+inline void memory_barrier(BarrierMask barriers) noexcept {
+    gl::glMemoryBarrier(enum_cast<gl::MemoryBarrierMask>(barriers));
+}
+
+} // namespace glapi
+
+
+
+
 
 
 
@@ -1263,27 +1318,85 @@ inline GLuint get_stencil_mask(Face face) noexcept {
 
 namespace glapi {
 
-inline void clear(BufferMask buffers) noexcept {
-    return gl::glClear(enum_cast<gl::ClearBufferMask>(buffers));
-}
+// Old clear api.
+// TODO: Remove or keep?
 
-inline void set_clear_color(
-    GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha) noexcept
+// inline void clear(
+//     BindToken<Binding::DrawFramebuffer> bound_fbo [[maybe_unused]],
+//     BufferMask                          buffers) noexcept
+// {
+//     assert(queries::bound_id(Binding::DrawFramebuffer) == bound_fbo.id());
+//     return gl::glClear(enum_cast<gl::ClearBufferMask>(buffers));
+// }
+
+// inline void set_clear_color(
+//     GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha) noexcept
+// {
+//     return gl::glClearColor(red, green, blue, alpha);
+// }
+
+// inline void set_clear_depth(GLfloat depth) noexcept {
+//     gl::glClearDepthf(depth);
+// }
+
+// inline void set_clear_depth(GLdouble depth) noexcept {
+//     gl::glClearDepth(depth);
+// }
+
+// inline void set_clear_stencil_value(GLint stencil_value) noexcept {
+//     gl::glClearStencil(stencil_value);
+// }
+
+// Explicit buffer clear operations.
+
+inline void clear_color_buffer(
+    BindToken<Binding::DrawFramebuffer> bound_fbo [[maybe_unused]],
+    GLint                               buffer_index,
+    const RGBAF&                        color_float) noexcept
 {
-    return gl::glClearColor(red, green, blue, alpha);
+    gl::glClearBufferfv(gl::GL_COLOR, buffer_index, &color_float.r);
 }
 
-inline void set_clear_depth(GLfloat depth) noexcept {
-    gl::glClearDepthf(depth);
+inline void clear_color_buffer(
+    BindToken<Binding::DrawFramebuffer> bound_fbo [[maybe_unused]],
+    GLint                               buffer_index,
+    const RGBAI&                        color_integer) noexcept
+{
+    gl::glClearBufferiv(gl::GL_COLOR, buffer_index, &color_integer.r);
 }
 
-inline void set_clear_depth(GLdouble depth) noexcept {
-    gl::glClearDepth(depth);
+inline void clear_color_buffer(
+    BindToken<Binding::DrawFramebuffer> bound_fbo [[maybe_unused]],
+    GLint                               buffer_index,
+    const RGBAUI&                       color_uinteger) noexcept
+{
+    gl::glClearBufferuiv(gl::GL_COLOR, buffer_index, &color_uinteger.r);
 }
 
-inline void set_clear_stencil_value(GLint stencil_value) noexcept {
-    gl::glClearStencil(stencil_value);
+inline void clear_depth_buffer(
+    BindToken<Binding::DrawFramebuffer> bound_fbo [[maybe_unused]],
+    GLfloat                             depth) noexcept
+{
+    gl::glClearBufferfv(gl::GL_DEPTH, 0, &depth);
 }
+
+inline void clear_stencil_buffer(
+    BindToken<Binding::DrawFramebuffer> bound_fbo [[maybe_unused]],
+    GLint                               stencil) noexcept
+{
+    gl::glClearBufferiv(gl::GL_STENCIL, 0, &stencil);
+}
+
+inline void clear_depth_stencil_buffer(
+    BindToken<Binding::DrawFramebuffer> bound_fbo [[maybe_unused]],
+    GLfloat                             depth,
+    GLint                               stencil) noexcept
+{
+    gl::glClearBufferfi(gl::GL_DEPTH_STENCIL, 0, depth, stencil);
+}
+
+
+
 
 // TODO: Getters
 
@@ -1678,7 +1791,7 @@ inline void begin_conditional_render(
                 assert(false);
         };
     }();
-    gl::glBeginConditionalRender(query.id(), real_mode);
+    gl::glBeginConditionalRender(decay_to_raw(query).id(), real_mode);
 }
 
 

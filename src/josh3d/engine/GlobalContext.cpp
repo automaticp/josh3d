@@ -2,7 +2,6 @@
 #include "DataPool.hpp"
 #include "DefaultResources.hpp"
 #include "TextureHandlePool.hpp"
-#include "GLObjects.hpp"
 
 
 namespace josh::globals {

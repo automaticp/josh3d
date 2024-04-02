@@ -13,8 +13,17 @@ namespace josh::stages::primary {
 
 
 class TerrainGeometry {
+public:
+    TerrainGeometry(SharedStorageMutableView<GBuffer> gbuffer_view)
+        : gbuffer_{ std::move(gbuffer_view) }
+    {}
+
+    void operator()(RenderEnginePrimaryInterface& engine);
+
+
+
 private:
-    UniqueShaderProgram sp_{
+    dsa::UniqueProgram sp_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/dfr_geometry_terrain.vert"))
             .load_frag(VPath("src/shaders/dfr_geometry_terrain.frag"))
@@ -23,12 +32,6 @@ private:
 
     SharedStorageMutableView<GBuffer> gbuffer_;
 
-public:
-    TerrainGeometry(SharedStorageMutableView<GBuffer> gbuffer_view)
-        : gbuffer_{ std::move(gbuffer_view) }
-    {}
-
-    void operator()(RenderEnginePrimaryInterface& engine);
 };
 
 

@@ -179,13 +179,13 @@ std::span<T> map_buffer_range_impl(
     // unless you explicitly use private enum members or do something else completely unreasonable.
     assert(bool(access & gl::GL_MAP_READ_BIT) || bool(access & gl::GL_MAP_WRITE_BIT) &&
         "At least one of GL_MAP_READ_BIT or GL_MAP_WRITE_BIT must be set.");
-    assert(bool(access & gl::GL_MAP_UNSYNCHRONIZED_BIT)    && !bool(access & gl::GL_MAP_READ_BIT) &&
+    assert((!bool(access & gl::GL_MAP_UNSYNCHRONIZED_BIT)    || !bool(access & gl::GL_MAP_READ_BIT)) &&
         "Not sure why, but this flag may not be used in combination with GL_MAP_READ_BIT.");
-    assert(bool(access & gl::GL_MAP_INVALIDATE_BUFFER_BIT) && !bool(access & gl::GL_MAP_READ_BIT) &&
+    assert((!bool(access & gl::GL_MAP_INVALIDATE_BUFFER_BIT) || !bool(access & gl::GL_MAP_READ_BIT)) &&
         "This flag may not be used in combination with GL_MAP_READ_BIT.");
-    assert(bool(access & gl::GL_MAP_INVALIDATE_RANGE_BIT)  && !bool(access & gl::GL_MAP_READ_BIT) &&
+    assert((!bool(access & gl::GL_MAP_INVALIDATE_RANGE_BIT)  || !bool(access & gl::GL_MAP_READ_BIT)) &&
         "This flag may not be used in combination with GL_MAP_READ_BIT.");
-    assert(bool(access & gl::GL_MAP_FLUSH_EXPLICIT_BIT)    &&  bool(access & gl::GL_MAP_WRITE_BIT) &&
+    assert((!bool(access & gl::GL_MAP_FLUSH_EXPLICIT_BIT)    || bool(access & gl::GL_MAP_WRITE_BIT)) &&
         "This flag may only be used in conjunction with GL_MAP_WRITE_BIT.");
 
     void* buf =
@@ -220,7 +220,7 @@ public:
 private:
     GLuint get_storage_mode_flags() const noexcept {
         GLenum flags;
-        gl::glGetNamedBufferParameteriv(self_id(), gl::GL_BUFFER_STORAGE_FLAGS, flags);
+        gl::glGetNamedBufferParameteriv(self_id(), gl::GL_BUFFER_STORAGE_FLAGS, &flags);
         return enum_cast<GLuint>(flags);
     }
 public:
@@ -309,7 +309,7 @@ public:
         PendingOperations pending_ops = PendingOperations::SynchronizeOnMap,
         Persistence       persistence = Persistence::NotPersistent) const noexcept
     {
-        return map_for_read(OffsetElems{ 0 }, self().get_num_elements(), pending_ops, persistence);
+        return map_range_for_read(OffsetElems{ 0 }, self().get_num_elements(), pending_ops, persistence);
     }
 
     // Wraps `glMapNamedBufferRange` with `access = GL_MAP_WRITE_BIT | [flags]`.
@@ -344,7 +344,7 @@ public:
         Persistence       persistence       = Persistence::NotPersistent) const noexcept
             requires mt::is_mutable
     {
-        return map_for_write(OffsetElems{ 0 }, self().get_num_elements(), pending_ops, flush_policy, previous_contents, persistence);
+        return map_range_for_write(OffsetElems{ 0 }, self().get_num_elements(), pending_ops, flush_policy, previous_contents, persistence);
     }
 
     // Wraps `glMapNamedBufferRange` with `access = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | [flags]`.
@@ -376,7 +376,7 @@ public:
         Persistence            persistence = Persistence::NotPersistent) const noexcept
             requires mt::is_mutable
     {
-        return map_for_readwrite(OffsetElems{ 0 }, self().get_num_elements(), pending_ops, flush_polcy, persistence);
+        return map_range_for_readwrite(OffsetElems{ 0 }, self().get_num_elements(), pending_ops, flush_polcy, persistence);
     }
 
 
@@ -576,7 +576,7 @@ public:
     {
         gl::glBindBufferRange(
             enum_cast<GLenum>(TargetV),
-            index, this->id(),
+            index, self_id(),
             elem_offset.value * sizeof(T),
             elem_count.value  * sizeof(T)
         );
@@ -784,7 +784,7 @@ public:
     auto as_typed() const noexcept
         -> RawBuffer<T, MutT>
     {
-        return RawBuffer<T, MutT>{ this->id() };
+        return RawBuffer<T, MutT>::from_id(this->id());
     }
 
 };

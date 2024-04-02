@@ -35,6 +35,14 @@ template<typename T>
 using underlying_type_or_type_t = underlying_type_or_type<T>::type;
 
 
+template<typename EnumOrInt>
+constexpr auto to_underlying_or_value(EnumOrInt value) noexcept
+    -> underlying_type_or_type_t<EnumOrInt>
+{
+    return static_cast<underlying_type_or_type_t<EnumOrInt>>(value);
+}
+
+
 
 template<typename To, enumeration FromEnumT>
 constexpr auto enum_cast(FromEnumT enum_value) noexcept

@@ -78,8 +78,9 @@ public:
     // to indicate that the string is null terminated.
     //
     // Overload for specifying a collection of source strings, reasonably unsafe...
-    void set_source(
-        std::span<const GLchar*> source_strings, std::span<const GLint> lengths) const noexcept
+    void set_sources(
+        std::span<const GLchar*> source_strings,
+        std::span<const GLint>   lengths) const noexcept
             requires gl_mutable<mutability>
     {
         assert(source_strings.size() == lengths.size());

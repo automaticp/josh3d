@@ -13,20 +13,20 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(postprocess, Fog) {
         ImGuiColorEditFlags_DisplayHSV
     );
 
-    if (ImGui::RadioButton("Disabled", stage_.fog_type == FogType::none)) {
-        stage_.fog_type = FogType::none;
+    if (ImGui::RadioButton("Disabled", stage_.fog_type == FogType::None)) {
+        stage_.fog_type = FogType::None;
     }
     ImGui::SameLine();
-    if (ImGui::RadioButton("Uniform", stage_.fog_type == FogType::uniform)) {
-        stage_.fog_type = FogType::uniform;
+    if (ImGui::RadioButton("Uniform", stage_.fog_type == FogType::Uniform)) {
+        stage_.fog_type = FogType::Uniform;
     }
     ImGui::SameLine();
-    if (ImGui::RadioButton("Barometric", stage_.fog_type == FogType::barometric)) {
-        stage_.fog_type = FogType::barometric;
+    if (ImGui::RadioButton("Barometric", stage_.fog_type == FogType::Barometric)) {
+        stage_.fog_type = FogType::Barometric;
     }
 
 
-    if (stage_.fog_type == FogType::uniform) {
+    if (stage_.fog_type == FogType::Uniform) {
         auto& params = stage_.uniform_fog_params;
 
         ImGui::DragFloat(
@@ -47,7 +47,7 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(postprocess, Fog) {
     }
 
 
-    if (stage_.fog_type == FogType::barometric) {
+    if (stage_.fog_type == FogType::Barometric) {
         auto& params = stage_.barometric_fog_params;
 
         ImGui::DragFloat(

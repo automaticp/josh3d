@@ -8,23 +8,23 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, Sky) {
 
     using SkyType = stages::primary::Sky::SkyType;
 
-    if (ImGui::RadioButton("None", stage_.sky_type == SkyType::none)) {
-        stage_.sky_type = SkyType::none;
+    if (ImGui::RadioButton("None", stage_.sky_type == SkyType::None)) {
+        stage_.sky_type = SkyType::None;
     }
     ImGui::SameLine();
-    if (ImGui::RadioButton("Debug", stage_.sky_type == SkyType::debug)) {
-        stage_.sky_type = SkyType::debug;
+    if (ImGui::RadioButton("Debug", stage_.sky_type == SkyType::Debug)) {
+        stage_.sky_type = SkyType::Debug;
     }
     ImGui::SameLine();
-    if (ImGui::RadioButton("Skybox", stage_.sky_type == SkyType::skybox)) {
-        stage_.sky_type = SkyType::skybox;
+    if (ImGui::RadioButton("Skybox", stage_.sky_type == SkyType::Skybox)) {
+        stage_.sky_type = SkyType::Skybox;
     }
     ImGui::SameLine();
-    if (ImGui::RadioButton("Procedural", stage_.sky_type == SkyType::procedural)) {
-        stage_.sky_type = SkyType::procedural;
+    if (ImGui::RadioButton("Procedural", stage_.sky_type == SkyType::Procedural)) {
+        stage_.sky_type = SkyType::Procedural;
     }
 
-    if (stage_.sky_type == SkyType::procedural) {
+    if (stage_.sky_type == SkyType::Procedural) {
 
         auto& params = stage_.procedural_sky_params;
 

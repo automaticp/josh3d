@@ -2,6 +2,8 @@
 #include "GLAPICommonTypes.hpp"
 #include "GLFenceSync.hpp"
 #include "GLFramebuffer.hpp"
+#include "GLKind.hpp"
+#include "GLMutability.hpp"
 #include "GLObjects.hpp"
 #include "GLSampler.hpp"
 #include "GLTextures.hpp"
@@ -31,12 +33,12 @@ void buffer_operations() noexcept {
 
     UniqueBuffer<float> buf;
 
-    buf.allocate_storage(
+    buf->allocate_storage(
         NumElems{ 1 },
         StorageMode::StaticServer,
         PermittedMapping::ReadWrite);
 
-    auto mapped = buf.map_range_for_write(
+    auto mapped = buf->map_range_for_write(
         OffsetElems{ 0 },
         NumElems{ 1 },
         PendingOperations::SynchronizeOnMap,
@@ -47,12 +49,13 @@ void buffer_operations() noexcept {
     do {
 
         mapped[0] = 1.f;
-        buf.flush_mapped_range(OffsetElems{ 0 }, NumElems{ 1 });
+        buf->flush_mapped_range(OffsetElems{ 0 }, NumElems{ 1 });
 
-    } while(!buf.unmap_current());
+    } while (!buf->unmap_current());
 
 
-    RawUntypedBuffer<> ubuf = buf;
+
+    RawUntypedBuffer<> ubuf = buf.get();
 
 }
 
@@ -79,7 +82,7 @@ namespace {
 
 [[maybe_unused]]
 void program_operations() {
-    RawProgram<> p{ 902 };
+    auto p = RawProgram<>::from_id(GLAllocator<GLKind::Program>::request());
     // RawVertexShader<> sh{ 99 };
     // p.attach_shader(sh);
     p.uniform(Location{ 0 }, 1);
@@ -88,6 +91,7 @@ void program_operations() {
     // p.uniform("color", glm::vec3{ 1.f, 0.f, 1.f });
     // p.uniform("color", v);
     p.uniform("", 1.f);
+    GLAllocator<GLKind::Program>::release(p.id());
 }
 
 
@@ -106,11 +110,11 @@ inline void foooo(Layer layer) noexcept {
 
 [[maybe_unused]]
 void texture_operations() {
-    RawTexture2D<GLMutable> tex{ 32 };
+    auto tex = RawTexture2D<GLMutable>::from_id(32);
     tex.set_sampler_wrap_all(Wrap::ClampToEdge);
     tex.set_sampler_min_mag_filters(MinFilter::LinearMipmapLinear, MagFilter::Linear);
     RawTexture2D<GLConst> ct{ tex };
-    RawTexture2DMS<GLMutable> tms{ 12 };
+    auto tms = RawTexture2DMS<GLMutable>::from_id(12);
     tms.allocate_storage({ 1, 1 }, InternalFormat::RGBA8, NumSamples{ 4 }, SampleLocations::Fixed);
     // tms.allocate_storage({1, 1}, TexSpecMS{{}, {}, {}});
     // tex.allocate_storage({1, 1}, { enum_cast<PixelInternalFormat>(gl::GL_SIGNED_RGB_UNSIGNED_ALPHA_NV) });
@@ -119,9 +123,9 @@ void texture_operations() {
     // pixel::RGBA arr[4];
     // tex.upload_image_region({ { 0, 0 }, { 2, 2 } }, arr);
 
-    RawTexture2DArray<> t2darr{ 732 };
+    auto t2darr = RawTexture2DArray<>::from_id(732);
     t2darr.allocate_storage({ 16, 16 }, 32, InternalFormat::RGBA32F, NumLevels{ 5 });
-    RawTexture3D<GLMutable> t3d{ 9203 };
+    auto t3d = RawTexture3D<GLMutable>::from_id(9203);
     t3d.allocate_storage({ 12, 23, 2 }, InternalFormat::RGBA8, NumLevels{ 7 });
     t3d.invalidate_image_region({ { 0, 0, 0 }, { 1, 1, 1 } }, MipLevel{ 6 });
     // t3d.upload_image_region({ {}, { 12, 23, 2 } }, arr, MipLevel{ 0 });
@@ -145,34 +149,33 @@ void texture_operations() {
     tex.set_sampler_wrap_all(Wrap::ClampToEdge);
 
     tex.bind_to_texture_unit(0);
-    RawTexture2D t1{ 1 };
-    RawTexture2D<GLMutable> t2{ 2 };
+    auto t1 = RawTexture2D<>::from_id(1);
+    auto t2 = RawTexture2D<GLMutable>::from_id(2);
     t2 = t1;
     tex.set_sampler_wrap_s(Wrap::ClampToBorder);
     tex.set_sampler_wrap_all(Wrap::Repeat);
 
 
-    RawCubemapArray<> c{ 9 };
+    auto c = RawCubemapArray<>::from_id(9);
     c.allocate_storage({ 64, 64 }, 6, InternalFormat::RGBA8, NumLevels{ 5 });
 
     {
-        RawTexture2D t2d{ 2 };
-        RawTexture3D t3d{ 3 };
+        auto t2d = RawTexture2D<>::from_id(2);
+        auto t3d = RawTexture3D<>::from_id(3);
         t2d.copy_image_region_to({}, { 512, 512 }, t3d, { 0, 0, 8 });
         t3d.copy_image_region_to({}, { 64,  64  }, t2d, { 0, 0 });
-        RawTextureBuffer<> bu{ 9 };
     }
 
-    RawTextureBuffer<> buft{ 3 };
-    RawTextureRectangle<> rect{ 1 };
+    auto buft = RawTextureBuffer<>::from_id(3);
+    auto rect = RawTextureRectangle<>::from_id(1);
     rect.set_sampler_min_mag_filters(MinFilterNoLOD::Linear, MagFilter::Linear);
 
 
 
     {
         UniqueTexture2D tex;
-        tex.allocate_storage({ 1024, 1024 }, InternalFormat::RGB16F, NumLevels{ 1 });
-        tex.set_sampler_min_mag_filters(MinFilter::Linear, MagFilter::Linear);
+        tex->allocate_storage({ 1024, 1024 }, InternalFormat::RGB16F, NumLevels{ 1 });
+        tex->set_sampler_min_mag_filters(MinFilter::Linear, MagFilter::Linear);
 
         auto tms = RawTexture2DMSArray<>::from_id(0);
         tms.allocate_storage({ 1024, 1024 }, 12, InternalFormat::RGBA8, NumSamples{ 4 }, SampleLocations::NotFixed);
@@ -201,13 +204,13 @@ void sampler_operations() {
 
 [[maybe_unused]]
 void framebuffer_operations() {
-    RawFramebuffer<> fb{  99 };
+    auto fb = RawFramebuffer<>::from_id(99);
     fb.blit_to(fb, { {}, { 100, 100 } }, { {}, { 200, 200 } }, BufferMask::ColorBit | BufferMask::DepthBit, BlitFilter::Linear);
     RawDefaultFramebuffer<> dfb;
     dfb.specify_default_buffers_for_draw(DefaultFramebufferBuffer::BackLeft, DefaultFramebufferBuffer::BackRight);
-    RawTexture2D<> tx{ 90 };
-    RawTexture2DArray<> txa{ 99 };
-    RawTexture2DMS<> txms{ 90 };
+    auto tx   = RawTexture2D<>::from_id(90);
+    auto txa  = RawTexture2DArray<>::from_id(99);
+    auto txms = RawTexture2DMS<>::from_id(91);
     fb.attach_texture_to_color_buffer(tx, 0, MipLevel{ 0 });
     fb.attach_texture_to_color_buffer(txms, 1);
     fb.attach_texture_to_stencil_buffer(tx);
@@ -273,6 +276,24 @@ void vertex_array_operations() {
 }
 
 
+
+
+
+
+// GLShared
+
+static void gimeraw(const RawVertexArray<GLMutable>&& vao, RawVertexArray<GLConst> cvao) {}
+
+[[maybe_unused]]
+static void glshared_operations() {
+
+    GLShared<RawVertexArray<GLConst>> cvao;
+    SharedVertexArray vao;
+    vao->get_attached_element_buffer_id();
+    gimeraw(vao, cvao);
+    const auto& base_ref [[maybe_unused]] = static_cast<const RawVertexArray<>&>(vao);
+    // gimeraw(vao, SharedVertexArray()); // This is slicing, this is baaaaad.
+}
 
 
 } // namespace

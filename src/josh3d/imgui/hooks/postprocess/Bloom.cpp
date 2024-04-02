@@ -52,7 +52,7 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(postprocess, Bloom) {
         ImGui::Unindent();
 
         const float w = ImGui::GetContentRegionAvail().x;
-        const float h = w / stage_.blur_texture_size().aspect_ratio();
+        const float h = w / stage_.blur_texture_resolution().aspect_ratio();
 
         imgui::ImageGL(void_id(stage_.blur_texture().id()), { w, h });
 

@@ -1,7 +1,7 @@
 #pragma once
 #include "stages/primary/GBufferStorage.hpp"
-#include "GLShaders.hpp"
 #include "RenderStage.hpp"
+#include "GLObjects.hpp"
 #include "ShaderBuilder.hpp"
 #include "SharedStorage.hpp"
 #include "VPath.hpp"
@@ -13,25 +13,6 @@ namespace josh::stages::primary {
 
 
 class DeferredGeometry {
-private:
-    UniqueShaderProgram sp_ds{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/basic_mesh.vert"))
-            .load_frag(VPath("src/shaders/dfr_geometry_mat_ds.frag"))
-            .define("ENABLE_ALPHA_TESTING")
-            .get()
-    };
-
-    UniqueShaderProgram sp_dsn{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/dfr_geometry_mat_dsn.vert"))
-            .load_frag(VPath("src/shaders/dfr_geometry_mat_dsn.frag"))
-            .define("ENABLE_ALPHA_TESTING")
-            .get()
-        };
-
-    SharedStorageMutableView<GBuffer> gbuffer_;
-
 public:
     // FIXME: This for now does not consider alpha-tested objects properly.
     // So it's off by default.
@@ -42,6 +23,26 @@ public:
     {}
 
     void operator()(RenderEnginePrimaryInterface&);
+
+
+private:
+    dsa::UniqueProgram sp_ds{
+        ShaderBuilder()
+            .load_vert(VPath("src/shaders/basic_mesh.vert"))
+            .load_frag(VPath("src/shaders/dfr_geometry_mat_ds.frag"))
+            .define("ENABLE_ALPHA_TESTING")
+            .get()
+    };
+
+    dsa::UniqueProgram sp_dsn{
+        ShaderBuilder()
+            .load_vert(VPath("src/shaders/dfr_geometry_mat_dsn.vert"))
+            .load_frag(VPath("src/shaders/dfr_geometry_mat_dsn.frag"))
+            .define("ENABLE_ALPHA_TESTING")
+            .get()
+        };
+
+    SharedStorageMutableView<GBuffer> gbuffer_;
 
 };
 

@@ -11,6 +11,7 @@
 #include "detail/RawGLHandle.hpp"
 #include "detail/StaticAssertFalseMacro.hpp"
 #include "detail/StrongScalar.hpp"
+#include <concepts>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
 
@@ -48,7 +49,7 @@ public:
             requires mt::is_mutable
     {
 
-        gl::glVertexArrayElementBuffer(self_id(), element_buffer.id());
+        gl::glVertexArrayElementBuffer(self_id(), decay_to_raw(element_buffer).id());
     }
 
     void detach_element_buffer() const noexcept
@@ -84,10 +85,12 @@ public:
 
         I'll check just in case anyway.
         */
-        assert(gl::glIsBuffer(buffer.id()));
+        assert(gl::glIsBuffer(decay_to_raw(buffer).id()));
         gl::glVertexArrayVertexBuffer(
-            self_id(), buffer_slot,
-            buffer.id(), offset_bytes,
+            self_id(),
+            buffer_slot,
+            decay_to_raw(buffer).id(),
+            offset_bytes,
             stride_bytes
         );
     }
@@ -255,6 +258,7 @@ public:
     template<specializes_attribute_traits VertexT>
     GLsizeiptr specify_custom_attributes(
         AttributeIndex first_attrib_index) const noexcept
+            requires mt::is_mutable
     {
         using tr = attribute_traits<VertexT>;
         constexpr size_t num_attribs = std::tuple_size_v<decltype(tr::specs)>;

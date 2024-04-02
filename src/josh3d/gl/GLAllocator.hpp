@@ -1,4 +1,5 @@
 #pragma once
+#include "CommonConcepts.hpp"
 #include "GLAPI.hpp"
 #include "GLScalars.hpp"
 #include "GLKind.hpp"
@@ -137,10 +138,10 @@ for each particulat Kind of object.
 template<GLKind KindV>
 struct GLAllocator;
 
-#define JOSH3D_SPECIALIZE_DSA_ALLOCATOR(kind) \
+#define JOSH3D_SPECIALIZE_DSA_ALLOCATOR(Kind) \
     template<>                                \
-    struct GLAllocator<GLKind::kind>          \
-        : detail::kind##Allocator             \
+    struct GLAllocator<GLKind::Kind>          \
+        : detail::Kind##Allocator             \
     {};
 
 
@@ -156,6 +157,14 @@ JOSH3D_SPECIALIZE_DSA_ALLOCATOR(Query)
 JOSH3D_SPECIALIZE_DSA_ALLOCATOR(Sampler)
 
 #undef JOSH3D_SPECIALIZE_DSA_ALLOCATOR
+
+
+
+template<typename RawH>
+concept supports_gl_allocator = requires {
+   requires same_as_remove_cvref<decltype(RawH::kind_type), GLKind>;
+   requires sizeof(GLAllocator<RawH::kind_type>) != 0;
+};
 
 
 

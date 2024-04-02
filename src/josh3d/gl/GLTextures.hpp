@@ -1,5 +1,6 @@
 #pragma once
 #include "CommonConcepts.hpp" // IWYU pragma: keep
+#include "DecayToRaw.hpp"
 #include "GLAPI.hpp"
 #include "GLBuffers.hpp"
 #include "GLAPICommonTypes.hpp"
@@ -2198,12 +2199,12 @@ template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_ImageOperations_Download {
     JOSH3D_TEXTURE_MIXIN_HEADER
 private:
-
+    template<typename T>
     void download_image_region_into_impl(
         const tt::region_type& region,
         PixelDataFormat        format,
         PixelDataType          type,
-        std::span<GLubyte>     dst_buf,
+        std::span<T>           dst_buf,
         MipLevel               level) const noexcept
     {
         auto download = [&, this] (
@@ -2215,7 +2216,7 @@ private:
                 offset.x,     offset.y,      offset.z,
                 extent.width, extent.height, extent.depth,
                 enum_cast<GLenum>(format), enum_cast<GLenum>(type),
-                dst_buf.size(),
+                dst_buf.size_bytes(),
                 dst_buf.data()
             );
         };
@@ -2228,23 +2229,24 @@ private:
     }
 
 public:
-
+    template<typename T>
     void download_image_region_into(
         const tt::region_type& region,
         PixelDataFormat        format,
         PixelDataType          type,
-        std::span<GLubyte>     dst_buf,
+        std::span<T>           dst_buf,
         MipLevel               level = MipLevel{ 0 }) const noexcept
             requires tt::has_lod
     {
         download_image_region_into_impl(region, format, type, dst_buf, level);
     }
 
+    template<typename T>
     void download_image_region_into(
         const tt::region_type& region,
         PixelDataFormat        format,
         PixelDataType          type,
-        std::span<GLubyte>     dst_buf) const noexcept
+        std::span<T>           dst_buf) const noexcept
             requires (!tt::has_lod)
     {
         download_image_region_into_impl(region, format, type, dst_buf, MipLevel{ 0 });
@@ -2315,9 +2317,9 @@ private:
             const Offset3I& dst_offset)
         {
             gl::glCopyImageSubData(
-                self_id(), static_cast<GLenum>(TargetV), src_level,
+                self_id(), enum_cast<GLenum>(TargetV), src_level,
                 src_offset.x, src_offset.y, src_offset.z,
-                dst_texture.id(), static_cast<GLenum>(DstTextureT::target_type), dst_level,
+                decay_to_raw(dst_texture).id(), enum_cast<GLenum>(DstTextureT::target_type), dst_level,
                 dst_offset.x, dst_offset.y, dst_offset.z,
                 src_extent.width, src_extent.height, src_extent.depth
             );
@@ -2807,7 +2809,7 @@ struct TextureDSAInterface_ImageOperations_AttachBuffer {
         const BufferT& buffer, BufferTextureInternalFormat internal_format) const noexcept
             requires mt::is_mutable
     {
-        gl::glTextureBuffer(self_id(), enum_cast<GLenum>(internal_format), buffer.id());
+        gl::glTextureBuffer(self_id(), enum_cast<GLenum>(internal_format), decay_to_raw(buffer).id());
     }
 
     void _attach_buffer_range() const noexcept {

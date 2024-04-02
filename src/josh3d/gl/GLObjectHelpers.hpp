@@ -1,12 +1,12 @@
 #pragma once
-#include "CommonConcepts.hpp"
+#include "CommonConcepts.hpp" // IWYU pragma: keep (concepts)
 #include "GLAPI.hpp"
 #include "GLAPICommonTypes.hpp"
+#include "GLMutability.hpp"
 #include "GLBuffers.hpp"
 #include "GLObjects.hpp"
 #include "GLTextures.hpp"
-#include "GLMutability.hpp"
-#include "GLObjects.hpp"
+#include "DecayToRaw.hpp" // IWYU pragma: export
 #include "Size.hpp"
 #include <bit>
 #include <glbinding/gl/types.h>
@@ -23,7 +23,7 @@ UniqueBuffer<T> allocate_buffer(
     PermittedPersistence persistence_policy = PermittedPersistence::NotPersistent) noexcept
 {
     UniqueBuffer<T> buffer;
-    buffer.allocate_storage(num_elements, storage_mode, mapping_policy, persistence_policy);
+    buffer->allocate_storage(num_elements, storage_mode, mapping_policy, persistence_policy);
     return buffer;
 }
 
@@ -36,7 +36,7 @@ UniqueBuffer<T> specify_buffer(
     PermittedPersistence persistence_policy = PermittedPersistence::NotPersistent) noexcept
 {
     UniqueBuffer<T> buffer;
-    buffer.specify_storage(src_buf, storage_mode, mapping_policy, persistence_policy);
+    buffer->specify_storage(src_buf, storage_mode, mapping_policy, persistence_policy);
     return buffer;
 }
 
@@ -70,9 +70,9 @@ namespace detail {
 
 template<typename T>
 void replace_buffer_like(UniqueBuffer<T>& buffer, NumElems elem_count) noexcept {
-    StoragePolicies policies = buffer.get_storage_policies();
+    StoragePolicies policies = buffer->get_storage_policies();
     buffer = UniqueBuffer<T>();
-    buffer.allocate_storage(elem_count, policies.storage_mode, policies.permitted_mapping, policies.permitted_persistence);
+    buffer->allocate_storage(elem_count, policies.storage_mode, policies.permitted_mapping, policies.permitted_persistence);
 }
 
 } // namespace detail
@@ -84,14 +84,14 @@ void resize_to_fit(
     UniqueBuffer<T>& buffer,
     NumElems         new_elem_count) noexcept
 {
-    NumElems old_elem_count = buffer.get_num_elements();
+    NumElems old_elem_count = buffer->get_num_elements();
 
     if (old_elem_count == 0) {
         // That means the buffer does not have a storage allocated yet.
         // Allocate one with default parameters for storage mode and mapping.
         // Those are DynamicServer storage, ReadWrite permitted mapping and NotPersistent persistence.
         // If you cared enough about these flags, then you wouldn't use this function.
-        buffer.allocate_storage(new_elem_count);
+        buffer->allocate_storage(new_elem_count);
     } else if (new_elem_count != old_elem_count) {
         detail::replace_buffer_like(buffer, new_elem_count);
     }
@@ -103,10 +103,10 @@ void expand_to_fit(
     UniqueBuffer<T>& buffer,
     NumElems         desired_elem_count) noexcept
 {
-    NumElems old_elem_count = buffer.get_num_elements();
+    NumElems old_elem_count = buffer->get_num_elements();
 
     if (old_elem_count == 0) {
-        buffer.allocate_storage(desired_elem_count);
+        buffer->allocate_storage(desired_elem_count);
     } else if (desired_elem_count > old_elem_count) {
         detail::replace_buffer_like(buffer, desired_elem_count);
     }
@@ -120,10 +120,10 @@ void expand_to_fit_amortized(
     double           amortization_factor = 1.5) noexcept
 {
     assert(amortization_factor >= 1.0);
-    NumElems old_elem_count = buffer.get_num_elements();
+    NumElems old_elem_count = buffer->get_num_elements();
 
     if (old_elem_count == 0) {
-        buffer.allocate_storage(desired_elem_count);
+        buffer->allocate_storage(desired_elem_count);
     } else if (desired_elem_count > old_elem_count) {
         NumElems amortized_size{
             GLsizeiptr(double(old_elem_count.value) * amortization_factor)
@@ -147,7 +147,7 @@ template<TextureTarget TargetV, typename ...Args>
 auto allocate_texture(Args&&... args) noexcept {
     using UniqueTextureType = GLUnique<typename detail::texture_target_raw_mutable_type<TargetV>::type>;
     UniqueTextureType texture;
-    texture.allocate_storage(std::forward<Args>(args)...);
+    texture->allocate_storage(std::forward<Args>(args)...);
     return texture;
 }
 
@@ -223,24 +223,6 @@ inline constexpr NumLevels max_num_levels(const Size3I& resolution) noexcept {
         SampleLocations            sample_locations = SampleLocations::NotFixed) const noexcept
             requires mt::is_mutable && tt::is_multisample && tt::is_array
 */
-
-
-// This is meaningless, what you want is attachments instead.
-
-// template<template <typename> typename RawTextureT>
-//     requires of_kind<RawTextureT<GLMutable>, GLKind::Texture>
-// void resize_to_fit(
-//     GLUnique<RawTextureT<GLMutable>>& texture,
-//     const typename texture_traits<RawTextureT<GLMutable>>::resolution_type&
-//                                       resolution,
-//     NumLevels                         num_levels = NumLevels{ 0 }) noexcept
-//         requires
-//             texture_traits<RawTextureT<GLMutable>>::has_lod
-// {
-//     using tt = texture_traits<RawTextureT<GLMutable>>;
-
-
-// }
 
 
 

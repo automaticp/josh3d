@@ -7,7 +7,7 @@ namespace josh::components {
 
 
 struct Skybox {
-    Shared<UniqueCubemap> cubemap;
+    Shared<dsa::UniqueCubemap> cubemap;
 };
 
 

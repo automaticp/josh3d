@@ -116,9 +116,13 @@ Could probably be moved somewhere else.
 
 
 #define JOSH3D_MAGIC_CONSTRUCTORS_FROM_ID(Self, Parent)                       \
+private:                                                                      \
+    explicit Self(Parent::id_type id) noexcept : Parent{ id } {}              \
+public:                                                                       \
     using id_type = Parent::id_type;                                          \
     static constexpr Self from_id(id_type id) noexcept { return Self{ id }; } \
-    explicit Self(id_type id) noexcept : Parent{ id } {}
+
+
 
 
 /*

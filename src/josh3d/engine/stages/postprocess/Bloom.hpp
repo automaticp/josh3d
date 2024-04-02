@@ -1,12 +1,16 @@
 #pragma once
 #include "DefaultResources.hpp"
+#include "GLAPIBinding.hpp"
+#include "GLAPICommonTypes.hpp"
 #include "GLBuffers.hpp"
 #include "GLMutability.hpp"
+#include "GLObjectHelpers.hpp"
 #include "GLObjects.hpp"
 #include "Attachments.hpp"
 #include "GLTextures.hpp"
 #include "RenderTarget.hpp"
 #include "SwapChain.hpp"
+#include "UniformTraits.hpp" // IWYU pragma: keep (traits)
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
 #include "Size.hpp"
@@ -26,78 +30,77 @@ namespace josh::stages::postprocess {
 
 
 class Bloom {
+public:
+    bool      use_bloom{ true };
+    glm::vec2 threshold_bounds{ 0.05f, 1.0f };
+    size_t    blur_iterations{ 1 };
+    float     offset_scale{ 1.f };
+
+    float  gaussian_sample_range{ 1.8f }; // TODO: This should be a set/get pair
+    size_t gaussian_samples{ 4 };         // so that the buffer update would happen in-place.
+
+    Bloom(const Size2I& initial_resolution);
+
+    void operator()(RenderEnginePostprocessInterface& engine);
+
+    dsa::RawTexture2D<GLConst> blur_texture() const noexcept {
+        return blur_chain_.front_target().color_attachment().texture();
+    }
+
+    Size2I blur_texture_resolution() const noexcept {
+        return blur_chain_.front_target().color_attachment().resolution();
+    }
+
+
+
+
 private:
-    UniqueShaderProgram sp_extract_{
+    dsa::UniqueProgram sp_extract_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/pp_bloom_threshold_extract.frag"))
             .get()
     };
 
-    UniqueShaderProgram sp_twopass_gaussian_blur_{
+    dsa::UniqueProgram sp_twopass_gaussian_blur_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/pp_bloom_twopass_gaussian_blur.frag"))
             .get()
     };
 
-    UniqueShaderProgram sp_blend_{
+    dsa::UniqueProgram sp_blend_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/pp_bloom_blend.frag"))
             .get()
     };
 
-    using BlurTarget    = RenderTarget<NoDepthAttachment, UniqueAttachment<RawTexture2D>>;
+    using BlurTarget    = RenderTarget<NoDepthAttachment, UniqueAttachment<Renderable::Texture2D>>;
     using BlurSwapChain = SwapChain<BlurTarget>;
 
-    static BlurTarget make_blur_target() {
-        using enum GLenum;
-        BlurTarget tgt{
-            {},                                // No Depth
-            { Size2I{ 0, 0 }, { GL_RGBA16F } } // HDR Color
-        };
-        // TODO: That's one way to do it.
-        // Another one would be to support Sampler objects.
-        tgt.color_attachment().texture()
-            .bind()
-            .set_min_mag_filters(GL_LINEAR, GL_LINEAR)
-            .set_wrap_st(GL_CLAMP_TO_BORDER, GL_CLAMP_TO_BORDER)
-            .unbind();
+    dsa::UniqueSampler sampler_{ []() {
+        dsa::UniqueSampler s;
+        s->set_min_mag_filters(MinFilter::Linear, MagFilter::Linear);
+        s->set_wrap_all(Wrap::ClampToEdge);
+        return s;
+    }() };
 
-        return tgt;
+    static BlurTarget make_blur_target(const Size2I& resolution) {
+        return {
+            resolution,
+            { InternalFormat::RGBA16F } // HDR Color
+        };
     }
 
-    BlurSwapChain blur_chain_{
-        make_blur_target(), make_blur_target()
-    };
+    BlurSwapChain blur_chain_;
 
-    UniqueSSBO weights_ssbo_;
+    dsa::UniqueBuffer<float> weights_buf_;
+
     float  old_gaussian_sample_range_{ 1.f };
     size_t old_gaussian_samples_{ 0 }; // Must be different from the gaussian_samples on costruction...
+    // Above is dumb.
 
-public:
-    glm::vec2 threshold_bounds{ 0.05f, 1.0f };
-    size_t    blur_iterations{ 1 };
-    float     offset_scale{ 1.f };
-    bool      use_bloom{ true };
-
-    float  gaussian_sample_range{ 1.8f };
-    size_t gaussian_samples{ 4 };
-
-    Bloom();
-
-    void operator()(RenderEnginePostprocessInterface& engine);
-
-    RawTexture2D<GLConst> blur_texture() const noexcept {
-        return blur_chain_.front_target().color_attachment().texture();
-    }
-
-    Size2I blur_texture_size() const noexcept {
-        return blur_chain_.front_target().color_attachment().size();
-    }
-
-private:
     // From -x to +x binned into 2 * n_samples + 1.
     void update_gaussian_blur_weights_if_needed();
 
@@ -118,7 +121,12 @@ private:
 
 
 
-inline Bloom::Bloom() {
+inline Bloom::Bloom(const Size2I& initial_resolution)
+    : blur_chain_{
+        make_blur_target(initial_resolution),
+        make_blur_target(initial_resolution)
+    }
+{
     update_gaussian_blur_weights_if_needed();
 }
 
@@ -131,63 +139,62 @@ inline void Bloom::operator()(
 
     if (!use_bloom) { return; }
 
-    if (engine.window_size() != blur_chain_.back_target().color_attachment().size()) {
-        // TODO: Might be part of Attachment::resize() to skip redundant resizes
-        blur_chain_.resize_all(engine.window_size());
-    }
+
+    blur_chain_.resize(engine.main_resolution());
+
 
     update_gaussian_blur_weights_if_needed();
 
 
-    // Extract
-    blur_chain_.draw_and_swap([&, this] {
-        sp_extract_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
+    sampler_->bind_to_texture_unit(0);
+    sampler_->bind_to_texture_unit(1);
 
-            ashp.uniform("threshold_bounds", threshold_bounds)
-                .uniform("screen_color", 0);
-            engine.screen_color().bind_to_unit_index(0);
 
-            globals::quad_primitive_mesh().draw();
+    // Extract.
+    engine.screen_color().bind_to_texture_unit(0);
+    sp_extract_->uniform("screen_color",     0);
+    sp_extract_->uniform("threshold_bounds", threshold_bounds);
+    blur_chain_.draw_and_swap([&, this](auto bound_fbo) {
+        auto bound_program = sp_extract_->use();
+
+        globals::quad_primitive_mesh().draw(bound_program, bound_fbo);
+
+        bound_program.unbind();
+    });
+
+
+    // Blur.
+    weights_buf_->bind_to_index<BufferTargetIndexed::ShaderStorage>(0);
+    sp_twopass_gaussian_blur_->uniform("offset_scale", offset_scale);
+    sp_twopass_gaussian_blur_->uniform("screen_color", 0); // Same unit, different textures.
+
+    auto bound_program = sp_twopass_gaussian_blur_->use();
+    for (size_t i{ 0 }; i < (2 * blur_iterations); ++i) {
+        // Need to rebind after every swap.
+        blur_chain_.front_target().color_attachment().texture().bind_to_texture_unit(0);
+        sp_twopass_gaussian_blur_->uniform("blur_horizontally", bool(i % 2));
+
+        blur_chain_.draw_and_swap([&](auto bound_fbo) {
+            globals::quad_primitive_mesh().draw(bound_program, bound_fbo);
         });
-    });
+    }
+    bound_program.unbind();
 
-    // Blur
-    weights_ssbo_.bind_to_index(0).and_then([&, this] {
 
-        for (size_t i{ 0 }; i < (2 * blur_iterations); ++i) {
-            blur_chain_.draw_and_swap([&, this] {
-                sp_twopass_gaussian_blur_.use().and_then([&, this](
-                    ActiveShaderProgram<GLMutable>& ashp)
-                {
+    // Blend.
+    // TODO: Why is this a separate shader and not just using blend mode?
+    engine.screen_color().bind_to_texture_unit(0);
+    blur_chain_.front_target().color_attachment().texture().bind_to_texture_unit(1);
+    sp_blend_->uniform("screen_color", 0);
+    sp_blend_->uniform("bloom_color",  1);
+    {
+        auto bound_program = sp_blend_->use();
+        engine.draw(bound_program);
+        bound_program.unbind();
+    }
 
-                    ashp.uniform("blur_horizontally", bool(i % 2))
-                        .uniform("offset_scale",      offset_scale)
-                        .uniform("screen_color",      0);
-                    blur_chain_.front_target()
-                        .color_attachment()
-                        .texture()
-                        .bind_to_unit_index(0);
 
-                    globals::quad_primitive_mesh().draw();
-                });
-            });
-        }
-
-    })
-    .unbind();
-
-    // Blend
-    sp_blend_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
-
-        ashp.uniform("screen_color", 0)
-            .uniform("bloom_color",  1);
-        engine.screen_color().bind_to_unit_index(0);
-        blur_chain_.front_target().color_attachment().texture().bind_to_unit_index(1);
-
-        engine.draw();
-
-    });
-
+    unbind_samplers_from_units(0, 1);
 }
 
 
@@ -237,36 +244,30 @@ inline void Bloom::update_gaussian_blur_weights_if_needed() {
     // leading to a noticable loss of color yield when
     // the range is too high. Is this okay?
 
-    using enum GLenum;
+    auto update_weights = [this](dsa::RawBuffer<float> buf) {
+        std::span<float> mapped = buf.map_for_write();
 
-    auto update_weights = [this](BoundIndexedSSBO<>& ssbo) {
-        std::span<float> mapped =
-            ssbo.map_for_write<float>(0, gaussian_weights_buffer_size());
+        do {
+            auto generated =
+                detail::generate_binned_gaussian_no_tails(
+                    -gaussian_sample_range, gaussian_sample_range,
+                    gaussian_weights_buffer_size()
+                );
 
-        auto generated =
-            detail::generate_binned_gaussian_no_tails(
-                -gaussian_sample_range, gaussian_sample_range,
-                gaussian_weights_buffer_size()
-            );
+            std::ranges::copy(generated, mapped.begin());
 
-        std::ranges::copy(generated, mapped.begin());
-
-        ssbo.unmap_current();
+        } while (!buf.unmap_current());
     };
 
 
     if (gaussian_weights_buffer_needs_resizing()) {
 
-        weights_ssbo_.bind_to_index(0)
-            .allocate_data<float>(gaussian_weights_buffer_size(), GL_STATIC_DRAW)
-            .and_then(update_weights)
-            .unbind();
+        dsa::resize_to_fit(weights_buf_, NumElems{ gaussian_weights_buffer_size() });
+        update_weights(weights_buf_);
 
     } else if (gaussian_weight_values_need_updating()) {
 
-        weights_ssbo_.bind_to_index(0)
-            .and_then(update_weights)
-            .unbind();
+        update_weights(weights_buf_);
 
     }
 

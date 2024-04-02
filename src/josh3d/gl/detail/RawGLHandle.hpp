@@ -20,16 +20,11 @@ template<mutability_tag MutT, typename IdType = GLuint>
 class RawGLHandle {
 public:
     using id_type = IdType;
-
-protected:
-    id_type id_; // Should this be private?
-    id_type reset_id(id_type new_id = id_type{ 0 }) noexcept {
-        id_type old_id{ id_ };
-        id_ = new_id;
-        return old_id;
-    }
-    ~RawGLHandle() = default;
+private:
+    id_type id_;
     friend RawGLHandle<GLConst>;
+protected:
+    ~RawGLHandle() = default;
 public:
 
     explicit RawGLHandle(id_type id) : id_{ id } {}
@@ -86,18 +81,14 @@ public:
 
 
 
-
-// Since constructibility might not be inherited,
-// it makes sense to check this for both kind-handles and object-handles,
-// even if they derive from the RawGLHandle.
-template<typename RawT>
-concept has_basic_raw_handle_semantics = requires(RawT raw) {
-    // Constructible from GLuint.
-    RawT{ GLuint{ 42 } };
+// Use this to indicate that a type is a Raw Handle type.
+// TODO: Incomplete and shaky, might be worth rethinking.
+template<typename RawHandleT>
+concept has_basic_raw_handle_semantics = requires(std::remove_cvref_t<RawHandleT> raw) {
     // Can return or be converted to the object id.
-    { raw.id() }                 -> same_as_remove_cvref<GLuint>;
-    { std::as_const(raw).id() }  -> same_as_remove_cvref<GLuint>;
-    { static_cast<GLuint>(raw) } -> same_as_remove_cvref<GLuint>;
+    { raw.id() }                              -> same_as_remove_cvref<typename RawHandleT::id_type>;
+    { std::as_const(raw).id() }               -> same_as_remove_cvref<typename RawHandleT::id_type>;
+    { static_cast<RawHandleT::id_type>(raw) } -> same_as_remove_cvref<typename RawHandleT::id_type>;
 };
 
 

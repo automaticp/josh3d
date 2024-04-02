@@ -1,13 +1,12 @@
 #pragma once
 #include "GLObjects.hpp"
+#include "GLTextures.hpp"
 #include "ImageData.hpp"
 #include "TextureHelpers.hpp"
 #include "Filesystem.hpp"
 #include "GLObjectPool.hpp"
 #include "DataPool.hpp"
 #include <glbinding/gl/enum.h>
-#include <concepts>
-#include <type_traits>
 
 
 
@@ -29,37 +28,32 @@ struct TextureHandleLoadContext {
 
 
 using TextureHandlePool =
-    GLObjectPool<UniqueTexture2D, DataPool<TextureData>, TextureHandleLoadContext>;
+    GLObjectPool<dsa::UniqueTexture2D, DataPool<TextureData>, TextureHandleLoadContext>;
 
 
 template<>
-Shared<UniqueTexture2D>
-inline TextureHandlePool::load_data_from(const File& file,
+inline auto TextureHandlePool::load_data_from(
+    const File&                     file,
     const TextureHandleLoadContext& context)
+        -> Shared<dsa::UniqueTexture2D>
 {
-    using enum GLenum;
 
     Shared<TextureData> tex_data{ upstream_.load(file) };
 
-    auto new_handle = std::make_shared<UniqueTexture2D>();
-
-    GLenum internal_format = [&] {
+    InternalFormat internal_format = [&] {
         switch (context.type) {
             using enum TextureType;
-            case diffuse:  return GL_SRGB_ALPHA;
+            case diffuse:  return InternalFormat::SRGBA8;
             case specular:
             case normal:
-            default:       return GL_RGBA;
+            default:       return InternalFormat::RGBA8;
         }
     }();
 
-    new_handle->bind()
-        .and_then([&](BoundTexture2D<GLMutable>& tex) {
-            attach_data_to_texture(tex, *tex_data, internal_format);
-        })
-        .generate_mipmaps()
-        .set_min_mag_filters(GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR)
-        .set_wrap_st(GL_REPEAT, GL_REPEAT);
+    auto new_handle =
+        std::make_shared<dsa::UniqueTexture2D>(
+            create_material_texture_from_data(*tex_data, internal_format)
+        );
 
     return new_handle;
 }

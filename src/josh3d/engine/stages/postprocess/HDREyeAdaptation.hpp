@@ -1,7 +1,8 @@
 #pragma once
-#include "GLMutability.hpp"
+#include "GLAPICommonTypes.hpp"
+#include "GLBuffers.hpp"
+#include "GLObjectHelpers.hpp"
 #include "GLObjects.hpp"
-#include "GLShaders.hpp"
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
 #include "VPath.hpp"
@@ -21,62 +22,13 @@ namespace josh::stages::postprocess {
 
 
 class HDREyeAdaptation {
-private:
-    UniqueShaderProgram tonemap_sp_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/postprocess.vert"))
-            .load_frag(VPath("src/shaders/pp_hdr_eye_adaptation_tonemap.frag"))
-            .get()
-    };
-
-    UniqueShaderProgram block_reduce_sp_{
-        ShaderBuilder()
-            .load_comp(VPath("src/shaders/pp_hdr_eye_adaptation_sample_image_block.comp"))
-            .get()
-    };
-
-    UniqueShaderProgram recursive_reduce_sp_{
-        ShaderBuilder()
-            .load_comp(VPath("src/shaders/pp_hdr_eye_adaptation_recursive_reduce.comp"))
-            .get()
-    };
-
-
-    // FIXME: This could really be some kind of RingBuffer<T, N>
-    std::array<UniqueSSBO, 2> val_bufs_;
-    size_t current_val_id_{ 0 };
-
-    RawSSBO<GLMutable> current_value_buffer() const noexcept {
-        return val_bufs_[current_val_id_];
-    }
-
-    RawSSBO<GLMutable> next_value_buffer() const noexcept {
-        const size_t idx =
-            (current_val_id_ + 1) % val_bufs_.size();
-        return val_bufs_[idx];
-    }
-
-    void advance_current_value_buffer() noexcept {
-        current_val_id_ =
-            (current_val_id_ + 1) % val_bufs_.size();
-    }
-
-    UniqueSSBO intermediate_buf_;
-    Size2S old_dims_{ 0, 0 };
-
-    void resize_intermediate_buffer(const Size2S& new_dims) {
-        intermediate_buf_.bind()
-            .allocate_data<float>(new_dims.area(), gl::GL_DYNAMIC_COPY);
-        old_dims_ = new_dims;
-    }
-
 public:
     float  exposure_factor{ 0.35f };
     float  adaptation_rate{ 1.f   };
     bool   use_adaptation { true  };
     size_t num_y_sample_blocks{ 64    };
 
-    HDREyeAdaptation() noexcept;
+    HDREyeAdaptation(const Size2I& initial_resolution) noexcept;
 
     // Warning: Slow. Will stall the pipeline.
     float get_screen_value() const noexcept;
@@ -84,7 +36,7 @@ public:
     // Warning: Slow. Will stall the pipeline.
     void set_screen_value(float new_value) noexcept;
 
-    Size2S get_sampling_block_dims() const noexcept { return old_dims_; }
+    Size2S get_sampling_block_dims() const noexcept { return current_dims_; }
 
     // Values below do not represent the actual number of shader invocations.
 
@@ -100,7 +52,55 @@ public:
 
     void operator()(RenderEnginePostprocessInterface& engine);
 
+
+
 private:
+    dsa::UniqueProgram sp_tonemap_{
+        ShaderBuilder()
+            .load_vert(VPath("src/shaders/postprocess.vert"))
+            .load_frag(VPath("src/shaders/pp_hdr_eye_adaptation_tonemap.frag"))
+            .get()
+    };
+
+    dsa::UniqueProgram sp_block_reduce_{
+        ShaderBuilder()
+            .load_comp(VPath("src/shaders/pp_hdr_eye_adaptation_sample_image_block.comp"))
+            .get()
+    };
+
+    dsa::UniqueProgram sp_recursive_reduce_{
+        ShaderBuilder()
+            .load_comp(VPath("src/shaders/pp_hdr_eye_adaptation_recursive_reduce.comp"))
+            .get()
+    };
+
+
+    // FIXME: This could really be some kind of RingBuffer<T, N>
+    std::array<dsa::UniqueBuffer<float>, 2> val_bufs_{
+        dsa::allocate_buffer<float>(NumElems{ 1 }),
+        dsa::allocate_buffer<float>(NumElems{ 1 }),
+    };
+    size_t current_val_id_{ 0 };
+
+    dsa::RawBuffer<float> current_value_buffer() const noexcept {
+        return val_bufs_[current_val_id_];
+    }
+
+    dsa::RawBuffer<float> next_value_buffer() const noexcept {
+        const size_t idx =
+            (current_val_id_ + 1) % val_bufs_.size();
+        return val_bufs_[idx];
+    }
+
+    void advance_current_value_buffer() noexcept {
+        current_val_id_ =
+            (current_val_id_ + 1) % val_bufs_.size();
+    }
+
+
+    dsa::UniqueBuffer<float> intermediate_buf_;
+    Size2S current_dims_;
+
     static Size2S dispatch_dimensions(size_t num_y_samples, float aspect_ratio) noexcept {
         size_t num_x_samples =
             std::ceil(float(num_y_samples) * aspect_ratio);
@@ -111,14 +111,15 @@ private:
 
 
 
-inline HDREyeAdaptation::HDREyeAdaptation() noexcept {
-    auto dims = dispatch_dimensions(num_y_sample_blocks, 1.0f);
-    resize_intermediate_buffer(dims);
-
-    for (auto& buf : val_bufs_) {
-        buf.bind().allocate_data<float>(1, gl::GL_DYNAMIC_COPY);
+inline HDREyeAdaptation::HDREyeAdaptation(const Size2I& initial_resolution) noexcept
+    : intermediate_buf_{
+        dsa::allocate_buffer<float>(
+            NumElems{ dispatch_dimensions(num_y_sample_blocks, initial_resolution.aspect_ratio()).area() },
+            StorageMode::StaticServer
+        )
     }
-
+    , current_dims_{ dispatch_dimensions(num_y_sample_blocks, initial_resolution.aspect_ratio()) }
+{
     set_screen_value(0.2f);
 }
 
@@ -127,7 +128,7 @@ inline HDREyeAdaptation::HDREyeAdaptation() noexcept {
 
 inline float HDREyeAdaptation::get_screen_value() const noexcept {
     float out;
-    current_value_buffer().bind().get_sub_data_into<float>({ &out, 1 });
+    current_value_buffer().download_data_into({ &out, 1 });
     return out;
 }
 
@@ -135,7 +136,7 @@ inline float HDREyeAdaptation::get_screen_value() const noexcept {
 
 
 inline void HDREyeAdaptation::set_screen_value(float new_value) noexcept {
-    current_value_buffer().bind().sub_data<float>({ &new_value, 1 });
+    current_value_buffer().upload_data({ &new_value, 1 });
 }
 
 
@@ -144,29 +145,29 @@ inline void HDREyeAdaptation::set_screen_value(float new_value) noexcept {
 inline void HDREyeAdaptation::operator()(
     RenderEnginePostprocessInterface& engine)
 {
-    using namespace gl;
 
-    engine.screen_color().bind_to_unit_index(0);
+    engine.screen_color().bind_to_texture_unit(0);
 
     if (use_adaptation) {
 
-        Size2S dims = dispatch_dimensions(num_y_sample_blocks, engine.window_size().aspect_ratio());
+        Size2S dims = dispatch_dimensions(num_y_sample_blocks, engine.main_resolution().aspect_ratio());
 
-        const GLsizeiptr buf_size = dims.area();
 
-        if (old_dims_.area() != buf_size) {
-            resize_intermediate_buffer(dims);
-        }
-
-        intermediate_buf_.bind_to_index(0);
+        // Prepare intermediate reduction buffer.
+        const auto buf_size = NumElems{ dims.area() };
+        dsa::resize_to_fit(intermediate_buf_, buf_size);
+        intermediate_buf_->bind_to_index<BufferTargetIndexed::ShaderStorage>(0);
 
         // Do a first block extraction reduce pass.
-        block_reduce_sp_.use()
-            .uniform("screen_color", 0)
-            .and_then([&] {
-                glDispatchCompute(dims.width, dims.height, 1);
-            });
 
+        sp_block_reduce_->uniform("screen_color", 0);
+        {
+            auto bound_program = sp_block_reduce_->use();
+
+            glapi::dispatch_compute(bound_program, dims.width, dims.height, 1);
+
+            bound_program.unbind();
+        }
 
         // Do a recursive reduction on the intermediate buffer.
         // Take the mean and write the result into the the next_value_buffer().
@@ -176,44 +177,44 @@ inline void HDREyeAdaptation::operator()(
             return val / denom + up;
         };
 
-        current_value_buffer().bind_to_index(1); // Read
-        next_value_buffer()   .bind_to_index(2); // Write
+        current_value_buffer().bind_to_index<BufferTargetIndexed::ShaderStorage>(1); // Read
+        next_value_buffer()   .bind_to_index<BufferTargetIndexed::ShaderStorage>(2); // Write
 
         const float fold_weight = adaptation_rate * engine.frame_timer().delta<float>();
 
-        recursive_reduce_sp_.use()
-            .uniform("mean_fold_weight", fold_weight)
-            .uniform("block_size",       GLuint(block_size))
-            .and_then([&](ActiveShaderProgram<GLMutable>& ashp) {
 
-                size_t num_workgroups = buf_size;
-                GLuint dispatch_depth{ 0 };
+        sp_recursive_reduce_->uniform("mean_fold_weight", fold_weight);
+        sp_recursive_reduce_->uniform("block_size",       GLuint(block_size));
 
-                do {
-                    num_workgroups = div_up(num_workgroups, batch_size);
+        size_t num_workgroups = buf_size;
+        GLuint dispatch_depth{ 0 };
 
-                    ashp.uniform("dispatch_depth", dispatch_depth);
-                    glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-                    glDispatchCompute(num_workgroups, 1, 1);
+        auto bound_program = sp_recursive_reduce_->use();
+        do {
+            num_workgroups = div_up(num_workgroups, batch_size);
 
-                    ++dispatch_depth;
-                } while (num_workgroups > 1);
+            sp_recursive_reduce_->uniform("dispatch_depth", dispatch_depth);
 
-                assert(num_workgroups == 1);
-            });
+            glapi::memory_barrier(BarrierMask::ShaderStorageBit);
+            glapi::dispatch_compute(bound_program, num_workgroups, 1, 1);
 
+            ++dispatch_depth;
+        } while (num_workgroups > 1);
+        bound_program.unbind();
+
+        assert(num_workgroups == 1);
 
     }
 
     // Do a tonemapping pass.
-    current_value_buffer().bind_to_index(1);
-    tonemap_sp_.use()
-        .uniform("color", 0)
-        .uniform("exposure_factor", exposure_factor)
-        .and_then([&] {
-            glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-            engine.draw();
-        });
+    current_value_buffer().bind_to_index<BufferTargetIndexed::ShaderStorage>(1);
+    sp_tonemap_->uniform("color",           0);
+    sp_tonemap_->uniform("exposure_factor", exposure_factor);
+
+    auto bound_program = sp_tonemap_->use();
+    glapi::memory_barrier(BarrierMask::ShaderStorageBit);
+    engine.draw(bound_program);
+    bound_program.unbind();
 
 
     if (use_adaptation) {

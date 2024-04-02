@@ -1,8 +1,7 @@
 #pragma once
 #include "AssimpModelLoader.hpp"
-#include "Attachments.hpp"
 #include "ComponentLoaders.hpp"
-#include "EnumUtils.hpp"
+#include "GLPixelPackTraits.hpp"
 #include "GLTextures.hpp"
 #include "ImGuiApplicationAssembly.hpp"
 #include "PerspectiveCamera.hpp"
@@ -137,11 +136,11 @@ inline DemoScene::DemoScene(glfw::Window& window)
     auto csmapping   = stages::primary::CascadedShadowMapping(csmbuilder.share_output_view());
     auto gbuffer     =
         stages::primary::GBufferStorage(
-            rengine_.window_size(),
+            rengine_.main_resolution(),
             // This is me sharing the depth target between the GBuffer and the
             // main framebuffer of the RenderEngine, so that deferred and forward draws
             // would overlap properly. Seems to work so far...
-            ViewAttachment<RawTexture2D>{ rengine_.main_depth() }
+            rengine_.share_main_depth_attachment()
         );
     auto defgeom     = stages::primary::DeferredGeometry(gbuffer.share_write_view());
     auto terraingeom = stages::primary::TerrainGeometry(gbuffer.share_write_view());
@@ -151,15 +150,15 @@ inline DemoScene::DemoScene(glfw::Window& window)
             gbuffer.share_read_view(),
             psmapping.share_output_view(),
             csmapping.share_output_view(),
-            ssao.get_occlusion_texture()
+            ssao.share_output_view()
         );
     auto plightboxes = stages::primary::PointLightBox();
     auto sky         = stages::primary::Sky();
 
 
     auto fog       = stages::postprocess::Fog();
-    auto blooming  = stages::postprocess::Bloom();
-    auto hdreyeing = stages::postprocess::HDREyeAdaptation();
+    auto blooming  = stages::postprocess::Bloom(rengine_.main_resolution());
+    auto hdreyeing = stages::postprocess::HDREyeAdaptation(rengine_.main_resolution());
     auto fxaaaaaaa = stages::postprocess::FXAA();
 
 
@@ -170,8 +169,7 @@ inline DemoScene::DemoScene(glfw::Window& window)
         csmapping.share_output_view()
     );
     auto ssaobugger  = stages::overlay::SSAODebug(
-        ssao.get_noisy_occlusion_texture(),
-        ssao.get_occlusion_texture()
+        ssao.share_output_view()
     );
     auto selected    = stages::overlay::SelectedObjectHighlight();
     auto cullspheres = stages::overlay::BoundingSphereDebug();
@@ -283,18 +281,17 @@ inline void DemoScene::configure_input(SharedStorageView<GBuffer> gbuffer) {
                 int ix = int(x);
                 int iy = int(y);
 
-                using namespace gl;
-
                 entt::id_type id{ entt::null };
 
                 // FIXME: This should probably be handled in a precompute stage.
-                auto attachment_id =
-                    GL_COLOR_ATTACHMENT0 + to_underlying(GBuffer::Slot::object_id);
 
-                gbuffer->bind_read().set_read_buffer(attachment_id).and_then([&] {
-                    // FIXME: Is this off-by-one?
-                    glReadPixels(ix, sz_y - iy, 1, 1, GL_RED_INTEGER, GL_UNSIGNED_INT, &id);
-                }).unbind();
+
+                gbuffer->object_id_texture().download_image_region_into(
+                   // FIXME: Is this off-by-one?
+                   { { ix, sz_y - iy }, { 1, 1 } },
+                   PixelDataFormat::RedInteger, PixelDataType::UInt,
+                   std::span{ &id, 1 }
+                );
 
 
                 entt::handle provoking_handle{ registry_, entt::entity{ id } };
@@ -356,13 +353,8 @@ inline void DemoScene::configure_input(SharedStorageView<GBuffer> gbuffer) {
 
     window_.framebufferSizeEvent.setCallback(
         [this](glfw::Window& /* window */ , int w, int h) {
-            using namespace gl;
-
             globals::window_size.set_to({ w, h });
-            glViewport(0, 0, w, h);
-            rengine_.reset_size({ w, h });
-            // or
-            // rengine_.reset_size_from_window_size();
+            rengine_.resize({ w, h });
         }
     );
 

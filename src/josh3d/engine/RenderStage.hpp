@@ -5,9 +5,9 @@
 #include "UniqueFunction.hpp"
 #include <entt/entity/fwd.hpp>
 #include <entt/fwd.hpp>
-#include <concepts>
 #include <typeinfo>
 #include <typeindex>
+#include <concepts> // IWYU pragma: keep (concepts)
 
 
 namespace josh {
@@ -43,6 +43,41 @@ using AnyOverlayStage     = UniqueFunction<void(RenderEngineOverlayInterface&)>;
 namespace detail {
 
 
+class GPUTimer {
+private:
+    struct TimeQueryRequest {
+        dsa::UniqueQueryTimeElapsed query;
+        float frame_time_delta_s;
+    };
+
+    AvgFrameTimeCounter             counter_{}; // Will need to preserve frame delta per query.
+    BadRingBuffer<TimeQueryRequest> time_queries_{};
+
+public:
+    const AvgFrameTimeCounter& get_timer() const noexcept { return counter_; }
+
+    // Do this after querying the time interval.
+    void emplace_new_time_query(dsa::UniqueQueryTimeElapsed query, float frame_time_delta_s) {
+        time_queries_.emplace_front(std::move(query), frame_time_delta_s);
+    }
+
+    void resolve_available_time_queries() {
+        while (!time_queries_.is_empty() &&
+            time_queries_.back().query->is_available())
+        {
+            TimeQueryRequest query_request = time_queries_.pop_back();
+            auto slice_delta_s = std::chrono::duration<float>(query_request.query->result());
+            counter_.update(slice_delta_s.count(), query_request.frame_time_delta_s);
+        }
+    }
+
+    void set_averaging_interval(float interval_s) noexcept {
+        counter_.averaging_interval = interval_s;
+    }
+
+};
+
+
 /*
 A bunch of stuff about a stage thrown together for some basic
 coherency. Private details are exposed to the RenderEngine.
@@ -59,29 +94,7 @@ private:
     AnyStageT             stage_;
     const std::type_info* type_info_;
     AvgFrameTimeCounter   cpu_timer_{};
-    AvgFrameTimeCounter   gpu_timer_{}; // Will need to preserve frame delta per query.
-
-    // TODO: Probably encapsulate this "GPU Timer" stuff into a type.
-    struct TimeQueryRequest {
-        UniqueTimerQuery query;
-        float frame_time_delta_s;
-    };
-    BadRingBuffer<TimeQueryRequest> time_queries_;
-
-    // Do this after querying the time interval.
-    void emplace_new_time_query(UniqueTimerQuery query, float frame_time_delta_s) {
-        time_queries_.emplace_front(std::move(query), frame_time_delta_s);
-    }
-
-    void resolve_available_time_queries() {
-        while (!time_queries_.is_empty() &&
-            time_queries_.back().query.is_available())
-        {
-            TimeQueryRequest query_request = time_queries_.pop_back();
-            auto slice_delta_s = std::chrono::duration<float>(query_request.query.result());
-            gpu_timer_.update(slice_delta_s.count(), query_request.frame_time_delta_s);
-        }
-    }
+    GPUTimer              gpu_timer_{}; // Will need to preserve frame delta per query.
 
 
     Stage(std::string name, AnyStageT&& stage)
@@ -95,14 +108,14 @@ public:
     // but also it's lifetime and ownership really makes me wish for a nuclear winter.
     //
     // Do we need a FunctionRef?
-          AnyStageT&      get()              noexcept { return stage_;      }
-    const AnyStageT&      get()        const noexcept { return stage_;      }
-    const std::string&    name()       const noexcept { return name_;       }
-    const std::type_info& stage_type() const noexcept { return *type_info_; }
+          AnyStageT&      get()                    noexcept { return stage_;           }
+    const AnyStageT&      get()              const noexcept { return stage_;           }
+    const std::string&    name()             const noexcept { return name_;            }
+    const std::type_info& stage_type()       const noexcept { return *type_info_;      }
           std::type_index stage_type_index() const noexcept { return { stage_type() }; }
 
     const AvgFrameTimeCounter& cpu_frametimer() const noexcept { return cpu_timer_; }
-    const AvgFrameTimeCounter& gpu_frametimer() const noexcept { return gpu_timer_; }
+    const AvgFrameTimeCounter& gpu_frametimer() const noexcept { return gpu_timer_.get_timer(); }
 
 };
 

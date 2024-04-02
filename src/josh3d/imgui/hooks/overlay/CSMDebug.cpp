@@ -24,7 +24,7 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(overlay, CSMDebug) {
     }
 
 
-    if (stage_.mode == Mode::maps) {
+    if (stage_.mode == Mode::Maps) {
 
         int max_cascade_id = static_cast<int>(stage_.num_cascades()) - 1;
         int cascade_id = static_cast<int>(stage_.cascade_id);

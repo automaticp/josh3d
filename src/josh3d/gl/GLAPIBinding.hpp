@@ -1,6 +1,8 @@
 #pragma once
+#include "CommonConcepts.hpp"
 #include "GLAPI.hpp"
 #include "GLScalars.hpp"
+#include <concepts>
 
 
 namespace josh {
@@ -124,8 +126,15 @@ template<> inline void unbind_from_context<Binding::ProgramPipeline>()        no
 
 // TODO: Indexed Unbind.
 
+template<BindingIndexed B> void unbind_indexed_from_context(GLuint index) noexcept;
 
+template<> inline void unbind_indexed_from_context<BindingIndexed::Sampler>(GLuint index)             noexcept { gl::glBindSampler   (                              index, 0); }
+template<> inline void unbind_indexed_from_context<BindingIndexed::ShaderStorageBuffer>(GLuint index) noexcept { gl::glBindBufferBase(gl::GL_SHADER_STORAGE_BUFFER, index, 0); }
 
+inline void unbind_sampler_from_unit(GLuint index) noexcept { unbind_indexed_from_context<BindingIndexed::Sampler>(index); }
+
+template<std::convertible_to<GLuint> ...UInt>
+void unbind_samplers_from_units(UInt... index) noexcept { (unbind_sampler_from_unit(index), ...); }
 
 
 
@@ -165,7 +174,7 @@ Which is more verbose, so do this instead.
 namespace dsa::detail {
 template<typename> struct BufferDSAInterface_Bind;
 template<typename> struct VertexArrayDSAInterface_Bind;
-template<typename> struct ShaderProgramDSAInterface_Use;
+template<typename> struct ProgramDSAInterface_Use;
 template<typename> struct FramebufferDSAInterface_Bind;
 } // namespace dsa::detail
 
@@ -179,7 +188,7 @@ JOSH3D_DEFINE_BIND_TOKEN(ParameterBuffer,        template<typename> friend struc
 JOSH3D_DEFINE_BIND_TOKEN(PixelPackBuffer,        template<typename> friend struct dsa::detail::BufferDSAInterface_Bind;)
 JOSH3D_DEFINE_BIND_TOKEN(PixelUnpackBuffer,      template<typename> friend struct dsa::detail::BufferDSAInterface_Bind;)
 JOSH3D_DEFINE_BIND_TOKEN(VertexArray,            template<typename> friend struct dsa::detail::VertexArrayDSAInterface_Bind;)
-JOSH3D_DEFINE_BIND_TOKEN(Program,                template<typename> friend struct dsa::detail::ShaderProgramDSAInterface_Use;)
+JOSH3D_DEFINE_BIND_TOKEN(Program,                template<typename> friend struct dsa::detail::ProgramDSAInterface_Use;)
 JOSH3D_DEFINE_BIND_TOKEN(ReadFramebuffer,        template<typename> friend struct dsa::detail::FramebufferDSAInterface_Bind;)
 JOSH3D_DEFINE_BIND_TOKEN(DrawFramebuffer,        template<typename> friend struct dsa::detail::FramebufferDSAInterface_Bind;)
 

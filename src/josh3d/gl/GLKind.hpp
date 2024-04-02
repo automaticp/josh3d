@@ -25,10 +25,8 @@ enum class GLKind {
 };
 
 
-template<typename T, GLKind KindV>
-concept of_kind = requires {
-    requires T::kind_type == KindV;
-};
+template<typename T, GLKind ...KindV>
+concept of_kind = ((T::kind_type == KindV) || ...);
 
 
 

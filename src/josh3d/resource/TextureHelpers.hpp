@@ -1,7 +1,8 @@
 #pragma once
+#include "GLObjectHelpers.hpp"
 #include "GLScalars.hpp"
 #include "GLTextures.hpp"
-#include "GLMutability.hpp"
+#include "GLObjects.hpp"
 #include "ImageData.hpp"
 #include "Filesystem.hpp"
 #include "MallocSupport.hpp"
@@ -51,17 +52,30 @@ template<typename PixelT>
     bool flip_vertically = true);
 
 
-template<typename PixelT>
-void attach_data_to_texture(BoundTexture2D<GLMutable>& tex,
-    const ImageData<PixelT>& data, const TexSpec& spec);
+
+// A "material" texture will have it's mipmaps generated.
+
 
 template<typename PixelT>
-void attach_data_to_cubemap(BoundCubemap<GLMutable>& cube,
-    const CubemapData<PixelT>& data, const TexSpec& spec);
+[[nodiscard]] auto create_material_texture_from_data(
+    const ImageData<PixelT>& data,
+    InternalFormat           internal_format)
+        -> dsa::UniqueTexture2D;
 
 template<typename PixelT>
-void attach_data_to_cubemap_as_skybox(BoundCubemap<GLMutable>& cube,
-    const CubemapData<PixelT>& data, const TexSpec& spec, GLenum filter_mode = gl::GL_LINEAR);
+[[nodiscard]] auto create_material_cubemap_from_data(
+    const CubemapData<PixelT>& data,
+    InternalFormat             internal_format)
+        -> dsa::UniqueCubemap;
+
+template<typename PixelT>
+[[nodiscard]] auto create_skybox_from_cubemap_data(
+    const CubemapData<PixelT>& data,
+    InternalFormat             internal_format)
+        -> dsa::UniqueCubemap;
+
+
+
 
 
 namespace detail {
@@ -93,7 +107,7 @@ std::array<File, 6> parse_cubemap_json_for_files(const File& json_file);
 
 
 template<typename PixelT>
-ImageData<PixelT> load_image_from_file(const class File& file, bool flip_vertically) {
+[[nodiscard]] ImageData<PixelT> load_image_from_file(const class File& file, bool flip_vertically) {
     using tr = pixel_traits<PixelT>;
 
     detail::ImageStorage<typename tr::channel_type> im =
@@ -137,39 +151,62 @@ template<typename PixelT>
 }
 
 
-template<typename PixelT>
-void attach_data_to_texture(BoundTexture2D<GLMutable>& tex,
-    const ImageData<PixelT>& data, const TexSpec& spec)
+
+
+template<specifies_pixel_pack_traits PixelT>
+[[nodiscard]] auto create_material_texture_from_data(
+    const ImageData<PixelT>& data,
+    InternalFormat           internal_format)
+        -> dsa::UniqueTexture2D
 {
-    using tr = pixel_pack_traits<PixelT>;
-    tex.specify_image(
-        Size2I{ data.size() }, spec, TexPackSpec{ GLenum(tr::format), GLenum(tr::type) }, data.data()
-    );
+    const Size2I resolution{ data.size() };
+
+    dsa::UniqueTexture2D texture;
+    texture->allocate_storage(resolution, internal_format, dsa::max_num_levels(resolution));
+    texture->upload_image_region(Region2I{ {}, resolution }, data.data(), MipLevel{ 0 });
+    texture->generate_mipmaps();
+    texture->set_sampler_min_mag_filters(MinFilter::LinearMipmapLinear, MagFilter::Linear);
+    return texture;
 }
 
 
-template<typename PixelT>
-void attach_data_to_cubemap(BoundCubemap<GLMutable>& cube,
-    const CubemapData<PixelT>& data, const TexSpec& spec)
+template<specifies_pixel_pack_traits PixelT>
+[[nodiscard]] auto create_material_cubemap_from_data(
+    const CubemapData<PixelT>& data,
+    InternalFormat             internal_format)
+        -> dsa::UniqueCubemap
 {
-    using tr = pixel_pack_traits<PixelT>;
-    for (GLint face_id{ 0 }; face_id < data.sides().size(); ++face_id) {
-        const auto& face = data.sides()[face_id];
-        cube.specify_face_image(
-            face_id,
-            Size2I{ face.size() }, spec, TexPackSpec{ GLenum(tr::format), GLenum(tr::type) }, face.data()
-        );
+    const Size2I resolution{ data.sides()[0].size() };
+
+    dsa::UniqueCubemap cubemap;
+    cubemap->allocate_storage(resolution, internal_format, dsa::max_num_levels(resolution));
+
+    for (GLint face_id{ 0 }; face_id < 6; ++face_id) {
+        const auto face_data = data.sides()[face_id].data();
+        cubemap->upload_image_region(Region3I{ { 0, 0, face_id }, { resolution, 1 } }, face_data, MipLevel{ 0 });
     }
+
+    cubemap->generate_mipmaps();
+    cubemap->set_sampler_min_mag_filters(MinFilter::LinearMipmapLinear, MagFilter::Linear);
+    cubemap->set_sampler_wrap_all(Wrap::ClampToEdge);
+
+    return cubemap;
 }
 
 
 template<typename PixelT>
-void attach_data_to_cubemap_as_skybox(BoundCubemap<GLMutable>& cube,
-    const CubemapData<PixelT>& data, const TexSpec& spec, GLenum filter_mode)
+[[nodiscard]] auto create_skybox_from_cubemap_data(
+    const CubemapData<PixelT>& data,
+    InternalFormat             internal_format)
+        -> dsa::UniqueCubemap
 {
-    using tr = pixel_pack_traits<PixelT>;
-    for (GLint face_id{ 0 }; face_id < data.sides().size(); ++face_id) {
-        const auto& face = data.sides()[face_id];
+    const Size2I resolution{ data.sides()[0].size() };
+
+    dsa::UniqueCubemap cubemap;
+    cubemap->allocate_storage(resolution, internal_format, dsa::max_num_levels(resolution));
+
+    for (GLint face_id{ 0 }; face_id < 6; ++face_id) {
+        const auto face_data = data.sides()[face_id].data();
         // We swap +Y and -Y faces when attaching them to the cubemap.
         // Then, inverting the X and Y coordinates in the shader
         // produces "reasonable" results.
@@ -182,14 +219,14 @@ void attach_data_to_cubemap_as_skybox(BoundCubemap<GLMutable>& cube,
             case 3: target_face_id = 2; break;
             default: break;
         }
-        cube.specify_face_image(
-            target_face_id,
-            Size2I{ face.size() }, spec, TexPackSpec{ GLenum(tr::format), GLenum(tr::type) }, face.data()
-        );
+        cubemap->upload_image_region(Region3I{ { 0, 0, target_face_id }, { resolution, 1 } }, face_data, MipLevel{ 0 });
     }
-    using enum GLenum;
-    cube.set_min_mag_filters(filter_mode, filter_mode)
-        .set_wrap_st(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+
+    cubemap->generate_mipmaps();
+    cubemap->set_sampler_min_mag_filters(MinFilter::LinearMipmapLinear, MagFilter::Linear);
+    cubemap->set_sampler_wrap_all(Wrap::ClampToEdge);
+
+    return cubemap;
 }
 
 

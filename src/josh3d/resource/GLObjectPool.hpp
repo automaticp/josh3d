@@ -1,16 +1,10 @@
 #pragma once
 #include "Filesystem.hpp"
 #include "Shared.hpp"
-#include "GLObjects.hpp"
-#include <memory>
-#include <string>
-#include <type_traits>
 #include <unordered_map>
-#include <utility>
+
 
 namespace josh {
-
-
 
 
 template<
@@ -40,20 +34,22 @@ private:
 };
 
 
+
+
 template<typename T, typename UpstreamT, typename LoadContextT>
-Shared<T> GLObjectPool<T, UpstreamT, LoadContextT>::load(const File& file,
+auto GLObjectPool<T, UpstreamT, LoadContextT>::load(
+    const File&         file,
     const LoadContextT& context)
+        -> Shared<T>
 {
     auto it = pool_.find(file);
 
-    if ( it != pool_.end() ) {
+    if (it != pool_.end()) {
         return it->second;
     } else {
         auto [emplaced_it, was_emplaced] =
-            pool_.emplace(
-                file,
-                load_data_from(file, context)
-            );
+            pool_.emplace(file, load_data_from(file, context));
+
         return emplaced_it->second;
     }
 }
@@ -61,18 +57,18 @@ Shared<T> GLObjectPool<T, UpstreamT, LoadContextT>::load(const File& file,
 
 template<typename T, typename UpstreamT, typename LoadContextT>
 void GLObjectPool<T, UpstreamT, LoadContextT>::clear_unused() {
-    for ( auto it = pool_.begin(); it != pool_.end(); ) {
-        if ( it->second && it->second.use_count() == 1u ) {
+
+    for (auto it = pool_.begin();
+        it != pool_.end();)
+    {
+        if (it->second && it->second.use_count() == 1u) {
             it = pool_.erase(it);
         } else {
             ++it;
         }
     }
+
 }
-
-
-
-
 
 
 

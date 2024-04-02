@@ -14,20 +14,21 @@ namespace josh::stages::postprocess {
 
 
 class HDR {
-private:
-    UniqueShaderProgram sp_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/postprocess.vert"))
-            .load_frag(VPath("src/shaders/pp_hdr.frag"))
-            .get()
-    };
-
 public:
     bool use_reinhard{ false };
     bool use_exposure{ true };
     float exposure{ 1.0f };
 
     void operator()(RenderEnginePostprocessInterface& engine);
+
+
+private:
+    dsa::UniqueProgram sp_{
+        ShaderBuilder()
+            .load_vert(VPath("src/shaders/postprocess.vert"))
+            .load_frag(VPath("src/shaders/pp_hdr.frag"))
+            .get()
+    };
 
 };
 
@@ -37,17 +38,16 @@ public:
 inline void HDR::operator()(
     RenderEnginePostprocessInterface& engine)
 {
-    using namespace gl;
 
-    sp_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
-        engine.screen_color().bind_to_unit(GL_TEXTURE0);
-        ashp.uniform("color", 0)
-            .uniform("use_reinhard", use_reinhard)
-            .uniform("use_exposure", use_exposure)
-            .uniform("exposure", exposure);
+    engine.screen_color().bind_to_texture_unit(0);
+    sp_->uniform("color",        0);
+    sp_->uniform("use_reinhard", use_reinhard);
+    sp_->uniform("use_exposure", use_exposure);
+    sp_->uniform("exposure",     exposure);
 
-        engine.draw();
-    });
+    auto bound_program = sp_->use();
+    engine.draw(bound_program);
+    bound_program.unbind();
 
 }
 

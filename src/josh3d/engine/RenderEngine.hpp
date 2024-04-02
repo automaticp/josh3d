@@ -1,7 +1,10 @@
 #pragma once
+#include "Attachments.hpp"
 #include "DefaultResources.hpp"
+#include "GLAPIBinding.hpp"
 #include "GLFramebuffer.hpp"
 #include "GLMutability.hpp"
+#include "GLTextures.hpp"
 #include "PerspectiveCamera.hpp"
 #include "FrameTimer.hpp"
 #include "GLObjects.hpp"
@@ -91,42 +94,48 @@ private:
 
     PerspectiveCamera& cam_;
 
-    const Size2I&     window_size_;
     const FrameTimer& frame_timer_;
 
 
     using MainTarget = RenderTarget<
-        ViewAttachment<RawTexture2D>,  // Depth
-        UniqueAttachment<RawTexture2D> // Color
+        SharedAttachment<Renderable::Texture2D>, // Depth
+        UniqueAttachment<Renderable::Texture2D>  // Color
     >;
 
-    UniqueAttachment<RawTexture2D> depth_{
-        window_size_, { gl::GL_DEPTH24_STENCIL8 }
+    ShareableAttachment<Renderable::Texture2D> depth_{
+        // TODO: Floating-point depth is not blittable to the default fbo.
+        // How would we do it then?
+        InternalFormat::Depth24_Stencil8
     };
 
-    MainTarget make_main_target() {
-        using enum GLenum;
+    MainTarget make_main_target(const Size2I& resolution) {
         MainTarget tgt{
-            { depth_ },
-            { window_size_, { GL_RGBA16F }}
+            resolution,
+            depth_.share(),
+            { InternalFormat::RGBA16F }
         };
 
-        tgt.depth_attachment().texture().bind()
-            .set_min_mag_filters(GL_NEAREST, GL_NEAREST)
-            .set_wrap_st(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+        // using enum GLenum;
+        // MainTarget tgt{
+        //     { depth_ },
+        //     { window_size_, { GL_RGBA16F }}
+        // };
 
-        tgt.color_attachment().texture().bind()
-            .set_min_mag_filters(GL_LINEAR, GL_LINEAR)
-            .set_wrap_st(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+        // tgt.depth_attachment().texture().bind()
+        //     .set_min_mag_filters(GL_NEAREST, GL_NEAREST)
+        //     .set_wrap_st(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+
+        // tgt.color_attachment().texture().bind()
+        //     .set_min_mag_filters(GL_LINEAR, GL_LINEAR)
+        //     .set_wrap_st(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
 
         return tgt;
     }
 
-    SwapChain<MainTarget> main_swapchain_{
-        make_main_target(), make_main_target()
-    };
+    SwapChain<MainTarget> main_swapchain_;
 
-    inline static const RawFramebuffer<GLMutable> default_fbo_{ 0 };
+
+    inline static const dsa::RawDefaultFramebuffer<GLMutable> default_fbo_;
 
 
 public:
@@ -140,20 +149,23 @@ public:
 
 
     RenderEngine(
-        entt::registry& registry,
-        PerspectiveCamera& cam,
-        const Size2I& window_size,
-        const FrameTimer& frame_timer
+        entt::registry&    registry,   // TODO: Should not be a reference.
+        PerspectiveCamera& cam,        // TODO: Should not be a reference.
+        const Size2I&      resolution,
+        const FrameTimer&  frame_timer // TODO: Should not be a reference.
     )
-        : registry_{ registry }
-        , cam_{ cam }
-        , window_size_{ window_size }
-        , frame_timer_{ frame_timer }
+        : registry_       { registry     }
+        , cam_            { cam          }
+        , frame_timer_    { frame_timer  }
+        , main_swapchain_ { make_main_target(resolution), make_main_target(resolution) }
     {
-        using enum GLenum;
-        depth_.texture().bind()
-            .set_min_mag_filters(GL_NEAREST, GL_NEAREST)
-            .set_wrap_st(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+        // Because we are sharing the depth in the swapchain, we have to bother to sync the size manually.
+        resize_depth(main_resolution());
+
+        // using enum GLenum;
+        // depth_.texture().bind()
+        //     .set_min_mag_filters(GL_NEAREST, GL_NEAREST)
+        //     .set_wrap_st(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
     }
 
     void render();
@@ -202,24 +214,31 @@ public:
     }
 
 
-    RawTexture2D<GLMutable> main_depth()       noexcept { return depth_.texture(); }
-    RawTexture2D<GLConst>   main_depth() const noexcept { return depth_.texture(); }
+    dsa::RawTexture2D<GLConst>   main_depth_texture()          const noexcept { return depth_.texture(); }
+    const auto&                  main_depth_attachment()       const noexcept { return depth_;           }
+    auto                         share_main_depth_attachment()       noexcept { return depth_.share();   }
 
-    auto& camera() noexcept { return cam_; }
+    Size2I main_resolution() const noexcept { return main_swapchain_.resolution(); }
+
+    auto&       camera()       noexcept { return cam_; }
     const auto& camera() const noexcept { return cam_; }
 
-    const Size2I&     window_size() const noexcept { return window_size_; }
-    const FrameTimer& frame_timer() const noexcept { return frame_timer_; }
+    const FrameTimer& frame_timer()     const noexcept { return frame_timer_; }
 
-    void reset_size(Size2I new_size) {
-        main_swapchain_.resize_all(new_size);
-    }
-
-    void reset_size_from_window_size() {
-        reset_size(window_size_);
+    void resize(const Size2I& new_resolution) {
+        main_swapchain_.resize(new_resolution);
+        resize_depth(new_resolution);
     }
 
 private:
+    void resize_depth(const Size2I& new_resolution) {
+        depth_.resize(new_resolution);
+        if (!main_swapchain_.back_target().depth_attachment().is_shared_from(depth_)) {
+            main_swapchain_.front_target().reset_depth_attachment(depth_.share());
+            main_swapchain_.back_target() .reset_depth_attachment(depth_.share());
+        }
+    }
+
     void execute_precompute_stages();
     void render_primary_stages();
     void render_postprocess_stages();
@@ -243,10 +262,12 @@ protected:
     RenderEngineCommonInterface(RenderEngine& engine) : engine_{ engine } {}
 
 public:
-    const entt::registry&    registry()    const noexcept { return engine_.registry_; }
-    const PerspectiveCamera& camera()      const noexcept { return engine_.cam_; }
-    const Size2I&            window_size() const noexcept { return engine_.window_size_; }
-    const FrameTimer&        frame_timer() const noexcept { return engine_.frame_timer_; }
+    const entt::registry&    registry()        const noexcept { return engine_.registry_; }
+    const PerspectiveCamera& camera()          const noexcept { return engine_.cam_; }
+    // TODO: Something about window resolution being separate?
+    // TODO: Also main_resolution() is not accurate in Overlay stages.
+    Size2I                   main_resolution() const noexcept { return engine_.main_resolution(); }
+    const FrameTimer&        frame_timer()     const noexcept { return engine_.frame_timer_; }
 };
 
 
@@ -289,15 +310,13 @@ public:
     //
     // Note that it is illegal to bind any framebuffer object as
     // a Draw framebuffer within the callable.
-    template<typename CallableT, typename ...Args>
-    void draw(CallableT&& draw_func, Args&&... args) {
+    template<std::invocable<BindToken<Binding::DrawFramebuffer>> CallableT>
+    void draw(CallableT&& draw_func) {
+        auto bind_token = engine_.main_swapchain_.back_target().bind_draw();
 
-        engine_.main_swapchain_.back_target().bind_draw()
-            .and_then([&] {
-                std::invoke(std::forward<CallableT>(draw_func), std::forward<Args>(args)...);
-            })
-            .unbind();
+        std::invoke(std::forward<CallableT>(draw_func), bind_token);
 
+        bind_token.unbind();
     }
 
     // The RenderEngine's main framebuffer is not exposed here because
@@ -305,6 +324,10 @@ public:
     // to it. Hear me? You! Yes, you. Think twice before implementing it again.
     //
     // I didn't allow it initially for a reason.
+
+    const auto& main_depth_attachment()       const noexcept { return engine_.main_depth_attachment();       }
+    auto        share_main_depth_attachment()       noexcept { return engine_.share_main_depth_attachment(); }
+
 };
 
 
@@ -322,11 +345,11 @@ private:
     {}
 
 public:
-    RawTexture2D<GLConst> screen_color() const noexcept {
+    dsa::RawTexture2D<GLConst> screen_color() const noexcept {
         return engine_.main_swapchain_.front_target().color_attachment().texture();
     }
 
-    RawTexture2D<GLConst> screen_depth() const noexcept {
+    dsa::RawTexture2D<GLConst> screen_depth() const noexcept {
         return engine_.main_swapchain_.front_target().depth_attachment().texture();
         // return engine_.depth_; // Is the same.
     }
@@ -337,9 +360,9 @@ public:
     // The screen color texture is INVALIDATED for sampling after this call.
     // You have to call screen_color() again and bind the returned texture
     // in order to sample the screen in the next call to draw().
-    void draw() {
-        engine_.main_swapchain_.draw_and_swap([] {
-            globals::quad_primitive_mesh().draw();
+    void draw(BindToken<Binding::Program> bound_program) {
+        engine_.main_swapchain_.draw_and_swap([&](BindToken<Binding::DrawFramebuffer> bound_fbo) {
+            globals::quad_primitive_mesh().draw(bound_program, bound_fbo);
         });
     }
 
@@ -348,10 +371,10 @@ public:
     // DOES NOT advance the chain. You CANNOT SAMPLE THE SCREEN COLOR during this draw.
     //
     // Used as an optimization for draws that either override or blend with the screen.
-    void draw_to_front() {
-        engine_.main_swapchain_.front_target().bind_draw().and_then([] {
-            globals::quad_primitive_mesh().draw();
-        });
+    void draw_to_front(BindToken<Binding::Program> bound_program) {
+        auto bound_fbo = engine_.main_swapchain_.front_target().bind_draw();
+        globals::quad_primitive_mesh().draw(bound_program, bound_fbo);
+        bound_fbo.unbind();
     }
 
 };
@@ -370,10 +393,9 @@ private:
 
 public:
     // Emit the draw call on the screen quad and draw directly to the default buffer.
-    void draw_fullscreen_quad() {
-        engine_.default_fbo_.bind_draw().and_then([] {
-            globals::quad_primitive_mesh().draw();
-        });
+    void draw_fullscreen_quad(BindToken<Binding::Program> bound_program) {
+        auto bound_fbo = engine_.default_fbo_.bind_draw();
+        globals::quad_primitive_mesh().draw(bound_program, bound_fbo);
     }
 
     // Effectively binds the default framebuffer as the Draw framebuffer
@@ -381,15 +403,9 @@ public:
     //
     // Note that it is illegal to bind any framebuffer object as
     // a Draw framebuffer within the callable.
-    template<typename CallableT, typename ...Args>
-    void draw(CallableT&& draw_func, Args&&... args) {
-
-        engine_.default_fbo_.bind_draw()
-            .and_then([&] {
-                std::invoke(std::forward<CallableT>(draw_func), std::forward<Args>(args)...);
-            })
-            .unbind();
-
+    template<std::invocable<BindToken<Binding::DrawFramebuffer>> CallableT>
+    void draw(CallableT&& draw_func) {
+        std::invoke(std::forward<CallableT>(draw_func), engine_.default_fbo_.bind_draw());
     }
 
 };
