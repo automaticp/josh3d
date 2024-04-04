@@ -71,14 +71,14 @@ public:
 
 
 private:
-    dsa::UniqueProgram sp_uniform_{
+    UniqueProgram sp_uniform_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/pp_fog_uniform.frag"))
             .get()
     };
 
-    dsa::UniqueProgram sp_barometric_{
+    UniqueProgram sp_barometric_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/pp_fog_barometric.frag"))

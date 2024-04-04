@@ -46,7 +46,6 @@ enum class QueryTarget : GLuint {
 
 
 
-namespace dsa {
 
 
 namespace detail {
@@ -217,10 +216,6 @@ struct QueryDSAInterface
 } // namespace detail
 
 
-namespace detail {
-using josh::detail::RawGLHandle;
-} // namespace detail
-
 
 
 
@@ -264,5 +259,5 @@ JOSH3D_GENERATE_DSA_QUERY_CLASSES(TransformFeedbackStreamOverflow)
 
 
 
-} // namespace dsa
+
 } // namespace josh

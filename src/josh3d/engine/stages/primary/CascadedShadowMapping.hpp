@@ -90,7 +90,7 @@ private:
 
     size_t max_cascades_;
 
-    dsa::UniqueProgram sp_with_alpha_{
+    UniqueProgram sp_with_alpha_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/depth_map_cascade.vert"))
             .load_geom(VPath("src/shaders/depth_map_cascade.geom"))
@@ -100,7 +100,7 @@ private:
             .get()
     };
 
-    dsa::UniqueProgram sp_no_alpha_{
+    UniqueProgram sp_no_alpha_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/depth_map_cascade.vert"))
             .load_geom(VPath("src/shaders/depth_map_cascade.geom"))

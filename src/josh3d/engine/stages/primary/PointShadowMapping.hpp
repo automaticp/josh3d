@@ -59,7 +59,7 @@ public:
 private:
     SharedStorage<PointShadowMaps> output_;
 
-    dsa::UniqueProgram sp_with_alpha{
+    UniqueProgram sp_with_alpha{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/depth_cubemap.vert"))
             .load_geom(VPath("src/shaders/depth_cubemap_array.geom"))
@@ -68,7 +68,7 @@ private:
             .get()
     };
 
-    dsa::UniqueProgram sp_no_alpha{
+    UniqueProgram sp_no_alpha{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/depth_cubemap.vert"))
             .load_geom(VPath("src/shaders/depth_cubemap_array.geom"))

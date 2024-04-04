@@ -27,7 +27,7 @@ public:
 
 
 private:
-    dsa::UniqueProgram sp_{
+    UniqueProgram sp_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/basic_mesh.vert"))
             .load_frag(VPath("src/shaders/light_source.frag"))
@@ -62,8 +62,8 @@ inline void BoundingSphereDebug::operator()(
     engine.draw([&, this](auto bound_fbo) {
 
         auto per_mesh_draw_func = [&] (
-            const entt::entity& entity [[maybe_unused]],
-            const MTransform& world_mtf,
+            const entt::entity&               entity [[maybe_unused]],
+            const MTransform&                 world_mtf,
             const components::BoundingSphere& sphere)
         {
 

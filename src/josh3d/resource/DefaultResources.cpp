@@ -33,18 +33,18 @@ auto create_filled(
     pixel::RGBA    rgba,
     const Size2S&  size,
     InternalFormat internal_format)
-        -> dsa::UniqueTexture2D
+        -> UniqueTexture2D
 {
     auto tex_data = make_filled_image_data(rgba, size);
-    dsa::UniqueTexture2D texture = create_material_texture_from_data(tex_data, internal_format);
+    UniqueTexture2D texture = create_material_texture_from_data(tex_data, internal_format);
     return texture;
 }
 
 
-std::optional<dsa::UniqueTexture2D> default_diffuse_texture_;
-std::optional<dsa::UniqueTexture2D> default_specular_texture_;
-std::optional<dsa::UniqueTexture2D> default_normal_texture_;
-std::optional<dsa::UniqueCubemap>   debug_skybox_cubemap_;
+std::optional<UniqueTexture2D> default_diffuse_texture_;
+std::optional<UniqueTexture2D> default_specular_texture_;
+std::optional<UniqueTexture2D> default_normal_texture_;
+std::optional<UniqueCubemap>   debug_skybox_cubemap_;
 
 MeshData<VertexPNTTB> plane_primitive_data_;
 MeshData<VertexPNTTB> box_primitive_data_;
@@ -69,10 +69,10 @@ std::optional<Mesh> quad_primitive_mesh_;
 
 namespace globals {
 // NOLINTBEGIN(bugprone-unchecked-optional-access): Will terminate on bad access anyway.
-dsa::RawTexture2D<GLConst> default_diffuse_texture()  noexcept { return default_diffuse_texture_ .value(); }
-dsa::RawTexture2D<GLConst> default_specular_texture() noexcept { return default_specular_texture_.value(); }
-dsa::RawTexture2D<GLConst> default_normal_texture()   noexcept { return default_normal_texture_  .value(); }
-dsa::RawCubemap<GLConst>   debug_skybox_cubemap()     noexcept { return debug_skybox_cubemap_    .value(); }
+RawTexture2D<GLConst> default_diffuse_texture()  noexcept { return default_diffuse_texture_ .value(); }
+RawTexture2D<GLConst> default_specular_texture() noexcept { return default_specular_texture_.value(); }
+RawTexture2D<GLConst> default_normal_texture()   noexcept { return default_normal_texture_  .value(); }
+RawCubemap<GLConst>   debug_skybox_cubemap()     noexcept { return debug_skybox_cubemap_    .value(); }
 
 const MeshData<VertexPNTTB>& plane_primitive_data()  noexcept { return plane_primitive_data_;  }
 const MeshData<VertexPNTTB>& box_primitive_data()    noexcept { return box_primitive_data_;    }
@@ -97,7 +97,7 @@ void detail::init_default_textures() {
         CubemapData data{
             load_cubemap_from_json<pixel::RGBA>(VPath("data/skyboxes/debug/skybox.json"))
         };
-        dsa::UniqueCubemap cube = create_skybox_from_cubemap_data(data, InternalFormat::SRGBA8);
+        UniqueCubemap cube = create_skybox_from_cubemap_data(data, InternalFormat::SRGBA8);
         cube->set_sampler_min_mag_filters(MinFilter::Nearest, MagFilter::Nearest);
         return cube;
     }();

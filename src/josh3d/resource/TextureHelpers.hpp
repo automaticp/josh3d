@@ -60,19 +60,19 @@ template<typename PixelT>
 [[nodiscard]] auto create_material_texture_from_data(
     const ImageData<PixelT>& data,
     InternalFormat           internal_format)
-        -> dsa::UniqueTexture2D;
+        -> UniqueTexture2D;
 
 template<typename PixelT>
 [[nodiscard]] auto create_material_cubemap_from_data(
     const CubemapData<PixelT>& data,
     InternalFormat             internal_format)
-        -> dsa::UniqueCubemap;
+        -> UniqueCubemap;
 
 template<typename PixelT>
 [[nodiscard]] auto create_skybox_from_cubemap_data(
     const CubemapData<PixelT>& data,
     InternalFormat             internal_format)
-        -> dsa::UniqueCubemap;
+        -> UniqueCubemap;
 
 
 
@@ -157,12 +157,12 @@ template<specifies_pixel_pack_traits PixelT>
 [[nodiscard]] auto create_material_texture_from_data(
     const ImageData<PixelT>& data,
     InternalFormat           internal_format)
-        -> dsa::UniqueTexture2D
+        -> UniqueTexture2D
 {
     const Size2I resolution{ data.size() };
 
-    dsa::UniqueTexture2D texture;
-    texture->allocate_storage(resolution, internal_format, dsa::max_num_levels(resolution));
+    UniqueTexture2D texture;
+    texture->allocate_storage(resolution, internal_format, max_num_levels(resolution));
     texture->upload_image_region(Region2I{ {}, resolution }, data.data(), MipLevel{ 0 });
     texture->generate_mipmaps();
     texture->set_sampler_min_mag_filters(MinFilter::LinearMipmapLinear, MagFilter::Linear);
@@ -174,12 +174,12 @@ template<specifies_pixel_pack_traits PixelT>
 [[nodiscard]] auto create_material_cubemap_from_data(
     const CubemapData<PixelT>& data,
     InternalFormat             internal_format)
-        -> dsa::UniqueCubemap
+        -> UniqueCubemap
 {
     const Size2I resolution{ data.sides()[0].size() };
 
-    dsa::UniqueCubemap cubemap;
-    cubemap->allocate_storage(resolution, internal_format, dsa::max_num_levels(resolution));
+    UniqueCubemap cubemap;
+    cubemap->allocate_storage(resolution, internal_format, max_num_levels(resolution));
 
     for (GLint face_id{ 0 }; face_id < 6; ++face_id) {
         const auto face_data = data.sides()[face_id].data();
@@ -198,12 +198,12 @@ template<typename PixelT>
 [[nodiscard]] auto create_skybox_from_cubemap_data(
     const CubemapData<PixelT>& data,
     InternalFormat             internal_format)
-        -> dsa::UniqueCubemap
+        -> UniqueCubemap
 {
     const Size2I resolution{ data.sides()[0].size() };
 
-    dsa::UniqueCubemap cubemap;
-    cubemap->allocate_storage(resolution, internal_format, dsa::max_num_levels(resolution));
+    UniqueCubemap cubemap;
+    cubemap->allocate_storage(resolution, internal_format, max_num_levels(resolution));
 
     for (GLint face_id{ 0 }; face_id < 6; ++face_id) {
         const auto face_data = data.sides()[face_id].data();

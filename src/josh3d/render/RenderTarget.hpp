@@ -91,7 +91,7 @@ public:
     using depth_attachment_kind_traits = depth_attachment_type::kind_traits;
 
 private:
-    dsa::UniqueFramebuffer fbo_;
+    UniqueFramebuffer fbo_;
     Size2I                 resolution_; // Primary resolution of the RenderTarget.
     GLsizei                num_array_elements_; // Ignored when `!is_array`.
 
@@ -160,7 +160,7 @@ public:
 
     // Basic read-only access for only god knows what.
     auto framebuffer() const noexcept
-        -> dsa::RawFramebuffer<GLConst>
+        -> RawFramebuffer<GLConst>
     {
         return fbo_;
     }

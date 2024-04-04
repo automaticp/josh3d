@@ -14,7 +14,7 @@
 
 
 namespace josh {
-namespace dsa {
+
 
 // TODO: These aliases could be moved to their respective object headers, as GLUnique
 // does not depend on the concrete implementations of any of these objects.
@@ -85,5 +85,4 @@ JOSH3D_ALIAS_DSA_OWNERS(TextureBuffer)
 JOSH3D_ALIAS_DSA_OWNERS(VertexArray)
 
 
-} // namespace dsa
 } // namespace josh

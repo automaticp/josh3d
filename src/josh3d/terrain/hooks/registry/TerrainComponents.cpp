@@ -37,8 +37,8 @@ void TerrainComponents::operator()(entt::registry& registry) {
         Mesh mesh{ mesh_data };
 
         auto sizei = Size2I{ size };
-        dsa::UniqueTexture2D heightmap;
-        heightmap->allocate_storage(sizei, InternalFormat::R32F, dsa::max_num_levels(sizei));
+        UniqueTexture2D heightmap;
+        heightmap->allocate_storage(sizei, InternalFormat::R32F, max_num_levels(sizei));
         heightmap->upload_image_region({ {}, sizei }, hdata.data());
         heightmap->generate_mipmaps();
 

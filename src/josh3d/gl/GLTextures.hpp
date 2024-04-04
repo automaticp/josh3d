@@ -391,6 +391,8 @@ enum class BufferTextureInternalFormat : GLuint {
 
 JOSH3D_DECLARE_ENUM_AS_SUPERSET(InternalFormat, BufferTextureInternalFormat)
 
+// TODO: RenderableFormat, and use it for attachments
+
 
 enum class PixelComponent {
     Red,
@@ -415,8 +417,6 @@ enum class PixelComponentType : GLuint {
 
 
 
-
-namespace dsa {
 
 
 namespace detail {
@@ -645,8 +645,7 @@ public:
 
 
 
-// TODO: Remove later.
-using josh::detail::conditional_mixin_t;
+
 
 
 
@@ -2910,9 +2909,6 @@ struct TextureDSAInterface
 
 namespace detail {
 
-// TODO: Remove later.
-using josh::detail::RawGLHandle;
-
 // Strange hack to access in Helpers.
 template<TextureTarget TargetV>
 struct texture_target_raw_mutable_type;
@@ -2954,5 +2950,5 @@ JOSH3D_GENERATE_DSA_TEXTURE_CLASSES(TextureBuffer)
 
 
 
-} // namespace dsa
+
 } // namespace josh

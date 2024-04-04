@@ -26,7 +26,7 @@ public:
 
 
 private:
-    dsa::UniqueProgram sp_ds{
+    UniqueProgram sp_ds{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/basic_mesh.vert"))
             .load_frag(VPath("src/shaders/dfr_geometry_mat_ds.frag"))
@@ -34,7 +34,7 @@ private:
             .get()
     };
 
-    dsa::UniqueProgram sp_dsn{
+    UniqueProgram sp_dsn{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/dfr_geometry_mat_dsn.vert"))
             .load_frag(VPath("src/shaders/dfr_geometry_mat_dsn.frag"))

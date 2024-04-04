@@ -58,11 +58,11 @@ public:
         target_.reset_depth_attachment(std::move(shared));
     }
 
-    dsa::RawTexture2D<GLConst> depth_texture() const noexcept         { return target_.depth_attachment().texture();                      }
-    dsa::RawTexture2D<GLConst> position_draw_texture() const noexcept { return target_.color_attachment<Slot::PositionDraw>().texture(); }
-    dsa::RawTexture2D<GLConst> normals_texture() const noexcept       { return target_.color_attachment<Slot::Normals>().texture();       }
-    dsa::RawTexture2D<GLConst> albedo_spec_texture() const noexcept   { return target_.color_attachment<Slot::AlbedoSpec>().texture();   }
-    dsa::RawTexture2D<GLConst> object_id_texture() const noexcept     { return target_.color_attachment<Slot::ObjectID>().texture();     }
+    RawTexture2D<GLConst> depth_texture() const noexcept         { return target_.depth_attachment().texture();                      }
+    RawTexture2D<GLConst> position_draw_texture() const noexcept { return target_.color_attachment<Slot::PositionDraw>().texture(); }
+    RawTexture2D<GLConst> normals_texture() const noexcept       { return target_.color_attachment<Slot::Normals>().texture();       }
+    RawTexture2D<GLConst> albedo_spec_texture() const noexcept   { return target_.color_attachment<Slot::AlbedoSpec>().texture();   }
+    RawTexture2D<GLConst> object_id_texture() const noexcept     { return target_.color_attachment<Slot::ObjectID>().texture();     }
 
     Size2I resolution() const noexcept { return target_.resolution(); }
     void resize(const Size2I& new_resolution) { target_.resize(new_resolution); }
@@ -106,15 +106,21 @@ public:
         : gbuffer_{ resolution, std::move(depth) }
     {}
 
-    SharedStorageMutableView<GBuffer> share_write_view() noexcept {
+    auto share_write_view() noexcept
+        -> SharedStorageMutableView<GBuffer>
+    {
         return gbuffer_.share_mutable_view();
     }
 
-    SharedStorageView<GBuffer> share_read_view() const noexcept {
+    auto share_read_view() const noexcept
+        -> SharedStorageView<GBuffer>
+    {
         return gbuffer_.share_view();
     }
 
-    const GBuffer& view_gbuffer() const noexcept {
+    auto view_gbuffer() const noexcept
+        -> const GBuffer&
+    {
         return *gbuffer_;
     }
 

@@ -32,8 +32,7 @@ public:
     CSMDebug(
         SharedStorageView<GBuffer>            gbuffer,
         SharedStorageView<CascadeViews>       views,
-        SharedStorageView<CascadedShadowMaps> maps
-    )
+        SharedStorageView<CascadedShadowMaps> maps)
         : gbuffer_{ std::move(gbuffer) }
         , views_  { std::move(views)   }
         , maps_   { std::move(maps)    }
@@ -44,22 +43,22 @@ public:
 
 
 private:
-    dsa::UniqueProgram sp_views_{
+    UniqueProgram sp_views_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/ovl_csm_debug_views.frag"))
             .get()
     };
 
-    dsa::UniqueProgram sp_maps_{
+    UniqueProgram sp_maps_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/ovl_csm_debug_maps.frag"))
             .get()
     };
 
-    dsa::UniqueSampler maps_sampler_ = [] {
-        dsa::UniqueSampler s;
+    UniqueSampler maps_sampler_ = [] {
+        UniqueSampler s;
         s->set_compare_ref_depth_to_texture(false);
         s->set_min_mag_filters(MinFilter::Nearest, MagFilter::Nearest);
         return s;
@@ -69,7 +68,7 @@ private:
     SharedStorageView<CascadeViews>       views_;
     SharedStorageView<CascadedShadowMaps> maps_;
 
-    dsa::UniqueBuffer<CascadeParams> csm_params_buf_;
+    UniqueBuffer<CascadeParams> csm_params_buf_;
 
 
     void draw_views_overlay(RenderEngineOverlayInterface& engine);
@@ -101,7 +100,7 @@ inline void CSMDebug::draw_views_overlay(
     // FIXME: Figure out what information we need here exactly.
     // Cause I'm passing data that's largely irrelevant for the debug.
     // AFAIK we only need the projview matrices.
-    dsa::resize_to_fit(csm_params_buf_, NumElems{ maps_->params.size() });
+    resize_to_fit(csm_params_buf_, NumElems{ maps_->params.size() });
     csm_params_buf_->upload_data(maps_->params);
     csm_params_buf_->bind_to_index<BufferTargetIndexed::ShaderStorage>(3);
 

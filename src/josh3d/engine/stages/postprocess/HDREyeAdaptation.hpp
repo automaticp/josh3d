@@ -55,20 +55,20 @@ public:
 
 
 private:
-    dsa::UniqueProgram sp_tonemap_{
+    UniqueProgram sp_tonemap_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/pp_hdr_eye_adaptation_tonemap.frag"))
             .get()
     };
 
-    dsa::UniqueProgram sp_block_reduce_{
+    UniqueProgram sp_block_reduce_{
         ShaderBuilder()
             .load_comp(VPath("src/shaders/pp_hdr_eye_adaptation_sample_image_block.comp"))
             .get()
     };
 
-    dsa::UniqueProgram sp_recursive_reduce_{
+    UniqueProgram sp_recursive_reduce_{
         ShaderBuilder()
             .load_comp(VPath("src/shaders/pp_hdr_eye_adaptation_recursive_reduce.comp"))
             .get()
@@ -76,17 +76,17 @@ private:
 
 
     // FIXME: This could really be some kind of RingBuffer<T, N>
-    std::array<dsa::UniqueBuffer<float>, 2> val_bufs_{
-        dsa::allocate_buffer<float>(NumElems{ 1 }),
-        dsa::allocate_buffer<float>(NumElems{ 1 }),
+    std::array<UniqueBuffer<float>, 2> val_bufs_{
+        allocate_buffer<float>(NumElems{ 1 }),
+        allocate_buffer<float>(NumElems{ 1 }),
     };
     size_t current_val_id_{ 0 };
 
-    dsa::RawBuffer<float> current_value_buffer() const noexcept {
+    RawBuffer<float> current_value_buffer() const noexcept {
         return val_bufs_[current_val_id_];
     }
 
-    dsa::RawBuffer<float> next_value_buffer() const noexcept {
+    RawBuffer<float> next_value_buffer() const noexcept {
         const size_t idx =
             (current_val_id_ + 1) % val_bufs_.size();
         return val_bufs_[idx];
@@ -98,7 +98,7 @@ private:
     }
 
 
-    dsa::UniqueBuffer<float> intermediate_buf_;
+    UniqueBuffer<float> intermediate_buf_;
     Size2S current_dims_;
 
     static Size2S dispatch_dimensions(size_t num_y_samples, float aspect_ratio) noexcept {
@@ -113,7 +113,7 @@ private:
 
 inline HDREyeAdaptation::HDREyeAdaptation(const Size2I& initial_resolution) noexcept
     : intermediate_buf_{
-        dsa::allocate_buffer<float>(
+        allocate_buffer<float>(
             NumElems{ dispatch_dimensions(num_y_sample_blocks, initial_resolution.aspect_ratio()).area() },
             StorageMode::StaticServer
         )
@@ -155,7 +155,7 @@ inline void HDREyeAdaptation::operator()(
 
         // Prepare intermediate reduction buffer.
         const auto buf_size = NumElems{ dims.area() };
-        dsa::resize_to_fit(intermediate_buf_, buf_size);
+        resize_to_fit(intermediate_buf_, buf_size);
         intermediate_buf_->bind_to_index<BufferTargetIndexed::ShaderStorage>(0);
 
         // Do a first block extraction reduce pass.

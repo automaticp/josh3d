@@ -11,7 +11,7 @@ namespace josh::components {
 struct TerrainChunk {
     ImageData<pixel::REDF> hdata;
     Mesh mesh;
-    dsa::UniqueTexture2D heightmap;
+    UniqueTexture2D heightmap;
 };
 
 

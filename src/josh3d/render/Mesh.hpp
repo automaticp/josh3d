@@ -17,9 +17,9 @@ namespace josh {
 
 class Mesh {
 private:
-    dsa::UniqueUntypedBuffer  vbo_;
-    dsa::UniqueBuffer<GLuint> ebo_;
-    dsa::UniqueVertexArray    vao_;
+    UniqueUntypedBuffer  vbo_;
+    UniqueBuffer<GLuint> ebo_;
+    UniqueVertexArray    vao_;
     GLsizei num_elements_;
     GLsizei num_vertices_;
 
@@ -38,7 +38,7 @@ public:
     constexpr GLsizei    vertex_offset()        const noexcept { return 0;             }
     GLsizei              num_vertices()         const noexcept { return num_vertices_; }
 
-    dsa::RawVertexArray<GLConst> vertex_array() const noexcept { return vao_; }
+    RawVertexArray<GLConst> vertex_array() const noexcept { return vao_; }
 
     // TODO: This is an ass way of doing things. But anything better will need a rewrite.
     void draw(

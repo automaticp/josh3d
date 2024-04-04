@@ -99,7 +99,7 @@ void RenderEngine::execute_stages(
             stage.cpu_timer_.averaging_interval = stage_timing_averaging_interval_s;
             stage.gpu_timer_.set_averaging_interval(stage_timing_averaging_interval_s);
 
-            dsa::UniqueQueryTimeElapsed tquery;
+            UniqueQueryTimeElapsed tquery;
             tquery->begin_query();
 
             auto t0 = std::chrono::steady_clock::now();

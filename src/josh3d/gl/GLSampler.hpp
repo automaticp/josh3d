@@ -11,7 +11,7 @@
 
 
 
-namespace josh::dsa {
+namespace josh {
 
 
 
@@ -456,9 +456,6 @@ struct SamplerDSAInterface
 
 
 
-// TODO: Remove later.
-using josh::detail::RawGLHandle;
-
 
 } // namspace detail
 
@@ -484,4 +481,4 @@ public:
 
 
 
-} // namespace josh::dsa
+} // namespace josh

@@ -108,7 +108,7 @@ public:
     }
 
 
-    [[nodiscard]] dsa::UniqueProgram get();
+    [[nodiscard]] UniqueProgram get();
 
 };
 
@@ -117,9 +117,9 @@ public:
 
 [[nodiscard]]
 inline auto ShaderBuilder::get()
-    -> dsa::UniqueProgram
+    -> UniqueProgram
 {
-    dsa::UniqueProgram sp;
+    UniqueProgram sp;
 
 
     auto compile_and_attach =
@@ -146,12 +146,12 @@ inline auto ShaderBuilder::get()
 
         switch (shader.type) {
             using enum ShaderTarget;
-            case VertexShader:         compile_and_attach(dsa::UniqueVertexShader(),         shader.source); break;
-            case FragmentShader:       compile_and_attach(dsa::UniqueFragmentShader(),       shader.source); break;
-            case GeometryShader:       compile_and_attach(dsa::UniqueGeometryShader(),       shader.source); break;
-            case ComputeShader:        compile_and_attach(dsa::UniqueComputeShader(),        shader.source); break;
-            case TessControlShader:    compile_and_attach(dsa::UniqueTessControlShader(),    shader.source); break;
-            case TessEvaluationShader: compile_and_attach(dsa::UniqueTessEvaluationShader(), shader.source); break;
+            case VertexShader:         compile_and_attach(UniqueVertexShader(),         shader.source); break;
+            case FragmentShader:       compile_and_attach(UniqueFragmentShader(),       shader.source); break;
+            case GeometryShader:       compile_and_attach(UniqueGeometryShader(),       shader.source); break;
+            case ComputeShader:        compile_and_attach(UniqueComputeShader(),        shader.source); break;
+            case TessControlShader:    compile_and_attach(UniqueTessControlShader(),    shader.source); break;
+            case TessEvaluationShader: compile_and_attach(UniqueTessEvaluationShader(), shader.source); break;
             default:
                 assert(false);
         }

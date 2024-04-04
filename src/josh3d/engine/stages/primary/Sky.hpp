@@ -39,14 +39,14 @@ public:
 
 
 private:
-    dsa::UniqueProgram sp_skybox_{
+    UniqueProgram sp_skybox_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/skybox.vert"))
             .load_frag(VPath("src/shaders/skybox.frag"))
             .get()
     };
 
-    dsa::UniqueProgram sp_proc_{
+    UniqueProgram sp_proc_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/sky_procedural.vert"))
             .load_frag(VPath("src/shaders/sky_procedural.frag"))

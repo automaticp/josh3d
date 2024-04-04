@@ -28,14 +28,14 @@ struct TextureHandleLoadContext {
 
 
 using TextureHandlePool =
-    GLObjectPool<dsa::UniqueTexture2D, DataPool<TextureData>, TextureHandleLoadContext>;
+    GLObjectPool<UniqueTexture2D, DataPool<TextureData>, TextureHandleLoadContext>;
 
 
 template<>
 inline auto TextureHandlePool::load_data_from(
     const File&                     file,
     const TextureHandleLoadContext& context)
-        -> Shared<dsa::UniqueTexture2D>
+        -> Shared<UniqueTexture2D>
 {
 
     Shared<TextureData> tex_data{ upstream_.load(file) };
@@ -51,7 +51,7 @@ inline auto TextureHandlePool::load_data_from(
     }();
 
     auto new_handle =
-        std::make_shared<dsa::UniqueTexture2D>(
+        std::make_shared<UniqueTexture2D>(
             create_material_texture_from_data(*tex_data, internal_format)
         );
 

@@ -43,7 +43,7 @@ public:
 
     void operator()(RenderEnginePostprocessInterface& engine);
 
-    dsa::RawTexture2D<GLConst> blur_texture() const noexcept {
+    RawTexture2D<GLConst> blur_texture() const noexcept {
         return blur_chain_.front_target().color_attachment().texture();
     }
 
@@ -55,21 +55,21 @@ public:
 
 
 private:
-    dsa::UniqueProgram sp_extract_{
+    UniqueProgram sp_extract_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/pp_bloom_threshold_extract.frag"))
             .get()
     };
 
-    dsa::UniqueProgram sp_twopass_gaussian_blur_{
+    UniqueProgram sp_twopass_gaussian_blur_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/pp_bloom_twopass_gaussian_blur.frag"))
             .get()
     };
 
-    dsa::UniqueProgram sp_blend_{
+    UniqueProgram sp_blend_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/pp_bloom_blend.frag"))
@@ -79,8 +79,8 @@ private:
     using BlurTarget    = RenderTarget<NoDepthAttachment, UniqueAttachment<Renderable::Texture2D>>;
     using BlurSwapChain = SwapChain<BlurTarget>;
 
-    dsa::UniqueSampler sampler_{ []() {
-        dsa::UniqueSampler s;
+    UniqueSampler sampler_{ []() {
+        UniqueSampler s;
         s->set_min_mag_filters(MinFilter::Linear, MagFilter::Linear);
         s->set_wrap_all(Wrap::ClampToEdge);
         return s;
@@ -95,7 +95,7 @@ private:
 
     BlurSwapChain blur_chain_;
 
-    dsa::UniqueBuffer<float> weights_buf_;
+    UniqueBuffer<float> weights_buf_;
 
     float  old_gaussian_sample_range_{ 1.f };
     size_t old_gaussian_samples_{ 0 }; // Must be different from the gaussian_samples on costruction...
@@ -244,7 +244,7 @@ inline void Bloom::update_gaussian_blur_weights_if_needed() {
     // leading to a noticable loss of color yield when
     // the range is too high. Is this okay?
 
-    auto update_weights = [this](dsa::RawBuffer<float> buf) {
+    auto update_weights = [this](RawBuffer<float> buf) {
         std::span<float> mapped = buf.map_for_write();
 
         do {
@@ -262,7 +262,7 @@ inline void Bloom::update_gaussian_blur_weights_if_needed() {
 
     if (gaussian_weights_buffer_needs_resizing()) {
 
-        dsa::resize_to_fit(weights_buf_, NumElems{ gaussian_weights_buffer_size() });
+        resize_to_fit(weights_buf_, NumElems{ gaussian_weights_buffer_size() });
         update_weights(weights_buf_);
 
     } else if (gaussian_weight_values_need_updating()) {

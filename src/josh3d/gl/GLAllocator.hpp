@@ -6,7 +6,7 @@
 #include <glbinding/gl/functions.h>
 
 
-namespace josh::dsa {
+namespace josh {
 
 
 namespace detail {
@@ -169,4 +169,4 @@ concept supports_gl_allocator = requires {
 
 
 
-} // namespace josh::dsa
+} // namespace josh

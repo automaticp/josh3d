@@ -38,7 +38,6 @@ enum class ProgramResource : GLuint {
 
 
 
-namespace dsa {
 
 
 namespace detail {
@@ -380,12 +379,9 @@ public:
 };
 
 
-
-
-// TODO: Remove later.
-using josh::detail::RawGLHandle;
-
 } // namespace detail
+
+
 
 
 template<mutability_tag MutT = GLMutable>
@@ -400,14 +396,13 @@ public:
 static_assert(sizeof(RawProgram<GLMutable>) == sizeof(RawProgram<GLConst>));
 
 
-} // namespace dsa
 
 
-template<> struct uniform_traits<bool>      { static void set(dsa::RawProgram<> program, Location location, bool v)     noexcept { program.set_uniform_int   (location, v);    } };
-template<> struct uniform_traits<GLint>     { static void set(dsa::RawProgram<> program, Location location, GLint v)    noexcept { program.set_uniform_int   (location, v);    } };
-template<> struct uniform_traits<GLuint>    { static void set(dsa::RawProgram<> program, Location location, GLuint v)   noexcept { program.set_uniform_uint  (location, v);    } };
-template<> struct uniform_traits<GLfloat>   { static void set(dsa::RawProgram<> program, Location location, GLfloat v)  noexcept { program.set_uniform_float (location, v);    } };
-template<> struct uniform_traits<GLdouble>  { static void set(dsa::RawProgram<> program, Location location, GLdouble v) noexcept { program.set_uniform_double(location, v);    } };
+template<> struct uniform_traits<bool>      { static void set(RawProgram<> program, Location location, bool v)     noexcept { program.set_uniform_int   (location, v);    } };
+template<> struct uniform_traits<GLint>     { static void set(RawProgram<> program, Location location, GLint v)    noexcept { program.set_uniform_int   (location, v);    } };
+template<> struct uniform_traits<GLuint>    { static void set(RawProgram<> program, Location location, GLuint v)   noexcept { program.set_uniform_uint  (location, v);    } };
+template<> struct uniform_traits<GLfloat>   { static void set(RawProgram<> program, Location location, GLfloat v)  noexcept { program.set_uniform_float (location, v);    } };
+template<> struct uniform_traits<GLdouble>  { static void set(RawProgram<> program, Location location, GLdouble v) noexcept { program.set_uniform_double(location, v);    } };
 
 
 } // namespace josh

@@ -109,33 +109,17 @@ private:
     };
 
     MainTarget make_main_target(const Size2I& resolution) {
-        MainTarget tgt{
+        return {
             resolution,
             depth_.share(),
             { InternalFormat::RGBA16F }
         };
-
-        // using enum GLenum;
-        // MainTarget tgt{
-        //     { depth_ },
-        //     { window_size_, { GL_RGBA16F }}
-        // };
-
-        // tgt.depth_attachment().texture().bind()
-        //     .set_min_mag_filters(GL_NEAREST, GL_NEAREST)
-        //     .set_wrap_st(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
-
-        // tgt.color_attachment().texture().bind()
-        //     .set_min_mag_filters(GL_LINEAR, GL_LINEAR)
-        //     .set_wrap_st(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
-
-        return tgt;
     }
 
     SwapChain<MainTarget> main_swapchain_;
 
 
-    inline static const dsa::RawDefaultFramebuffer<GLMutable> default_fbo_;
+    inline static const RawDefaultFramebuffer<GLMutable> default_fbo_;
 
 
 public:
@@ -214,9 +198,9 @@ public:
     }
 
 
-    dsa::RawTexture2D<GLConst>   main_depth_texture()          const noexcept { return depth_.texture(); }
-    const auto&                  main_depth_attachment()       const noexcept { return depth_;           }
-    auto                         share_main_depth_attachment()       noexcept { return depth_.share();   }
+    RawTexture2D<GLConst>   main_depth_texture()          const noexcept { return depth_.texture(); }
+    const auto&             main_depth_attachment()       const noexcept { return depth_;           }
+    auto                    share_main_depth_attachment()       noexcept { return depth_.share();   }
 
     Size2I main_resolution() const noexcept { return main_swapchain_.resolution(); }
 
@@ -345,11 +329,11 @@ private:
     {}
 
 public:
-    dsa::RawTexture2D<GLConst> screen_color() const noexcept {
+    RawTexture2D<GLConst> screen_color() const noexcept {
         return engine_.main_swapchain_.front_target().color_attachment().texture();
     }
 
-    dsa::RawTexture2D<GLConst> screen_depth() const noexcept {
+    RawTexture2D<GLConst> screen_depth() const noexcept {
         return engine_.main_swapchain_.front_target().depth_attachment().texture();
         // return engine_.depth_; // Is the same.
     }

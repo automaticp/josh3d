@@ -28,7 +28,6 @@ enum class ShaderTarget : GLuint {
 
 
 
-namespace dsa {
 
 
 namespace detail {
@@ -166,10 +165,8 @@ public:
 
 
 
-namespace detail {
-// TODO: Remove later.
-using josh::detail::RawGLHandle;
-} // namespace detail
+
+
 
 
 #define JOSH3D_GENERATE_DSA_SHADER_CLASSES(Name)                                                    \
@@ -197,5 +194,4 @@ JOSH3D_GENERATE_DSA_SHADER_CLASSES(FragmentShader)
 
 
 
-} // namespace dsa
 } // namespace josh

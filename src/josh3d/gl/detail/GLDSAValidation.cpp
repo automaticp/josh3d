@@ -19,7 +19,7 @@
 
 
 
-namespace josh::dsa {
+namespace josh {
 namespace {
 
 
@@ -297,4 +297,4 @@ static void glshared_operations() {
 
 
 } // namespace
-} // namespace josh::dsa {
+} // namespace josh

@@ -10,11 +10,11 @@ namespace josh {
 
 #define JOSH3D_SINGLE_ARG(...) __VA_ARGS__
 
-#define JOSH3D_SPECIALIZE_UNIFORM_TRAITS(UniformT, Body)                                            \
-    template<> struct uniform_traits<UniformT> {                                                    \
-        static void set(dsa::RawProgram<> program, Location location, const UniformT& v) noexcept { \
-            JOSH3D_SINGLE_ARG(Body)                                                                 \
-        }                                                                                           \
+#define JOSH3D_SPECIALIZE_UNIFORM_TRAITS(UniformT, Body)                                       \
+    template<> struct uniform_traits<UniformT> {                                               \
+        static void set(RawProgram<> program, Location location, const UniformT& v) noexcept { \
+            JOSH3D_SINGLE_ARG(Body)                                                            \
+        }                                                                                      \
     };
 
 

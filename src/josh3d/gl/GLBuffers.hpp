@@ -155,7 +155,7 @@ enum class BufferTargetIndexed : GLuint {
 
 
 
-namespace dsa {
+
 
 
 namespace detail {
@@ -719,10 +719,6 @@ public:
 
 
 
-namespace detail {
-// TODO: Remove Later.
-using josh::detail::RawGLHandle;
-} // namespace detail
 
 
 
@@ -745,21 +741,20 @@ public:
 };
 
 
-// Lil namespace break, donnt worry aboutit
-} // namespace dsa
+
+
 template<trivially_copyable T, mutability_tag MutT>
-struct mutability_traits<dsa::RawBuffer<T, MutT>> {
+struct mutability_traits<RawBuffer<T, MutT>> {
     using mutability                 = MutT;
     using opposite_mutability        = MutT::opposite_mutability;
     template<typename ...ArgTs>
-    using type_template              = dsa::RawBuffer<ArgTs...>;
-    using const_type                 = dsa::RawBuffer<T, GLConst>;
-    using mutable_type               = dsa::RawBuffer<T, GLMutable>;
-    using opposite_type              = dsa::RawBuffer<T, opposite_mutability>;
+    using type_template              = RawBuffer<ArgTs...>;
+    using const_type                 = RawBuffer<T, GLConst>;
+    using mutable_type               = RawBuffer<T, GLMutable>;
+    using opposite_type              = RawBuffer<T, opposite_mutability>;
     static constexpr bool is_mutable = gl_mutable<mutability>;
     static constexpr bool is_const   = gl_const<mutability>;
 };
-namespace dsa {
 
 
 
@@ -791,5 +786,5 @@ public:
 
 
 
-} // namespace dsa
+
 } // namespace josh

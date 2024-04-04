@@ -38,14 +38,14 @@ public:
 
 
 private:
-    dsa::UniqueProgram sp_stencil_prep_{
+    UniqueProgram sp_stencil_prep_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/basic_mesh.vert"))
             .load_frag(VPath("src/shaders/ovl_selected_stencil_prep.frag"))
             .get()
     };
 
-    dsa::UniqueProgram sp_highlight_{
+    UniqueProgram sp_highlight_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/ovl_selected_highlight.frag"))

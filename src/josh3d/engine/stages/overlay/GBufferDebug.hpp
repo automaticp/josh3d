@@ -42,7 +42,7 @@ public:
 private:
     SharedStorageView<GBuffer> gbuffer_;
 
-    dsa::UniqueProgram sp_{
+    UniqueProgram sp_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/ovl_gbuffer_debug.frag"))

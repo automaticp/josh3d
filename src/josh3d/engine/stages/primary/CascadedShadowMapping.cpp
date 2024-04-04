@@ -171,7 +171,7 @@ void CascadedShadowMapping::map_dir_light_shadow_cascade(
             << ". Extra cascades will be ignored.";
     }
 
-    auto set_common_uniforms = [&](dsa::RawProgram<> sp) {
+    auto set_common_uniforms = [&](RawProgram<> sp) {
         Location proj_loc = sp.get_uniform_location("projections");
         Location view_loc = sp.get_uniform_location("views");
 

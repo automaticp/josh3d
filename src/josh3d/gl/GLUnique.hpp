@@ -7,7 +7,7 @@
 #include <type_traits>
 
 
-namespace josh::dsa {
+namespace josh {
 
 
 
@@ -117,14 +117,14 @@ private:
 
 
 
-} // namespace josh::dsa
+} // namespace josh
 namespace josh {
 
 
 // Override the mutabililty_traits for specializations of GLUnique so that the mutability
 // is inferred from the underlying Raw handle.
 template<template<typename...> typename RawTemplate, mutability_tag MutT, typename ...OtherTs>
-struct mutability_traits<dsa::GLUnique<RawTemplate<MutT, OtherTs...>>>
+struct mutability_traits<GLUnique<RawTemplate<MutT, OtherTs...>>>
     : mutability_traits<RawTemplate<MutT, OtherTs...>>
 {};
 

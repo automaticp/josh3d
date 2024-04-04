@@ -10,7 +10,7 @@
 #include <utility>
 
 
-namespace josh::dsa {
+namespace josh {
 
 
 template<supports_gl_allocator RawHandleT>
@@ -256,13 +256,13 @@ private:
 
 
 
-} // namespace josh::dsa
+} // namespace josh
 namespace josh {
 
 // Override the mutabililty_traits for specializations of GLShared so that the mutability
 // is inferred from the underlying Raw handle.
 template<template<typename...> typename RawTemplate, mutability_tag MutT, typename ...OtherTs>
-struct mutability_traits<dsa::GLShared<RawTemplate<MutT, OtherTs...>>>
+struct mutability_traits<GLShared<RawTemplate<MutT, OtherTs...>>>
     : mutability_traits<RawTemplate<MutT, OtherTs...>>
 {};
 

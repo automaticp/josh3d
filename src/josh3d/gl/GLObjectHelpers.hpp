@@ -12,7 +12,7 @@
 #include <glbinding/gl/types.h>
 
 
-namespace josh::dsa {
+namespace josh {
 
 
 template<typename T>

@@ -28,9 +28,6 @@ JOSH3D_DEFINE_STRONG_SCALAR(StrideBytes, GLsizei)
 
 
 
-namespace dsa {
-
-
 namespace detail {
 
 
@@ -40,8 +37,6 @@ private:
     GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
     using mt = mutability_traits<CRTP>;
 public:
-
-    // TODO: Mark everything requires mt::is_mutable
 
     template<of_kind<GLKind::Buffer> BufferT>
     void attach_element_buffer(
@@ -527,12 +522,6 @@ public:
 
 
 
-namespace detail {
-// TODO: Remove later.
-using josh::detail::RawGLHandle;
-} // namespace detail
-
-
 template<mutability_tag MutT = GLMutable>
 class RawVertexArray
     : public detail::RawGLHandle<MutT>
@@ -544,5 +533,6 @@ public:
 };
 
 
-} // namespace dsa
+
+
 } // namespace josh

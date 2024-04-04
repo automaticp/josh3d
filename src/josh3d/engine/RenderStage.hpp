@@ -46,7 +46,7 @@ namespace detail {
 class GPUTimer {
 private:
     struct TimeQueryRequest {
-        dsa::UniqueQueryTimeElapsed query;
+        UniqueQueryTimeElapsed query;
         float frame_time_delta_s;
     };
 
@@ -57,7 +57,7 @@ public:
     const AvgFrameTimeCounter& get_timer() const noexcept { return counter_; }
 
     // Do this after querying the time interval.
-    void emplace_new_time_query(dsa::UniqueQueryTimeElapsed query, float frame_time_delta_s) {
+    void emplace_new_time_query(UniqueQueryTimeElapsed query, float frame_time_delta_s) {
         time_queries_.emplace_front(std::move(query), frame_time_delta_s);
     }
 

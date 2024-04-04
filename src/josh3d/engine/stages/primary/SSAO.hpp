@@ -34,8 +34,8 @@ namespace josh {
 // TODO: This will no longer reference textures within lifetime after
 // the SSAO stage will go out of scope. BAAAAAAD.
 struct AmbientOcclusionBuffers {
-    dsa::RawTexture2D<GLConst> noisy_texture;
-    dsa::RawTexture2D<GLConst> blurred_texture;
+    RawTexture2D<GLConst> noisy_texture;
+    RawTexture2D<GLConst> blurred_texture;
 };
 
 
@@ -68,7 +68,7 @@ public:
     void regenerate_kernels();
     size_t get_kernel_size() const noexcept { return sampling_kernel_->get_num_elements(); }
     void   set_kernel_size(size_t new_size) {
-        dsa::resize_to_fit(sampling_kernel_, NumElems(new_size));
+        resize_to_fit(sampling_kernel_, NumElems(new_size));
         regenerate_kernels();
     }
 
@@ -101,14 +101,14 @@ public:
 
 
 private:
-    dsa::UniqueProgram sp_sampling_{
+    UniqueProgram sp_sampling_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/ssao_sampling.frag"))
             .get()
     };
 
-    dsa::UniqueProgram sp_blur_{
+    UniqueProgram sp_blur_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/ssao_blur.frag"))
@@ -132,14 +132,14 @@ private:
 
 
 
-    dsa::UniqueSampler target_sampler_{ []() {
-        dsa::UniqueSampler s;
+    UniqueSampler target_sampler_{ []() {
+        UniqueSampler s;
         s->set_min_mag_filters(MinFilter::Nearest, MagFilter::Nearest);
         s->set_wrap_all(Wrap::ClampToEdge);
         return s;
     }() };
 
-    dsa::UniqueTexture2D noise_texture_;
+    UniqueTexture2D noise_texture_;
     Size2I noise_size_{ 16, 16 };
 
 
@@ -151,8 +151,8 @@ private:
 
     // We use vec4 to avoid issues with alignment in std430,
     // even though we only need vec3 of data.
-    dsa::UniqueBuffer<glm::vec4> sampling_kernel_{
-        dsa::allocate_buffer<glm::vec4>(NumElems{ 9 }, StorageMode::StaticServer)
+    UniqueBuffer<glm::vec4> sampling_kernel_{
+        allocate_buffer<glm::vec4>(NumElems{ 9 }, StorageMode::StaticServer)
     };
 
     float min_sample_angle_rad_{ glm::radians(5.f) };
@@ -260,7 +260,7 @@ inline void SSAO::regenerate_noise_texture() {
 
 
     if (noise_texture_->get_resolution() != noise_size_) {
-        noise_texture_ = dsa::allocate_texture<TextureTarget::Texture2D>(noise_size_, InternalFormat::RGB16F);
+        noise_texture_ = allocate_texture<TextureTarget::Texture2D>(noise_size_, InternalFormat::RGB16F);
     }
 
     noise_texture_->upload_image_region({ {}, noise_size_ }, noise_image.data());

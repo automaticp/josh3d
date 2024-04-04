@@ -8,16 +8,16 @@ namespace josh::components {
 
 
 struct MaterialDiffuse {
-    Shared<dsa::UniqueTexture2D> diffuse;
+    Shared<UniqueTexture2D> diffuse;
 };
 
 struct MaterialSpecular {
-    Shared<dsa::UniqueTexture2D> specular;
+    Shared<UniqueTexture2D> specular;
     GLfloat shininess{ 128.f };
 };
 
 struct MaterialNormal {
-    Shared<dsa::UniqueTexture2D> normal;
+    Shared<UniqueTexture2D> normal;
 };
 
 

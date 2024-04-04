@@ -72,7 +72,10 @@ enum class DefaultFramebufferBuffer : GLuint {
 
 
 
-namespace dsa {
+
+
+
+
 
 template<mutability_tag MutT>
 class RawFramebuffer;
@@ -629,11 +632,11 @@ struct DefaultFramebufferDSAInterface
 
 
 
-
-// TODO: Remove later.
-using josh::detail::RawGLHandle;
-
 } // namespace detail
+
+
+
+
 
 
 
@@ -710,5 +713,4 @@ inline void detail::FramebufferDSAInterface_Common<CRTP>::blit_to(
 
 
 
-} // namespace dsa
 } // namespace josh

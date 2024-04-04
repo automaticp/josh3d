@@ -13,7 +13,6 @@
 #include <entt/entt.hpp>
 
 
-using namespace gl;
 
 namespace josh::stages::primary {
 
@@ -35,7 +34,7 @@ void DeferredGeometry::operator()(
     // uncomfortable to do in EnTT. Is there a better way?
 
 
-    const auto apply_ds_materials = [&](entt::entity e, dsa::RawProgram<> sp) {
+    const auto apply_ds_materials = [&](entt::entity e, RawProgram<> sp) {
 
         if (auto mat_d = registry.try_get<components::MaterialDiffuse>(e)) {
             (*mat_d->diffuse)->bind_to_texture_unit(0);
@@ -65,7 +64,7 @@ void DeferredGeometry::operator()(
 
     {
         auto bound_program = sp_ds->use();
-        dsa::RawProgram<> sp = *sp_ds;
+        RawProgram<> sp = *sp_ds;
 
         sp.uniform("projection", proj);
         sp.uniform("view",       view);
@@ -90,7 +89,7 @@ void DeferredGeometry::operator()(
 
     {
         auto bound_program = sp_dsn->use();
-        dsa::RawProgram<> sp = *sp_dsn;
+        RawProgram<> sp = *sp_dsn;
 
         sp.uniform("projection", proj);
         sp.uniform("view",       view);

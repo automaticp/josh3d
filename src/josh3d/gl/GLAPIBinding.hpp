@@ -171,26 +171,26 @@ Which is more verbose, so do this instead.
 
 // These are the mixin types that can call `bind()`, `use()`, etc.
 // We befriend them and not the final RawObject types, as friendship isn't transitive like that.
-namespace dsa::detail {
+namespace detail {
 template<typename> struct BufferDSAInterface_Bind;
 template<typename> struct VertexArrayDSAInterface_Bind;
 template<typename> struct ProgramDSAInterface_Use;
 template<typename> struct FramebufferDSAInterface_Bind;
-} // namespace dsa::detail
+} // namespace detail
 
 // We only define BindTokens for targets that are used somewhere in the interface.
 // If a bind-dependant operation can be replaced with a DSA-style one, we do that
 // instead and skip the respective BindToken definition.
 
-JOSH3D_DEFINE_BIND_TOKEN(DispatchIndirectBuffer, template<typename> friend struct dsa::detail::BufferDSAInterface_Bind;)
-JOSH3D_DEFINE_BIND_TOKEN(DrawIndirectBuffer,     template<typename> friend struct dsa::detail::BufferDSAInterface_Bind;)
-JOSH3D_DEFINE_BIND_TOKEN(ParameterBuffer,        template<typename> friend struct dsa::detail::BufferDSAInterface_Bind;)
-JOSH3D_DEFINE_BIND_TOKEN(PixelPackBuffer,        template<typename> friend struct dsa::detail::BufferDSAInterface_Bind;)
-JOSH3D_DEFINE_BIND_TOKEN(PixelUnpackBuffer,      template<typename> friend struct dsa::detail::BufferDSAInterface_Bind;)
-JOSH3D_DEFINE_BIND_TOKEN(VertexArray,            template<typename> friend struct dsa::detail::VertexArrayDSAInterface_Bind;)
-JOSH3D_DEFINE_BIND_TOKEN(Program,                template<typename> friend struct dsa::detail::ProgramDSAInterface_Use;)
-JOSH3D_DEFINE_BIND_TOKEN(ReadFramebuffer,        template<typename> friend struct dsa::detail::FramebufferDSAInterface_Bind;)
-JOSH3D_DEFINE_BIND_TOKEN(DrawFramebuffer,        template<typename> friend struct dsa::detail::FramebufferDSAInterface_Bind;)
+JOSH3D_DEFINE_BIND_TOKEN(DispatchIndirectBuffer, template<typename> friend struct detail::BufferDSAInterface_Bind;)
+JOSH3D_DEFINE_BIND_TOKEN(DrawIndirectBuffer,     template<typename> friend struct detail::BufferDSAInterface_Bind;)
+JOSH3D_DEFINE_BIND_TOKEN(ParameterBuffer,        template<typename> friend struct detail::BufferDSAInterface_Bind;)
+JOSH3D_DEFINE_BIND_TOKEN(PixelPackBuffer,        template<typename> friend struct detail::BufferDSAInterface_Bind;)
+JOSH3D_DEFINE_BIND_TOKEN(PixelUnpackBuffer,      template<typename> friend struct detail::BufferDSAInterface_Bind;)
+JOSH3D_DEFINE_BIND_TOKEN(VertexArray,            template<typename> friend struct detail::VertexArrayDSAInterface_Bind;)
+JOSH3D_DEFINE_BIND_TOKEN(Program,                template<typename> friend struct detail::ProgramDSAInterface_Use;)
+JOSH3D_DEFINE_BIND_TOKEN(ReadFramebuffer,        template<typename> friend struct detail::FramebufferDSAInterface_Bind;)
+JOSH3D_DEFINE_BIND_TOKEN(DrawFramebuffer,        template<typename> friend struct detail::FramebufferDSAInterface_Bind;)
 
 
 } // namespace josh

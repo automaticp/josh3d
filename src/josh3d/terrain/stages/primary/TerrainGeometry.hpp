@@ -23,7 +23,7 @@ public:
 
 
 private:
-    dsa::UniqueProgram sp_{
+    UniqueProgram sp_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/dfr_geometry_terrain.vert"))
             .load_frag(VPath("src/shaders/dfr_geometry_terrain.frag"))

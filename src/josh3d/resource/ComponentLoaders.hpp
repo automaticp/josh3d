@@ -14,12 +14,12 @@ inline components::Skybox& load_skybox_into(
 {
         auto data = load_cubemap_from_json<pixel::RGBA>(skybox_json);
 
-        dsa::UniqueCubemap cubemap =
+        UniqueCubemap cubemap =
             create_skybox_from_cubemap_data(data, InternalFormat::SRGBA8);
 
         auto& skybox =
             skybox_handle.emplace_or_replace<components::Skybox>(
-                std::make_shared<dsa::UniqueCubemap>(std::move(cubemap))
+                std::make_shared<UniqueCubemap>(std::move(cubemap))
             );
 
         return skybox;

@@ -10,10 +10,9 @@ namespace josh {
 JOSH3D_DEFINE_STRONG_SCALAR(Location, GLint)
 
 
-namespace dsa {
 template<mutability_tag MutT>
 class RawProgram;
-} // namespace dsa
+
 
 template<typename ...Args>
 struct uniform_traits; // { static void set(RawProgram<GLMutable> program, Location location, const Args&... args) noexcept; }
@@ -21,7 +20,7 @@ struct uniform_traits; // { static void set(RawProgram<GLMutable> program, Locat
 
 template<typename ...Args>
 concept specialized_uniform_traits_set =
-    requires(dsa::RawProgram<GLMutable> program, Location location, Args&&... args) {
+    requires(RawProgram<GLMutable> program, Location location, Args&&... args) {
         uniform_traits<Args...>::set(program, location, args...);
     };
 

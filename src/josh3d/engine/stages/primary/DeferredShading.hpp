@@ -57,7 +57,7 @@ public:
 
 
 private:
-    dsa::UniqueProgram sp_{
+    UniqueProgram sp_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/dfr_shading.vert"))
             .load_frag(VPath("src/shaders/dfr_shading_adpn_shadow_csm.frag"))
@@ -69,18 +69,18 @@ private:
     SharedStorageView<CascadedShadowMaps>      input_csm_;
     SharedStorageView<AmbientOcclusionBuffers> input_ao_;
 
-    dsa::UniqueBuffer<light::Point>  plights_buf_;
-    dsa::UniqueBuffer<CascadeParams> csm_params_buf_;
+    UniqueBuffer<light::Point>  plights_buf_;
+    UniqueBuffer<CascadeParams> csm_params_buf_;
 
-    dsa::UniqueSampler target_sampler_ = []() {
-        dsa::UniqueSampler s;
+    UniqueSampler target_sampler_ = []() {
+        UniqueSampler s;
         s->set_min_mag_filters(MinFilter::Nearest, MagFilter::Nearest);
         s->set_wrap_all(Wrap::ClampToEdge);
         return s;
     }();
 
-    dsa::UniqueSampler csm_sampler_ = []() {
-        dsa::UniqueSampler s;
+    UniqueSampler csm_sampler_ = []() {
+        UniqueSampler s;
         s->set_min_mag_filters(MinFilter::Linear, MagFilter::Linear);
         s->set_border_color_float({ .r=1.f });
         s->set_wrap_all(Wrap::ClampToBorder);
@@ -94,8 +94,8 @@ private:
         return s;
     }();
 
-    dsa::UniqueSampler psm_sampler_ = []() {
-        dsa::UniqueSampler s;
+    UniqueSampler psm_sampler_ = []() {
+        UniqueSampler s;
         s->set_min_mag_filters(MinFilter::Linear, MagFilter::Linear);
         s->set_wrap_all(Wrap::ClampToEdge);
         s->set_compare_ref_depth_to_texture(true);

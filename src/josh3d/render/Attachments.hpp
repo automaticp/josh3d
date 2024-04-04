@@ -56,7 +56,7 @@ template<template<typename> typename OwnerT, typename TextureT, AttachmentKind A
 struct AttachmentInterface_Core {
 public:
     using texture_type           = TextureT;
-    using texture_traits         = dsa::texture_traits<texture_type>;
+    using texture_traits         = josh::texture_traits<texture_type>;
     using kind_traits            = attachment_kind_traits<AKindV>;
     using resolution_type        = texture_traits::resolution_type;
 
@@ -175,21 +175,21 @@ template<typename CRTP, template<typename> typename OwnerT, typename TextureT, A
 struct AttachmentInterface
     : AttachmentInterface_Core<OwnerT, TextureT, AKindV>
     , conditional_mixin_t<
-        dsa::texture_traits<TextureT>::has_lod,
+        texture_traits<TextureT>::has_lod,
         AttachmentInterface_LOD<AKindV>
     >
     , conditional_mixin_t<
-        dsa::texture_traits<TextureT>::is_array,
+        texture_traits<TextureT>::is_array,
         AttachmentInterface_ArrayCore<AKindV>
     >
     , conditional_mixin_t<
-        dsa::texture_traits<TextureT>::is_multisample,
+        texture_traits<TextureT>::is_multisample,
         AttachmentInterface_MultisampleCore
     >
 {
 private:
     CRTP& self() noexcept { return static_cast<CRTP&>(*this); }
-    using tt = dsa::texture_traits<TextureT>;
+    using tt = texture_traits<TextureT>;
     using at = attachment_kind_traits<AKindV>;
     using core_type             = AttachmentInterface_Core<OwnerT, TextureT, AKindV>;
     using lod_core_type         = AttachmentInterface_LOD<AKindV>;
@@ -309,7 +309,7 @@ private:
 
         } else if (self().lod_policy_ == LODPolicy::MaxLOD) {
 
-            self().num_levels_ = dsa::max_num_levels(resolution);
+            self().num_levels_ = max_num_levels(resolution);
 
         } else {
             assert(false);
@@ -420,16 +420,16 @@ public:
 
     // This inversion is here so that you could attach to Framebuffers without exposing
     // the mutable version of the underlying texture object.
-    void attach_as_stencil_to(dsa::RawFramebuffer<GLMutable> fbo) noexcept {
+    void attach_as_stencil_to(RawFramebuffer<GLMutable> fbo) noexcept {
         // TODO: We have to handle whether to attach a whole texture or a layer here.
         fbo.attach_texture_to_stencil_buffer(this->texture_);
     }
 
-    void attach_as_depth_to(dsa::RawFramebuffer<GLMutable> fbo) noexcept {
+    void attach_as_depth_to(RawFramebuffer<GLMutable> fbo) noexcept {
         fbo.attach_texture_to_depth_buffer(this->texture_);
     }
 
-    void attach_as_color_to(dsa::RawFramebuffer<GLMutable> fbo, GLuint color_buffer) noexcept {
+    void attach_as_color_to(RawFramebuffer<GLMutable> fbo, GLuint color_buffer) noexcept {
         fbo.attach_texture_to_color_buffer(this->texture_, color_buffer);
     }
 
@@ -464,20 +464,20 @@ namespace detail {
 template<Renderable RenderableV> struct renderable_type;
 template<Renderable RenderableV> using  renderable_type_t = renderable_type<RenderableV>::type;
 
-template<> struct renderable_type<Renderable::Texture1DArray>   { using type = dsa::RawTexture1DArray<>;   };
-template<> struct renderable_type<Renderable::TextureRectangle> { using type = dsa::RawTextureRectangle<>; };
-template<> struct renderable_type<Renderable::Texture2D>        { using type = dsa::RawTexture2D<>;        };
-template<> struct renderable_type<Renderable::Texture2DMS>      { using type = dsa::RawTexture2DMS<>;      };
-template<> struct renderable_type<Renderable::Texture2DArray>   { using type = dsa::RawTexture2DArray<>;   };
-template<> struct renderable_type<Renderable::Texture2DMSArray> { using type = dsa::RawTexture2DMSArray<>; };
-template<> struct renderable_type<Renderable::Cubemap>          { using type = dsa::RawCubemap<>;          };
-template<> struct renderable_type<Renderable::CubemapArray>     { using type = dsa::RawCubemapArray<>;     };
-template<> struct renderable_type<Renderable::Texture3D>        { using type = dsa::RawTexture3D<>;        };
-// template<> struct renderable_type<Renderable::Renderbuffer>     { using type = dsa::RawRenderbuffer<>;     };
-// template<> struct renderable_type<Renderable::RenderbufferMS>   { using type = dsa::RawRenderbufferMS<>;   };
+template<> struct renderable_type<Renderable::Texture1DArray>   { using type = RawTexture1DArray<>;   };
+template<> struct renderable_type<Renderable::TextureRectangle> { using type = RawTextureRectangle<>; };
+template<> struct renderable_type<Renderable::Texture2D>        { using type = RawTexture2D<>;        };
+template<> struct renderable_type<Renderable::Texture2DMS>      { using type = RawTexture2DMS<>;      };
+template<> struct renderable_type<Renderable::Texture2DArray>   { using type = RawTexture2DArray<>;   };
+template<> struct renderable_type<Renderable::Texture2DMSArray> { using type = RawTexture2DMSArray<>; };
+template<> struct renderable_type<Renderable::Cubemap>          { using type = RawCubemap<>;          };
+template<> struct renderable_type<Renderable::CubemapArray>     { using type = RawCubemapArray<>;     };
+template<> struct renderable_type<Renderable::Texture3D>        { using type = RawTexture3D<>;        };
+// template<> struct renderable_type<Renderable::Renderbuffer>     { using type = RawRenderbuffer<>;     };
+// template<> struct renderable_type<Renderable::RenderbufferMS>   { using type = RawRenderbufferMS<>;   };
 
 
-template<Renderable RenderableV> struct renderable_traits { using type = dsa::texture_traits<renderable_type_t<RenderableV>>; };
+template<Renderable RenderableV> struct renderable_traits { using type = texture_traits<renderable_type_t<RenderableV>>; };
 template<Renderable RenderableV> using  renderable_traits_t = renderable_traits<RenderableV>::type;
 
 
@@ -502,7 +502,7 @@ template<Renderable RenderableV>
 class UniqueAttachment
     : public detail::AttachmentInterface<
         UniqueAttachment<RenderableV>,
-        dsa::GLUnique,
+        GLUnique,
         detail::renderable_type_t<RenderableV>,
         AttachmentKind::Unique
     >
@@ -511,7 +511,7 @@ private:
     using AttachmentInterface =
         detail::AttachmentInterface<
             UniqueAttachment<RenderableV>,
-            dsa::GLUnique,
+            GLUnique,
             detail::renderable_type_t<RenderableV>,
             AttachmentKind::Unique
         >;
@@ -537,7 +537,7 @@ template<Renderable RenderableV>
 class SharedAttachment
     : public detail::AttachmentInterface<
         SharedAttachment<RenderableV>,
-        dsa::GLShared,
+        GLShared,
         detail::renderable_type_t<RenderableV>,
         AttachmentKind::Shared
     >
@@ -546,7 +546,7 @@ private:
     using AttachmentInterface =
         detail::AttachmentInterface<
             SharedAttachment<RenderableV>,
-            dsa::GLShared,
+            GLShared,
             detail::renderable_type_t<RenderableV>,
             AttachmentKind::Shared
         >;
@@ -563,7 +563,7 @@ template<Renderable RenderableV>
 class ShareableAttachment
     : public detail::AttachmentInterface<
         ShareableAttachment<RenderableV>,
-        dsa::GLShared,
+        GLShared,
         detail::renderable_type_t<RenderableV>,
         AttachmentKind::Shareable
     >
@@ -572,7 +572,7 @@ private:
     using AttachmentInterface =
         detail::AttachmentInterface<
             ShareableAttachment<RenderableV>,
-            dsa::GLShared,
+            GLShared,
             detail::renderable_type_t<RenderableV>,
             AttachmentKind::Shareable
         >;

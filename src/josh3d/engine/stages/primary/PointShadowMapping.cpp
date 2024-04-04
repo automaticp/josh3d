@@ -91,7 +91,7 @@ void PointShadowMapping::map_point_shadows(
 
 
     auto set_per_light_uniforms = [&, this](
-        dsa::RawProgram<> sp,
+        RawProgram<> sp,
         const glm::vec3&  pos,
         GLint             cubemap_id)
     {

@@ -137,7 +137,7 @@ void DeferredShading::draw_main(
 void DeferredShading::update_cascade_buffer() {
 
     auto& params = input_csm_->params;
-    dsa::resize_to_fit(csm_params_buf_, NumElems{ params.size() });
+    resize_to_fit(csm_params_buf_, NumElems{ params.size() });
 
     std::span mapped = csm_params_buf_->map_for_write();
     do {
@@ -160,7 +160,7 @@ auto DeferredShading::update_point_light_buffers(
         return { num_with_shadow, num_no_shadow };
     }
 
-    dsa::resize_to_fit(plights_buf_, NumElems{ num_plights });
+    resize_to_fit(plights_buf_, NumElems{ num_plights });
 
     auto plights_with_shadow_view = registry.view<light::Point, tags::ShadowCasting>();
     auto plights_no_shadow_view   = registry.view<light::Point>(entt::exclude<tags::ShadowCasting>);

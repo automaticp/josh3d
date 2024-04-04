@@ -92,7 +92,7 @@ inline void MeshWidget(entt::handle mesh_handle) noexcept {
     if (ImGui::TreeNode("Material")) {
 
         // FIXME: Not sure if scaling to max size is always preferrable.
-        auto imsize = [&](dsa::RawTexture2D<GLConst> tex) -> ImVec2 {
+        auto imsize = [&](RawTexture2D<GLConst> tex) -> ImVec2 {
             const float w = ImGui::GetContentRegionAvail().x;
             const float h = w / tex.get_resolution().aspect_ratio();
             return { w, h };
