@@ -1,6 +1,6 @@
 #pragma once
 #include "Filesystem.hpp"
-#include "Shared.hpp"
+#include "GLShared.hpp"
 #include <unordered_map>
 
 
@@ -14,7 +14,7 @@ template<
 >
 class GLObjectPool {
 private:
-    using pool_t = std::unordered_map<File, Shared<T>>;
+    using pool_t = std::unordered_map<File, GLShared<T>>;
     pool_t pool_;
 
     using upstream_t = UpstreamT;
@@ -23,13 +23,13 @@ private:
 public:
     explicit GLObjectPool(UpstreamT& upstream) : upstream_{ upstream } {}
 
-    Shared<T> load(const File& file, const LoadContextT& = LoadContextT{});
+    GLShared<T> load(const File& file, const LoadContextT& = LoadContextT{});
 
     void clear() { pool_.clear(); }
     void clear_unused();
 
 private:
-    Shared<T> load_data_from(const File& file, const LoadContextT&);
+    GLShared<T> load_data_from(const File& file, const LoadContextT&);
 
 };
 
@@ -40,7 +40,7 @@ template<typename T, typename UpstreamT, typename LoadContextT>
 auto GLObjectPool<T, UpstreamT, LoadContextT>::load(
     const File&         file,
     const LoadContextT& context)
-        -> Shared<T>
+        -> GLShared<T>
 {
     auto it = pool_.find(file);
 

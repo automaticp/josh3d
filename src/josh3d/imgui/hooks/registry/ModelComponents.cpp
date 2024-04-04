@@ -115,7 +115,7 @@ static void mesh_subwidget(entt::handle mesh) {
                 if (ImGui::TreeNode("Diffuse")) {
                     ImGui::Unindent();
 
-                    imgui::ImageGL(void_id((*material->diffuse)->id()), imsize(*material->diffuse));
+                    imgui::ImageGL(void_id(material->texture->id()), imsize(material->texture));
 
                     ImGui::Indent();
                     ImGui::TreePop();
@@ -126,7 +126,7 @@ static void mesh_subwidget(entt::handle mesh) {
                 if (ImGui::TreeNode("Specular")) {
                     ImGui::Unindent();
 
-                    imgui::ImageGL(void_id((*material->specular)->id()), imsize(*material->specular));
+                    imgui::ImageGL(void_id(material->texture->id()), imsize(material->texture));
 
                     ImGui::DragFloat(
                         "Shininess", &material->shininess,
@@ -142,7 +142,7 @@ static void mesh_subwidget(entt::handle mesh) {
                 if (ImGui::TreeNode("Normal")) {
                     ImGui::Unindent();
 
-                    imgui::ImageGL(void_id((*material->normal)->id()), imsize(*material->normal));
+                    imgui::ImageGL(void_id(material->texture->id()), imsize(material->texture));
 
                     ImGui::Indent();
                     ImGui::TreePop();

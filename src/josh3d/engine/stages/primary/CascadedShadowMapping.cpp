@@ -1,24 +1,19 @@
 #include "CascadedShadowMapping.hpp"
 #include "GLAPIBinding.hpp"
-#include "GLMutability.hpp"
 #include "GLProgram.hpp"
-#include "GLShaders.hpp"
 #include "Logging.hpp"
 #include "tags/AlphaTested.hpp"
 #include "tags/CulledFromCSM.hpp"
 #include "components/Materials.hpp"
 #include "Transform.hpp"
 #include "Mesh.hpp"
-#include "UniformTraits.hpp"
-#include "ECSHelpers.hpp"
+#include "UniformTraits.hpp" // IWYU pragma: keep (traits)
 #include <entt/entity/entity.hpp>
 #include <entt/entity/fwd.hpp>
 #include <glbinding-aux/Meta.h>
 #include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/functions.h>
 
-
-using namespace gl;
 
 
 namespace josh::stages::primary {
@@ -105,9 +100,7 @@ void CascadedShadowMapping::draw_all_world_geometry_with_alpha_test(
     for (auto [entity, world_mtf, mesh, diffuse]
         : meshes_with_alpha_view.each())
     {
-        // TODO: Shared<GLUnique<...>> uh-huh, yeah
-        // TODO: Why does recursion with "->" not work?
-        (*diffuse.diffuse)->bind_to_texture_unit(0);
+        diffuse.texture->bind_to_texture_unit(0);
         sp_with_alpha_->uniform("model", world_mtf.model());
         mesh.draw(bound_program, bound_fbo);
     }

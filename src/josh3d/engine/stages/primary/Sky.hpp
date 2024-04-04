@@ -130,7 +130,7 @@ inline void Sky::draw_skybox(
     glm::mat4 view       = engine.camera().view_mat();
 
     // TODO: Pulls a single skybox, obviously won't work when there are many.
-    (*registry.storage<components::Skybox>().begin()->cubemap)->bind_to_texture_unit(0);
+    registry.storage<components::Skybox>().begin()->cubemap->bind_to_texture_unit(0);
     unbind_sampler_from_unit(0);
 
     sp_skybox_->uniform("cubemap",    0);

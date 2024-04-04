@@ -205,7 +205,7 @@ void PointShadowMapping::draw_all_world_geometry_with_alpha_test(
     for (auto [entity, world_mtf, mesh, diffuse]
         : meshes_with_alpha_view.each())
     {
-        (*diffuse.diffuse)->bind_to_texture_unit(0);
+        diffuse.texture->bind_to_texture_unit(0);
         sp_with_alpha->uniform("model", world_mtf.model());
         mesh.draw(bound_program, bound_fbo);
     }

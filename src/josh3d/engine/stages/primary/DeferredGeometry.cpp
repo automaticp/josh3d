@@ -37,13 +37,13 @@ void DeferredGeometry::operator()(
     const auto apply_ds_materials = [&](entt::entity e, RawProgram<> sp) {
 
         if (auto mat_d = registry.try_get<components::MaterialDiffuse>(e)) {
-            (*mat_d->diffuse)->bind_to_texture_unit(0);
+            mat_d->texture->bind_to_texture_unit(0);
         } else {
             globals::default_diffuse_texture().bind_to_texture_unit(0);
         }
 
         if (auto mat_s = registry.try_get<components::MaterialSpecular>(e)) {
-            (*mat_s->specular)->bind_to_texture_unit(1);
+            mat_s->texture->bind_to_texture_unit(1);
             sp.uniform("material.shininess", mat_s->shininess);
         } else {
             globals::default_specular_texture().bind_to_texture_unit(1);
@@ -106,7 +106,7 @@ void DeferredGeometry::operator()(
             sp.uniform("object_id",    entt::to_integral(entity));
 
             apply_ds_materials(entity, sp);
-            (*mat_normal.normal)->bind_to_texture_unit(2);
+            mat_normal.texture->bind_to_texture_unit(2);
 
             mesh.draw(bound_program, bound_fbo);
         }

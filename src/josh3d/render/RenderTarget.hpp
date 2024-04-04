@@ -12,11 +12,11 @@
 #include <array>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
-#include <concepts>
 #include <glbinding/gl/types.h>
 #include <tuple>
-#include <type_traits>
 #include <utility>
+#include <type_traits>
+#include <concepts>
 
 
 
@@ -92,8 +92,8 @@ public:
 
 private:
     UniqueFramebuffer fbo_;
-    Size2I                 resolution_; // Primary resolution of the RenderTarget.
-    GLsizei                num_array_elements_; // Ignored when `!is_array`.
+    Size2I            resolution_; // Primary resolution of the RenderTarget.
+    GLsizei           num_array_elements_; // Ignored when `!is_array`.
 
     depth_attachment_type  depth_;  // Depth or DepthStencil attachment.
     color_attachments_type colors_;
@@ -333,8 +333,6 @@ public:
 
 
 
-    // TODO: Combined reset_and_resize functions? Combinatorial explosion of overloads, jees.
-
 private:
     // Wrapper of std::get<Id> with conversion to underlying value.
     template<auto AttachmentId>
@@ -472,11 +470,6 @@ constexpr bool RenderTarget<DepthAttachmentT, ColorAttachmentTs...>::
     }
     return is_any_array;
 }
-
-
-
-// TODO: We need to integrate this into the engine and see how it feels.
-// I'm sick of guessing.
 
 
 

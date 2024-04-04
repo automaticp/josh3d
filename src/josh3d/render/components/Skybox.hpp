@@ -1,5 +1,4 @@
 #pragma once
-#include "Shared.hpp"
 #include "GLObjects.hpp"
 
 
@@ -7,7 +6,7 @@ namespace josh::components {
 
 
 struct Skybox {
-    Shared<UniqueCubemap> cubemap;
+    SharedCubemap cubemap;
 };
 
 
