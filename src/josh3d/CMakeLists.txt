@@ -92,9 +92,9 @@ endfunction()
 
 
 subtarget_link_internal(imgui      PUBLIC engine filesystem input util PRIVATE data gl scene resource)
-subtarget_link_internal(engine     PUBLIC data filesystem gl render resource scene terrain util)
-subtarget_link_internal(terrain    PUBLIC data gl scene resource util layout imgui #[[ well... ]])
-subtarget_link_internal(render     INTERFACE data gl util layout)
+subtarget_link_internal(engine     PUBLIC data filesystem gl gltraits render resource scene terrain util)
+subtarget_link_internal(terrain    PUBLIC data gl gltraits scene resource util layout imgui #[[ well... ]])
+subtarget_link_internal(render     INTERFACE data gl gltraits util layout)
 subtarget_link_internal(resource   PUBLIC data filesystem gl gltraits scene util layout PRIVATE render)
 subtarget_link_internal(data       INTERFACE util layout)
 subtarget_link_internal(input      INTERFACE util scene)

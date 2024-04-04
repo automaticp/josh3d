@@ -2,7 +2,7 @@
 #include "GLAPIBinding.hpp"
 #include "GLAPICommonTypes.hpp"
 #include "GLAPICore.hpp"
-#include "GLAttributeTraits.hpp" // IWYU pragma: keep (concepts)
+#include "AttributeTraits.hpp" // IWYU pragma: keep (traits)
 #include "GLBuffers.hpp"
 #include "GLObjects.hpp"
 #include "GLScalars.hpp"
