@@ -10,6 +10,9 @@
 namespace josh {
 
 
+template<supports_gl_allocator RawHandleT>
+class GLShared;
+
 
 
 template<supports_gl_allocator RawHandleT>
@@ -31,7 +34,10 @@ private:
     using mutable_type    = mt::mutable_type;
     using opposite_type   = mt::opposite_type;
 
-    friend GLUnique<const_type>; // For GLMutable -> GLConst conversion
+    friend GLUnique<const_type>;   // For GLMutable -> GLConst conversion
+
+    friend GLShared<const_type>;   // For sharing conversion,
+    friend GLShared<mutable_type>; // since there's no `release()`.
 
 public:
     GLUnique()

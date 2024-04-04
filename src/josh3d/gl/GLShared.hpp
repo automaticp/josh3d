@@ -1,6 +1,7 @@
 #pragma once
 #include "CommonConcepts.hpp" // IWYU pragma: keep
 #include "GLAllocator.hpp"
+#include "GLUnique.hpp"
 #include "detail/TargetType.hpp"
 #include "GLKind.hpp"
 #include "GLMutability.hpp"
@@ -46,27 +47,32 @@ private:
 
     RefCount* control_block_;
 
-    GLShared(handle_type::id_type id)
+
+    struct PrivateKey {};
+
+    GLShared(PrivateKey, handle_type::id_type id)
         : handle_       { handle_type::from_id(id) }
         , control_block_{ new RefCount{ 1 }        }
     {}
 
-public:
     // Default constructor overload for allocating unspecialized objects.
-    GLShared()
+    GLShared(PrivateKey)
         requires
             std::same_as<typename allocator_type::request_arg_type, void>
-        : GLShared(this->allocator_type::request())
+        : GLShared{ PrivateKey{}, this->allocator_type::request() }
     {}
 
     // Default constructor overload for allocating target-specialized objects.
-    GLShared()
+    GLShared(PrivateKey)
         requires
             std::same_as<typename allocator_type::request_arg_type, GLenum> &&
             josh::detail::specifies_target_type<handle_type>
-        : GLShared(this->allocator_type::request(static_cast<GLenum>(handle_type::target_type)))
+        : GLShared{ PrivateKey{}, this->allocator_type::request(static_cast<GLenum>(handle_type::target_type)) }
     {}
 
+public:
+
+    GLShared() : GLShared(PrivateKey{}) {}
 
 
     // Basic handle access.
@@ -163,6 +169,17 @@ public:
     GLShared(GLShared<const_type>&&) noexcept
         requires mt::is_mutable = delete;
 
+    // Sharing conversion from GLUnique.
+    GLShared(GLUnique<mutable_type>&& other) noexcept
+        : GLShared{ PrivateKey{}, std::exchange(other.handle_, mutable_type::from_id(0)).id() }
+    {}
+
+    // Sharing conversion from GLUnique.
+    GLShared(GLUnique<const_type>&& other) noexcept
+            requires mt::is_const
+        : GLShared{ PrivateKey{}, std::exchange(other.handle_, const_type::from_id(0)).id() }
+    {}
+
 
 
     // Copy assignment operator.
@@ -225,6 +242,20 @@ public:
     GLShared& operator=(GLShared<const_type>&& other) noexcept
         requires mt::is_mutable = delete;
 
+    // Sharing assignment from GLUnique.
+    GLShared& operator=(GLUnique<mutable_type>&& other) noexcept {
+        // Construct from GLUnique and then assign to self.
+        this->operator=(GLShared(std::move(other)));
+        return *this;
+    }
+
+    // Sharing assignment from GLUnique.
+    GLShared& operator=(GLUnique<const_type>&& other) noexcept
+        requires mt::is_const
+    {
+        this->operator=(GLShared(std::move(other)));
+        return *this;
+    }
 
 
 
