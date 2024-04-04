@@ -69,7 +69,7 @@ void DeferredShading::draw_main(
 
     // Directional shadows.
     input_csm_->dir_shadow_maps_tgt.depth_attachment().texture().bind_to_texture_unit(3);
-    shadow_sampler_                                            ->bind_to_texture_unit(3);
+    csm_sampler_                                               ->bind_to_texture_unit(3);
     sp_->uniform("dir_shadow.cascades",            3);
     sp_->uniform("dir_shadow.base_bias_tx",        dir_params.base_bias_tx);
     sp_->uniform("dir_shadow.do_blend_cascades",   dir_params.blend_cascades);
@@ -80,7 +80,7 @@ void DeferredShading::draw_main(
 
     // Point light shadows.
     input_psm_->point_shadow_maps_tgt.depth_attachment().texture().bind_to_texture_unit(4);
-    shadow_sampler_                                              ->bind_to_texture_unit(4);
+    psm_sampler_                                                 ->bind_to_texture_unit(4);
     sp_->uniform("point_shadow.maps",        4);
     sp_->uniform("point_shadow.bias_bounds", point_params.bias_bounds);
     sp_->uniform("point_shadow.z_far",       input_psm_->z_near_far[1]);
@@ -89,12 +89,16 @@ void DeferredShading::draw_main(
     OffsetElems with_shadows_offset{ 0 };
     OffsetElems no_shadows_offset  { num_plights_with_shadow };
     if (num_plights_with_shadow != 0) {
-        plights_buf_->bind_range_to_index<BufferTargetIndexed::ShaderStorage>(with_shadows_offset, num_plights_with_shadow, 1);
+        plights_buf_->bind_range_to_index<BufferTargetIndexed::ShaderStorage>(
+            with_shadows_offset, num_plights_with_shadow, 1
+        );
     } else {
         unbind_indexed_from_context<BindingIndexed::ShaderStorageBuffer>(1);
     }
     if (num_plights_no_shadow != 0) {
-        plights_buf_->bind_range_to_index<BufferTargetIndexed::ShaderStorage>(no_shadows_offset,   num_plights_no_shadow,   2);
+        plights_buf_->bind_range_to_index<BufferTargetIndexed::ShaderStorage>(
+            no_shadows_offset,   num_plights_no_shadow,   2
+        );
     } else {
         unbind_indexed_from_context<BindingIndexed::ShaderStorageBuffer>(2);
     }

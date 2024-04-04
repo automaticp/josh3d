@@ -72,14 +72,14 @@ private:
     dsa::UniqueBuffer<light::Point>  plights_buf_;
     dsa::UniqueBuffer<CascadeParams> csm_params_buf_;
 
-    dsa::UniqueSampler target_sampler_{ []() {
+    dsa::UniqueSampler target_sampler_ = []() {
         dsa::UniqueSampler s;
         s->set_min_mag_filters(MinFilter::Nearest, MagFilter::Nearest);
         s->set_wrap_all(Wrap::ClampToEdge);
         return s;
-    }() };
+    }();
 
-    dsa::UniqueSampler shadow_sampler_{ []() {
+    dsa::UniqueSampler csm_sampler_ = []() {
         dsa::UniqueSampler s;
         s->set_min_mag_filters(MinFilter::Linear, MagFilter::Linear);
         s->set_border_color_float({ .r=1.f });
@@ -92,7 +92,16 @@ private:
         // Or set the comparison func to Greater.
         s->set_compare_func(CompareOp::Less);
         return s;
-    }() };
+    }();
+
+    dsa::UniqueSampler psm_sampler_ = []() {
+        dsa::UniqueSampler s;
+        s->set_min_mag_filters(MinFilter::Linear, MagFilter::Linear);
+        s->set_wrap_all(Wrap::ClampToEdge);
+        s->set_compare_ref_depth_to_texture(true);
+        s->set_compare_func(CompareOp::Less);
+        return s;
+    }();
 
     auto update_point_light_buffers(const entt::registry& registry) -> std::tuple<NumElems, NumElems>;
     void update_cascade_buffer();
