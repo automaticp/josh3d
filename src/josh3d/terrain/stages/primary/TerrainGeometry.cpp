@@ -1,6 +1,5 @@
 #include "TerrainGeometry.hpp"
-#include "GLMutability.hpp"
-#include "GLShaders.hpp"
+#include "UniformTraits.hpp" // IWYU pragma: keep (traits)
 #include "RenderEngine.hpp"
 #include "Transform.hpp"
 #include "components/TerrainChunk.hpp"
@@ -17,28 +16,24 @@ void TerrainGeometry::operator()(
 {
     const auto& registry = engine.registry();
 
-    gbuffer_->bind_draw().and_then([&] {
-        sp_.use().and_then([&](ActiveShaderProgram<GLMutable>& ashp) {
+    auto bound_fbo     = gbuffer_->bind_draw();
+    auto bound_program = sp_->use();
 
-            ashp.uniform("projection", engine.camera().projection_mat())
-                .uniform("view",       engine.camera().view_mat());
+    sp_->uniform("projection", engine.camera().projection_mat());
+    sp_->uniform("view",       engine.camera().view_mat());
 
-            for (auto [entity, world_mtf, chunk]
-                : registry.view<MTransform, components::TerrainChunk>().each())
-            {
-                chunk.heightmap.bind_to_unit_index(0);
+    for (auto [entity, world_mtf, chunk]
+        : registry.view<MTransform, components::TerrainChunk>().each())
+    {
+        chunk.heightmap->bind_to_texture_unit(0);
 
-                ashp.uniform("model",        world_mtf.model())
-                    .uniform("normal_model", world_mtf.normal_model())
-                    .uniform("object_id",    entt::to_integral(entity))
-                    .uniform("test_color",   0);
+        sp_->uniform("model",        world_mtf.model());
+        sp_->uniform("normal_model", world_mtf.normal_model());
+        sp_->uniform("object_id",    entt::to_integral(entity));
+        sp_->uniform("test_color",   0);
 
-                chunk.mesh.draw();
-            }
-
-        });
-    });
-
+        chunk.mesh.draw(bound_program, bound_fbo);
+    }
 
 }
 

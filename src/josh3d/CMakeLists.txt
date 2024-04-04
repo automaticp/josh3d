@@ -1,3 +1,42 @@
+
+
+# Main interface target of josh3d.
+add_library(josh3d INTERFACE)
+add_library(josh3d::josh3d ALIAS josh3d)
+
+# Optional ASAN target.
+if (JOSH3D_BUILD_WITH_ASAN)
+    add_library(josh3d-asan INTERFACE)
+    if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+        target_compile_options(josh3d-asan INTERFACE "-fsanitize=address")
+        target_link_options   (josh3d-asan INTERFACE "-fsanitize=address")
+    elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+        target_compile_options(josh3d-asan INTERFACE "/fsanitize=address")
+        target_link_options   (josh3d-asan INTERFACE "/fsanitize=address")
+    else()
+        message(WARNING "Unknown C++ compiler: ${CMAKE_CXX_COMPILER_ID}. AddressSanitizer will not be enabled.")
+    endif()
+endif()
+
+
+
+set(SUBTARGETS
+    data
+    engine
+    filesystem
+    gl
+    gltraits
+    imgui
+    input
+    layout
+    render
+    resource
+    scene
+    terrain
+    util
+)
+
+
 function(make_subtarget SUBTARGET)
 
     set(TARGET "josh3d-${SUBTARGET}")
@@ -13,30 +52,17 @@ function(make_subtarget SUBTARGET)
     endif()
 
     target_include_directories(${TARGET} ${VISIBILITY} ${SUBTARGET})
-    target_compile_features(${TARGET} ${VISIBILITY} cxx_std_20)
+    target_compile_features   (${TARGET} ${VISIBILITY} cxx_std_20)
+
+    if (JOSH3D_BUILD_WITH_ASAN)
+        target_link_libraries(${TARGET} ${VISIBILITY} josh3d-asan)
+    endif()
 
 endfunction()
 
 
-set(SUBTARGETS
-    data
-    engine
-    filesystem
-    gl
-    imgui
-    input
-    layout
-    render
-    resource
-    scene
-    terrain
-    util
-)
 
 
-# Main interface target of josh3d.
-add_library(josh3d INTERFACE)
-add_library(josh3d::josh3d ALIAS josh3d)
 
 foreach(SUBTARGET IN ITEMS ${SUBTARGETS})
     make_subtarget(${SUBTARGET})
@@ -66,13 +92,14 @@ endfunction()
 
 
 subtarget_link_internal(imgui      PUBLIC engine filesystem input util PRIVATE data gl scene resource)
-subtarget_link_internal(engine     PUBLIC data filesystem gl render resource scene terrain util)
-subtarget_link_internal(terrain    PUBLIC data gl scene resource util layout imgui #[[ well... ]])
-subtarget_link_internal(render     INTERFACE data gl util layout)
-subtarget_link_internal(resource   PUBLIC data filesystem gl scene util layout PRIVATE render)
+subtarget_link_internal(engine     PUBLIC data filesystem gl gltraits render resource scene terrain util)
+subtarget_link_internal(terrain    PUBLIC data gl gltraits scene resource util layout imgui #[[ well... ]])
+subtarget_link_internal(render     INTERFACE data gl gltraits util layout)
+subtarget_link_internal(resource   PUBLIC data filesystem gl gltraits scene util layout PRIVATE render)
 subtarget_link_internal(data       INTERFACE util layout)
 subtarget_link_internal(input      INTERFACE util scene)
 subtarget_link_internal(gl         PUBLIC util layout)
+subtarget_link_internal(gltraits   INTERFACE gl layout)
 subtarget_link_internal(scene      INTERFACE util layout)
 subtarget_link_internal(filesystem PUBLIC util)
 subtarget_link_internal(layout)

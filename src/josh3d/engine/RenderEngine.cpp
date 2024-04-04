@@ -1,8 +1,8 @@
 #include "RenderEngine.hpp"
 #include "GLFramebuffer.hpp"
-#include "GLMutability.hpp"
 #include "GLObjects.hpp"
 #include "RenderStage.hpp"
+#include "WindowSizeCache.hpp"
 #include <chrono>
 #include <entt/entt.hpp>
 #include <glbinding/gl/enum.h>
@@ -12,8 +12,6 @@
 
 
 
-using namespace gl;
-
 namespace josh {
 
 
@@ -21,22 +19,26 @@ void RenderEngine::render() {
 
     // Update camera.
     auto params = cam_.get_params();
-    params.aspect_ratio = window_size_.aspect_ratio();
+    params.aspect_ratio = main_resolution().aspect_ratio();
     cam_.update_params(params);
+
+    // Update viewport.
+    glapi::set_viewport({ {}, main_resolution() });
 
 
     // Precompute.
     execute_precompute_stages();
 
-
     // Primary.
-    main_swapchain_.back_target().bind_draw()
-        .and_then([] { glClear(GL_DEPTH_BUFFER_BIT); });
+    {
+        auto bound_fbo = main_swapchain_.back_target().bind_draw();
+        glapi::clear_depth_stencil_buffer(bound_fbo, 1.0f, 0);
+        bound_fbo.unbind();
+    }
 
-    glEnable(GL_DEPTH_TEST);
+    glapi::enable(Capability::DepthTesting);
     render_primary_stages(); // To swapchain backbuffer.
-    glDisable(GL_DEPTH_TEST);
-
+    glapi::disable(Capability::DepthTesting);
 
     // Postprocess.
     main_swapchain_.swap_buffers();
@@ -44,18 +46,17 @@ void RenderEngine::render() {
 
 
     // Blit front to default (opt. sRGB)
-    if (enable_srgb_conversion) { glEnable(GL_FRAMEBUFFER_SRGB); }
+    if (enable_srgb_conversion) { glapi::enable(Capability::SRGBConversion); }
 
-    main_swapchain_.front_target().bind_read()
-        .and_then([this](BoundReadFramebuffer<GLMutable>& front) {
-            using enum GLenum;
-            default_fbo_.bind_draw()
-                .blit_from(front, window_size_, window_size_,
-                    GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
-        })
-        .unbind();
+    main_swapchain_.front_target().framebuffer().blit_to(
+        default_fbo_,
+        { {}, main_resolution()           }, // Internal rendering resolution.
+        { {}, globals::window_size.size() }, // This is technically window size and can technically differ, technically.
+        BufferMask::ColorBit | BufferMask::DepthBit,
+        BlitFilter::Nearest
+    );
 
-    if (enable_srgb_conversion) { glDisable(GL_FRAMEBUFFER_SRGB); }
+    if (enable_srgb_conversion) { glapi::disable(Capability::SRGBConversion); }
 
     // There are free frames on the table if you can eliminate
     // this blit by redirecting last postprocessing draw to the
@@ -89,17 +90,17 @@ void RenderEngine::render() {
 template<typename StagesContainerT, typename REInterfaceT>
 void RenderEngine::execute_stages(
     StagesContainerT& stages,
-    REInterfaceT& engine_interface)
+    REInterfaceT&     engine_interface)
 {
     if (capture_stage_timings) {
         for (auto& stage : std::forward<StagesContainerT>(stages)) {
-            stage.resolve_available_time_queries();
+            stage.gpu_timer_.resolve_available_time_queries();
 
             stage.cpu_timer_.averaging_interval = stage_timing_averaging_interval_s;
-            stage.gpu_timer_.averaging_interval = stage_timing_averaging_interval_s;
+            stage.gpu_timer_.set_averaging_interval(stage_timing_averaging_interval_s);
 
-            UniqueTimerQuery tquery;
-            tquery.begin_query();
+            UniqueQueryTimeElapsed tquery;
+            tquery->begin_query();
 
             auto t0 = std::chrono::steady_clock::now();
 
@@ -110,8 +111,8 @@ void RenderEngine::execute_stages(
             auto t1 = std::chrono::steady_clock::now();
             stage.cpu_timer_.update(std::chrono::duration<float>(t1 - t0).count(), frame_timer_.delta<float>());
 
-            tquery.end_query();
-            stage.emplace_new_time_query(std::move(tquery), frame_timer_.delta<float>());
+            tquery->end_query();
+            stage.gpu_timer_.emplace_new_time_query(std::move(tquery), frame_timer_.delta<float>());
         }
     } else {
         for (auto& stage : std::forward<StagesContainerT>(stages)) {

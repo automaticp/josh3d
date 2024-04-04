@@ -25,6 +25,33 @@ constexpr auto to_underlying(EnumT enum_value) noexcept
 }
 
 
+template<typename T>
+struct underlying_type_or_type  { using type = T; };
+
+template<enumeration EnumT>
+struct underlying_type_or_type<EnumT> { using type = std::underlying_type_t<EnumT>; };
+
+template<typename T>
+using underlying_type_or_type_t = underlying_type_or_type<T>::type;
+
+
+template<typename EnumOrInt>
+constexpr auto to_underlying_or_value(EnumOrInt value) noexcept
+    -> underlying_type_or_type_t<EnumOrInt>
+{
+    return static_cast<underlying_type_or_type_t<EnumOrInt>>(value);
+}
+
+
+
+template<typename To, enumeration FromEnumT>
+constexpr auto enum_cast(FromEnumT enum_value) noexcept
+    -> To
+        requires std::same_as<underlying_type_or_type_t<To>, std::underlying_type_t<FromEnumT>>
+{
+    return static_cast<To>(to_underlying(enum_value));
+}
+
 
 
 

@@ -113,9 +113,9 @@ void ImGuiApplicationAssembly::draw_widgets() {
     ImGui::PopStyleColor();
 
     // FIXME: Terrible, maybe will add "was resized" flag to WindowSizeCache instead.
-    static Size2F old_size{ 0, 0 };
+    static Extent2F old_size{ 0, 0 };
     auto vport_size = ImGui::GetMainViewport()->Size;
-    Size2F new_size = { vport_size.x, vport_size.y };
+    Extent2F new_size = { vport_size.x, vport_size.y };
     if (old_size != new_size) {
         // Do the reset inplace, before the windows are submitted.
         reset_dockspace(dockspace_id);

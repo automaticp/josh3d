@@ -6,9 +6,9 @@
 
 JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, PointShadowMapping) {
 
-    auto& maps = stage_.view_output().point_shadow_maps_tgt.depth_attachment();
+    auto& maps = stage_.view_output().point_shadow_maps_tgt;
 
-    int resolution = maps.size().width;
+    int resolution = maps.resolution().width;
     if (ImGui::SliderInt("New Resolution", &resolution,
         128, 8192, "%d", ImGuiSliderFlags_Logarithmic))
     {

@@ -65,7 +65,7 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, SSAO) {
     }
 
 
-    ImGui::BeginDisabled(stage_.noise_mode != NoiseMode::sampled_from_texture);
+    ImGui::BeginDisabled(stage_.noise_mode != NoiseMode::SampledFromTexture);
     Size2I noise_size = stage_.get_noise_texture_size();
     if (ImGui::SliderInt2("Noise Size", &noise_size.width,
         1, 128))

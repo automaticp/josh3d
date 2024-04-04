@@ -1,12 +1,9 @@
 #pragma once
-#include "CommonConcepts.hpp" // IWYU pragma: keep
-#include "GLMutability.hpp"   // IWYU pragma: keep
-#include "GLKindHandles.hpp"
+#include "CommonConcepts.hpp"
+#include "GLAPI.hpp"
 #include "GLScalars.hpp"
+#include "GLKind.hpp"
 #include <glbinding/gl/functions.h>
-#include <glbinding/gl/gl.h>
-#include <concepts>
-#include <glbinding/gl/types.h>
 
 
 namespace josh {
@@ -16,9 +13,10 @@ namespace detail {
 
 
 struct TextureAllocator {
-    static GLuint request() noexcept {
+    using request_arg_type = GLenum;
+    static GLuint request(GLenum target) noexcept {
         GLuint id;
-        gl::glGenTextures(1, &id);
+        gl::glCreateTextures(target, 1, &id);
         return id;
     }
     static void release(GLuint id) noexcept {
@@ -27,9 +25,10 @@ struct TextureAllocator {
 };
 
 struct BufferAllocator {
+    using request_arg_type = void;
     static GLuint request() noexcept {
         GLuint id;
-        gl::glGenBuffers(1, &id);
+        gl::glCreateBuffers(1, &id);
         return id;
     }
     static void release(GLuint id) noexcept {
@@ -38,9 +37,10 @@ struct BufferAllocator {
 };
 
 struct VertexArrayAllocator {
+    using request_arg_type = void;
     static GLuint request() noexcept {
         GLuint id;
-        gl::glGenVertexArrays(1, &id);
+        gl::glCreateVertexArrays(1, &id);
         return id;
     }
     static void release(GLuint id) noexcept {
@@ -49,9 +49,10 @@ struct VertexArrayAllocator {
 };
 
 struct FramebufferAllocator {
+    using request_arg_type = void;
     static GLuint request() noexcept {
         GLuint id;
-        gl::glGenFramebuffers(1, &id);
+        gl::glCreateFramebuffers(1, &id);
         return id;
     }
     static void release(GLuint id) noexcept {
@@ -60,9 +61,10 @@ struct FramebufferAllocator {
 };
 
 struct RenderbufferAllocator {
+    using request_arg_type = void;
     static GLuint request() noexcept {
         GLuint id;
-        gl::glGenRenderbuffers(1, &id);
+        gl::glCreateRenderbuffers(1, &id);
         return id;
     }
     static void release(GLuint id) noexcept {
@@ -71,6 +73,7 @@ struct RenderbufferAllocator {
 };
 
 struct ShaderAllocator {
+    using request_arg_type = GLenum;
     static GLuint request(GLenum shader_type) noexcept {
         return gl::glCreateShader(shader_type);
     }
@@ -79,7 +82,8 @@ struct ShaderAllocator {
     }
 };
 
-struct ShaderProgramAllocator {
+struct ProgramAllocator {
+    using request_arg_type = void;
     static GLuint request() noexcept {
         return gl::glCreateProgram();
     }
@@ -88,10 +92,21 @@ struct ShaderProgramAllocator {
     }
 };
 
+struct FenceSyncAllocator {
+    using request_arg_type = GLenum;
+    static gl::GLsync request(GLenum target) noexcept {
+        return gl::glFenceSync(target, {});
+    }
+    static void release(gl::GLsync id) noexcept {
+        gl::glDeleteSync(id);
+    }
+};
+
 struct QueryAllocator {
-    static GLuint request() noexcept {
+    using request_arg_type = GLenum;
+    static GLuint request(GLenum target) noexcept {
         GLuint id;
-        gl::glGenQueries(1, &id);
+        gl::glCreateQueries(target, 1, &id);
         return id;
     }
     static void release(GLuint id) noexcept {
@@ -100,9 +115,10 @@ struct QueryAllocator {
 };
 
 struct SamplerAllocator {
+    using request_arg_type = void;
     static GLuint request() noexcept {
         GLuint id;
-        gl::glGenSamplers(1, &id);
+        gl::glCreateSamplers(1, &id);
         return id;
     }
     static void release(GLuint id) noexcept {
@@ -110,55 +126,46 @@ struct SamplerAllocator {
     }
 };
 
+
 } // namespace detail
 
 
 
-
 /*
-OpenGL object allocator defined for different "kinds" of objects in the API
-based on their RawKindHandle type.
+Allocator type that defines primary allocation facilities
+for each particulat Kind of object.
 */
-template<raw_gl_kind_handle RawKindH>
+template<GLKind KindV>
 struct GLAllocator;
 
-#define JOSH3D_SPECIALIZE_ALLOCATOR(kind)            \
-    template<mutability_tag MutT>                    \
-    struct GLAllocator<Raw##kind##Handle<MutT>>      \
-        : detail::kind##Allocator                    \
+#define JOSH3D_SPECIALIZE_DSA_ALLOCATOR(Kind) \
+    template<>                                \
+    struct GLAllocator<GLKind::Kind>          \
+        : detail::Kind##Allocator             \
     {};
 
 
-JOSH3D_SPECIALIZE_ALLOCATOR(Texture)
-JOSH3D_SPECIALIZE_ALLOCATOR(Buffer)
-JOSH3D_SPECIALIZE_ALLOCATOR(VertexArray)
-JOSH3D_SPECIALIZE_ALLOCATOR(Framebuffer)
-JOSH3D_SPECIALIZE_ALLOCATOR(Renderbuffer)
-JOSH3D_SPECIALIZE_ALLOCATOR(Shader)
-JOSH3D_SPECIALIZE_ALLOCATOR(ShaderProgram)
-JOSH3D_SPECIALIZE_ALLOCATOR(Query)
-JOSH3D_SPECIALIZE_ALLOCATOR(Sampler)
+JOSH3D_SPECIALIZE_DSA_ALLOCATOR(Texture)
+JOSH3D_SPECIALIZE_DSA_ALLOCATOR(Buffer)
+JOSH3D_SPECIALIZE_DSA_ALLOCATOR(VertexArray)
+JOSH3D_SPECIALIZE_DSA_ALLOCATOR(Framebuffer)
+JOSH3D_SPECIALIZE_DSA_ALLOCATOR(Renderbuffer)
+JOSH3D_SPECIALIZE_DSA_ALLOCATOR(Shader)
+JOSH3D_SPECIALIZE_DSA_ALLOCATOR(Program)
+JOSH3D_SPECIALIZE_DSA_ALLOCATOR(FenceSync)
+JOSH3D_SPECIALIZE_DSA_ALLOCATOR(Query)
+JOSH3D_SPECIALIZE_DSA_ALLOCATOR(Sampler)
 
-#undef JOSH3D_SPECIALIZE_ALLOCATOR
+#undef JOSH3D_SPECIALIZE_DSA_ALLOCATOR
 
 
 
-template<typename RawKindH>
-concept has_gl_allocator = requires {
-    sizeof(GLAllocator<RawKindH>);
+template<typename RawH>
+concept supports_gl_allocator = requires {
+   requires same_as_remove_cvref<decltype(RawH::kind_type), GLKind>;
+   requires sizeof(GLAllocator<RawH::kind_type>) != 0;
 };
 
-
-template<typename RawKindH>
-concept allocatable_gl_kind_handle =
-    raw_gl_kind_handle<RawKindH> &&
-    has_gl_allocator<RawKindH>;
-
-
-template<typename RawObjH>
-concept allocatable_gl_object_handle =
-    raw_gl_object_handle<RawObjH> &&
-    has_gl_allocator<typename RawObjH::kind_handle_type>;
 
 
 

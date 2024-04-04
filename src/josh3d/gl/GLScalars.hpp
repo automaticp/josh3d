@@ -21,7 +21,8 @@ using gl::GLint, gl::GLuint;
 using gl::GLint64, gl::GLuint64;
 using gl::GLsizei;
 using gl::GLfloat, gl::GLdouble;
-using gl::GLchar;
+using gl::GLchar, gl::GLbyte, gl::GLubyte;
+using gl::GLshort, gl::GLushort;
 using gl::GLintptr, gl::GLsizeiptr;
 
 

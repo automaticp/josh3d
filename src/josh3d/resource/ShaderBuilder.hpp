@@ -1,9 +1,8 @@
 #pragma once
 #include "Filesystem.hpp"
-#include "GLMutability.hpp"
 #include "GLObjects.hpp"
-#include "GLScalars.hpp"
 #include "GLShaders.hpp"
+#include "GLProgram.hpp"
 #include "ReadFile.hpp"
 #include "ShaderSource.hpp"
 #include <string>
@@ -14,11 +13,50 @@
 namespace josh {
 
 
+namespace error {
+
+
+class ShaderCompilationFailure final : public RuntimeError {
+public:
+    static constexpr auto prefix = "Failed to Compile Shader: ";
+
+    std::string  info_log;
+    ShaderTarget shader_type;
+
+    ShaderCompilationFailure(
+        std::string  info_log,
+        ShaderTarget shader_type)
+        : RuntimeError(prefix, info_log)
+        , info_log   { std::move(info_log) }
+        , shader_type{ shader_type         }
+    {}
+};
+
+
+class ProgramLinkingFailure final : public RuntimeError {
+public:
+    static constexpr auto prefix = "Failed to Link Program: ";
+
+    std::string info_log;
+
+    ProgramLinkingFailure(std::string info_log)
+        : RuntimeError(prefix, info_log)
+        , info_log   { std::move(info_log) }
+    {}
+};
+
+
+} // namespace error
+
+
+
+
+
 class ShaderBuilder {
 private:
     struct UnevaluatedShader {
         ShaderSource source;
-        GLenum type;
+        ShaderTarget type;
     };
 
     struct ShaderDefine {
@@ -34,49 +72,29 @@ private:
     std::vector<ShaderDefine> defines_;
 
 public:
-    ShaderBuilder& load_shader(const File& file, GLenum type) {
+    ShaderBuilder& load_shader(const File& file, ShaderTarget type) {
         shaders_.emplace_back(ShaderSource(read_file(file)), type);
         return *this;
     }
 
-    ShaderBuilder& load_frag(const File& file) {
-        return load_shader(file, gl::GL_FRAGMENT_SHADER);
-    }
+    ShaderBuilder& load_frag(const File& file) { return load_shader(file, ShaderTarget::FragmentShader);       }
+    ShaderBuilder& load_vert(const File& file) { return load_shader(file, ShaderTarget::VertexShader);         }
+    ShaderBuilder& load_geom(const File& file) { return load_shader(file, ShaderTarget::GeometryShader);       }
+    ShaderBuilder& load_comp(const File& file) { return load_shader(file, ShaderTarget::ComputeShader);        }
+    ShaderBuilder& load_tesc(const File& file) { return load_shader(file, ShaderTarget::TessControlShader);    }
+    ShaderBuilder& load_tese(const File& file) { return load_shader(file, ShaderTarget::TessEvaluationShader); }
 
-    ShaderBuilder& load_vert(const File& file) {
-        return load_shader(file, gl::GL_VERTEX_SHADER);
-    }
-
-    ShaderBuilder& load_geom(const File& file) {
-        return load_shader(file, gl::GL_GEOMETRY_SHADER);
-    }
-
-    ShaderBuilder& load_comp(const File& file) {
-        return load_shader(file, gl::GL_COMPUTE_SHADER);
-    }
-
-
-
-    ShaderBuilder& add_shader(const ShaderSource& source, GLenum type) {
+    ShaderBuilder& add_shader(const ShaderSource& source, ShaderTarget type) {
         shaders_.emplace_back(source, type);
         return *this;
     }
 
-    ShaderBuilder& add_frag(const ShaderSource& source) {
-        return add_shader(source, gl::GL_FRAGMENT_SHADER);
-    }
-
-    ShaderBuilder& add_vert(const ShaderSource& source) {
-        return add_shader(source, gl::GL_VERTEX_SHADER);
-    }
-
-    ShaderBuilder& add_geom(const ShaderSource& source) {
-        return add_shader(source, gl::GL_GEOMETRY_SHADER);
-    }
-
-    ShaderBuilder& add_comp(const ShaderSource& source) {
-        return add_shader(source, gl::GL_COMPUTE_SHADER);
-    }
+    ShaderBuilder& add_frag(const ShaderSource& source) { return add_shader(source, ShaderTarget::FragmentShader);       }
+    ShaderBuilder& add_vert(const ShaderSource& source) { return add_shader(source, ShaderTarget::VertexShader);         }
+    ShaderBuilder& add_geom(const ShaderSource& source) { return add_shader(source, ShaderTarget::GeometryShader);       }
+    ShaderBuilder& add_comp(const ShaderSource& source) { return add_shader(source, ShaderTarget::ComputeShader);        }
+    ShaderBuilder& add_tesc(const ShaderSource& source) { return add_shader(source, ShaderTarget::TessControlShader);    }
+    ShaderBuilder& add_tese(const ShaderSource& source) { return add_shader(source, ShaderTarget::TessEvaluationShader); }
 
 
 
@@ -90,7 +108,7 @@ public:
     }
 
 
-    [[nodiscard]] UniqueShaderProgram get();
+    [[nodiscard]] UniqueProgram get();
 
 };
 
@@ -99,31 +117,53 @@ public:
 
 [[nodiscard]]
 inline auto ShaderBuilder::get()
-    -> UniqueShaderProgram
+    -> UniqueProgram
 {
-    UniqueShaderProgram sp;
+    UniqueProgram sp;
 
-    auto compile_from_source_and_attach =
-        [&sp](const UnevaluatedShader& shader_info) {
-            UniqueShader new_shader{ shader_info.type };
-            new_shader.set_source(shader_info.source.text().c_str());
-            new_shader.compile();
-            sp.attach_shader(new_shader);
+
+    auto compile_and_attach =
+        [&sp]<typename UniqueShaderType>(
+            UniqueShaderType    new_shader,
+            const ShaderSource& source)
+        {
+            new_shader->set_source(source.text());
+            new_shader->compile();
+            if (!new_shader->has_compiled_successfully()) {
+                throw error::ShaderCompilationFailure(new_shader->get_info_log(), UniqueShaderType::target_type);
+            }
+            sp->attach_shader(new_shader);
         };
+
 
     for (auto& shader : shaders_) {
 
         for (auto& define : defines_) {
             const bool was_found =
                 shader.source.find_and_insert_as_next_line("#version", define.get_define_string());
-
             assert(was_found);
         }
-        compile_from_source_and_attach(shader);
+
+        switch (shader.type) {
+            using enum ShaderTarget;
+            case VertexShader:         compile_and_attach(UniqueVertexShader(),         shader.source); break;
+            case FragmentShader:       compile_and_attach(UniqueFragmentShader(),       shader.source); break;
+            case GeometryShader:       compile_and_attach(UniqueGeometryShader(),       shader.source); break;
+            case ComputeShader:        compile_and_attach(UniqueComputeShader(),        shader.source); break;
+            case TessControlShader:    compile_and_attach(UniqueTessControlShader(),    shader.source); break;
+            case TessEvaluationShader: compile_and_attach(UniqueTessEvaluationShader(), shader.source); break;
+            default:
+                assert(false);
+        }
 
     }
 
-    sp.link();
+
+    sp->link();
+
+    if (!sp->has_linked_successfully()) {
+        throw error::ProgramLinkingFailure(sp->get_info_log());
+    }
 
     return sp;
 }

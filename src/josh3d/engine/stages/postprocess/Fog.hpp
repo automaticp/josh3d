@@ -1,6 +1,7 @@
 #pragma once
 #include "GLObjects.hpp"
 #include "RenderEngine.hpp"
+#include "UniformTraits.hpp" // IWYU pragma: keep (traits)
 #include "ShaderBuilder.hpp"
 #include "VPath.hpp"
 #include <entt/fwd.hpp>
@@ -38,7 +39,7 @@ and is not considered here as a base model.
 class Fog {
 public:
     enum class FogType {
-        none, uniform, barometric
+        None, Uniform, Barometric
     };
 
     struct UniformFogParams {
@@ -59,23 +60,7 @@ public:
         float base_mean_free_path{ 20.f };
     };
 
-private:
-    UniqueShaderProgram sp_uniform_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/postprocess.vert"))
-            .load_frag(VPath("src/shaders/pp_fog_uniform.frag"))
-            .get()
-    };
-
-    UniqueShaderProgram sp_barometric_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/postprocess.vert"))
-            .load_frag(VPath("src/shaders/pp_fog_barometric.frag"))
-            .get()
-    };
-
-public:
-    FogType   fog_type { FogType::none };
+    FogType   fog_type { FogType::None };
     glm::vec3 fog_color{ 1.f, 1.f, 1.f };
 
     UniformFogParams    uniform_fog_params{};
@@ -83,7 +68,24 @@ public:
 
     void operator()(RenderEnginePostprocessInterface& engine);
 
+
+
 private:
+    UniqueProgram sp_uniform_{
+        ShaderBuilder()
+            .load_vert(VPath("src/shaders/postprocess.vert"))
+            .load_frag(VPath("src/shaders/pp_fog_uniform.frag"))
+            .get()
+    };
+
+    UniqueProgram sp_barometric_{
+        ShaderBuilder()
+            .load_vert(VPath("src/shaders/postprocess.vert"))
+            .load_frag(VPath("src/shaders/pp_fog_barometric.frag"))
+            .get()
+    };
+
+
     void draw_uniform_fog(RenderEnginePostprocessInterface& engine);
     void draw_barometric_fog(RenderEnginePostprocessInterface& engine);
 
@@ -97,9 +99,9 @@ inline void Fog::operator()(
 {
     switch (fog_type) {
         using enum FogType;
-        case none:       return;
-        case uniform:    draw_uniform_fog(engine);    break;
-        case barometric: draw_barometric_fog(engine); break;
+        case None:       return;
+        case Uniform:    draw_uniform_fog(engine);    break;
+        case Barometric: draw_barometric_fog(engine); break;
     }
 }
 
@@ -112,37 +114,33 @@ inline void Fog::draw_uniform_fog(
 
     const auto& cam = engine.camera();
 
-    const glm::mat4 inv_proj =
-        glm::inverse(engine.camera().projection_mat());
+    const glm::mat4 inv_proj = glm::inverse(engine.camera().projection_mat());
 
-    engine.screen_depth().bind_to_unit_index(1);
+    engine.screen_depth().bind_to_texture_unit(1);
+    sp_uniform_->uniform("depth",     1);
+    sp_uniform_->uniform("fog_color", fog_color);
+    sp_uniform_->uniform("z_near",    cam.get_params().z_near);
+    sp_uniform_->uniform("z_far",     cam.get_params().z_far);
+    sp_uniform_->uniform("inv_proj",  inv_proj);
+    sp_uniform_->uniform("mean_free_path", uniform_fog_params.mean_free_path);
+    sp_uniform_->uniform("distance_power", uniform_fog_params.distance_power);
+    sp_uniform_->uniform("cutoff_offset",  uniform_fog_params.cutoff_offset);
 
-    sp_uniform_.use()
-        .uniform("depth",     1)
-        .uniform("fog_color", fog_color)
-        .uniform("z_near",    cam.get_params().z_near)
-        .uniform("z_far",     cam.get_params().z_far)
-        .uniform("inv_proj",  inv_proj)
-        .uniform("mean_free_path", uniform_fog_params.mean_free_path)
-        .uniform("distance_power", uniform_fog_params.distance_power)
-        .uniform("cutoff_offset",  uniform_fog_params.cutoff_offset)
-        .and_then([&] {
-            using namespace gl;
+    // This postprocessing effect is a bit special in that it can
+    // get by with just blending. So we blend directly with the
+    // front buffer, skipping the swap.
+    // There's no performance difference between swapping and not
+    // if you blend with the whole screen, so whatever,
+    // I do this for simplicity.
 
-            // This postprocessing effect is a bit special in that it can
-            // get by with just blending. So we blend directly with the
-            // front buffer, skipping the swap.
-            // There's no performance difference between swapping and not
-            // if you blend with the whole screen, so whatever,
-            // I do this for simplicity.
+    glapi::enable(Capability::Blending);
+    glapi::set_blend_factors(BlendFactor::SrcAlpha, BlendFactor::OneMinusSrcAlpha);
 
-            glEnable(GL_BLEND);
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            engine.draw_to_front();
-            glDisable(GL_BLEND);
+    auto bound_program = sp_uniform_->use();
+    engine.draw_to_front(bound_program);
+    bound_program.unbind();
 
-        });
-
+    glapi::disable(Capability::Blending);
 }
 
 
@@ -154,14 +152,9 @@ inline void Fog::draw_barometric_fog(
 
     const auto& cam = engine.camera();
 
-    const glm::mat4 inv_proj =
-        glm::inverse(cam.projection_mat());
-
-    const glm::mat3 normal_view_mat =
-        glm::inverse(glm::transpose(cam.view_mat()));
-
-    const glm::vec3 world_up_in_view_space =
-        glm::normalize(normal_view_mat * globals::basis.y());
+    const glm::mat4 inv_proj               = glm::inverse(cam.projection_mat());
+    const glm::mat3 normal_view_mat        = glm::inverse(glm::transpose(cam.view_mat()));
+    const glm::vec3 world_up_in_view_space = glm::normalize(normal_view_mat * globals::basis.y());
 
     // See comments in shader code to make sense of this.
     const auto  [H, Y0, L0]  = barometric_fog_params;
@@ -170,31 +163,29 @@ inline void Fog::draw_barometric_fog(
     // because world-space calculations incur precision issues
     // at large separation from the origin.
     const float eye_height = cam.transform.position().y;
-    float density_at_eye_height =
-        static_cast<float>(
-            double(base_density) * glm::exp(-double(eye_height) / double(H))
-        );
+    float density_at_eye_height = float(
+        double(base_density) * glm::exp(-double(eye_height) / double(H))
+    );
 
 
-    engine.screen_depth().bind_to_unit_index(1);
+    engine.screen_depth().bind_to_texture_unit(1);
+    sp_barometric_->uniform("depth",        1);
+    sp_barometric_->uniform("fog_color",    fog_color);
+    sp_barometric_->uniform("z_near",       cam.get_params().z_near);
+    sp_barometric_->uniform("z_far",        cam.get_params().z_far);
+    sp_barometric_->uniform("inv_proj",     inv_proj);
+    sp_barometric_->uniform("scale_height", H);
+    sp_barometric_->uniform("world_up_in_view_space", world_up_in_view_space);
+    sp_barometric_->uniform("density_at_eye_height",  density_at_eye_height);
 
-    sp_barometric_.use()
-        .uniform("depth",        1)
-        .uniform("fog_color",    fog_color)
-        .uniform("z_near",       cam.get_params().z_near)
-        .uniform("z_far",        cam.get_params().z_far)
-        .uniform("inv_proj",     inv_proj)
-        .uniform("scale_height", H)
-        .uniform("world_up_in_view_space", world_up_in_view_space)
-        .uniform("density_at_eye_height",  density_at_eye_height)
-        .and_then([&] {
-            using namespace gl;
-            glEnable(GL_BLEND);
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            engine.draw_to_front();
-            glDisable(GL_BLEND);
-        });
+    glapi::enable(Capability::Blending);
+    glapi::set_blend_factors(BlendFactor::SrcAlpha, BlendFactor::OneMinusSrcAlpha);
 
+    auto bound_program = sp_barometric_->use();
+    engine.draw_to_front(bound_program);
+    bound_program.unbind();
+
+    glapi::disable(Capability::Blending);
 }
 
 

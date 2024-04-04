@@ -16,21 +16,18 @@ handle that has no knowledge of its type or allocation method.
 
 Models a raw `void*` or `const void*` depending on mutability.
 */
-template<mutability_tag MutT>
-class RawGLHandle : public MutT {
-protected:
-    // Maybe I could make something like: enum class GLHandle : GLuint {}; ?
-    GLuint id_; // Should this be private?
-    GLuint reset_id(GLuint new_id = GLuint{ 0 }) noexcept {
-        GLuint old_id{ id_ };
-        id_ = new_id;
-        return old_id;
-    }
-    ~RawGLHandle() = default;
+template<mutability_tag MutT, typename IdType = GLuint>
+class RawGLHandle {
+public:
+    using id_type = IdType;
+private:
+    id_type id_;
     friend RawGLHandle<GLConst>;
+protected:
+    ~RawGLHandle() = default;
 public:
 
-    explicit RawGLHandle(GLuint id) : id_{ id } {}
+    explicit RawGLHandle(id_type id) : id_{ id } {}
 
     RawGLHandle(const RawGLHandle&)     = default;
     RawGLHandle(RawGLHandle&&) noexcept = default;
@@ -77,25 +74,21 @@ public:
     RawGLHandle& operator=(RawGLHandle<GLConst>&&) noexcept
         requires gl_mutable<MutT> = delete;
 
-
-    GLuint id() const noexcept { return id_; }
-    explicit operator GLuint() const noexcept { return id_; }
+    // Returns the underlying OpenGL ID (aka. Name) of the object.
+    id_type id() const noexcept { return id_; }
+    explicit operator id_type() const noexcept { return id_; }
 };
 
 
 
-
-// Since constructibility might not be inherited,
-// it makes sense to check this for both kind-handles and object-handles,
-// even if they derive from the RawGLHandle.
-template<typename RawT>
-concept has_basic_raw_handle_semantics = requires(RawT raw) {
-    // Constructible from GLuint.
-    RawT{ GLuint{ 42 } };
+// Use this to indicate that a type is a Raw Handle type.
+// TODO: Incomplete and shaky, might be worth rethinking.
+template<typename RawHandleT>
+concept has_basic_raw_handle_semantics = requires(std::remove_cvref_t<RawHandleT> raw) {
     // Can return or be converted to the object id.
-    { raw.id() }                 -> same_as_remove_cvref<GLuint>;
-    { std::as_const(raw).id() }  -> same_as_remove_cvref<GLuint>;
-    { static_cast<GLuint>(raw) } -> same_as_remove_cvref<GLuint>;
+    { raw.id() }                              -> same_as_remove_cvref<typename RawHandleT::id_type>;
+    { std::as_const(raw).id() }               -> same_as_remove_cvref<typename RawHandleT::id_type>;
+    { static_cast<RawHandleT::id_type>(raw) } -> same_as_remove_cvref<typename RawHandleT::id_type>;
 };
 
 

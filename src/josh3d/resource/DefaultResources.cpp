@@ -2,6 +2,7 @@
 #include "CubemapData.hpp"
 #include "GLObjects.hpp"
 #include "GLScalars.hpp"
+#include "GLTextures.hpp"
 #include "ImageData.hpp"
 #include "Pixels.hpp"
 #include "TextureHelpers.hpp"
@@ -10,6 +11,7 @@
 #include "AssimpModelLoader.hpp"
 #include "VPath.hpp"
 #include "Vertex2D.hpp"
+#include "AttributeTraits.hpp" // IWYU pragma: keep (traits)
 #include <glbinding/gl/enum.h>
 #include <optional>
 
@@ -27,19 +29,15 @@ ImageData<pixel::RGBA> make_filled_image_data(pixel::RGBA rgba, const Size2S& si
 }
 
 
-UniqueTexture2D create_filled(
-    pixel::RGBA rgba, const Size2S& size,
-    GLenum internal_format)
+auto create_filled(
+    pixel::RGBA    rgba,
+    const Size2S&  size,
+    InternalFormat internal_format)
+        -> UniqueTexture2D
 {
     auto tex_data = make_filled_image_data(rgba, size);
-    UniqueTexture2D handle;
-    handle.bind()
-        .and_then([&](BoundTexture2D<GLMutable>& btex) {
-            attach_data_to_texture(btex, tex_data, internal_format);
-        })
-        .generate_mipmaps()
-        .unbind();
-    return handle;
+    UniqueTexture2D texture = create_material_texture_from_data(tex_data, internal_format);
+    return texture;
 }
 
 
@@ -92,22 +90,15 @@ const Mesh& quad_primitive_mesh()   noexcept { return quad_primitive_mesh_  .val
 
 void detail::init_default_textures() {
     using enum GLenum;
-    default_diffuse_texture_  = create_filled({ 0xB0, 0xB0, 0xB0, 0xFF }, {1, 1}, GL_SRGB_ALPHA);
-    default_specular_texture_ = create_filled({ 0x00, 0x00, 0x00, 0xFF }, {1, 1}, GL_RGBA);
-    default_normal_texture_   = create_filled({ 0x7F, 0x7F, 0xFF, 0xFF }, {1, 1}, GL_RGBA);
+    default_diffuse_texture_  = create_filled({ 0xB0, 0xB0, 0xB0, 0xFF }, {1, 1}, InternalFormat::SRGBA8);
+    default_specular_texture_ = create_filled({ 0x00, 0x00, 0x00, 0xFF }, {1, 1}, InternalFormat::RGBA8);
+    default_normal_texture_   = create_filled({ 0x7F, 0x7F, 0xFF, 0xFF }, {1, 1}, InternalFormat::RGBA8);
     debug_skybox_cubemap_     = [] {
         CubemapData data{
             load_cubemap_from_json<pixel::RGBA>(VPath("data/skyboxes/debug/skybox.json"))
         };
-        UniqueCubemap cube;
-        cube.bind()
-            .and_then([&data](BoundCubemap<GLMutable>& cube) {
-                attach_data_to_cubemap_as_skybox(
-                    cube, data, TexSpec{ GL_SRGB_ALPHA }, GL_NEAREST
-                );
-            })
-            .unbind();
-
+        UniqueCubemap cube = create_skybox_from_cubemap_data(data, InternalFormat::SRGBA8);
+        cube->set_sampler_min_mag_filters(MinFilter::Nearest, MagFilter::Nearest);
         return cube;
     }();
 }

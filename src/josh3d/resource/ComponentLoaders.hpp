@@ -13,15 +13,12 @@ inline components::Skybox& load_skybox_into(
     entt::handle skybox_handle, const File& skybox_json)
 {
         auto data = load_cubemap_from_json<pixel::RGBA>(skybox_json);
-        auto& skybox =
-            skybox_handle.emplace_or_replace<components::Skybox>(std::make_shared<UniqueCubemap>());
 
-        using enum GLenum;
-        skybox.cubemap->bind()
-            .and_then([&](BoundCubemap<GLMutable>& cubemap) {
-                attach_data_to_cubemap_as_skybox(cubemap, data, GL_SRGB_ALPHA);
-            })
-            .unbind();
+        UniqueCubemap cubemap =
+            create_skybox_from_cubemap_data(data, InternalFormat::SRGBA8);
+
+        auto& skybox =
+            skybox_handle.emplace_or_replace<components::Skybox>(std::move(cubemap));
 
         return skybox;
 }

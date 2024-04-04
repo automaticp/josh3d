@@ -9,7 +9,6 @@
 #include "tags/AlphaTested.hpp"
 #include "tags/Culled.hpp"
 #include "Transform.hpp"
-#include "GLTextures.hpp"
 #include "AssimpModelLoader.hpp"
 #include "VPath.hpp"
 #include <entt/entity/entity.hpp>
@@ -105,24 +104,10 @@ static void mesh_subwidget(entt::handle mesh) {
 
         if (ImGui::TreeNode("Material")) {
 
-            // FIXME:
-            // There's gotta be a better way.
-            auto get_size = [](const UniqueTexture2D& tex) -> Size2I {
-                Size2I out{ 0, 0 };
-                tex.bind()
-                    .and_then([&] {
-                        using enum GLenum;
-                        gl::glGetTexLevelParameteriv(tex.target_type, 0, GL_TEXTURE_WIDTH,  &out.width);
-                        gl::glGetTexLevelParameteriv(tex.target_type, 0, GL_TEXTURE_HEIGHT, &out.height);
-                    })
-                    .unbind();
-                return out;
-            };
-
             // FIXME: Not sure if scaling to max size is always preferrable.
-            auto imsize = [&](const UniqueTexture2D& tex) -> ImVec2 {
+            auto imsize = [&](RawTexture2D<> tex) -> ImVec2 {
                 const float w = ImGui::GetContentRegionAvail().x;
-                const float h = w / get_size(tex).aspect_ratio();
+                const float h = w / tex.get_resolution().aspect_ratio();
                 return { w, h };
             };
 
@@ -130,7 +115,7 @@ static void mesh_subwidget(entt::handle mesh) {
                 if (ImGui::TreeNode("Diffuse")) {
                     ImGui::Unindent();
 
-                    imgui::ImageGL(void_id(material->diffuse->id()), imsize(*material->diffuse));
+                    imgui::ImageGL(void_id(material->texture->id()), imsize(material->texture));
 
                     ImGui::Indent();
                     ImGui::TreePop();
@@ -141,7 +126,7 @@ static void mesh_subwidget(entt::handle mesh) {
                 if (ImGui::TreeNode("Specular")) {
                     ImGui::Unindent();
 
-                    imgui::ImageGL(void_id(material->specular->id()), imsize(*material->specular));
+                    imgui::ImageGL(void_id(material->texture->id()), imsize(material->texture));
 
                     ImGui::DragFloat(
                         "Shininess", &material->shininess,
@@ -157,7 +142,7 @@ static void mesh_subwidget(entt::handle mesh) {
                 if (ImGui::TreeNode("Normal")) {
                     ImGui::Unindent();
 
-                    imgui::ImageGL(void_id(material->normal->id()), imsize(*material->normal));
+                    imgui::ImageGL(void_id(material->texture->id()), imsize(material->texture));
 
                     ImGui::Indent();
                     ImGui::TreePop();

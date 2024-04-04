@@ -14,20 +14,20 @@ namespace josh::stages::postprocess {
 
 
 class GammaCorrection {
-private:
-    UniqueShaderProgram sp_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/postprocess.vert"))
-            .load_frag(VPath("src/shaders/pp_gamma.frag"))
-            .get()
-    };
-
 public:
     float gamma{ 2.2f };
     bool use_srgb{ true };
 
     void operator()(RenderEnginePostprocessInterface& engine);
 
+
+private:
+    UniqueProgram sp_{
+        ShaderBuilder()
+            .load_vert(VPath("src/shaders/postprocess.vert"))
+            .load_frag(VPath("src/shaders/pp_gamma.frag"))
+            .get()
+    };
 };
 
 
@@ -37,23 +37,25 @@ inline void GammaCorrection::operator()(
     RenderEnginePostprocessInterface& engine)
 {
 
-    using namespace gl;
+    engine.screen_color().bind_to_texture_unit(0);
+    sp_->uniform("color", 0);
 
-    sp_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
-        engine.screen_color().bind_to_unit(GL_TEXTURE0);
-        ashp.uniform("color", 0);
+    auto bound_program = sp_->use();
 
-        if (use_srgb) {
-            ashp.uniform("gamma", 1.0f);
-            glEnable(GL_FRAMEBUFFER_SRGB);
-            engine.draw();
-            glDisable(GL_FRAMEBUFFER_SRGB);
-        } else /* custom gamma */ {
-            ashp.uniform("gamma", gamma);
-            engine.draw();
-        }
+    if (use_srgb) {
 
-    });
+        glapi::enable(Capability::SRGBConversion);
+        engine.draw(bound_program);
+        glapi::disable(Capability::SRGBConversion);
+
+    } else /* custom gamma */ {
+
+        sp_->uniform("gamma", gamma);
+        engine.draw(bound_program);
+
+    }
+
+    bound_program.unbind();
 
 }
 

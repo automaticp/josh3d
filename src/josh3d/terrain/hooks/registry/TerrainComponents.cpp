@@ -1,6 +1,11 @@
 #include "TerrainComponents.hpp"
+#include "GLAPICommonTypes.hpp"
+#include "GLObjectHelpers.hpp"
+#include "GLTextures.hpp"
 #include "ImageData.hpp"
 #include "Pixels.hpp"
+#include "AttributeTraits.hpp" // IWYU pragma: keep (traits)
+#include "PixelPackTraits.hpp" // IWYU pragma: keep (traits)
 #include "ImGuiHelpers.hpp"
 #include "ImGuiComponentWidgets.hpp"
 #include "NoiseGenerators.hpp"
@@ -31,20 +36,13 @@ void TerrainComponents::operator()(entt::registry& registry) {
 
         Mesh mesh{ mesh_data };
 
-
-        using enum GLenum;
+        auto sizei = Size2I{ size };
         UniqueTexture2D heightmap;
-        heightmap.bind()
-            .specify_image(
-                Size2I{ hdata.size() },
-                TexSpec{ GL_R32F },
-                TexPackSpec{ GL_RED, GL_FLOAT },
-                hdata.data()
-            )
-            .set_min_mag_filters(GL_NEAREST_MIPMAP_LINEAR, GL_NEAREST)
-            .generate_mipmaps()
-            .unbind();
+        heightmap->allocate_storage(sizei, InternalFormat::R32F, max_num_levels(sizei));
+        heightmap->upload_image_region({ {}, sizei }, hdata.data());
+        heightmap->generate_mipmaps();
 
+        heightmap->set_sampler_min_mag_filters(MinFilter::NearestMipmapLinear, MagFilter::Nearest);
 
         entt::handle handle{ registry, registry.create() };
         handle.emplace<Transform>();

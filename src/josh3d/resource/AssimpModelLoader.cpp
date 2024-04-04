@@ -1,7 +1,8 @@
 #include "AssimpModelLoader.hpp"
-#include "Mesh.hpp"
+#include "AttributeTraits.hpp"
 #include "components/ChildMesh.hpp"
 #include "components/BoundingSphere.hpp"
+#include "components/Mesh.hpp"
 #include "components/Name.hpp"
 #include "components/Materials.hpp"
 #include "tags/AlphaTested.hpp"
@@ -45,7 +46,7 @@ void ModelComponentLoader::emplace_mesh(std::vector<entt::entity>& output_meshes
     auto& r = *model_handle.registry();
     auto mesh_handle = entt::handle(r, r.create());
 
-    mesh_handle.emplace<Mesh>(mesh_data);
+    mesh_handle.emplace<components::Mesh>(mesh_data);
     mesh_handle.emplace<components::BoundingSphere>(bounding_radius(mesh_data.vertices()));
 
     aiMaterial* material = context.scene->mMaterials[mesh->mMaterialIndex];

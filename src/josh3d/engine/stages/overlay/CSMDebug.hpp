@@ -1,14 +1,16 @@
 #pragma once
-#include "GLMutability.hpp"
+#include "GLAPIBinding.hpp"
+#include "GLAPICommonTypes.hpp"
+#include "GLBuffers.hpp"
+#include "UniformTraits.hpp" // IWYU pragma: keep (traits)
+#include "GLObjectHelpers.hpp"
 #include "GLObjects.hpp"
 #include "GLTextures.hpp"
 #include "LightCasters.hpp"
-#include "SSBOWithIntermediateBuffer.hpp"
 #include "stages/precompute/CSMSetup.hpp"
 #include "stages/primary/CascadedShadowMapping.hpp"
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
-#include "EnumUtils.hpp"
 #include "VPath.hpp"
 #include "stages/primary/GBufferStorage.hpp"
 
@@ -17,15 +19,38 @@ namespace josh::stages::overlay {
 
 
 class CSMDebug {
+public:
+    enum class OverlayMode : GLint {
+        None  = 0,
+        Views = 1,
+        Maps  = 2,
+    } mode { OverlayMode::None };
+
+    GLuint num_cascades() const noexcept { return maps_->params.size(); }
+    GLuint cascade_id{ 0 };
+
+    CSMDebug(
+        SharedStorageView<GBuffer>            gbuffer,
+        SharedStorageView<CascadeViews>       views,
+        SharedStorageView<CascadedShadowMaps> maps)
+        : gbuffer_{ std::move(gbuffer) }
+        , views_  { std::move(views)   }
+        , maps_   { std::move(maps)    }
+    {}
+
+    void operator()(RenderEngineOverlayInterface& engine);
+
+
+
 private:
-    UniqueShaderProgram sp_views_{
+    UniqueProgram sp_views_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/ovl_csm_debug_views.frag"))
             .get()
     };
 
-    UniqueShaderProgram sp_maps_{
+    UniqueProgram sp_maps_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/postprocess.vert"))
             .load_frag(VPath("src/shaders/ovl_csm_debug_maps.frag"))
@@ -34,8 +59,8 @@ private:
 
     UniqueSampler maps_sampler_ = [] {
         UniqueSampler s;
-        s.set_compare_mode_none();
-        s.set_min_mag_filters(gl::GL_NEAREST, gl::GL_NEAREST);
+        s->set_compare_ref_depth_to_texture(false);
+        s->set_min_mag_filters(MinFilter::Nearest, MagFilter::Nearest);
         return s;
     }();
 
@@ -43,33 +68,9 @@ private:
     SharedStorageView<CascadeViews>       views_;
     SharedStorageView<CascadedShadowMaps> maps_;
 
-    SSBOWithIntermediateBuffer<CascadeParams> cascade_params_ssbo_{
-        3, gl::GL_DYNAMIC_DRAW
-    };
+    UniqueBuffer<CascadeParams> csm_params_buf_;
 
-public:
-    enum class OverlayMode : GLint {
-        none  = 0,
-        views = 1,
-        maps  = 2,
-    } mode { OverlayMode::none };
 
-    GLuint num_cascades() const noexcept { return maps_->params.size(); }
-    GLuint cascade_id{ 0 };
-
-    CSMDebug(
-        SharedStorageView<GBuffer>            gbuffer,
-        SharedStorageView<CascadeViews>       views,
-        SharedStorageView<CascadedShadowMaps> maps
-    )
-        : gbuffer_{ std::move(gbuffer) }
-        , views_  { std::move(views)   }
-        , maps_   { std::move(maps)    }
-    {}
-
-    void operator()(RenderEngineOverlayInterface& engine);
-
-private:
     void draw_views_overlay(RenderEngineOverlayInterface& engine);
     void draw_maps_overlay(RenderEngineOverlayInterface& engine);
 
@@ -82,9 +83,9 @@ inline void CSMDebug::operator()(
     RenderEngineOverlayInterface& engine)
 {
     switch (mode) {
-        case OverlayMode::none:  return;
-        case OverlayMode::views: return draw_views_overlay(engine);
-        case OverlayMode::maps:  return draw_maps_overlay(engine);
+        case OverlayMode::None:  return;
+        case OverlayMode::Views: return draw_views_overlay(engine);
+        case OverlayMode::Maps:  return draw_maps_overlay(engine);
     }
 }
 
@@ -99,31 +100,32 @@ inline void CSMDebug::draw_views_overlay(
     // FIXME: Figure out what information we need here exactly.
     // Cause I'm passing data that's largely irrelevant for the debug.
     // AFAIK we only need the projview matrices.
-    cascade_params_ssbo_.bind().update(maps_->params);
+    resize_to_fit(csm_params_buf_, NumElems{ maps_->params.size() });
+    csm_params_buf_->upload_data(maps_->params);
+    csm_params_buf_->bind_to_index<BufferTargetIndexed::ShaderStorage>(3);
 
-    sp_views_.use().and_then([&, this](ActiveShaderProgram<GLMutable>& ashp) {
+    gbuffer_->position_draw_texture().bind_to_texture_unit(0);
+    gbuffer_->normals_texture()      .bind_to_texture_unit(1);
 
-        gbuffer_->position_draw_texture().bind_to_unit_index(0);
-        gbuffer_->normals_texture()      .bind_to_unit_index(1);
+    sp_views_->uniform("tex_position_draw", 0);
+    sp_views_->uniform("tex_normals",       1);
 
-        ashp.uniform("tex_position_draw", 0)
-            .uniform("tex_normals",       1);
+    const auto& storage = registry.storage<light::Directional>();
 
-        const auto& storage = registry.storage<light::Directional>();
-        if (auto dir_light_it = storage.begin(); dir_light_it != storage.end()) {
+    if (auto dir_light_it = storage.begin(); dir_light_it != storage.end()) {
 
-            ashp.uniform("dir_light.color",     dir_light_it->color)
-                .uniform("dir_light.direction", dir_light_it->direction);
+        sp_views_->uniform("dir_light.color",     dir_light_it->color);
+        sp_views_->uniform("dir_light.direction", dir_light_it->direction);
 
-            using namespace gl;
-
-            glDisable(GL_DEPTH_TEST);
-            engine.draw_fullscreen_quad();
-            glEnable(GL_DEPTH_TEST);
-
+        glapi::disable(Capability::DepthTesting);
+        {
+            auto bound_program = sp_views_->use();
+            engine.draw_fullscreen_quad(bound_program);
+            bound_program.unbind();
         }
+        glapi::enable(Capability::DepthTesting);
 
-    });
+    }
 
 }
 
@@ -134,20 +136,21 @@ inline void CSMDebug::draw_maps_overlay(
     RenderEngineOverlayInterface& engine)
 {
 
-    maps_->dir_shadow_maps_tgt.depth_attachment().texture().bind_to_unit_index(0);
-    auto bound_sampler = maps_sampler_.bind_to_unit_index(0);
+    maps_->dir_shadow_maps_tgt.depth_attachment().texture().bind_to_texture_unit(0);
+    maps_sampler_->bind_to_texture_unit(0);
 
-    sp_maps_.use()
-        .uniform("cascades",   0)
-        .uniform("cascade_id", cascade_id)
-        .and_then([&] {
-            using namespace gl;
-            glDisable(GL_DEPTH_TEST);
-            engine.draw_fullscreen_quad();
-            glEnable(GL_DEPTH_TEST);
-        });
+    sp_maps_->uniform("cascades",   0);
+    sp_maps_->uniform("cascade_id", cascade_id);
 
-    bound_sampler.unbind();
+    glapi::disable(Capability::DepthTesting);
+    {
+        auto bound_program = sp_maps_->use();
+        engine.draw_fullscreen_quad(bound_program);
+        bound_program.unbind();
+    }
+    glapi::enable(Capability::DepthTesting);
+
+    unbind_sampler_from_unit(0);
 }
 
 
