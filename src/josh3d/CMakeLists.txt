@@ -1,21 +1,23 @@
-function(make_subtarget SUBTARGET)
 
-    set(TARGET "josh3d-${SUBTARGET}")
-    file(GLOB_RECURSE LOCAL_SOURCES CONFIGURE_DEPENDS "${SUBTARGET}/*.cpp")
 
-    if (LOCAL_SOURCES)
-        add_library(${TARGET} STATIC)
-        target_sources(${TARGET} PRIVATE "${LOCAL_SOURCES}")
-        set(VISIBILITY PUBLIC)
+# Main interface target of josh3d.
+add_library(josh3d INTERFACE)
+add_library(josh3d::josh3d ALIAS josh3d)
+
+# Optional ASAN target.
+if (JOSH3D_BUILD_WITH_ASAN)
+    add_library(josh3d-asan INTERFACE)
+    if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+        target_compile_options(josh3d-asan INTERFACE "-fsanitize=address")
+        target_link_options   (josh3d-asan INTERFACE "-fsanitize=address")
+    elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+        target_compile_options(josh3d-asan INTERFACE "/fsanitize=address")
+        target_link_options   (josh3d-asan INTERFACE "/fsanitize=address")
     else()
-        add_library(${TARGET} INTERFACE)
-        set(VISIBILITY INTERFACE)
+        message(WARNING "Unknown C++ compiler: ${CMAKE_CXX_COMPILER_ID}. AddressSanitizer will not be enabled.")
     endif()
+endif()
 
-    target_include_directories(${TARGET} ${VISIBILITY} ${SUBTARGET})
-    target_compile_features(${TARGET} ${VISIBILITY} cxx_std_20)
-
-endfunction()
 
 
 set(SUBTARGETS
@@ -35,9 +37,32 @@ set(SUBTARGETS
 )
 
 
-# Main interface target of josh3d.
-add_library(josh3d INTERFACE)
-add_library(josh3d::josh3d ALIAS josh3d)
+function(make_subtarget SUBTARGET)
+
+    set(TARGET "josh3d-${SUBTARGET}")
+    file(GLOB_RECURSE LOCAL_SOURCES CONFIGURE_DEPENDS "${SUBTARGET}/*.cpp")
+
+    if (LOCAL_SOURCES)
+        add_library(${TARGET} STATIC)
+        target_sources(${TARGET} PRIVATE "${LOCAL_SOURCES}")
+        set(VISIBILITY PUBLIC)
+    else()
+        add_library(${TARGET} INTERFACE)
+        set(VISIBILITY INTERFACE)
+    endif()
+
+    target_include_directories(${TARGET} ${VISIBILITY} ${SUBTARGET})
+    target_compile_features   (${TARGET} ${VISIBILITY} cxx_std_20)
+
+    if (JOSH3D_BUILD_WITH_ASAN)
+        target_link_libraries(${TARGET} ${VISIBILITY} josh3d-asan)
+    endif()
+
+endfunction()
+
+
+
+
 
 foreach(SUBTARGET IN ITEMS ${SUBTARGETS})
     make_subtarget(${SUBTARGET})
