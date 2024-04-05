@@ -1,6 +1,7 @@
 #include "CascadedShadowMapping.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLProgram.hpp"
+#include "LightCasters.hpp"
 #include "Logging.hpp"
 #include "tags/AlphaTested.hpp"
 #include "tags/CulledFromCSM.hpp"
@@ -8,6 +9,7 @@
 #include "Transform.hpp"
 #include "Mesh.hpp"
 #include "UniformTraits.hpp" // IWYU pragma: keep (traits)
+#include "tags/ShadowCasting.hpp"
 #include <entt/entity/entity.hpp>
 #include <entt/entity/fwd.hpp>
 #include <glbinding-aux/Meta.h>
@@ -22,6 +24,13 @@ namespace josh::stages::primary {
 void CascadedShadowMapping::operator()(
     RenderEnginePrimaryInterface& engine)
 {
+    // Check if the scene's directional light has shadowcasting enabled.
+    auto dlight_ent = *engine.registry().view<light::Directional>().begin();
+    if (!engine.registry().all_of<tags::ShadowCasting>(dlight_ent)) {
+        // Early-out if no shadowcasting.
+        return;
+    }
+
     resize_cascade_storage_if_needed();
 
     map_dir_light_shadow_cascade(engine, engine.registry());
