@@ -5,9 +5,9 @@
 #include "GLObjects.hpp"
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
+#include "StaticRing.hpp"
 #include "VPath.hpp"
 #include "Size.hpp"
-#include <array>
 #include <entt/entt.hpp>
 #include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/enum.h>
@@ -75,27 +75,13 @@ private:
     };
 
 
-    // FIXME: This could really be some kind of RingBuffer<T, N>
-    std::array<UniqueBuffer<float>, 2> val_bufs_{
+    // Doublebuffering for the buffers that contain screen values,
+    // so that the adaptation shader could write the new screen value
+    // while the exposure tonemap shader could use the old one.
+    StaticRing<UniqueBuffer<float>, 2> value_bufs_{{
         allocate_buffer<float>(NumElems{ 1 }),
-        allocate_buffer<float>(NumElems{ 1 }),
-    };
-    size_t current_val_id_{ 0 };
-
-    RawBuffer<float> current_value_buffer() const noexcept {
-        return val_bufs_[current_val_id_];
-    }
-
-    RawBuffer<float> next_value_buffer() const noexcept {
-        const size_t idx =
-            (current_val_id_ + 1) % val_bufs_.size();
-        return val_bufs_[idx];
-    }
-
-    void advance_current_value_buffer() noexcept {
-        current_val_id_ =
-            (current_val_id_ + 1) % val_bufs_.size();
-    }
+        allocate_buffer<float>(NumElems{ 1 })
+    }};
 
 
     UniqueBuffer<float> intermediate_buf_;
@@ -128,7 +114,7 @@ inline HDREyeAdaptation::HDREyeAdaptation(const Size2I& initial_resolution) noex
 
 inline float HDREyeAdaptation::get_screen_value() const noexcept {
     float out;
-    current_value_buffer().download_data_into({ &out, 1 });
+    value_bufs_.current()->download_data_into({ &out, 1 });
     return out;
 }
 
@@ -136,7 +122,7 @@ inline float HDREyeAdaptation::get_screen_value() const noexcept {
 
 
 inline void HDREyeAdaptation::set_screen_value(float new_value) noexcept {
-    current_value_buffer().upload_data({ &new_value, 1 });
+    value_bufs_.current()->upload_data({ &new_value, 1 });
 }
 
 
@@ -177,8 +163,8 @@ inline void HDREyeAdaptation::operator()(
             return val / denom + up;
         };
 
-        current_value_buffer().bind_to_index<BufferTargetIndexed::ShaderStorage>(1); // Read
-        next_value_buffer()   .bind_to_index<BufferTargetIndexed::ShaderStorage>(2); // Write
+        value_bufs_.current()->bind_to_index<BufferTargetIndexed::ShaderStorage>(1); // Read
+        value_bufs_.next()   ->bind_to_index<BufferTargetIndexed::ShaderStorage>(2); // Write
 
         const float fold_weight = adaptation_rate * engine.frame_timer().delta<float>();
 
@@ -207,7 +193,7 @@ inline void HDREyeAdaptation::operator()(
     }
 
     // Do a tonemapping pass.
-    current_value_buffer().bind_to_index<BufferTargetIndexed::ShaderStorage>(1);
+    value_bufs_.current()->bind_to_index<BufferTargetIndexed::ShaderStorage>(1);
     sp_tonemap_->uniform("color",           0);
     sp_tonemap_->uniform("exposure_factor", exposure_factor);
 
@@ -218,7 +204,7 @@ inline void HDREyeAdaptation::operator()(
 
 
     if (use_adaptation) {
-        advance_current_value_buffer();
+        value_bufs_.advance();
     }
 
 }
