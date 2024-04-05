@@ -51,6 +51,7 @@ public:
     bool  enable_occlusion_sampling{ true };
     float radius{ 0.2f };
     float bias{ 0.01f }; // Can't wait to do another reciever plane algo...
+    float resolution_divisor{ 2.f }; // Used to scale the Occlusion buffer resolution compared to screen size.
 
     enum class NoiseMode : GLint {
         SampledFromTexture = 0,
@@ -139,6 +140,19 @@ private:
         return s;
     }() };
 
+
+    Size2I scaled_resolution(const Size2I& resolution) const noexcept {
+        return {
+            GLsizei(float(resolution.width)  / resolution_divisor),
+            GLsizei(float(resolution.height) / resolution_divisor),
+        };
+    }
+
+
+
+
+
+
     UniqueTexture2D noise_texture_;
     Size2I noise_size_{ 16, 16 };
 
@@ -152,7 +166,7 @@ private:
     // We use vec4 to avoid issues with alignment in std430,
     // even though we only need vec3 of data.
     UniqueBuffer<glm::vec4> sampling_kernel_{
-        allocate_buffer<glm::vec4>(NumElems{ 9 }, StorageMode::StaticServer)
+        allocate_buffer<glm::vec4>(NumElems{ 12 }, StorageMode::StaticServer)
     };
 
     float min_sample_angle_rad_{ glm::radians(5.f) };
@@ -168,11 +182,11 @@ private:
 inline SSAO::SSAO(SharedStorageView<GBuffer> gbuffer)
     : gbuffer_{ std::move(gbuffer) }
     , noisy_target_{
-        gbuffer_->resolution(),
+        scaled_resolution(gbuffer_->resolution()),
         { InternalFormat::R8 }
     }
     , blurred_target_{
-        gbuffer_->resolution(),
+        scaled_resolution(gbuffer_->resolution()),
         { InternalFormat::R8 }
     }
 {
@@ -281,10 +295,14 @@ inline void SSAO::operator()(
 
     if (!enable_occlusion_sampling) return;
 
-    Size2I resolution = gbuffer_->resolution();
+    Size2I source_resolution = gbuffer_->resolution();
+    Size2I target_resolution = scaled_resolution(source_resolution);
 
-    noisy_target_  .resize(resolution);
-    blurred_target_.resize(resolution);
+    noisy_target_  .resize(target_resolution);
+    blurred_target_.resize(target_resolution);
+
+    glapi::set_viewport({ {}, target_resolution });
+
 
     auto& cam_params = engine.camera().get_params();
 
@@ -292,8 +310,8 @@ inline void SSAO::operator()(
     // This is the size of a noise texture in uv coordinates of the screen
     // assuming the size of a pixel is the same for both.
     glm::vec2 noise_size{
-        float(noise_size_.width)  / float(resolution.width),
-        float(noise_size_.height) / float(resolution.height),
+        float(noise_size_.width)  / float(source_resolution.width),
+        float(noise_size_.height) / float(source_resolution.height),
     };
 
     glm::mat4 view_mat    = engine.camera().view_mat();
@@ -375,6 +393,9 @@ inline void SSAO::operator()(
     // Update output.
     output_->noisy_texture   = noisy_target_.color_attachment().texture();
     output_->blurred_texture = blurred_target_.color_attachment().texture();
+
+    // TODO: This is not my responsibility, but everyone else suffers if I don't do this ;_;
+    glapi::set_viewport({ {}, source_resolution });
 }
 
 
