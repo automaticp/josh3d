@@ -4,6 +4,7 @@
 #include "Pixels.hpp"
 #include "ReadFile.hpp"
 #include "Size.hpp"
+#include <algorithm>
 #include <stb_image.h>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -14,49 +15,72 @@ namespace detail {
 
 
 template<typename ChanT>
-ImageStorage<ChanT> load_image_from_file_impl(
-    const File& file, size_t n_channels, bool vflip)
+auto load_image_from_file_impl(
+    const File& file,
+    size_t      min_channels,
+    size_t      max_channels,
+    bool        vflip)
+        -> UntypedImageLoadResult<ChanT>
 {
     stbi_set_flip_vertically_on_load(vflip);
-    int width, height, n_channels_out;
+    int width, height, num_channels_in_file;
+
+    bool ok = stbi_info(file.path().c_str(), &width, &height, &num_channels_in_file);
+
+    if (!ok) {
+        throw error::ImageReadingError(file.path(), stbi_failure_reason());
+    }
+
+    int desired_channels = std::clamp(num_channels_in_file, int(min_channels), int(max_channels));
+
 
     ChanT* data;
     if constexpr (std::same_as<ChanT, ubyte_t>) {
         data = stbi_load(
             file.path().c_str(),
-            &width, &height, &n_channels_out,
-            int(n_channels)
+            &width, &height, &num_channels_in_file,
+            desired_channels
         );
     } else if constexpr (std::same_as<ChanT, float>) {
         data = stbi_loadf(
             file.path().c_str(),
-            &width, &height, &n_channels_out,
-            int(n_channels)
+            &width, &height, &num_channels_in_file,
+            desired_channels
         );
     } else {
         static_assert(sizeof(ChanT) == 0);
     }
 
     if (!data) {
-        throw error::ImageReadingError(
-            file.path(), stbi_failure_reason()
-        );
+        throw error::ImageReadingError(file.path(), stbi_failure_reason());
     }
+
+    int num_channels = desired_channels == 0 ? num_channels_in_file : desired_channels;
 
     return {
         unique_malloc_ptr<ChanT[]>{ data },
-        Size2S(width, height)
+        Size2S(width, height),
+        size_t(num_channels),
+        size_t(num_channels_in_file)
     };
 }
 
 
 template
-ImageStorage<ubyte_t> load_image_from_file_impl<ubyte_t>(
-    const File &file, size_t n_channels, bool vflip);
+auto load_image_from_file_impl<ubyte_t>(
+    const File& file,
+    size_t      min_channels,
+    size_t      max_channels,
+    bool        vflip)
+        -> UntypedImageLoadResult<ubyte_t>;
 
 template
-ImageStorage<float>   load_image_from_file_impl<float>(
-    const File &file, size_t n_channels, bool vflip);
+auto load_image_from_file_impl<float>(
+    const File& file,
+    size_t      min_channels,
+    size_t      max_channels,
+    bool        vflip)
+        -> UntypedImageLoadResult<float>;
 
 
 std::array<File, 6> parse_cubemap_json_for_files(const File& json_file) {

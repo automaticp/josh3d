@@ -1,5 +1,6 @@
 #include "AssimpModelLoader.hpp"
 #include "AttributeTraits.hpp"
+#include "GLTextures.hpp"
 #include "components/ChildMesh.hpp"
 #include "components/BoundingSphere.hpp"
 #include "components/Mesh.hpp"
@@ -8,10 +9,9 @@
 #include "tags/AlphaTested.hpp"
 #include "Transform.hpp"
 #include "VertexPNTTB.hpp"
-#include "TextureHandlePool.hpp"
+#include "TexturePools.hpp"
 #include <entt/entt.hpp>
 #include <algorithm>
-#include <functional>
 
 
 namespace josh {
@@ -76,19 +76,18 @@ void ModelComponentLoader::emplace_material_components(
         return File{ context.directory.path() / filename.C_Str() };
     };
 
-
     auto match_context = [](aiTextureType type)
         -> TextureHandleLoadContext
     {
         switch (type) {
             case aiTextureType_DIFFUSE:
-                return { TextureType::diffuse };
+                return { TextureType::Diffuse };
             case aiTextureType_SPECULAR:
-                return { TextureType::specular };
+                return { TextureType::Specular };
             case aiTextureType_NORMALS:
-                return { TextureType::normal };
+                return { TextureType::Normal };
             case aiTextureType_HEIGHT:
-                return { TextureType::normal };
+                return { TextureType::Normal };
             default:
                 return {};
         }
@@ -111,21 +110,26 @@ void ModelComponentLoader::emplace_material_components(
 
             switch (load_context.type) {
                 using enum TextureType;
-                case diffuse:
-                    mesh_handle.emplace<components::MaterialDiffuse>(std::move(texture));
-                    // FIXME: Alpha masking is enabled by default for all meshes
-                    // with diffuse textures as we have no way to tell that from
-                    // the loading contex yet.
-                    mesh_handle.emplace<tags::AlphaTested>();
-                    break;
-                case specular:
-                    // FIXME: Shininess?
+                case Diffuse: {
+                    auto& diffuse =
+                        mesh_handle.emplace<components::MaterialDiffuse>(std::move(texture));
+                    // TODO: We check if the alpha channel even exitsts in the texture,
+                    // to decide on whether alpha testing should be enabled. Is there a better way?
+                    PixelComponentType alpha_component =
+                        diffuse.texture->get_component_type<PixelComponent::Alpha>();
+                    if (alpha_component != PixelComponentType::None) {
+                        mesh_handle.emplace<tags::AlphaTested>();
+                    }
+                } break;
+                case Specular: {
+                    // FIXME: Shininess? Ah, whatever, we don't even store it in the gbuffer.
                     mesh_handle.emplace<components::MaterialSpecular>(std::move(texture), 128.f);
-                    break;
-                case normal:
+                } break;
+                case Normal: {
                     mesh_handle.emplace<components::MaterialNormal>(std::move(texture));
-                    break;
+                } break;
                 default:
+                    // TODO: Is this REALLY an assert condition?
                     assert(false &&
                         "Requested unsupported TextureType");
             }

@@ -1,5 +1,7 @@
 #pragma once
+#include "GLAPICommonTypes.hpp"
 #include "GLObjectHelpers.hpp"
+#include "GLPixelPackTraits.hpp"
 #include "GLScalars.hpp"
 #include "GLTextures.hpp"
 #include "GLObjects.hpp"
@@ -35,26 +37,47 @@ public:
 
 
 
+template<typename ChannelT>
+[[nodiscard]] auto load_image_data_from_file(
+    const File& file,
+    size_t      min_channels,
+    size_t      max_channels,
+    bool        flip_vertically = true)
+        -> ImageData2<ChannelT>;
+
+// TODO: Deprecate this.
+template<typename PixelT>
+[[nodiscard]] auto load_image_from_file(
+    const File& file,
+    bool        flip_vertically = true)
+        -> ImageData<PixelT>;
 
 template<typename PixelT>
-[[nodiscard]] ImageData<PixelT>   load_image_from_file(const File& file,
-    bool flip_vertically = true);
-
-template<typename PixelT>
-[[nodiscard]] CubemapData<PixelT> load_cubemap_from_files(
+[[nodiscard]] auto load_cubemap_from_files(
     const File& posx, const File& negx,
     const File& posy, const File& negy,
     const File& posz, const File& negz,
-    bool flip_vertically = true);
+    bool flip_vertically = true)
+        -> CubemapData<PixelT>;
 
 template<typename PixelT>
-[[nodiscard]] CubemapData<PixelT> load_cubemap_from_json(const File& json_file,
-    bool flip_vertically = true);
+[[nodiscard]] auto load_cubemap_from_json(
+    const File& json_file,
+    bool        flip_vertically = true)
+        -> CubemapData<PixelT>;
 
 
 
 // A "material" texture will have it's mipmaps generated.
 
+
+template<typename ChannelT>
+[[nodiscard]] auto create_material_texture_from_image_data(
+    const ImageData2<ChannelT>& data,
+    PixelDataFormat             format,
+    PixelDataType               type,
+    InternalFormat              iformat)
+        -> UniqueTexture2D;
 
 template<typename PixelT>
 [[nodiscard]] auto create_material_texture_from_data(
@@ -82,22 +105,36 @@ namespace detail {
 
 
 template<typename ChanT>
-struct ImageStorage {
+struct UntypedImageLoadResult {
     unique_malloc_ptr<ChanT[]> data;
     Size2S size;
+    size_t num_channels;
+    size_t num_channels_in_file;
 };
 
 template<typename ChanT>
-ImageStorage<ChanT>   load_image_from_file_impl(
-    const File& file, size_t n_channels, bool vflip);
+auto load_image_from_file_impl(
+    const File& file,
+    size_t      min_channels,
+    size_t      max_channels,
+    bool        vflip)
+        -> UntypedImageLoadResult<ChanT>;
 
 extern template
-ImageStorage<ubyte_t> load_image_from_file_impl<ubyte_t>(
-    const File& file, size_t n_channels, bool vflip);
+auto load_image_from_file_impl<ubyte_t>(
+    const File& file,
+    size_t      min_channels,
+    size_t      max_channels,
+    bool        vflip)
+        -> UntypedImageLoadResult<ubyte_t>;
 
 extern template
-ImageStorage<float>   load_image_from_file_impl<float>(
-    const File& file, size_t n_channels, bool vflip);
+auto load_image_from_file_impl<float>(
+    const File& file,
+    size_t      min_channels,
+    size_t      max_channels,
+    bool        vflip)
+        -> UntypedImageLoadResult<float>;
 
 
 std::array<File, 6> parse_cubemap_json_for_files(const File& json_file);
@@ -106,12 +143,35 @@ std::array<File, 6> parse_cubemap_json_for_files(const File& json_file);
 } // namespace detail
 
 
+template<typename ChannelT>
+[[nodiscard]] auto load_image_data_from_file(
+    const File& file,
+    size_t      min_channels,
+    size_t      max_channels,
+    bool        flip_vertically)
+        -> ImageData2<ChannelT>
+{
+    detail::UntypedImageLoadResult<ChannelT> im =
+        detail::load_image_from_file_impl<ChannelT>(file, min_channels, max_channels, flip_vertically);
+
+    return {
+        std::move(im.data),
+        im.size,
+        im.num_channels
+    };
+}
+
+
 template<typename PixelT>
-[[nodiscard]] ImageData<PixelT> load_image_from_file(const class File& file, bool flip_vertically) {
+[[nodiscard]] auto load_image_from_file(
+    const class File& file,
+    bool              flip_vertically)
+        -> ImageData<PixelT>
+{
     using tr = pixel_traits<PixelT>;
 
-    detail::ImageStorage<typename tr::channel_type> im =
-        detail::load_image_from_file_impl<typename tr::channel_type>(file, tr::n_channels, flip_vertically);
+    detail::UntypedImageLoadResult<typename tr::channel_type> im =
+        detail::load_image_from_file_impl<typename tr::channel_type>(file, tr::n_channels, tr::n_channels, flip_vertically);
 
     return ImageData<PixelT>::from_channel_data(
         std::move(im.data), im.size
@@ -152,7 +212,26 @@ template<typename PixelT>
 
 
 
+template<typename ChannelT>
+[[nodiscard]] auto create_material_texture_from_image_data(
+    const ImageData2<ChannelT>& data,
+    PixelDataFormat             format,
+    PixelDataType               type,
+    InternalFormat              iformat)
+        -> UniqueTexture2D
+{
+    const Size2I resolution{ data.resolution() };
 
+    UniqueTexture2D texture;
+    texture->allocate_storage(resolution, iformat, max_num_levels(resolution));
+    texture->upload_image_region({ {}, resolution }, format, type, data.data(), MipLevel{ 0 });
+    texture->generate_mipmaps();
+    texture->set_sampler_min_mag_filters(MinFilter::LinearMipmapLinear, MagFilter::Linear);
+    return texture;
+}
+
+
+// TODO: Deprecate this.
 template<specifies_pixel_pack_traits PixelT>
 [[nodiscard]] auto create_material_texture_from_data(
     const ImageData<PixelT>& data,

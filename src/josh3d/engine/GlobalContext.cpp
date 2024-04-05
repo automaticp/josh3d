@@ -1,7 +1,6 @@
 #include "GlobalContext.hpp"
-#include "DataPool.hpp"
+#include "TexturePools.hpp"
 #include "DefaultResources.hpp"
-#include "TextureHandlePool.hpp"
 
 
 namespace josh::globals {
