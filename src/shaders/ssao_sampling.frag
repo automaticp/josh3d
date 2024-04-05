@@ -105,7 +105,7 @@ vec4 get_frag_pos_vs(vec2 uv) {
     switch (position_source) {
         case position_source_depth:
         {
-            float screen_z = texture(tex_depth, uv).r;
+            float screen_z = textureLod(tex_depth, uv, 0).r;
             float clip_w   = get_vs_depth(screen_z);
             vec4  pos_nss  = vec4(vec3(uv, screen_z), 1.0);
             vec4  pos_ndc  = pos_nss * 2.0 - 1.0;

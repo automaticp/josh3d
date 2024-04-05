@@ -135,7 +135,7 @@ private:
 
     UniqueSampler target_sampler_{ []() {
         UniqueSampler s;
-        s->set_min_mag_filters(MinFilter::Nearest, MagFilter::Nearest);
+        s->set_min_mag_filters(MinFilter::Linear, MagFilter::Linear);
         s->set_wrap_all(Wrap::ClampToEdge);
         return s;
     }() };
