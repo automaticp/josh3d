@@ -2,6 +2,7 @@
 #include "GLProgram.hpp"
 #include "UniformTraits.hpp" // IWYU pragma: keep (traits)
 #include "components/Materials.hpp"
+#include "tags/AlphaTested.hpp"
 #include "tags/Culled.hpp"
 #include "Transform.hpp"
 #include "RenderEngine.hpp"
@@ -27,8 +28,12 @@ void DeferredGeometry::operator()(
 
     // Exclude to not draw the same meshes twice.
 
-    auto material_ds_view  = registry.view<MTransform, Mesh>(entt::exclude<components::MaterialNormal, tags::Culled>);
-    auto material_dsn_view = registry.view<MTransform, Mesh, components::MaterialNormal>(entt::exclude<tags::Culled>);
+    // TODO: Anyway, I caved in, and we have 4 variations of shaders now...
+    // We should probably rework the mesh layout and remove the combination with/withoun normals.
+    auto view_ds_at    = registry.view<MTransform, Mesh, tags::AlphaTested>(entt::exclude<components::MaterialNormal, tags::Culled>);
+    auto view_ds_noat  = registry.view<MTransform, Mesh>(entt::exclude<components::MaterialNormal, tags::Culled, tags::AlphaTested>);
+    auto view_dsn_at   = registry.view<MTransform, Mesh, components::MaterialNormal, tags::AlphaTested>(entt::exclude<tags::Culled>);
+    auto view_dsn_noat = registry.view<MTransform, Mesh, components::MaterialNormal>(entt::exclude<tags::Culled, tags::AlphaTested>);
 
     // TODO: Mutual exclusions like these are generally
     // uncomfortable to do in EnTT. Is there a better way?
@@ -52,19 +57,13 @@ void DeferredGeometry::operator()(
 
     };
 
+
+
     auto bound_fbo = gbuffer_->bind_draw();
 
-    // FIXME: Poor interaction with alpha-testing.
-    if (enable_backface_culling) {
-        glapi::enable(Capability::FaceCulling);
-    } else {
-        glapi::disable(Capability::FaceCulling);
-    }
 
-
-    {
-        auto bound_program = sp_ds->use();
-        RawProgram<> sp = *sp_ds;
+    auto draw_ds = [&](RawProgram<> sp, auto entt_view) {
+        auto bound_program = sp.use();
 
         sp.uniform("projection", proj);
         sp.uniform("view",       view);
@@ -72,9 +71,7 @@ void DeferredGeometry::operator()(
         sp.uniform("material.diffuse",  0);
         sp.uniform("material.specular", 1);
 
-        for (auto [entity, world_mtf, mesh]
-            : material_ds_view.each())
-        {
+        for (auto [entity, world_mtf, mesh] : entt_view.each()) {
             sp.uniform("model",        world_mtf.model());
             sp.uniform("normal_model", world_mtf.normal_model());
             sp.uniform("object_id",    entt::to_integral(entity));
@@ -85,11 +82,10 @@ void DeferredGeometry::operator()(
         }
 
         bound_program.unbind();
-    }
+    };
 
-    {
-        auto bound_program = sp_dsn->use();
-        RawProgram<> sp = *sp_dsn;
+    auto draw_dsn = [&](RawProgram<> sp, auto entt_view) {
+        auto bound_program = sp.use();
 
         sp.uniform("projection", proj);
         sp.uniform("view",       view);
@@ -98,9 +94,7 @@ void DeferredGeometry::operator()(
         sp.uniform("material.specular", 1);
         sp.uniform("material.normal",   2);
 
-        for (auto [entity, world_mtf, mesh, mat_normal]
-            : material_dsn_view.each())
-        {
+        for (auto [entity, world_mtf, mesh, mat_normal] : entt_view.each()) {
             sp.uniform("model",        world_mtf.model());
             sp.uniform("normal_model", world_mtf.normal_model());
             sp.uniform("object_id",    entt::to_integral(entity));
@@ -112,10 +106,32 @@ void DeferredGeometry::operator()(
         }
 
         bound_program.unbind();
+    };
+
+
+    // Not Alpha-Tested. Opaque.
+    // Can be backface culled.
+
+    if (enable_backface_culling) {
+        glapi::enable(Capability::FaceCulling);
+    } else {
+        glapi::disable(Capability::FaceCulling);
     }
 
+    draw_ds (sp_ds_noat,  view_ds_noat );
+    draw_dsn(sp_dsn_noat, view_dsn_noat);
+
+
+    // Alpha-Tested.
+    // No backface culling even if requested.
 
     glapi::disable(Capability::FaceCulling);
+
+    draw_ds (sp_ds_at,  view_ds_at );
+    draw_dsn(sp_dsn_at, view_dsn_at);
+
+
+
     bound_fbo.unbind();
 }
 

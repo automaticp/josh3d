@@ -58,6 +58,8 @@ CascadeViewsBuilder
 */
 class CascadedShadowMapping {
 public:
+    bool enable_backface_culling{ true };
+
     CascadedShadowMapping(
         SharedStorageView<CascadeViews> cascade_info_input,
         size_t                          max_cascades = 12)

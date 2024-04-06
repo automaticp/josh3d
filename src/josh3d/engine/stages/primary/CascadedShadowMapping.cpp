@@ -185,11 +185,20 @@ void CascadedShadowMapping::map_dir_light_shadow_cascade(
     };
 
 
-    set_common_uniforms(sp_with_alpha_);
-    draw_all_world_geometry_with_alpha_test(bound_fbo, registry);
+    if (enable_backface_culling) {
+        glapi::enable(Capability::FaceCulling);
+    } else {
+        glapi::disable(Capability::FaceCulling);
+    }
 
     set_common_uniforms(sp_no_alpha_);
     draw_all_world_geometry_no_alpha_test(bound_fbo, registry);
+
+
+    glapi::disable(Capability::FaceCulling);
+
+    set_common_uniforms(sp_with_alpha_);
+    draw_all_world_geometry_with_alpha_test(bound_fbo, registry);
 
 
     bound_fbo.unbind();

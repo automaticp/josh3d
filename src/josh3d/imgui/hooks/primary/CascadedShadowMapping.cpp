@@ -5,6 +5,6 @@
 
 JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, CascadedShadowMapping) {
 
-    // TODO: Nothing to do here for now.
+    ImGui::Checkbox("Backface Culling", &stage_.enable_backface_culling);
 
 }
