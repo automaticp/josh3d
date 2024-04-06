@@ -1,4 +1,5 @@
 #include "AsyncDataPool.hpp"
+#include "Future.hpp"
 #include "ThreadPool.hpp"
 #include <doctest/doctest.h>
 #include <limits>
@@ -142,7 +143,7 @@ TEST_CASE_TEMPLATE("Loading correctness", T, TestResourceHashed, TestResourceHas
         SUBCASE("Load async if not in cache") {
             std::optional<Shared<T>> opt_res = data_pool.try_load_from_cache(path);
             CHECK(!opt_res.has_value());
-            Shared<T> res = data_pool.load_async(path).get();
+            Shared<T> res = get_result(data_pool.load_async(path));
             REQUIRE(res != nullptr);
             CHECK(res->value == expected.value);
         }
@@ -151,7 +152,7 @@ TEST_CASE_TEMPLATE("Loading correctness", T, TestResourceHashed, TestResourceHas
             // This subcase is mostly here as a form of documentation of what
             // can happen when you don't read the documentation.
 
-            data_pool.load_async(path).wait();
+            data_pool.load_async(path).wait_for_result();
 
             // This might fail, the loading thread is still running,
             // and might have not yet emplaced a resource or is holding a write lock.
@@ -176,7 +177,7 @@ TEST_CASE_TEMPLATE("Loading correctness", T, TestResourceHashed, TestResourceHas
             }
             INFO("Retrieved the resource in " << n_attempts << " attempt(s)");
             Shared<T> first_copy = std::move(opt_res.value());
-            Shared<T> second_copy = future.get();
+            Shared<T> second_copy = get_result(std::move(future));
             REQUIRE(first_copy != nullptr);
             REQUIRE(second_copy != nullptr);
             CHECK(first_copy.get() == second_copy.get());
@@ -190,13 +191,13 @@ TEST_CASE_TEMPLATE("Loading correctness", T, TestResourceHashed, TestResourceHas
             // then this will UB on trying to emplace/cache a Shared<T> into the pool after it's
             // destroyed. Waiting on futures returned from AsyncDataPool is not enough
             // as they are fulfilled before caching happens.
-            std::vector<std::future<Shared<T>>> futures = views::repeat(path)
+            std::vector<Future<Shared<T>>> futures = views::repeat(path)
                 | views::take(1024)
                 | views::transform([&](const std::string& path) { return data_pool.load_async(path); })
                 | ranges::to<std::vector>();
 
             auto results = futures
-                | views::transform([](std::future<Shared<T>>& f) { return f.get(); })
+                | views::transform([](Future<Shared<T>>& f) { return get_result(std::move(f)); })
                 | ranges::to<std::vector>();
 
             REQUIRE(ranges::all_of(results, [](auto& elem) { return elem != nullptr; }));
@@ -225,11 +226,11 @@ TEST_CASE_TEMPLATE("Loading correctness", T, TestResourceHashed, TestResourceHas
         }
 
         SUBCASE("Load async all at once, wait until completion") {
-            std::vector<std::future<Shared<T>>> futures =
+            std::vector<Future<Shared<T>>> futures =
                 map(paths, [&](const std::string& path) { return data_pool.load_async(path); });
 
             std::vector<Shared<T>> results =
-                map(futures, [](std::future<Shared<T>>& future) { return future.get(); });
+                map(futures, [](Future<Shared<T>>& future) { return get_result(std::move(future)); });
 
             REQUIRE(ranges::all_of(results, [](auto& elem) { return elem != nullptr; }));
             CHECK(ranges::equal(results, expected, {}, [](Shared<T>& e) { return e->value; }, &T::value));
@@ -237,11 +238,11 @@ TEST_CASE_TEMPLATE("Loading correctness", T, TestResourceHashed, TestResourceHas
 
 
         SUBCASE("Load async all at once then immediately try to load from cache") {
-            std::vector<std::future<Shared<T>>> futures =
+            std::vector<Future<Shared<T>>> futures =
                 map(paths, [&](const std::string& path) { return data_pool.load_async(path); });
 
             std::vector<Shared<T>> results =
-                map(futures, [](std::future<Shared<T>>& future) { return future.get(); });
+                map(futures, [](Future<Shared<T>>& future) { return get_result(std::move(future)); });
 
             std::vector<std::optional<Shared<T>>> opt_results =
                 map(paths, [&](const std::string& path) { return data_pool.try_load_from_cache(path); });
@@ -303,7 +304,7 @@ TEST_CASE("Exception propagation") {
         SUBCASE("Load async once; expect to throw") {
             auto future = data_pool.load_async(path);
 
-            CHECK_THROWS_WITH_AS(future.get(), path.c_str(), TestException);
+            CHECK_THROWS_WITH_AS(get_result(std::move(future)), path.c_str(), TestException);
         }
 
         SUBCASE("Load async multiple times; expect all to throw") {
@@ -311,7 +312,7 @@ TEST_CASE("Exception propagation") {
                 | ranges::to<std::vector>();
 
             for (auto& future : futures) {
-                CHECK_THROWS_WITH_AS(future.get(), path.c_str(), TestException);
+                CHECK_THROWS_WITH_AS(get_result(std::move(future)), path.c_str(), TestException);
             }
         }
     }
@@ -324,7 +325,7 @@ TEST_CASE("Exception propagation") {
             auto futures = map(paths, [&](const auto& path) { return data_pool.load_async(path); });
 
             for (auto [future, path] : views::zip(futures, paths)) {
-                CHECK_THROWS_WITH_AS(future.get(), path.c_str(), TestException);
+                CHECK_THROWS_WITH_AS(get_result(std::move(future)), path.c_str(), TestException);
             }
         }
 
@@ -332,7 +333,7 @@ TEST_CASE("Exception propagation") {
             auto futures = map(paths, [&](const auto& path) { return data_pool.load_async(path); });
 
             for (auto [future, path] : views::zip(futures, paths)) {
-                CHECK_THROWS_WITH_AS(future.get(), path.c_str(), TestException);
+                CHECK_THROWS_WITH_AS(get_result(std::move(future)), path.c_str(), TestException);
             }
 
             // WARN: This part of the test is flaky. There's no way to synchronize

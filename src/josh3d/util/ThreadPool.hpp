@@ -1,5 +1,6 @@
 #pragma once
 #include "ThreadsafeQueue.hpp"
+#include "UniqueFunction.hpp"
 #include <atomic>
 #include <concepts>
 #include <cstddef>
@@ -37,15 +38,7 @@ A simple task-stealing thread pool with a minimal interface.
 */
 class ThreadPool {
 private:
-    // We are using packaged_task because it's move-only and doesn't impose
-    // a copy-constructable requirement on the target function as std::function does.
-    // That requirement is really bad for tasks as NOTHING can be move-only
-    // around it: not the arguments, nor the capture; I can't even move the promise
-    // for the return value inside the task wrapper on the implementation side.
-    //
-    // We do not use any special machinery of the packaged_task, so it should be
-    // replaced with move_only_function once that's avaliable.
-    using task_t = std::packaged_task<void()>;
+    using task_t = UniqueFunction<void()>;
 
     size_t n_threads_;
 
