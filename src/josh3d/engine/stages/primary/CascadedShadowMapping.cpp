@@ -185,8 +185,9 @@ void CascadedShadowMapping::map_dir_light_shadow_cascade(
     };
 
 
-    if (enable_backface_culling) {
+    if (enable_face_culling) {
         glapi::enable(Capability::FaceCulling);
+        glapi::set_face_culling_target(enum_cast<Faces>(faces_to_cull));
     } else {
         glapi::disable(Capability::FaceCulling);
     }
@@ -195,6 +196,7 @@ void CascadedShadowMapping::map_dir_light_shadow_cascade(
     draw_all_world_geometry_no_alpha_test(bound_fbo, registry);
 
 
+    glapi::set_face_culling_target(Faces::Back);
     glapi::disable(Capability::FaceCulling);
 
     set_common_uniforms(sp_with_alpha_);

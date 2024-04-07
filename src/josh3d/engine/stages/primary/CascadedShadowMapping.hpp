@@ -58,7 +58,8 @@ CascadeViewsBuilder
 */
 class CascadedShadowMapping {
 public:
-    bool enable_backface_culling{ true };
+    bool enable_face_culling = true;
+    Face faces_to_cull       = Face::Back;
 
     CascadedShadowMapping(
         SharedStorageView<CascadeViews> cascade_info_input,
