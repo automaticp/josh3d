@@ -338,9 +338,9 @@ enum class Capability : GLuint {
 
     ProgramSpecifiedPointSize  = GLuint(gl::GL_PROGRAM_POINT_SIZE),
 
-    AntialiasedPoints   [[deprecated]] = GLuint(gl::GL_POINT_SMOOTH),
-    AntialiasedLines    [[deprecated]] = GLuint(gl::GL_LINE_SMOOTH),
-    AntialiasedPolygons [[deprecated]] = GLuint(gl::GL_POLYGON_SMOOTH),
+    AntialiasedPoints   /* [[deprecated]] */ = GLuint(gl::GL_POINT_SMOOTH),
+    AntialiasedLines    /* [[deprecated]] */ = GLuint(gl::GL_LINE_SMOOTH),
+    AntialiasedPolygons /* [[deprecated]] */ = GLuint(gl::GL_POLYGON_SMOOTH),
 
     FaceCulling                = GLuint(gl::GL_CULL_FACE),
 
@@ -392,6 +392,30 @@ inline bool is_enabled_indexed(CapabilityIndexed cap, GLuint index) noexcept {
 } // namespace glapi
 
 
+
+
+
+
+
+
+
+
+
+
+
+// Section: Flush and Finish [2.3.3]
+
+namespace glapi {
+
+inline void finish() noexcept {
+    gl::glFinish();
+}
+
+inline void flush() noexcept {
+    gl::glFlush();
+}
+
+} // namespace glapi
 
 
 

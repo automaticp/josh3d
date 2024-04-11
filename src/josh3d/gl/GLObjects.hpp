@@ -3,6 +3,7 @@
 #include "GLBuffers.hpp"      // IWYU pragma: export
 #include "GLFenceSync.hpp"    // IWYU pragma: export
 #include "GLFramebuffer.hpp"  // IWYU pragma: export
+#include "GLMutability.hpp"
 #include "GLProgram.hpp"      // IWYU pragma: export
 #include "GLQueries.hpp"      // IWYU pragma: export
 #include "GLSampler.hpp"      // IWYU pragma: export
@@ -20,10 +21,12 @@ namespace josh {
 // does not depend on the concrete implementations of any of these objects.
 
 #define JOSH3D_ALIAS_DSA_UNIQUE(Object) \
-    using Unique##Object = GLUnique<Raw##Object<GLMutable>>; // NOLINT(bugprone-macro-parentheses)
+    using Unique##Object      = GLUnique<Raw##Object<GLMutable>>; \
+    using UniqueConst##Object = GLUnique<Raw##Object<GLConst>>;
 
 #define JOSH3D_ALIAS_DSA_SHARED(Object) \
-    using Shared##Object = GLShared<Raw##Object<GLMutable>>; // NOLINT(bugprone-macro-parentheses)
+    using Shared##Object      = GLShared<Raw##Object<GLMutable>>; \
+    using SharedConst##Object = GLShared<Raw##Object<GLConst>>;
 
 #define JOSH3D_ALIAS_DSA_OWNERS(Object) \
     JOSH3D_ALIAS_DSA_UNIQUE(Object)     \
@@ -31,8 +34,10 @@ namespace josh {
 
 
 JOSH3D_ALIAS_DSA_OWNERS(UntypedBuffer)
-template<trivially_copyable T> using UniqueBuffer = GLUnique<RawBuffer<T, GLMutable>>;
-template<trivially_copyable T> using SharedBuffer = GLShared<RawBuffer<T, GLMutable>>;
+template<trivially_copyable T> using UniqueBuffer      = GLUnique<RawBuffer<T, GLMutable>>;
+template<trivially_copyable T> using UniqueConstBuffer = GLUnique<RawBuffer<T, GLConst>>;
+template<trivially_copyable T> using SharedBuffer      = GLShared<RawBuffer<T, GLMutable>>;
+template<trivially_copyable T> using SharedConstBuffer = GLShared<RawBuffer<T, GLConst>>;
 
 JOSH3D_ALIAS_DSA_OWNERS(FenceSync)
 

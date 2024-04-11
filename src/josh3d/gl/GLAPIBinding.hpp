@@ -84,42 +84,79 @@ enum class BindingIndexed : GLuint {
 };
 
 
+template<Binding B> inline void bind_to_context(GLuint id) noexcept;
+
+template<> inline void bind_to_context<Binding::ArrayBuffer>           (GLuint id) noexcept { gl::glBindBuffer           (gl::GL_ARRAY_BUFFER,                 id); }
+template<> inline void bind_to_context<Binding::AtomicCounterBuffer>   (GLuint id) noexcept { gl::glBindBuffer           (gl::GL_ATOMIC_COUNTER_BUFFER,        id); }
+template<> inline void bind_to_context<Binding::CopyReadBuffer>        (GLuint id) noexcept { gl::glBindBuffer           (gl::GL_COPY_READ_BUFFER,             id); }
+template<> inline void bind_to_context<Binding::CopyWriteBuffer>       (GLuint id) noexcept { gl::glBindBuffer           (gl::GL_COPY_WRITE_BUFFER,            id); }
+template<> inline void bind_to_context<Binding::DispatchIndirectBuffer>(GLuint id) noexcept { gl::glBindBuffer           (gl::GL_DISPATCH_INDIRECT_BUFFER,     id); }
+template<> inline void bind_to_context<Binding::DrawIndirectBuffer>    (GLuint id) noexcept { gl::glBindBuffer           (gl::GL_DRAW_INDIRECT_BUFFER,         id); }
+template<> inline void bind_to_context<Binding::ElementArrayBuffer>    (GLuint id) noexcept { gl::glBindBuffer           (gl::GL_ELEMENT_ARRAY_BUFFER,         id); }
+template<> inline void bind_to_context<Binding::ParameterBuffer>       (GLuint id) noexcept { gl::glBindBuffer           (gl::GL_PARAMETER_BUFFER,             id); }
+template<> inline void bind_to_context<Binding::PixelPackBuffer>       (GLuint id) noexcept { gl::glBindBuffer           (gl::GL_PIXEL_PACK_BUFFER,            id); }
+template<> inline void bind_to_context<Binding::PixelUnpackBuffer>     (GLuint id) noexcept { gl::glBindBuffer           (gl::GL_PIXEL_UNPACK_BUFFER,          id); }
+template<> inline void bind_to_context<Binding::QueryBuffer>           (GLuint id) noexcept { gl::glBindBuffer           (gl::GL_QUERY_BUFFER,                 id); }
+template<> inline void bind_to_context<Binding::ShaderStorageBuffer>   (GLuint id) noexcept { gl::glBindBuffer           (gl::GL_SHADER_STORAGE_BUFFER,        id); }
+template<> inline void bind_to_context<Binding::TextureBuffer>         (GLuint id) noexcept { gl::glBindBuffer           (gl::GL_TEXTURE_BUFFER,               id); }
+template<> inline void bind_to_context<Binding::UniformBuffer>         (GLuint id) noexcept { gl::glBindBuffer           (gl::GL_UNIFORM_BUFFER,               id); }
+template<> inline void bind_to_context<Binding::VertexArray>           (GLuint id) noexcept { gl::glBindVertexArray      (                                     id); }
+template<> inline void bind_to_context<Binding::DrawFramebuffer>       (GLuint id) noexcept { gl::glBindFramebuffer      (gl::GL_DRAW_FRAMEBUFFER,             id); }
+template<> inline void bind_to_context<Binding::ReadFramebuffer>       (GLuint id) noexcept { gl::glBindFramebuffer      (gl::GL_READ_FRAMEBUFFER,             id); }
+template<> inline void bind_to_context<Binding::TransformFeedback>     (GLuint id) noexcept { gl::glBindTransformFeedback(gl::GL_TRANSFORM_FEEDBACK,           id); }
+template<> inline void bind_to_context<Binding::Renderbuffer>          (GLuint id) noexcept { gl::glBindRenderbuffer     (gl::GL_RENDERBUFFER,                 id); }
+template<> inline void bind_to_context<Binding::BufferTexture>         (GLuint id) noexcept { gl::glBindTexture          (gl::GL_TEXTURE_BUFFER,               id); }
+template<> inline void bind_to_context<Binding::Texture1D>             (GLuint id) noexcept { gl::glBindTexture          (gl::GL_TEXTURE_1D,                   id); }
+template<> inline void bind_to_context<Binding::Texture1DArray>        (GLuint id) noexcept { gl::glBindTexture          (gl::GL_TEXTURE_1D_ARRAY,             id); }
+template<> inline void bind_to_context<Binding::TextureRectangle>      (GLuint id) noexcept { gl::glBindTexture          (gl::GL_TEXTURE_RECTANGLE,            id); }
+template<> inline void bind_to_context<Binding::Texture2D>             (GLuint id) noexcept { gl::glBindTexture          (gl::GL_TEXTURE_2D,                   id); }
+template<> inline void bind_to_context<Binding::Texture2DArray>        (GLuint id) noexcept { gl::glBindTexture          (gl::GL_TEXTURE_2D_ARRAY,             id); }
+template<> inline void bind_to_context<Binding::Texture2DMS>           (GLuint id) noexcept { gl::glBindTexture          (gl::GL_TEXTURE_2D_MULTISAMPLE,       id); }
+template<> inline void bind_to_context<Binding::Texture2DMSArray>      (GLuint id) noexcept { gl::glBindTexture          (gl::GL_TEXTURE_2D_MULTISAMPLE_ARRAY, id); }
+template<> inline void bind_to_context<Binding::Texture3D>             (GLuint id) noexcept { gl::glBindTexture          (gl::GL_TEXTURE_3D,                   id); }
+template<> inline void bind_to_context<Binding::Cubemap>               (GLuint id) noexcept { gl::glBindTexture          (gl::GL_TEXTURE_CUBE_MAP,             id); }
+template<> inline void bind_to_context<Binding::CubemapArray>          (GLuint id) noexcept { gl::glBindTexture          (gl::GL_TEXTURE_CUBE_MAP_ARRAY,       id); }
+template<> inline void bind_to_context<Binding::Program>               (GLuint id) noexcept { gl::glUseProgram           (                                     id); }
+template<> inline void bind_to_context<Binding::ProgramPipeline>       (GLuint id) noexcept { gl::glBindProgramPipeline  (                                     id); }
+
+
+
 
 template<Binding B> inline void unbind_from_context() noexcept;
 
 
-template<> inline void unbind_from_context<Binding::ArrayBuffer>()            noexcept { gl::glBindBuffer           (gl::GL_ARRAY_BUFFER,                 0); }
-template<> inline void unbind_from_context<Binding::AtomicCounterBuffer>()    noexcept { gl::glBindBuffer           (gl::GL_ATOMIC_COUNTER_BUFFER,        0); }
-template<> inline void unbind_from_context<Binding::CopyReadBuffer>()         noexcept { gl::glBindBuffer           (gl::GL_COPY_READ_BUFFER,             0); }
-template<> inline void unbind_from_context<Binding::CopyWriteBuffer>()        noexcept { gl::glBindBuffer           (gl::GL_COPY_WRITE_BUFFER,            0); }
+template<> inline void unbind_from_context<Binding::ArrayBuffer>           () noexcept { gl::glBindBuffer           (gl::GL_ARRAY_BUFFER,                 0); }
+template<> inline void unbind_from_context<Binding::AtomicCounterBuffer>   () noexcept { gl::glBindBuffer           (gl::GL_ATOMIC_COUNTER_BUFFER,        0); }
+template<> inline void unbind_from_context<Binding::CopyReadBuffer>        () noexcept { gl::glBindBuffer           (gl::GL_COPY_READ_BUFFER,             0); }
+template<> inline void unbind_from_context<Binding::CopyWriteBuffer>       () noexcept { gl::glBindBuffer           (gl::GL_COPY_WRITE_BUFFER,            0); }
 template<> inline void unbind_from_context<Binding::DispatchIndirectBuffer>() noexcept { gl::glBindBuffer           (gl::GL_DISPATCH_INDIRECT_BUFFER,     0); }
-template<> inline void unbind_from_context<Binding::DrawIndirectBuffer>()     noexcept { gl::glBindBuffer           (gl::GL_DRAW_INDIRECT_BUFFER,         0); }
-template<> inline void unbind_from_context<Binding::ElementArrayBuffer>()     noexcept { gl::glBindBuffer           (gl::GL_ELEMENT_ARRAY_BUFFER,         0); }
-template<> inline void unbind_from_context<Binding::ParameterBuffer>()        noexcept { gl::glBindBuffer           (gl::GL_PARAMETER_BUFFER,             0); }
-template<> inline void unbind_from_context<Binding::PixelPackBuffer>()        noexcept { gl::glBindBuffer           (gl::GL_PIXEL_PACK_BUFFER,            0); }
-template<> inline void unbind_from_context<Binding::PixelUnpackBuffer>()      noexcept { gl::glBindBuffer           (gl::GL_PIXEL_UNPACK_BUFFER,          0); }
-template<> inline void unbind_from_context<Binding::QueryBuffer>()            noexcept { gl::glBindBuffer           (gl::GL_QUERY_BUFFER,                 0); }
-template<> inline void unbind_from_context<Binding::ShaderStorageBuffer>()    noexcept { gl::glBindBuffer           (gl::GL_SHADER_STORAGE_BUFFER,        0); }
-template<> inline void unbind_from_context<Binding::TextureBuffer>()          noexcept { gl::glBindBuffer           (gl::GL_TEXTURE_BUFFER,               0); }
-template<> inline void unbind_from_context<Binding::UniformBuffer>()          noexcept { gl::glBindBuffer           (gl::GL_UNIFORM_BUFFER,               0); }
-template<> inline void unbind_from_context<Binding::VertexArray>()            noexcept { gl::glBindVertexArray      (                                     0); }
-template<> inline void unbind_from_context<Binding::DrawFramebuffer>()        noexcept { gl::glBindFramebuffer      (gl::GL_DRAW_FRAMEBUFFER,             0); }
-template<> inline void unbind_from_context<Binding::ReadFramebuffer>()        noexcept { gl::glBindFramebuffer      (gl::GL_READ_FRAMEBUFFER,             0); }
-template<> inline void unbind_from_context<Binding::TransformFeedback>()      noexcept { gl::glBindTransformFeedback(gl::GL_TRANSFORM_FEEDBACK,           0); }
-template<> inline void unbind_from_context<Binding::Renderbuffer>()           noexcept { gl::glBindRenderbuffer     (gl::GL_RENDERBUFFER,                 0); }
-template<> inline void unbind_from_context<Binding::BufferTexture>()          noexcept { gl::glBindTexture          (gl::GL_TEXTURE_BUFFER,               0); }
-template<> inline void unbind_from_context<Binding::Texture1D>()              noexcept { gl::glBindTexture          (gl::GL_TEXTURE_1D,                   0); }
-template<> inline void unbind_from_context<Binding::Texture1DArray>()         noexcept { gl::glBindTexture          (gl::GL_TEXTURE_1D_ARRAY,             0); }
-template<> inline void unbind_from_context<Binding::TextureRectangle>()       noexcept { gl::glBindTexture          (gl::GL_TEXTURE_RECTANGLE,            0); }
-template<> inline void unbind_from_context<Binding::Texture2D>()              noexcept { gl::glBindTexture          (gl::GL_TEXTURE_2D,                   0); }
-template<> inline void unbind_from_context<Binding::Texture2DArray>()         noexcept { gl::glBindTexture          (gl::GL_TEXTURE_2D_ARRAY,             0); }
-template<> inline void unbind_from_context<Binding::Texture2DMS>()            noexcept { gl::glBindTexture          (gl::GL_TEXTURE_2D_MULTISAMPLE,       0); }
-template<> inline void unbind_from_context<Binding::Texture2DMSArray>()       noexcept { gl::glBindTexture          (gl::GL_TEXTURE_2D_MULTISAMPLE_ARRAY, 0); }
-template<> inline void unbind_from_context<Binding::Texture3D>()              noexcept { gl::glBindTexture          (gl::GL_TEXTURE_3D,                   0); }
-template<> inline void unbind_from_context<Binding::Cubemap>()                noexcept { gl::glBindTexture          (gl::GL_TEXTURE_CUBE_MAP,             0); }
-template<> inline void unbind_from_context<Binding::CubemapArray>()           noexcept { gl::glBindTexture          (gl::GL_TEXTURE_CUBE_MAP_ARRAY,       0); }
-template<> inline void unbind_from_context<Binding::Program>()                noexcept { gl::glUseProgram           (                                     0); }
-template<> inline void unbind_from_context<Binding::ProgramPipeline>()        noexcept { gl::glBindProgramPipeline  (                                     0); }
+template<> inline void unbind_from_context<Binding::DrawIndirectBuffer>    () noexcept { gl::glBindBuffer           (gl::GL_DRAW_INDIRECT_BUFFER,         0); }
+template<> inline void unbind_from_context<Binding::ElementArrayBuffer>    () noexcept { gl::glBindBuffer           (gl::GL_ELEMENT_ARRAY_BUFFER,         0); }
+template<> inline void unbind_from_context<Binding::ParameterBuffer>       () noexcept { gl::glBindBuffer           (gl::GL_PARAMETER_BUFFER,             0); }
+template<> inline void unbind_from_context<Binding::PixelPackBuffer>       () noexcept { gl::glBindBuffer           (gl::GL_PIXEL_PACK_BUFFER,            0); }
+template<> inline void unbind_from_context<Binding::PixelUnpackBuffer>     () noexcept { gl::glBindBuffer           (gl::GL_PIXEL_UNPACK_BUFFER,          0); }
+template<> inline void unbind_from_context<Binding::QueryBuffer>           () noexcept { gl::glBindBuffer           (gl::GL_QUERY_BUFFER,                 0); }
+template<> inline void unbind_from_context<Binding::ShaderStorageBuffer>   () noexcept { gl::glBindBuffer           (gl::GL_SHADER_STORAGE_BUFFER,        0); }
+template<> inline void unbind_from_context<Binding::TextureBuffer>         () noexcept { gl::glBindBuffer           (gl::GL_TEXTURE_BUFFER,               0); }
+template<> inline void unbind_from_context<Binding::UniformBuffer>         () noexcept { gl::glBindBuffer           (gl::GL_UNIFORM_BUFFER,               0); }
+template<> inline void unbind_from_context<Binding::VertexArray>           () noexcept { gl::glBindVertexArray      (                                     0); }
+template<> inline void unbind_from_context<Binding::DrawFramebuffer>       () noexcept { gl::glBindFramebuffer      (gl::GL_DRAW_FRAMEBUFFER,             0); }
+template<> inline void unbind_from_context<Binding::ReadFramebuffer>       () noexcept { gl::glBindFramebuffer      (gl::GL_READ_FRAMEBUFFER,             0); }
+template<> inline void unbind_from_context<Binding::TransformFeedback>     () noexcept { gl::glBindTransformFeedback(gl::GL_TRANSFORM_FEEDBACK,           0); }
+template<> inline void unbind_from_context<Binding::Renderbuffer>          () noexcept { gl::glBindRenderbuffer     (gl::GL_RENDERBUFFER,                 0); }
+template<> inline void unbind_from_context<Binding::BufferTexture>         () noexcept { gl::glBindTexture          (gl::GL_TEXTURE_BUFFER,               0); }
+template<> inline void unbind_from_context<Binding::Texture1D>             () noexcept { gl::glBindTexture          (gl::GL_TEXTURE_1D,                   0); }
+template<> inline void unbind_from_context<Binding::Texture1DArray>        () noexcept { gl::glBindTexture          (gl::GL_TEXTURE_1D_ARRAY,             0); }
+template<> inline void unbind_from_context<Binding::TextureRectangle>      () noexcept { gl::glBindTexture          (gl::GL_TEXTURE_RECTANGLE,            0); }
+template<> inline void unbind_from_context<Binding::Texture2D>             () noexcept { gl::glBindTexture          (gl::GL_TEXTURE_2D,                   0); }
+template<> inline void unbind_from_context<Binding::Texture2DArray>        () noexcept { gl::glBindTexture          (gl::GL_TEXTURE_2D_ARRAY,             0); }
+template<> inline void unbind_from_context<Binding::Texture2DMS>           () noexcept { gl::glBindTexture          (gl::GL_TEXTURE_2D_MULTISAMPLE,       0); }
+template<> inline void unbind_from_context<Binding::Texture2DMSArray>      () noexcept { gl::glBindTexture          (gl::GL_TEXTURE_2D_MULTISAMPLE_ARRAY, 0); }
+template<> inline void unbind_from_context<Binding::Texture3D>             () noexcept { gl::glBindTexture          (gl::GL_TEXTURE_3D,                   0); }
+template<> inline void unbind_from_context<Binding::Cubemap>               () noexcept { gl::glBindTexture          (gl::GL_TEXTURE_CUBE_MAP,             0); }
+template<> inline void unbind_from_context<Binding::CubemapArray>          () noexcept { gl::glBindTexture          (gl::GL_TEXTURE_CUBE_MAP_ARRAY,       0); }
+template<> inline void unbind_from_context<Binding::Program>               () noexcept { gl::glUseProgram           (                                     0); }
+template<> inline void unbind_from_context<Binding::ProgramPipeline>       () noexcept { gl::glBindProgramPipeline  (                                     0); }
 // template<> inline void unbind_from_context<Binding::Sampler>()                noexcept {                                                                     }
 
 
