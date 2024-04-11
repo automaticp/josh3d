@@ -108,6 +108,7 @@ private:
 
 public:
     DemoScene(glfw::Window& window);
+    void applicate();
     void process_input() {}
     void update();
     void render();
@@ -241,6 +242,25 @@ inline DemoScene::DemoScene(glfw::Window& window)
     configure_input(gbuffer_read_view);
 
     init_registry();
+}
+
+
+
+
+inline void DemoScene::applicate() {
+
+    while (!window_.shouldClose()) {
+        josh::globals::frame_timer.update();
+
+        render();
+
+        glfw::pollEvents();
+        process_input();
+        update();
+
+        window_.swapBuffers();
+    }
+
 }
 
 

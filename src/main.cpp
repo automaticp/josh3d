@@ -14,26 +14,6 @@
 
 
 
-template<typename SceneT>
-void render_generic_scene(glfw::Window& window) {
-
-    SceneT scene{ window };
-
-    while (!window.shouldClose()) {
-        josh::globals::frame_timer.update();
-
-        glfw::pollEvents();
-        scene.process_input();
-
-        scene.update();
-
-        scene.render();
-
-        window.swapBuffers();
-    }
-
-}
-
 
 static auto get_cli_options()
     -> cxxopts::Options
@@ -104,10 +84,6 @@ int main(int argc, const char* argv[]) {
     }
 
 
-    using namespace gl;
-    using namespace josh;
-
-
     auto glfw_instance{ glfw::init() };
 
     glfw::WindowHints{
@@ -127,26 +103,17 @@ int main(int argc, const char* argv[]) {
     glbinding::initialize(glfwGetProcAddress);
 
     if ((*cli_parse_result)["enable-gl-logging"].as<bool>()) {
-        enable_glbinding_logger();
+        josh::enable_glbinding_logger();
     }
 
 
-    globals::RAIIContext globals_context;
-    globals::window_size.track(window);
+    josh::globals::RAIIContext globals_context;
+    josh::globals::window_size.track(window);
 
 
-    window.framebufferSizeEvent.setCallback(
-        [](glfw::Window& /* window */, int w, int h) {
-            globals::window_size.set_to({ w, h });
-            glViewport(0, 0, w, h);
-        }
-    );
+    DemoScene application{ window };
 
-    auto [width, height] = globals::window_size.size();
-    glViewport(0, 0, width, height);
-    glEnable(GL_DEPTH_TEST);
-
-    render_generic_scene<DemoScene>(window);
+    application.applicate();
 
 
     return 0;
