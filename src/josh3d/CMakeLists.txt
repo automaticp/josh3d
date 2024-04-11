@@ -14,9 +14,27 @@ if (JOSH3D_BUILD_WITH_ASAN)
         target_compile_options(josh3d-asan INTERFACE "/fsanitize=address")
         target_link_options   (josh3d-asan INTERFACE "/fsanitize=address")
     else()
-        message(WARNING "Unknown C++ compiler: ${CMAKE_CXX_COMPILER_ID}. AddressSanitizer will not be enabled.")
+        message(WARNING "Unknown AddressSanitizer support for C++ compiler: ${CMAKE_CXX_COMPILER_ID}.")
+        message(WARNING "\"-fsanitize=address\" flag will be passed to the compiler anyway. This might break the build.")
+        target_compile_options(josh3d-asan INTERFACE "-fsanitize=address")
+        target_link_options   (josh3d-asan INTERFACE "-fsanitize=address")
     endif()
 endif()
+
+# Optional TSAN target
+if (JOSH3D_BUILD_WITH_TSAN)
+    add_library(josh3d-tsan INTERFACE)
+    if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+        target_compile_options(josh3d-tsan INTERFACE "-fsanitize=thread")
+        target_link_options   (josh3d-tsan INTERFACE "-fsanitize=thread")
+    else()
+        message(WARNING "Unknown ThreadSanitizer support for C++ compiler: ${CMAKE_CXX_COMPILER_ID}.")
+        message(WARNING "\"-fsanitize=thread\" flag will be passed to the compiler anyway. This might break the build.")
+        target_compile_options(josh3d-tsan INTERFACE "-fsanitize=thread")
+        target_link_options   (josh3d-tsan INTERFACE "-fsanitize=thread")
+    endif()
+endif()
+
 
 
 
@@ -56,6 +74,10 @@ function(make_subtarget SUBTARGET)
 
     if (JOSH3D_BUILD_WITH_ASAN)
         target_link_libraries(${TARGET} ${VISIBILITY} josh3d-asan)
+    endif()
+
+    if (JOSH3D_BUILD_WITH_TSAN)
+        target_link_libraries(${TARGET} ${VISIBILITY} josh3d-tsan)
     endif()
 
 endfunction()
