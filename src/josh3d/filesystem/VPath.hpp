@@ -2,6 +2,7 @@
 #include "CommonConcepts.hpp" // IWYU pragma: keep
 #include "Filesystem.hpp"
 #include "VirtualFilesystemError.hpp"
+#include <compare>
 
 
 
@@ -60,6 +61,9 @@ public:
     // Will decay to Directory through the thread_local VFS.
     operator Directory() const noexcept(false);
 
+
+    bool operator==(const VPath& other) const noexcept = default;
+    std::strong_ordering operator<=>(const VPath& other) const noexcept = default;
 };
 
 
