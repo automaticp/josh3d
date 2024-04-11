@@ -47,10 +47,11 @@ void ModelComponents::load_model_widget(entt::registry& registry) {
 
     struct Request {
         entt::entity             entity;
+        Path                     path;
         Future<SharedModelAsset> future;
     };
 
-    thread_local std::optional<Request> current_request{ std::nullopt };
+    thread_local std::vector<Request> current_requests{};
 
 
     auto try_load_model = [&] {
@@ -64,15 +65,14 @@ void ModelComponents::load_model_widget(entt::registry& registry) {
             if (path.is_absolute()) {
                 File file{ path };
                 model_handle.emplace<components::Path>(std::filesystem::canonical(file.path()));
-
-                current_request = { model_handle.entity(), assman_.load_model(AssetPath{ file.path(), {} }) };
+                current_requests.emplace_back(model_handle.entity(), path, assman_.load_model(AssetPath{ file.path(), {} }));
             } else /* is_relative */ {
                 VPath vpath{ path };
                 File file{ vpath };
                 model_handle.emplace<components::VPath>(std::move(vpath));
                 model_handle.emplace<components::Path>(std::filesystem::canonical(file.path()));
 
-                current_request = { model_handle.entity(), assman_.load_model(AssetPath{ file.path(), {} }) };
+                current_requests.emplace_back(model_handle.entity(), path, assman_.load_model(AssetPath{ file.path(), {} }));
             }
             model_handle.emplace<components::Name>(path.filename());
             model_handle.emplace<Transform>();
@@ -88,13 +88,16 @@ void ModelComponents::load_model_widget(entt::registry& registry) {
     };
 
 
-    if (current_request.has_value()) {
-        if (current_request->future.is_available()) {
-            if (registry.valid(current_request->entity)) {
-                entt::handle model_handle{ registry, current_request->entity };
+    for (auto it = current_requests.begin();
+        it != current_requests.end();)
+    {
+        auto& current_request = *it;
+        if (current_request.future.is_available()) {
+            if (registry.valid(current_request.entity)) {
+                entt::handle model_handle{ registry, current_request.entity };
                 try {
                     // Need to make assets available
-                    SharedModelAsset asset = get_result(std::move(current_request->future));
+                    SharedModelAsset asset = get_result(std::move(current_request.future));
                     std::vector<entt::entity> children;
                     children.resize(asset.meshes.size());
 
@@ -148,7 +151,9 @@ void ModelComponents::load_model_widget(entt::registry& registry) {
                 }
 
             }
-            current_request = std::nullopt;
+            it = current_requests.erase(it);
+        } else {
+            ++it;
         }
     }
 
@@ -156,7 +161,6 @@ void ModelComponents::load_model_widget(entt::registry& registry) {
 
     auto load_model_signal = on_value_change_from(false, try_load_model);
 
-    ImGui::BeginDisabled(current_request.has_value());
     if (ImGui::InputText("##Path or VPath", &load_path_,
         ImGuiInputTextFlags_EnterReturnsTrue))
     {
@@ -166,9 +170,17 @@ void ModelComponents::load_model_widget(entt::registry& registry) {
     if (ImGui::Button("Load")) {
         load_model_signal.set(true);
     }
-    ImGui::EndDisabled();
 
     ImGui::TextColored({ 1.0f, 0.5f, 0.5f, 1.0f }, "%s", last_load_error_message_.c_str());
+
+    if (ImGui::TreeNode("Show Currently Loading")) {
+        for (const auto& current_request : current_requests) {
+            ImGui::PushID(void_id(current_request.entity));
+            ImGui::Text("[%d] %s", entt::to_entity(current_request.entity), current_request.path.c_str());
+            ImGui::PopID();
+        }
+        ImGui::TreePop();
+    }
 
 }
 
