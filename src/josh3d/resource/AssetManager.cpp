@@ -183,10 +183,32 @@ void AssetManager::handle_dispatch_request(DispatchRequest&& request) {
             set_result(std::move(request.promise), stored_to_shared(it->second));
             return;
         }
+
+        // If we were to release the model_cache_lock here, then the Uploading Thread could
+        // both Cache and Resolve Pending requests in-between releasing this lock and acquiring
+        // the pending_requests_lock later, which would make the following request go through, redundantly.
+        //
+        // That request will be rejected very late and will cause useless work, but it's more of an edge case.
+        // Still, we don't want that. So keep the cache mutex locked here.
+
+        // Check if the load of this asset is already pending completion by a prevoius request.
+        {
+            std::scoped_lock pending_requests_lock{ pending_requests_mutex_ };
+            auto it = pending_requests_.find(request.path);
+            if (it != pending_requests_.end()) {
+                // If there's a request already being processed, then just push back
+                // this request on top of the current one and return.
+                // This will be later picked up by the Uploading Thread and resolved
+                // along with the primary request.
+                it->second.emplace_back(std::move(request.promise));
+                return;
+            }
+            // If not in pending_requests_, then it's not currently being loaded.
+            // Emplace an empty vector to signal that it is.
+            pending_requests_.emplace(request.path, decltype(pending_requests_)::mapped_type{});
+        } // ~pending_requests_lock
     } // ~model_cache_lock
 
-
-    // TODO: Check for pending requests here, once implemented.
 
     load_requests_.emplace(
         LoadRequest{
@@ -497,6 +519,16 @@ void AssetManager::handle_load_request(LoadRequest&& request) {
 
     } catch (...) {
         set_exception(std::move(request.promise), std::current_exception());
+        {
+            std::scoped_lock pending_requests_lock{ pending_requests_mutex_ };
+            auto it = pending_requests_.find(request.model.path);
+            if (it != pending_requests_.end()) {
+                for (auto& pending_promise : it->second) {
+                    set_exception(std::move(pending_promise), std::current_exception());
+                }
+                pending_requests_.erase(it);
+            }
+        } // ~pending_requests_lock
     }
 
 
@@ -707,20 +739,39 @@ void AssetManager::handle_upload_request(UploadRequest&& request) {
         set_result(std::move(request.promise), stored_to_shared(stored_model));
 
 
-        // TODO: If there are pending requests, we need to resolve them here too.
-
-
-        // Cache the model.
+        // Cache the model and resolve pending requests, if any.
         AssetPath path_copy = stored_model.path;
         {
             std::scoped_lock model_cache_lock{ model_cache_mutex_ };
             auto [it, was_emplaced] =
-                model_cache_.try_emplace(std::move(path_copy), std::move(stored_model));
+                model_cache_.try_emplace(std::move(path_copy), stored_model);
+
+            // If there are any pending requests, resolve them.
+            // Remove entry of this request from pending_requests_.
+            {
+                std::scoped_lock pending_requests_lock{ pending_requests_mutex_ };
+                auto it = pending_requests_.find(request.model.path);
+                assert(it != pending_requests_.end()); // Must be emplaced by the dispatch thread, even if empty.
+                for (auto& pending_promise : it->second) {
+                    set_result(std::move(pending_promise), stored_to_shared(stored_model));
+                }
+                pending_requests_.erase(it);
+            } // ~pending_requests_lock
         } // ~model_cache_lock
 
 
     } catch (...) {
         set_exception(std::move(request.promise), std::current_exception());
+        {
+            std::scoped_lock pending_requests_lock{ pending_requests_mutex_ };
+            auto it = pending_requests_.find(request.model.path);
+            if (it != pending_requests_.end()) {
+                for (auto& pending_promise : it->second) {
+                    set_exception(std::move(pending_promise), std::current_exception());
+                }
+                pending_requests_.erase(it);
+            }
+        } // ~pending_requests_lock
     }
 
 }

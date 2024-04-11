@@ -300,6 +300,10 @@ private:
     // and resolving active requests. Needs a separate loading context.
 
 
+    std::unordered_map<AssetPath, std::vector<Promise<SharedModelAsset>>> pending_requests_;
+    std::mutex                                                            pending_requests_mutex_;
+
+
     struct DispatchRequest {
         AssetPath                 path;
         Promise<SharedModelAsset> promise;
