@@ -1,7 +1,14 @@
 #include "ModelComponents.hpp"
+#include "AssetManager.hpp"
+#include "GLAPIBinding.hpp"
+#include "GLMutability.hpp"
 #include "ImGuiHelpers.hpp"
 #include "ImGuiComponentWidgets.hpp"
+#include "RuntimeError.hpp"
+#include "components/BoundingSphere.hpp"
+#include "components/ChildMesh.hpp"
 #include "components/Materials.hpp"
+#include "components/Mesh.hpp"
 #include "components/Model.hpp"
 #include "components/Name.hpp"
 #include "components/Path.hpp"
@@ -9,23 +16,42 @@
 #include "tags/AlphaTested.hpp"
 #include "tags/Culled.hpp"
 #include "Transform.hpp"
+#include "AttributeTraits.hpp"
 #include "AssimpModelLoader.hpp"
 #include "VPath.hpp"
 #include <entt/entity/entity.hpp>
 #include <entt/entity/fwd.hpp>
 #include <glbinding/gl/enum.h>
+#include <glm/ext/vector_common.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glbinding/gl/gl.h>
+#include <glm/gtx/component_wise.hpp>
 #include <imgui.h>
 #include <imgui_stdlib.h>
 #include <filesystem>
+#include <optional>
 
 
 
 namespace josh::imguihooks::registry {
 
 
+ModelComponents::ModelComponents(AssetManager& assman)
+    : assman_{ assman }
+{}
+
+
 void ModelComponents::load_model_widget(entt::registry& registry) {
+
+    // FIXME: This is a total mess for now.
+
+    struct Request {
+        entt::entity             entity;
+        Future<SharedModelAsset> future;
+    };
+
+    thread_local std::optional<Request> current_request{ std::nullopt };
+
 
     auto try_load_model = [&] {
 
@@ -37,17 +63,18 @@ void ModelComponents::load_model_widget(entt::registry& registry) {
             Path path{ load_path_ };
             if (path.is_absolute()) {
                 File file{ path };
-                ModelComponentLoader().load_into(model_handle, file);
                 model_handle.emplace<components::Path>(std::filesystem::canonical(file.path()));
+
+                current_request = { model_handle.entity(), assman_.load_model(AssetPath{ file.path(), {} }) };
             } else /* is_relative */ {
                 VPath vpath{ path };
                 File file{ vpath };
-                ModelComponentLoader().load_into(model_handle, file);
                 model_handle.emplace<components::VPath>(std::move(vpath));
                 model_handle.emplace<components::Path>(std::filesystem::canonical(file.path()));
+
+                current_request = { model_handle.entity(), assman_.load_model(AssetPath{ file.path(), {} }) };
             }
             model_handle.emplace<components::Name>(path.filename());
-
             model_handle.emplace<Transform>();
 
         } catch (const error::RuntimeError& e) {
@@ -60,8 +87,76 @@ void ModelComponents::load_model_widget(entt::registry& registry) {
 
     };
 
+
+    if (current_request.has_value()) {
+        if (current_request->future.is_available()) {
+            if (registry.valid(current_request->entity)) {
+                entt::handle model_handle{ registry, current_request->entity };
+                try {
+                    // Need to make assets available
+                    SharedModelAsset asset = get_result(std::move(current_request->future));
+                    std::vector<entt::entity> children;
+                    children.resize(asset.meshes.size());
+
+                    registry.create(children.begin(), children.end());
+                    for (size_t i{ 0 }; i < children.size(); ++i) {
+                        auto& mesh        = asset.meshes[i];
+                        auto  mesh_handle = entt::handle(registry, children[i]);
+
+                        bind_to_context<Binding::ArrayBuffer>(mesh.vertices->id());
+                        bind_to_context<Binding::ElementArrayBuffer>(mesh.indices->id());
+                        mesh_handle.emplace<components::Mesh>(Mesh::from_buffers<VertexPNTTB>(std::move(mesh.vertices), std::move(mesh.indices)));
+                        // TODO: This is terrible, use AABB
+                        auto [lbb, rtf] = mesh.aabb;
+                        float max_something = glm::max(glm::length(lbb), glm::length(rtf));
+                        mesh_handle.emplace<components::BoundingSphere>(max_something);
+
+                        if (mesh.diffuse.has_value()) {
+                            bind_to_context<Binding::Texture2D>(mesh.diffuse->texture->id());
+                            auto& diffuse = mesh_handle.emplace<components::MaterialDiffuse>(mesh.diffuse->texture);
+                            // TODO: We check if the alpha channel even exitsts in the texture,
+                            // to decide on whether alpha testing should be enabled. Is there a better way?
+                            PixelComponentType alpha_component =
+                                diffuse.texture->get_component_type<PixelComponent::Alpha>();
+                            if (alpha_component != PixelComponentType::None) {
+                                mesh_handle.emplace<tags::AlphaTested>();
+                            }
+                        }
+
+                        if (mesh.specular.has_value()) {
+                            bind_to_context<Binding::Texture2D>(mesh.specular->texture->id());
+                            mesh_handle.emplace<components::MaterialSpecular>(mesh.specular->texture, 128.f);
+                        }
+
+                        if (mesh.normal.has_value()) {
+                            bind_to_context<Binding::Texture2D>(mesh.normal->texture->id());
+                            mesh_handle.emplace<components::MaterialNormal>(mesh.normal->texture);
+                        }
+
+
+                        mesh_handle.emplace<components::ChildMesh>(model_handle.entity());
+
+                        mesh_handle.emplace<Transform>();
+                        mesh_handle.emplace<components::Name>(mesh.path.subpath);
+
+                    }
+                    model_handle.emplace<components::Model>(std::move(children));
+
+                } catch (const error::RuntimeError& e) {
+                    model_handle.destroy();
+                    last_load_error_message_ = e.what();
+                }
+
+            }
+            current_request = std::nullopt;
+        }
+    }
+
+
+
     auto load_model_signal = on_value_change_from(false, try_load_model);
 
+    ImGui::BeginDisabled(current_request.has_value());
     if (ImGui::InputText("##Path or VPath", &load_path_,
         ImGuiInputTextFlags_EnterReturnsTrue))
     {
@@ -71,6 +166,7 @@ void ModelComponents::load_model_widget(entt::registry& registry) {
     if (ImGui::Button("Load")) {
         load_model_signal.set(true);
     }
+    ImGui::EndDisabled();
 
     ImGui::TextColored({ 1.0f, 0.5f, 0.5f, 1.0f }, "%s", last_load_error_message_.c_str());
 
@@ -105,7 +201,7 @@ static void mesh_subwidget(entt::handle mesh) {
         if (ImGui::TreeNode("Material")) {
 
             // FIXME: Not sure if scaling to max size is always preferrable.
-            auto imsize = [&](RawTexture2D<> tex) -> ImVec2 {
+            auto imsize = [&](RawTexture2D<GLConst> tex) -> ImVec2 {
                 const float w = ImGui::GetContentRegionAvail().x;
                 const float h = w / tex.get_resolution().aspect_ratio();
                 return { w, h };

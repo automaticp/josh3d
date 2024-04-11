@@ -1,4 +1,5 @@
 #pragma once
+#include "AssetManager.hpp"
 #include "AssimpModelLoader.hpp"
 #include "ComponentLoaders.hpp"
 #include "GLPixelPackTraits.hpp"
@@ -85,6 +86,8 @@ private:
 
     entt::registry registry_;
 
+    AssetManager assman_;
+
     PerspectiveCamera cam_{
         PerspectiveCameraParams{
             .fovy_rad = glm::radians(90.f),
@@ -125,6 +128,7 @@ private:
 
 inline DemoScene::DemoScene(glfw::Window& window)
     : window_{ window }
+    , assman_{ vfs(), window }
 {
 
 
@@ -233,7 +237,7 @@ inline DemoScene::DemoScene(glfw::Window& window)
 
 
     imgui_.registry_hooks().add_hook("Lights",  imguihooks::registry::LightComponents());
-    imgui_.registry_hooks().add_hook("Models",  imguihooks::registry::ModelComponents());
+    imgui_.registry_hooks().add_hook("Models",  imguihooks::registry::ModelComponents(assman_));
     imgui_.registry_hooks().add_hook("Skybox",  imguihooks::registry::SkyboxComponents());
     imgui_.registry_hooks().add_hook("Terrain", imguihooks::registry::TerrainComponents());
     imgui_.registry_hooks().add_hook("Camera",  imguihooks::registry::PerspectiveCamera(cam_));
