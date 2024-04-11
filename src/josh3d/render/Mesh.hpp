@@ -3,6 +3,7 @@
 #include "GLAPICommonTypes.hpp"
 #include "GLAPICore.hpp"
 #include "AttributeTraits.hpp" // IWYU pragma: keep (traits)
+#include "GLAttributeTraits.hpp"
 #include "GLBuffers.hpp"
 #include "GLObjects.hpp"
 #include "GLScalars.hpp"
@@ -17,15 +18,33 @@ namespace josh {
 
 class Mesh {
 private:
-    UniqueUntypedBuffer  vbo_;
-    UniqueBuffer<GLuint> ebo_;
-    UniqueVertexArray    vao_;
+    SharedConstUntypedBuffer  vbo_;
+    SharedConstBuffer<GLuint> ebo_;
+    UniqueVertexArray         vao_;
     GLsizei num_elements_;
     GLsizei num_vertices_;
+
+    // OH GOD
+    Mesh(
+        SharedConstUntypedBuffer  verts,
+        SharedConstBuffer<GLuint> indices,
+        UniqueVertexArray         vao,
+        GLsizei                   num_elements,
+        GLsizei                   num_vertices)
+        : vbo_{ std::move(verts) }
+        , ebo_{ std::move(indices) }
+        , vao_{ std::move(vao) }
+        , num_elements_(num_elements)
+        , num_vertices_(num_vertices)
+    {}
 
 public:
     template<specializes_attribute_traits VertexT>
     Mesh(const MeshData<VertexT>& data);
+
+    template<specializes_attribute_traits VertexT>
+    static Mesh from_buffers(SharedConstUntypedBuffer verts, SharedConstBuffer<GLuint> indices);
+
 
     constexpr Primitive   primitive_type() const noexcept { return Primitive::Triangles; }
     constexpr ElementType element_type()   const noexcept { return ElementType::UInt;    }
@@ -69,24 +88,27 @@ Mesh::Mesh(const MeshData<VertexT>& data)
     : num_elements_{ GLsizei(data.elements().size()) }
     , num_vertices_{ GLsizei(data.vertices().size()) }
 {
-    vbo_->as_typed<VertexT>().specify_storage(
+    SharedUntypedBuffer   vbo;
+    SharedBuffer<GLuint>  ebo;
+
+    vbo->as_typed<VertexT>().specify_storage(
         data.vertices(),
         StorageMode::StaticServer,
         PermittedMapping::NoMapping,
         PermittedPersistence::NotPersistent
     );
 
-    vao_->attach_vertex_buffer(VertexBufferSlot{ 0 }, vbo_, OffsetBytes{ 0 }, StrideBytes{ sizeof(VertexT) });
+    vao_->attach_vertex_buffer(VertexBufferSlot{ 0 }, vbo, OffsetBytes{ 0 }, StrideBytes{ sizeof(VertexT) });
 
-    if (!data.elements().empty()) {
-        ebo_->specify_storage(
+    if (num_elements_) {
+        ebo->specify_storage(
             data.elements(),
             StorageMode::StaticServer,
             PermittedMapping::NoMapping,
             PermittedPersistence::NotPersistent
         );
 
-        vao_->attach_element_buffer(ebo_);
+        vao_->attach_element_buffer(ebo);
     }
 
 
@@ -99,6 +121,42 @@ Mesh::Mesh(const MeshData<VertexT>& data)
         vao_->associate_attribute_with_buffer_slot(AttributeIndex{ attrib_id }, VertexBufferSlot{ 0 });
     }
 
+    vbo_ = std::move(vbo);
+    ebo_ = std::move(ebo);
+}
+
+
+// I made a mess again...
+template<specializes_attribute_traits VertexT>
+inline Mesh Mesh::from_buffers(
+    SharedConstUntypedBuffer  verts_buf,
+    SharedConstBuffer<GLuint> ebo)
+{
+    UniqueVertexArray vao;
+
+    auto vbo = verts_buf->as_typed<VertexT>();
+
+    auto num_verts    = vbo.get_num_elements();
+    auto num_elements = ebo->get_num_elements();
+
+    vao->attach_vertex_buffer(VertexBufferSlot{ 0 }, vbo, OffsetBytes{ 0 }, StrideBytes{ sizeof(VertexT) });
+
+    if (num_elements) {
+        vao->attach_element_buffer(ebo);
+    }
+
+    const AttributeIndex first_attrib{ 0 };
+    const GLsizeiptr num_attribs = vao->specify_custom_attributes<VertexT>(first_attrib);
+
+    for (GLuint attrib_id{ first_attrib }; attrib_id < num_attribs; ++attrib_id) {
+        vao->enable_attribute(AttributeIndex{ attrib_id });
+        // All the vertex data goes through the 1st buffer slot.
+        vao->associate_attribute_with_buffer_slot(AttributeIndex{ attrib_id }, VertexBufferSlot{ 0 });
+    }
+
+    return Mesh{
+        std::move(verts_buf), std::move(ebo), std::move(vao), num_elements, num_verts
+    };
 }
 
 
