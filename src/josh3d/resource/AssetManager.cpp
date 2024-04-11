@@ -15,6 +15,7 @@
 #include <assimp/scene.h>
 #include <assimp/vector3.h>
 #include <exception>
+#include <filesystem>
 #include <mutex>
 #include <stop_token>
 #include <optional>
@@ -59,7 +60,8 @@ auto AssetManager::load_model(const AssetVPath& vpath)
     auto [future, promise] = make_future_promise_pair<SharedModelAsset>();
     try {
         auto file = vfs_.resolve_file(vpath.file);
-        dispatch_requests_.emplace(AssetPath{ std::move(file).path(), vpath.subpath }, std::move(promise));
+        AssetPath apath{ std::filesystem::canonical(file.path()), vpath.subpath };
+        dispatch_requests_.emplace(std::move(apath), std::move(promise));
     } catch (...) {
         set_exception(std::move(promise), std::current_exception());
     }
@@ -72,7 +74,8 @@ auto AssetManager::load_model(const AssetPath& path)
 {
     auto [future, promise] = make_future_promise_pair<SharedModelAsset>();
     try {
-        dispatch_requests_.emplace(path, std::move(promise));
+        AssetPath apath{ std::filesystem::canonical(path.file), path.subpath };
+        dispatch_requests_.emplace(std::move(apath), std::move(promise));
     } catch (...) {
         set_exception(std::move(promise), std::current_exception());
     }

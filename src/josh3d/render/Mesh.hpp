@@ -155,7 +155,7 @@ inline Mesh Mesh::from_buffers(
     }
 
     return Mesh{
-        std::move(verts_buf), std::move(ebo), std::move(vao), num_elements, num_verts
+        std::move(verts_buf), std::move(ebo), std::move(vao), GLsizei(num_elements), GLsizei(num_verts)
     };
 }
 
