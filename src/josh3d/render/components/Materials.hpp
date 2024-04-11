@@ -1,4 +1,5 @@
 #pragma once
+#include "GLMutability.hpp"
 #include "GLObjects.hpp"
 #include "GLScalars.hpp"
 
@@ -7,16 +8,16 @@ namespace josh::components {
 
 
 struct MaterialDiffuse {
-    SharedTexture2D texture;
+    SharedConstTexture2D texture;
 };
 
 struct MaterialSpecular {
-    SharedTexture2D texture;
-    GLfloat         shininess{ 128.f };
+    SharedConstTexture2D texture;
+    GLfloat              shininess{ 128.f };
 };
 
 struct MaterialNormal {
-    SharedTexture2D texture;
+    SharedConstTexture2D texture;
 };
 
 
