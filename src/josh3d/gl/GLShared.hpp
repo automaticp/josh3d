@@ -14,6 +14,13 @@
 namespace josh {
 
 
+namespace detail {
+struct RefCount {
+    std::atomic<std::size_t> count_{ 1 };
+};
+} // namespace detail
+
+
 template<supports_gl_allocator RawHandleT>
 class GLShared
     : private GLAllocator<RawHandleT::kind_type>
@@ -33,7 +40,7 @@ private:
     using mutable_type    = mt::mutable_type;
     using opposite_type   = mt::opposite_type;
 
-    friend GLShared<const_type>; // For GLMutable -> GLConst conversion
+    template<supports_gl_allocator T> friend class GLShared;
 
     // The state of the GLShared consists of two components:
     // 1. Integer ID stored in the `handle_type` base class;
@@ -41,18 +48,14 @@ private:
     // This is similar to `shared_ptr` except that the pointer-to-storage is
     // not a pointer at all, but an OpenGL object "name".
 
-    struct RefCount {
-        std::atomic<std::size_t> count_{ 1 };
-    };
-
-    RefCount* control_block_;
+    detail::RefCount* control_block_;
 
 
     struct PrivateKey {};
 
     GLShared(PrivateKey, handle_type::id_type id)
-        : handle_       { handle_type::from_id(id) }
-        , control_block_{ new RefCount{ 1 }        }
+        : handle_       { handle_type::from_id(id)  }
+        , control_block_{ new detail::RefCount{ 1 } }
     {}
 
     // Default constructor overload for allocating unspecialized objects.
@@ -136,50 +139,35 @@ public:
         acquire_ownership();
     }
 
-    // GLMutable -> GLConst converting copy c-tor.
-    GLShared(const GLShared<mutable_type>& other) noexcept
-            requires mt::is_const
+    // Converting copy c-tor.
+    template<std::convertible_to<RawHandleT> OtherRawT>
+    GLShared(const GLShared<OtherRawT>& other) noexcept
         : handle_       { other.handle_        }
         , control_block_{ other.control_block_ }
     {
         acquire_ownership();
     }
 
-    // GLConst -> GLMutable converting copy construction is forbidden.
-    GLShared(const GLShared<const_type>& other) noexcept
-        requires mt::is_mutable = delete;
-
-
-
 
     // Move c-tor.
     GLShared(GLShared&& other) noexcept
-        : handle_       { std::exchange(other.handle_, handle_type::from_id(0)) }
-        , control_block_{ std::exchange(other.control_block_, nullptr) }
+        : handle_       { std::exchange(other.handle_,        handle_type::from_id(0)) }
+        , control_block_{ std::exchange(other.control_block_, nullptr)                 }
     {}
 
-    // GLMutable -> GLConst converting move c-tor.
-    GLShared(GLShared<mutable_type>&& other) noexcept
-            requires mt::is_const
-        : handle_       { std::exchange(other.handle_, mutable_type::from_id(0)) }
-        , control_block_{ std::exchange(other.control_block_, nullptr) }
+    // Converting move c-tor.
+    template<std::convertible_to<RawHandleT> OtherHandleT>
+    GLShared(GLShared<OtherHandleT>&& other)
+        : handle_       { std::exchange(other.handle_,        OtherHandleT::from_id(0)) }
+        , control_block_{ std::exchange(other.control_block_, nullptr)                  }
     {}
 
-    // GLConst -> GLMutable converting move construction is forbidden.
-    GLShared(GLShared<const_type>&&) noexcept
-        requires mt::is_mutable = delete;
 
     // Sharing conversion from GLUnique.
-    GLShared(GLUnique<mutable_type>&& other) noexcept
-        : GLShared{ PrivateKey{}, std::exchange(other.handle_, mutable_type::from_id(0)).id() }
+    template<std::convertible_to<RawHandleT> OtherHandleT>
+    GLShared(GLUnique<OtherHandleT>&& other) noexcept
+        : GLShared{ PrivateKey{}, std::exchange(other.handle_, OtherHandleT::from_id(0)).id() }
     {}
-
-    // Sharing conversion from GLUnique.
-    GLShared(GLUnique<const_type>&& other) noexcept
-            requires mt::is_const
-        : GLShared{ PrivateKey{}, std::exchange(other.handle_, const_type::from_id(0)).id() }
-    {}
-
 
 
     // Copy assignment operator.
@@ -195,25 +183,19 @@ public:
         return *this;
     }
 
-    // GLMutable -> GLConst converting copy assignment.
-    GLShared& operator=(const GLShared<mutable_type>& other) noexcept
-        requires mt::is_const
-    {
-        if (this != &other) { // TODO: isn't this check redundunt here?
-            release_ownership(); // Previous resource.
+    // Converting copy assignment operator.
+    template<std::convertible_to<RawHandleT> OtherHandleT>
+    GLShared& operator=(const GLShared<OtherHandleT>& other) noexcept {
 
-            handle_        = other.handle_;
-            control_block_ = other.control_block_;
+        release_ownership(); // Previous resource.
 
-            acquire_ownership(); // New resource.
-        }
+        handle_        = other.handle_;
+        control_block_ = other.control_block_;
+
+        acquire_ownership(); // New resource.
+
         return *this;
     }
-
-    // GLConst -> GLMutable converting copy assignment is forbidden.
-    GLShared& operator=(const GLShared<const_type>& other) noexcept
-        requires mt::is_mutable = delete;
-
 
 
     // Move assignment operator.
@@ -226,36 +208,29 @@ public:
         return *this;
     }
 
-    // GLMutable -> GLConst converting move assignment.
-    GLShared& operator=(GLShared<mutable_type>&& other) noexcept
-        requires mt::is_const
-    {
+    // Converting move assignment operator.
+    template<std::convertible_to<RawHandleT> OtherHandleT>
+    GLShared& operator=(GLShared<OtherHandleT>&& other) noexcept {
         release_ownership(); // Previous resource.
 
-        handle_        = std::exchange(other.handle_, mutable_type::from_id(0));
+        handle_        = std::exchange(other.handle_,        OtherHandleT::from_id(0));
         control_block_ = std::exchange(other.control_block_, nullptr);
 
         return *this;
     }
 
-    // GLConst -> GLMutable converting move assignment is forbidden.
-    GLShared& operator=(GLShared<const_type>&& other) noexcept
-        requires mt::is_mutable = delete;
 
     // Sharing assignment from GLUnique.
-    GLShared& operator=(GLUnique<mutable_type>&& other) noexcept {
+    template<std::convertible_to<RawHandleT> OtherHandleT>
+    GLShared& operator=(GLUnique<OtherHandleT>&& other) noexcept {
         // Construct from GLUnique and then assign to self.
         this->operator=(GLShared(std::move(other)));
         return *this;
     }
 
-    // Sharing assignment from GLUnique.
-    GLShared& operator=(GLUnique<const_type>&& other) noexcept
-        requires mt::is_const
-    {
-        this->operator=(GLShared(std::move(other)));
-        return *this;
-    }
+
+
+
 
 
 

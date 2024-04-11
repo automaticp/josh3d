@@ -34,10 +34,8 @@ private:
     using mutable_type    = mt::mutable_type;
     using opposite_type   = mt::opposite_type;
 
-    friend GLUnique<const_type>;   // For GLMutable -> GLConst conversion
-
-    friend GLShared<const_type>;   // For sharing conversion,
-    friend GLShared<mutable_type>; // since there's no `release()`.
+    template<supports_gl_allocator T> friend class GLUnique; // For conversion through the underlying handle.
+    template<supports_gl_allocator T> friend class GLShared; // For sharing conversion since there's no release().
 
 public:
     GLUnique()
@@ -77,38 +75,33 @@ public:
     GLUnique(const GLUnique&)            = delete;
     GLUnique& operator=(const GLUnique&) = delete;
 
+
+    // Move c-tor.
     GLUnique(GLUnique&& other) noexcept
         : handle_{ std::exchange(other.handle_, handle_type::from_id(0)) }
     {}
 
+    // Converting move c-tor.
+    template<std::convertible_to<RawHandleT> OtherHandleT>
+    GLUnique(GLUnique<OtherHandleT>&& other) noexcept
+        : handle_{ std::exchange(other.handle_, OtherHandleT::from_id(0)) }
+    {}
+
+
+    // Move assignment.
     GLUnique& operator=(GLUnique&& other) noexcept {
         release_current();
         this->handle_ = std::exchange(other.handle_, handle_type::from_id(0));
         return *this;
     }
 
-    // GLMutable -> GLConst converting move c-tor.
-    GLUnique(GLUnique<mutable_type>&& other) noexcept
-            requires mt::is_const
-        : handle_{ std::exchange(other.handle_, mutable_type::from_id(0)) }
-    {}
-
-    // GLMutable -> GLConst converting move assignment.
-    GLUnique& operator=(GLUnique<mutable_type>&& other) noexcept
-        requires mt::is_const
-    {
+    // Converting move assignment.
+    template<std::convertible_to<RawHandleT> OtherHandleT>
+    GLUnique& operator=(GLUnique<OtherHandleT>&& other) noexcept {
         release_current();
-        this->handle_ = std::exchange(other.handle_, mutable_type::from_id(0));
+        this->handle_ = std::exchange(other.handle_, OtherHandleT::from_id(0));
         return *this;
     }
-
-    // GLConst -> GLMutable converting move construction is forbidden.
-    GLUnique(GLUnique<const_type>&&) noexcept
-        requires mt::is_mutable = delete;
-
-    // GLConst -> GLMutable converting move assignment is forbidden.
-    GLUnique& operator=(GLUnique<const_type>&&) noexcept
-        requires mt::is_mutable = delete;
 
 
     ~GLUnique() noexcept { release_current(); }
