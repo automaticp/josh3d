@@ -1,6 +1,7 @@
 #pragma once
 #include "RuntimeError.hpp"
 #include <atomic>
+#include <concepts>
 #include <exception>
 #include <type_traits>
 #include <variant>
@@ -11,6 +12,10 @@
 
 
 namespace josh {
+
+
+template<typename T>
+concept not_void = !std::same_as<T, void>;
 
 
 template<typename T>
@@ -28,8 +33,9 @@ template<typename T>
 auto get_result(Future<T> future) -> T;
 
 
-template<typename T>
+template<not_void T>
 void set_result(Promise<T> promise, T result);
+void set_result(Promise<void> promise);
 
 
 template<typename T>
@@ -60,6 +66,13 @@ struct FPState {
     // Imagine not guaranteeing clear state before C++20...
 };
 
+template<>
+struct FPState<void> {
+    using storage_type = std::exception_ptr;
+    storage_type     value_or_exception = nullptr;
+    std::atomic_flag ready = ATOMIC_FLAG_INIT;
+};
+
 } // namespace detail
 
 
@@ -72,7 +85,8 @@ public:
     friend auto make_future_promise_pair<T>() -> std::pair<Future<T>, Promise<T>>;
 
     bool is_moved_from() const noexcept; // Is this needed?
-    friend void set_result<T>(Promise<T> promise, T result);
+    friend void set_result(Promise<void> promise);
+    template<not_void U> friend void set_result(Promise<U> promise, U result); // Template so that there's no complaining about void.
     friend void set_exception<T>(Promise<T> promise, std::exception_ptr exception);
 
     Promise(const Promise&)            = delete;
@@ -129,7 +143,7 @@ bool Promise<T>::is_moved_from() const noexcept {
     return !bool(state_);
 }
 
-template<typename T>
+template<not_void T>
 void set_result(Promise<T> promise, T result) {
     promise.state_->value_or_exception = std::move(result);
 
@@ -146,6 +160,19 @@ void set_result(Promise<T> promise, T result) {
 
     // Will destroy the value here if promise is the only owner,
     // that is, if the Future has been discarded.
+}
+
+inline void set_result(Promise<void> promise) {
+#ifndef NDEBUG
+    bool was_set_before =
+        promise.state_->ready.test_and_set(std::memory_order_acq_rel);
+    // Could be just memory_order_release, if it wasn't for this assert.
+    assert(!was_set_before);
+#else
+    promise.state_->ready.test_and_set(std::memory_order_release);
+#endif
+
+    promise.state_->ready.notify_one();
 }
 
 template<typename T>
@@ -214,6 +241,17 @@ auto get_result(Future<T> future)
     };
 
     return std::visit(Visitor{}, std::move(future.state_->value_or_exception));
+}
+
+
+template<>
+inline void get_result<void>(Future<void> future) {
+
+    future.wait_for_result();
+
+    if (future.state_->value_or_exception) {
+        std::rethrow_exception(std::move(future.state_->value_or_exception));
+    }
 }
 
 
