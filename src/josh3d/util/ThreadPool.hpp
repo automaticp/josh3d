@@ -1,5 +1,6 @@
 #pragma once
 #include "ThreadsafeQueue.hpp"
+#include "Future.hpp"
 #include "UniqueFunction.hpp"
 #include <atomic>
 #include <concepts>
@@ -12,7 +13,6 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
-#include <future>
 #include <latch>
 
 
@@ -37,12 +37,38 @@ And so I did...
 A simple task-stealing thread pool with a minimal interface.
 */
 class ThreadPool {
+public:
+    // Initializes a thread pool with n_threads thread count. If the n_threads is not supplied,
+    // uses a value returned by std::jthread::hardware_concurrency(), unless that value is 0,
+    // in which case n_threads is set to 1.
+    ThreadPool(size_t n_threads = default_thread_count());
+
+    // Submit a task and retrieve a Future to it.
+    //
+    // TODO: There's something to be said about classes that discard work
+    // and go out of scope, when the work might operate on its members.
+    // That's a fairly problematic scenario, and I wonder if a change of
+    // interface could solve this. Maybe instead of Futures, we could return
+    // certain "work tokens" that auto-block on destruction?
+    template<typename Fun, typename ...Args>
+    [[nodiscard]] auto emplace(Fun&& fun, Args&&... args)
+        -> Future<std::invoke_result_t<Fun, Args...>>;
+
+    size_t n_threads() const noexcept { return n_threads_; }
+
+
+    static size_t default_thread_count() noexcept {
+        const size_t count{ std::jthread::hardware_concurrency() };
+        return count ? count : 1;
+    }
+
+
 private:
-    using task_t = UniqueFunction<void()>;
+    using task_type = UniqueFunction<void()>;
 
     size_t n_threads_;
 
-    std::vector<ThreadsafeQueue<task_t>> per_thread_tasks_;
+    std::vector<ThreadsafeQueue<task_type>> per_thread_tasks_;
 
     std::vector<std::jthread> threads_;
 
@@ -63,29 +89,10 @@ private:
     // L(2) = 64; L(4) = 64; L(8) = 64; L(12) ~ 42; L(16) = 32; L(24) ~ 21; L(32) = 16; L(1024) = 1;
     size_t emplace_loops_;
 
-public:
-    // Initializes a thread pool with n_threads thread count. If the n_threads is not supplied,
-    // uses a value returned by std::jthread::hardware_concurrency(), unless that value is 0,
-    // in which case n_threads is set to 1.
-    ThreadPool(size_t n_threads = default_thread_count());
 
-    template<typename Fun, typename ...Args>
-    auto emplace(Fun&& fun, Args&&... args)
-        -> std::future<std::invoke_result_t<Fun, Args...>>;
-
-    size_t n_threads() const noexcept { return n_threads_; }
-
-
-    static size_t default_thread_count() noexcept {
-        const size_t count{ std::jthread::hardware_concurrency() };
-        return count ? count : 1;
-    }
-
-
-private:
     void execution_loop(std::stop_token stoken, const size_t thread_idx);
 
-    std::optional<task_t> try_fetch_or_steal(size_t thread_idx);
+    std::optional<task_type> try_fetch_or_steal(size_t thread_idx);
     void drain_queue_until_empty(size_t thread_idx);
 
 };
@@ -94,7 +101,7 @@ private:
 
 
 inline ThreadPool::ThreadPool(size_t n_threads)
-    : n_threads_{ n_threads }
+    : n_threads_    { n_threads }
     , startup_latch_( n_threads + 1 )
     , emplace_loops_{ std::min(std::max(size_t{ 512 / n_threads }, size_t{ 1 }), size_t{ 64 }) }
 {
@@ -115,31 +122,31 @@ inline ThreadPool::ThreadPool(size_t n_threads)
 
 template<typename Fun, typename ...Args>
 auto ThreadPool::emplace(Fun&& fun, Args&&... args)
-    -> std::future<std::invoke_result_t<Fun, Args...>>
+    -> Future<std::invoke_result_t<Fun, Args...>>
 {
-    using result_t = std::invoke_result_t<Fun, Args...>;
+    using result_type = std::invoke_result_t<Fun, Args...>;
 
-    std::promise<result_t> promise;
-    auto future = promise.get_future();
+    auto [future, promise] = make_future_promise_pair<result_type>();
 
-    auto conforming_task = // of signature void()
+    auto internal_task = // of signature void()
         [promise=std::move(promise),
         fun=std::forward<Fun>(fun),
         ...args=std::forward<Args>(args)]() mutable
-        {
-            try {
-                if constexpr (std::same_as<result_t, void>) {
-                    std::invoke(std::forward<Fun>(fun), std::forward<Args>(args)...);
-                    promise.set_value();
-                } else {
-                    promise.set_value(
-                        std::invoke(std::forward<Fun>(fun), std::forward<Args>(args)...)
-                    );
-                }
-            } catch (...) {
-                promise.set_exception(std::current_exception());
+    {
+        try {
+            if constexpr (std::same_as<result_type, void>) {
+                std::invoke(std::forward<Fun>(fun), std::forward<Args>(args)...);
+                set_result(std::move(promise));
+            } else {
+                set_result(
+                    std::move(promise),
+                    std::invoke(std::forward<Fun>(fun), std::forward<Args>(args)...)
+                );
             }
-        };
+        } catch (...) {
+            set_exception(std::move(promise), std::current_exception());
+        }
+    };
 
     // Just a hint, relaxed should be fine (famous last words).
     size_t last_idx{ last_emplaced_idx_.load(std::memory_order_relaxed) };
@@ -151,7 +158,7 @@ auto ThreadPool::emplace(Fun&& fun, Args&&... args)
         last_idx = (last_idx + 1) % n_threads();
 
         was_emplaced =
-            per_thread_tasks_[last_idx].try_emplace(std::move(conforming_task));
+            per_thread_tasks_[last_idx].try_emplace(std::move(internal_task));
 
         if (was_emplaced) {
             last_emplaced_idx_.store(last_idx, std::memory_order_relaxed);
@@ -161,7 +168,7 @@ auto ThreadPool::emplace(Fun&& fun, Args&&... args)
 
     // If all queues were locked, just sit patiently and wait until one of them unlocks.
     if (!was_emplaced) {
-        per_thread_tasks_[last_idx].emplace(std::move(conforming_task));
+        per_thread_tasks_[last_idx].emplace(std::move(internal_task));
         last_emplaced_idx_.store(last_idx, std::memory_order_relaxed);
     }
 
@@ -171,8 +178,9 @@ auto ThreadPool::emplace(Fun&& fun, Args&&... args)
 
 
 
-inline void ThreadPool::execution_loop(std::stop_token stoken,
-    const size_t thread_idx)
+inline void ThreadPool::execution_loop(
+    std::stop_token stoken,
+    const size_t    thread_idx)
 {
     startup_latch_.arrive_and_wait();
 
@@ -180,7 +188,7 @@ inline void ThreadPool::execution_loop(std::stop_token stoken,
 
         // A single loop-around across all task queues
         // until a task fetch succedes or a loop ends.
-        std::optional<task_t> task = try_fetch_or_steal(thread_idx);
+        std::optional<task_type> task = try_fetch_or_steal(thread_idx);
 
         if (task.has_value()) {
             std::invoke(task.value());
@@ -219,9 +227,9 @@ inline void ThreadPool::execution_loop(std::stop_token stoken,
 
 
 inline auto ThreadPool::try_fetch_or_steal(size_t thread_idx)
-    -> std::optional<task_t>
+    -> std::optional<task_type>
 {
-    std::optional<task_t> task{ std::nullopt };
+    std::optional<task_type> task{ std::nullopt };
 
     for (size_t offset{ 0 }; offset < n_threads(); ++offset) {
         const size_t idx{ (thread_idx + offset) % n_threads() };
@@ -238,7 +246,7 @@ inline auto ThreadPool::try_fetch_or_steal(size_t thread_idx)
 
 
 inline void ThreadPool::drain_queue_until_empty(size_t thread_idx) {
-    std::optional<task_t> task;
+    std::optional<task_type> task;
     while (true) {
         task = per_thread_tasks_[thread_idx].try_pop();
         if (task.has_value()) {
@@ -248,6 +256,16 @@ inline void ThreadPool::drain_queue_until_empty(size_t thread_idx) {
         }
     }
 }
+
+
+
+
+namespace globals {
+inline ThreadPool& thread_pool() noexcept {
+    static ThreadPool pool{};
+    return pool;
+}
+} // namespace globals
 
 
 
