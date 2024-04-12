@@ -53,7 +53,7 @@ struct AssetVPath {
 };
 
 struct AssetPath {
-    Path        file;    // TODO: This needs to be preprocessed on costruction.
+    Path        file;
     std::string subpath;
 
     bool operator==(const AssetPath& other) const noexcept = default;
@@ -139,19 +139,19 @@ protected:
 
 
 struct SharedTextureAsset {
-    AssetPath                       path;
-    ImageIntent                     intent;
-    GLShared<RawTexture2D<GLConst>> texture;
+    AssetPath            path;
+    ImageIntent          intent;
+    SharedConstTexture2D texture;
 };
 
 struct SharedMeshAsset {
-    AssetPath                                 path;
-    LocalAABB                                 aabb;
-    GLShared<RawBuffer<VertexPNTTB, GLConst>> vertices;
-    GLShared<RawBuffer<GLuint, GLConst>>      indices;
-    std::optional<SharedTextureAsset>         diffuse;
-    std::optional<SharedTextureAsset>         specular;
-    std::optional<SharedTextureAsset>         normal;
+    AssetPath                         path;
+    LocalAABB                         aabb;
+    SharedConstBuffer<VertexPNTTB>    vertices;
+    SharedConstBuffer<GLuint>         indices;
+    std::optional<SharedTextureAsset> diffuse;
+    std::optional<SharedTextureAsset> specular;
+    std::optional<SharedTextureAsset> normal;
 };
 
 struct SharedModelAsset {

@@ -677,8 +677,8 @@ void AssetManager::handle_upload_request(UploadRequest&& request) {
             if (auto data_asset = std::get_if<MeshDataAsset>(&unresolved_mesh.mesh)) {
 
                 // Upload Mesh Data.
-                auto verts   = data_asset->data.vertices();
-                auto indices = data_asset->data.elements();
+                const auto& verts   = data_asset->data.vertices();
+                const auto& indices = data_asset->data.elements();
 
                 SharedBuffer<VertexPNTTB> verts_buf =
                     specify_buffer(std::span<const VertexPNTTB>(verts), StorageMode::StaticServer);
@@ -732,17 +732,23 @@ void AssetManager::handle_upload_request(UploadRequest&& request) {
         glapi::finish();
 
 
-        // TODO: Not sure about the order of the following 3 operations.
-
-
-        // Done, resolve the promise.
-        set_result(std::move(request.promise), stored_to_shared(stored_model));
-
-
-        // Cache the model and resolve pending requests, if any.
+        // Cache the model and resolve all requests related to this asset..
         AssetPath path_copy = stored_model.path;
         {
             std::scoped_lock model_cache_lock{ model_cache_mutex_ };
+
+            // We resolve the primary request under a cache lock too,
+            // this forces the Dispatch Thread to wait until the lock is released,
+            // before checking the cache.
+            //
+            // From the perspective of the caller, this guarantees that once
+            // the initial load completes, any repeated requests for the same asset
+            // will be sourced from the cache.
+            //
+            // This is not required and can be moved outside the lock
+            // in exchange for the above guarantee.
+            set_result(std::move(request.promise), stored_to_shared(stored_model));
+
             auto [it, was_emplaced] =
                 model_cache_.try_emplace(std::move(path_copy), stored_model);
 
