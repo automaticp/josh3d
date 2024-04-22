@@ -2,8 +2,8 @@
 #include "GLAPICommonTypes.hpp"
 #include "GLObjectHelpers.hpp"
 #include "GLTextures.hpp"
-#include "ImageData.hpp"
 #include "Pixels.hpp"
+#include "PixelData.hpp"
 #include "AttributeTraits.hpp" // IWYU pragma: keep (traits)
 #include "PixelPackTraits.hpp" // IWYU pragma: keep (traits)
 #include "ImGuiHelpers.hpp"
@@ -26,10 +26,11 @@ void TerrainComponents::operator()(entt::registry& registry) {
     if (ImGui::Button("Generate Chunk")) {
 
         Size2S size{ 256, 256 };
-        ImageData<pixel::REDF> hdata{ size };
+        PixelData<pixel::RedF> hdata{ size };
         static WhiteNoiseGenerator noise_generator;
-        for (auto& px : hdata) { px.r = noise_generator(); }
-
+        for (auto& px : hdata) {
+            px.r = noise_generator();
+        }
 
         auto mesh_data =
             generate_terrain_mesh(size, [&](const Index2S& idx) { return hdata.at(idx).r; });
@@ -47,7 +48,7 @@ void TerrainComponents::operator()(entt::registry& registry) {
         entt::handle handle{ registry, registry.create() };
         handle.emplace<Transform>();
         handle.emplace<components::TerrainChunk>(
-            std::move(hdata), std::move(mesh), std::move(heightmap)
+            std::move(mesh), std::move(hdata), std::move(heightmap)
         );
 
     }

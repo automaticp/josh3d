@@ -1,4 +1,5 @@
 #include "TextureHelpers.hpp"
+#include "Channels.hpp"
 #include "Filesystem.hpp"
 #include "MallocSupport.hpp"
 #include "Pixels.hpp"
@@ -35,13 +36,13 @@ auto load_image_from_file_impl(
 
 
     ChanT* data;
-    if constexpr (std::same_as<ChanT, ubyte_t>) {
+    if constexpr (std::same_as<ChanT, chan::UByte>) {
         data = stbi_load(
             file.path().c_str(),
             &width, &height, &num_channels_in_file,
             desired_channels
         );
-    } else if constexpr (std::same_as<ChanT, float>) {
+    } else if constexpr (std::same_as<ChanT, chan::Float>) {
         data = stbi_loadf(
             file.path().c_str(),
             &width, &height, &num_channels_in_file,
@@ -67,20 +68,20 @@ auto load_image_from_file_impl(
 
 
 template
-auto load_image_from_file_impl<ubyte_t>(
+auto load_image_from_file_impl<chan::UByte>(
     const File& file,
     size_t      min_channels,
     size_t      max_channels,
     bool        vflip)
-        -> UntypedImageLoadResult<ubyte_t>;
+        -> UntypedImageLoadResult<chan::UByte>;
 
 template
-auto load_image_from_file_impl<float>(
+auto load_image_from_file_impl<chan::Float>(
     const File& file,
     size_t      min_channels,
     size_t      max_channels,
     bool        vflip)
-        -> UntypedImageLoadResult<float>;
+        -> UntypedImageLoadResult<chan::Float>;
 
 
 std::array<File, 6> parse_cubemap_json_for_files(const File& json_file) {

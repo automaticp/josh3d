@@ -1,4 +1,5 @@
 #include "AssetManager.hpp"
+#include "Channels.hpp"
 #include "Future.hpp"
 #include "GLAPICore.hpp"
 #include "GLObjectHelpers.hpp"
@@ -390,7 +391,9 @@ void AssetManager::handle_load_request(LoadRequest&& request) {
                         } else {
                             // 3. Load and emplace if not found.
                             auto [min_channels, max_channels] = get_minmax_channels(intent);
-                            auto image_data = load_image_data_from_file<ubyte_t>(File(path.file), min_channels, max_channels);
+                            auto image_data = load_image_data_from_file<chan::UByte>(
+                                File(path.file), min_channels, max_channels
+                            );
                             textures.emplace_back(ImageDataAsset{
                                 .path   = std::move(path),
                                 .intent = intent,

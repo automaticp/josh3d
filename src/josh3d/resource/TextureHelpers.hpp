@@ -5,6 +5,7 @@
 #include "GLScalars.hpp"
 #include "GLTextures.hpp"
 #include "GLObjects.hpp"
+#include "PixelData.hpp"
 #include "ImageData.hpp"
 #include "Filesystem.hpp"
 #include "MallocSupport.hpp"
@@ -43,14 +44,13 @@ template<typename ChannelT>
     size_t      min_channels,
     size_t      max_channels,
     bool        flip_vertically = true)
-        -> ImageData2<ChannelT>;
+        -> ImageData<ChannelT>;
 
-// TODO: Deprecate this.
 template<typename PixelT>
-[[nodiscard]] auto load_image_from_file(
+[[nodiscard]] auto load_pixel_data_from_file(
     const File& file,
     bool        flip_vertically = true)
-        -> ImageData<PixelT>;
+        -> PixelData<PixelT>;
 
 template<typename PixelT>
 [[nodiscard]] auto load_cubemap_from_files(
@@ -58,13 +58,13 @@ template<typename PixelT>
     const File& posy, const File& negy,
     const File& posz, const File& negz,
     bool flip_vertically = true)
-        -> CubemapData<PixelT>;
+        -> CubemapPixelData<PixelT>;
 
 template<typename PixelT>
 [[nodiscard]] auto load_cubemap_from_json(
     const File& json_file,
     bool        flip_vertically = true)
-        -> CubemapData<PixelT>;
+        -> CubemapPixelData<PixelT>;
 
 
 
@@ -73,28 +73,28 @@ template<typename PixelT>
 
 template<typename ChannelT>
 [[nodiscard]] auto create_material_texture_from_image_data(
-    const ImageData2<ChannelT>& data,
+    const ImageData<ChannelT>& data,
     PixelDataFormat             format,
     PixelDataType               type,
     InternalFormat              iformat)
         -> UniqueTexture2D;
 
 template<typename PixelT>
-[[nodiscard]] auto create_material_texture_from_data(
-    const ImageData<PixelT>& data,
+[[nodiscard]] auto create_material_texture_from_pixel_data(
+    const PixelData<PixelT>& data,
     InternalFormat           internal_format)
         -> UniqueTexture2D;
 
 template<typename PixelT>
 [[nodiscard]] auto create_material_cubemap_from_data(
-    const CubemapData<PixelT>& data,
-    InternalFormat             internal_format)
+    const CubemapPixelData<PixelT>& data,
+    InternalFormat                  internal_format)
         -> UniqueCubemap;
 
 template<typename PixelT>
 [[nodiscard]] auto create_skybox_from_cubemap_data(
-    const CubemapData<PixelT>& data,
-    InternalFormat             internal_format)
+    const CubemapPixelData<PixelT>& data,
+    InternalFormat                  internal_format)
         -> UniqueCubemap;
 
 
@@ -121,20 +121,20 @@ auto load_image_from_file_impl(
         -> UntypedImageLoadResult<ChanT>;
 
 extern template
-auto load_image_from_file_impl<ubyte_t>(
+auto load_image_from_file_impl<chan::UByte>(
     const File& file,
     size_t      min_channels,
     size_t      max_channels,
     bool        vflip)
-        -> UntypedImageLoadResult<ubyte_t>;
+        -> UntypedImageLoadResult<chan::UByte>;
 
 extern template
-auto load_image_from_file_impl<float>(
+auto load_image_from_file_impl<chan::Float>(
     const File& file,
     size_t      min_channels,
     size_t      max_channels,
     bool        vflip)
-        -> UntypedImageLoadResult<float>;
+        -> UntypedImageLoadResult<chan::Float>;
 
 
 std::array<File, 6> parse_cubemap_json_for_files(const File& json_file);
@@ -149,7 +149,7 @@ template<typename ChannelT>
     size_t      min_channels,
     size_t      max_channels,
     bool        flip_vertically)
-        -> ImageData2<ChannelT>
+        -> ImageData<ChannelT>
 {
     detail::UntypedImageLoadResult<ChannelT> im =
         detail::load_image_from_file_impl<ChannelT>(file, min_channels, max_channels, flip_vertically);
@@ -163,42 +163,42 @@ template<typename ChannelT>
 
 
 template<typename PixelT>
-[[nodiscard]] auto load_image_from_file(
+[[nodiscard]] auto load_pixel_data_from_file(
     const class File& file,
     bool              flip_vertically)
-        -> ImageData<PixelT>
+        -> PixelData<PixelT>
 {
     using tr = pixel_traits<PixelT>;
 
     detail::UntypedImageLoadResult<typename tr::channel_type> im =
         detail::load_image_from_file_impl<typename tr::channel_type>(file, tr::n_channels, tr::n_channels, flip_vertically);
 
-    return ImageData<PixelT>::from_channel_data(
+    return PixelData<PixelT>::from_channel_data(
         std::move(im.data), im.size
     );
 }
 
 
 template<typename PixelT>
-[[nodiscard]] CubemapData<PixelT> load_cubemap_from_files(
+[[nodiscard]] CubemapPixelData<PixelT> load_cubemap_from_files(
     const File& posx, const File& negx,
     const File& posy, const File& negy,
     const File& posz, const File& negz,
     bool flip_vertically)
 {
-    return CubemapData<PixelT> {
-        load_image_from_file<PixelT>(posx, flip_vertically),
-        load_image_from_file<PixelT>(negx, flip_vertically),
-        load_image_from_file<PixelT>(posy, flip_vertically),
-        load_image_from_file<PixelT>(negy, flip_vertically),
-        load_image_from_file<PixelT>(posz, flip_vertically),
-        load_image_from_file<PixelT>(negz, flip_vertically)
+    return CubemapPixelData<PixelT> {
+        load_pixel_data_from_file<PixelT>(posx, flip_vertically),
+        load_pixel_data_from_file<PixelT>(negx, flip_vertically),
+        load_pixel_data_from_file<PixelT>(posy, flip_vertically),
+        load_pixel_data_from_file<PixelT>(negy, flip_vertically),
+        load_pixel_data_from_file<PixelT>(posz, flip_vertically),
+        load_pixel_data_from_file<PixelT>(negz, flip_vertically)
     };
 }
 
 
 template<typename PixelT>
-[[nodiscard]] CubemapData<PixelT> load_cubemap_from_json(
+[[nodiscard]] CubemapPixelData<PixelT> load_cubemap_from_json(
     const File& json_file, bool flip_vertically)
 {
     std::array<File, 6> files = detail::parse_cubemap_json_for_files(json_file);
@@ -214,7 +214,7 @@ template<typename PixelT>
 
 template<typename ChannelT>
 [[nodiscard]] auto create_material_texture_from_image_data(
-    const ImageData2<ChannelT>& data,
+    const ImageData<ChannelT>& data,
     PixelDataFormat             format,
     PixelDataType               type,
     InternalFormat              iformat)
@@ -231,14 +231,14 @@ template<typename ChannelT>
 }
 
 
-// TODO: Deprecate this.
+
 template<specifies_pixel_pack_traits PixelT>
-[[nodiscard]] auto create_material_texture_from_data(
-    const ImageData<PixelT>& data,
+[[nodiscard]] auto create_material_texture_from_pixel_data(
+    const PixelData<PixelT>& data,
     InternalFormat           internal_format)
         -> UniqueTexture2D
 {
-    const Size2I resolution{ data.size() };
+    const Size2I resolution{ data.resolution() };
 
     UniqueTexture2D texture;
     texture->allocate_storage(resolution, internal_format, max_num_levels(resolution));
@@ -251,11 +251,11 @@ template<specifies_pixel_pack_traits PixelT>
 
 template<specifies_pixel_pack_traits PixelT>
 [[nodiscard]] auto create_material_cubemap_from_data(
-    const CubemapData<PixelT>& data,
-    InternalFormat             internal_format)
+    const CubemapPixelData<PixelT>& data,
+    InternalFormat                  internal_format)
         -> UniqueCubemap
 {
-    const Size2I resolution{ data.sides()[0].size() };
+    const Size2I resolution{ data.sides()[0].resolution() };
 
     UniqueCubemap cubemap;
     cubemap->allocate_storage(resolution, internal_format, max_num_levels(resolution));
@@ -275,11 +275,11 @@ template<specifies_pixel_pack_traits PixelT>
 
 template<typename PixelT>
 [[nodiscard]] auto create_skybox_from_cubemap_data(
-    const CubemapData<PixelT>& data,
-    InternalFormat             internal_format)
+    const CubemapPixelData<PixelT>& data,
+    InternalFormat                  internal_format)
         -> UniqueCubemap
 {
-    const Size2I resolution{ data.sides()[0].size() };
+    const Size2I resolution{ data.sides()[0].resolution() };
 
     UniqueCubemap cubemap;
     cubemap->allocate_storage(resolution, internal_format, max_num_levels(resolution));

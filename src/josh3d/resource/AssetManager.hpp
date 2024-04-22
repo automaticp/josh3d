@@ -1,13 +1,12 @@
 #pragma once
+#include "Channels.hpp"
 #include "Filesystem.hpp"
 #include "AABB.hpp"
 #include "Future.hpp"
-#include "GLMutability.hpp"
 #include "GLObjects.hpp"
 #include "GLScalars.hpp"
 #include "ImageData.hpp"
 #include "MeshData.hpp"
-#include "Pixels.hpp"
 #include "ThreadsafeQueue.hpp"
 #include "VPath.hpp"
 #include "VertexPNTTB.hpp"
@@ -231,9 +230,9 @@ private:
 
 
     struct ImageDataAsset {
-        AssetPath           path;
-        ImageIntent         intent;
-        ImageData2<ubyte_t> data;
+        AssetPath               path;
+        ImageIntent             intent;
+        ImageData<chan::UByte>  data;
     };
 
     struct MeshDataAsset {
