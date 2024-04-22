@@ -175,6 +175,18 @@ void unbind_samplers_from_units(UInt... index) noexcept { (unbind_sampler_from_u
 
 
 
+// For cross-conext visibility updates.
+template<Binding B>
+inline void make_available(GLuint id) noexcept {
+    bind_to_context<B>(id);
+    unbind_from_context<B>();
+}
+
+
+
+
+
+
 template<Binding B>
 class BindToken;
 
