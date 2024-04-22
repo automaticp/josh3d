@@ -3,7 +3,7 @@
 #include "MeshData.hpp"
 #include "Size.hpp"
 #include "Index.hpp"
-#include "VertexPNTTB.hpp"
+#include "VertexPNUTB.hpp"
 #include <cassert>
 #include <glm/glm.hpp>
 
@@ -15,26 +15,26 @@ template<of_signature<float(const Index2S&)> MappingF>
 [[nodiscard]] inline auto generate_terrain_mesh(
     Size2S     num_vertices_xy,
     MappingF&& mapping_fun)
-        -> MeshData<VertexPNTTB>
+        -> MeshData<VertexPNUTB>
 {
     const size_t size_x = num_vertices_xy.width;
     const size_t size_y = num_vertices_xy.height;
 
     assert(size_x > 1 && size_y > 1);
 
-    MeshData<VertexPNTTB> result;
+    MeshData<VertexPNUTB> result;
     result.vertices().reserve(num_vertices_xy.area());
 
     for (size_t yid{ 0 }; yid < size_y; ++yid) {
         for (size_t xid{ 0 }; xid < size_x; ++xid) {
-            VertexPNTTB v{};
+            VertexPNUTB v{};
 
-            v.tex_uv.s = float(xid) / float(size_x - 1);
-            v.tex_uv.t = float(yid) / float(size_y - 1);
+            v.uv.s = float(xid) / float(size_x - 1);
+            v.uv.t = float(yid) / float(size_y - 1);
 
-            v.position.x = v.tex_uv.s;
+            v.position.x = v.uv.s;
             v.position.y = std::invoke(std::forward<MappingF>(mapping_fun), Index2S{ xid, yid });
-            v.position.z = v.tex_uv.t;
+            v.position.z = v.uv.t;
 
             // Replaced later in a second pass.
             v.normal = glm::vec3{ 0.f, 1.f, 0.f };

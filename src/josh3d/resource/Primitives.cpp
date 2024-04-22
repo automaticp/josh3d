@@ -9,7 +9,7 @@
 #include "PixelData.hpp"
 #include "Pixels.hpp"
 #include "TextureHelpers.hpp"
-#include "VertexPNTTB.hpp"
+#include "VertexPNUTB.hpp"
 
 
 namespace josh {
@@ -57,7 +57,7 @@ Mesh load_simple_mesh(AssetManager& assman, Path path) {
     auto shared_mesh = get_result(assman.load_model(AssetPath{ std::move(path), {} })).meshes.at(0);
     make_available<Binding::ArrayBuffer>       (shared_mesh.vertices->id());
     make_available<Binding::ElementArrayBuffer>(shared_mesh.indices->id() );
-    return Mesh::from_buffers<VertexPNTTB>(std::move(shared_mesh.vertices), std::move(shared_mesh.indices));
+    return Mesh::from_buffers<VertexPNUTB>(std::move(shared_mesh.vertices), std::move(shared_mesh.indices));
 }
 
 

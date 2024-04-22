@@ -61,7 +61,7 @@ inline components::Model& emplace_model_asset_into(
             make_available<Binding::ElementArrayBuffer>(mesh.indices->id() );
 
             mesh_handle.emplace<components::Mesh>(
-                Mesh::from_buffers<VertexPNTTB>(
+                Mesh::from_buffers<VertexPNUTB>(
                     std::move(mesh.vertices),
                     std::move(mesh.indices)
                 )

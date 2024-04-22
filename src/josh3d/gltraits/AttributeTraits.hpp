@@ -1,6 +1,6 @@
 #pragma once
 #include "GLAttributeTraits.hpp"
-#include "VertexPNTTB.hpp"
+#include "VertexPNUTB.hpp"
 #include <tuple>
 #include <cstddef>
 
@@ -8,7 +8,7 @@
 namespace josh {
 
 
-template<> struct attribute_traits<VertexPNTTB> {
+template<> struct attribute_traits<VertexPNUTB> {
     using specs_type = std::tuple<
         AttributeSpecF,
         AttributeSpecF,
@@ -18,11 +18,11 @@ template<> struct attribute_traits<VertexPNTTB> {
     >;
 
     static constexpr specs_type specs{
-        AttributeSpecF{ AttributeTypeF::Float, AttributeComponents::RGB, OffsetBytes{ offsetof(VertexPNTTB, position)  } },
-        AttributeSpecF{ AttributeTypeF::Float, AttributeComponents::RGB, OffsetBytes{ offsetof(VertexPNTTB, normal)    } },
-        AttributeSpecF{ AttributeTypeF::Float, AttributeComponents::RG,  OffsetBytes{ offsetof(VertexPNTTB, tex_uv)    } },
-        AttributeSpecF{ AttributeTypeF::Float, AttributeComponents::RGB, OffsetBytes{ offsetof(VertexPNTTB, tangent)   } },
-        AttributeSpecF{ AttributeTypeF::Float, AttributeComponents::RGB, OffsetBytes{ offsetof(VertexPNTTB, bitangent) } },
+        AttributeSpecF{ AttributeTypeF::Float, AttributeComponents::RGB, OffsetBytes{ offsetof(VertexPNUTB, position)  } },
+        AttributeSpecF{ AttributeTypeF::Float, AttributeComponents::RGB, OffsetBytes{ offsetof(VertexPNUTB, normal)    } },
+        AttributeSpecF{ AttributeTypeF::Float, AttributeComponents::RG,  OffsetBytes{ offsetof(VertexPNUTB, uv)        } },
+        AttributeSpecF{ AttributeTypeF::Float, AttributeComponents::RGB, OffsetBytes{ offsetof(VertexPNUTB, tangent)   } },
+        AttributeSpecF{ AttributeTypeF::Float, AttributeComponents::RGB, OffsetBytes{ offsetof(VertexPNUTB, bitangent) } },
     };
 };
 

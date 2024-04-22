@@ -7,7 +7,7 @@
 #include "GLPixelPackTraits.hpp"
 #include "GLTextures.hpp"
 #include "TextureHelpers.hpp"
-#include "VertexPNTTB.hpp"
+#include "VertexPNUTB.hpp"
 #include <glfwpp/window.h>
 #include <assimp/Importer.hpp>
 #include <assimp/BaseImporter.h>
@@ -434,7 +434,7 @@ void AssetManager::handle_load_request(LoadRequest&& request) {
 
 
         auto get_mesh_data = [&v2v](const aiMesh& mesh)
-            -> MeshData<VertexPNTTB>
+            -> MeshData<VertexPNUTB>
         {
             auto verts      = std::span(mesh.mVertices,         mesh.mNumVertices);
             auto uvs        = std::span(mesh.mTextureCoords[0], mesh.mNumVertices);
@@ -464,14 +464,14 @@ void AssetManager::handle_load_request(LoadRequest&& request) {
             }
 
 
-            std::vector<VertexPNTTB> vertex_data;
+            std::vector<VertexPNUTB> vertex_data;
             vertex_data.reserve(verts.size());
 
             for (size_t i{ 0 }; i < verts.size(); ++i) {
-                vertex_data.emplace_back(VertexPNTTB{
+                vertex_data.emplace_back(VertexPNUTB{
                     .position  = v2v(verts[i]     ),
                     .normal    = v2v(normals[i]   ),
-                    .tex_uv    = v2v(uvs[i]       ),
+                    .uv        = v2v(uvs[i]       ),
                     .tangent   = v2v(tangents[i]  ),
                     .bitangent = v2v(bitangents[i]),
                 });
@@ -683,8 +683,8 @@ void AssetManager::handle_upload_request(UploadRequest&& request) {
                 const auto& verts   = data_asset->data.vertices();
                 const auto& indices = data_asset->data.elements();
 
-                SharedBuffer<VertexPNTTB> verts_buf =
-                    specify_buffer(std::span<const VertexPNTTB>(verts), StorageMode::StaticServer);
+                SharedBuffer<VertexPNUTB> verts_buf =
+                    specify_buffer(std::span<const VertexPNUTB>(verts), StorageMode::StaticServer);
 
                 SharedBuffer<GLuint> indices_buf =
                     specify_buffer(std::span<const GLuint>(indices), StorageMode::StaticServer);

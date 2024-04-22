@@ -9,7 +9,7 @@
 #include "MeshData.hpp"
 #include "ThreadsafeQueue.hpp"
 #include "VPath.hpp"
-#include "VertexPNTTB.hpp"
+#include "VertexPNUTB.hpp"
 #include "VirtualFilesystem.hpp"
 #include <glbinding/gl/types.h>
 #include <cstdint>
@@ -146,7 +146,7 @@ struct SharedTextureAsset {
 struct SharedMeshAsset {
     AssetPath                         path;
     LocalAABB                         aabb;
-    SharedConstBuffer<VertexPNTTB>    vertices;
+    SharedConstBuffer<VertexPNUTB>    vertices;
     SharedConstBuffer<GLuint>         indices;
     std::optional<SharedTextureAsset> diffuse;
     std::optional<SharedTextureAsset> specular;
@@ -199,7 +199,7 @@ private:
     struct StoredMeshAsset {
         AssetPath                         path;
         LocalAABB                         aabb;
-        SharedBuffer<VertexPNTTB>         vertices;
+        SharedBuffer<VertexPNUTB>         vertices;
         SharedBuffer<GLuint>              indices;
         std::optional<StoredTextureAsset> diffuse;
         std::optional<StoredTextureAsset> specular;
@@ -238,7 +238,7 @@ private:
     struct MeshDataAsset {
         AssetPath             path;
         LocalAABB             aabb;
-        MeshData<VertexPNTTB> data;
+        MeshData<VertexPNUTB> data;
     };
 
 
