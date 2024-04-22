@@ -1,6 +1,5 @@
 #pragma once
 #include "AssetManager.hpp"
-#include "AssimpModelLoader.hpp"
 #include "ComponentLoaders.hpp"
 #include "GLPixelPackTraits.hpp"
 #include "GLTextures.hpp"
@@ -9,6 +8,7 @@
 #include "Input.hpp"
 #include "InputFreeCamera.hpp"
 #include "LightCasters.hpp"
+#include "Primitives.hpp"
 #include "SharedStorage.hpp"
 #include "WindowSizeCache.hpp"
 #include "FrameTimer.hpp"
@@ -81,19 +81,25 @@ using namespace josh;
 
 
 class DemoScene {
+public:
+    DemoScene(glfw::Window& window);
+    void applicate();
+    void process_input() {}
+    void update();
+    void render();
+
 private:
-    glfw::Window& window_;
-
+    glfw::Window&  window_;
     entt::registry registry_;
-
-    AssetManager assman_;
+    AssetManager   assman_;
+    Primitives     primitives_;
 
     PerspectiveCamera cam_{
         PerspectiveCameraParams{
-            .fovy_rad = glm::radians(90.f),
+            .fovy_rad = glm::radians(80.f),
             .aspect_ratio = globals::window_size.size_ref().aspect_ratio(),
             .z_near  = 0.1f,
-            .z_far   = 100.f
+            .z_far   = 500.f
         },
         Transform().translate({ 0.f, 1.f, 0.f })
     };
@@ -103,20 +109,14 @@ private:
     InputFreeCamera      input_freecam_{ cam_ };
 
     RenderEngine rengine_{
-        registry_, cam_,
+        registry_, cam_, primitives_,
         globals::window_size.size_ref(), globals::frame_timer
     };
 
     ImGuiApplicationAssembly imgui_{ window_, rengine_, registry_, cam_, vfs() };
 
-public:
-    DemoScene(glfw::Window& window);
-    void applicate();
-    void process_input() {}
-    void update();
-    void render();
 
-private:
+
     void configure_input(SharedStorageView<GBuffer> gbuffer);
     void init_registry();
     void update_input_blocker_from_imgui_io_state();
@@ -127,8 +127,9 @@ private:
 
 
 inline DemoScene::DemoScene(glfw::Window& window)
-    : window_{ window }
-    , assman_{ vfs(), window }
+    : window_    { window        }
+    , assman_    { vfs(), window }
+    , primitives_{ assman_       }
 {
 
 
@@ -390,19 +391,19 @@ inline void DemoScene::configure_input(SharedStorageView<GBuffer> gbuffer) {
 inline void DemoScene::init_registry() {
     auto& r = registry_;
 
-    using enum GLenum;
-
     constexpr const char* path = "data/models/shadow_scene/shadow_scene.obj";
-    constexpr const char* name = "shadow_scene.obj";
+
+    SharedModelAsset model_asset = get_result(assman_.load_model(AssetVPath{ VPath(path), {} }));
 
     entt::handle model{ r, r.create() };
 
-    ModelComponentLoader()
-        .load_into(model, VPath(path));
+    model.emplace<components::Path>(model_asset.path.file);
+    model.emplace<components::Name>(model_asset.path.file.filename());
+
+    emplace_model_asset_into(model, std::move(model_asset));
 
     model.emplace<Transform>();
-    model.emplace<components::Path>(path);
-    model.emplace<components::Name>(name);
+
 
     r.emplace<light::Ambient>(r.create(), light::Ambient{
         .color = { 0.15f, 0.15f, 0.1f }
@@ -414,6 +415,7 @@ inline void DemoScene::init_registry() {
         .direction = { -0.2f, -1.0f, -0.3f }
     });
     r.emplace<tags::ShadowCasting>(e);
+
 
     load_skybox_into(entt::handle{ r, r.create() }, VPath("data/skyboxes/yokohama/skybox.json"));
 }

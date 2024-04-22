@@ -1,5 +1,4 @@
 #include "DeferredShading.hpp"
-#include "DefaultResources.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLAPICommonTypes.hpp"
 #include "GLBuffers.hpp"
@@ -112,7 +111,7 @@ void DeferredShading::draw_main(
     auto bound_program = sp_->use();
 
     engine.draw([&](auto bound_fbo) {
-        globals::quad_primitive_mesh().draw(bound_program, bound_fbo);
+        engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
     });
 
     bound_program.unbind();

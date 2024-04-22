@@ -1,9 +1,9 @@
 #pragma once
 #include "CommonConcepts.hpp" // IWYU pragma: keep (concepts)
 #include "MeshData.hpp"
-#include "VertexPNT.hpp"
 #include "Size.hpp"
 #include "Index.hpp"
+#include "VertexPNTTB.hpp"
 #include <cassert>
 #include <glm/glm.hpp>
 
@@ -12,20 +12,22 @@ namespace josh {
 
 
 template<of_signature<float(const Index2S&)> MappingF>
-[[nodiscard]] inline MeshData<VertexPNT> generate_terrain_mesh(
-    Size2S num_vertices_xy, MappingF&& mapping_fun)
+[[nodiscard]] inline auto generate_terrain_mesh(
+    Size2S     num_vertices_xy,
+    MappingF&& mapping_fun)
+        -> MeshData<VertexPNTTB>
 {
     const size_t size_x = num_vertices_xy.width;
     const size_t size_y = num_vertices_xy.height;
 
     assert(size_x > 1 && size_y > 1);
 
-    MeshData<VertexPNT> result;
+    MeshData<VertexPNTTB> result;
     result.vertices().reserve(num_vertices_xy.area());
 
     for (size_t yid{ 0 }; yid < size_y; ++yid) {
         for (size_t xid{ 0 }; xid < size_x; ++xid) {
-            VertexPNT v{};
+            VertexPNTTB v{};
 
             v.tex_uv.s = float(xid) / float(size_x - 1);
             v.tex_uv.t = float(yid) / float(size_y - 1);
@@ -36,6 +38,10 @@ template<of_signature<float(const Index2S&)> MappingF>
 
             // Replaced later in a second pass.
             v.normal = glm::vec3{ 0.f, 1.f, 0.f };
+
+            // Tangents are ignored for now.
+            v.tangent   = {};
+            v.bitangent = {};
 
             result.vertices().emplace_back(v);
         }

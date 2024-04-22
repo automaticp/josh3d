@@ -76,6 +76,7 @@ public:
                 primitive_type(), vertex_offset(), num_vertices()
             );
         }
+        bound_vao.unbind();
     }
 
 };

@@ -1,5 +1,4 @@
 #pragma once
-#include "DefaultResources.hpp"
 #include "GLAPICommonTypes.hpp"
 #include "GLObjects.hpp"
 #include "RenderEngine.hpp"
@@ -217,7 +216,7 @@ inline void SelectedObjectHighlight::operator()(
                 StencilOp::Keep  // spass->dpass
             );
             sp_highlight_->uniform("color", outline_color);
-            globals::quad_primitive_mesh().draw(bound_program, bound_fbo);
+            engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
 
 
             // Inner Fill.
@@ -228,7 +227,7 @@ inline void SelectedObjectHighlight::operator()(
                 StencilOp::Keep  // spass->dpass
             );
             sp_highlight_->uniform("color", inner_fill_color);
-            globals::quad_primitive_mesh().draw(bound_program, bound_fbo);
+            engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
 
 
             bound_program.unbind();

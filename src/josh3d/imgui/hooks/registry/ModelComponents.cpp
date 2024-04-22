@@ -1,14 +1,11 @@
 #include "ModelComponents.hpp"
 #include "AssetManager.hpp"
-#include "GLAPIBinding.hpp"
+#include "ComponentLoaders.hpp"
 #include "GLMutability.hpp"
 #include "ImGuiHelpers.hpp"
 #include "ImGuiComponentWidgets.hpp"
 #include "RuntimeError.hpp"
-#include "components/BoundingSphere.hpp"
-#include "components/ChildMesh.hpp"
 #include "components/Materials.hpp"
-#include "components/Mesh.hpp"
 #include "components/Model.hpp"
 #include "components/Name.hpp"
 #include "components/Path.hpp"
@@ -16,8 +13,6 @@
 #include "tags/AlphaTested.hpp"
 #include "tags/Culled.hpp"
 #include "Transform.hpp"
-#include "AttributeTraits.hpp"
-#include "AssimpModelLoader.hpp"
 #include "VPath.hpp"
 #include <entt/entity/entity.hpp>
 #include <entt/entity/fwd.hpp>
@@ -62,20 +57,26 @@ void ModelComponents::load_model_widget(entt::registry& registry) {
         try {
 
             Path path{ load_path_ };
+
             if (path.is_absolute()) {
+
                 File file{ path };
                 model_handle.emplace<components::Path>(std::filesystem::canonical(file.path()));
                 current_requests.emplace_back(model_handle.entity(), path, assman_.load_model(AssetPath{ file.path(), {} }));
+
             } else /* is_relative */ {
+
                 VPath vpath{ path };
                 File file{ vpath };
                 model_handle.emplace<components::VPath>(std::move(vpath));
                 model_handle.emplace<components::Path>(std::filesystem::canonical(file.path()));
 
                 current_requests.emplace_back(model_handle.entity(), path, assman_.load_model(AssetPath{ file.path(), {} }));
+
             }
+
             model_handle.emplace<components::Name>(path.filename());
-            model_handle.emplace<Transform>();
+            model_handle.emplace<components::Transform>();
 
         } catch (const error::RuntimeError& e) {
             model_handle.destroy();
@@ -94,60 +95,24 @@ void ModelComponents::load_model_widget(entt::registry& registry) {
         auto& current_request = *it;
         if (current_request.future.is_available()) {
             if (registry.valid(current_request.entity)) {
+
                 entt::handle model_handle{ registry, current_request.entity };
+
                 try {
-                    // Need to make assets available
+
                     SharedModelAsset asset = get_result(std::move(current_request.future));
-                    std::vector<entt::entity> children;
-                    children.resize(asset.meshes.size());
-
-                    registry.create(children.begin(), children.end());
-                    for (size_t i{ 0 }; i < children.size(); ++i) {
-                        auto& mesh        = asset.meshes[i];
-                        auto  mesh_handle = entt::handle(registry, children[i]);
-
-                        bind_to_context<Binding::ArrayBuffer>(mesh.vertices->id());
-                        bind_to_context<Binding::ElementArrayBuffer>(mesh.indices->id());
-                        mesh_handle.emplace<components::Mesh>(Mesh::from_buffers<VertexPNTTB>(std::move(mesh.vertices), std::move(mesh.indices)));
-                        // TODO: This is terrible, use AABB
-                        auto [lbb, rtf] = mesh.aabb;
-                        float max_something = glm::max(glm::length(lbb), glm::length(rtf));
-                        mesh_handle.emplace<components::BoundingSphere>(max_something);
-
-                        if (mesh.diffuse.has_value()) {
-                            bind_to_context<Binding::Texture2D>(mesh.diffuse->texture->id());
-                            auto& diffuse = mesh_handle.emplace<components::MaterialDiffuse>(mesh.diffuse->texture);
-                            // TODO: We check if the alpha channel even exitsts in the texture,
-                            // to decide on whether alpha testing should be enabled. Is there a better way?
-                            PixelComponentType alpha_component =
-                                diffuse.texture->get_component_type<PixelComponent::Alpha>();
-                            if (alpha_component != PixelComponentType::None) {
-                                mesh_handle.emplace<tags::AlphaTested>();
-                            }
-                        }
-
-                        if (mesh.specular.has_value()) {
-                            bind_to_context<Binding::Texture2D>(mesh.specular->texture->id());
-                            mesh_handle.emplace<components::MaterialSpecular>(mesh.specular->texture, 128.f);
-                        }
-
-                        if (mesh.normal.has_value()) {
-                            bind_to_context<Binding::Texture2D>(mesh.normal->texture->id());
-                            mesh_handle.emplace<components::MaterialNormal>(mesh.normal->texture);
-                        }
-
-
-                        mesh_handle.emplace<components::ChildMesh>(model_handle.entity());
-
-                        mesh_handle.emplace<Transform>();
-                        mesh_handle.emplace<components::Name>(mesh.path.subpath);
-
-                    }
-                    model_handle.emplace<components::Model>(std::move(children));
+                    emplace_model_asset_into(model_handle, std::move(asset));
 
                 } catch (const error::RuntimeError& e) {
+
                     model_handle.destroy();
                     last_load_error_message_ = e.what();
+
+                } catch (...) {
+
+                    model_handle.destroy();
+                    throw;
+
                 }
 
             }

@@ -1,6 +1,5 @@
 #pragma once
 #include "Attachments.hpp"
-#include "DefaultResources.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLFramebuffer.hpp"
 #include "GLMutability.hpp"
@@ -8,6 +7,7 @@
 #include "PerspectiveCamera.hpp"
 #include "FrameTimer.hpp"
 #include "GLObjects.hpp"
+#include "Primitives.hpp"
 #include "RenderTarget.hpp"
 #include "Size.hpp"
 #include "RenderStage.hpp"
@@ -77,51 +77,6 @@ class RenderEngineOverlayInterface;
 
 
 class RenderEngine {
-private:
-    friend RenderEngineCommonInterface;
-    friend RenderEnginePrecomputeInterface;
-    friend RenderEnginePrimaryInterface;
-    friend RenderEnginePostprocessInterface;
-    friend RenderEngineOverlayInterface;
-
-
-    std::vector<PrecomputeStage>  precompute_;
-    std::vector<PrimaryStage>     primary_;
-    std::vector<PostprocessStage> postprocess_;
-    std::vector<OverlayStage>     overlay_;
-
-    entt::registry& registry_;
-
-    PerspectiveCamera& cam_;
-
-    const FrameTimer& frame_timer_;
-
-
-    using MainTarget = RenderTarget<
-        SharedAttachment<Renderable::Texture2D>, // Depth
-        UniqueAttachment<Renderable::Texture2D>  // Color
-    >;
-
-    ShareableAttachment<Renderable::Texture2D> depth_{
-        // TODO: Floating-point depth is not blittable to the default fbo.
-        // How would we do it then?
-        InternalFormat::Depth24_Stencil8
-    };
-
-    MainTarget make_main_target(const Size2I& resolution) {
-        return {
-            resolution,
-            depth_.share(),
-            { InternalFormat::RGBA16F }
-        };
-    }
-
-    SwapChain<MainTarget> main_swapchain_;
-
-
-    inline static const RawDefaultFramebuffer<GLMutable> default_fbo_;
-
-
 public:
     // Enables RGB -> sRGB conversion at the end of the postprocessing pass.
     bool  enable_srgb_conversion{ true };
@@ -133,23 +88,20 @@ public:
 
 
     RenderEngine(
-        entt::registry&    registry,   // TODO: Should not be a reference.
+        entt::registry&    registry,
         PerspectiveCamera& cam,        // TODO: Should not be a reference.
+        const Primitives&  primitives,
         const Size2I&      resolution,
         const FrameTimer&  frame_timer // TODO: Should not be a reference.
     )
         : registry_       { registry     }
         , cam_            { cam          }
+        , primitives_     { primitives   }
         , frame_timer_    { frame_timer  }
         , main_swapchain_ { make_main_target(resolution), make_main_target(resolution) }
     {
         // Because we are sharing the depth in the swapchain, we have to bother to sync the size manually.
         resize_depth(main_resolution());
-
-        // using enum GLenum;
-        // depth_.texture().bind()
-        //     .set_min_mag_filters(GL_NEAREST, GL_NEAREST)
-        //     .set_wrap_st(GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
     }
 
     void render();
@@ -207,14 +159,65 @@ public:
     auto&       camera()       noexcept { return cam_; }
     const auto& camera() const noexcept { return cam_; }
 
-    const FrameTimer& frame_timer()     const noexcept { return frame_timer_; }
+    const Primitives& primitives() const noexcept { return primitives_; }
+
+    const FrameTimer& frame_timer() const noexcept { return frame_timer_; }
 
     void resize(const Size2I& new_resolution) {
         main_swapchain_.resize(new_resolution);
         resize_depth(new_resolution);
     }
 
+
+
 private:
+    friend RenderEngineCommonInterface;
+    friend RenderEnginePrecomputeInterface;
+    friend RenderEnginePrimaryInterface;
+    friend RenderEnginePostprocessInterface;
+    friend RenderEngineOverlayInterface;
+
+
+    std::vector<PrecomputeStage>  precompute_;
+    std::vector<PrimaryStage>     primary_;
+    std::vector<PostprocessStage> postprocess_;
+    std::vector<OverlayStage>     overlay_;
+
+    entt::registry& registry_;
+
+    PerspectiveCamera& cam_;
+
+    const Primitives& primitives_;
+
+    const FrameTimer& frame_timer_;
+
+
+    using MainTarget = RenderTarget<
+        SharedAttachment<Renderable::Texture2D>, // Depth
+        UniqueAttachment<Renderable::Texture2D>  // Color
+    >;
+
+    ShareableAttachment<Renderable::Texture2D> depth_{
+        // TODO: Floating-point depth is not blittable to the default fbo.
+        // How would we do it then?
+        InternalFormat::Depth24_Stencil8
+    };
+
+    MainTarget make_main_target(const Size2I& resolution) {
+        return {
+            resolution,
+            depth_.share(),
+            { InternalFormat::RGBA16F }
+        };
+    }
+
+    SwapChain<MainTarget> main_swapchain_;
+
+
+    inline static const RawDefaultFramebuffer<GLMutable> default_fbo_;
+
+
+
     void resize_depth(const Size2I& new_resolution) {
         depth_.resize(new_resolution);
         if (!main_swapchain_.back_target().depth_attachment().is_shared_from(depth_)) {
@@ -246,12 +249,13 @@ protected:
     RenderEngineCommonInterface(RenderEngine& engine) : engine_{ engine } {}
 
 public:
-    const entt::registry&    registry()        const noexcept { return engine_.registry_; }
-    const PerspectiveCamera& camera()          const noexcept { return engine_.cam_; }
+    const entt::registry&    registry()        const noexcept { return engine_.registry_;   }
+    const PerspectiveCamera& camera()          const noexcept { return engine_.cam_;        }
+    const Primitives&        primitives()      const noexcept { return engine_.primitives_; }
     // TODO: Something about window resolution being separate?
     // TODO: Also main_resolution() is not accurate in Overlay stages.
     Size2I                   main_resolution() const noexcept { return engine_.main_resolution(); }
-    const FrameTimer&        frame_timer()     const noexcept { return engine_.frame_timer_; }
+    const FrameTimer&        frame_timer()     const noexcept { return engine_.frame_timer_;      }
 };
 
 
@@ -346,7 +350,7 @@ public:
     // in order to sample the screen in the next call to draw().
     void draw(BindToken<Binding::Program> bound_program) {
         engine_.main_swapchain_.draw_and_swap([&](BindToken<Binding::DrawFramebuffer> bound_fbo) {
-            globals::quad_primitive_mesh().draw(bound_program, bound_fbo);
+            engine_.primitives().quad_mesh().draw(bound_program, bound_fbo);
         });
     }
 
@@ -357,7 +361,7 @@ public:
     // Used as an optimization for draws that either override or blend with the screen.
     void draw_to_front(BindToken<Binding::Program> bound_program) {
         auto bound_fbo = engine_.main_swapchain_.front_target().bind_draw();
-        globals::quad_primitive_mesh().draw(bound_program, bound_fbo);
+        engine_.primitives().quad_mesh().draw(bound_program, bound_fbo);
         bound_fbo.unbind();
     }
 
@@ -379,7 +383,7 @@ public:
     // Emit the draw call on the screen quad and draw directly to the default buffer.
     void draw_fullscreen_quad(BindToken<Binding::Program> bound_program) {
         auto bound_fbo = engine_.default_fbo_.bind_draw();
-        globals::quad_primitive_mesh().draw(bound_program, bound_fbo);
+        engine_.primitives().quad_mesh().draw(bound_program, bound_fbo);
     }
 
     // Effectively binds the default framebuffer as the Draw framebuffer

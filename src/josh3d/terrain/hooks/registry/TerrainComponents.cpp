@@ -53,16 +53,30 @@ void TerrainComponents::operator()(entt::registry& registry) {
 
     }
 
+    auto to_remove = on_value_change_from<entt::entity>(
+        entt::null,
+        [&](entt::entity e) { registry.destroy(e); }
+    );
 
     for (auto [e, transform, chunk]
         : registry.view<Transform, components::TerrainChunk>().each())
     {
-        if (ImGui::TreeNode(void_id(e), "Terrain Chunk %d", entt::to_entity(e))) {
+        ImGui::PushID(void_id(e));
 
+        const bool display_node =
+            ImGui::TreeNode(void_id(e), "Terrain Chunk %d", entt::to_entity(e));
+
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Remove")) {
+            to_remove.set(e);
+        }
+
+        if (display_node) {
             imgui::TransformWidget(&transform);
-
             ImGui::TreePop();
         }
+
+        ImGui::PopID();
     }
 
 }

@@ -6,7 +6,6 @@
 #include "Transform.hpp"
 #include "VPath.hpp"
 #include "components/BoundingSphere.hpp"
-#include "DefaultResources.hpp"
 #include "tags/Selected.hpp"
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
@@ -75,7 +74,7 @@ inline void BoundingSphereDebug::operator()(
 
             sp_->uniform("model", sphere_transf.mtransform().model());
 
-            globals::sphere_primitive_mesh().draw(bound_program, bound_fbo);
+            engine.primitives().sphere_mesh().draw(bound_program, bound_fbo);
 
         };
 

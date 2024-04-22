@@ -7,7 +7,6 @@
 #include "Transform.hpp"
 #include "VPath.hpp"
 #include "Mesh.hpp"
-#include "DefaultResources.hpp"
 #include <entt/entt.hpp>
 
 
@@ -47,7 +46,7 @@ public:
                 sp_->uniform("model",       t.mtransform().model());
                 sp_->uniform("light_color", plight.color);
 
-                globals::box_primitive_mesh().draw(bound_program, bound_fbo);;
+                engine.primitives().box_mesh().draw(bound_program, bound_fbo);
             }
 
         });

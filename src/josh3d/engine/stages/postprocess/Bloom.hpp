@@ -1,5 +1,4 @@
 #pragma once
-#include "DefaultResources.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLAPICommonTypes.hpp"
 #include "GLBuffers.hpp"
@@ -157,7 +156,7 @@ inline void Bloom::operator()(
     blur_chain_.draw_and_swap([&, this](auto bound_fbo) {
         auto bound_program = sp_extract_->use();
 
-        globals::quad_primitive_mesh().draw(bound_program, bound_fbo);
+        engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
 
         bound_program.unbind();
     });
@@ -175,7 +174,7 @@ inline void Bloom::operator()(
         sp_twopass_gaussian_blur_->uniform("blur_horizontally", bool(i % 2));
 
         blur_chain_.draw_and_swap([&](auto bound_fbo) {
-            globals::quad_primitive_mesh().draw(bound_program, bound_fbo);
+            engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
         });
     }
     bound_program.unbind();

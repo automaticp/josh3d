@@ -8,7 +8,6 @@
 #include "RenderEngine.hpp"
 #include "Transform.hpp"
 #include "Mesh.hpp"
-#include "DefaultResources.hpp"
 #include <entt/core/type_traits.hpp>
 #include <entt/entity/entity.hpp>
 #include <entt/entt.hpp>
@@ -44,14 +43,14 @@ void DeferredGeometry::operator()(
         if (auto mat_d = registry.try_get<components::MaterialDiffuse>(e)) {
             mat_d->texture->bind_to_texture_unit(0);
         } else {
-            globals::default_diffuse_texture().bind_to_texture_unit(0);
+            engine.primitives().default_diffuse_texture().bind_to_texture_unit(0);
         }
 
         if (auto mat_s = registry.try_get<components::MaterialSpecular>(e)) {
             mat_s->texture->bind_to_texture_unit(1);
             sp.uniform("material.shininess", mat_s->shininess);
         } else {
-            globals::default_specular_texture().bind_to_texture_unit(1);
+            engine.primitives().default_specular_texture().bind_to_texture_unit(1);
             sp.uniform("material.shininess", 128.f);
         }
 

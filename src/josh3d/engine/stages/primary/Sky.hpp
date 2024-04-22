@@ -1,5 +1,4 @@
 #pragma once
-#include "DefaultResources.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLAPICommonTypes.hpp"
 #include "UniformTraits.hpp" // IWYU pragma: keep (traits)
@@ -99,7 +98,7 @@ inline void Sky::draw_debug_skybox(
 
     glm::mat4 projection = engine.camera().projection_mat();
     glm::mat4 view       = engine.camera().view_mat();
-    globals::debug_skybox_cubemap().bind_to_texture_unit(0);
+    engine.primitives().debug_skybox_cubemap().bind_to_texture_unit(0);
     unbind_sampler_from_unit(0);
 
     sp_skybox_->uniform("cubemap",    0);
@@ -110,7 +109,7 @@ inline void Sky::draw_debug_skybox(
         auto bound_program = sp_skybox_->use();
 
         engine.draw([&](auto bound_fbo) {
-            globals::box_primitive_mesh().draw(bound_program, bound_fbo);
+            engine.primitives().box_mesh().draw(bound_program, bound_fbo);
         });
 
         bound_program.unbind();
@@ -141,7 +140,7 @@ inline void Sky::draw_skybox(
         auto bound_program = sp_skybox_->use();
 
         engine.draw([&](auto bound_fbo) {
-            globals::box_primitive_mesh().draw(bound_program, bound_fbo);
+            engine.primitives().box_mesh().draw(bound_program, bound_fbo);
         });
 
         bound_program.unbind();
@@ -178,7 +177,7 @@ inline void Sky::draw_procedural_sky(
     auto bound_program = sp_proc_->use();
 
     engine.draw([&](auto bound_fbo) {
-        globals::quad_primitive_mesh().draw(bound_program, bound_fbo);
+        engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
     });
 
     bound_program.unbind();

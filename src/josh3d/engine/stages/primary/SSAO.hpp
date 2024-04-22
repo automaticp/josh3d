@@ -1,6 +1,5 @@
 #pragma once
 #include "Attachments.hpp"
-#include "DefaultResources.hpp"
 #include "EnumUtils.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLAPICommonTypes.hpp"
@@ -8,7 +7,7 @@
 #include "GLObjectHelpers.hpp"
 #include "GLObjects.hpp"
 #include "GLTextures.hpp"
-#include "ImageData.hpp"
+#include "PixelData.hpp"
 #include "PixelPackTraits.hpp" // IWYU pragma: keep (traits)
 #include "UniformTraits.hpp"   // IWYU pragma: keep (traits)
 #include "Pixels.hpp"
@@ -258,7 +257,7 @@ inline void SSAO::regenerate_noise_texture() {
 
     // TODO: We can skip this allocation by mapping a pixel unpack buffer,
     // but there's no implementation of it in GLBuffers. One day...
-    ImageData<pixel::RGBF> noise_image{ Size2S(noise_size_) };
+    PixelData<pixel::RGBF> noise_image{ Size2S(noise_size_) };
 
     auto random_vec = [&]() -> pixel::RGBF {
         // We really don't care about magnitude since we just orthonormalize
@@ -360,7 +359,7 @@ inline void SSAO::operator()(
 
         glapi::clear_color_buffer(bound_fbo, 0, RGBAF{ .r=0.f });
 
-        globals::quad_primitive_mesh().draw(bound_program, bound_fbo);
+        engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
 
 
         bound_fbo.unbind();
@@ -381,7 +380,7 @@ inline void SSAO::operator()(
         auto bound_program = sp_blur_->use();
         auto bound_fbo     = blurred_target_.bind_draw();
 
-        globals::quad_primitive_mesh().draw(bound_program, bound_fbo);
+        engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
 
         bound_fbo.unbind();
         bound_program.unbind();
