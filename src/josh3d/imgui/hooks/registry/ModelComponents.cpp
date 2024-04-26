@@ -1,16 +1,14 @@
 #include "ModelComponents.hpp"
 #include "AssetManager.hpp"
 #include "ComponentLoaders.hpp"
-#include "GLMutability.hpp"
+#include "ECSHelpers.hpp"
 #include "ImGuiHelpers.hpp"
 #include "ImGuiComponentWidgets.hpp"
 #include "RuntimeError.hpp"
-#include "components/Materials.hpp"
 #include "components/Model.hpp"
 #include "components/Name.hpp"
 #include "components/Path.hpp"
 #include "components/VPath.hpp"
-#include "tags/AlphaTested.hpp"
 #include "tags/Culled.hpp"
 #include "Transform.hpp"
 #include "VPath.hpp"
@@ -24,7 +22,6 @@
 #include <imgui.h>
 #include <imgui_stdlib.h>
 #include <filesystem>
-#include <optional>
 
 
 
@@ -39,6 +36,7 @@ ModelComponents::ModelComponents(AssetManager& assman)
 void ModelComponents::load_model_widget(entt::registry& registry) {
 
     // FIXME: This is a total mess for now.
+    // The models will not finish loading if the window is closed btw. Fun.
 
     struct Request {
         entt::entity             entity;
@@ -138,7 +136,7 @@ void ModelComponents::load_model_widget(entt::registry& registry) {
 
     ImGui::TextColored({ 1.0f, 0.5f, 0.5f, 1.0f }, "%s", last_load_error_message_.c_str());
 
-    if (ImGui::TreeNode("Show Currently Loading")) {
+    if (ImGui::TreeNode("CurrentlyLoading", "Currently Loading (%zu)", current_requests.size())) {
         for (const auto& current_request : current_requests) {
             ImGui::PushID(void_id(current_request.entity));
             ImGui::Text("[%d] %s", entt::to_entity(current_request.entity), current_request.path.c_str());
@@ -152,128 +150,33 @@ void ModelComponents::load_model_widget(entt::registry& registry) {
 
 
 
-static void mesh_subwidget(entt::handle mesh) {
-
-    const char* name = mesh.all_of<components::Name>() ?
-        mesh.get<components::Name>().name.c_str() : "(No Name)";
-
-    const char* culled_cstr =
-        mesh.all_of<tags::Culled>() ? "(Culled)" : "";
-
-    if (ImGui::TreeNode(void_id(mesh.entity()), "Mesh [%d]%s: %s",
-        entt::to_entity(mesh.entity()), culled_cstr, name))
-    {
-
-        imgui::TransformWidget(&mesh.get<Transform>());
-
-        bool is_alpha_tested = mesh.all_of<tags::AlphaTested>();
-        if (ImGui::Checkbox("Alpha-Testing", &is_alpha_tested)) {
-            if (is_alpha_tested) {
-                mesh.emplace<tags::AlphaTested>();
-            } else {
-                mesh.remove<tags::AlphaTested>();
-            }
-        }
-
-        if (ImGui::TreeNode("Material")) {
-
-            // FIXME: Not sure if scaling to max size is always preferrable.
-            auto imsize = [&](RawTexture2D<GLConst> tex) -> ImVec2 {
-                const float w = ImGui::GetContentRegionAvail().x;
-                const float h = w / tex.get_resolution().aspect_ratio();
-                return { w, h };
-            };
-
-            if (auto material = mesh.try_get<components::MaterialDiffuse>()) {
-                if (ImGui::TreeNode("Diffuse")) {
-                    ImGui::Unindent();
-
-                    imgui::ImageGL(void_id(material->texture->id()), imsize(material->texture));
-
-                    ImGui::Indent();
-                    ImGui::TreePop();
-                }
-            }
-
-            if (auto material = mesh.try_get<components::MaterialSpecular>()) {
-                if (ImGui::TreeNode("Specular")) {
-                    ImGui::Unindent();
-
-                    imgui::ImageGL(void_id(material->texture->id()), imsize(material->texture));
-
-                    ImGui::DragFloat(
-                        "Shininess", &material->shininess,
-                        1.0f, 0.1f, 1.e4f, "%.3f", ImGuiSliderFlags_Logarithmic
-                    );
-
-                    ImGui::Indent();
-                    ImGui::TreePop();
-                }
-            }
-
-            if (auto material = mesh.try_get<components::MaterialNormal>()) {
-                if (ImGui::TreeNode("Normal")) {
-                    ImGui::Unindent();
-
-                    imgui::ImageGL(void_id(material->texture->id()), imsize(material->texture));
-
-                    ImGui::Indent();
-                    ImGui::TreePop();
-                }
-            }
-
-            ImGui::TreePop();
-        }
-        ImGui::TreePop();
-    }
-
-}
-
-
-
-
 void ModelComponents::model_list_widget(entt::registry& registry) {
 
-    auto to_remove = on_value_change_from<entt::entity>(
-        entt::null,
-        [&](const entt::entity& model_ent) {
-            auto& model = registry.get<components::Model>(model_ent);
-            registry.destroy(model.meshes().begin(), model.meshes().end());
-            registry.destroy(model_ent);
-        }
-    );
+    auto to_remove = on_value_change_from<entt::handle>({}, &destroy_model);
 
     for (auto [e, transform, model_component]
         : registry.view<Transform, components::Model>().each())
     {
-        components::Path* path = registry.try_get<components::Path>(e);
-        const char* path_cstr = path ? path->c_str() : "(No Path)";
-        components::Name* name = registry.try_get<components::Name>(e);
-        const char* name_cstr = name ? name->name.c_str() : "(No Name)";
+        entt::handle model_handle{ registry, e };
 
         ImGui::PushID(void_id(e));
 
-        const bool display_node =
-            ImGui::TreeNode(void_id(e), "Model [%d]: %s",
-                entt::to_entity(e), name_cstr);
-
+        const bool display_node = ImGui::TreeNodeEx(
+            void_id(e),
+            ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowItemOverlap,
+            "%s", ""
+        );
 
         ImGui::SameLine();
-        if (ImGui::SmallButton("Remove")) {
-            to_remove.set(e);
+        if (imgui::ModelWidgetHeader(model_handle) == imgui::Feedback::Remove) {
+            to_remove.set(model_handle);
         }
 
         if (display_node) {
-            ImGui::TextUnformatted(path_cstr);
-
-            imgui::TransformWidget(&transform);
-
-            for (auto mesh_entity : model_component.meshes()) {    ;
-                mesh_subwidget({ registry, mesh_entity });
-            }
-
+            imgui::ModelWidgetBody(model_handle);
             ImGui::TreePop();
         }
+
         ImGui::PopID();
     }
 

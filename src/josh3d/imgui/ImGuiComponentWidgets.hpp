@@ -1,15 +1,19 @@
 #pragma once
+#include "DefaultTextures.hpp"
 #include "GLObjects.hpp"
 #include "ImGuiHelpers.hpp"
-#include "components/Mesh.hpp"
 #include "components/Model.hpp"
 #include "components/Materials.hpp"
 #include "components/Name.hpp"
 #include "components/Path.hpp"
 #include "components/Transform.hpp"
 #include "components/VPath.hpp"
+#include "tags/AlphaTested.hpp"
+#include "tags/Culled.hpp"
+#include "tags/Selected.hpp"
 #include <cassert>
 #include <entt/entity/entity.hpp>
+#include <entt/entity/fwd.hpp>
 #include <imgui.h>
 
 
@@ -75,96 +79,276 @@ inline void VPathWidget(josh::components::VPath* vpath) noexcept {
 }
 
 
-inline void MeshWidget(entt::handle mesh_handle) noexcept {
+inline void MaterialsWidget(entt::handle mesh) noexcept {
 
-    ImGui::PushID(void_id(mesh_handle.entity()));
+    const float  text_height = ImGui::GetTextLineHeight();
+    const ImVec2 preview_size    { 4.f * text_height, 4.f * text_height };
+
+    constexpr ImVec4 tex_tint        { 1.f, 1.f, 1.f, 1.f };
+    constexpr ImVec4 tex_frame_color { .5f, .5f, .5f, .5f };
+    constexpr ImVec4 empty_slot_color{ .8f, .8f, .2f, .8f };
+    constexpr ImVec4 empty_slot_tint { 1.f, 1.f, 1.f, .2f };
+
+    const auto material_widget = [&](
+        RawTexture2D<GLConst> texture,
+        const char*           name,
+        const char*           popup_str_id,
+        const ImVec4&         frame_color,
+        const ImVec4&         tint_color)
+    {
+        const auto tex_id = void_id(texture.id());
+        imgui::ImageGL(tex_id, preview_size, tint_color, frame_color);
+        // All hover and click tests below are for this image above ^.
+
+        const auto hover_widget = [&] {
+            const Size2I resolution = texture.get_resolution();
+            const float aspect = resolution.aspect_ratio();
+
+            const float largest_side = 512.f; // Desired.
+
+            const ImVec2 hovered_size = [&]() -> ImVec2 {
+                const auto [w, h] = resolution;
+                if (w == h) {
+                    return { largest_side,          largest_side          };
+                } else if (w < h) {
+                    return { largest_side * aspect, largest_side          };
+                } else /* if (w > h) */ {
+                    return { largest_side,          largest_side / aspect };
+                }
+            }();
+
+            imgui::ImageGL(tex_id, hovered_size, tex_tint, frame_color);
+            ImGui::Text("%s, %dx%d", name, resolution.width, resolution.height);
+        };
+
+
+        // We want the popup to appear seamlessly, replacing the tooltip,
+        // so we store the position of the tooltip window.
+        ImVec2 tooltip_pos{};
+
+        if (ImGui::IsItemHovered()) {
+
+            ImGui::BeginTooltip();
+            tooltip_pos = ImGui::GetWindowPos();
+            hover_widget();
+
+            ImGui::EndTooltip();
+        }
+
+
+        if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+            ImGui::SetNextWindowPos(tooltip_pos);
+            ImGui::OpenPopup(popup_str_id);
+        }
+
+        auto bg_col = ImGui::GetStyleColorVec4(ImGuiCol_PopupBg);
+        bg_col.w = 1.f; // Make opaque
+        auto border_col = ImGui::GetStyleColorVec4(ImGuiCol_Border);
+        border_col.x *= 1.6f; // Lighten
+        border_col.y *= 1.6f;
+        border_col.z *= 1.6f;
+
+        ImGui::PushStyleColor(ImGuiCol_PopupBg, bg_col);
+        ImGui::PushStyleColor(ImGuiCol_Border,  border_col);
+        if (ImGui::BeginPopup(popup_str_id)) {
+
+            hover_widget();
+
+            ImGui::EndPopup();
+
+        }
+        ImGui::PopStyleColor(2);
+
+
+    };
+
+
+    bool can_be_alpha_tested{ false };
+    if (auto material = mesh.try_get<components::MaterialDiffuse>()) {
+        material_widget(
+            material->texture, "Diffuse", "Diffuse Popup", tex_frame_color, tex_tint
+        );
+
+        can_be_alpha_tested =
+            material->texture->get_component_type<PixelComponent::Alpha>() != PixelComponentType::None;
+
+    } else {
+        material_widget(
+            globals::default_diffuse_texture(), "Diffuse (Default)", "Diffuse Popup", empty_slot_color, empty_slot_tint
+        );
+    }
+
+
+    if (auto material = mesh.try_get<components::MaterialSpecular>()) {
+        ImGui::SameLine();
+        material_widget(
+            material->texture, "Specular", "Specular Popup", tex_frame_color, tex_tint
+        );
+    } else {
+        ImGui::SameLine();
+        material_widget(
+            globals::default_specular_texture(), "Specular (Default)", "Specular Popup", empty_slot_color, empty_slot_tint
+        );
+    }
+
+
+    if (auto material = mesh.try_get<components::MaterialNormal>()) {
+        ImGui::SameLine();
+        material_widget(
+            material->texture, "Normal", "Normal Popup", tex_frame_color, tex_tint
+        );
+    } else {
+        ImGui::SameLine();
+        material_widget(
+            globals::default_normal_texture(), "Normal (Default)", "Normal Popup", empty_slot_color, empty_slot_tint
+        );
+    }
+
+
+    if (can_be_alpha_tested) {
+        bool is_alpha_tested = mesh.all_of<tags::AlphaTested>();
+        ImGui::SameLine();
+        if (ImGui::Checkbox("Alpha-Testing", &is_alpha_tested)) {
+            if (is_alpha_tested) {
+                mesh.emplace<tags::AlphaTested>();
+            } else {
+                mesh.remove<tags::AlphaTested>();
+            }
+        }
+    }
+}
+
+
+inline bool SelectButton(entt::handle handle) noexcept {
+    bool feedback{ false };
+
+    const bool is_selected = handle.all_of<tags::Selected>();
+    constexpr ImVec4 selected_color{ .2f, .6f, .2f, 1.f };
+
+    ImGui::PushID(void_id(handle.entity()));
+
+    if (is_selected) {
+        ImGui::PushStyleColor(ImGuiCol_Button, selected_color);
+
+        if (ImGui::SmallButton("Select")) {
+            handle.erase<tags::Selected>();
+            feedback = true;
+        }
+
+        ImGui::PopStyleColor();
+    } else /* not selected */ {
+        if (ImGui::SmallButton("Select")) {
+            handle.emplace<tags::Selected>();
+            feedback = true;
+        }
+    }
+
+    ImGui::PopID();
+
+    return feedback;
+}
+
+
+// Does not remove anything, just signals that it has been pressed.
+[[nodiscard]]
+inline bool RemoveButton() noexcept {
+    bool feedback{ false };
+
+    if (ImGui::SmallButton("Remove")) {
+        feedback = true;
+    }
+
+    return feedback;
+}
+
+
+inline void MeshWidgetHeader(entt::handle mesh_handle) noexcept {
+
+    SelectButton(mesh_handle);
+    ImGui::SameLine();
+
+    const bool is_culled = mesh_handle.all_of<tags::Culled>();
+    if (is_culled) {
+        auto text_color = ImGui::GetStyleColorVec4(ImGuiCol_Text);
+        text_color.w *= 0.5f; // Dim text when culled.
+        ImGui::PushStyleColor(ImGuiCol_Text, text_color);
+    }
 
     if (auto name = mesh_handle.try_get<components::Name>()) {
         ImGui::Text("Mesh [%d]: %s", entt::to_entity(mesh_handle.entity()), name->name.c_str());
     } else {
-        ImGui::Text("Mesh [%d]", entt::to_entity(mesh_handle.entity()));
+        ImGui::Text("Mesh [%d]",     entt::to_entity(mesh_handle.entity()));
     }
+
+    if (is_culled) {
+        ImGui::PopStyleColor();
+    }
+
+}
+
+
+inline void MeshWidgetBody(entt::handle mesh_handle) noexcept {
 
     if (auto tf = mesh_handle.try_get<components::Transform>()) {
         TransformWidget(tf);
     }
 
-    if (ImGui::TreeNode("Material")) {
-
-        // FIXME: Not sure if scaling to max size is always preferrable.
-        auto imsize = [&](RawTexture2D<GLConst> tex) -> ImVec2 {
-            const float w = ImGui::GetContentRegionAvail().x;
-            const float h = w / tex.get_resolution().aspect_ratio();
-            return { w, h };
-        };
-
-        if (auto material = mesh_handle.try_get<components::MaterialDiffuse>()) {
-            if (ImGui::TreeNode("Diffuse")) {
-                ImGui::Unindent();
-
-                ImageGL(void_id(material->texture->id()), imsize(material->texture));
-
-                ImGui::Indent();
-                ImGui::TreePop();
-            }
-        }
-
-        if (auto material = mesh_handle.try_get<components::MaterialSpecular>()) {
-            if (ImGui::TreeNode("Specular")) {
-                ImGui::Unindent();
-
-                ImageGL(void_id(material->texture->id()), imsize(material->texture));
-
-                ImGui::DragFloat(
-                    "Shininess", &material->shininess,
-                    1.0f, 0.1f, 1.e4f, "%.3f", ImGuiSliderFlags_Logarithmic
-                );
-
-                ImGui::Indent();
-                ImGui::TreePop();
-            }
-        }
-
-        if (auto material = mesh_handle.try_get<components::MaterialNormal>()) {
-            if (ImGui::TreeNode("Normal")) {
-                ImGui::Unindent();
-
-                ImageGL(void_id(material->texture->id()), imsize(material->texture));
-
-                ImGui::Indent();
-                ImGui::TreePop();
-            }
-        }
-
-        ImGui::TreePop();
-    }
-
-    ImGui::PopID();
-
+    MaterialsWidget(mesh_handle);
 }
 
 
-inline void ModelWidget(entt::handle model_handle) noexcept {
+inline void MeshWidget(entt::handle mesh_handle) noexcept {
 
-    ImGui::PushID(void_id(model_handle.entity()));
+    ImGui::PushID(void_id(mesh_handle.entity()));
+
+    MeshWidgetHeader(mesh_handle);
+    MeshWidgetBody(mesh_handle);
+
+    ImGui::PopID();
+}
+
+
+enum class Feedback {
+    None,
+    Remove
+};
+
+
+[[nodiscard]]
+inline Feedback ModelWidgetHeader(entt::handle model_handle) noexcept {
+    Feedback feedback{ Feedback::None };
+
+    // ImGui::PushID(void_id(model_handle.entity()));
+
+    SelectButton(model_handle);
+    ImGui::SameLine();
+    if (RemoveButton()) { feedback = Feedback::Remove; }
+    ImGui::SameLine();
 
     if (auto name = model_handle.try_get<components::Name>()) {
         ImGui::Text("Model [%d]: %s", entt::to_entity(model_handle.entity()), name->name.c_str());
     } else {
-        ImGui::Text("Model [%d]", entt::to_entity(model_handle.entity()));
+        ImGui::Text("Model [%d]",     entt::to_entity(model_handle.entity()));
     }
+
+    return feedback;
+}
+
+
+inline void ModelWidgetBody(entt::handle model_handle) noexcept {
 
     if (auto tf = model_handle.try_get<components::Transform>()) {
         TransformWidget(tf);
     }
 
     if (auto path = model_handle.try_get<components::Path>()) {
-        imgui::PathWidget(path);
+        PathWidget(path);
     }
 
     if (auto vpath = model_handle.try_get<components::VPath>()) {
-        imgui::VPathWidget(vpath);
+        VPathWidget(vpath);
     }
+
 
     if (ImGui::TreeNode("Meshes")) {
 
@@ -178,8 +362,20 @@ inline void ModelWidget(entt::handle model_handle) noexcept {
         ImGui::TreePop();
     }
 
+}
+
+
+[[nodiscard]]
+inline Feedback ModelWidget(entt::handle model_handle) noexcept {
+
+    ImGui::PushID(void_id(model_handle.entity()));
+
+    auto feedback = ModelWidgetHeader(model_handle);
+    ModelWidgetBody(model_handle);
+
     ImGui::PopID();
 
+    return feedback;
 }
 
 } // namespace josh::imgui

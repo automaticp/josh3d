@@ -1,5 +1,6 @@
 #pragma once
 #include "AssetManager.hpp"
+#include "Primitives.hpp"
 #include <string>
 #include <entt/fwd.hpp>
 

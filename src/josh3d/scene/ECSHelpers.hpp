@@ -1,6 +1,7 @@
 #pragma once
 #include "Transform.hpp"
 #include "components/ChildMesh.hpp"
+#include "components/Model.hpp"
 #include <entt/entt.hpp>
 
 
@@ -40,6 +41,14 @@ inline auto get_full_mesh_mtransform(entt::const_handle mesh_handle) noexcept
     } else {
         return mesh_transform.mtransform();
     }
+}
+
+
+inline void destroy_model(entt::handle model_handle) noexcept {
+    auto& registry = *model_handle.registry();
+    auto& model    = model_handle.get<components::Model>();
+    registry.destroy(model.meshes().begin(), model.meshes().end());
+    model_handle.destroy();
 }
 
 
