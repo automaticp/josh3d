@@ -1,6 +1,8 @@
 #pragma once
+#include "CubemapData.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLAPICommonTypes.hpp"
+#include "TextureHelpers.hpp"
 #include "UniformTraits.hpp" // IWYU pragma: keep (traits)
 #include "LightCasters.hpp"
 #include "RenderEngine.hpp"
@@ -52,6 +54,9 @@ private:
             .get()
     };
 
+    UniqueCubemap debug_skybox_cubemap_ = load_debug_skybox();
+
+    static UniqueCubemap load_debug_skybox();
 
     void draw_debug_skybox(
         RenderEnginePrimaryInterface& engine);
@@ -92,13 +97,28 @@ inline void Sky::operator()(RenderEnginePrimaryInterface& engine) {
 
 
 
+inline UniqueCubemap Sky::load_debug_skybox() {
+
+    CubemapPixelData data =
+        load_cubemap_from_json<pixel::RGB>(File("data/skyboxes/debug/skybox.json"));
+
+    UniqueCubemap cube =
+        create_skybox_from_cubemap_data(data, InternalFormat::SRGB8);
+
+    cube->set_sampler_min_mag_filters(MinFilter::Nearest, MagFilter::Nearest);
+    return cube;
+}
+
+
+
+
 inline void Sky::draw_debug_skybox(
     RenderEnginePrimaryInterface& engine)
 {
 
     glm::mat4 projection = engine.camera().projection_mat();
     glm::mat4 view       = engine.camera().view_mat();
-    engine.primitives().debug_skybox_cubemap().bind_to_texture_unit(0);
+    debug_skybox_cubemap_->bind_to_texture_unit(0);
     unbind_sampler_from_unit(0);
 
     sp_skybox_->uniform("cubemap",    0);
