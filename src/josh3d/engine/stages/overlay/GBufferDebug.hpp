@@ -1,4 +1,7 @@
 #pragma once
+#include "GLAPIBinding.hpp"
+#include "GLAPICommonTypes.hpp"
+#include "GLObjects.hpp"
 #include "stages/primary/GBufferStorage.hpp"
 #include "EnumUtils.hpp"
 #include "RenderEngine.hpp"
@@ -49,6 +52,14 @@ private:
             .get()
     };
 
+    UniqueSampler integer_sampler_ = [] {
+        UniqueSampler s;
+        s->set_min_mag_filters(MinFilter::Nearest, MagFilter::Nearest);
+        return s;
+    }();
+
+
+
 };
 
 
@@ -67,7 +78,7 @@ inline void GBufferDebug::operator()(
     gbuffer_->albedo_spec_texture()  .bind_to_texture_unit(2);
     gbuffer_->depth_texture()        .bind_to_texture_unit(3);
     gbuffer_->object_id_texture()    .bind_to_texture_unit(4);
-    // engine   .screen_depth()         .bind_to_unit_index(3);
+    integer_sampler_->bind_to_texture_unit(4);
 
     sp_->uniform("mode",              to_underlying(mode));
     sp_->uniform("z_near",            engine.camera().get_params().z_near);
@@ -81,6 +92,8 @@ inline void GBufferDebug::operator()(
 
     engine.draw_fullscreen_quad(sp_->use());
 
+
+    unbind_sampler_from_unit(4);
 }
 
 
