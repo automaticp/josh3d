@@ -5,7 +5,7 @@ layout (location = 1) in vec3 in_normal;
 layout (location = 2) in vec2 in_tex_coords;
 
 
-layout (std430, binding = 0) restrict readonly buffer model_layout {
+layout (std430, binding = 0) restrict readonly buffer ModelBlock {
     mat4 models[];
 };
 

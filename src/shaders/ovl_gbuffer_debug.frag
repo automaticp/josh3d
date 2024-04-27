@@ -1,8 +1,13 @@
-#version 330 core
+#version 430 core
+#extension GL_GOOGLE_include_directive : enable
+#include "utils.coordinates.glsl"
+#include "utils.color.glsl"
 
+
+
+
+in vec2  tex_coords;
 out vec4 frag_color;
-
-in vec2 tex_coords;
 
 uniform sampler2D tex_position_draw;
 uniform sampler2D tex_normals;
@@ -29,18 +34,6 @@ enum class OverlayMode : GLint {
 uniform int mode = 0;
 
 
-
-float get_linear_depth(float screen_depth) {
-    // screen_depth = (1/z - 1/n) / (1/f - 1/n)
-    return z_near / (z_far - screen_depth * (z_far - z_near));
-}
-
-
-vec3 hsv2rgb(vec3 c) {
-    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
-    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
-    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
-}
 
 
 vec3 get_color_from_id(uint id) {
@@ -110,7 +103,7 @@ void main() {
             out_color = vec3(texture(tex_depth, tex_coords).r);
             break;
         case 5: // depth_linear
-            out_color = vec3(get_linear_depth(texture(tex_depth, tex_coords).r));
+            out_color = vec3(get_linear_0to1_depth(texture(tex_depth, tex_coords).r, z_near, z_far));
             break;
         case 6: // normals
             out_color = 0.5 * (1.0 + texture(tex_normals, tex_coords).rgb);
@@ -119,7 +112,7 @@ void main() {
             out_color = vec3(texture(tex_position_draw, tex_coords).a);
             break;
         case 8: // object_id
-            out_color = vec3(get_color_from_id(texture(tex_object_id, tex_coords).r));
+            out_color = vec3(get_color_from_id(textureLod(tex_object_id, tex_coords, 0).r));
             break;
         default:
             out_color = texture(tex_albedo_spec, tex_coords).rgb;

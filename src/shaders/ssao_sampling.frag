@@ -1,4 +1,8 @@
 #version 430 core
+#extension GL_GOOGLE_include_directive : enable
+#include "utils.coordinates.glsl"
+#include "utils.random.glsl"
+
 
 in  vec2  tex_coords;
 out float frag_color;
@@ -54,12 +58,8 @@ vec4 get_frag_pos_vs(vec2 uv);
 vec3 get_frag_normal_vs(vec2 uv);
 
 
-// ws - world space,
-// ts - tangent space,
-// vs - view space,
-// cs - clip/projection space,
-// ndc - normalized device coordinates
-// nss - normalized screen space (ndc/2 + 1/2) (in [0, 1], for texture sampling)
+
+
 void main() {
 
     vec4 frag_pos_vs    = get_frag_pos_vs(tex_coords);
@@ -73,9 +73,7 @@ void main() {
     for (int i = 0; i < num_samples; ++i) {
         vec3 sample_pos_ts  = kernel_samples[i].xyz;
         vec4 sample_pos_vs  = vec4((tbn_vs * (radius * sample_pos_ts)) + frag_pos_vs.xyz, 1.0);
-        vec4 sample_pos_cs  = proj * sample_pos_vs;
-        vec3 sample_pos_ndc = sample_pos_cs.xyz / sample_pos_cs.w;
-        vec3 sample_pos_nss = sample_pos_ndc * 0.5 + 0.5;
+        vec3 sample_pos_nss = vs_to_nss(sample_pos_vs, proj);
 
         vec4 reference_pos_vs = get_frag_pos_vs(sample_pos_nss.xy);
 
@@ -95,27 +93,18 @@ void main() {
 
 
 
-float get_vs_depth(float screen_z) {
-    return (z_near * z_far) /
-        (z_far - screen_z * (z_far - z_near));
-}
-
-
 vec4 get_frag_pos_vs(vec2 uv) {
     switch (position_source) {
         case position_source_depth:
         {
             float screen_z = textureLod(tex_depth, uv, 0).r;
-            float clip_w   = get_vs_depth(screen_z);
-            vec4  pos_nss  = vec4(vec3(uv, screen_z), 1.0);
-            vec4  pos_ndc  = pos_nss * 2.0 - 1.0;
-            vec4  pos_cs   = pos_ndc * clip_w;
-            vec4  pos_vs   = inv_proj * pos_cs;
+            vec3  pos_nss  = vec3(uv, screen_z);
+            vec4  pos_vs   = nss_to_vs(pos_nss, z_near, z_far, inv_proj);
             const float far_plane_correction = (1.0 - step(1.0, screen_z)); // Clamp to INF at z_far
             return pos_vs / far_plane_correction;
         }
         default:
-        case position_source_gbuffer:
+        case position_source_gbuffer: // This sucks btw.
         {
             vec4 pos_ws_draw = texture(tex_position_draw, uv);
             // Will return inf if no draw...
@@ -142,30 +131,15 @@ mat3 get_random_tbn_matrix(vec3 normal) {
 }
 
 
-
-
-uint pcg32(inout uint state) {
-    state = state * 747796405u + 2891336453u;
-    uint result = ((state >> ((state >> 28) + 4)) ^ state) * 277803737u;
-    result = (result >> 22) ^ result;
-    return result;
-}
-
-
-float gamma(uint urb) {
-    return uintBitsToFloat(urb >> 9 | 0x3F800000) - 1.0;
-}
-
-
 vec3 generate_random_vector() {
     uint random_id = uint(gl_FragCoord.y) << 16 | uint(gl_FragCoord.x);
     // FIXME:
     // We commit a sin here where we actually take
     // a box-distributed vector, might be not that bad...
     // Still better than tiling a texture, man.
-    float x = gamma(pcg32(random_id)) * 2.0 - 1.0;
-    float y = gamma(pcg32(random_id)) * 2.0 - 1.0;
-    float z = gamma(pcg32(random_id)) * 2.0 - 1.0;
+    float x = random_gamma(pcg32(random_id)) * 2.0 - 1.0;
+    float y = random_gamma(pcg32(random_id)) * 2.0 - 1.0;
+    float z = random_gamma(pcg32(random_id)) * 2.0 - 1.0;
     return vec3(x, y, z);
 }
 

@@ -1,4 +1,9 @@
 #version 430 core
+#extension GL_GOOGLE_include_directive : enable
+#include "utils.coordinates.glsl"
+
+
+
 
 in  vec2 tex_coords;
 out vec4 frag_color;
@@ -154,19 +159,12 @@ uniform float z_far;
 uniform mat4  inv_proj;
 
 
-float get_view_space_depth(float screen_depth) {
-    // Linearization back from non-linear depth encoding:
-    //   screen_depth = (1/z - 1/n) / (1/f - 1/n)
-    // Where z, n and f are: view-space z, z_near and z_far respectively.
-    return (z_near * z_far) /
-        (z_far - screen_depth * (z_far - z_near));
-}
 
 
 void main() {
 
     float screen_depth = texture(depth, tex_coords).r;
-    float view_depth   = get_view_space_depth(screen_depth);
+    float view_depth   = get_view_space_depth(screen_depth, z_near, z_far);
 
     float w_clip   = view_depth;
     vec4  pos_ndc  = vec4(vec3(tex_coords, screen_depth) * 2.0 - 1.0, 1.0);

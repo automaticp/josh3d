@@ -1,53 +1,12 @@
 #version 430 core
+#extension GL_GOOGLE_include_directive : enable
+#include "lights.glsl"
 
-in vec2 tex_coords;
 
+in vec2  tex_coords;
 out vec4 frag_color;
 
 
-struct AmbientLight {
-    vec3 color;
-};
-
-struct DirectionalLight {
-    vec3 color;
-    vec3 direction;
-};
-
-
-struct Attenuation {
-    float constant;
-    float linear;
-    float quadratic;
-};
-
-struct PointLight {
-    vec3 color;
-    vec3 position;
-    Attenuation attenuation;
-};
-
-
-
-uniform sampler2D tex_position_draw;
-uniform sampler2D tex_normals;
-uniform sampler2D tex_albedo_spec;
-
-uniform sampler2D tex_ambient_occlusion;
-uniform bool      use_ambient_occlusion = false;
-uniform float     ambient_occlusion_power = 1.0;
-
-uniform AmbientLight ambient_light;
-uniform DirectionalLight dir_light;
-
-
-layout (std430, binding = 1) restrict readonly buffer point_light_with_shadows_block {
-    PointLight point_lights_with_shadows[];
-};
-
-layout (std430, binding = 2) restrict readonly buffer point_light_no_shadows_block {
-    PointLight point_lights_no_shadows[];
-};
 
 
 struct CascadeParams {
@@ -56,10 +15,6 @@ struct CascadeParams {
     float z_split;
 };
 
-
-layout (std430, binding = 3) restrict readonly buffer CascadeParamsBlock {
-    CascadeParams cascade_params[];
-};
 
 struct DirShadow {
     sampler2DArrayShadow cascades;
@@ -81,7 +36,38 @@ struct PointShadow {
 };
 
 
-uniform DirShadow dir_shadow;
+
+
+uniform sampler2D tex_position_draw;
+uniform sampler2D tex_normals;
+uniform sampler2D tex_albedo_spec;
+
+uniform sampler2D tex_ambient_occlusion;
+uniform bool      use_ambient_occlusion = false;
+uniform float     ambient_occlusion_power = 1.0;
+
+
+uniform AmbientLight     ambient_light;
+uniform DirectionalLight dir_light;
+
+layout (std430, binding = 1) restrict readonly
+buffer PointLightWithShadowsBlock {
+    PointLight point_lights_with_shadows[];
+};
+
+layout (std430, binding = 2) restrict readonly
+buffer PointLightNoShadowsBlock {
+    PointLight point_lights_no_shadows[];
+};
+
+
+layout (std430, binding = 3) restrict readonly
+buffer CascadeParamsBlock {
+    CascadeParams cascade_params[];
+};
+
+
+uniform DirShadow   dir_shadow;
 uniform PointShadow point_shadow;
 
 
@@ -93,20 +79,27 @@ uniform vec3 cam_pos;
 
 
 
-
-float point_light_shadow_yield(vec3 frag_pos, vec3 normal,
-    PointLight plight, int shadow_map_idx);
-
-
-
-
-vec3 add_point_light_illumination(vec3 in_color, vec3 frag_pos,
-    float illumination_factor, PointLight plight,
-    vec3 tex_diffuse, float tex_specular,
-    vec3 normal_dir, vec3 view_dir);
+float point_light_shadow_obscurance(
+    vec3       frag_pos,
+    vec3       normal,
+    PointLight plight,
+    int        shadow_map_idx);
 
 
-float dir_light_shadow_yield(vec3 frag_pos, vec3 normal);
+void add_point_light_illumination(
+    inout vec3 color,
+    vec3       frag_pos,
+    float      illumination_factor,
+    PointLight plight,
+    vec3       tex_diffuse,
+    float      tex_specular,
+    vec3       normal_dir,
+    vec3       view_dir);
+
+
+float dir_light_shadow_obscurance(
+    vec3 frag_pos,
+    vec3 normal);
 
 
 
@@ -140,17 +133,21 @@ void main() {
         for (int i = 0; i < point_lights_with_shadows.length(); ++i) {
             const PointLight plight = point_lights_with_shadows[i];
             const float illumination_factor =
-                1.0 - point_light_shadow_yield(frag_pos, normal, plight, i);
+                1.0 - point_light_shadow_obscurance(frag_pos, normal, plight, i);
 
             // How bad is this branching?
             // Is it better to branch or to factor out the result?
             if (illumination_factor == 0.0) continue;
 
-            result_color = add_point_light_illumination(
-                result_color, frag_pos,
-                illumination_factor, plight,
-                tex_diffuse, tex_specular,
-                normal_dir, view_dir
+            add_point_light_illumination(
+                result_color,
+                frag_pos,
+                illumination_factor,
+                plight,
+                tex_diffuse,
+                tex_specular,
+                normal_dir,
+                view_dir
             );
         }
 
@@ -158,36 +155,34 @@ void main() {
         for (int i = 0; i < point_lights_no_shadows.length(); ++i) {
             const PointLight plight = point_lights_no_shadows[i];
 
-            result_color = add_point_light_illumination(
-                result_color, frag_pos,
-                1.0, plight,
-                tex_diffuse, tex_specular,
-                normal_dir, view_dir
+            add_point_light_illumination(
+                result_color,
+                frag_pos,
+                1.0,
+                plight,
+                tex_diffuse,
+                tex_specular,
+                normal_dir,
+                view_dir
             );
         }
     }
 
     // Directional light.
     {
-        const vec3 light_dir = normalize(dir_light.direction);
+        const vec3 light_dir      = normalize(dir_light.direction);
         const vec3 reflection_dir = reflect(light_dir, normal_dir);
 
-        const float diffuse_alignment =
-            max(dot(normal_dir, -light_dir), 0.0);
+        const float diffuse_alignment  = max(dot(normal_dir, -light_dir),     0.0);
+        const float specular_alignment = max(dot(view_dir,   reflection_dir), 0.0);
 
-        const float specular_alignment =
-            max(dot(view_dir, reflection_dir), 0.0);
-
-        const float diffuse_strength = diffuse_alignment;
-
-        // FIXME: Hardcoded shininess because it is not stored
-        // in the GBuffer.
-        const float specular_strength =
-            pow(specular_alignment, 128.0);
+        const float diffuse_strength  = diffuse_alignment;
+        const float specular_strength = pow(specular_alignment, 128.0);
+        // FIXME: Hardcoded shininess because it is not stored in the GBuffer.
 
         const float illumination_factor =
             dir_shadow.do_cast ?
-                (1.0 - dir_light_shadow_yield(frag_pos, normal)) : 1.0;
+                (1.0 - dir_light_shadow_obscurance(frag_pos, normal)) : 1.0;
 
         result_color +=
             dir_light.color * diffuse_strength *
@@ -211,17 +206,17 @@ void main() {
     }
 
 
-
-
     frag_color = vec4(result_color, 1.0);
-
 }
 
 
 
 
-float point_light_shadow_yield(vec3 frag_pos, vec3 normal,
-    PointLight plight, int shadow_map_idx)
+float point_light_shadow_obscurance(
+    vec3       frag_pos,
+    vec3       normal,
+    PointLight plight,
+    int        shadow_map_idx)
 {
     const vec3  light_to_frag = frag_pos - plight.position;
     const float frag_depth    = length(light_to_frag);
@@ -250,7 +245,7 @@ float point_light_shadow_yield(vec3 frag_pos, vec3 normal,
 
     // Do PCF sampling.
 
-    float yield = 0.0;
+    float obscurance = 0.0;
 
     const int   pcf_extent = point_shadow.pcf_extent;
     const int   pcf_order  = 1 + 2 * pcf_extent;
@@ -281,33 +276,26 @@ float point_light_shadow_yield(vec3 frag_pos, vec3 normal,
                     reference_depth
                 ).r;
 
-                yield += (1.0 - pcf_lit);
+                obscurance += (1.0 - pcf_lit);
             }
         }
     }
 
-    return yield / (pcf_order * pcf_order * pcf_order);
+    return obscurance / (pcf_order * pcf_order * pcf_order);
 }
 
 
 
 
-
-float get_distance_factor(float light_distance, Attenuation att) {
-    return 1.0 / (
-        att.constant +
-        att.linear * light_distance +
-        att.quadratic * (light_distance * light_distance)
-    );
-}
-
-
-
-
-vec3 add_point_light_illumination(vec3 in_color, vec3 frag_pos,
-    float illumination_factor, PointLight plight,
-    vec3 tex_diffuse, float tex_specular,
-    vec3 normal_dir, vec3 view_dir)
+void add_point_light_illumination(
+    inout vec3 color,
+    vec3       frag_pos,
+    float      illumination_factor,
+    PointLight plight,
+    vec3       tex_diffuse,
+    float      tex_specular,
+    vec3       normal_dir,
+    vec3       view_dir)
 {
     vec3 light_vec   = plight.position - frag_pos;
     vec3 light_dir   = normalize(light_vec);
@@ -316,19 +304,17 @@ vec3 add_point_light_illumination(vec3 in_color, vec3 frag_pos,
     float diffuse_alignment  = max(dot(normal_dir, light_dir), 0.0);
     float specular_alignment = max(dot(normal_dir, halfway_dir), 0.0);
 
-    float distance_factor    = get_distance_factor(length(light_vec), plight.attenuation);
+    float distance_factor    = get_attenuation_factor(plight.attenuation, length(light_vec));
 
     float diffuse_strength   = distance_factor * diffuse_alignment;
     float specular_strength  = distance_factor * pow(specular_alignment, 128.0);
 
-    in_color +=
+    color +=
         plight.color * diffuse_strength *
         tex_diffuse * illumination_factor;
-    in_color +=
+    color +=
         plight.color * specular_strength *
         tex_specular * illumination_factor;
-
-    return in_color;
 }
 
 
@@ -354,7 +340,9 @@ struct CascadeSelection {
 };
 
 CascadeSelection select_best_cascade_blend(
-    vec3 frag_pos_world_space, vec3 clip_discard_padding, vec3 clip_blend_padding)
+    vec3 frag_pos_world_space,
+    vec3 clip_discard_padding,
+    vec3 clip_blend_padding)
 {
 
     const int num_cascades    = cascade_params.length();
@@ -394,7 +382,8 @@ CascadeSelection select_best_cascade_blend(
 
 
 int select_best_cascade(
-    vec3 frag_pos_world_space, vec3 clip_discard_padding)
+    vec3 frag_pos_world_space,
+    vec3 clip_discard_padding)
 {
 
     const int num_cascades    = cascade_params.length();
@@ -422,14 +411,22 @@ int select_best_cascade(
 
 
 
-float dir_shadow_yield_pcf_sample(
-    int pcf_extent, int pcf_order, vec2 pcf_offset_tx,
-    vec2 texel_size, int cascade_id, vec3 normal_light_space, vec3 frag_pos_ndc);
+float dir_shadow_obscurance_pcf_sample(
+    int  pcf_extent,
+    int  pcf_order,
+    vec2 pcf_offset_tx,
+    vec2 texel_size,
+    int  cascade_id,
+    vec3 normal_light_space,
+    vec3 frag_pos_ndc);
 
 
 
 
-float dir_light_shadow_yield(vec3 frag_pos, vec3 normal) {
+float dir_light_shadow_obscurance(
+    vec3 frag_pos,
+    vec3 normal)
+{
 
     // pcf_extent is (N-1)/2 for an NxN kernel.
     // So a kernel with extent of 0 is just a 1x1 kernel
@@ -533,7 +530,7 @@ float dir_light_shadow_yield(vec3 frag_pos, vec3 normal) {
     const vec2 inner_cascade_scale = cascade_params[inner_cascade_id].scale.xy;
     const vec2 inner_pcf_offset    = pcf_offset * (base_cascade_scale / inner_cascade_scale);
 
-    float shadow_yield = dir_shadow_yield_pcf_sample(
+    float obscurance = dir_shadow_obscurance_pcf_sample(
         pcf_extent, pcf_order, inner_pcf_offset,
         texel_size, inner_cascade_id, normal_light_space, inner_frag_pos_ndc
     );
@@ -552,7 +549,7 @@ float dir_light_shadow_yield(vec3 frag_pos, vec3 normal) {
             const vec2 outer_cascade_scale = cascade_params[outer_cascade_id].scale.xy;
             const vec2 outer_pcf_offset    = pcf_offset * (base_cascade_scale / outer_cascade_scale);
 
-            const float outer_shadow_yield = dir_shadow_yield_pcf_sample(
+            const float outer_obscurance = dir_shadow_obscurance_pcf_sample(
                 pcf_extent, pcf_order, outer_pcf_offset,
                 texel_size, outer_cascade_id, normal_light_space, outer_frag_pos_ndc
             );
@@ -560,21 +557,26 @@ float dir_light_shadow_yield(vec3 frag_pos, vec3 normal) {
             // FIXME: There's a bit of self-shadowing in the blend region that can
             // be eliminated with a small extra bias. But it shouldn't be there
             // in the first place. Both blending and pcf_offset accentuate it. Investigate.
-            shadow_yield = mix(shadow_yield, outer_shadow_yield, smoothstep(0.0, 1.0, outer_cascade_blend));
+            obscurance = mix(obscurance, outer_obscurance, smoothstep(0.0, 1.0, outer_cascade_blend));
         }
 
     }
 
 
-    return shadow_yield;
+    return obscurance;
 }
 
 
 
 
-float dir_shadow_yield_pcf_sample(
-    int pcf_extent, int pcf_order, vec2 pcf_offset_tx,
-    vec2 texel_size, int cascade_id, vec3 normal_light_space, vec3 frag_pos_ndc)
+float dir_shadow_obscurance_pcf_sample(
+    int  pcf_extent,
+    int  pcf_order,
+    vec2 pcf_offset_tx,
+    vec2 texel_size,
+    int  cascade_id,
+    vec3 normal_light_space,
+    vec3 frag_pos_ndc)
 {
     // In light space.
     const vec3  light_back_dir      = vec3(0.0,  0.0,  1.0);
@@ -586,7 +588,7 @@ float dir_shadow_yield_pcf_sample(
 
     // Do PCF sampling.
 
-    float yield = 0.0;
+    float obscurance = 0.0;
 
     for (int x = -pcf_extent; x <= pcf_extent; ++x) {
         for (int y = -pcf_extent; y <= pcf_extent; ++y) {
@@ -706,11 +708,11 @@ float dir_shadow_yield_pcf_sample(
             // Shadow sampler returns "how much of the fragment is lit"
             // from GL_LESS comparison function.
             // We need "how much of the fragment is in shadow".
-            yield += (1.0 - pcf_lit);
+            obscurance += (1.0 - pcf_lit);
         }
     }
 
     // Normalize and return.
-    return yield / (pcf_order * pcf_order);
+    return obscurance / (pcf_order * pcf_order);
 
 }
