@@ -82,6 +82,13 @@ set_target_properties(range-v3::concepts PROPERTIES IMPORTED_GLOBAL TRUE)
 
 
 
+# === ctre ===
+
+find_package(ctre CONFIG REQUIRED)
+set_target_properties(ctre::ctre PROPERTIES IMPORTED_GLOBAL TRUE)
+
+
+
 # === stb ===
 
 # only provides Stb_INCLUDE_DIR, no target

@@ -4,7 +4,9 @@
 #include "GLShaders.hpp"
 #include "GLProgram.hpp"
 #include "ReadFile.hpp"
+#include "RuntimeError.hpp"
 #include "ShaderSource.hpp"
+#include <filesystem>
 #include <string>
 #include <utility>
 #include <vector>
@@ -33,6 +35,19 @@ public:
 };
 
 
+class IncludeResolutionFailure final : public RuntimeError {
+public:
+    static constexpr auto prefix = "Failed to Resolve Include: ";
+
+    std::string include_name;
+
+    IncludeResolutionFailure(std::string include_name)
+        : RuntimeError(prefix, include_name)
+        , include_name{ std::move(include_name) }
+    {}
+};
+
+
 class ProgramLinkingFailure final : public RuntimeError {
 public:
     static constexpr auto prefix = "Failed to Link Program: ";
@@ -53,27 +68,10 @@ public:
 
 
 class ShaderBuilder {
-private:
-    struct UnevaluatedShader {
-        ShaderSource source;
-        ShaderTarget type;
-    };
-
-    struct ShaderDefine {
-        std::string name;
-        std::string value;
-
-        std::string get_define_string() const {
-            return "#define " + name + " " + value;
-        }
-    };
-
-    std::vector<UnevaluatedShader> shaders_;
-    std::vector<ShaderDefine> defines_;
-
 public:
     ShaderBuilder& load_shader(const File& file, ShaderTarget type) {
-        shaders_.emplace_back(ShaderSource(read_file(file)), type);
+        shaders_.emplace_back(ShaderSource(read_file(file)), type, file.path());
+        shaders_.back().resolve_includes();
         return *this;
     }
 
@@ -110,6 +108,29 @@ public:
 
     [[nodiscard]] UniqueProgram get();
 
+
+private:
+    struct UnevaluatedShader {
+        ShaderSource             source;
+        ShaderTarget             type;
+        Path                     path; // Can be empty if the shader was added, not loaded.
+        std::unordered_set<Path> included;
+
+        void resolve_includes();
+    };
+
+    struct ShaderDefine {
+        std::string name;
+        std::string value;
+
+        std::string get_define_string() const {
+            return "#define " + name + " " + value;
+        }
+    };
+
+    std::vector<UnevaluatedShader> shaders_;
+    std::vector<ShaderDefine>      defines_;
+
 };
 
 
@@ -124,15 +145,18 @@ inline auto ShaderBuilder::get()
 
     auto compile_and_attach =
         [&sp]<typename UniqueShaderType>(
-            UniqueShaderType    new_shader,
-            const ShaderSource& source)
+            UniqueShaderType         shader_obj,
+            const UnevaluatedShader& shader)
         {
-            new_shader->set_source(source.text());
-            new_shader->compile();
-            if (!new_shader->has_compiled_successfully()) {
-                throw error::ShaderCompilationFailure(new_shader->get_info_log(), UniqueShaderType::target_type);
+            shader_obj->set_source(shader.source.text());
+            shader_obj->compile();
+            if (!shader_obj->has_compiled_successfully()) {
+                throw error::ShaderCompilationFailure(
+                    shader.path.string() + shader_obj->get_info_log(),
+                    UniqueShaderType::target_type
+                );
             }
-            sp->attach_shader(new_shader);
+            sp->attach_shader(shader_obj);
         };
 
 
@@ -141,17 +165,18 @@ inline auto ShaderBuilder::get()
         for (auto& define : defines_) {
             const bool was_found =
                 shader.source.find_and_insert_as_next_line("#version", define.get_define_string());
+            // TODO: This should just insert at the first line instead, if the #version is not found.
             assert(was_found);
         }
 
         switch (shader.type) {
             using enum ShaderTarget;
-            case VertexShader:         compile_and_attach(UniqueVertexShader(),         shader.source); break;
-            case FragmentShader:       compile_and_attach(UniqueFragmentShader(),       shader.source); break;
-            case GeometryShader:       compile_and_attach(UniqueGeometryShader(),       shader.source); break;
-            case ComputeShader:        compile_and_attach(UniqueComputeShader(),        shader.source); break;
-            case TessControlShader:    compile_and_attach(UniqueTessControlShader(),    shader.source); break;
-            case TessEvaluationShader: compile_and_attach(UniqueTessEvaluationShader(), shader.source); break;
+            case VertexShader:         compile_and_attach(UniqueVertexShader(),         shader); break;
+            case FragmentShader:       compile_and_attach(UniqueFragmentShader(),       shader); break;
+            case GeometryShader:       compile_and_attach(UniqueGeometryShader(),       shader); break;
+            case ComputeShader:        compile_and_attach(UniqueComputeShader(),        shader); break;
+            case TessControlShader:    compile_and_attach(UniqueTessControlShader(),    shader); break;
+            case TessEvaluationShader: compile_and_attach(UniqueTessEvaluationShader(), shader); break;
             default:
                 assert(false);
         }
@@ -168,6 +193,72 @@ inline auto ShaderBuilder::get()
     return sp;
 }
 
+
+
+
+inline void ShaderBuilder::UnevaluatedShader::resolve_includes() {
+    // 1. Get parent directory from path. If there's no path:
+    //   - Check that the file does not include anything. Error if it does.
+    //   - Skip the rest of the processing.
+    // 2. Find include directive and extract relative path.
+    // 3. Get canonical path of the include, handle errors.
+    // 4. Check if it has already been included, if it has:
+    //   - Replace the #include with an empty string.
+    //   - Skip to (8).
+    // 5. Try to read file of the include, handle errors.
+    // 6. Replace the #include with the contents of the new file.
+    // 7. Add canonical path of the new include to the "included set".
+    // 8. Repeat from (2) unitl no more #includes are found.
+
+    auto strip = [](std::string_view sv) {
+        sv.remove_prefix(1);
+        sv.remove_suffix(1);
+        return sv;
+    };
+
+    if (path.empty()) {
+        auto include_info = source.find_include_directive();
+        if (include_info.has_value()) {
+            throw error::IncludeResolutionFailure(std::string(strip(include_info->include_arg)));
+        } else {
+            return;
+        }
+    }
+
+    Path parent_dir = path.parent_path();
+
+    while (auto include_info = source.find_include_directive()) {
+        std::string_view stripped = strip(include_info->include_arg);
+
+        Path relative_path{ stripped };
+        // TODO: Can fail.
+        Path canonical_path = std::filesystem::canonical(parent_dir / relative_path);
+
+
+        if (included.contains(canonical_path)) {
+            // Just erase the #include line.
+            ShaderSource empty_contents{{}};
+
+            source.replace_include_line_with_contents(
+                include_info->line_begin,
+                include_info->line_end,
+                empty_contents
+            );
+
+        } else {
+            // TODO: Can fail.
+            ShaderSource included_contents{ read_file(File(canonical_path)) };
+
+            source.replace_include_line_with_contents(
+                include_info->line_begin,
+                include_info->line_end,
+                included_contents
+            );
+
+            included.emplace(canonical_path);
+        }
+    };
+};
 
 
 
