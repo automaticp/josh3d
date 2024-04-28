@@ -133,6 +133,33 @@ void ImGuiApplicationAssembly::draw_widgets() {
         if (ImGui::BeginMainMenuBar()) {
             ImGui::TextUnformatted("Josh3D-Demo");
 
+            ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
+
+            if (ImGui::BeginMenu("Window")) {
+                window_settings_.display();
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("ImGui")) {
+
+                ImGui::SliderFloat(
+                    "FPS Avg. Interval, s", &avg_frame_timer_.averaging_interval,
+                    0.001f, 5.f, "%.3f", ImGuiSliderFlags_Logarithmic
+                );
+
+                ImGui::SliderFloat("Bg. Alpha", &background_alpha, 0.f, 1.f);
+
+                reset_condition.set(ImGui::Button("Reset Dockspace"));
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("VFS")) {
+                vfs_control_.display();
+                ImGui::EndMenu();
+            }
+
+
             const float size_gizmo     = ImGui::CalcTextSize(gizmo_info_str_template_).x;
             const float size_fps       = ImGui::CalcTextSize(fps_str_template_).x;
             const float size_frametime = ImGui::CalcTextSize(frametime_str_template_).x;
@@ -147,30 +174,9 @@ void ImGuiApplicationAssembly::draw_widgets() {
             ImGui::EndMainMenuBar();
         }
 
-        if (ImGui::Begin("ImGui")) {
-
-            ImGui::SliderFloat(
-                "FPS Avg. Interval, s", &avg_frame_timer_.averaging_interval,
-                0.001f, 5.f, "%.3f", ImGuiSliderFlags_Logarithmic
-            );
-
-            ImGui::SliderFloat("Bg. Alpha", &background_alpha, 0.f, 1.f);
-
-            reset_condition.set(ImGui::Button("Reset Dockspace"));
-
-        } ImGui::End();
-
-        if (ImGui::Begin("Window")) {
-            window_settings_.display();
-        } ImGui::End();
 
         if (ImGui::Begin("Render Engine")) {
             stage_hooks_.display();
-        } ImGui::End();
-
-
-        if (ImGui::Begin("VFS")) {
-            vfs_control_.display();
         } ImGui::End();
 
         if (ImGui::Begin("Selected")) {
@@ -207,10 +213,8 @@ void ImGuiApplicationAssembly::reset_dockspace(ImGuiID dockspace_id) {
 
     ImGui::DockBuilderDockWindow("Registry", left_id);
     ImGui::DockBuilderDockWindow("Selected", left_id);
-    ImGui::DockBuilderDockWindow("VFS",      left_id);
     ImGui::DockBuilderDockWindow("Render Engine", right_id);
-    ImGui::DockBuilderDockWindow("Window",        right_id);
-    ImGui::DockBuilderDockWindow("ImGui",         right_id);
+
 
     ImGui::DockBuilderFinish(dockspace_id);
 }
