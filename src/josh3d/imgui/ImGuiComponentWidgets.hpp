@@ -122,6 +122,18 @@ inline void MaterialsWidget(entt::handle mesh) noexcept {
         };
 
 
+
+        auto bg_col = ImGui::GetStyleColorVec4(ImGuiCol_PopupBg);
+        bg_col.w = .6f; // Make less opaque
+        auto border_col = ImGui::GetStyleColorVec4(ImGuiCol_Border);
+        border_col.x *= 1.6f; // Lighten
+        border_col.y *= 1.6f;
+        border_col.z *= 1.6f;
+
+        ImGui::PushStyleColor(ImGuiCol_PopupBg, bg_col);
+        ImGui::PushStyleColor(ImGuiCol_Border,  border_col);
+
+
         // We want the popup to appear seamlessly, replacing the tooltip,
         // so we store the position of the tooltip window.
         ImVec2 tooltip_pos{};
@@ -141,22 +153,14 @@ inline void MaterialsWidget(entt::handle mesh) noexcept {
             ImGui::OpenPopup(popup_str_id);
         }
 
-        auto bg_col = ImGui::GetStyleColorVec4(ImGuiCol_PopupBg);
-        bg_col.w = 1.f; // Make opaque
-        auto border_col = ImGui::GetStyleColorVec4(ImGuiCol_Border);
-        border_col.x *= 1.6f; // Lighten
-        border_col.y *= 1.6f;
-        border_col.z *= 1.6f;
-
-        ImGui::PushStyleColor(ImGuiCol_PopupBg, bg_col);
-        ImGui::PushStyleColor(ImGuiCol_Border,  border_col);
         if (ImGui::BeginPopup(popup_str_id)) {
 
             hover_widget();
 
             ImGui::EndPopup();
-
         }
+
+
         ImGui::PopStyleColor(2);
 
 
