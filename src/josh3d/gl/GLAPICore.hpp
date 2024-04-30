@@ -175,9 +175,29 @@ inline void _draw_arrays_instanced_baseinstance() noexcept {
 }
 
 
-inline void _draw_elements_instanced() noexcept {
-    // gl::glDrawElementsInstanced()
+inline void draw_elements_instanced(
+    BindToken<Binding::VertexArray>     bound_vertex_array     [[maybe_unused]],
+    BindToken<Binding::Program>         bound_program          [[maybe_unused]],
+    BindToken<Binding::DrawFramebuffer> bound_draw_framebuffer [[maybe_unused]],
+    GLsizei                             instance_count,
+    Primitive                           primitive,
+    ElementType                         type,
+    GLsizeiptr                          element_offset_bytes,
+    GLsizei                             element_count) noexcept
+{
+    assert(bound_program.id()          == queries::bound_id(Binding::Program));
+    assert(bound_draw_framebuffer.id() == queries::bound_id(Binding::DrawFramebuffer));
+    assert(bound_vertex_array.id()     == queries::bound_id(Binding::VertexArray));
+    gl::glDrawElementsInstanced(
+        enum_cast<GLenum>(primitive),
+        element_count,
+        enum_cast<GLenum>(type),
+        // NOLINTNEXTLINE(performance-no-int-to-ptr)
+        reinterpret_cast<const void*>(element_offset_bytes),
+        instance_count
+    );
 }
+
 
 inline void _draw_elements_instanced_baseinstance() noexcept {
     // gl::glDrawElementsInstancedBaseInstance()
