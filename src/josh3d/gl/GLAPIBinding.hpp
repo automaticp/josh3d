@@ -241,5 +241,33 @@ JOSH3D_DEFINE_BIND_TOKEN(Program,                template<typename> friend struc
 JOSH3D_DEFINE_BIND_TOKEN(ReadFramebuffer,        template<typename> friend struct detail::FramebufferDSAInterface_Bind;)
 JOSH3D_DEFINE_BIND_TOKEN(DrawFramebuffer,        template<typename> friend struct detail::FramebufferDSAInterface_Bind;)
 
+#undef JOSH3D_DEFINE_BIND_TOKEN
+
+
+
+
+// TODO: Support indexed binding.
+template<Binding B>
+class BindGuard {
+public:
+    BindGuard(BindToken<B> token) : token_{ token } {}
+
+    BindGuard(const BindGuard&)            = delete;
+    BindGuard(BindGuard&&)                 = delete;
+    BindGuard& operator=(const BindGuard&) = delete;
+    BindGuard& operator=(BindGuard&&)      = delete;
+
+    operator BindToken<B>() const noexcept { return token_; }
+    BindToken<B> token() const noexcept { return token_; }
+    GLuint id() const noexcept { return token_.id(); }
+
+    ~BindGuard() noexcept { token_.unbind(); }
+
+private:
+    BindToken<B> token_;
+};
+
+
+
 
 } // namespace josh
