@@ -522,7 +522,7 @@ public:
 
 
 
-// TODO: Shared and Shareable are needed to differentiate between those who control the size.
+// Shared and Shareable are needed to differentiate between those who control the size.
 template<Renderable RenderableV>
 class ShareableAttachment;
 

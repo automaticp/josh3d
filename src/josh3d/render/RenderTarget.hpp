@@ -68,12 +68,14 @@ template<typename DepthAttachmentT, typename ...ColorAttachmentTs>
 class RenderTarget {
     static constexpr bool is_any_attachment_multisample() noexcept;
     static constexpr bool is_any_attachment_array()       noexcept;
+    static constexpr bool is_any_attachment_owned()       noexcept;
     using color_attachments_type = std::tuple<ColorAttachmentTs...>;
 public:
     static constexpr bool   has_depth_attachment  = !same_as_remove_cvref<DepthAttachmentT, NoDepthAttachment>;
     static constexpr size_t num_color_attachments = sizeof...(ColorAttachmentTs);
     static constexpr bool   is_multisample        = is_any_attachment_multisample();
     static constexpr bool   is_array              = is_any_attachment_array();
+    static constexpr bool   is_owning             = is_any_attachment_owned(); // TODO: is_fully_owning
     // TODO: resolution_ndims and resolution_type?
     // TODO: Support for empty RenderTargets?
     static_assert(has_depth_attachment + num_color_attachments != 0, "RenderTarget with no attachments is not supported.");
@@ -154,6 +156,19 @@ public:
         : RenderTarget(PrivateKey{}, resolution, num_array_elements, {}, std::move(colors)...)
     {}
 
+    RenderTarget(
+        DepthAttachmentT     depth,
+        ColorAttachmentTs... colors) noexcept
+            requires (!is_owning) && has_depth_attachment
+        : RenderTarget(PrivateKey{}, { 0, 0 }, 1, std::move(depth), std::move(colors)...)
+    {}
+
+    RenderTarget(
+        ColorAttachmentTs... colors) noexcept
+            requires (!is_owning) && (!has_depth_attachment)
+        : RenderTarget(PrivateKey{}, { 0, 0 }, 1, {}, std::move(colors)...)
+    {}
+
 
 
     // TODO: generate_mipmaps()
@@ -215,7 +230,7 @@ public:
         return depth_.share();
     }
 
-    template<auto Idx>
+    template<auto Idx = size_t{ 0 }>
     auto share_color_attachment() noexcept
         requires
             color_attachment_index_in_bounds<Idx, num_color_attachments> &&
@@ -228,25 +243,28 @@ public:
 
     auto resolution() const noexcept
         -> Size2I
+            requires is_owning
     {
         return resolution_;
     }
 
     auto num_array_elements() const noexcept
         -> GLsizei
-            requires is_array
+            requires is_owning && is_array
     {
         return num_array_elements_;
     }
 
-    void resize(const Size2I& resolution) noexcept {
+    void resize(const Size2I& resolution) noexcept
+        requires is_owning
+    {
         resolution_ = resolution;
         update_size_all();
         attach_all();
     }
 
     void resize(const Size2I& resolution, GLsizei new_array_elements) noexcept
-        requires is_array
+        requires is_owning && is_array
     {
         resolution_         = resolution;
         num_array_elements_ = new_array_elements;
@@ -255,7 +273,7 @@ public:
     }
 
     void resize(GLsizei new_array_elements) noexcept
-        requires is_array
+        requires is_owning && is_array
     {
         num_array_elements_ = new_array_elements;
         update_size_all();
@@ -471,6 +489,16 @@ constexpr bool RenderTarget<DepthAttachmentT, ColorAttachmentTs...>::
     return is_any_array;
 }
 
+template<typename DepthAttachmentT, typename ...ColorAttachmentTs>
+constexpr bool RenderTarget<DepthAttachmentT, ColorAttachmentTs...>::
+    is_any_attachment_owned() noexcept
+{
+    bool is_any_owned = (ColorAttachmentTs::kind_traits::is_full_owner || ...);
+    if constexpr (has_depth_attachment) {
+        is_any_owned = is_any_owned || DepthAttachmentT::kind_traits::is_full_owner;
+    }
+    return is_any_owned;
+}
 
 
 
