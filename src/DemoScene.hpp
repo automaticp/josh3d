@@ -18,48 +18,51 @@
 #include "VirtualFilesystem.hpp"
 
 #include "components/ChildMesh.hpp"
-#include "hooks/overlay/CSMDebug.hpp"
-#include "hooks/overlay/SSAODebug.hpp"
-#include "hooks/precompute/CSMSetup.hpp"
-#include "hooks/precompute/TransformResolution.hpp"
-#include "hooks/primary/DeferredGeometry.hpp"
-#include "hooks/primary/SSAO.hpp"
-#include "stages/overlay/CSMDebug.hpp"
-#include "stages/overlay/SSAODebug.hpp"
-#include "stages/precompute/CSMSetup.hpp"
-#include "stages/precompute/FrustumCulling.hpp"
-#include "stages/precompute/TransformResolution.hpp"
-#include "stages/primary/SSAO.hpp"
 #include "tags/Selected.hpp"
 #include "tags/ShadowCasting.hpp"
 #include "components/Path.hpp"
 #include "components/Name.hpp"
 
+#include "stages/precompute/CSMSetup.hpp"
+#include "stages/precompute/PointLightSetup.hpp"
+#include "stages/precompute/FrustumCulling.hpp"
+#include "stages/precompute/TransformResolution.hpp"
 #include "stages/primary/CascadedShadowMapping.hpp"
 #include "stages/primary/PointShadowMapping.hpp"
+#include "stages/primary/SSAO.hpp"
+#include "stages/primary/IDBufferStorage.hpp"
 #include "stages/primary/GBufferStorage.hpp"
 #include "stages/primary/DeferredGeometry.hpp"
 #include "stages/primary/TerrainGeometry.hpp"
 #include "stages/primary/DeferredShading.hpp"
-#include "stages/primary/PointLightBox.hpp"
+#include "stages/primary/LightDummies.hpp"
 #include "stages/primary/Sky.hpp"
 #include "stages/postprocess/Bloom.hpp"
 #include "stages/postprocess/FXAA.hpp"
 #include "stages/postprocess/HDREyeAdaptation.hpp"
 #include "stages/postprocess/Fog.hpp"
+#include "stages/overlay/CSMDebug.hpp"
+#include "stages/overlay/SSAODebug.hpp"
 #include "stages/overlay/GBufferDebug.hpp"
 #include "stages/overlay/SelectedObjectHighlight.hpp"
 #include "stages/overlay/BoundingSphereDebug.hpp"
 
+#include "hooks/precompute/CSMSetup.hpp"
+#include "hooks/precompute/PointLightSetup.hpp"
+#include "hooks/precompute/TransformResolution.hpp"
 #include "hooks/primary/CascadedShadowMapping.hpp"
 #include "hooks/primary/PointShadowMapping.hpp"
+#include "hooks/primary/DeferredGeometry.hpp"
+#include "hooks/primary/SSAO.hpp"
 #include "hooks/primary/DeferredShading.hpp"
-#include "hooks/primary/PointLightBox.hpp"
+#include "hooks/primary/LightDummies.hpp"
 #include "hooks/primary/Sky.hpp"
 #include "hooks/postprocess/Bloom.hpp"
 #include "hooks/postprocess/FXAA.hpp"
 #include "hooks/postprocess/HDREyeAdaptation.hpp"
 #include "hooks/postprocess/Fog.hpp"
+#include "hooks/overlay/CSMDebug.hpp"
+#include "hooks/overlay/SSAODebug.hpp"
 #include "hooks/overlay/GBufferDebug.hpp"
 #include "hooks/overlay/SelectedObjectHighlight.hpp"
 #include "hooks/overlay/BoundingSphereDebug.hpp"
@@ -134,19 +137,22 @@ inline DemoScene::DemoScene(glfw::Window& window)
 
 
     auto csmbuilder    = stages::precompute::CSMSetup();
+    auto plightsetup   = stages::precompute::PointLightSetup();
     auto frustumculler = stages::precompute::FrustumCulling();
     auto tfresolution  = stages::precompute::TransformResolution();
 
 
     auto psmapping   = stages::primary::PointShadowMapping();
     auto csmapping   = stages::primary::CascadedShadowMapping(csmbuilder.share_output_view());
+    auto idbuffer    = stages::primary::IDBufferStorage(rengine_.main_resolution());
     auto gbuffer     =
         stages::primary::GBufferStorage(
             rengine_.main_resolution(),
             // This is me sharing the depth target between the GBuffer and the
             // main framebuffer of the RenderEngine, so that deferred and forward draws
             // would overlap properly. Seems to work so far...
-            rengine_.share_main_depth_attachment()
+            rengine_.share_main_depth_attachment(),
+            idbuffer.share_write_view()
         );
     auto defgeom     = stages::primary::DeferredGeometry(gbuffer.share_write_view());
     auto terraingeom = stages::primary::TerrainGeometry(gbuffer.share_write_view());
@@ -158,7 +164,11 @@ inline DemoScene::DemoScene(glfw::Window& window)
             csmapping.share_output_view(),
             ssao.share_output_view()
         );
-    auto plightboxes = stages::primary::PointLightBox();
+    auto lightdummies = stages::primary::LightDummies(
+        rengine_.share_main_depth_attachment(),
+        rengine_.share_main_color_attachment(),
+        idbuffer.share_write_view()
+    );
     auto sky         = stages::primary::Sky();
 
 
@@ -188,13 +198,14 @@ inline DemoScene::DemoScene(glfw::Window& window)
 
 
     imgui_.stage_hooks().add_hook(imguihooks::precompute::CSMSetup());
+    imgui_.stage_hooks().add_hook(imguihooks::precompute::PointLightSetup());
     imgui_.stage_hooks().add_hook(imguihooks::precompute::TransformResolution());
     imgui_.stage_hooks().add_hook(imguihooks::primary::PointShadowMapping());
     imgui_.stage_hooks().add_hook(imguihooks::primary::CascadedShadowMapping());
     imgui_.stage_hooks().add_hook(imguihooks::primary::DeferredGeometry());
     imgui_.stage_hooks().add_hook(imguihooks::primary::SSAO());
     imgui_.stage_hooks().add_hook(imguihooks::primary::DeferredShading());
-    imgui_.stage_hooks().add_hook(imguihooks::primary::PointLightBox());
+    imgui_.stage_hooks().add_hook(imguihooks::primary::LightDummies());
     imgui_.stage_hooks().add_hook(imguihooks::primary::Sky());
     imgui_.stage_hooks().add_hook(imguihooks::postprocess::Fog());
     imgui_.stage_hooks().add_hook(imguihooks::postprocess::Bloom());
@@ -210,17 +221,19 @@ inline DemoScene::DemoScene(glfw::Window& window)
 
 
     rengine_.add_next_precompute_stage("CSM Setup",            std::move(csmbuilder));
+    rengine_.add_next_precompute_stage("Point Light Setup",    std::move(plightsetup));
     rengine_.add_next_precompute_stage("Frustum Culling",      std::move(frustumculler));
     rengine_.add_next_precompute_stage("Transfrom Resolution", std::move(tfresolution));
 
     rengine_.add_next_primary_stage("Point Shadow Mapping",      std::move(psmapping));
     rengine_.add_next_primary_stage("Cascaded Shadow Mapping",   std::move(csmapping));
+    rengine_.add_next_primary_stage("IDBuffer",                  std::move(idbuffer));
     rengine_.add_next_primary_stage("GBuffer",                   std::move(gbuffer));
     rengine_.add_next_primary_stage("Deferred Mesh Geometry",    std::move(defgeom));
     rengine_.add_next_primary_stage("Deferred Terrain Geometry", std::move(terraingeom));
     rengine_.add_next_primary_stage("SSAO",                      std::move(ssao));
     rengine_.add_next_primary_stage("Deferred Shading",          std::move(defshad));
-    rengine_.add_next_primary_stage("Point Light Boxes",         std::move(plightboxes));
+    rengine_.add_next_primary_stage("Light Dummies",             std::move(lightdummies));
     rengine_.add_next_primary_stage("Sky",                       std::move(sky));
 
     rengine_.add_next_postprocess_stage("Fog",                std::move(fog));
