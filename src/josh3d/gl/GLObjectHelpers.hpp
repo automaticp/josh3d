@@ -86,14 +86,18 @@ void resize_to_fit(
 {
     NumElems old_elem_count = buffer->get_num_elements();
 
-    if (old_elem_count == 0) {
-        // That means the buffer does not have a storage allocated yet.
-        // Allocate one with default parameters for storage mode and mapping.
-        // Those are DynamicServer storage, ReadWrite permitted mapping and NotPersistent persistence.
-        // If you cared enough about these flags, then you wouldn't use this function.
-        buffer->allocate_storage(new_elem_count);
-    } else if (new_elem_count != old_elem_count) {
-        detail::replace_buffer_like(buffer, new_elem_count);
+    if (new_elem_count != old_elem_count) {
+        if (old_elem_count == 0) {
+            // That means the buffer does not have a storage allocated yet.
+            // Allocate one with default parameters for storage mode and mapping.
+            // Those are DynamicServer storage, ReadWrite permitted mapping and NotPersistent persistence.
+            // If you cared enough about these flags, then you wouldn't use this function.
+            buffer->allocate_storage(new_elem_count);
+        } else if (new_elem_count == 0) {
+            buffer = {}; // TODO: This is questionable, as we drop the policies.
+        } else {
+            detail::replace_buffer_like(buffer, new_elem_count);
+        }
     }
 }
 
