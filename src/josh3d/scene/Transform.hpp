@@ -113,9 +113,6 @@ public:
 
     MTransform mtransform() const noexcept;
 
-    operator MTransform() const noexcept;
-
-
 };
 
 
@@ -218,19 +215,11 @@ public:
 
 
 inline MTransform Transform::mtransform() const noexcept {
-    return *this;
-}
-
-
-
-
-inline Transform::operator MTransform() const noexcept {
     return MTransform()
         .translate(position_)
         .rotate(rotation_)
         .scale(scale_);
 }
-
 
 
 

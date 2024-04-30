@@ -1,11 +1,13 @@
 #pragma once
 #include "GLObjects.hpp"
+#include "LightCasters.hpp"
 #include "UniformTraits.hpp" // IWYU pragma: keep (traits)
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
 #include "Transform.hpp"
 #include "VPath.hpp"
 #include "components/BoundingSphere.hpp"
+#include "components/Transform.hpp"
 #include "tags/Selected.hpp"
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
@@ -75,13 +77,28 @@ inline void BoundingSphereDebug::operator()(
             sp_->uniform("model", sphere_transf.mtransform().model());
 
             engine.primitives().sphere_mesh().draw(bound_program, bound_fbo);
-
         };
 
+        auto per_plight_draw_func = [&] (
+            const entt::entity&               entity,
+            const light::Point&               plight,
+            const components::BoundingSphere& sphere)
+        {
+            const glm::vec3 sphere_scale = glm::vec3{ sphere.radius };
+            const auto sphere_transf = Transform().translate(plight.position).scale(sphere_scale);
+
+            sp_->uniform("model", sphere_transf.mtransform().model());
+
+            engine.primitives().sphere_mesh().draw(bound_program, bound_fbo);
+        };
+
+
         if (selected_only) {
-            registry.view<Transform, components::BoundingSphere, tags::Selected>().each(per_mesh_draw_func);
+            registry.view<components::MTransform, components::BoundingSphere, tags::Selected>().each(per_mesh_draw_func);
+            registry.view<light::Point, components::BoundingSphere, tags::Selected>().each(per_plight_draw_func);
         } else {
-            registry.view<Transform, components::BoundingSphere>().each(per_mesh_draw_func);
+            registry.view<components::MTransform, components::BoundingSphere>().each(per_mesh_draw_func);
+            registry.view<light::Point, components::BoundingSphere>().each(per_plight_draw_func);
         }
     });
 
