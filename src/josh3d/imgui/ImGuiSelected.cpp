@@ -39,6 +39,8 @@ void ImGuiSelected::display() {
             if (imgui::ModelWidget(handle) == imgui::Feedback::Remove) {
                 to_remove.set(handle);
             }
+        } else {
+            ImGui::Text("Unknown Entity [%d]", entt::to_entity(handle.entity()));
         }
 
         // TODO:
