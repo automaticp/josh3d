@@ -154,6 +154,11 @@ public:
     const auto&             main_depth_attachment()       const noexcept { return depth_;           }
     auto                    share_main_depth_attachment()       noexcept { return depth_.share();   }
 
+    RawTexture2D<GLConst>   main_color_texture()          const noexcept { return main_swapchain_.back_target().color_attachment().texture(); }
+    const auto&             main_color_attachment()       const noexcept { return main_swapchain_.back_target().color_attachment();           }
+    auto                    share_main_color_attachment()       noexcept { return main_swapchain_.back_target().share_color_attachment();     }
+
+
     Size2I main_resolution() const noexcept { return main_swapchain_.resolution(); }
 
     auto&       camera()       noexcept { return cam_; }
@@ -193,8 +198,8 @@ private:
 
 
     using MainTarget = RenderTarget<
-        SharedAttachment<Renderable::Texture2D>, // Depth
-        UniqueAttachment<Renderable::Texture2D>  // Color
+        SharedAttachment<Renderable::Texture2D>,    // Depth
+        ShareableAttachment<Renderable::Texture2D>  // Color
     >;
 
     ShareableAttachment<Renderable::Texture2D> depth_{
@@ -300,11 +305,8 @@ public:
     // a Draw framebuffer within the callable.
     template<std::invocable<BindToken<Binding::DrawFramebuffer>> CallableT>
     void draw(CallableT&& draw_func) {
-        auto bind_token = engine_.main_swapchain_.back_target().bind_draw();
-
-        std::invoke(std::forward<CallableT>(draw_func), bind_token);
-
-        bind_token.unbind();
+        BindGuard bound_fbo{ engine_.main_swapchain_.back_target().bind_draw() };
+        std::invoke(std::forward<CallableT>(draw_func), bound_fbo.token());
     }
 
     // The RenderEngine's main framebuffer is not exposed here because
@@ -315,6 +317,9 @@ public:
 
     const auto& main_depth_attachment()       const noexcept { return engine_.main_depth_attachment();       }
     auto        share_main_depth_attachment()       noexcept { return engine_.share_main_depth_attachment(); }
+
+    const auto& main_color_attachment()       const noexcept { return engine_.main_color_attachment();       }
+    auto        share_main_color_attachment()       noexcept { return engine_.share_main_color_attachment(); }
 
 };
 
@@ -360,9 +365,8 @@ public:
     //
     // Used as an optimization for draws that either override or blend with the screen.
     void draw_to_front(BindToken<Binding::Program> bound_program) {
-        auto bound_fbo = engine_.main_swapchain_.front_target().bind_draw();
+        BindGuard bound_fbo{ engine_.main_swapchain_.front_target().bind_draw() };
         engine_.primitives().quad_mesh().draw(bound_program, bound_fbo);
-        bound_fbo.unbind();
     }
 
 };
@@ -382,7 +386,7 @@ private:
 public:
     // Emit the draw call on the screen quad and draw directly to the default buffer.
     void draw_fullscreen_quad(BindToken<Binding::Program> bound_program) {
-        auto bound_fbo = engine_.default_fbo_.bind_draw();
+        BindGuard bound_fbo{ engine_.default_fbo_.bind_draw() };
         engine_.primitives().quad_mesh().draw(bound_program, bound_fbo);
     }
 
