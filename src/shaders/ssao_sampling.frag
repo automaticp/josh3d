@@ -2,6 +2,7 @@
 #extension GL_GOOGLE_include_directive : enable
 #include "utils.coordinates.glsl"
 #include "utils.random.glsl"
+#include "camera_ubo.glsl"
 
 
 in  vec2  tex_coords;
@@ -15,17 +16,11 @@ uniform sampler2D tex_depth;
 uniform sampler2D tex_noise;
 uniform vec2      noise_size; // vec2(0.1, 0.1) for a 16x16 texture on a 160x160 screen
 
-uniform mat4  view;
-uniform mat3  normal_view;
-uniform mat4  proj;
-uniform mat4  inv_proj;
-uniform float z_near;
-uniform float z_far;
-
 uniform float radius;
 uniform float bias;
 
-layout (std430, binding = 0) restrict readonly buffer KernelSamplesBlock {
+layout (std430, binding = 0) restrict readonly
+buffer KernelSamplesBlock {
     vec4 kernel_samples[];
 };
 
@@ -73,7 +68,7 @@ void main() {
     for (int i = 0; i < num_samples; ++i) {
         vec3 sample_pos_ts  = kernel_samples[i].xyz;
         vec4 sample_pos_vs  = vec4((tbn_vs * (radius * sample_pos_ts)) + frag_pos_vs.xyz, 1.0);
-        vec3 sample_pos_nss = vs_to_nss(sample_pos_vs, proj);
+        vec3 sample_pos_nss = vs_to_nss(sample_pos_vs, camera.proj);
 
         vec4 reference_pos_vs = get_frag_pos_vs(sample_pos_nss.xy);
 
@@ -99,7 +94,7 @@ vec4 get_frag_pos_vs(vec2 uv) {
         {
             float screen_z = textureLod(tex_depth, uv, 0).r;
             vec3  pos_nss  = vec3(uv, screen_z);
-            vec4  pos_vs   = nss_to_vs(pos_nss, z_near, z_far, inv_proj);
+            vec4  pos_vs   = nss_to_vs(pos_nss, camera.z_near, camera.z_far, camera.inv_proj);
             const float far_plane_correction = (1.0 - step(1.0, screen_z)); // Clamp to INF at z_far
             return pos_vs / far_plane_correction;
         }
@@ -108,7 +103,7 @@ vec4 get_frag_pos_vs(vec2 uv) {
         {
             vec4 pos_ws_draw = texture(tex_position_draw, uv);
             // Will return inf if no draw...
-            return view * vec4(pos_ws_draw.xyz / pos_ws_draw.a, 1.0);
+            return camera.view * vec4(pos_ws_draw.xyz / pos_ws_draw.a, 1.0);
         }
     }
 }
@@ -116,7 +111,7 @@ vec4 get_frag_pos_vs(vec2 uv) {
 
 vec3 get_frag_normal_vs(vec2 uv) {
     vec3 frag_normal_ws = texture(tex_normals, uv).xyz;
-    return normalize(normal_view * frag_normal_ws);
+    return normalize(camera.normal_view * frag_normal_ws);
 }
 
 

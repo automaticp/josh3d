@@ -24,8 +24,7 @@ void DeferredGeometry::operator()(
 {
     const auto& registry = engine.registry();
 
-    const auto proj = engine.camera().projection_mat();
-    const auto view = engine.camera().view_mat();
+    BindGuard bound_camera_ubo = engine.bind_camera_ubo();
 
     // Exclude to not draw the same meshes twice.
 
@@ -65,9 +64,6 @@ void DeferredGeometry::operator()(
     auto draw_ds = [&](RawProgram<> sp, auto entt_view) {
         BindGuard bound_program = sp.use();
 
-        sp.uniform("projection", proj);
-        sp.uniform("view",       view);
-
         sp.uniform("material.diffuse",  0);
         sp.uniform("material.specular", 1);
 
@@ -89,9 +85,6 @@ void DeferredGeometry::operator()(
 
     auto draw_dsn = [&](RawProgram<> sp, auto entt_view) {
         BindGuard bound_program = sp.use();
-
-        sp.uniform("projection", proj);
-        sp.uniform("view",       view);
 
         sp.uniform("material.diffuse",  0);
         sp.uniform("material.specular", 1);

@@ -2,6 +2,7 @@
 #extension GL_GOOGLE_include_directive : enable
 #include "lights.glsl"
 #include "gbuffer.glsl"
+#include "camera_ubo.glsl"
 
 
 in vec2  tex_coords;
@@ -49,8 +50,6 @@ buffer CascadeParamsBlock {
     CascadeParams cascade_params[];
 };
 
-uniform vec3 cam_pos;
-
 
 
 
@@ -89,7 +88,7 @@ void main() {
     if (!gsample.drawn) discard;
 
     const vec3 normal_dir = normalize(gsample.normal);
-    const vec3 view_dir   = normalize(cam_pos - gsample.position);
+    const vec3 view_dir   = normalize(camera.position - gsample.position);
 
 
     vec3 result_color = vec3(0.0);

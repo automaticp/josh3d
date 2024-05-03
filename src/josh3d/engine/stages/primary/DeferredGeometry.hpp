@@ -26,7 +26,7 @@ public:
 private:
     UniqueProgram sp_ds_at{
         ShaderBuilder()
-            .load_vert(VPath("src/shaders/basic_mesh.vert"))
+            .load_vert(VPath("src/shaders/dfr_geometry_mat_ds.vert"))
             .load_frag(VPath("src/shaders/dfr_geometry_mat_ds.frag"))
             .define("ENABLE_ALPHA_TESTING")
             .get()
@@ -34,7 +34,7 @@ private:
 
     UniqueProgram sp_ds_noat{
         ShaderBuilder()
-            .load_vert(VPath("src/shaders/basic_mesh.vert"))
+            .load_vert(VPath("src/shaders/dfr_geometry_mat_ds.vert"))
             .load_frag(VPath("src/shaders/dfr_geometry_mat_ds.frag"))
             .get()
     };

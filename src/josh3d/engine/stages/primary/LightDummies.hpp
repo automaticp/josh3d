@@ -88,9 +88,7 @@ inline void LightDummies::operator()(RenderEnginePrimaryInterface& engine) {
     const auto num_plights = GLsizei(plight_params_->get_num_elements());
 
     if (num_plights) {
-
-        sp_->uniform("projection", engine.camera().projection_mat());
-        sp_->uniform("view",       engine.camera().view_mat());
+        BindGuard bound_camera_ubo = engine.bind_camera_ubo();
 
         plight_params_->bind_to_index<BufferTargetIndexed::ShaderStorage>(0);
 

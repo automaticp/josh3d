@@ -112,17 +112,11 @@ inline void Fog::operator()(
 inline void Fog::draw_uniform_fog(
     RenderEnginePostprocessInterface& engine)
 {
-
-    const auto& cam = engine.camera();
-
-    const glm::mat4 inv_proj = glm::inverse(engine.camera().projection_mat());
+    BindGuard bound_camera_ubo = engine.bind_camera_ubo();
 
     engine.screen_depth().bind_to_texture_unit(1);
-    sp_uniform_->uniform("depth",     1);
-    sp_uniform_->uniform("fog_color", fog_color);
-    sp_uniform_->uniform("z_near",    cam.get_params().z_near);
-    sp_uniform_->uniform("z_far",     cam.get_params().z_far);
-    sp_uniform_->uniform("inv_proj",  inv_proj);
+    sp_uniform_->uniform("depth",          1);
+    sp_uniform_->uniform("fog_color",      fog_color);
     sp_uniform_->uniform("mean_free_path", uniform_fog_params.mean_free_path);
     sp_uniform_->uniform("distance_power", uniform_fog_params.distance_power);
     sp_uniform_->uniform("cutoff_offset",  uniform_fog_params.cutoff_offset);
@@ -149,12 +143,7 @@ inline void Fog::draw_uniform_fog(
 inline void Fog::draw_barometric_fog(
     RenderEnginePostprocessInterface& engine)
 {
-
-    const auto& cam = engine.camera();
-
-    const glm::mat4 inv_proj               = glm::inverse(cam.projection_mat());
-    const glm::mat3 normal_view_mat        = glm::inverse(glm::transpose(cam.view_mat()));
-    const glm::vec3 world_up_in_view_space = glm::normalize(normal_view_mat * globals::basis.y());
+    BindGuard bound_camera_ubo = engine.bind_camera_ubo();
 
     // See comments in shader code to make sense of this.
     const auto  [H, Y0, L0]  = barometric_fog_params;
@@ -162,20 +151,16 @@ inline void Fog::draw_barometric_fog(
     // We want to compute the effect in the view-space,
     // because world-space calculations incur precision issues
     // at large separation from the origin.
-    const float eye_height = cam.transform.position().y;
+    const float eye_height = engine.camera().transform.position().y;
     float density_at_eye_height = float(
         double(base_density) * glm::exp(-double(eye_height) / double(H))
     );
 
 
     engine.screen_depth().bind_to_texture_unit(1);
-    sp_barometric_->uniform("depth",        1);
-    sp_barometric_->uniform("fog_color",    fog_color);
-    sp_barometric_->uniform("z_near",       cam.get_params().z_near);
-    sp_barometric_->uniform("z_far",        cam.get_params().z_far);
-    sp_barometric_->uniform("inv_proj",     inv_proj);
-    sp_barometric_->uniform("scale_height", H);
-    sp_barometric_->uniform("world_up_in_view_space", world_up_in_view_space);
+    sp_barometric_->uniform("depth",                  1);
+    sp_barometric_->uniform("fog_color",              fog_color);
+    sp_barometric_->uniform("scale_height",           H);
     sp_barometric_->uniform("density_at_eye_height",  density_at_eye_height);
 
     glapi::enable(Capability::Blending);

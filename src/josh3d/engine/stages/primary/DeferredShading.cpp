@@ -43,7 +43,7 @@ void DeferredShading::draw_singlepass(
     NumElems                      num_plights_no_shadow)
 {
     const auto& registry = engine.registry();
-
+    BindGuard bound_camera_ubo = engine.bind_camera_ubo();
 
     // GBuffer.
     gbuffer_->position_draw_texture().bind_to_texture_unit(0);
@@ -115,8 +115,6 @@ void DeferredShading::draw_singlepass(
     }
 
 
-    sp_singlepass_->uniform("cam_pos", engine.camera().transform.position());
-
 
     glapi::disable(Capability::DepthTesting);
     {
@@ -174,6 +172,7 @@ void DeferredShading::draw_multipass(
     NumElems                      num_plights_no_shadow)
 {
     const auto& registry = engine.registry();
+    BindGuard bound_camera_ubo = engine.bind_camera_ubo();
 
     gbuffer_->position_draw_texture().bind_to_texture_unit(0);
     gbuffer_->normals_texture()      .bind_to_texture_unit(1);
@@ -185,7 +184,6 @@ void DeferredShading::draw_multipass(
     };
 
     auto set_common_uniforms = [&](RawProgram<> sp) {
-        sp.uniform("cam_pos", engine.camera().transform.position());
         sp.uniform("gbuffer.tex_position_draw", 0);
         sp.uniform("gbuffer.tex_normals",       1);
         sp.uniform("gbuffer.tex_albedo_spec",   2);
@@ -236,8 +234,6 @@ void DeferredShading::draw_multipass(
 
 
     auto set_plight_uniforms = [&](RawProgram<> sp) {
-        sp.uniform("view", engine.camera().view_mat());
-        sp.uniform("proj", engine.camera().projection_mat());
         sp.uniform("fade_start_fraction",  plight_fade_start_fraction);
         sp.uniform("fade_length_fraction", plight_fade_length_fraction);
     };

@@ -1,12 +1,11 @@
 #version 430 core
+#extension GL_GOOGLE_include_directive : enable
+#include "camera_ubo.glsl"
 
 layout (location = 0) in vec3 in_pos;
 
 out flat vec3 light_color;
 out flat uint light_id;
-
-uniform mat4 projection;
-uniform mat4 view;
 
 
 struct PLightParams {
@@ -30,7 +29,7 @@ void main() {
 
     vec3 pos_ws = plight.position + (plight.scale * in_pos);
 
-    gl_Position = projection * view * vec4(pos_ws, 1.0);
+    gl_Position = camera.projview * vec4(pos_ws, 1.0);
     light_color = plight.color;
     light_id    = plight.id;
 }

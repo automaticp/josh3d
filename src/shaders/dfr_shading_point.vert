@@ -1,6 +1,7 @@
 #version 430 core
 #extension GL_GOOGLE_include_directive : enable
 #include "lights.glsl"
+#include "camera_ubo.glsl"
 #include "utils.coordinates.glsl"
 
 
@@ -27,10 +28,6 @@ buffer PointLightsBlock {
 };
 
 
-uniform mat4 view;
-uniform mat4 proj;
-
-
 
 
 void main() {
@@ -38,7 +35,7 @@ void main() {
     PLight plight    = point_lights[plight_id];
 
     vec4 pos_ws = vec4(plight.position + (in_pos * plight.radius), 1.0);
-    vec4 pos_ps = proj * view * pos_ws;
+    vec4 pos_ps = camera.projview * pos_ws;
 
     gl_Position    = pos_ps;
     out_.plight_id = plight_id;

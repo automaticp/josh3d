@@ -1,14 +1,14 @@
-#version 330 core
+#version 430 core
+#extension GL_GOOGLE_include_directive : enable
+#include "camera_ubo.glsl"
 
 layout (location = 0) in vec3 in_pos;
 
 out vec3 tex_coords;
 
-uniform mat4 projection;
-uniform mat4 view;
-
 
 void main() {
+
     // There are 2 options that I see of how to deal with the cubemaps:
     //
     // 1. Textures are flipped for Y coordinate and then the Z axis is negated
@@ -28,6 +28,9 @@ void main() {
 
     // Oh, yeah, also, forgot to say, but OpenGL is damn insane for using a LH system for cubemaps.
 
-    vec4 position = projection * view * vec4(in_pos, 1.0);
+    mat4 view_orientation = mat4(mat3(camera.view));
+
+    vec4 position = camera.proj * view_orientation * vec4(in_pos, 1.0);
+
     gl_Position = position.xyww; // Force set z = 1.0 in NDC
 }

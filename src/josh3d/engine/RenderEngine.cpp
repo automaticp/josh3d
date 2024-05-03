@@ -7,6 +7,8 @@
 #include <entt/entt.hpp>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/gl.h>
+#include <glm/glm.hpp>
+#include <glm/matrix.hpp>
 #include <utility>
 
 
@@ -21,6 +23,7 @@ void RenderEngine::render() {
     auto params = cam_.get_params();
     params.aspect_ratio = main_resolution().aspect_ratio();
     cam_.update_params(params);
+    update_camera_ubo();
 
     // Update viewport.
     glapi::set_viewport({ {}, main_resolution() });
@@ -82,6 +85,35 @@ void RenderEngine::render() {
 
     // Present.
 
+}
+
+
+
+
+void RenderEngine::update_camera_ubo() noexcept {
+    const auto&     params       = cam_.get_params();
+    const glm::mat4 view         = cam_.view_mat();
+    const glm::mat4 proj         = cam_.projection_mat();
+    const glm::mat4 projview     = proj * view;
+    const glm::mat4 inv_view     = glm::inverse(view);
+    const glm::mat3 normal_view  = glm::transpose(inv_view);
+    const glm::mat4 inv_proj     = glm::inverse(proj);
+    const glm::mat4 inv_projview = glm::inverse(projview);
+
+    const CameraData data{
+        .position     = cam_.transform.position(),
+        .z_near       = params.z_near,
+        .z_far        = params.z_far,
+        .view         = view,
+        .proj         = proj,
+        .projview     = projview,
+        .inv_view     = inv_view,
+        .normal_view  = normal_view,
+        .inv_proj     = inv_proj,
+        .inv_projview = inv_projview
+    };
+
+    camera_ubo_->upload_data({ &data, 1 });
 }
 
 

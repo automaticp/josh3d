@@ -1,6 +1,7 @@
 #version 430 core
 #extension GL_GOOGLE_include_directive : enable
 #include "lights.glsl"
+#include "camera_ubo.glsl"
 
 
 in vec2  tex_coords;
@@ -79,7 +80,6 @@ uniform PointShadow point_shadow;
 
 uniform float fade_start_fraction;
 uniform float fade_length_fraction;
-uniform vec3  cam_pos;
 
 
 
@@ -132,7 +132,7 @@ void main() {
 
     // Apply lighting and shadows.
     vec3 normal_dir = normalize(normal);
-    vec3 view_dir   = normalize(cam_pos - frag_pos);
+    vec3 view_dir   = normalize(camera.position - frag_pos);
 
     vec3 result_color = vec3(0.0);
 

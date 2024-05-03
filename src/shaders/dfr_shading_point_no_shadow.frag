@@ -2,6 +2,7 @@
 #extension GL_GOOGLE_include_directive : enable
 #include "lights.glsl"
 #include "gbuffer.glsl"
+#include "camera_ubo.glsl"
 
 
 out vec4 frag_color;
@@ -22,7 +23,6 @@ in Interface {
 
 
 uniform GBuffer gbuffer;
-uniform vec3    cam_pos;
 uniform float   fade_start_fraction;
 uniform float   fade_length_fraction;
 
@@ -49,7 +49,7 @@ void main() {
     if (!gsample.drawn) discard;
 
     const vec3 normal_dir = normalize(gsample.normal);
-    const vec3 view_dir   = normalize(cam_pos - gsample.position);
+    const vec3 view_dir   = normalize(camera.position - gsample.position);
 
     const vec3 light_to_frag = gsample.position - in_.plight.position;
     const float obscurance   = 0.0; // No shadow.

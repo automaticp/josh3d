@@ -115,14 +115,10 @@ inline UniqueCubemap Sky::load_debug_skybox() {
 inline void Sky::draw_debug_skybox(
     RenderEnginePrimaryInterface& engine)
 {
-
-    glm::mat4 projection = engine.camera().projection_mat();
-    glm::mat4 view       = engine.camera().view_mat();
     debug_skybox_cubemap_->bind_to_texture_unit(0);
 
-    sp_skybox_->uniform("cubemap",    0);
-    sp_skybox_->uniform("projection", projection);
-    sp_skybox_->uniform("view",       glm::mat4{ glm::mat3{ view } });
+    BindGuard bound_camera_ubo = engine.bind_camera_ubo();
+    sp_skybox_->uniform("cubemap", 0);
 
     {
         BindGuard bound_program = sp_skybox_->use();
@@ -140,16 +136,11 @@ inline void Sky::draw_skybox(
     RenderEnginePrimaryInterface& engine,
     const entt::registry&         registry)
 {
-
-    glm::mat4 projection = engine.camera().projection_mat();
-    glm::mat4 view       = engine.camera().view_mat();
-
     // TODO: Pulls a single skybox, obviously won't work when there are many.
     registry.storage<components::Skybox>().begin()->cubemap->bind_to_texture_unit(0);
 
-    sp_skybox_->uniform("cubemap",    0);
-    sp_skybox_->uniform("projection", projection);
-    sp_skybox_->uniform("view",       glm::mat4{ glm::mat3{ view } });
+    BindGuard bound_camera_ubo = engine.bind_camera_ubo();
+    sp_skybox_->uniform("cubemap", 0);
 
     {
         BindGuard bound_program = sp_skybox_->use();
@@ -167,20 +158,15 @@ inline void Sky::draw_procedural_sky(
     RenderEnginePrimaryInterface& engine,
     const entt::registry&         registry)
 {
-
-    const auto& cam        = engine.camera();
-    const auto& cam_params = cam.get_params();
-
-    const glm::mat4 inv_proj = glm::inverse(cam.projection_mat());
-
     // UB if no light, lmao
     const auto& light = *registry.storage<light::Directional>().begin();
+    const auto& cam   = engine.camera();
+
+    BindGuard bound_camera_ubo = engine.bind_camera_ubo();
 
     const glm::vec3 light_dir_view_space =
         glm::normalize(glm::vec3{ cam.view_mat() * glm::vec4{ light.direction, 0.f } });
 
-    sp_proc_->uniform("z_far",                cam_params.z_far);
-    sp_proc_->uniform("inv_proj",             inv_proj);
     sp_proc_->uniform("light_dir_view_space", light_dir_view_space);
     sp_proc_->uniform("sky_color",            procedural_sky_params.sky_color);
     sp_proc_->uniform("sun_color",            procedural_sky_params.sun_color);

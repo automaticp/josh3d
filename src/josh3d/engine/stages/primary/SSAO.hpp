@@ -303,8 +303,6 @@ inline void SSAO::operator()(
     glapi::set_viewport({ {}, target_resolution });
 
 
-    auto& cam_params = engine.camera().get_params();
-
     // This is inverse of "noise scale" from learnopengl.
     // This is the size of a noise texture in uv coordinates of the screen
     // assuming the size of a pixel is the same for both.
@@ -313,22 +311,13 @@ inline void SSAO::operator()(
         float(noise_size_.height) / float(source_resolution.height),
     };
 
-    glm::mat4 view_mat    = engine.camera().view_mat();
-    glm::mat3 normal_view = glm::transpose(glm::inverse(view_mat));
-    glm::mat4 proj_mat    = engine.camera().projection_mat();
-    glm::mat4 inv_proj    = glm::inverse(proj_mat);
-
 
     // Sampling pass.
     {
-        sp_sampling_->uniform("view",        view_mat);
-        sp_sampling_->uniform("normal_view", normal_view);
-        sp_sampling_->uniform("proj",        proj_mat);
-        sp_sampling_->uniform("inv_proj",    inv_proj);
-        sp_sampling_->uniform("z_near",      cam_params.z_near);
-        sp_sampling_->uniform("z_far",       cam_params.z_far);
-        sp_sampling_->uniform("radius",      radius);
-        sp_sampling_->uniform("bias",        bias);
+        BindGuard bound_camera_ubo = engine.bind_camera_ubo();
+
+        sp_sampling_->uniform("radius",            radius);
+        sp_sampling_->uniform("bias",              bias);
         sp_sampling_->uniform("tex_position_draw", 0);
         sp_sampling_->uniform("tex_normals",       1);
         sp_sampling_->uniform("tex_depth",         2);

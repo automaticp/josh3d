@@ -2,21 +2,18 @@
 #extension GL_GOOGLE_include_directive : enable
 #include "utils.coordinates.glsl"
 #include "utils.color.glsl"
-
+#include "camera_ubo.glsl"
 
 
 
 in vec2  tex_coords;
 out vec4 frag_color;
 
-uniform sampler2D tex_position_draw;
-uniform sampler2D tex_normals;
-uniform sampler2D tex_albedo_spec;
-uniform sampler2D tex_depth;
+uniform sampler2D  tex_position_draw;
+uniform sampler2D  tex_normals;
+uniform sampler2D  tex_albedo_spec;
+uniform sampler2D  tex_depth;
 uniform usampler2D tex_object_id;
-
-uniform float z_near;
-uniform float z_far;
 
 /*
 enum class OverlayMode : GLint {
@@ -103,7 +100,7 @@ void main() {
             out_color = vec3(texture(tex_depth, tex_coords).r);
             break;
         case 5: // depth_linear
-            out_color = vec3(get_linear_0to1_depth(texture(tex_depth, tex_coords).r, z_near, z_far));
+            out_color = vec3(get_linear_0to1_depth(texture(tex_depth, tex_coords).r, camera.z_near, camera.z_far));
             break;
         case 6: // normals
             out_color = 0.5 * (1.0 + texture(tex_normals, tex_coords).rgb);

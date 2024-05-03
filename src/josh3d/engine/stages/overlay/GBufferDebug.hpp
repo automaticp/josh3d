@@ -73,6 +73,8 @@ inline void GBufferDebug::operator()(
         return;
     }
 
+    BindGuard bound_camera_ubo = engine.bind_camera_ubo();
+
     gbuffer_->position_draw_texture().bind_to_texture_unit(0);
     gbuffer_->normals_texture()      .bind_to_texture_unit(1);
     gbuffer_->albedo_spec_texture()  .bind_to_texture_unit(2);
@@ -81,8 +83,6 @@ inline void GBufferDebug::operator()(
     BindGuard bound_integer_sampler = integer_sampler_->bind_to_texture_unit(4);
 
     sp_->uniform("mode",              to_underlying(mode));
-    sp_->uniform("z_near",            engine.camera().get_params().z_near);
-    sp_->uniform("z_far",             engine.camera().get_params().z_far);
     sp_->uniform("tex_position_draw", 0);
     sp_->uniform("tex_normals",       1);
     sp_->uniform("tex_albedo_spec",   2);

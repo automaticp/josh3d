@@ -1,6 +1,7 @@
 #pragma once
 #include "GLAPICommonTypes.hpp"
 #include "GLObjects.hpp"
+#include "GLProgram.hpp"
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
 #include "UniformTraits.hpp" // IWYU pragma: keep (traits)
@@ -64,6 +65,8 @@ inline void SelectedObjectHighlight::operator()(
     if (!show_overlay) { return; }
     if (registry.view<tags::Selected>().empty()) { return; }
 
+    BindGuard bound_camera_ubo = engine.bind_camera_ubo();
+
 
     engine.draw([&, this](auto bound_fbo) {
 
@@ -77,9 +80,6 @@ inline void SelectedObjectHighlight::operator()(
 
 
         // First prepare the stencil buffer.
-
-        sp_stencil_prep_->uniform("view",       engine.camera().view_mat());
-        sp_stencil_prep_->uniform("projection", engine.camera().projection_mat());
 
         // Object mask is used to uniquely identify object outlines.
         // This supports up to 254 objects for an 8-bit stencil buffer.
@@ -98,96 +98,102 @@ inline void SelectedObjectHighlight::operator()(
         // the values in the solid fill-phase for values <= current object mask,
         // and that will include 0 and 1 too. Also, importantly, this excludes
         // previously drawn outlines, so they are not overwritten.
-
-        auto bound_program = sp_stencil_prep_->use();
-
-        for (GLint object_mask{ 255 };
-            auto [e, world_mtf] : registry.view<tags::Selected, components::MTransform>().each())
         {
+            RawProgram<> sp = sp_stencil_prep_;
+            BindGuard bound_program = sp.use();
 
-            // Draws either a singular Mesh, or all Meshes in a Model
-            // as a *single object*. Multiple meshes of a selected Model
-            // will share the same outline without overlap.
-            auto draw_func = [&](entt::entity e) {
-                if (auto mesh = registry.try_get<components::Mesh>(e)) {
+            const Location model_loc = sp.get_uniform_location("model");
 
-                    sp_stencil_prep_->uniform("model", world_mtf.model());
-                    mesh->draw(bound_program, bound_fbo);
 
-                } else if (auto model = registry.try_get<components::Model>(e)) {
+            for (GLint object_mask{ 255 };
+                auto [e, world_mtf] : registry.view<tags::Selected, components::MTransform>().each())
+            {
 
-                    for (const entt::entity& mesh_ent : model->meshes()) {
+                // Draws either a singular Mesh, or all Meshes in a Model
+                // as a *single object*. Multiple meshes of a selected Model
+                // will share the same outline without overlap.
+                auto draw_func = [&](entt::entity e) {
+                    if (auto mesh = registry.try_get<components::Mesh>(e)) {
 
-                        const auto& mesh_world_mtf = registry.get<components::MTransform>(mesh_ent);
-                        sp_stencil_prep_->uniform("model", mesh_world_mtf.model());
-                        registry.get<components::Mesh>(mesh_ent).draw(bound_program, bound_fbo);
+                        sp.uniform(model_loc, world_mtf.model());
+                        mesh->draw(bound_program, bound_fbo);
+
+                    } else if (auto model = registry.try_get<components::Model>(e)) {
+
+                        for (const entt::entity& mesh_ent : model->meshes()) {
+
+                            const auto& mesh_world_mtf = registry.get<components::MTransform>(mesh_ent);
+                            sp.uniform(model_loc, mesh_world_mtf.model());
+                            registry.get<components::Mesh>(mesh_ent).draw(bound_program, bound_fbo);
+
+                        }
+
+                    } else if (auto terrain_chunk = registry.try_get<components::TerrainChunk>(e)) {
+
+                        sp.uniform(model_loc, world_mtf.model());
+                        terrain_chunk->mesh.draw(bound_program, bound_fbo);
 
                     }
+                };
 
-                } else if (auto terrain_chunk = registry.try_get<components::TerrainChunk>(e)) {
+                // Draw outline as lines, replacing everything except
+                // outlines of the previously drawn objects.
 
-                    sp_stencil_prep_->uniform("model", world_mtf.model());
-                    terrain_chunk->mesh.draw(bound_program, bound_fbo);
+                /*
+                    if (object_mask >= stencil) {
+                        stencil = object_mask;
+                    }
+                */
+                glapi::set_stencil_test_condition(Mask{ 0xFF }, object_mask, CompareOp::GEqual);
+                glapi::set_stencil_test_operations(
+                    StencilOp::Keep,           // sfail
+                    StencilOp::ReplaceWithRef, // spass->dfail
+                    StencilOp::ReplaceWithRef  // spass->dpass
+                );
 
-                }
-            };
+                // We use this instead of mesh.draw(GL_LINES)
+                // because the meshes have the vertex and index information
+                // for a GL_TRIANGLES draws, not GL_LINES.
+                // Trying to mesh.draw(GL_LINES) results in missing edges.
 
-            // Draw outline as lines, replacing everything except
-            // outlines of the previously drawn objects.
-
-            /*
-                if (object_mask >= stencil) {
-                    stencil = object_mask;
-                }
-            */
-            glapi::set_stencil_test_condition(Mask{ 0xFF }, object_mask, CompareOp::GEqual);
-            glapi::set_stencil_test_operations(
-                StencilOp::Keep,           // sfail
-                StencilOp::ReplaceWithRef, // spass->dfail
-                StencilOp::ReplaceWithRef  // spass->dpass
-            );
-
-            // We use this instead of mesh.draw(GL_LINES)
-            // because the meshes have the vertex and index information
-            // for a GL_TRIANGLES draws, not GL_LINES.
-            // Trying to mesh.draw(GL_LINES) results in missing edges.
-
-            glapi::set_polygon_rasterization_mode(PolygonRaserization::Line);
-            glapi::set_line_width(2.f * outline_width); // Times 2 cause half is cut by inner fill.
-            glapi::enable(Capability::AntialiasedLines); // I don't think this works at all.
+                glapi::set_polygon_rasterization_mode(PolygonRaserization::Line);
+                glapi::set_line_width(2.f * outline_width); // Times 2 cause half is cut by inner fill.
+                glapi::enable(Capability::AntialiasedLines); // I don't think this works at all.
 
 
-            draw_func(e);
+                draw_func(e);
 
 
-            // Solid-Fill the insides of the object by drawing it again,
-            // but also overwrite the inner half of the outline that we
-            // had drawn for this object, and only for this object.
-            //
-            // Zero stands for solid-fill.
+                // Solid-Fill the insides of the object by drawing it again,
+                // but also overwrite the inner half of the outline that we
+                // had drawn for this object, and only for this object.
+                //
+                // Zero stands for solid-fill.
 
-            /*
-                if (object_mask >= stencil) {
-                    stencil = 0;
-                }
-            */
+                /*
+                    if (object_mask >= stencil) {
+                        stencil = 0;
+                    }
+                */
 
-            glapi::set_stencil_test_condition(Mask{ 0xFF }, object_mask, CompareOp::GEqual);
-            glapi::set_stencil_test_operations(
-                StencilOp::Keep,    // sfail
-                StencilOp::SetZero, // spass->dfail
-                StencilOp::SetZero  // spass->dpass
-            );
+                glapi::set_stencil_test_condition(Mask{ 0xFF }, object_mask, CompareOp::GEqual);
+                glapi::set_stencil_test_operations(
+                    StencilOp::Keep,    // sfail
+                    StencilOp::SetZero, // spass->dfail
+                    StencilOp::SetZero  // spass->dpass
+                );
 
-            glapi::set_polygon_rasterization_mode(PolygonRaserization::Fill);
+                glapi::set_polygon_rasterization_mode(PolygonRaserization::Fill);
 
-            draw_func(e);
+                draw_func(e);
 
 
-            if (object_mask > 1) { --object_mask; }
+                if (object_mask > 1) { --object_mask; }
+            }
+
+
         }
 
-        bound_program.unbind();
         glapi::set_color_mask(true, true, true, true);
 
 

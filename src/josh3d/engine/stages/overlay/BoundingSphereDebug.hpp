@@ -31,8 +31,8 @@ public:
 private:
     UniqueProgram sp_{
         ShaderBuilder()
-            .load_vert(VPath("src/shaders/basic_mesh.vert"))
-            .load_frag(VPath("src/shaders/light_source.frag"))
+            .load_vert(VPath("src/shaders/ovl_bounding_volumes.vert"))
+            .load_frag(VPath("src/shaders/ovl_bounding_volumes.frag"))
             .get()
     };
 
@@ -54,10 +54,8 @@ inline void BoundingSphereDebug::operator()(
     glapi::set_polygon_rasterization_mode(PolygonRaserization::Line);
     glapi::set_line_width(line_width);
 
-
-    sp_->uniform("projection",  engine.camera().projection_mat());
-    sp_->uniform("view",        engine.camera().view_mat());
-    sp_->uniform("light_color", line_color);
+    BindGuard bound_camera_ubo = engine.bind_camera_ubo();
+    sp_->uniform("color", line_color);
 
     BindGuard bound_program = sp_->use();
 

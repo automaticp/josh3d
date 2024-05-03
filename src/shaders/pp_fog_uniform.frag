@@ -1,24 +1,17 @@
 #version 430 core
 #extension GL_GOOGLE_include_directive : enable
 #include "utils.coordinates.glsl"
-
-
+#include "camera_ubo.glsl"
 
 
 in  vec2 tex_coords;
 out vec4 frag_color;
 
 uniform sampler2D depth;
-
-uniform vec3  fog_color;
-
-uniform float z_near;
-uniform float z_far;
-uniform mat4  inv_proj;
-
-uniform float mean_free_path;
-uniform float distance_power;
-uniform float cutoff_offset;
+uniform vec3      fog_color;
+uniform float     mean_free_path;
+uniform float     distance_power;
+uniform float     cutoff_offset;
 
 
 
@@ -33,8 +26,8 @@ float transmittance(float frag_distance) {
 // This way the fog factor for background objects is not as dependant
 // on z_far. Of course, you will not see the background at all.
 float tail(float frag_distance) {
-    float z_cutoff_start = max(z_far - cutoff_offset, z_near);
-    return 1.0 - smoothstep(z_cutoff_start, z_far, frag_distance);
+    float z_cutoff_start = max(camera.z_far - cutoff_offset, camera.z_near);
+    return 1.0 - smoothstep(z_cutoff_start, camera.z_far, frag_distance);
 }
 
 
@@ -42,15 +35,11 @@ float tail(float frag_distance) {
 
 void main() {
 
-    float screen_depth = texture(depth, tex_coords).r;
-    float view_depth   = get_view_space_depth(screen_depth, z_near, z_far);
+    float screen_z = texture(depth, tex_coords).r;
+    vec3 pos_nss   = vec3(tex_coords, screen_z);
+    vec4 pos_vs    = nss_to_vs(pos_nss, camera.z_near, camera.z_far, camera.inv_proj);
 
-    float w_clip    = view_depth;
-    vec4  pos_ndc   = vec4(vec3(tex_coords, screen_depth) * 2.0 - 1.0, 1.0);
-    vec4  pos_clip  = pos_ndc * w_clip;
-    vec4  pos_view  = inv_proj * pos_clip;
-
-    float distance_to_frag = length(pos_view.xyz);
+    float distance_to_frag = length(pos_vs.xyz);
 
     float transmittance_factor = transmittance(distance_to_frag);
     float tail_factor          = tail(distance_to_frag);

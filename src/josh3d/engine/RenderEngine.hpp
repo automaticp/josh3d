@@ -1,9 +1,12 @@
 #pragma once
 #include "Attachments.hpp"
 #include "GLAPIBinding.hpp"
+#include "GLAPICommonTypes.hpp"
+#include "GLBuffers.hpp"
 #include "GLFramebuffer.hpp"
 #include "GLMutability.hpp"
 #include "GLTextures.hpp"
+#include "Layout.hpp"
 #include "PerspectiveCamera.hpp"
 #include "FrameTimer.hpp"
 #include "GLObjects.hpp"
@@ -222,6 +225,23 @@ private:
     inline static const RawDefaultFramebuffer<GLMutable> default_fbo_;
 
 
+    struct CameraData {
+        // TODO: std140
+        alignas(std430::align_vec3)  glm::vec3   position;
+        alignas(std430::align_float) float       z_near;
+        alignas(std430::align_float) float       z_far;
+        alignas(std430::align_vec4)  glm::mat4   view;
+        alignas(std430::align_vec4)  glm::mat4   proj;
+        alignas(std430::align_vec4)  glm::mat4   projview;
+        alignas(std430::align_vec4)  glm::mat4   inv_view;
+        alignas(std430::align_vec4)  glm::mat3x4 normal_view; // mat3, but padding is needed for each column in std140
+        alignas(std430::align_vec4)  glm::mat4   inv_proj;
+        alignas(std430::align_vec4)  glm::mat4   inv_projview;
+    };
+
+    UniqueBuffer<CameraData> camera_ubo_{ allocate_buffer<CameraData>(NumElems{ 1 }) };
+    void update_camera_ubo() noexcept;
+
 
     void resize_depth(const Size2I& new_resolution) {
         depth_.resize(new_resolution);
@@ -255,12 +275,18 @@ protected:
 
 public:
     const entt::registry&    registry()        const noexcept { return engine_.registry_;   }
-    const PerspectiveCamera& camera()          const noexcept { return engine_.cam_;        }
     const Primitives&        primitives()      const noexcept { return engine_.primitives_; }
+    const PerspectiveCamera& camera()          const noexcept { return engine_.cam_;        }
     // TODO: Something about window resolution being separate?
     // TODO: Also main_resolution() is not accurate in Overlay stages.
     Size2I                   main_resolution() const noexcept { return engine_.main_resolution(); }
     const FrameTimer&        frame_timer()     const noexcept { return engine_.frame_timer_;      }
+
+    auto bind_camera_ubo(GLuint index = 0) const noexcept
+        -> BindToken<BindingIndexed::UniformBuffer>
+    {
+        return engine_.camera_ubo_->bind_to_index<BufferTargetIndexed::Uniform>(index);
+    }
 };
 
 

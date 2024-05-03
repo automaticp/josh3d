@@ -152,7 +152,7 @@ inline auto ShaderBuilder::get()
             shader_obj->compile();
             if (!shader_obj->has_compiled_successfully()) {
                 throw error::ShaderCompilationFailure(
-                    shader.path.string() + shader_obj->get_info_log(),
+                    shader.path.string() + '\n' + shader_obj->get_info_log(),
                     UniqueShaderType::target_type
                 );
             }
