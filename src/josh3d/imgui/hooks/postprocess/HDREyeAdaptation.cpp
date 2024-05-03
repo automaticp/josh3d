@@ -1,5 +1,6 @@
 #include "HDREyeAdaptation.hpp"
 #include "detail/SimpleStageHookMacro.hpp"
+#include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 
 
@@ -18,6 +19,11 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(postprocess, HDREyeAdaptation) {
 
         ImGui::TreePop();
     }
+
+    ImGui::SliderFloat2(
+        "Value Range", glm::value_ptr(stage_.value_range),
+        0.f, 1000.f, "%.3f", ImGuiSliderFlags_Logarithmic
+    );
 
     ImGui::SliderFloat(
         "Adaptation Rate", &stage_.adaptation_rate,

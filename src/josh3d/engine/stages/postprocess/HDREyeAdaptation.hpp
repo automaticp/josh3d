@@ -8,12 +8,14 @@
 #include "StaticRing.hpp"
 #include "VPath.hpp"
 #include "Size.hpp"
+#include "UniformTraits.hpp"
 #include <entt/entt.hpp>
 #include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
 #include <glbinding/gl/types.h>
 #include <cmath>
+#include <glm/fwd.hpp>
 
 
 
@@ -23,10 +25,11 @@ namespace josh::stages::postprocess {
 
 class HDREyeAdaptation {
 public:
-    float  exposure_factor{ 0.35f };
-    float  adaptation_rate{ 1.f   };
-    bool   use_adaptation { true  };
-    size_t num_y_sample_blocks{ 64    };
+    glm::vec2 value_range{ 0.05f, 10.f };
+    float     exposure_factor{ 0.35f };
+    float     adaptation_rate{ 1.f   };
+    bool      use_adaptation { true  };
+    size_t    num_y_sample_blocks{ 64    };
 
     HDREyeAdaptation(const Size2I& initial_resolution) noexcept;
 
@@ -195,6 +198,7 @@ inline void HDREyeAdaptation::operator()(
     // Do a tonemapping pass.
     value_bufs_.current()->bind_to_index<BufferTargetIndexed::ShaderStorage>(1);
     sp_tonemap_->uniform("color",           0);
+    sp_tonemap_->uniform("value_range",     value_range);
     sp_tonemap_->uniform("exposure_factor", exposure_factor);
 
     auto bound_program = sp_tonemap_->use();

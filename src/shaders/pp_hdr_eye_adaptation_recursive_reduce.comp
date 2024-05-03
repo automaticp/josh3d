@@ -31,10 +31,19 @@ layout (std430, binding = 0) restrict coherent buffer IntermediateBuffer {
 
 
 
+
+uniform float mean_fold_weight;
+uniform uint  dispatch_depth; // 0 to floor(log(N, num_elements)).
+uniform uint  block_size;     // 1 / Weight of each sample in the buffer.
+
+
+
+
 float weighted_mean_fold(
     float current_mean, float new_mean, float weight)
 {
-    return (current_mean + weight * new_mean) / (1.0 + weight);
+    const float folded_mean = (current_mean + weight * new_mean) / (1.0 + weight);
+    return folded_mean;
 }
 
 
@@ -42,9 +51,6 @@ const uint num_inovcations = gl_WorkGroupSize.x;
 const uint num_elements    = 2 * num_inovcations;
 
 
-layout (location = 0) uniform float mean_fold_weight;
-layout (location = 1) uniform uint  dispatch_depth; // 0 to floor(log(N, num_elements)).
-layout (location = 2) uniform uint  block_size;     // 1 / Weight of each sample in the buffer.
 
 
 uint upow(uint base, uint exponent) {
