@@ -2,6 +2,7 @@
 #include "GLAPIBinding.hpp"
 #include "GLProgram.hpp"
 #include "UniformTraits.hpp" // IWYU pragma: keep (traits)
+#include "components/BoundingSphere.hpp"
 #include "tags/ShadowCasting.hpp"
 #include "tags/AlphaTested.hpp"
 #include "components/Materials.hpp"
@@ -82,7 +83,7 @@ void PointShadowMapping::map_point_shadows(
 
 
     auto plights_with_shadows_view =
-        registry.view<light::Point, tags::ShadowCasting>();
+        registry.view<light::Point, components::BoundingSphere, tags::ShadowCasting>();
 
 
     auto bound_fbo = maps.bind_draw();
@@ -90,14 +91,18 @@ void PointShadowMapping::map_point_shadows(
     glapi::clear_depth_buffer(bound_fbo, 1.f);
 
 
-    auto set_per_light_uniforms = [&, this](
-        RawProgram<> sp,
+    auto set_per_light_uniforms = [&](
+        RawProgram<>      sp,
         const glm::vec3&  pos,
-        GLint             cubemap_id)
+        GLint             cubemap_id,
+        float             z_near,
+        float             z_far)
     {
-        glm::mat4 projection = glm::perspective(
-            glm::half_pi<float>(), 1.0f,
-            output_->z_near_far[0], output_->z_near_far[1]
+        const glm::mat4 projection = glm::perspective(
+            glm::half_pi<float>(),
+            1.0f,
+            z_near,
+            z_far
         );
 
         const auto& basis = globals::basis;
@@ -116,41 +121,39 @@ void PointShadowMapping::map_point_shadows(
 
         sp.uniform("projection", projection);
         sp.uniform("cubemap_id", cubemap_id);
-        sp.uniform("z_far",      output_->z_near_far[1]);
-
+        sp.uniform("z_far",      z_far);
     };
 
 
+    // z_near is hardcoded, but could be scaled from point light radius instead?
+    const float z_near = 0.05f;
+
 
     {
-        auto bound_program = sp_with_alpha->use();
+        BindGuard bound_program = sp_with_alpha_->use();
 
         for (GLint cubemap_id{ 0 };
-            auto [_, plight] : plights_with_shadows_view.each())
+            auto [_, plight, sphere] : plights_with_shadows_view.each())
         {
-            set_per_light_uniforms(sp_with_alpha, plight.position, cubemap_id);
+            set_per_light_uniforms(sp_with_alpha_, plight.position, cubemap_id, z_near, sphere.radius);
             draw_all_world_geometry_with_alpha_test(bound_program, bound_fbo, registry);
 
             ++cubemap_id;
         }
-
-        bound_program.unbind();
     }
 
 
     {
-        auto bound_program = sp_no_alpha->use();
+        BindGuard bound_program = sp_no_alpha_->use();
 
         for (GLint cubemap_id{ 0 };
-            auto [_, plight] : plights_with_shadows_view.each())
+            auto [_, plight, sphere] : plights_with_shadows_view.each())
         {
-            set_per_light_uniforms(sp_no_alpha, plight.position, cubemap_id);
+            set_per_light_uniforms(sp_no_alpha_, plight.position, cubemap_id, z_near, sphere.radius);
             draw_all_world_geometry_no_alpha_test(bound_program, bound_fbo, registry);
 
             ++cubemap_id;
         }
-
-        bound_program.unbind();
     }
 
 
@@ -168,8 +171,9 @@ void PointShadowMapping::draw_all_world_geometry_no_alpha_test(
     // Assumes that projection and view are already set.
 
     auto draw_from_view = [&](auto view) {
+        const Location model_loc = sp_no_alpha_->get_uniform_location("model");
         for (auto [entity, world_mtf, mesh] : view.each()) {
-            sp_no_alpha->uniform("model", world_mtf.model());
+            sp_no_alpha_->uniform(model_loc, world_mtf.model());
             mesh.draw(bound_program, bound_fbo);
         }
     };
@@ -197,16 +201,18 @@ void PointShadowMapping::draw_all_world_geometry_with_alpha_test(
 {
     // Assumes that projection and view are already set.
 
-    sp_with_alpha->uniform("material.diffuse", 0);
+    sp_with_alpha_->uniform("material.diffuse", 0);
 
     auto meshes_with_alpha_view =
         registry.view<MTransform, Mesh, components::MaterialDiffuse, tags::AlphaTested>();
 
+
+    const Location model_loc = sp_with_alpha_->get_uniform_location("model");
     for (auto [entity, world_mtf, mesh, diffuse]
         : meshes_with_alpha_view.each())
     {
         diffuse.texture->bind_to_texture_unit(0);
-        sp_with_alpha->uniform("model", world_mtf.model());
+        sp_with_alpha_->uniform(model_loc, world_mtf.model());
         mesh.draw(bound_program, bound_fbo);
     }
 

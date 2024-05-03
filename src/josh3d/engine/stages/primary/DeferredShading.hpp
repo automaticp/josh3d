@@ -2,6 +2,7 @@
 #include "GLAPICommonTypes.hpp"
 #include "GLObjects.hpp"
 #include "GLScalars.hpp"
+#include "Layout.hpp"
 #include "LightCasters.hpp"
 #include "ShaderBuilder.hpp"
 #include "SharedStorage.hpp"
@@ -20,6 +21,11 @@ namespace josh::stages::primary {
 
 class DeferredShading {
 public:
+    enum class Mode {
+        SinglePass,
+        MultiPass
+    };
+
     struct PointShadowParams {
         glm::vec2 bias_bounds{ 0.0001f, 0.08f };
         GLint     pcf_extent{ 1 };
@@ -35,11 +41,16 @@ public:
     };
 
 
+    Mode mode{ Mode::SinglePass };
+
     PointShadowParams point_params;
     DirShadowParams   dir_params;
 
     bool  use_ambient_occlusion  { true };
-    float ambient_occlusion_power{ 0.8 };
+    float ambient_occlusion_power{ 0.8f };
+
+    float plight_fade_start_fraction { 0.75f }; // [0, 1] in fraction of bounding radius.
+    float plight_fade_length_fraction{ 0.20f };
 
 
     DeferredShading(
@@ -57,19 +68,48 @@ public:
 
 
 private:
-    UniqueProgram sp_{
+    SharedStorageView<GBuffer>                 gbuffer_;
+    SharedStorageView<PointShadowMaps>         input_psm_;
+    SharedStorageView<CascadedShadowMaps>      input_csm_;
+    SharedStorageView<AmbientOcclusionBuffers> input_ao_;
+
+
+    UniqueProgram sp_singlepass_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/dfr_shading.vert"))
             .load_frag(VPath("src/shaders/dfr_shading_adpn_shadow_csm.frag"))
             .get()
     };
 
-    SharedStorageView<GBuffer>                 gbuffer_;
-    SharedStorageView<PointShadowMaps>         input_psm_;
-    SharedStorageView<CascadedShadowMaps>      input_csm_;
-    SharedStorageView<AmbientOcclusionBuffers> input_ao_;
+    UniqueProgram sp_pass_plight_with_shadow_{
+        ShaderBuilder()
+            .load_vert(VPath("src/shaders/dfr_shading_point.vert"))
+            .load_frag(VPath("src/shaders/dfr_shading_point_with_shadow.frag"))
+            .get()
+    };
 
-    UniqueBuffer<light::Point>  plights_buf_;
+    UniqueProgram sp_pass_plight_no_shadow_{
+        ShaderBuilder()
+            .load_vert(VPath("src/shaders/dfr_shading_point.vert"))
+            .load_frag(VPath("src/shaders/dfr_shading_point_no_shadow.frag"))
+            .get()
+    };
+
+    UniqueProgram sp_pass_ambi_dir_{
+        ShaderBuilder()
+            .load_vert(VPath("src/shaders/dfr_shading.vert"))
+            .load_frag(VPath("src/shaders/dfr_shading_ambi_ao_dir_csm.frag"))
+            .get()
+    };
+
+    struct PLight {
+        alignas(std430::align_vec3)  glm::vec3 color;
+        alignas(std430::align_vec3)  glm::vec3 position;
+        alignas(std430::align_float) float     radius;
+        light::Attenuation                     attenuation;
+    };
+
+    UniqueBuffer<PLight>        plights_buf_;
     UniqueBuffer<CascadeParams> csm_params_buf_;
 
     UniqueSampler target_sampler_ = []() {
@@ -105,7 +145,13 @@ private:
 
     auto update_point_light_buffers(const entt::registry& registry) -> std::tuple<NumElems, NumElems>;
     void update_cascade_buffer();
-    void draw_main(
+
+    void draw_singlepass(
+        RenderEnginePrimaryInterface& engine,
+        NumElems                      num_plights_with_shadow,
+        NumElems                      num_plights_no_shadow);
+
+    void draw_multipass(
         RenderEnginePrimaryInterface& engine,
         NumElems                      num_plights_with_shadow,
         NumElems                      num_plights_no_shadow);

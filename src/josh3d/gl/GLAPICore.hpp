@@ -1319,7 +1319,8 @@ inline auto get_color_mask_indexed(GLuint draw_buf_index) noexcept
 
 
 
-
+// If TRUE, enables depth buffer for writing.
+// If FALSE, disables depth buffer for writing.
 inline void set_depth_mask(GLboolean mask) noexcept {
     gl::glDepthMask(mask);
 }

@@ -21,8 +21,6 @@ struct PointShadowMaps {
         { 1024, 1024 }, 0, // WARN: TODO: Hold on, this is not legal
         { InternalFormat::DepthComponent32F }
     };
-    // TODO: Life would be easier if this was per-light property.
-    glm::vec2 z_near_far{ 0.05f, 150.f };
 };
 
 
@@ -52,14 +50,11 @@ public:
 
     void resize_maps(const Size2I& new_resolution);
 
-    glm::vec2&       z_near_far()       noexcept { return output_->z_near_far; }
-    const glm::vec2& z_near_far() const noexcept { return output_->z_near_far; }
-
 
 private:
     SharedStorage<PointShadowMaps> output_;
 
-    UniqueProgram sp_with_alpha{
+    UniqueProgram sp_with_alpha_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/depth_cubemap.vert"))
             .load_geom(VPath("src/shaders/depth_cubemap_array.geom"))
@@ -68,7 +63,7 @@ private:
             .get()
     };
 
-    UniqueProgram sp_no_alpha{
+    UniqueProgram sp_no_alpha_{
         ShaderBuilder()
             .load_vert(VPath("src/shaders/depth_cubemap.vert"))
             .load_geom(VPath("src/shaders/depth_cubemap_array.geom"))

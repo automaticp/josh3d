@@ -11,7 +11,7 @@ namespace josh::stages::precompute {
 
 class PointLightSetup {
 public:
-    float threshold_fraction{ 0.01f };
+    float threshold_fraction{ 0.005f };
 
     void operator()(RenderEnginePrecomputeInterface& engine);
 
@@ -25,6 +25,7 @@ inline void PointLightSetup::operator()(
 {
     auto& registry = engine.registry();
 
+    // TODO: max_attenuation should be chosen based on the light source intensity.
     const float max_attenuation = threshold_fraction;
 
     auto solve_for_distance = [](
