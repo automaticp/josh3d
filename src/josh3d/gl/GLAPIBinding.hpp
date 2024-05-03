@@ -1,8 +1,12 @@
 #pragma once
 #include "CommonConcepts.hpp"
+#include "detail/SingleArgMacro.hpp"
 #include "GLAPI.hpp"
 #include "GLScalars.hpp"
 #include <concepts>
+#include <glbinding/gl/enum.h>
+#include <tuple>
+#include <utility>
 
 
 namespace josh {
@@ -157,21 +161,37 @@ template<> inline void unbind_from_context<Binding::Cubemap>               () no
 template<> inline void unbind_from_context<Binding::CubemapArray>          () noexcept { gl::glBindTexture          (gl::GL_TEXTURE_CUBE_MAP_ARRAY,       0); }
 template<> inline void unbind_from_context<Binding::Program>               () noexcept { gl::glUseProgram           (                                     0); }
 template<> inline void unbind_from_context<Binding::ProgramPipeline>       () noexcept { gl::glBindProgramPipeline  (                                     0); }
-// template<> inline void unbind_from_context<Binding::Sampler>()                noexcept {                                                                     }
 
 
 
-// TODO: Indexed Unbind.
 
 template<BindingIndexed B> void unbind_indexed_from_context(GLuint index) noexcept;
 
-template<> inline void unbind_indexed_from_context<BindingIndexed::Sampler>(GLuint index)             noexcept { gl::glBindSampler   (                              index, 0); }
-template<> inline void unbind_indexed_from_context<BindingIndexed::ShaderStorageBuffer>(GLuint index) noexcept { gl::glBindBufferBase(gl::GL_SHADER_STORAGE_BUFFER, index, 0); }
+template<> inline void unbind_indexed_from_context<BindingIndexed::ShaderStorageBuffer>    (GLuint index) noexcept { gl::glBindBufferBase  (gl::GL_SHADER_STORAGE_BUFFER,     index, 0);                }
+template<> inline void unbind_indexed_from_context<BindingIndexed::UniformBuffer>          (GLuint index) noexcept { gl::glBindBufferBase  (gl::GL_UNIFORM_BUFFER,            index, 0);                }
+template<> inline void unbind_indexed_from_context<BindingIndexed::TransformFeedbackBuffer>(GLuint index) noexcept { gl::glBindBufferBase  (gl::GL_TRANSFORM_FEEDBACK_BUFFER, index, 0);                }
+template<> inline void unbind_indexed_from_context<BindingIndexed::AtomicCounterBuffer>    (GLuint index) noexcept { gl::glBindBufferBase  (gl::GL_ATOMIC_COUNTER_BUFFER,     index, 0);                }
+template<> inline void unbind_indexed_from_context<BindingIndexed::ImageUnit>              (GLuint index) noexcept { gl::glBindImageTexture(index, 0, 0, gl::GL_FALSE, 0, gl::GL_READ_ONLY, gl::GL_R8); }
+template<> inline void unbind_indexed_from_context<BindingIndexed::BufferTexture>          (GLuint index) noexcept { gl::glBindTextureUnit (                                  index, 0);                }
+template<> inline void unbind_indexed_from_context<BindingIndexed::Texture1D>              (GLuint index) noexcept { gl::glBindTextureUnit (                                  index, 0);                }
+template<> inline void unbind_indexed_from_context<BindingIndexed::Texture1DArray>         (GLuint index) noexcept { gl::glBindTextureUnit (                                  index, 0);                }
+template<> inline void unbind_indexed_from_context<BindingIndexed::TextureRectangle>       (GLuint index) noexcept { gl::glBindTextureUnit (                                  index, 0);                }
+template<> inline void unbind_indexed_from_context<BindingIndexed::Texture2D>              (GLuint index) noexcept { gl::glBindTextureUnit (                                  index, 0);                }
+template<> inline void unbind_indexed_from_context<BindingIndexed::Texture2DArray>         (GLuint index) noexcept { gl::glBindTextureUnit (                                  index, 0);                }
+template<> inline void unbind_indexed_from_context<BindingIndexed::Texture2DMS>            (GLuint index) noexcept { gl::glBindTextureUnit (                                  index, 0);                }
+template<> inline void unbind_indexed_from_context<BindingIndexed::Texture2DMSArray>       (GLuint index) noexcept { gl::glBindTextureUnit (                                  index, 0);                }
+template<> inline void unbind_indexed_from_context<BindingIndexed::Texture3D>              (GLuint index) noexcept { gl::glBindTextureUnit (                                  index, 0);                }
+template<> inline void unbind_indexed_from_context<BindingIndexed::Cubemap>                (GLuint index) noexcept { gl::glBindTextureUnit (                                  index, 0);                }
+template<> inline void unbind_indexed_from_context<BindingIndexed::CubemapArray>           (GLuint index) noexcept { gl::glBindTextureUnit (                                  index, 0);                }
+template<> inline void unbind_indexed_from_context<BindingIndexed::Sampler>                (GLuint index) noexcept { gl::glBindSampler     (                                  index, 0);                }
+
 
 inline void unbind_sampler_from_unit(GLuint index) noexcept { unbind_indexed_from_context<BindingIndexed::Sampler>(index); }
 
 template<std::convertible_to<GLuint> ...UInt>
 void unbind_samplers_from_units(UInt... index) noexcept { (unbind_sampler_from_unit(index), ...); }
+
+
 
 
 
@@ -184,10 +204,11 @@ inline void make_available(GLuint id) noexcept {
 
 
 
+template<typename B>
+concept binding_like = any_of<B, Binding, BindingIndexed>;
 
 
-
-template<Binding B>
+template<binding_like auto B>
 class BindToken;
 
 
@@ -213,18 +234,44 @@ Which is more verbose, so do this instead.
         BindToken(GLuint id) noexcept : id_{ id } {}                           \
         FriendDecl                                                             \
     public:                                                                    \
+        using binding_type = Binding;                                          \
+        static constexpr bool is_indexed = false;                              \
         GLuint id() const noexcept { return id_; }                             \
         void unbind() const noexcept { unbind_from_context<Binding::BindingName>(); } \
     };
 
+#define JOSH3D_DEFINE_BIND_TOKEN_INDEXED(BindingName, FriendDecl)              \
+    template<>                                                                 \
+    class BindToken<BindingIndexed::BindingName> {                             \
+    private:                                                                   \
+        GLuint id_;                                                            \
+        GLuint index_;                                                         \
+        BindToken(GLuint id, GLuint index) noexcept : id_{ id }, index_{ index } {} \
+        FriendDecl                                                             \
+    public:                                                                    \
+        using binding_type = BindingIndexed;                                   \
+        static constexpr bool is_indexed = true;                               \
+        GLuint id()    const noexcept { return id_; }                          \
+        GLuint index() const noexcept { return index_; }                       \
+        void unbind() const noexcept { unbind_indexed_from_context<BindingIndexed::BindingName>(index_); } \
+    };
+
+
+
+enum class TextureTarget : GLuint;
 
 // These are the mixin types that can call `bind()`, `use()`, etc.
 // We befriend them and not the final RawObject types, as friendship isn't transitive like that.
 namespace detail {
 template<typename> struct BufferDSAInterface_Bind;
+template<typename, typename> struct TypedBufferDSAInterface;
 template<typename> struct VertexArrayDSAInterface_Bind;
 template<typename> struct ProgramDSAInterface_Use;
 template<typename> struct FramebufferDSAInterface_Bind;
+template<typename, TextureTarget> struct TextureDSAInterface_Bind_ToImageUnit;
+template<typename, TextureTarget> struct TextureDSAInterface_Bind_ToImageUnitLayered;
+template<typename, TextureTarget> struct TextureDSAInterface_Bind_ToTextureUnit;
+template<typename> struct SamplerDSAInterface_Bind;
 } // namespace detail
 
 // We only define BindTokens for targets that are used somewhere in the interface.
@@ -241,15 +288,37 @@ JOSH3D_DEFINE_BIND_TOKEN(Program,                template<typename> friend struc
 JOSH3D_DEFINE_BIND_TOKEN(ReadFramebuffer,        template<typename> friend struct detail::FramebufferDSAInterface_Bind;)
 JOSH3D_DEFINE_BIND_TOKEN(DrawFramebuffer,        template<typename> friend struct detail::FramebufferDSAInterface_Bind;)
 
+JOSH3D_DEFINE_BIND_TOKEN_INDEXED(UniformBuffer,           JOSH3D_SINGLE_ARG(template<typename> friend struct detail::BufferDSAInterface_Bind; template<typename, typename> friend struct detail::TypedBufferDSAInterface;))
+JOSH3D_DEFINE_BIND_TOKEN_INDEXED(ShaderStorageBuffer,     JOSH3D_SINGLE_ARG(template<typename> friend struct detail::BufferDSAInterface_Bind; template<typename, typename> friend struct detail::TypedBufferDSAInterface;))
+JOSH3D_DEFINE_BIND_TOKEN_INDEXED(TransformFeedbackBuffer, JOSH3D_SINGLE_ARG(template<typename> friend struct detail::BufferDSAInterface_Bind; template<typename, typename> friend struct detail::TypedBufferDSAInterface;))
+JOSH3D_DEFINE_BIND_TOKEN_INDEXED(AtomicCounterBuffer,     JOSH3D_SINGLE_ARG(template<typename> friend struct detail::BufferDSAInterface_Bind; template<typename, typename> friend struct detail::TypedBufferDSAInterface;))
+JOSH3D_DEFINE_BIND_TOKEN_INDEXED(ImageUnit,               JOSH3D_SINGLE_ARG(template<typename, TextureTarget> friend struct detail::TextureDSAInterface_Bind_ToImageUnit; template<typename, TextureTarget> friend struct detail::TextureDSAInterface_Bind_ToImageUnitLayered;))
+JOSH3D_DEFINE_BIND_TOKEN_INDEXED(BufferTexture,           JOSH3D_SINGLE_ARG(template<typename, TextureTarget> friend struct detail::TextureDSAInterface_Bind_ToTextureUnit;))
+JOSH3D_DEFINE_BIND_TOKEN_INDEXED(Texture1D,               JOSH3D_SINGLE_ARG(template<typename, TextureTarget> friend struct detail::TextureDSAInterface_Bind_ToTextureUnit;))
+JOSH3D_DEFINE_BIND_TOKEN_INDEXED(Texture1DArray,          JOSH3D_SINGLE_ARG(template<typename, TextureTarget> friend struct detail::TextureDSAInterface_Bind_ToTextureUnit;))
+JOSH3D_DEFINE_BIND_TOKEN_INDEXED(TextureRectangle,        JOSH3D_SINGLE_ARG(template<typename, TextureTarget> friend struct detail::TextureDSAInterface_Bind_ToTextureUnit;))
+JOSH3D_DEFINE_BIND_TOKEN_INDEXED(Texture2D,               JOSH3D_SINGLE_ARG(template<typename, TextureTarget> friend struct detail::TextureDSAInterface_Bind_ToTextureUnit;))
+JOSH3D_DEFINE_BIND_TOKEN_INDEXED(Texture2DArray,          JOSH3D_SINGLE_ARG(template<typename, TextureTarget> friend struct detail::TextureDSAInterface_Bind_ToTextureUnit;))
+JOSH3D_DEFINE_BIND_TOKEN_INDEXED(Texture2DMS,             JOSH3D_SINGLE_ARG(template<typename, TextureTarget> friend struct detail::TextureDSAInterface_Bind_ToTextureUnit;))
+JOSH3D_DEFINE_BIND_TOKEN_INDEXED(Texture2DMSArray,        JOSH3D_SINGLE_ARG(template<typename, TextureTarget> friend struct detail::TextureDSAInterface_Bind_ToTextureUnit;))
+JOSH3D_DEFINE_BIND_TOKEN_INDEXED(Texture3D,               JOSH3D_SINGLE_ARG(template<typename, TextureTarget> friend struct detail::TextureDSAInterface_Bind_ToTextureUnit;))
+JOSH3D_DEFINE_BIND_TOKEN_INDEXED(Cubemap,                 JOSH3D_SINGLE_ARG(template<typename, TextureTarget> friend struct detail::TextureDSAInterface_Bind_ToTextureUnit;))
+JOSH3D_DEFINE_BIND_TOKEN_INDEXED(CubemapArray,            JOSH3D_SINGLE_ARG(template<typename, TextureTarget> friend struct detail::TextureDSAInterface_Bind_ToTextureUnit;))
+JOSH3D_DEFINE_BIND_TOKEN_INDEXED(Sampler,                 template<typename> friend struct detail::SamplerDSAInterface_Bind;)
+
 #undef JOSH3D_DEFINE_BIND_TOKEN
+#undef JOSH3D_DEFINE_BIND_TOKEN_INDEXED
 
 
 
 
-// TODO: Support indexed binding.
-template<Binding B>
+template<binding_like auto B>
 class BindGuard {
 public:
+    using token_type   = BindToken<B>;
+    using binding_type = token_type::binding_type;
+    static constexpr bool is_indexed = token_type::is_indexed;
+
     BindGuard(BindToken<B> token) : token_{ token } {}
 
     BindGuard(const BindGuard&)            = delete;
@@ -258,13 +327,51 @@ public:
     BindGuard& operator=(BindGuard&&)      = delete;
 
     operator BindToken<B>() const noexcept { return token_; }
-    BindToken<B> token() const noexcept { return token_; }
-    GLuint id() const noexcept { return token_.id(); }
+    BindToken<B> token()    const noexcept { return token_; }
+
+    GLuint id()    const noexcept { return token_.id(); }
+    GLuint index() const noexcept requires is_indexed { return token_.index(); }
 
     ~BindGuard() noexcept { token_.unbind(); }
 
 private:
     BindToken<B> token_;
+};
+
+
+
+
+template<binding_like auto ...B>
+class MultibindGuard {
+private:
+    using tokens_type = std::tuple<BindToken<B>...>;
+public:
+    template<size_t Idx> using token_type   = std::tuple_element_t<Idx, tokens_type>;
+    template<size_t Idx> using binding_type = token_type<Idx>::binding_type;
+    template<size_t Idx> static constexpr bool is_indexed = token_type<Idx>::is_indexed;
+
+    static constexpr size_t num_guarded = std::tuple_size<tokens_type>();
+
+    MultibindGuard(BindToken<B>... tokens) : tokens_{ tokens... } {}
+
+    MultibindGuard(const MultibindGuard&)            = delete;
+    MultibindGuard(MultibindGuard&&)                 = delete;
+    MultibindGuard& operator=(const MultibindGuard&) = delete;
+    MultibindGuard& operator=(MultibindGuard&&)      = delete;
+
+    template<size_t Idx> auto token() const noexcept { return std::get<Idx>(tokens_); }
+
+    template<size_t Idx> GLuint id()    const noexcept { return token<Idx>().id(); }
+    template<size_t Idx> GLuint index() const noexcept requires is_indexed<Idx> { return token<Idx>().index(); }
+
+    ~MultibindGuard() noexcept {
+        [this]<size_t ...Idx>(std::index_sequence<Idx...>) {
+            (token<Idx>().unbind(), ...);
+        }(std::make_index_sequence<num_guarded>());
+    }
+
+private:
+    tokens_type tokens_;
 };
 
 

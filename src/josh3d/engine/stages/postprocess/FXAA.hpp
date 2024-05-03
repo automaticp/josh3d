@@ -50,10 +50,10 @@ inline void FXAA::operator()(
     sp_->uniform("absolute_contrast_threshold", absolute_contrast_threshold);
     sp_->uniform("relative_contrast_threshold", relative_contrast_threshold);
 
-    auto bound_program = sp_->use();
-    engine.draw(bound_program);
-    bound_program.unbind();
-
+    {
+        BindGuard bound_program = sp_->use();
+        engine.draw(bound_program);
+    }
 }
 
 

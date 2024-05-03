@@ -1,4 +1,5 @@
 #pragma once
+#include "GLAPIBinding.hpp"
 #include "GLMutability.hpp"
 #include "GLObjects.hpp"
 #include "RenderEngine.hpp"
@@ -45,9 +46,8 @@ inline void HDR::operator()(
     sp_->uniform("use_exposure", use_exposure);
     sp_->uniform("exposure",     exposure);
 
-    auto bound_program = sp_->use();
+    BindGuard bound_program = sp_->use();
     engine.draw(bound_program);
-    bound_program.unbind();
 
 }
 

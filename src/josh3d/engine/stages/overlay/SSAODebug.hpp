@@ -59,7 +59,8 @@ inline void SSAODebug::operator()(
     sp_->uniform("tex_noisy_occlusion", 0);
     sp_->uniform("tex_occlusion",       1);
 
-    engine.draw_fullscreen_quad(sp_->use());
+    BindGuard bound_program = sp_->use();
+    engine.draw_fullscreen_quad(bound_program);
 
 }
 

@@ -119,9 +119,8 @@ inline void CSMDebug::draw_views_overlay(
 
         glapi::disable(Capability::DepthTesting);
         {
-            auto bound_program = sp_views_->use();
+            BindGuard bound_program = sp_views_->use();
             engine.draw_fullscreen_quad(bound_program);
-            bound_program.unbind();
         }
         glapi::enable(Capability::DepthTesting);
 
@@ -137,20 +136,17 @@ inline void CSMDebug::draw_maps_overlay(
 {
 
     maps_->dir_shadow_maps_tgt.depth_attachment().texture().bind_to_texture_unit(0);
-    maps_sampler_->bind_to_texture_unit(0);
+    BindGuard bound_maps_sampler =           maps_sampler_->bind_to_texture_unit(0);
 
     sp_maps_->uniform("cascades",   0);
     sp_maps_->uniform("cascade_id", cascade_id);
 
     glapi::disable(Capability::DepthTesting);
     {
-        auto bound_program = sp_maps_->use();
+        BindGuard bound_program = sp_maps_->use();
         engine.draw_fullscreen_quad(bound_program);
-        bound_program.unbind();
     }
     glapi::enable(Capability::DepthTesting);
-
-    unbind_sampler_from_unit(0);
 }
 
 

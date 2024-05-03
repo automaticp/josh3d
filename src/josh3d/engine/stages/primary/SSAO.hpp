@@ -320,74 +320,62 @@ inline void SSAO::operator()(
 
 
     // Sampling pass.
-
-    sp_sampling_->uniform("view",        view_mat);
-    sp_sampling_->uniform("normal_view", normal_view);
-    sp_sampling_->uniform("proj",        proj_mat);
-    sp_sampling_->uniform("inv_proj",    inv_proj);
-    sp_sampling_->uniform("z_near",      cam_params.z_near);
-    sp_sampling_->uniform("z_far",       cam_params.z_far);
-    sp_sampling_->uniform("radius",      radius);
-    sp_sampling_->uniform("bias",        bias);
-    sp_sampling_->uniform("tex_position_draw", 0);
-    sp_sampling_->uniform("tex_normals",       1);
-    sp_sampling_->uniform("tex_depth",         2);
-    sp_sampling_->uniform("tex_noise",         3);
-    sp_sampling_->uniform("noise_size",        noise_size);
-    sp_sampling_->uniform("noise_mode",        to_underlying(noise_mode));
-    sp_sampling_->uniform("position_source",   to_underlying(position_source));
-
-
-    gbuffer_->position_draw_texture().bind_to_texture_unit(0);
-    gbuffer_->normals_texture()      .bind_to_texture_unit(1);
-    gbuffer_->depth_texture()        .bind_to_texture_unit(2);
-    target_sampler_->bind_to_texture_unit(0);
-    target_sampler_->bind_to_texture_unit(1);
-    target_sampler_->bind_to_texture_unit(2);
-
-
-    noise_texture_->bind_to_texture_unit(3);
-    unbind_sampler_from_unit(3);
-
-
-    sampling_kernel_->bind_to_index<BufferTargetIndexed::ShaderStorage>(0);
-
     {
-        auto bound_program = sp_sampling_->use();
-        auto bound_fbo     = noisy_target_.bind_draw();
+        sp_sampling_->uniform("view",        view_mat);
+        sp_sampling_->uniform("normal_view", normal_view);
+        sp_sampling_->uniform("proj",        proj_mat);
+        sp_sampling_->uniform("inv_proj",    inv_proj);
+        sp_sampling_->uniform("z_near",      cam_params.z_near);
+        sp_sampling_->uniform("z_far",       cam_params.z_far);
+        sp_sampling_->uniform("radius",      radius);
+        sp_sampling_->uniform("bias",        bias);
+        sp_sampling_->uniform("tex_position_draw", 0);
+        sp_sampling_->uniform("tex_normals",       1);
+        sp_sampling_->uniform("tex_depth",         2);
+        sp_sampling_->uniform("tex_noise",         3);
+        sp_sampling_->uniform("noise_size",        noise_size);
+        sp_sampling_->uniform("noise_mode",        to_underlying(noise_mode));
+        sp_sampling_->uniform("position_source",   to_underlying(position_source));
 
 
-        glapi::clear_color_buffer(bound_fbo, 0, RGBAF{ .r=0.f });
+        gbuffer_->position_draw_texture().bind_to_texture_unit(0);
+        gbuffer_->normals_texture()      .bind_to_texture_unit(1);
+        gbuffer_->depth_texture()        .bind_to_texture_unit(2);
+        MultibindGuard bound_gbuffer_samplers{
+            target_sampler_             ->bind_to_texture_unit(0),
+            target_sampler_             ->bind_to_texture_unit(1),
+            target_sampler_             ->bind_to_texture_unit(2)
+        };
 
-        engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
+        noise_texture_->bind_to_texture_unit(3);
 
+        sampling_kernel_->bind_to_index<BufferTargetIndexed::ShaderStorage>(0);
 
-        bound_fbo.unbind();
-        bound_program.unbind();
+        {
+            BindGuard bound_program = sp_sampling_->use();
+            BindGuard bound_fbo     = noisy_target_.bind_draw();
+
+            glapi::clear_color_buffer(bound_fbo, 0, RGBAF{ .r=0.f });
+
+            engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
+        }
+
     }
-
-    unbind_samplers_from_units(0, 1, 2);
-
-
 
 
     // Blur pass.
-
-    sp_blur_->uniform("noisy_occlusion", 0);
-    noisy_target_.color_attachment().texture().bind_to_texture_unit(0);
-    target_sampler_->bind_to_texture_unit(0);
     {
-        auto bound_program = sp_blur_->use();
-        auto bound_fbo     = blurred_target_.bind_draw();
+        sp_blur_->uniform("noisy_occlusion", 0);
+        noisy_target_.color_attachment().texture()         .bind_to_texture_unit(0);
+        BindGuard bound_noisy_ao_sampler = target_sampler_->bind_to_texture_unit(0);
+        {
+            BindGuard bound_program = sp_blur_->use();
+            BindGuard bound_fbo     = blurred_target_.bind_draw();
 
-        engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
+            engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
+        }
 
-        bound_fbo.unbind();
-        bound_program.unbind();
     }
-
-    unbind_sampler_from_unit(0);
-
 
     // Update output.
     output_->noisy_texture   = noisy_target_.color_attachment().texture();

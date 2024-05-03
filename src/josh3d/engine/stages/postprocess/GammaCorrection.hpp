@@ -40,7 +40,7 @@ inline void GammaCorrection::operator()(
     engine.screen_color().bind_to_texture_unit(0);
     sp_->uniform("color", 0);
 
-    auto bound_program = sp_->use();
+    BindGuard bound_program = sp_->use();
 
     if (use_srgb) {
 
@@ -54,8 +54,6 @@ inline void GammaCorrection::operator()(
         engine.draw(bound_program);
 
     }
-
-    bound_program.unbind();
 
 }
 

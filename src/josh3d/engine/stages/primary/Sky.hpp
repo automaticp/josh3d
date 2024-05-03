@@ -119,20 +119,16 @@ inline void Sky::draw_debug_skybox(
     glm::mat4 projection = engine.camera().projection_mat();
     glm::mat4 view       = engine.camera().view_mat();
     debug_skybox_cubemap_->bind_to_texture_unit(0);
-    unbind_sampler_from_unit(0);
 
     sp_skybox_->uniform("cubemap",    0);
     sp_skybox_->uniform("projection", projection);
     sp_skybox_->uniform("view",       glm::mat4{ glm::mat3{ view } });
 
     {
-        auto bound_program = sp_skybox_->use();
-
+        BindGuard bound_program = sp_skybox_->use();
         engine.draw([&](auto bound_fbo) {
             engine.primitives().box_mesh().draw(bound_program, bound_fbo);
         });
-
-        bound_program.unbind();
     }
 
 }
@@ -150,20 +146,16 @@ inline void Sky::draw_skybox(
 
     // TODO: Pulls a single skybox, obviously won't work when there are many.
     registry.storage<components::Skybox>().begin()->cubemap->bind_to_texture_unit(0);
-    unbind_sampler_from_unit(0);
 
     sp_skybox_->uniform("cubemap",    0);
     sp_skybox_->uniform("projection", projection);
     sp_skybox_->uniform("view",       glm::mat4{ glm::mat3{ view } });
 
     {
-        auto bound_program = sp_skybox_->use();
-
+        BindGuard bound_program = sp_skybox_->use();
         engine.draw([&](auto bound_fbo) {
             engine.primitives().box_mesh().draw(bound_program, bound_fbo);
         });
-
-        bound_program.unbind();
     }
 
 }
@@ -194,13 +186,12 @@ inline void Sky::draw_procedural_sky(
     sp_proc_->uniform("sun_color",            procedural_sky_params.sun_color);
     sp_proc_->uniform("sun_size_rad",         glm::radians(procedural_sky_params.sun_size_deg));
 
-    auto bound_program = sp_proc_->use();
-
-    engine.draw([&](auto bound_fbo) {
-        engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
-    });
-
-    bound_program.unbind();
+    {
+        BindGuard bound_program = sp_proc_->use();
+        engine.draw([&](auto bound_fbo) {
+            engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
+        });
+    }
 }
 
 

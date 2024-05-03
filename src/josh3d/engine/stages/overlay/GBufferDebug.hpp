@@ -78,7 +78,7 @@ inline void GBufferDebug::operator()(
     gbuffer_->albedo_spec_texture()  .bind_to_texture_unit(2);
     gbuffer_->depth_texture()        .bind_to_texture_unit(3);
     gbuffer_->object_id_texture()    .bind_to_texture_unit(4);
-    integer_sampler_->bind_to_texture_unit(4);
+    BindGuard bound_integer_sampler = integer_sampler_->bind_to_texture_unit(4);
 
     sp_->uniform("mode",              to_underlying(mode));
     sp_->uniform("z_near",            engine.camera().get_params().z_near);
@@ -92,8 +92,6 @@ inline void GBufferDebug::operator()(
 
     engine.draw_fullscreen_quad(sp_->use());
 
-
-    unbind_sampler_from_unit(4);
 }
 
 

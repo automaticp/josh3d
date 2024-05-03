@@ -151,11 +151,8 @@ inline void HDREyeAdaptation::operator()(
 
         sp_block_reduce_->uniform("screen_color", 0);
         {
-            auto bound_program = sp_block_reduce_->use();
-
+            BindGuard bound_program = sp_block_reduce_->use();
             glapi::dispatch_compute(bound_program, dims.width, dims.height, 1);
-
-            bound_program.unbind();
         }
 
         // Do a recursive reduction on the intermediate buffer.
@@ -178,7 +175,7 @@ inline void HDREyeAdaptation::operator()(
         size_t num_workgroups = buf_size;
         GLuint dispatch_depth{ 0 };
 
-        auto bound_program = sp_recursive_reduce_->use();
+        BindGuard bound_program = sp_recursive_reduce_->use();
         do {
             num_workgroups = div_up(num_workgroups, batch_size);
 
@@ -189,7 +186,6 @@ inline void HDREyeAdaptation::operator()(
 
             ++dispatch_depth;
         } while (num_workgroups > 1);
-        bound_program.unbind();
 
         assert(num_workgroups == 1);
 
@@ -201,10 +197,12 @@ inline void HDREyeAdaptation::operator()(
     sp_tonemap_->uniform("value_range",     value_range);
     sp_tonemap_->uniform("exposure_factor", exposure_factor);
 
-    auto bound_program = sp_tonemap_->use();
-    glapi::memory_barrier(BarrierMask::ShaderStorageBit);
-    engine.draw(bound_program);
-    bound_program.unbind();
+    {
+        BindGuard bound_program = sp_tonemap_->use();
+        glapi::memory_barrier(BarrierMask::ShaderStorageBit);
+        engine.draw(bound_program);
+    }
+
 
 
     if (use_adaptation) {

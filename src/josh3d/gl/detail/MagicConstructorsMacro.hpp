@@ -1,6 +1,7 @@
 #pragma once
-#include "GLMutability.hpp" // IWYU pragma: keep
-#include <utility>          // IWYU pragma: keep
+#include "GLMutability.hpp"   // IWYU pragma: keep
+#include "SingleArgMacro.hpp" // IWYU pragma: keep
+#include <utility>            // IWYU pragma: keep
 
 
 
@@ -81,14 +82,6 @@ macro that does exactly that. Wonderful.
         requires gl_mutable<MutT>                          \
     = delete;
 
-
-
-/*
-Macro used to escape commas "," in macro arguments.
-
-Could probably be moved somewhere else.
-*/
-#define JOSH3D_SINGLE_ARG(...) __VA_ARGS__
 
 
 

@@ -1,4 +1,5 @@
 #pragma once
+#include "GLAPIBinding.hpp"
 #include "GLObjects.hpp"
 #include "RenderEngine.hpp"
 #include "UniformTraits.hpp" // IWYU pragma: keep (traits)
@@ -135,11 +136,10 @@ inline void Fog::draw_uniform_fog(
 
     glapi::enable(Capability::Blending);
     glapi::set_blend_factors(BlendFactor::SrcAlpha, BlendFactor::OneMinusSrcAlpha);
-
-    auto bound_program = sp_uniform_->use();
-    engine.draw_to_front(bound_program);
-    bound_program.unbind();
-
+    {
+        BindGuard bound_program = sp_uniform_->use();
+        engine.draw_to_front(bound_program);
+    }
     glapi::disable(Capability::Blending);
 }
 
@@ -180,11 +180,10 @@ inline void Fog::draw_barometric_fog(
 
     glapi::enable(Capability::Blending);
     glapi::set_blend_factors(BlendFactor::SrcAlpha, BlendFactor::OneMinusSrcAlpha);
-
-    auto bound_program = sp_barometric_->use();
-    engine.draw_to_front(bound_program);
-    bound_program.unbind();
-
+    {
+        BindGuard bound_program = sp_barometric_->use();
+        engine.draw_to_front(bound_program);
+    }
     glapi::disable(Capability::Blending);
 }
 

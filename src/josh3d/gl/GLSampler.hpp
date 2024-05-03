@@ -1,5 +1,6 @@
 #pragma once
 #include "GLAPI.hpp"
+#include "GLAPIBinding.hpp"
 #include "GLAPICommonTypes.hpp"
 #include "GLKind.hpp"
 #include "GLScalars.hpp"
@@ -25,8 +26,12 @@ private:
     using mt = mutability_traits<CRTP>;
 public:
 
-    void bind_to_texture_unit(GLuint unit_index) const noexcept {
+    [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
+    auto bind_to_texture_unit(GLuint unit_index) const noexcept
+        -> BindToken<BindingIndexed::Sampler>
+    {
         gl::glBindSampler(unit_index, self_id());
+        return { self_id(), unit_index };
     }
 
 };

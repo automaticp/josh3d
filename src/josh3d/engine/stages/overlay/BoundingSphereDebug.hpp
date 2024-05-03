@@ -1,4 +1,5 @@
 #pragma once
+#include "GLAPIBinding.hpp"
 #include "GLObjects.hpp"
 #include "LightCasters.hpp"
 #include "UniformTraits.hpp" // IWYU pragma: keep (traits)
@@ -58,7 +59,7 @@ inline void BoundingSphereDebug::operator()(
     sp_->uniform("view",        engine.camera().view_mat());
     sp_->uniform("light_color", line_color);
 
-    auto bound_program = sp_->use();
+    BindGuard bound_program = sp_->use();
 
     engine.draw([&, this](auto bound_fbo) {
 
@@ -80,7 +81,7 @@ inline void BoundingSphereDebug::operator()(
         };
 
         auto per_plight_draw_func = [&] (
-            const entt::entity&               entity,
+            const entt::entity&               entity [[maybe_unused]],
             const light::Point&               plight,
             const components::BoundingSphere& sphere)
         {
@@ -101,8 +102,6 @@ inline void BoundingSphereDebug::operator()(
             registry.view<light::Point, components::BoundingSphere>().each(per_plight_draw_func);
         }
     });
-
-    bound_program.unbind();
 
     glapi::disable(Capability::DepthTesting);
     glapi::set_polygon_rasterization_mode(PolygonRaserization::Fill);

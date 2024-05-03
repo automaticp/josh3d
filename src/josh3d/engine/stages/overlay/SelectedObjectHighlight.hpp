@@ -200,7 +200,7 @@ inline void SelectedObjectHighlight::operator()(
         glapi::set_blend_factors(BlendFactor::SrcAlpha, BlendFactor::OneMinusSrcAlpha);
 
         {
-            auto bound_program = sp_highlight_->use();
+            BindGuard bound_program = sp_highlight_->use();
 
 
             // Outline.
@@ -229,8 +229,6 @@ inline void SelectedObjectHighlight::operator()(
             sp_highlight_->uniform("color", inner_fill_color);
             engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
 
-
-            bound_program.unbind();
         }
 
 

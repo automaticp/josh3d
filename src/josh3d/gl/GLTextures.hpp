@@ -2,6 +2,7 @@
 #include "CommonConcepts.hpp" // IWYU pragma: keep
 #include "DecayToRaw.hpp"
 #include "GLAPI.hpp"
+#include "GLAPIBinding.hpp"
 #include "GLBuffers.hpp"
 #include "GLAPICommonTypes.hpp"
 #include "GLKind.hpp"
@@ -40,17 +41,17 @@ for DSA style, we use the texutre target as a reflection enum.
 Names are Uppercase to match Type capitalization. Helps in macros.
 */
 enum class TextureTarget : GLuint {
-    Texture1D        = GLuint(gl::GL_TEXTURE_1D),                   // No precedent.
-    Texture1DArray   = GLuint(gl::GL_TEXTURE_1D_ARRAY),             // No precedent.
+    Texture1D        = GLuint(gl::GL_TEXTURE_1D),
+    Texture1DArray   = GLuint(gl::GL_TEXTURE_1D_ARRAY),
     Texture2D        = GLuint(gl::GL_TEXTURE_2D),
     Texture2DArray   = GLuint(gl::GL_TEXTURE_2D_ARRAY),
     Texture2DMS      = GLuint(gl::GL_TEXTURE_2D_MULTISAMPLE),
-    Texture2DMSArray = GLuint(gl::GL_TEXTURE_2D_MULTISAMPLE_ARRAY), // No precedent.
-    Texture3D        = GLuint(gl::GL_TEXTURE_3D),                   // No precedent.
+    Texture2DMSArray = GLuint(gl::GL_TEXTURE_2D_MULTISAMPLE_ARRAY),
+    Texture3D        = GLuint(gl::GL_TEXTURE_3D),
     Cubemap          = GLuint(gl::GL_TEXTURE_CUBE_MAP),
     CubemapArray     = GLuint(gl::GL_TEXTURE_CUBE_MAP_ARRAY),
-    TextureRectangle = GLuint(gl::GL_TEXTURE_RECTANGLE),            // No precedent.
-    TextureBuffer    = GLuint(gl::GL_TEXTURE_BUFFER),               // No precedent.
+    TextureRectangle = GLuint(gl::GL_TEXTURE_RECTANGLE),
+    TextureBuffer    = GLuint(gl::GL_TEXTURE_BUFFER),
 };
 
 
@@ -1745,8 +1746,21 @@ template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_Bind_ToTextureUnit {
     JOSH3D_TEXTURE_MIXIN_HEADER
 
-    void bind_to_texture_unit(GLuint unit_index) const noexcept {
+    // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
+    auto bind_to_texture_unit(GLuint unit_index) const noexcept {
         gl::glBindTextureUnit(unit_index, self_id());
+        if constexpr      (TargetV == TextureTarget::Texture1D)        { return BindToken<BindingIndexed::Texture1D>       { self_id(), unit_index }; }
+        else if constexpr (TargetV == TextureTarget::Texture1DArray)   { return BindToken<BindingIndexed::Texture1DArray>  { self_id(), unit_index }; }
+        else if constexpr (TargetV == TextureTarget::Texture2D)        { return BindToken<BindingIndexed::Texture2D>       { self_id(), unit_index }; }
+        else if constexpr (TargetV == TextureTarget::Texture2DArray)   { return BindToken<BindingIndexed::Texture2DArray>  { self_id(), unit_index }; }
+        else if constexpr (TargetV == TextureTarget::Texture2DMS)      { return BindToken<BindingIndexed::Texture2DMS>     { self_id(), unit_index }; }
+        else if constexpr (TargetV == TextureTarget::Texture2DMSArray) { return BindToken<BindingIndexed::Texture2DMSArray>{ self_id(), unit_index }; }
+        else if constexpr (TargetV == TextureTarget::Texture3D)        { return BindToken<BindingIndexed::Texture3D>       { self_id(), unit_index }; }
+        else if constexpr (TargetV == TextureTarget::Cubemap)          { return BindToken<BindingIndexed::Cubemap>         { self_id(), unit_index }; }
+        else if constexpr (TargetV == TextureTarget::CubemapArray)     { return BindToken<BindingIndexed::CubemapArray>    { self_id(), unit_index }; }
+        else if constexpr (TargetV == TextureTarget::TextureBuffer)    { return BindToken<BindingIndexed::BufferTexture>   { self_id(), unit_index }; }
+        else if constexpr (TargetV == TextureTarget::TextureRectangle) { return BindToken<BindingIndexed::TextureRectangle>{ self_id(), unit_index }; }
+        else { JOSH3D_STATIC_ASSERT_FALSE(CRTP); }
     }
 
 };
@@ -1758,61 +1772,76 @@ template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_Bind_ToImageUnit {
     JOSH3D_TEXTURE_MIXIN_HEADER
 private:
-    void bind_to_image_unit_impl(
+    [[nodiscard]]
+    auto bind_to_image_unit_impl(
         GLuint index, ImageUnitFormat format, GLenum access, GLint level) const noexcept
+            -> BindToken<BindingIndexed::ImageUnit>
     {
         gl::glBindImageTexture(
             index, self_id(), level, gl::GL_TRUE, 0, access, enum_cast<GLenum>(format)
         );
+        return { self_id(), index };
     }
 public:
 
-    void bind_to_readonly_image_unit(
+    // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
+    auto bind_to_readonly_image_unit(
         ImageUnitFormat format, GLuint unit_index, MipLevel level = MipLevel{ 0 }) const noexcept
-            requires tt::has_lod
+            -> BindToken<BindingIndexed::ImageUnit>
+                requires tt::has_lod
     {
-        bind_to_image_unit_impl(unit_index, format, gl::GL_READ_ONLY, level);
+        return bind_to_image_unit_impl(unit_index, format, gl::GL_READ_ONLY, level);
     }
 
-    void bind_to_readonly_image_unit(
+    // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
+    auto bind_to_readonly_image_unit(
         ImageUnitFormat format, GLuint unit_index) const noexcept
-            requires (!tt::has_lod)
+            -> BindToken<BindingIndexed::ImageUnit>
+                requires (!tt::has_lod)
     {
-        bind_to_image_unit_impl(unit_index, format, gl::GL_READ_ONLY, 0);
+        return bind_to_image_unit_impl(unit_index, format, gl::GL_READ_ONLY, 0);
     }
 
 
 
 
-    void bind_to_writeonly_image_unit(
+    // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
+    auto bind_to_writeonly_image_unit(
         ImageUnitFormat format, GLuint unit_index, MipLevel level = MipLevel{ 0 }) const noexcept
-            requires mt::is_mutable && tt::has_lod
+            -> BindToken<BindingIndexed::ImageUnit>
+                requires mt::is_mutable && tt::has_lod
     {
-        bind_to_image_unit_impl(unit_index, format, gl::GL_WRITE_ONLY, level);
+        return bind_to_image_unit_impl(unit_index, format, gl::GL_WRITE_ONLY, level);
     }
 
-    void bind_to_writeonly_image_unit(
+    // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
+    auto bind_to_writeonly_image_unit(
         ImageUnitFormat format, GLuint unit_index) const noexcept
-            requires mt::is_mutable && (!tt::has_lod)
+            -> BindToken<BindingIndexed::ImageUnit>
+                requires mt::is_mutable && (!tt::has_lod)
     {
-        bind_to_image_unit_impl(unit_index, format, gl::GL_WRITE_ONLY, 0);
+        return bind_to_image_unit_impl(unit_index, format, gl::GL_WRITE_ONLY, 0);
     }
 
 
 
 
-    void bind_to_readwrite_image_unit(
+    // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
+    auto bind_to_readwrite_image_unit(
         ImageUnitFormat format, GLuint unit_index, MipLevel level = MipLevel{ 0 }) const noexcept
-            requires mt::is_mutable && tt::has_lod
+            -> BindToken<BindingIndexed::ImageUnit>
+                requires mt::is_mutable && tt::has_lod
     {
-        bind_to_image_unit_impl(unit_index, format, gl::GL_READ_WRITE, level);
+        return bind_to_image_unit_impl(unit_index, format, gl::GL_READ_WRITE, level);
     }
 
-    void bind_to_readwrite_image_unit(
+    // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
+    auto bind_to_readwrite_image_unit(
         ImageUnitFormat format, GLuint unit_index) const noexcept
-            requires mt::is_mutable && (!tt::has_lod)
+            -> BindToken<BindingIndexed::ImageUnit>
+                requires mt::is_mutable && (!tt::has_lod)
     {
-        bind_to_image_unit_impl(unit_index, format, gl::GL_READ_WRITE, 0);
+        return bind_to_image_unit_impl(unit_index, format, gl::GL_READ_WRITE, 0);
     }
 
 };
@@ -1824,61 +1853,76 @@ template<typename CRTP, TextureTarget TargetV>
 struct TextureDSAInterface_Bind_ToImageUnitLayered {
     JOSH3D_TEXTURE_MIXIN_HEADER
 private:
-    void bind_layer_to_image_unit_impl(
+    [[nodiscard]]
+    auto bind_layer_to_image_unit_impl(
         GLuint index, ImageUnitFormat format, GLenum access, GLint layer, GLint level) const noexcept
+            -> BindToken<BindingIndexed::ImageUnit>
     {
         gl::glBindImageTexture(
             index, self_id(), level, gl::GL_FALSE, layer, access, enum_cast<GLenum>(format)
         );
+        return { self_id(), index };
     }
 public:
 
-    void bind_layer_to_readonly_image_unit(
+    // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
+    auto bind_layer_to_readonly_image_unit(
         Layer layer, ImageUnitFormat format, GLuint unit_index, MipLevel level = MipLevel{ 0 }) const noexcept
-            requires tt::is_layered && tt::has_lod
+            -> BindToken<BindingIndexed::ImageUnit>
+                requires tt::is_layered && tt::has_lod
     {
-        bind_layer_to_image_unit_impl(unit_index, format, gl::GL_READ_ONLY, layer, level);
+        return bind_layer_to_image_unit_impl(unit_index, format, gl::GL_READ_ONLY, layer, level);
     }
 
-    void bind_layer_to_readonly_image_unit(
+    // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
+    auto bind_layer_to_readonly_image_unit(
         Layer layer, ImageUnitFormat format, GLuint unit_index) const noexcept
-            requires tt::is_layered && (!tt::has_lod)
+            -> BindToken<BindingIndexed::ImageUnit>
+                requires tt::is_layered && (!tt::has_lod)
     {
-        bind_layer_to_image_unit_impl(unit_index, format, gl::GL_READ_ONLY, layer, 0);
+        return bind_layer_to_image_unit_impl(unit_index, format, gl::GL_READ_ONLY, layer, 0);
     }
 
 
 
 
-    void bind_layer_to_writeonly_image_unit(
+    // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
+    auto bind_layer_to_writeonly_image_unit(
         Layer layer, ImageUnitFormat format, GLuint unit_index, MipLevel level = MipLevel{ 0 }) const noexcept
-            requires mt::is_mutable && tt::is_layered && tt::has_lod
+            -> BindToken<BindingIndexed::ImageUnit>
+                requires mt::is_mutable && tt::is_layered && tt::has_lod
     {
-        bind_layer_to_image_unit_impl(unit_index, format, gl::GL_WRITE_ONLY, layer, level);
+        return bind_layer_to_image_unit_impl(unit_index, format, gl::GL_WRITE_ONLY, layer, level);
     }
 
-    void bind_layer_to_writeonly_image_unit(
+    // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
+    auto bind_layer_to_writeonly_image_unit(
         Layer layer, ImageUnitFormat format, GLuint unit_index) const noexcept
-            requires mt::is_mutable && tt::is_layered && (!tt::has_lod)
+            -> BindToken<BindingIndexed::ImageUnit>
+                requires mt::is_mutable && tt::is_layered && (!tt::has_lod)
     {
-        bind_layer_to_image_unit_impl(unit_index, format, gl::GL_WRITE_ONLY, layer, 0);
+        return bind_layer_to_image_unit_impl(unit_index, format, gl::GL_WRITE_ONLY, layer, 0);
     }
 
 
 
 
-    void bind_layer_to_readwrite_image_unit(
+    // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
+    auto bind_layer_to_readwrite_image_unit(
         Layer layer, ImageUnitFormat format, GLuint unit_index, MipLevel level = MipLevel{ 0 }) const noexcept
-            requires mt::is_mutable && tt::is_layered && tt::has_lod
+            -> BindToken<BindingIndexed::ImageUnit>
+                requires mt::is_mutable && tt::is_layered && tt::has_lod
     {
-        bind_layer_to_image_unit_impl(unit_index, format, gl::GL_READ_WRITE, layer, level);
+        return bind_layer_to_image_unit_impl(unit_index, format, gl::GL_READ_WRITE, layer, level);
     }
 
-    void bind_layer_to_readwrite_image_unit(
+    // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
+    auto bind_layer_to_readwrite_image_unit(
         Layer layer, ImageUnitFormat format, GLuint unit_index) const noexcept
-            requires mt::is_mutable && tt::is_layered && (!tt::has_lod)
+            -> BindToken<BindingIndexed::ImageUnit>
+                requires mt::is_mutable && tt::is_layered && (!tt::has_lod)
     {
-        bind_layer_to_image_unit_impl(unit_index, format, gl::GL_READ_WRITE, layer, 0);
+        return bind_layer_to_image_unit_impl(unit_index, format, gl::GL_READ_WRITE, layer, 0);
     }
 
 };

@@ -145,55 +145,57 @@ inline void Bloom::operator()(
     update_gaussian_blur_weights_if_needed();
 
 
-    sampler_->bind_to_texture_unit(0);
-    sampler_->bind_to_texture_unit(1);
+    MultibindGuard bound_samplers{
+        sampler_->bind_to_texture_unit(0),
+        sampler_->bind_to_texture_unit(1)
+    };
 
 
     // Extract.
-    engine.screen_color().bind_to_texture_unit(0);
-    sp_extract_->uniform("screen_color",     0);
-    sp_extract_->uniform("threshold_bounds", threshold_bounds);
-    blur_chain_.draw_and_swap([&, this](auto bound_fbo) {
-        auto bound_program = sp_extract_->use();
-
-        engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
-
-        bound_program.unbind();
-    });
-
-
-    // Blur.
-    weights_buf_->bind_to_index<BufferTargetIndexed::ShaderStorage>(0);
-    sp_twopass_gaussian_blur_->uniform("offset_scale", offset_scale);
-    sp_twopass_gaussian_blur_->uniform("screen_color", 0); // Same unit, different textures.
-
-    auto bound_program = sp_twopass_gaussian_blur_->use();
-    for (size_t i{ 0 }; i < (2 * blur_iterations); ++i) {
-        // Need to rebind after every swap.
-        blur_chain_.front_target().color_attachment().texture().bind_to_texture_unit(0);
-        sp_twopass_gaussian_blur_->uniform("blur_horizontally", bool(i % 2));
-
-        blur_chain_.draw_and_swap([&](auto bound_fbo) {
+    {
+        engine.screen_color().bind_to_texture_unit(0);
+        sp_extract_->uniform("screen_color",     0);
+        sp_extract_->uniform("threshold_bounds", threshold_bounds);
+        blur_chain_.draw_and_swap([&, this](auto bound_fbo) {
+            BindGuard bound_program = sp_extract_->use();
             engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
         });
     }
-    bound_program.unbind();
+
+
+    // Blur.
+    {
+        weights_buf_->bind_to_index<BufferTargetIndexed::ShaderStorage>(0);
+        sp_twopass_gaussian_blur_->uniform("offset_scale", offset_scale);
+        sp_twopass_gaussian_blur_->uniform("screen_color", 0); // Same unit, different textures.
+
+        BindGuard bound_program = sp_twopass_gaussian_blur_->use();
+
+        for (size_t i{ 0 }; i < (2 * blur_iterations); ++i) {
+            // Need to rebind after every swap.
+            blur_chain_.front_target().color_attachment().texture().bind_to_texture_unit(0);
+            sp_twopass_gaussian_blur_->uniform("blur_horizontally", bool(i % 2));
+
+            blur_chain_.draw_and_swap([&](auto bound_fbo) {
+                engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
+            });
+        }
+    }
 
 
     // Blend.
     // TODO: Why is this a separate shader and not just using blend mode?
-    engine.screen_color().bind_to_texture_unit(0);
-    blur_chain_.front_target().color_attachment().texture().bind_to_texture_unit(1);
-    sp_blend_->uniform("screen_color", 0);
-    sp_blend_->uniform("bloom_color",  1);
     {
-        auto bound_program = sp_blend_->use();
-        engine.draw(bound_program);
-        bound_program.unbind();
+        engine.screen_color().bind_to_texture_unit(0);
+        blur_chain_.front_target().color_attachment().texture().bind_to_texture_unit(1);
+        sp_blend_->uniform("screen_color", 0);
+        sp_blend_->uniform("bloom_color",  1);
+        {
+            BindGuard bound_program = sp_blend_->use();
+            engine.draw(bound_program);
+        }
     }
 
-
-    unbind_samplers_from_units(0, 1);
 }
 
 

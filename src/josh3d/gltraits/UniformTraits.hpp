@@ -1,4 +1,5 @@
 #pragma once
+#include "detail/SingleArgMacro.hpp"
 #include "GLUniformTraits.hpp"
 #include "GLProgram.hpp"
 #include <glm/fwd.hpp>
@@ -7,8 +8,6 @@
 
 namespace josh {
 
-
-#define JOSH3D_SINGLE_ARG(...) __VA_ARGS__
 
 #define JOSH3D_SPECIALIZE_UNIFORM_TRAITS(UniformT, Body)                                       \
     template<> struct uniform_traits<UniformT> {                                               \

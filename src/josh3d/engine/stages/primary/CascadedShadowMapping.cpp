@@ -61,7 +61,7 @@ void CascadedShadowMapping::draw_all_world_geometry_no_alpha_test(
 {
     // Assumes that projection and view are already set.
 
-    auto bound_program = sp_no_alpha_->use();
+    BindGuard bound_program = sp_no_alpha_->use();
 
     auto draw_from_view = [&, this](auto view) {
         for (auto [entity, world_mtf, mesh] : view.each()) {
@@ -87,7 +87,6 @@ void CascadedShadowMapping::draw_all_world_geometry_no_alpha_test(
         )
     );
 
-    bound_program.unbind();
 }
 
 
@@ -97,7 +96,7 @@ void CascadedShadowMapping::draw_all_world_geometry_with_alpha_test(
 {
     // Assumes that projection and view are already set.
 
-    auto bound_program = sp_with_alpha_->use();
+    BindGuard bound_program = sp_with_alpha_->use();
 
     sp_with_alpha_->uniform("material.diffuse", 0);
 
@@ -113,8 +112,6 @@ void CascadedShadowMapping::draw_all_world_geometry_with_alpha_test(
         sp_with_alpha_->uniform("model", world_mtf.model());
         mesh.draw(bound_program, bound_fbo);
     }
-
-    bound_program.unbind();
 }
 
 
@@ -156,7 +153,7 @@ void CascadedShadowMapping::map_dir_light_shadow_cascade(
     glapi::set_viewport({ {}, maps.resolution() });
     glapi::enable(Capability::DepthTesting);
 
-    auto bound_fbo = csm_target.bind_draw();
+    BindGuard bound_fbo = csm_target.bind_draw();
 
     glapi::clear_depth_buffer(bound_fbo, 1.f);
 
@@ -202,8 +199,6 @@ void CascadedShadowMapping::map_dir_light_shadow_cascade(
     set_common_uniforms(sp_with_alpha_);
     draw_all_world_geometry_with_alpha_test(bound_fbo, registry);
 
-
-    bound_fbo.unbind();
 }
 
 

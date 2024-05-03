@@ -267,8 +267,14 @@ public:
 
     // Wraps `glBindBufferBase`.
     template<BufferTargetIndexed TargetV>
-    void bind_to_index(GLuint index) const noexcept {
+    // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
+    auto bind_to_index(GLuint index) const noexcept {
         gl::glBindBufferBase(enum_cast<GLenum>(TargetV), index, self_id());
+        if constexpr      (TargetV == BufferTargetIndexed::Uniform)           { return BindToken<BindingIndexed::UniformBuffer>          { self_id(), index }; }
+        else if constexpr (TargetV == BufferTargetIndexed::ShaderStorage)     { return BindToken<BindingIndexed::ShaderStorageBuffer>    { self_id(), index }; }
+        else if constexpr (TargetV == BufferTargetIndexed::TransformFeedback) { return BindToken<BindingIndexed::TransformFeedbackBuffer>{ self_id(), index }; }
+        else if constexpr (TargetV == BufferTargetIndexed::AtomicCounter)     { return BindToken<BindingIndexed::AtomicCounterBuffer>    { self_id(), index }; }
+        else { JOSH3D_STATIC_ASSERT_FALSE(CRTP); }
     }
 
 };
@@ -569,7 +575,7 @@ public:
 
     // Wraps `glBindBufferRange`.
     template<BufferTargetIndexed TargetV>
-    void bind_range_to_index(
+    auto bind_range_to_index(
         OffsetElems elem_offset,
         NumElems    elem_count,
         GLuint      index) const noexcept
@@ -580,6 +586,11 @@ public:
             elem_offset.value * sizeof(T),
             elem_count.value  * sizeof(T)
         );
+        if constexpr      (TargetV == BufferTargetIndexed::Uniform)           { return BindToken<BindingIndexed::UniformBuffer>          { self_id(), index }; }
+        else if constexpr (TargetV == BufferTargetIndexed::ShaderStorage)     { return BindToken<BindingIndexed::ShaderStorageBuffer>    { self_id(), index }; }
+        else if constexpr (TargetV == BufferTargetIndexed::TransformFeedback) { return BindToken<BindingIndexed::TransformFeedbackBuffer>{ self_id(), index }; }
+        else if constexpr (TargetV == BufferTargetIndexed::AtomicCounter)     { return BindToken<BindingIndexed::AtomicCounterBuffer>    { self_id(), index }; }
+        else { JOSH3D_STATIC_ASSERT_FALSE(CRTP); }
     }
 
 

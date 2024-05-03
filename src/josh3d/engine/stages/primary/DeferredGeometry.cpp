@@ -11,6 +11,7 @@
 #include "DefaultTextures.hpp"
 #include <entt/core/type_traits.hpp>
 #include <entt/entity/entity.hpp>
+#include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
 
 
@@ -38,8 +39,7 @@ void DeferredGeometry::operator()(
     // TODO: Mutual exclusions like these are generally
     // uncomfortable to do in EnTT. Is there a better way?
 
-
-    const auto apply_ds_materials = [&](entt::entity e, RawProgram<> sp) {
+    const auto apply_ds_materials = [&](entt::entity e, RawProgram<> sp, Location shininess_loc) {
 
         if (auto mat_d = registry.try_get<components::MaterialDiffuse>(e)) {
             mat_d->texture->bind_to_texture_unit(0);
@@ -49,21 +49,21 @@ void DeferredGeometry::operator()(
 
         if (auto mat_s = registry.try_get<components::MaterialSpecular>(e)) {
             mat_s->texture->bind_to_texture_unit(1);
-            sp.uniform("material.shininess", mat_s->shininess);
+            sp.uniform(shininess_loc, mat_s->shininess);
         } else {
             globals::default_specular_texture().bind_to_texture_unit(1);
-            sp.uniform("material.shininess", 128.f);
+            sp.uniform(shininess_loc, 128.f);
         }
 
     };
 
 
 
-    auto bound_fbo = gbuffer_->bind_draw();
+    BindGuard bound_fbo = gbuffer_->bind_draw();
 
 
     auto draw_ds = [&](RawProgram<> sp, auto entt_view) {
-        auto bound_program = sp.use();
+        BindGuard bound_program = sp.use();
 
         sp.uniform("projection", proj);
         sp.uniform("view",       view);
@@ -71,21 +71,24 @@ void DeferredGeometry::operator()(
         sp.uniform("material.diffuse",  0);
         sp.uniform("material.specular", 1);
 
-        for (auto [entity, world_mtf, mesh] : entt_view.each()) {
-            sp.uniform("model",        world_mtf.model());
-            sp.uniform("normal_model", world_mtf.normal_model());
-            sp.uniform("object_id",    entt::to_integral(entity));
+        Location model_loc        = sp.get_uniform_location("model");
+        Location normal_model_loc = sp.get_uniform_location("normal_model");
+        Location object_id_loc    = sp.get_uniform_location("object_id");
+        Location shininess_loc    = sp.get_uniform_location("material.shininess");
 
-            apply_ds_materials(entity, sp);
+        for (auto [entity, world_mtf, mesh] : entt_view.each()) {
+            sp.uniform(model_loc,        world_mtf.model());
+            sp.uniform(normal_model_loc, world_mtf.normal_model());
+            sp.uniform(object_id_loc,    entt::to_integral(entity));
+
+            apply_ds_materials(entity, sp, shininess_loc);
 
             mesh.draw(bound_program, bound_fbo);
         }
-
-        bound_program.unbind();
     };
 
     auto draw_dsn = [&](RawProgram<> sp, auto entt_view) {
-        auto bound_program = sp.use();
+        BindGuard bound_program = sp.use();
 
         sp.uniform("projection", proj);
         sp.uniform("view",       view);
@@ -94,18 +97,21 @@ void DeferredGeometry::operator()(
         sp.uniform("material.specular", 1);
         sp.uniform("material.normal",   2);
 
-        for (auto [entity, world_mtf, mesh, mat_normal] : entt_view.each()) {
-            sp.uniform("model",        world_mtf.model());
-            sp.uniform("normal_model", world_mtf.normal_model());
-            sp.uniform("object_id",    entt::to_integral(entity));
+        Location model_loc        = sp.get_uniform_location("model");
+        Location normal_model_loc = sp.get_uniform_location("normal_model");
+        Location object_id_loc    = sp.get_uniform_location("object_id");
+        Location shininess_loc    = sp.get_uniform_location("material.shininess");
 
-            apply_ds_materials(entity, sp);
-            mat_normal.texture->bind_to_texture_unit(2);
+        for (auto [entity, world_mtf, mesh, mat_normal] : entt_view.each()) {
+            sp.uniform(model_loc,        world_mtf.model());
+            sp.uniform(normal_model_loc, world_mtf.normal_model());
+            sp.uniform(object_id_loc,    entt::to_integral(entity));
+
+            apply_ds_materials(entity, sp, shininess_loc);
+            auto _ = mat_normal.texture->bind_to_texture_unit(2);
 
             mesh.draw(bound_program, bound_fbo);
         }
-
-        bound_program.unbind();
     };
 
 
@@ -130,9 +136,6 @@ void DeferredGeometry::operator()(
     draw_ds (sp_ds_at,  view_ds_at );
     draw_dsn(sp_dsn_at, view_dsn_at);
 
-
-
-    bound_fbo.unbind();
 }
 
 
