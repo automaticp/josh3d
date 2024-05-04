@@ -1,7 +1,9 @@
 #pragma once
 #include "DefaultTextures.hpp"
+#include "ECSHelpers.hpp"
 #include "GLObjects.hpp"
 #include "ImGuiHelpers.hpp"
+#include "LightCasters.hpp"
 #include "components/Model.hpp"
 #include "components/Materials.hpp"
 #include "components/Name.hpp"
@@ -11,6 +13,7 @@
 #include "tags/AlphaTested.hpp"
 #include "tags/Culled.hpp"
 #include "tags/Selected.hpp"
+#include "tags/ShadowCasting.hpp"
 #include <cassert>
 #include <entt/entity/entity.hpp>
 #include <entt/entity/fwd.hpp>
@@ -381,5 +384,54 @@ inline Feedback ModelWidget(entt::handle model_handle) noexcept {
 
     return feedback;
 }
+
+
+inline Feedback PointLightWidgetHeader(entt::handle plight_handle) noexcept {
+    Feedback feedback{ Feedback::None };
+
+    SelectButton(plight_handle);
+    ImGui::SameLine();
+    if (RemoveButton()) { feedback = Feedback::Remove; }
+    ImGui::SameLine();
+
+    ImGui::Text("Point Light [%d]", entt::to_entity(plight_handle.entity()));
+
+    return feedback;
+}
+
+
+inline void PointLightWidgetBody(entt::handle plight_handle) noexcept {
+
+    if (auto plight = plight_handle.try_get<light::Point>()) {
+
+        ImGui::DragFloat3("Position", glm::value_ptr(plight->position), 0.2f);
+        ImGui::ColorEdit3("Color", glm::value_ptr(plight->color), ImGuiColorEditFlags_DisplayHSV);
+        ImGui::SameLine();
+        bool has_shadow = has_tag<tags::ShadowCasting>(plight_handle);
+        if (ImGui::Checkbox("Shadow", &has_shadow)) {
+            switch_tag<tags::ShadowCasting>(plight_handle);
+        }
+
+        ImGui::DragFloat3(
+            "Atten. (c/l/q)", &plight->attenuation.constant,
+            0.1f, 0.f, 100.f, "%.4f", ImGuiSliderFlags_Logarithmic
+        );
+
+    }
+}
+
+
+inline Feedback PointLightWidget(entt::handle plight_handle) noexcept {
+    ImGui::PushID(void_id(plight_handle.entity()));
+
+    Feedback feedback = PointLightWidgetHeader(plight_handle);
+    PointLightWidgetBody(plight_handle);
+
+    ImGui::PopID();
+    return feedback;
+}
+
+
+
 
 } // namespace josh::imgui

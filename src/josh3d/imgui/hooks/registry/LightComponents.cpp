@@ -114,9 +114,7 @@ void LightComponents::operator()(entt::registry& registry) {
             if (display_node) {
 
                 ImGui::DragFloat3("Position", glm::value_ptr(plight.position), 0.2f);
-
                 ImGui::ColorEdit3("Color", glm::value_ptr(plight.color), ImGuiColorEditFlags_DisplayHSV);
-
                 ImGui::SameLine();
                 bool has_shadow = registry.all_of<tags::ShadowCasting>(e);
                 if (ImGui::Checkbox("Shadow", &has_shadow)) {
