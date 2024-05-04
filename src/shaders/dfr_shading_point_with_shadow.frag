@@ -64,16 +64,16 @@ void add_point_light_illumination(
 
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / vec2(textureSize(gbuffer.tex_albedo_spec, 0));
-
-    GSample gsample = unpack_gbuffer(gbuffer, uv);
+    vec2 uv = gl_FragCoord.xy / vec2(textureSize(gbuffer.tex_normals, 0));
+    GSample gsample = unpack_gbuffer(gbuffer, uv, camera.z_near, camera.z_far, camera.inv_proj);
     if (!gsample.drawn) discard;
+    vec3 frag_pos_ws = vec3(camera.inv_view * gsample.position_vs);
 
     const vec3 normal_dir = normalize(gsample.normal);
-    const vec3 view_dir   = normalize(camera.position - gsample.position);
+    const vec3 view_dir   = normalize(camera.position_ws - frag_pos_ws);
 
     const PLight plight      = in_.plight;
-    const vec3 light_to_frag = gsample.position - plight.position;
+    const vec3 light_to_frag = frag_pos_ws - plight.position;
 
 
     vec3 result_color = vec3(0.0);

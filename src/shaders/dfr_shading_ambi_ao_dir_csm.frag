@@ -84,11 +84,13 @@ void add_ambi_light_illumination(
 
 
 void main() {
-    GSample gsample = unpack_gbuffer(gbuffer, tex_coords);
+    GSample gsample = unpack_gbuffer(gbuffer, tex_coords, camera.z_near, camera.z_far, camera.inv_proj);
     if (!gsample.drawn) discard;
 
+    vec3 frag_pos_ws = vec3(camera.inv_view * gsample.position_vs);
+
     const vec3 normal_dir = normalize(gsample.normal);
-    const vec3 view_dir   = normalize(camera.position - gsample.position);
+    const vec3 view_dir   = normalize(camera.position_ws - frag_pos_ws);
 
 
     vec3 result_color = vec3(0.0);
@@ -98,7 +100,7 @@ void main() {
         const float obscurance =
             dir_light_shadow_obscurance(
                 dir_shadow,
-                gsample.position,
+                frag_pos_ws,
                 gsample.normal
             );
 

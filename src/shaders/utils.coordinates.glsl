@@ -1,3 +1,5 @@
+#ifndef UTILS_COORDINATES_GLSL
+#define UTILS_COORDINATES_GLSL
 // #version 330 core
 
 
@@ -68,3 +70,6 @@ vec3 vs_to_nss(vec4 vs, mat4 proj) {
     vec3 nss = ndc * 0.5 + 0.5;
     return nss;
 }
+
+
+#endif

@@ -73,21 +73,22 @@ inline void GBufferDebug::operator()(
         return;
     }
 
-    BindGuard bound_camera_ubo = engine.bind_camera_ubo();
+    BindGuard bound_camera = engine.bind_camera_ubo();
 
-    gbuffer_->position_draw_texture().bind_to_texture_unit(0);
-    gbuffer_->normals_texture()      .bind_to_texture_unit(1);
-    gbuffer_->albedo_spec_texture()  .bind_to_texture_unit(2);
-    gbuffer_->depth_texture()        .bind_to_texture_unit(3);
-    gbuffer_->object_id_texture()    .bind_to_texture_unit(4);
+    gbuffer_->depth_texture()    .bind_to_texture_unit(0);
+    gbuffer_->normals_texture()  .bind_to_texture_unit(1);
+    gbuffer_->albedo_texture()   .bind_to_texture_unit(2);
+    gbuffer_->specular_texture() .bind_to_texture_unit(3);
+    gbuffer_->object_id_texture().bind_to_texture_unit(4);
+
     BindGuard bound_integer_sampler = integer_sampler_->bind_to_texture_unit(4);
 
-    sp_->uniform("mode",              to_underlying(mode));
-    sp_->uniform("tex_position_draw", 0);
-    sp_->uniform("tex_normals",       1);
-    sp_->uniform("tex_albedo_spec",   2);
-    sp_->uniform("tex_depth",         3);
-    sp_->uniform("tex_object_id",     4);
+    sp_->uniform("mode",                 to_underlying(mode));
+    sp_->uniform("gbuffer.tex_depth",    0);
+    sp_->uniform("gbuffer.tex_normals",  1);
+    sp_->uniform("gbuffer.tex_albedo",   2);
+    sp_->uniform("gbuffer.tex_specular", 3);
+    sp_->uniform("tex_object_id",        4);
 
 
     engine.draw_fullscreen_quad(sp_->use());

@@ -1,3 +1,5 @@
+#ifndef LIGHTS_GLSL
+#define LIGHTS_GLSL
 // #version 330 core
 
 
@@ -34,3 +36,5 @@ float get_attenuation_factor(Attenuation att, float source_distance) {
     );
 }
 
+
+#endif

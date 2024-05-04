@@ -1,8 +1,10 @@
+#ifndef CAMERA_GLSL
+#define CAMERA_GLSL
 // #version 430 core
 
 
 struct Camera {
-    vec3  position;
+    vec3  position_ws;
     float z_near;
     float z_far;
     mat4  view;
@@ -15,4 +17,4 @@ struct Camera {
 };
 
 
-
+#endif

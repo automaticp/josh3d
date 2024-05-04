@@ -9,10 +9,8 @@ in  vec2  tex_coords;
 out float frag_color;
 
 
-uniform sampler2D tex_position_draw;
-uniform sampler2D tex_normals;
 uniform sampler2D tex_depth;
-
+uniform sampler2D tex_normals;
 uniform sampler2D tex_noise;
 uniform vec2      noise_size; // vec2(0.1, 0.1) for a 16x16 texture on a 160x160 screen
 
@@ -35,15 +33,7 @@ const   int noise_mode_sampled   = 0;
 const   int noise_mode_generated = 1;
 uniform int noise_mode = noise_mode_generated;
 
-/*
-enum class PositionSource : GLint {
-    gbuffer = 0,
-    depth   = 1
-} position_source;
-*/
-const   int position_source_gbuffer = 0;
-const   int position_source_depth   = 1;
-uniform int position_source = position_source_gbuffer;
+
 
 
 vec3 get_random_vector();
@@ -89,23 +79,11 @@ void main() {
 
 
 vec4 get_frag_pos_vs(vec2 uv) {
-    switch (position_source) {
-        case position_source_depth:
-        {
-            float screen_z = textureLod(tex_depth, uv, 0).r;
-            vec3  pos_nss  = vec3(uv, screen_z);
-            vec4  pos_vs   = nss_to_vs(pos_nss, camera.z_near, camera.z_far, camera.inv_proj);
-            const float far_plane_correction = (1.0 - step(1.0, screen_z)); // Clamp to INF at z_far
-            return pos_vs / far_plane_correction;
-        }
-        default:
-        case position_source_gbuffer: // This sucks btw.
-        {
-            vec4 pos_ws_draw = texture(tex_position_draw, uv);
-            // Will return inf if no draw...
-            return camera.view * vec4(pos_ws_draw.xyz / pos_ws_draw.a, 1.0);
-        }
-    }
+    float screen_z = textureLod(tex_depth, uv, 0).r;
+    vec3  pos_nss  = vec3(uv, screen_z);
+    vec4  pos_vs   = nss_to_vs(pos_nss, camera.z_near, camera.z_far, camera.inv_proj);
+    const float far_plane_correction = (1.0 - step(1.0, screen_z)); // Clamp to INF at z_far
+    return pos_vs / far_plane_correction;
 }
 
 

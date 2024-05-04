@@ -3,16 +3,13 @@
 #include "utils.coordinates.glsl"
 #include "utils.color.glsl"
 #include "camera_ubo.glsl"
-
+#include "gbuffer.glsl"
 
 
 in vec2  tex_coords;
 out vec4 frag_color;
 
-uniform sampler2D  tex_position_draw;
-uniform sampler2D  tex_normals;
-uniform sampler2D  tex_albedo_spec;
-uniform sampler2D  tex_depth;
+uniform GBuffer    gbuffer;
 uniform usampler2D tex_object_id;
 
 /*
@@ -83,36 +80,45 @@ vec3 get_color_from_id(uint id) {
 
 
 void main() {
-    vec3 out_color;
+    const vec2 uv = tex_coords;
 
+    vec3 out_color;
     switch (mode) {
-        case 1: // albedo
+        case 1: { // albedo
             // TODO: Proper sRGB?
-            out_color = pow(texture(tex_albedo_spec, tex_coords).rgb, vec3(1.0 / 2.2));
-            break;
-        case 2: // specular
-            out_color = vec3(texture(tex_albedo_spec, tex_coords).a);
-            break;
-        case 3: // position
-            out_color = mod((texture(tex_position_draw, tex_coords).xyz + 1.0), 20.0) * 0.05;
-            break;
-        case 4: // depth
-            out_color = vec3(texture(tex_depth, tex_coords).r);
-            break;
-        case 5: // depth_linear
-            out_color = vec3(get_linear_0to1_depth(texture(tex_depth, tex_coords).r, camera.z_near, camera.z_far));
-            break;
-        case 6: // normals
-            out_color = 0.5 * (1.0 + texture(tex_normals, tex_coords).rgb);
-            break;
-        case 7: // draw_region
-            out_color = vec3(texture(tex_position_draw, tex_coords).a);
-            break;
-        case 8: // object_id
-            out_color = vec3(get_color_from_id(textureLod(tex_object_id, tex_coords, 0).r));
-            break;
-        default:
-            out_color = texture(tex_albedo_spec, tex_coords).rgb;
+            out_color = pow(texture(gbuffer.tex_albedo, uv).rgb, vec3(1.0 / 2.2));
+        } break;
+        case 2: { // specular
+            out_color = vec3(unpack_gbuffer_specular(gbuffer, uv));
+        } break;
+        case 3: { // position
+            vec4 pos_vs = unpack_gbuffer_position_vs(gbuffer, uv, camera.z_near, camera.z_far, camera.inv_proj);
+            vec4 pos_ws = camera.inv_view * pos_vs;
+            out_color = mod((pos_ws.xyz + 1.0), 20.0) * 0.05;
+        } break;
+        case 4: { // depth
+            float screen_depth = unpack_gbuffer_depth(gbuffer, uv);
+            out_color = vec3(screen_depth);
+        } break;
+        case 5: { // depth_linear
+            float screen_depth = unpack_gbuffer_depth(gbuffer, uv);
+            float depth_linear = get_linear_0to1_depth(screen_depth, camera.z_near, camera.z_far);
+            out_color = vec3(depth_linear);
+        } break;
+        case 6: { // normals
+            out_color = 0.5 * (1.0 + unpack_gbuffer_normals(gbuffer, uv));
+        } break;
+        case 7: { // draw_region
+            float depth = unpack_gbuffer_depth(gbuffer, uv);
+            out_color = vec3(depth < 1.0);
+        } break;
+        case 8: { // object_id
+            uint object_id = textureLod(tex_object_id, uv, 0).r;
+            out_color = vec3(get_color_from_id(object_id));
+        } break;
+        default: {
+            out_color = unpack_gbuffer_albedo(gbuffer, uv);
+        }
     }
 
     frag_color = vec4(out_color, 1.0);

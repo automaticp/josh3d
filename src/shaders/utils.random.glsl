@@ -1,3 +1,5 @@
+#ifndef UTILS_RANDOM_GLSL
+#define UTILS_RANDOM_GLSL
 // #version 330 core
 
 
@@ -20,3 +22,6 @@ uint pcg32(inout uint state) {
 float random_gamma(uint urb) {
     return uintBitsToFloat(urb >> 9 | 0x3F800000) - 1.0;
 }
+
+
+#endif

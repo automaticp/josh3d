@@ -1,12 +1,14 @@
 #version 430 core
 #extension GL_GOOGLE_include_directive : enable
 #include "utils.color.glsl"
+#include "utils.coordinates.glsl"
+#include "camera_ubo.glsl"
 
 
 in vec2  tex_coords;
 out vec4 frag_color;
 
-uniform sampler2D tex_position_draw;
+uniform sampler2D tex_depth;
 uniform sampler2D tex_normals;
 
 uniform struct DirectionalLight {
@@ -21,7 +23,8 @@ struct CascadeParams {
     float z_split;
 };
 
-layout (std430, binding = 3) restrict readonly buffer CascadeParamsBlock {
+layout (std430, binding = 3) restrict readonly
+buffer CascadeParamsBlock {
     CascadeParams cascade_params[];
 };
 
@@ -34,22 +37,19 @@ float split_hue(float hmin, float hmax, int split_id, int num_splits) {
 }
 
 
-bool should_discard() {
-    return texture(tex_position_draw, tex_coords).a == 0.0;
-}
-
-
 bool is_fragment_inside_clip(vec3 frag_pos_clip_space) {
     return all(lessThanEqual(abs(frag_pos_clip_space), vec3(1.0)));
 }
 
+
 // With "inspiration" from
 // https://github.com/wessles/vkmerc/blob/cb087f425cdbc0b204298833474cf62874505388/examples/res/shaders/misc/cascade_debugger.frag
 void main() {
-    if (should_discard()) discard;
-
-    vec3 frag_pos = texture(tex_position_draw, tex_coords).rgb;
-    vec3 normal   = texture(tex_normals, tex_coords).rgb;
+    float screen_z = textureLod(tex_depth, tex_coords, 0).r;
+    if (screen_z == 1.0) discard;
+    vec4 frag_pos_vs = nss_to_vs(vec3(tex_coords, screen_z), camera.z_near, camera.z_far, camera.inv_proj);
+    vec4 frag_pos_ws = camera.inv_view * frag_pos_vs;
+    vec3 normal      = textureLod(tex_normals, tex_coords, 0).xyz;
 
     const float diffuse_alignment =
         max(dot(normalize(normal), -dir_light.direction), 0.0);
@@ -67,8 +67,7 @@ void main() {
 
         const vec3 color = hsv2rgb(vec3(split_hue(hue_min, hue_max, cid, num_cascades), 1.0, 1.0));
 
-        const vec4 frag_pos_light_space =
-            cascade_params[cid].projview * vec4(frag_pos, 1.0);
+        const vec4 frag_pos_light_space = cascade_params[cid].projview * frag_pos_ws;
 
         if (is_fragment_inside_clip(frag_pos_light_space.xyz)) {
             result_color *= color;

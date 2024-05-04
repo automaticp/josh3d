@@ -46,21 +46,6 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, SSAO) {
     );
 
 
-    using PositionSource = stages::primary::SSAO::PositionSource;
-
-    const char* position_source_names[] = {
-        "GBuffer",
-        "Depth"
-    };
-
-    int source_id = to_underlying(stage_.position_source);
-    if (ImGui::ListBox("Position Source", &source_id,
-        position_source_names, std::size(position_source_names), 2))
-    {
-        stage_.position_source = PositionSource{ source_id };
-    }
-
-
     using NoiseMode = stages::primary::SSAO::NoiseMode;
 
     const char* noise_mode_names[] = {

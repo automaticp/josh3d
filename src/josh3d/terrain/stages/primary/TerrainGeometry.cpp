@@ -16,11 +16,9 @@ void TerrainGeometry::operator()(
 {
     const auto& registry = engine.registry();
 
-    auto bound_fbo     = gbuffer_->bind_draw();
-    auto bound_program = sp_->use();
-
-    sp_->uniform("projection", engine.camera().projection_mat());
-    sp_->uniform("view",       engine.camera().view_mat());
+    BindGuard bound_camera  = engine.bind_camera_ubo();
+    BindGuard bound_fbo     = gbuffer_->bind_draw();
+    BindGuard bound_program = sp_->use();
 
     for (auto [entity, world_mtf, chunk]
         : registry.view<MTransform, components::TerrainChunk>().each())

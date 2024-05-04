@@ -2,6 +2,7 @@
 #extension GL_GOOGLE_include_directive : enable
 #include "lights.glsl"
 #include "camera_ubo.glsl"
+#include "gbuffer.glsl"
 
 
 in vec2  tex_coords;
@@ -45,10 +46,7 @@ struct PointShadow {
 
 
 
-
-uniform sampler2D tex_position_draw;
-uniform sampler2D tex_normals;
-uniform sampler2D tex_albedo_spec;
+uniform GBuffer   gbuffer;
 
 uniform sampler2D tex_ambient_occlusion;
 uniform bool      use_ambient_occlusion = false;
@@ -113,26 +111,22 @@ float dir_light_shadow_obscurance(
 
 
 
-bool should_discard() {
-    // Exit early if no pixels were written in GBuffer.
-    return texture(tex_position_draw, tex_coords).a == 0.0;
-}
-
-
 void main() {
-
-    if (should_discard()) discard;
-
     // Unpack GBuffer.
-    vec3  tex_diffuse  = texture(tex_albedo_spec, tex_coords).rgb;
-    float tex_specular = texture(tex_albedo_spec, tex_coords).a;
-    vec3  frag_pos     = texture(tex_position_draw, tex_coords).rgb;
-    vec3  normal       = texture(tex_normals, tex_coords).rgb;
+    GSample gsample = unpack_gbuffer(gbuffer, tex_coords, camera.z_near, camera.z_far, camera.inv_proj);
+    if (!gsample.drawn) discard;
+
+    vec3 frag_pos_ws = vec3(camera.inv_view * gsample.position_vs);
+
+    // vec3  tex_diffuse  = texture(tex_albedo_spec, tex_coords).rgb;
+    // float tex_specular = texture(tex_albedo_spec, tex_coords).a;
+    // vec3  frag_pos     = texture(tex_position_draw, tex_coords).rgb;
+    // vec3  normal       = texture(tex_normals, tex_coords).rgb;
 
 
     // Apply lighting and shadows.
-    vec3 normal_dir = normalize(normal);
-    vec3 view_dir   = normalize(camera.position - frag_pos);
+    vec3 normal_dir = normalize(gsample.normal);
+    vec3 view_dir   = normalize(camera.position_ws - frag_pos_ws);
 
     vec3 result_color = vec3(0.0);
 
@@ -143,10 +137,18 @@ void main() {
             const PLightParams plight_params = point_lights_with_shadows[i];
             const PointLight   plight        = { plight_params.color, plight_params.position, plight_params.attenuation };
             const float        z_far         = plight_params.radius;
-            const vec3         light_to_frag = frag_pos - plight.position;
+            const vec3         light_to_frag = frag_pos_ws - plight.position;
 
-            const float illumination_factor =
-                1.0 - point_light_shadow_obscurance(frag_pos, normal, plight, z_far, i);
+            const float obscurance =
+                point_light_shadow_obscurance(
+                    frag_pos_ws,
+                    gsample.normal,
+                    plight,
+                    z_far,
+                    i
+                );
+
+            const float illumination_factor = 1.0 - obscurance;
 
             // How bad is this branching?
             // Is it better to branch or to factor out the result?
@@ -156,11 +158,11 @@ void main() {
 
             add_point_light_illumination(
                 color_contrib,
-                frag_pos,
+                frag_pos_ws,
                 illumination_factor,
                 plight,
-                tex_diffuse,
-                tex_specular,
+                gsample.albedo,
+                gsample.specular,
                 normal_dir,
                 view_dir
             );
@@ -183,18 +185,18 @@ void main() {
         for (int i = 0; i < point_lights_no_shadows.length(); ++i) {
             const PLightParams plight_params = point_lights_no_shadows[i];
             const PointLight   plight        = { plight_params.color, plight_params.position, plight_params.attenuation };
-            const vec3         light_to_frag = frag_pos - plight.position;
+            const vec3         light_to_frag = frag_pos_ws - plight.position;
 
 
             vec3 color_contrib = vec3(0.0);
 
             add_point_light_illumination(
                 color_contrib,
-                frag_pos,
+                frag_pos_ws,
                 1.0,
                 plight,
-                tex_diffuse,
-                tex_specular,
+                gsample.albedo,
+                gsample.specular,
                 normal_dir,
                 view_dir
             );
@@ -228,27 +230,19 @@ void main() {
 
         const float illumination_factor =
             dir_shadow.do_cast ?
-                (1.0 - dir_light_shadow_obscurance(frag_pos, normal)) : 1.0;
+                (1.0 - dir_light_shadow_obscurance(frag_pos_ws, gsample.normal)) : 1.0;
 
-        result_color +=
-            dir_light.color * diffuse_strength *
-            tex_diffuse * illumination_factor;
-
-        result_color +=
-            dir_light.color * specular_strength *
-            tex_specular.r * illumination_factor;
+        result_color += dir_light.color * diffuse_strength  * gsample.albedo   * illumination_factor;
+        result_color += dir_light.color * specular_strength * gsample.specular * illumination_factor;
     }
 
     // Ambient light.
 
     if (use_ambient_occlusion) {
         float ambient_occlusion = texture(tex_ambient_occlusion, tex_coords).r;
-        result_color +=
-            ambient_light.color * tex_diffuse *
-            pow(1.0 - ambient_occlusion, ambient_occlusion_power);
+        result_color += ambient_light.color * gsample.albedo * pow(1.0 - ambient_occlusion, ambient_occlusion_power);
     } else {
-        result_color +=
-            ambient_light.color * tex_diffuse;
+        result_color += ambient_light.color * gsample.albedo;
     }
 
 

@@ -95,7 +95,8 @@ inline void CSMDebug::operator()(
 inline void CSMDebug::draw_views_overlay(
     RenderEngineOverlayInterface& engine)
 {
-    const auto& registry = engine.registry();
+    const auto& registry   = engine.registry();
+    BindGuard bound_camera = engine.bind_camera_ubo();
 
     // FIXME: Figure out what information we need here exactly.
     // Cause I'm passing data that's largely irrelevant for the debug.
@@ -104,11 +105,11 @@ inline void CSMDebug::draw_views_overlay(
     csm_params_buf_->upload_data(maps_->params);
     csm_params_buf_->bind_to_index<BufferTargetIndexed::ShaderStorage>(3);
 
-    gbuffer_->position_draw_texture().bind_to_texture_unit(0);
-    gbuffer_->normals_texture()      .bind_to_texture_unit(1);
+    gbuffer_->depth_texture()  .bind_to_texture_unit(0);
+    gbuffer_->normals_texture().bind_to_texture_unit(1);
 
-    sp_views_->uniform("tex_position_draw", 0);
-    sp_views_->uniform("tex_normals",       1);
+    sp_views_->uniform("tex_depth",   0);
+    sp_views_->uniform("tex_normals", 1);
 
     const auto& storage = registry.storage<light::Directional>();
 

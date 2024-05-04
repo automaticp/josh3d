@@ -46,17 +46,21 @@ void DeferredShading::draw_singlepass(
     BindGuard bound_camera_ubo = engine.bind_camera_ubo();
 
     // GBuffer.
-    gbuffer_->position_draw_texture().bind_to_texture_unit(0);
-    gbuffer_->normals_texture()      .bind_to_texture_unit(1);
-    gbuffer_->albedo_spec_texture()  .bind_to_texture_unit(2);
+    gbuffer_->depth_texture()   .bind_to_texture_unit(0);
+    gbuffer_->normals_texture() .bind_to_texture_unit(1);
+    gbuffer_->albedo_texture()  .bind_to_texture_unit(2);
+    gbuffer_->specular_texture().bind_to_texture_unit(3);
     MultibindGuard bound_gbuffer_samplers{
         target_sampler_             ->bind_to_texture_unit(0),
         target_sampler_             ->bind_to_texture_unit(1),
         target_sampler_             ->bind_to_texture_unit(2),
+        target_sampler_             ->bind_to_texture_unit(3),
     };
-    sp_singlepass_->uniform("tex_position_draw", 0);
-    sp_singlepass_->uniform("tex_normals",       1);
-    sp_singlepass_->uniform("tex_albedo_spec",   2);
+
+    sp_singlepass_->uniform("gbuffer.tex_depth",    0);
+    sp_singlepass_->uniform("gbuffer.tex_normals",  1);
+    sp_singlepass_->uniform("gbuffer.tex_albedo",   2);
+    sp_singlepass_->uniform("gbuffer.tex_specular", 3);
 
     // AO.
     input_ao_->blurred_texture                   .bind_to_texture_unit(5);
@@ -76,9 +80,9 @@ void DeferredShading::draw_singlepass(
     sp_singlepass_->uniform("dir_shadow.do_cast",     registry.all_of<tags::ShadowCasting>(dlight_ent));
 
     // Directional shadows.
-    input_csm_->dir_shadow_maps_tgt.depth_attachment().texture().bind_to_texture_unit(3);
-    BindGuard bound_csm_sampler =                  csm_sampler_->bind_to_texture_unit(3);
-    sp_singlepass_->uniform("dir_shadow.cascades",            3);
+    input_csm_->dir_shadow_maps_tgt.depth_attachment().texture().bind_to_texture_unit(4);
+    BindGuard bound_csm_sampler =                  csm_sampler_->bind_to_texture_unit(4);
+    sp_singlepass_->uniform("dir_shadow.cascades",            4);
     sp_singlepass_->uniform("dir_shadow.base_bias_tx",        dir_params.base_bias_tx);
     sp_singlepass_->uniform("dir_shadow.do_blend_cascades",   dir_params.blend_cascades);
     sp_singlepass_->uniform("dir_shadow.blend_size_inner_tx", dir_params.blend_size_inner_tx);
@@ -91,9 +95,9 @@ void DeferredShading::draw_singlepass(
     sp_singlepass_->uniform("fade_length_fraction", plight_fade_length_fraction);
 
     // Point light shadows.
-    input_psm_->point_shadow_maps_tgt.depth_attachment().texture().bind_to_texture_unit(4);
-    BindGuard bound_psm_sampler =                    psm_sampler_->bind_to_texture_unit(4);
-    sp_singlepass_->uniform("point_shadow.maps",        4);
+    input_psm_->point_shadow_maps_tgt.depth_attachment().texture().bind_to_texture_unit(6);
+    BindGuard bound_psm_sampler =                    psm_sampler_->bind_to_texture_unit(6);
+    sp_singlepass_->uniform("point_shadow.maps",        6);
     sp_singlepass_->uniform("point_shadow.bias_bounds", point_params.bias_bounds);
     sp_singlepass_->uniform("point_shadow.pcf_extent",  point_params.pcf_extent);
     sp_singlepass_->uniform("point_shadow.pcf_offset",  point_params.pcf_offset);
@@ -171,22 +175,25 @@ void DeferredShading::draw_multipass(
     NumElems                      num_plights_with_shadow,
     NumElems                      num_plights_no_shadow)
 {
-    const auto& registry = engine.registry();
-    BindGuard bound_camera_ubo = engine.bind_camera_ubo();
+    const auto& registry   = engine.registry();
+    BindGuard bound_camera = engine.bind_camera_ubo();
 
-    gbuffer_->position_draw_texture().bind_to_texture_unit(0);
-    gbuffer_->normals_texture()      .bind_to_texture_unit(1);
-    gbuffer_->albedo_spec_texture()  .bind_to_texture_unit(2);
+    gbuffer_->depth_texture()   .bind_to_texture_unit(0);
+    gbuffer_->normals_texture() .bind_to_texture_unit(1);
+    gbuffer_->albedo_texture()  .bind_to_texture_unit(2);
+    gbuffer_->specular_texture().bind_to_texture_unit(3);
     MultibindGuard bound_gbuffer_samplers{
         target_sampler_             ->bind_to_texture_unit(0),
         target_sampler_             ->bind_to_texture_unit(1),
         target_sampler_             ->bind_to_texture_unit(2),
+        target_sampler_             ->bind_to_texture_unit(3),
     };
 
     auto set_common_uniforms = [&](RawProgram<> sp) {
-        sp.uniform("gbuffer.tex_position_draw", 0);
-        sp.uniform("gbuffer.tex_normals",       1);
-        sp.uniform("gbuffer.tex_albedo_spec",   2);
+        sp.uniform("gbuffer.tex_depth",    0);
+        sp.uniform("gbuffer.tex_normals",  1);
+        sp.uniform("gbuffer.tex_albedo",   2);
+        sp.uniform("gbuffer.tex_specular", 3);
     };
 
     // Ambient + Directional Light Pass.
@@ -201,9 +208,9 @@ void DeferredShading::draw_multipass(
         sp.uniform("ambi_light.color", ambi.color);
 
         // Ambient Occlusion.
-        input_ao_->blurred_texture                   .bind_to_texture_unit(3);
-        BindGuard bound_ao_sampler = target_sampler_->bind_to_texture_unit(3);
-        sp.uniform("ambi_occlusion.tex_occlusion", 3);
+        input_ao_->blurred_texture                   .bind_to_texture_unit(4);
+        BindGuard bound_ao_sampler = target_sampler_->bind_to_texture_unit(4);
+        sp.uniform("ambi_occlusion.tex_occlusion", 4);
         sp.uniform("ambi_occlusion.use",           use_ambient_occlusion);
         sp.uniform("ambi_occlusion.power",         ambient_occlusion_power);
 
@@ -213,9 +220,9 @@ void DeferredShading::draw_multipass(
         sp.uniform("dir_light.direction",    dlight.direction);
 
         // CSM.
-        input_csm_->dir_shadow_maps_tgt.depth_attachment().texture().bind_to_texture_unit(4);
-        BindGuard bound_csm_sampler =                  csm_sampler_->bind_to_texture_unit(4);
-        sp.uniform("dir_shadow.cascades",            4);
+        input_csm_->dir_shadow_maps_tgt.depth_attachment().texture().bind_to_texture_unit(5);
+        BindGuard bound_csm_sampler =                  csm_sampler_->bind_to_texture_unit(5);
+        sp.uniform("dir_shadow.cascades",            5);
         sp.uniform("dir_shadow.do_cast",             registry.all_of<tags::ShadowCasting>(dlight_ent));
         sp.uniform("dir_shadow.base_bias_tx",        dir_params.base_bias_tx);
         sp.uniform("dir_shadow.do_blend_cascades",   dir_params.blend_cascades);
@@ -314,9 +321,9 @@ void DeferredShading::draw_multipass(
         );
 
         // Point Shadows.
-        input_psm_->point_shadow_maps_tgt.depth_attachment().texture().bind_to_texture_unit(3);
-        BindGuard bound_psm_sampler =                    psm_sampler_->bind_to_texture_unit(3);
-        sp.uniform("point_shadows.maps",        3);
+        input_psm_->point_shadow_maps_tgt.depth_attachment().texture().bind_to_texture_unit(4);
+        BindGuard bound_psm_sampler =                    psm_sampler_->bind_to_texture_unit(4);
+        sp.uniform("point_shadows.maps",        4);
         sp.uniform("point_shadows.bias_bounds", point_params.bias_bounds);
         sp.uniform("point_shadows.pcf_extent",  point_params.pcf_extent);
         sp.uniform("point_shadows.pcf_offset",  point_params.pcf_offset);

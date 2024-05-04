@@ -57,11 +57,6 @@ public:
         GeneratedInShader  = 1
     } noise_mode{ NoiseMode::GeneratedInShader };
 
-    enum class PositionSource : GLint {
-        GBuffer = 0,
-        Depth   = 1
-    } position_source{ PositionSource::Depth };
-
 
     SSAO(SharedStorageView<GBuffer> gbuffer);
 
@@ -314,29 +309,26 @@ inline void SSAO::operator()(
 
     // Sampling pass.
     {
-        BindGuard bound_camera_ubo = engine.bind_camera_ubo();
+        BindGuard bound_camera = engine.bind_camera_ubo();
+
+        gbuffer_->depth_texture()        .bind_to_texture_unit(0);
+        gbuffer_->normals_texture()      .bind_to_texture_unit(1);
+        MultibindGuard bound_gbuffer_samplers{
+            target_sampler_             ->bind_to_texture_unit(0),
+            target_sampler_             ->bind_to_texture_unit(1)
+        };
+
+        noise_texture_->bind_to_texture_unit(2);
+
+        sp_sampling_->uniform("tex_depth",         0);
+        sp_sampling_->uniform("tex_normals",       1);
+        sp_sampling_->uniform("tex_noise",         2);
 
         sp_sampling_->uniform("radius",            radius);
         sp_sampling_->uniform("bias",              bias);
-        sp_sampling_->uniform("tex_position_draw", 0);
-        sp_sampling_->uniform("tex_normals",       1);
-        sp_sampling_->uniform("tex_depth",         2);
-        sp_sampling_->uniform("tex_noise",         3);
         sp_sampling_->uniform("noise_size",        noise_size);
         sp_sampling_->uniform("noise_mode",        to_underlying(noise_mode));
-        sp_sampling_->uniform("position_source",   to_underlying(position_source));
 
-
-        gbuffer_->position_draw_texture().bind_to_texture_unit(0);
-        gbuffer_->normals_texture()      .bind_to_texture_unit(1);
-        gbuffer_->depth_texture()        .bind_to_texture_unit(2);
-        MultibindGuard bound_gbuffer_samplers{
-            target_sampler_             ->bind_to_texture_unit(0),
-            target_sampler_             ->bind_to_texture_unit(1),
-            target_sampler_             ->bind_to_texture_unit(2)
-        };
-
-        noise_texture_->bind_to_texture_unit(3);
 
         sampling_kernel_->bind_to_index<BufferTargetIndexed::ShaderStorage>(0);
 

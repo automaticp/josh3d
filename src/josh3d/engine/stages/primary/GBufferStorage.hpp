@@ -3,6 +3,7 @@
 #include "GLAPIBinding.hpp"
 #include "GLMutability.hpp"
 #include "GLTextures.hpp"
+#include "Mesh.hpp"
 #include "RenderEngine.hpp"
 #include "RenderTarget.hpp"
 #include "Attachments.hpp"
@@ -23,10 +24,10 @@ namespace josh {
 class GBuffer {
 public:
     enum class Slot {
-        PositionDraw = 0,
-        Normals      = 1,
-        AlbedoSpec   = 2,
-        ObjectID     = 3
+        Normals  = 0,
+        Albedo   = 1,
+        Specular = 2,
+        ObjectID = 3
     };
 
     GBuffer(
@@ -36,9 +37,9 @@ public:
         : target_{
             resolution,
             std::move(depth),
-            { position_draw_iformat },
-            { normals_iformat       },
-            { albedo_spec_iformat   },
+            { normals_iformat  },
+            { albedo_iformat   },
+            { specular_iformat },
             std::move(object_id)
         }
     {}
@@ -71,11 +72,11 @@ public:
     }
 
 
-    RawTexture2D<GLConst> depth_texture()         const noexcept { return target_.depth_attachment().texture();                     }
-    RawTexture2D<GLConst> position_draw_texture() const noexcept { return target_.color_attachment<Slot::PositionDraw>().texture(); }
-    RawTexture2D<GLConst> normals_texture()       const noexcept { return target_.color_attachment<Slot::Normals>().texture();      }
-    RawTexture2D<GLConst> albedo_spec_texture()   const noexcept { return target_.color_attachment<Slot::AlbedoSpec>().texture();   }
-    RawTexture2D<GLConst> object_id_texture()     const noexcept { return target_.color_attachment<Slot::ObjectID>().texture();     }
+    RawTexture2D<GLConst> depth_texture()     const noexcept { return target_.depth_attachment().texture();                 }
+    RawTexture2D<GLConst> normals_texture()   const noexcept { return target_.color_attachment<Slot::Normals>().texture();  }
+    RawTexture2D<GLConst> albedo_texture()    const noexcept { return target_.color_attachment<Slot::Albedo>().texture();   }
+    RawTexture2D<GLConst> specular_texture()  const noexcept { return target_.color_attachment<Slot::Specular>().texture(); }
+    RawTexture2D<GLConst> object_id_texture() const noexcept { return target_.color_attachment<Slot::ObjectID>().texture(); }
 
     Size2I resolution() const noexcept { return target_.resolution(); }
     void resize(const Size2I& new_resolution) { target_.resize(new_resolution); }
@@ -83,18 +84,49 @@ public:
 
 private:
     using Target = RenderTarget<
-        SharedAttachment<Renderable::Texture2D>, // Depth
-        UniqueAttachment<Renderable::Texture2D>, // Position/Draw
-        UniqueAttachment<Renderable::Texture2D>, // Normals
-        UniqueAttachment<Renderable::Texture2D>, // Albedo/Spec
-        SharedAttachment<Renderable::Texture2D>  // ObjectID
+        SharedAttachment<Renderable::Texture2D>, // D. Depth
+        UniqueAttachment<Renderable::Texture2D>, // 0. Normals
+        UniqueAttachment<Renderable::Texture2D>, // 1. Albedo
+        UniqueAttachment<Renderable::Texture2D>, // 2. Specular
+        SharedAttachment<Renderable::Texture2D>  // 3. ObjectID
     >;
 
     Target target_;
 
-    static constexpr auto position_draw_iformat = InternalFormat::RGBA16F;     // TODO: Should not exist.
-    static constexpr auto normals_iformat       = InternalFormat::RGB8_SNorm;  // TODO: Can be encoded in 2 values.
-    static constexpr auto albedo_spec_iformat   = InternalFormat::RGBA8;       // TODO: Shininess?
+    static constexpr auto normals_iformat  = InternalFormat::RGB8_SNorm;
+    static constexpr auto albedo_iformat   = InternalFormat::RGB8;
+    static constexpr auto specular_iformat = InternalFormat::R8; // TODO: Shininess?
+
+
+    // using Target2 = RenderTarget<
+    //     SharedAttachment<Renderable::Texture2D>, // Depth
+    //     UniqueAttachment<Renderable::Texture2D>, // Normals
+    //     UniqueAttachment<Renderable::Texture2D>, // Albedo
+    //     UniqueAttachment<Renderable::Texture2D>, // Specular
+    //     UniqueAttachment<Renderable::Texture2D>, // Shininess
+    //     SharedAttachment<Renderable::Texture2D>  // ID
+    // >;
+
+    /*
+    (Old: 64 + 24 + 32 = 152 bits)
+
+
+    Depth:     ???         // Use to reconstruct position, test depth < z_far to discard no draw
+    Normals:   RGB8_SNorm; // [0, 1] already normalized to 1, need 3 components to tell +Z from -Z vectors
+                           // If we were to store view-space normals, then maybe we could get away
+                           // with assumption that it is always +Z.
+    Albedo:    RGB8;       // [0, 1] rgb values
+    Specular:  R8;         // [0, 1] specular factor
+    Shininess: R16F;       // [0, inf] phong NDF parameter
+
+    (New: 32 + 24 + 24 + 8 + 16 = 104 bits)
+
+    Emission:  RGB16F // Jeez...
+
+    */
+
+
+
 
 };
 
@@ -178,16 +210,9 @@ inline void GBufferStorage::operator()(
 
     BindGuard bound_fbo{ gbuffer_->bind_draw() };
 
-    // We use alpha of one of the channels in the GBuffer
-    // to detect draws made in the deferred stage and properly
-    // compose the deferred pass output with what's already
-    // been in the main target before the pass.
-    //
-    // TODO: I am not convinced that above is needed at all.
-    // TODO: This entire buffer is not needed tbh. Reconstruct position from depth.
-    glapi::clear_color_buffer(bound_fbo, to_underlying(GBuffer::Slot::PositionDraw), RGBAF { 0.f, 0.f, 0.f, 0.f });
-    glapi::clear_color_buffer(bound_fbo, to_underlying(GBuffer::Slot::Normals),      RGBAF { 0.f, 0.f, 1.f });
-    glapi::clear_color_buffer(bound_fbo, to_underlying(GBuffer::Slot::AlbedoSpec),   RGBAF { 0.f, 0.f, 0.f, 0.f });
+    glapi::clear_color_buffer(bound_fbo, to_underlying(GBuffer::Slot::Normals),  RGBAF{ 0.f, 0.f, 0.f });
+    glapi::clear_color_buffer(bound_fbo, to_underlying(GBuffer::Slot::Albedo),   RGBAF{ 0.f, 0.f, 0.f, 0.f });
+    glapi::clear_color_buffer(bound_fbo, to_underlying(GBuffer::Slot::Specular), RGBAF{ 0.f });
 
 }
 

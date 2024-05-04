@@ -101,7 +101,7 @@ void RenderEngine::update_camera_ubo() noexcept {
     const glm::mat4 inv_projview = glm::inverse(projview);
 
     const CameraData data{
-        .position     = cam_.transform.position(),
+        .position_ws  = cam_.transform.position(),
         .z_near       = params.z_near,
         .z_far        = params.z_far,
         .view         = view,

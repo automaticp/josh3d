@@ -227,7 +227,7 @@ private:
 
     struct CameraData {
         // TODO: std140
-        alignas(std430::align_vec3)  glm::vec3   position;
+        alignas(std430::align_vec3)  glm::vec3   position_ws; // World-space position
         alignas(std430::align_float) float       z_near;
         alignas(std430::align_float) float       z_far;
         alignas(std430::align_vec4)  glm::mat4   view;

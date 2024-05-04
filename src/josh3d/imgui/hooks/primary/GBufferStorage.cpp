@@ -19,16 +19,6 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, GBufferStorage) {
         return { w, h };
     };
 
-    if (ImGui::TreeNode("Position/Draw")) {
-
-        ImGui::Unindent();
-        imgui::ImageGL(void_id(gbuffer.position_draw_texture().id()), imsize());
-        ImGui::Indent();
-
-        ImGui::TreePop();
-    }
-
-
     if (ImGui::TreeNode("Normals")) {
 
         ImGui::Unindent();
@@ -38,16 +28,26 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, GBufferStorage) {
         ImGui::TreePop();
     }
 
-    if (ImGui::TreeNode("Albedo/Spec")) {
+    if (ImGui::TreeNode("Albedo")) {
 
         ImGui::Unindent();
-        // Doesn't really work with the default imgui backend setup.
-        // Since alpha influences transparency, low specularity is not visible.
-        imgui::ImageGL(void_id(gbuffer.albedo_spec_texture().id()), imsize());
+        imgui::ImageGL(void_id(gbuffer.albedo_texture().id()), imsize());
         ImGui::Indent();
 
         ImGui::TreePop();
     }
+
+    if (ImGui::TreeNode("Specular")) {
+
+        ImGui::Unindent();
+        // Doesn't really work with the default imgui backend setup.
+        // Since alpha influences transparency, low specularity is not visible.
+        imgui::ImageGL(void_id(gbuffer.specular_texture().id()), imsize());
+        ImGui::Indent();
+
+        ImGui::TreePop();
+    }
+
 
 
 }
