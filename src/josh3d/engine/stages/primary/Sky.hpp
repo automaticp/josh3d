@@ -137,7 +137,7 @@ inline void Sky::draw_skybox(
     const entt::registry&         registry)
 {
     // TODO: Pulls a single skybox, obviously won't work when there are many.
-    registry.storage<components::Skybox>().begin()->cubemap->bind_to_texture_unit(0);
+    registry.storage<components::Skybox>()->begin()->cubemap->bind_to_texture_unit(0);
 
     BindGuard bound_camera_ubo = engine.bind_camera_ubo();
     sp_skybox_->uniform("cubemap", 0);
@@ -159,7 +159,7 @@ inline void Sky::draw_procedural_sky(
     const entt::registry&         registry)
 {
     // UB if no light, lmao
-    const auto& light = *registry.storage<light::Directional>().begin();
+    const auto& light = *registry.storage<light::Directional>()->begin();
     const auto& cam   = engine.camera();
 
     BindGuard bound_camera_ubo = engine.bind_camera_ubo();

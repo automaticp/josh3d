@@ -85,7 +85,7 @@ inline void CSMSetup::operator()(
 {
     build_from_camera(
         engine.camera(),
-        engine.registry().view<light::Directional>().storage().begin()->direction
+        engine.registry().view<light::Directional>().storage()->begin()->direction
     );
 }
 

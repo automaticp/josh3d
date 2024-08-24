@@ -105,11 +105,12 @@ void ImGuiApplicationAssembly::draw_widgets() {
     // or on_value_change_from() after the widget scope.
     // How it still works somewhat "correctly" after both,
     // is beyond me.
-    ImGuiID dockspace_id =
-        ImGui::DockSpaceOverViewport(
-            ImGui::GetMainViewport(),
-            ImGuiDockNodeFlags_PassthruCentralNode
-        );
+    const ImGuiID dockspace_id = 1; // TODO: Is this an arbitraty nonzero value? IDK after the API change.
+    ImGui::DockSpaceOverViewport(
+        dockspace_id,
+        ImGui::GetMainViewport(),
+        ImGuiDockNodeFlags_PassthruCentralNode
+    );
     ImGui::PopStyleColor();
 
     // FIXME: Terrible, maybe will add "was resized" flag to WindowSizeCache instead.

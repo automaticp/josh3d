@@ -70,7 +70,7 @@ void DeferredShading::draw_singlepass(
     sp_singlepass_->uniform("ambient_occlusion_power", ambient_occlusion_power);
 
     // Ambient light.
-    auto& alight = *registry.storage<light::Ambient>().begin();
+    auto& alight = *registry.storage<light::Ambient>()->begin();
     sp_singlepass_->uniform("ambient_light.color", alight.color);
 
     // Directional light.
@@ -204,7 +204,7 @@ void DeferredShading::draw_multipass(
         set_common_uniforms(sp);
 
         // Ambient Light.
-        auto& ambi = *registry.storage<light::Ambient>().begin();
+        auto& ambi = *registry.storage<light::Ambient>()->begin();
         sp.uniform("ambi_light.color", ambi.color);
 
         // Ambient Occlusion.
@@ -357,7 +357,7 @@ auto DeferredShading::update_point_light_buffers(
     const entt::registry& registry)
         -> std::tuple<NumElems, NumElems>
 {
-    const size_t num_plights = registry.storage<light::Point>().size();
+    const size_t num_plights = registry.storage<light::Point>()->size();
 
     NumElems num_with_shadow{ 0 };
     NumElems num_no_shadow  { 0 };

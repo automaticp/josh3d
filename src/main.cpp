@@ -46,7 +46,7 @@ static auto try_parse_cli_args(cxxopts::Options& options, int argc, const char* 
 {
     try {
         return options.parse(argc, argv);
-    } catch (const cxxopts::OptionParseException& e) {
+    } catch (const cxxopts::exceptions::parsing& e) {
         std::cerr
             << e.what()       << "\n"
             << options.help() << "\n";
