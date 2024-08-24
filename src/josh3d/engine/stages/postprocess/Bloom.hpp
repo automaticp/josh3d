@@ -35,8 +35,8 @@ public:
     size_t    blur_iterations{ 1 };
     float     offset_scale{ 1.f };
 
-    float  gaussian_sample_range{ 1.8f }; // TODO: This should be a set/get pair
-    size_t gaussian_samples{ 4 };         // so that the buffer update would happen in-place.
+    float  gaussian_sample_range{ 3.13f }; // TODO: This should be a set/get pair
+    size_t gaussian_samples{ 2 };          // so that the buffer update would happen in-place.
 
     Bloom(const Size2I& initial_resolution);
 
