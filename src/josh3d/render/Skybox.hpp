@@ -2,7 +2,7 @@
 #include "GLObjects.hpp"
 
 
-namespace josh::components {
+namespace josh {
 
 
 struct Skybox {
@@ -10,4 +10,4 @@ struct Skybox {
 };
 
 
-} // namespace josh::components
+} // namespace josh

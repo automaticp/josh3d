@@ -17,7 +17,7 @@ void LightComponents::operator()(entt::registry& registry) {
 
     if (ImGui::TreeNode("Ambient")) {
 
-        for (auto [e, ambi] : registry.view<light::Ambient>().each()) {
+        for (auto [e, ambi] : registry.view<AmbientLight>().each()) {
             ImGui::PushID(void_id(e));
             ImGui::ColorEdit3("Color", glm::value_ptr(ambi.color), ImGuiColorEditFlags_DisplayHSV);
             ImGui::PopID();
@@ -28,16 +28,16 @@ void LightComponents::operator()(entt::registry& registry) {
 
     if (ImGui::TreeNode("Directional")) {
 
-        for (auto [e, dir] : registry.view<light::Directional>().each()) {
+        for (auto [e, dir] : registry.view<DirectionalLight>().each()) {
             ImGui::PushID(void_id(e));
             ImGui::ColorEdit3("Color", glm::value_ptr(dir.color), ImGuiColorEditFlags_DisplayHSV);
             ImGui::SameLine();
-            bool has_shadow = registry.all_of<tags::ShadowCasting>(e);
+            bool has_shadow = registry.all_of<ShadowCasting>(e);
             if (ImGui::Checkbox("Shadow", &has_shadow)) {
                 if (has_shadow) {
-                    registry.emplace<tags::ShadowCasting>(e);
+                    registry.emplace<ShadowCasting>(e);
                 } else {
-                    registry.remove<tags::ShadowCasting>(e);
+                    registry.remove<ShadowCasting>(e);
                 }
             }
 
@@ -73,9 +73,9 @@ void LightComponents::operator()(entt::registry& registry) {
         ImGui::SameLine();
         if (ImGui::SmallButton("Create")) {
             auto e = registry.create();
-            registry.emplace<light::Point>(e, plight_template_);
+            registry.emplace<PointLight>(e, plight_template_);
             if (plight_has_shadow_) {
-                registry.emplace<tags::ShadowCasting>(e);
+                registry.emplace<ShadowCasting>(e);
             }
         }
 
@@ -96,7 +96,7 @@ void LightComponents::operator()(entt::registry& registry) {
         entt::entity to_duplicate{ entt::null };
         entt::entity to_remove{ entt::null };
 
-        for (auto [e, plight] : registry.view<light::Point>().each()) {
+        for (auto [e, plight] : registry.view<PointLight>().each()) {
             bool display_node =
                 ImGui::TreeNode(void_id(e), "Id %d", entt::to_entity(e));
 
@@ -116,12 +116,12 @@ void LightComponents::operator()(entt::registry& registry) {
                 ImGui::DragFloat3("Position", glm::value_ptr(plight.position), 0.2f);
                 ImGui::ColorEdit3("Color", glm::value_ptr(plight.color), ImGuiColorEditFlags_DisplayHSV);
                 ImGui::SameLine();
-                bool has_shadow = registry.all_of<tags::ShadowCasting>(e);
+                bool has_shadow = registry.all_of<ShadowCasting>(e);
                 if (ImGui::Checkbox("Shadow", &has_shadow)) {
                     if (has_shadow) {
-                        registry.emplace<tags::ShadowCasting>(e);
+                        registry.emplace<ShadowCasting>(e);
                     } else {
-                        registry.remove<tags::ShadowCasting>(e);
+                        registry.remove<ShadowCasting>(e);
                     }
                 }
 
@@ -141,9 +141,9 @@ void LightComponents::operator()(entt::registry& registry) {
 
         if (to_duplicate != entt::null) {
             auto new_e = registry.create();
-            registry.emplace<light::Point>(new_e, registry.get<light::Point>(to_duplicate));
-            if (registry.all_of<tags::ShadowCasting>(to_duplicate)) {
-                registry.emplace<tags::ShadowCasting>(new_e);
+            registry.emplace<PointLight>(new_e, registry.get<PointLight>(to_duplicate));
+            if (registry.all_of<ShadowCasting>(to_duplicate)) {
+                registry.emplace<ShadowCasting>(new_e);
             }
         }
 

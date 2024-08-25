@@ -4,7 +4,7 @@
 #include <vector>
 
 
-namespace josh::components {
+namespace josh {
 
 
 /*
@@ -13,7 +13,7 @@ Mesh entity:
 Mesh
 Transform
 Material (optional)
-components::ChildMesh (optional)
+ChildMesh (optional)
 
 Model entity:
 
@@ -34,4 +34,4 @@ public:
 };
 
 
-} // namespace josh::components
+} // namespace josh

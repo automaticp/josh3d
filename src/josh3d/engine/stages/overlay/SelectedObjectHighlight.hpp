@@ -5,11 +5,11 @@
 #include "RenderEngine.hpp"
 #include "ShaderBuilder.hpp"
 #include "UniformTraits.hpp" // IWYU pragma: keep (traits)
-#include "components/Model.hpp"
-#include "components/TerrainChunk.hpp"
-#include "components/Transform.hpp"
+#include "Model.hpp"
+#include "TerrainChunk.hpp"
+#include "Transform.hpp"
 #include "tags/Selected.hpp"
-#include "components/Mesh.hpp"
+#include "Mesh.hpp"
 #include "VPath.hpp"
 #include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/boolean.h>
@@ -63,7 +63,7 @@ inline void SelectedObjectHighlight::operator()(
     const auto& registry = engine.registry();
 
     if (!show_overlay) { return; }
-    if (registry.view<tags::Selected>().empty()) { return; }
+    if (registry.view<Selected>().empty()) { return; }
 
     BindGuard bound_camera_ubo = engine.bind_camera_ubo();
 
@@ -106,29 +106,29 @@ inline void SelectedObjectHighlight::operator()(
 
 
             for (GLint object_mask{ 255 };
-                auto [e, world_mtf] : registry.view<tags::Selected, components::MTransform>().each())
+                auto [e, world_mtf] : registry.view<Selected, MTransform>().each())
             {
 
                 // Draws either a singular Mesh, or all Meshes in a Model
                 // as a *single object*. Multiple meshes of a selected Model
                 // will share the same outline without overlap.
                 auto draw_func = [&](entt::entity e) {
-                    if (auto mesh = registry.try_get<components::Mesh>(e)) {
+                    if (auto mesh = registry.try_get<Mesh>(e)) {
 
                         sp.uniform(model_loc, world_mtf.model());
                         mesh->draw(bound_program, bound_fbo);
 
-                    } else if (auto model = registry.try_get<components::Model>(e)) {
+                    } else if (auto model = registry.try_get<Model>(e)) {
 
                         for (const entt::entity& mesh_ent : model->meshes()) {
 
-                            const auto& mesh_world_mtf = registry.get<components::MTransform>(mesh_ent);
+                            const auto& mesh_world_mtf = registry.get<MTransform>(mesh_ent);
                             sp.uniform(model_loc, mesh_world_mtf.model());
-                            registry.get<components::Mesh>(mesh_ent).draw(bound_program, bound_fbo);
+                            registry.get<Mesh>(mesh_ent).draw(bound_program, bound_fbo);
 
                         }
 
-                    } else if (auto terrain_chunk = registry.try_get<components::TerrainChunk>(e)) {
+                    } else if (auto terrain_chunk = registry.try_get<TerrainChunk>(e)) {
 
                         sp.uniform(model_loc, world_mtf.model());
                         terrain_chunk->mesh.draw(bound_program, bound_fbo);

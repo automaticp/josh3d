@@ -1,7 +1,7 @@
 #pragma once
 
 
-namespace josh::tags {
+namespace josh {
 
 
 /*
@@ -10,4 +10,4 @@ Tag type denoting objects that are currently selected either via mouse-picking o
 struct Selected {};
 
 
-} // namespace josh::tags
+} // namespace josh

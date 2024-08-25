@@ -118,7 +118,7 @@ inline void LightDummies::operator()(RenderEnginePrimaryInterface& engine) {
 inline void LightDummies::update_plight_params(
     const entt::registry& registry)
 {
-    auto plights_view = registry.view<light::Point>();
+    auto plights_view = registry.view<PointLight>();
     const size_t num_plights = plights_view.size();
 
     resize_to_fit(plight_params_, NumElems{ num_plights });

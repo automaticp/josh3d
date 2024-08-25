@@ -2,9 +2,9 @@
 #include "ECSHelpers.hpp"
 #include "ImGuiComponentWidgets.hpp"
 #include "LightCasters.hpp"
-#include "components/ChildMesh.hpp"
-#include "components/Mesh.hpp"
-#include "components/Model.hpp"
+#include "ChildMesh.hpp"
+#include "Mesh.hpp"
+#include "Model.hpp"
 #include "tags/Selected.hpp"
 #include <entt/entity/entity.hpp>
 #include <imgui.h>
@@ -20,14 +20,14 @@ void ImGuiSelected::display() {
     auto to_remove_model = on_value_change_from<entt::handle>({}, &destroy_model);
     auto to_remove_other = on_value_change_from<entt::handle>({}, +destroy_other);
 
-    for (auto [e] : registry_.view<tags::Selected>().each()) {
+    for (auto [e] : registry_.view<Selected>().each()) {
 
         entt::handle handle{ registry_, e };
 
-        if (auto mesh = handle.try_get<components::Mesh>()) {
+        if (auto mesh = handle.try_get<Mesh>()) {
             // Meshes.
             imgui::MeshWidget(handle);
-            if (auto as_child = handle.try_get<components::ChildMesh>()) {
+            if (auto as_child = handle.try_get<ChildMesh>()) {
 
                 entt::handle parent_handle{ registry_, as_child->parent };
                 if (ImGui::TreeNode(void_id(e),
@@ -39,12 +39,12 @@ void ImGuiSelected::display() {
                     ImGui::TreePop();
                 }
             }
-        } else if (auto model = handle.try_get<components::Model>()) {
+        } else if (auto model = handle.try_get<Model>()) {
             // Models.
             if (imgui::ModelWidget(handle) == imgui::Feedback::Remove) {
                 to_remove_model.set(handle);
             }
-        } else if (auto plight = handle.try_get<light::Point>()) {
+        } else if (auto plight = handle.try_get<PointLight>()) {
             // Point Lights.
             if (imgui::PointLightWidget(handle) == imgui::Feedback::Remove) {
                 to_remove_other.set(handle);

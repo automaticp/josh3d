@@ -1,7 +1,7 @@
 #pragma once
 #include "Transform.hpp"
-#include "components/ChildMesh.hpp"
-#include "components/Model.hpp"
+#include "ChildMesh.hpp"
+#include "Model.hpp"
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
 
@@ -19,7 +19,7 @@ inline auto get_full_mesh_mtransform(
 ) noexcept
     -> MTransform
 {
-    if (auto as_child = mesh_handle.try_get<components::ChildMesh>()) {
+    if (auto as_child = mesh_handle.try_get<ChildMesh>()) {
         const Transform& parent_transform =
             mesh_handle.registry()->get<Transform>(as_child->parent);
         return parent_transform.mtransform() * mesh_mtransform;
@@ -35,7 +35,7 @@ inline auto get_full_mesh_mtransform(entt::const_handle mesh_handle) noexcept
 {
     const Transform& mesh_transform = mesh_handle.get<Transform>();
 
-    if (auto as_child = mesh_handle.try_get<components::ChildMesh>()) {
+    if (auto as_child = mesh_handle.try_get<ChildMesh>()) {
         const Transform& parent_transform =
             mesh_handle.registry()->get<Transform>(as_child->parent);
         return parent_transform.mtransform() * mesh_transform.mtransform();
@@ -47,7 +47,7 @@ inline auto get_full_mesh_mtransform(entt::const_handle mesh_handle) noexcept
 
 inline void destroy_model(entt::handle model_handle) noexcept {
     auto& registry = *model_handle.registry();
-    auto& model    = model_handle.get<components::Model>();
+    auto& model    = model_handle.get<Model>();
     registry.destroy(model.meshes().begin(), model.meshes().end());
     model_handle.destroy();
 }
@@ -66,6 +66,12 @@ inline size_t calculate_view_size(auto entt_view) noexcept {
 template<typename TagT>
 inline bool has_tag(entt::handle handle) noexcept {
     return handle.all_of<TagT>();
+}
+
+
+template<typename ...TagTs>
+inline bool has_tags(entt::handle handle) noexcept {
+    return handle.all_of<TagTs...>();
 }
 
 

@@ -111,7 +111,7 @@ inline void CSMDebug::draw_views_overlay(
     sp_views_->uniform("tex_depth",   0);
     sp_views_->uniform("tex_normals", 1);
 
-    const auto& storage = *registry.storage<light::Directional>();
+    const auto& storage = *registry.storage<DirectionalLight>();
 
     if (auto dir_light_it = storage.begin(); dir_light_it != storage.end()) {
 

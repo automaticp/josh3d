@@ -1,7 +1,7 @@
 #include "ImGuizmoGizmos.hpp"
 #include "Transform.hpp"
-#include "components/ChildMesh.hpp"
-#include "components/Transform.hpp"
+#include "ChildMesh.hpp"
+#include "Transform.hpp"
 #include "tags/Selected.hpp"
 #include <ImGuizmo.h>
 #include <entt/entity/fwd.hpp>
@@ -28,13 +28,13 @@ void ImGuizmoGizmos::new_frame() {
 
 void ImGuizmoGizmos::display() {
 
-    auto view = registry_.view<tags::Selected>();
+    auto view = registry_.view<Selected>();
     if (!view.empty()) {
 
         // TODO: Only handles ONE selected object.
         auto some_selected = entt::handle{ registry_, view.front() };
 
-        if (auto transform = some_selected.try_get<components::Transform>()) {
+        if (auto transform = some_selected.try_get<Transform>()) {
 
             const glm::mat4 view_mat = cam_.view_mat();
             const glm::mat4 proj_mat = cam_.projection_mat();
@@ -85,7 +85,7 @@ void ImGuizmoGizmos::display() {
             */
 
 
-            if (!some_selected.all_of<components::ChildMesh>()) /* is a root or orphaned object */ {
+            if (!some_selected.all_of<ChildMesh>()) /* is a root or orphaned object */ {
 
                 // TODO: This is kinda redundant with the other branch repeating
                 // most of the code here, but whatever for now.
@@ -124,8 +124,8 @@ void ImGuizmoGizmos::display() {
 
             } else /* is a child Mesh */ {
 
-                const entt::entity parent_ent = some_selected.get<components::ChildMesh>().parent;
-                const glm::mat4 parent_mat    = registry_.get<components::Transform>(parent_ent).mtransform().model();
+                const entt::entity parent_ent = some_selected.get<ChildMesh>().parent;
+                const glm::mat4 parent_mat    = registry_.get<Transform>(parent_ent).mtransform().model();
                 const glm::mat4 child_mat     = transform->mtransform().model();
 
                 glm::mat4 world_mat = parent_mat * child_mat;

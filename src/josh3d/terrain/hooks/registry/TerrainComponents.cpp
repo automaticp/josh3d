@@ -11,7 +11,7 @@
 #include "NoiseGenerators.hpp"
 #include "Size.hpp"
 #include "TerrainGenerators.hpp"
-#include "components/TerrainChunk.hpp"
+#include "TerrainChunk.hpp"
 #include "Transform.hpp"
 #include <entt/entt.hpp>
 #include <glbinding/gl/enum.h>
@@ -47,7 +47,7 @@ void TerrainComponents::operator()(entt::registry& registry) {
 
         entt::handle handle{ registry, registry.create() };
         handle.emplace<Transform>();
-        handle.emplace<components::TerrainChunk>(
+        handle.emplace<TerrainChunk>(
             std::move(mesh), std::move(hdata), std::move(heightmap)
         );
 
@@ -59,7 +59,7 @@ void TerrainComponents::operator()(entt::registry& registry) {
     );
 
     for (auto [e, transform, chunk]
-        : registry.view<Transform, components::TerrainChunk>().each())
+        : registry.view<Transform, TerrainChunk>().each())
     {
         ImGui::PushID(void_id(e));
 

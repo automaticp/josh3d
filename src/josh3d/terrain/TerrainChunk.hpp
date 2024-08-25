@@ -5,7 +5,7 @@
 #include "Mesh.hpp"
 
 
-namespace josh::components {
+namespace josh {
 
 
 struct TerrainChunk {

@@ -17,11 +17,11 @@
 #include "VPath.hpp"
 #include "VirtualFilesystem.hpp"
 
-#include "components/ChildMesh.hpp"
+#include "ChildMesh.hpp"
 #include "tags/Selected.hpp"
 #include "tags/ShadowCasting.hpp"
-#include "components/Path.hpp"
-#include "components/Name.hpp"
+#include "Filesystem.hpp"
+#include "Name.hpp"
 
 #include "stages/precompute/CSMSetup.hpp"
 #include "stages/precompute/PointLightSetup.hpp"
@@ -340,7 +340,7 @@ inline void DemoScene::configure_input(SharedStorageView<GBuffer> gbuffer) {
                         return provoking_handle;
                     } else {
                         // Select the whole model if it's a ChildMesh
-                        if (auto as_child = provoking_handle.try_get<components::ChildMesh>()) {
+                        if (auto as_child = provoking_handle.try_get<ChildMesh>()) {
                             return { registry_, as_child->parent };
                         }
                         // Fallback for everything else.
@@ -349,14 +349,14 @@ inline void DemoScene::configure_input(SharedStorageView<GBuffer> gbuffer) {
                 }();
 
                 const bool had_selection =
-                    target_handle.valid() && target_handle.any_of<tags::Selected>();
+                    target_handle.valid() && target_handle.any_of<Selected>();
 
                 // Deselect all selected.
-                registry_.clear<tags::Selected>();
+                registry_.clear<Selected>();
 
                 // Uhh...
                 if (!had_selection && target_handle.valid()) {
-                    target_handle.emplace<tags::Selected>();
+                    target_handle.emplace<Selected>();
                 }
 
             }
@@ -410,24 +410,24 @@ inline void DemoScene::init_registry() {
 
     entt::handle model{ r, r.create() };
 
-    model.emplace<components::Path>(model_asset.path.file);
-    model.emplace<components::Name>(model_asset.path.file.filename());
+    model.emplace<Path>(model_asset.path.file);
+    model.emplace<Name>(model_asset.path.file.filename());
 
     emplace_model_asset_into(model, std::move(model_asset));
 
     model.emplace<Transform>();
 
 
-    r.emplace<light::Ambient>(r.create(), light::Ambient{
+    r.emplace<AmbientLight>(r.create(), AmbientLight{
         .color = { 0.15f, 0.15f, 0.1f }
     });
 
     auto e = r.create();
-    r.emplace<light::Directional>(e, light::Directional{
+    r.emplace<DirectionalLight>(e, DirectionalLight{
         .color = { 0.15f, 0.15f, 0.1f },
         .direction = { -0.2f, -1.0f, -0.3f }
     });
-    r.emplace<tags::ShadowCasting>(e);
+    r.emplace<ShadowCasting>(e);
 
 
     load_skybox_into(entt::handle{ r, r.create() }, VPath("data/skyboxes/yokohama/skybox.json"));

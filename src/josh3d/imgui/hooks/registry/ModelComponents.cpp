@@ -5,10 +5,10 @@
 #include "ImGuiHelpers.hpp"
 #include "ImGuiComponentWidgets.hpp"
 #include "RuntimeError.hpp"
-#include "components/Model.hpp"
-#include "components/Name.hpp"
-#include "components/Path.hpp"
-#include "components/VPath.hpp"
+#include "Model.hpp"
+#include "Name.hpp"
+#include "Filesystem.hpp"
+#include "VPath.hpp"
 #include "tags/Culled.hpp"
 #include "Transform.hpp"
 #include "VPath.hpp"
@@ -59,22 +59,22 @@ void ModelComponents::load_model_widget(entt::registry& registry) {
             if (path.is_absolute()) {
 
                 File file{ path };
-                model_handle.emplace<components::Path>(std::filesystem::canonical(file.path()));
+                model_handle.emplace<Path>(std::filesystem::canonical(file.path()));
                 current_requests.emplace_back(model_handle.entity(), path, assman_.load_model(AssetPath{ file.path(), {} }));
 
             } else /* is_relative */ {
 
                 VPath vpath{ path };
                 File file{ vpath };
-                model_handle.emplace<components::VPath>(std::move(vpath));
-                model_handle.emplace<components::Path>(std::filesystem::canonical(file.path()));
+                model_handle.emplace<VPath>(std::move(vpath));
+                model_handle.emplace<Path>(std::filesystem::canonical(file.path()));
 
                 current_requests.emplace_back(model_handle.entity(), path, assman_.load_model(AssetPath{ file.path(), {} }));
 
             }
 
-            model_handle.emplace<components::Name>(path.filename());
-            model_handle.emplace<components::Transform>();
+            model_handle.emplace<Name>(path.filename());
+            model_handle.emplace<Transform>();
 
         } catch (const error::RuntimeError& e) {
             model_handle.destroy();
@@ -155,7 +155,7 @@ void ModelComponents::model_list_widget(entt::registry& registry) {
     auto to_remove = on_value_change_from<entt::handle>({}, &destroy_model);
 
     for (auto [e, transform, model_component]
-        : registry.view<Transform, components::Model>().each())
+        : registry.view<Transform, Model>().each())
     {
         entt::handle model_handle{ registry, e };
 

@@ -1,8 +1,8 @@
 #pragma once
 #include "RenderEngine.hpp"
-#include "components/ChildMesh.hpp"
-#include "components/Model.hpp"
-#include "components/Transform.hpp"
+#include "ChildMesh.hpp"
+#include "Model.hpp"
+#include "Transform.hpp"
 #include <entt/entity/entity.hpp>
 
 
@@ -68,15 +68,15 @@ inline void TransformResolution::operator()(
         case Strategy::branch_on_children: {
 
             for (auto [entity, transform] :
-                registry.view<components::Transform>().each())
+                registry.view<Transform>().each())
             {
-                if (auto as_child = registry.try_get<components::ChildMesh>(entity)) {
+                if (auto as_child = registry.try_get<ChildMesh>(entity)) {
                     // Redundantly recompute the parent MTransform since we have no way
                     // of knowing if it is up-to-date yet or not.
-                    const auto& parent_mt = registry.get<components::Transform>(as_child->parent).mtransform();
-                    registry.emplace_or_replace<components::MTransform>(entity, parent_mt * transform.mtransform());
+                    const auto& parent_mt = registry.get<Transform>(as_child->parent).mtransform();
+                    registry.emplace_or_replace<MTransform>(entity, parent_mt * transform.mtransform());
                 } else {
-                    registry.emplace_or_replace<components::MTransform>(entity, transform.mtransform());
+                    registry.emplace_or_replace<MTransform>(entity, transform.mtransform());
                 }
             }
 
@@ -85,19 +85,19 @@ inline void TransformResolution::operator()(
         case Strategy::models_then_branch_on_children: {
 
             for (auto [entity, transform, model] :
-                registry.view<components::Transform, components::Model>().each())
+                registry.view<Transform, Model>().each())
             {
-                registry.emplace_or_replace<components::MTransform>(entity, transform.mtransform());
+                registry.emplace_or_replace<MTransform>(entity, transform.mtransform());
             }
 
             for (auto [entity, transform] :
-                registry.view<components::Transform>(entt::exclude<components::Model>).each())
+                registry.view<Transform>(entt::exclude<Model>).each())
             {
-                if (auto as_child = registry.try_get<components::ChildMesh>(entity)) {
-                    const auto& parent_mt = registry.get<components::MTransform>(as_child->parent);
-                    registry.emplace_or_replace<components::MTransform>(entity, parent_mt * transform.mtransform());
+                if (auto as_child = registry.try_get<ChildMesh>(entity)) {
+                    const auto& parent_mt = registry.get<MTransform>(as_child->parent);
+                    registry.emplace_or_replace<MTransform>(entity, parent_mt * transform.mtransform());
                 } else {
-                    registry.emplace_or_replace<components::MTransform>(entity, transform.mtransform());
+                    registry.emplace_or_replace<MTransform>(entity, transform.mtransform());
                 }
             }
 
@@ -105,48 +105,48 @@ inline void TransformResolution::operator()(
         case Strategy::models_children_then_the_rest: {
 
             for (auto [entity, transform, model] :
-                registry.view<components::Transform, components::Model>().each())
+                registry.view<Transform, Model>().each())
             {
-                registry.emplace_or_replace<components::MTransform>(entity, transform.mtransform());
+                registry.emplace_or_replace<MTransform>(entity, transform.mtransform());
             }
 
             for (auto [entity, transform, as_child] :
                 // Models can't be ChildMeshes so no need to exclude them.
-                registry.view<components::Transform, components::ChildMesh>().each())
+                registry.view<Transform, ChildMesh>().each())
             {
-                const auto& parent_mt = registry.get<components::MTransform>(as_child.parent);
-                registry.emplace_or_replace<components::MTransform>(entity, parent_mt * transform.mtransform());
+                const auto& parent_mt = registry.get<MTransform>(as_child.parent);
+                registry.emplace_or_replace<MTransform>(entity, parent_mt * transform.mtransform());
             }
 
             for (auto [entity, transform] :
-                registry.view<components::Transform>(
-                    entt::exclude<components::Model, components::ChildMesh>).each())
+                registry.view<Transform>(
+                    entt::exclude<Model, ChildMesh>).each())
             {
-                registry.emplace_or_replace<components::MTransform>(entity, transform.mtransform());
+                registry.emplace_or_replace<MTransform>(entity, transform.mtransform());
             }
 
         } break;
         case Strategy::top_down_then_the_rest: {
 
             for (auto [entity, transform, model] :
-                registry.view<components::Transform, components::Model>().each())
+                registry.view<Transform, Model>().each())
             {
                 const auto& parent_mt =
-                    registry.emplace_or_replace<components::MTransform>(entity, transform.mtransform());
+                    registry.emplace_or_replace<MTransform>(entity, transform.mtransform());
 
                 for (const auto& mesh_entity : model.meshes()) {
-                    const auto& mesh_tf = registry.get<components::Transform>(mesh_entity);
-                    registry.emplace_or_replace<components::MTransform>(
+                    const auto& mesh_tf = registry.get<Transform>(mesh_entity);
+                    registry.emplace_or_replace<MTransform>(
                         mesh_entity, parent_mt * mesh_tf.mtransform()
                     );
                 }
             }
 
             for (auto [entity, transform] :
-                registry.view<components::Transform>(
-                    entt::exclude<components::Model, components::ChildMesh>).each())
+                registry.view<Transform>(
+                    entt::exclude<Model, ChildMesh>).each())
             {
-                registry.emplace_or_replace<components::MTransform>(entity, transform.mtransform());
+                registry.emplace_or_replace<MTransform>(entity, transform.mtransform());
             }
 
         } break;

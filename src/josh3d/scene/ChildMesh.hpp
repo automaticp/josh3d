@@ -2,7 +2,7 @@
 #include <entt/entity/entity.hpp>
 
 
-namespace josh::components {
+namespace josh {
 
 
 struct ChildMesh {
@@ -16,4 +16,4 @@ struct ChildMesh {
 };
 
 
-} // namespace josh::components
+} // namespace josh

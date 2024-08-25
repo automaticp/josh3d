@@ -4,12 +4,12 @@
 #include "GLObjects.hpp"
 #include "ImGuiHelpers.hpp"
 #include "LightCasters.hpp"
-#include "components/Model.hpp"
-#include "components/Materials.hpp"
-#include "components/Name.hpp"
-#include "components/Path.hpp"
-#include "components/Transform.hpp"
-#include "components/VPath.hpp"
+#include "Model.hpp"
+#include "Materials.hpp"
+#include "Name.hpp"
+#include "Filesystem.hpp"
+#include "Transform.hpp"
+#include "VPath.hpp"
 #include "tags/AlphaTested.hpp"
 #include "tags/Culled.hpp"
 #include "tags/Selected.hpp"
@@ -23,7 +23,7 @@
 namespace josh::imgui {
 
 
-inline bool TransformWidget(josh::components::Transform* transform) noexcept {
+inline bool TransformWidget(josh::Transform* transform) noexcept {
 
     bool feedback{ false };
 
@@ -67,17 +67,17 @@ inline bool TransformWidget(josh::components::Transform* transform) noexcept {
 }
 
 
-inline void NameWidget(josh::components::Name* name) noexcept {
-    ImGui::Text("Name: %s", name->name.c_str());
+inline void NameWidget(josh::Name* name) noexcept {
+    ImGui::Text("Name: %s", name->c_str());
 }
 
 
-inline void PathWidget(josh::components::Path* path) noexcept {
+inline void PathWidget(josh::Path* path) noexcept {
     ImGui::Text("Path: %s", path->c_str());
 }
 
 
-inline void VPathWidget(josh::components::VPath* vpath) noexcept {
+inline void VPathWidget(josh::VPath* vpath) noexcept {
     ImGui::Text("VPath: %s", vpath->path().c_str());
 }
 
@@ -171,7 +171,7 @@ inline void MaterialsWidget(entt::handle mesh) noexcept {
 
 
     bool can_be_alpha_tested{ false };
-    if (auto material = mesh.try_get<components::MaterialDiffuse>()) {
+    if (auto material = mesh.try_get<MaterialDiffuse>()) {
         material_widget(
             material->texture, "Diffuse", "Diffuse Popup", tex_frame_color, tex_tint
         );
@@ -186,7 +186,7 @@ inline void MaterialsWidget(entt::handle mesh) noexcept {
     }
 
 
-    if (auto material = mesh.try_get<components::MaterialSpecular>()) {
+    if (auto material = mesh.try_get<MaterialSpecular>()) {
         ImGui::SameLine();
         material_widget(
             material->texture, "Specular", "Specular Popup", tex_frame_color, tex_tint
@@ -199,7 +199,7 @@ inline void MaterialsWidget(entt::handle mesh) noexcept {
     }
 
 
-    if (auto material = mesh.try_get<components::MaterialNormal>()) {
+    if (auto material = mesh.try_get<MaterialNormal>()) {
         ImGui::SameLine();
         material_widget(
             material->texture, "Normal", "Normal Popup", tex_frame_color, tex_tint
@@ -213,13 +213,13 @@ inline void MaterialsWidget(entt::handle mesh) noexcept {
 
 
     if (can_be_alpha_tested) {
-        bool is_alpha_tested = mesh.all_of<tags::AlphaTested>();
+        bool is_alpha_tested = mesh.all_of<AlphaTested>();
         ImGui::SameLine();
         if (ImGui::Checkbox("Alpha-Testing", &is_alpha_tested)) {
             if (is_alpha_tested) {
-                mesh.emplace<tags::AlphaTested>();
+                mesh.emplace<AlphaTested>();
             } else {
-                mesh.remove<tags::AlphaTested>();
+                mesh.remove<AlphaTested>();
             }
         }
     }
@@ -229,7 +229,7 @@ inline void MaterialsWidget(entt::handle mesh) noexcept {
 inline bool SelectButton(entt::handle handle) noexcept {
     bool feedback{ false };
 
-    const bool is_selected = handle.all_of<tags::Selected>();
+    const bool is_selected = handle.all_of<Selected>();
     constexpr ImVec4 selected_color{ .2f, .6f, .2f, 1.f };
 
     ImGui::PushID(void_id(handle.entity()));
@@ -238,14 +238,14 @@ inline bool SelectButton(entt::handle handle) noexcept {
         ImGui::PushStyleColor(ImGuiCol_Button, selected_color);
 
         if (ImGui::SmallButton("Select")) {
-            handle.erase<tags::Selected>();
+            handle.erase<Selected>();
             feedback = true;
         }
 
         ImGui::PopStyleColor();
     } else /* not selected */ {
         if (ImGui::SmallButton("Select")) {
-            handle.emplace<tags::Selected>();
+            handle.emplace<Selected>();
             feedback = true;
         }
     }
@@ -274,15 +274,15 @@ inline void MeshWidgetHeader(entt::handle mesh_handle) noexcept {
     SelectButton(mesh_handle);
     ImGui::SameLine();
 
-    const bool is_culled = mesh_handle.all_of<tags::Culled>();
+    const bool is_culled = mesh_handle.all_of<Culled>();
     if (is_culled) {
         auto text_color = ImGui::GetStyleColorVec4(ImGuiCol_Text);
         text_color.w *= 0.5f; // Dim text when culled.
         ImGui::PushStyleColor(ImGuiCol_Text, text_color);
     }
 
-    if (auto name = mesh_handle.try_get<components::Name>()) {
-        ImGui::Text("Mesh [%d]: %s", entt::to_entity(mesh_handle.entity()), name->name.c_str());
+    if (auto name = mesh_handle.try_get<Name>()) {
+        ImGui::Text("Mesh [%d]: %s", entt::to_entity(mesh_handle.entity()), name->c_str());
     } else {
         ImGui::Text("Mesh [%d]",     entt::to_entity(mesh_handle.entity()));
     }
@@ -296,7 +296,7 @@ inline void MeshWidgetHeader(entt::handle mesh_handle) noexcept {
 
 inline void MeshWidgetBody(entt::handle mesh_handle) noexcept {
 
-    if (auto tf = mesh_handle.try_get<components::Transform>()) {
+    if (auto tf = mesh_handle.try_get<Transform>()) {
         TransformWidget(tf);
     }
 
@@ -332,8 +332,8 @@ inline Feedback ModelWidgetHeader(entt::handle model_handle) noexcept {
     if (RemoveButton()) { feedback = Feedback::Remove; }
     ImGui::SameLine();
 
-    if (auto name = model_handle.try_get<components::Name>()) {
-        ImGui::Text("Model [%d]: %s", entt::to_entity(model_handle.entity()), name->name.c_str());
+    if (auto name = model_handle.try_get<Name>()) {
+        ImGui::Text("Model [%d]: %s", entt::to_entity(model_handle.entity()), name->c_str());
     } else {
         ImGui::Text("Model [%d]",     entt::to_entity(model_handle.entity()));
     }
@@ -344,22 +344,22 @@ inline Feedback ModelWidgetHeader(entt::handle model_handle) noexcept {
 
 inline void ModelWidgetBody(entt::handle model_handle) noexcept {
 
-    if (auto tf = model_handle.try_get<components::Transform>()) {
+    if (auto tf = model_handle.try_get<Transform>()) {
         TransformWidget(tf);
     }
 
-    if (auto path = model_handle.try_get<components::Path>()) {
+    if (auto path = model_handle.try_get<Path>()) {
         PathWidget(path);
     }
 
-    if (auto vpath = model_handle.try_get<components::VPath>()) {
+    if (auto vpath = model_handle.try_get<VPath>()) {
         VPathWidget(vpath);
     }
 
 
     if (ImGui::TreeNode("Meshes")) {
 
-        auto model = model_handle.try_get<components::Model>();
+        auto model = model_handle.try_get<Model>();
         assert(model);
 
         for (auto mesh_entity : model->meshes()) {    ;
@@ -402,14 +402,14 @@ inline Feedback PointLightWidgetHeader(entt::handle plight_handle) noexcept {
 
 inline void PointLightWidgetBody(entt::handle plight_handle) noexcept {
 
-    if (auto plight = plight_handle.try_get<light::Point>()) {
+    if (auto plight = plight_handle.try_get<PointLight>()) {
 
         ImGui::DragFloat3("Position", glm::value_ptr(plight->position), 0.2f);
         ImGui::ColorEdit3("Color", glm::value_ptr(plight->color), ImGuiColorEditFlags_DisplayHSV);
         ImGui::SameLine();
-        bool has_shadow = has_tag<tags::ShadowCasting>(plight_handle);
+        bool has_shadow = has_tag<ShadowCasting>(plight_handle);
         if (ImGui::Checkbox("Shadow", &has_shadow)) {
-            switch_tag<tags::ShadowCasting>(plight_handle);
+            switch_tag<ShadowCasting>(plight_handle);
         }
 
         ImGui::DragFloat3(

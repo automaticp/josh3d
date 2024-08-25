@@ -2,7 +2,7 @@
 #include "Mesh.hpp"
 #include "RenderEngine.hpp"
 #include "tags/Culled.hpp"
-#include "components/BoundingSphere.hpp"
+#include "BoundingSphere.hpp"
 #include "Transform.hpp"
 #include "ViewFrustum.hpp"
 #include <entt/entity/fwd.hpp>
@@ -21,7 +21,7 @@ public:
     void operator()(RenderEnginePrecomputeInterface& engine);
 
 private:
-    template<typename CullTagT = tags::Culled>
+    template<typename CullTagT = Culled>
     void cull_from_bounding_spheres(
         entt::registry& registry,
         const ViewFrustumAsPlanes& frustum);
@@ -33,7 +33,7 @@ private:
 inline void FrustumCulling::operator()(
     RenderEnginePrecomputeInterface& engine)
 {
-    cull_from_bounding_spheres<tags::Culled>(
+    cull_from_bounding_spheres<Culled>(
         engine.registry(),
         engine.camera().get_frustum_as_planes()
     );
@@ -51,7 +51,7 @@ void FrustumCulling::cull_from_bounding_spheres(
     // transformed with the camera's transforms into world-space.
 
     auto cullable_meshes_view =
-        std::as_const(registry).view<Mesh, MTransform, components::BoundingSphere>();
+        std::as_const(registry).view<Mesh, MTransform, BoundingSphere>();
 
     for (auto [entity, _, world_mtf, sphere] : cullable_meshes_view.each()) {
 

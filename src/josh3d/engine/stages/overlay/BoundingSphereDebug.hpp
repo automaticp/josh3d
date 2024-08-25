@@ -7,8 +7,8 @@
 #include "ShaderBuilder.hpp"
 #include "Transform.hpp"
 #include "VPath.hpp"
-#include "components/BoundingSphere.hpp"
-#include "components/Transform.hpp"
+#include "BoundingSphere.hpp"
+#include "Transform.hpp"
 #include "tags/Selected.hpp"
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
@@ -47,7 +47,7 @@ inline void BoundingSphereDebug::operator()(
     const auto& registry = engine.registry();
 
     if (!display) { return; }
-    if (selected_only && registry.view<tags::Selected>().empty()) { return; }
+    if (selected_only && registry.view<Selected>().empty()) { return; }
 
 
     glapi::enable(Capability::DepthTesting);
@@ -64,7 +64,7 @@ inline void BoundingSphereDebug::operator()(
         auto per_mesh_draw_func = [&] (
             const entt::entity&               entity [[maybe_unused]],
             const MTransform&                 world_mtf,
-            const components::BoundingSphere& sphere)
+            const BoundingSphere& sphere)
         {
 
             const glm::vec3 sphere_center = world_mtf.decompose_position();
@@ -80,8 +80,8 @@ inline void BoundingSphereDebug::operator()(
 
         auto per_plight_draw_func = [&] (
             const entt::entity&               entity [[maybe_unused]],
-            const light::Point&               plight,
-            const components::BoundingSphere& sphere)
+            const PointLight&               plight,
+            const BoundingSphere& sphere)
         {
             const glm::vec3 sphere_scale = glm::vec3{ sphere.radius };
             const auto sphere_transf = Transform().translate(plight.position).scale(sphere_scale);
@@ -93,11 +93,11 @@ inline void BoundingSphereDebug::operator()(
 
 
         if (selected_only) {
-            registry.view<components::MTransform, components::BoundingSphere, tags::Selected>().each(per_mesh_draw_func);
-            registry.view<light::Point, components::BoundingSphere, tags::Selected>().each(per_plight_draw_func);
+            registry.view<MTransform, BoundingSphere, Selected>().each(per_mesh_draw_func);
+            registry.view<PointLight, BoundingSphere, Selected>().each(per_plight_draw_func);
         } else {
-            registry.view<components::MTransform, components::BoundingSphere>().each(per_mesh_draw_func);
-            registry.view<light::Point, components::BoundingSphere>().each(per_plight_draw_func);
+            registry.view<MTransform, BoundingSphere>().each(per_mesh_draw_func);
+            registry.view<PointLight, BoundingSphere>().each(per_plight_draw_func);
         }
     });
 

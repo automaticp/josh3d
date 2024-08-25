@@ -7,7 +7,7 @@
 #include "Mesh.hpp"
 #include "UniformTraits.hpp" // IWYU pragma: keep (traits)
 #include "LightCasters.hpp"
-#include "components/BoundingSphere.hpp"
+#include "BoundingSphere.hpp"
 #include "tags/ShadowCasting.hpp"
 #include "RenderEngine.hpp"
 #include <algorithm>
@@ -70,14 +70,14 @@ void DeferredShading::draw_singlepass(
     sp_singlepass_->uniform("ambient_occlusion_power", ambient_occlusion_power);
 
     // Ambient light.
-    auto& alight = *registry.storage<light::Ambient>()->begin();
+    auto& alight = *registry.storage<AmbientLight>()->begin();
     sp_singlepass_->uniform("ambient_light.color", alight.color);
 
     // Directional light.
-    auto [dlight_ent, dlight] = *registry.view<light::Directional>().each().begin();
+    auto [dlight_ent, dlight] = *registry.view<DirectionalLight>().each().begin();
     sp_singlepass_->uniform("dir_light.color",        dlight.color);
     sp_singlepass_->uniform("dir_light.direction",    dlight.direction);
-    sp_singlepass_->uniform("dir_shadow.do_cast",     registry.all_of<tags::ShadowCasting>(dlight_ent));
+    sp_singlepass_->uniform("dir_shadow.do_cast",     registry.all_of<ShadowCasting>(dlight_ent));
 
     // Directional shadows.
     input_csm_->dir_shadow_maps_tgt.depth_attachment().texture().bind_to_texture_unit(4);
@@ -204,7 +204,7 @@ void DeferredShading::draw_multipass(
         set_common_uniforms(sp);
 
         // Ambient Light.
-        auto& ambi = *registry.storage<light::Ambient>()->begin();
+        auto& ambi = *registry.storage<AmbientLight>()->begin();
         sp.uniform("ambi_light.color", ambi.color);
 
         // Ambient Occlusion.
@@ -215,7 +215,7 @@ void DeferredShading::draw_multipass(
         sp.uniform("ambi_occlusion.power",         ambient_occlusion_power);
 
         // Directional Light.
-        auto [dlight_ent, dlight] = *registry.view<light::Directional>().each().begin();
+        auto [dlight_ent, dlight] = *registry.view<DirectionalLight>().each().begin();
         sp.uniform("dir_light.color",        dlight.color);
         sp.uniform("dir_light.direction",    dlight.direction);
 
@@ -223,7 +223,7 @@ void DeferredShading::draw_multipass(
         input_csm_->dir_shadow_maps_tgt.depth_attachment().texture().bind_to_texture_unit(5);
         BindGuard bound_csm_sampler =                  csm_sampler_->bind_to_texture_unit(5);
         sp.uniform("dir_shadow.cascades",            5);
-        sp.uniform("dir_shadow.do_cast",             registry.all_of<tags::ShadowCasting>(dlight_ent));
+        sp.uniform("dir_shadow.do_cast",             registry.all_of<ShadowCasting>(dlight_ent));
         sp.uniform("dir_shadow.base_bias_tx",        dir_params.base_bias_tx);
         sp.uniform("dir_shadow.do_blend_cascades",   dir_params.blend_cascades);
         sp.uniform("dir_shadow.blend_size_inner_tx", dir_params.blend_size_inner_tx);
@@ -357,7 +357,7 @@ auto DeferredShading::update_point_light_buffers(
     const entt::registry& registry)
         -> std::tuple<NumElems, NumElems>
 {
-    const size_t num_plights = registry.storage<light::Point>()->size();
+    const size_t num_plights = registry.storage<PointLight>()->size();
 
     NumElems num_with_shadow{ 0 };
     NumElems num_no_shadow  { 0 };
@@ -369,8 +369,8 @@ auto DeferredShading::update_point_light_buffers(
 
     resize_to_fit(plights_buf_, NumElems{ num_plights });
 
-    auto plights_with_shadow_view = registry.view<light::Point, components::BoundingSphere, tags::ShadowCasting>();
-    auto plights_no_shadow_view   = registry.view<light::Point, components::BoundingSphere>(entt::exclude<tags::ShadowCasting>);
+    auto plights_with_shadow_view = registry.view<PointLight, BoundingSphere, ShadowCasting>();
+    auto plights_no_shadow_view   = registry.view<PointLight, BoundingSphere>(entt::exclude<ShadowCasting>);
 
 
     std::span mapped = plights_buf_->map_for_write();

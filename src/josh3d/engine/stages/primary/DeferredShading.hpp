@@ -106,7 +106,7 @@ private:
         alignas(std430::align_vec3)  glm::vec3 color;
         alignas(std430::align_vec3)  glm::vec3 position;
         alignas(std430::align_float) float     radius;
-        light::Attenuation                     attenuation;
+        Attenuation                     attenuation;
     };
 
     UniqueBuffer<PLight>        plights_buf_;

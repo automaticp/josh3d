@@ -5,7 +5,7 @@
 #include "Logging.hpp"
 #include "tags/AlphaTested.hpp"
 #include "tags/CulledFromCSM.hpp"
-#include "components/Materials.hpp"
+#include "Materials.hpp"
 #include "Transform.hpp"
 #include "Mesh.hpp"
 #include "UniformTraits.hpp" // IWYU pragma: keep (traits)
@@ -25,8 +25,8 @@ void CascadedShadowMapping::operator()(
     RenderEnginePrimaryInterface& engine)
 {
     // Check if the scene's directional light has shadowcasting enabled.
-    auto dlight_ent = *engine.registry().view<light::Directional>().begin();
-    if (!engine.registry().all_of<tags::ShadowCasting>(dlight_ent)) {
+    auto dlight_ent = *engine.registry().view<DirectionalLight>().begin();
+    if (!engine.registry().all_of<ShadowCasting>(dlight_ent)) {
         // Early-out if no shadowcasting.
         return;
     }
@@ -77,13 +77,13 @@ void CascadedShadowMapping::draw_all_world_geometry_no_alpha_test(
 
     draw_from_view(
         registry.view<MTransform, Mesh>(
-            entt::exclude<tags::AlphaTested, tags::CulledFromCSM>
+            entt::exclude<AlphaTested, CulledFromCSM>
         )
     );
 
     draw_from_view(
-        registry.view<MTransform, Mesh, tags::AlphaTested>(
-            entt::exclude<components::MaterialDiffuse, tags::CulledFromCSM>
+        registry.view<MTransform, Mesh, AlphaTested>(
+            entt::exclude<MaterialDiffuse, CulledFromCSM>
         )
     );
 
@@ -101,8 +101,8 @@ void CascadedShadowMapping::draw_all_world_geometry_with_alpha_test(
     sp_with_alpha_->uniform("material.diffuse", 0);
 
     auto meshes_with_alpha_view =
-        registry.view<MTransform, Mesh, components::MaterialDiffuse, tags::AlphaTested>(
-            entt::exclude<tags::CulledFromCSM>
+        registry.view<MTransform, Mesh, MaterialDiffuse, AlphaTested>(
+            entt::exclude<CulledFromCSM>
         );
 
     for (auto [entity, world_mtf, mesh, diffuse]

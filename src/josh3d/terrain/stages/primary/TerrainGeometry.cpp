@@ -2,7 +2,7 @@
 #include "UniformTraits.hpp" // IWYU pragma: keep (traits)
 #include "RenderEngine.hpp"
 #include "Transform.hpp"
-#include "components/TerrainChunk.hpp"
+#include "TerrainChunk.hpp"
 #include <entt/entt.hpp>
 
 
@@ -21,7 +21,7 @@ void TerrainGeometry::operator()(
     BindGuard bound_program = sp_->use();
 
     for (auto [entity, world_mtf, chunk]
-        : registry.view<MTransform, components::TerrainChunk>().each())
+        : registry.view<MTransform, TerrainChunk>().each())
     {
         chunk.heightmap->bind_to_texture_unit(0);
 

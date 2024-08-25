@@ -1,10 +1,9 @@
 #pragma once
-#include "GLMutability.hpp"
 #include "GLObjects.hpp"
 #include "GLScalars.hpp"
 
 
-namespace josh::components {
+namespace josh {
 
 
 struct MaterialDiffuse {
@@ -21,4 +20,4 @@ struct MaterialNormal {
 };
 
 
-} // namespace josh::components
+} // namespace josh

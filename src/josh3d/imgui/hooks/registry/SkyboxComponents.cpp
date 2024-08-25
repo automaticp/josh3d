@@ -2,7 +2,7 @@
 #include "ComponentLoaders.hpp"
 #include "Filesystem.hpp"
 #include "ImGuiHelpers.hpp"
-#include "components/Skybox.hpp"
+#include "Skybox.hpp"
 #include "VPath.hpp"
 #include <entt/entity/entity.hpp>
 #include <entt/entt.hpp>
@@ -31,7 +31,7 @@ void SkyboxComponents::operator()(entt::registry& registry) {
                 }
             });
 
-            auto skybox_e = registry.view<components::Skybox>().back();
+            auto skybox_e = registry.view<Skybox>().back();
             if (skybox_e == entt::null) {
                 skybox_e = registry.create();
             }

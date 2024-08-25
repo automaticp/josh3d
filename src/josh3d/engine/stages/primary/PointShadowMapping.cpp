@@ -2,10 +2,10 @@
 #include "GLAPIBinding.hpp"
 #include "GLProgram.hpp"
 #include "UniformTraits.hpp" // IWYU pragma: keep (traits)
-#include "components/BoundingSphere.hpp"
+#include "BoundingSphere.hpp"
 #include "tags/ShadowCasting.hpp"
 #include "tags/AlphaTested.hpp"
-#include "components/Materials.hpp"
+#include "Materials.hpp"
 #include "ECSHelpers.hpp"
 #include "Transform.hpp"
 #include "LightCasters.hpp"
@@ -41,7 +41,7 @@ void PointShadowMapping::resize_cubemap_array_storage_if_needed(
 {
 
     auto plights_with_shadow =
-        registry.view<light::Point, tags::ShadowCasting>();
+        registry.view<PointLight, ShadowCasting>();
 
     // This technically makes a redundant iteration over the view
     // because getting the size from a view is an O(n) operation.
@@ -83,7 +83,7 @@ void PointShadowMapping::map_point_shadows(
 
 
     auto plights_with_shadows_view =
-        registry.view<light::Point, components::BoundingSphere, tags::ShadowCasting>();
+        registry.view<PointLight, BoundingSphere, ShadowCasting>();
 
 
     auto bound_fbo = maps.bind_draw();
@@ -184,11 +184,11 @@ void PointShadowMapping::draw_all_world_geometry_no_alpha_test(
     // Both ignore Alpha-Testing.
 
     draw_from_view(
-        registry.view<MTransform, Mesh>(entt::exclude<tags::AlphaTested>)
+        registry.view<MTransform, Mesh>(entt::exclude<AlphaTested>)
     );
 
     draw_from_view(
-        registry.view<MTransform, Mesh, tags::AlphaTested>(entt::exclude<components::MaterialDiffuse>)
+        registry.view<MTransform, Mesh, AlphaTested>(entt::exclude<MaterialDiffuse>)
     );
 
 }
@@ -204,7 +204,7 @@ void PointShadowMapping::draw_all_world_geometry_with_alpha_test(
     sp_with_alpha_->uniform("material.diffuse", 0);
 
     auto meshes_with_alpha_view =
-        registry.view<MTransform, Mesh, components::MaterialDiffuse, tags::AlphaTested>();
+        registry.view<MTransform, Mesh, MaterialDiffuse, AlphaTested>();
 
 
     const Location model_loc = sp_with_alpha_->get_uniform_location("model");

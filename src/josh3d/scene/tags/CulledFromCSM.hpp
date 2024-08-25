@@ -1,7 +1,7 @@
 #pragma once
 
 
-namespace josh::tags {
+namespace josh {
 
 
 /*
@@ -10,4 +10,4 @@ Tag type denoting objects that were culled from directional cascaded shadow mapp
 struct CulledFromCSM {};
 
 
-} // namespace josh::tags
+} // namespace josh

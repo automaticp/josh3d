@@ -1,7 +1,7 @@
 #pragma once
 #include "RenderEngine.hpp"
 #include "LightCasters.hpp"
-#include "components/BoundingSphere.hpp"
+#include "BoundingSphere.hpp"
 #include <glm/common.hpp>
 #include <limits>
 
@@ -29,7 +29,7 @@ inline void PointLightSetup::operator()(
     const float max_attenuation = threshold_fraction;
 
     auto solve_for_distance = [](
-        const light::Attenuation& attenuation_coeffs,
+        const Attenuation& attenuation_coeffs,
         float                     attenuation)
             -> float
     {
@@ -87,12 +87,12 @@ inline void PointLightSetup::operator()(
     };
 
 
-    for (auto [e, plight] : registry.view<light::Point>().each()) {
+    for (auto [e, plight] : registry.view<PointLight>().each()) {
 
         const float max_distance =
             solve_for_distance(plight.attenuation, max_attenuation);
 
-        registry.emplace_or_replace<components::BoundingSphere>(e, max_distance);
+        registry.emplace_or_replace<BoundingSphere>(e, max_distance);
     }
 }
 
