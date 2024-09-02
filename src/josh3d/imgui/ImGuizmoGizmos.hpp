@@ -1,32 +1,29 @@
 #pragma once
 #include "PerspectiveCamera.hpp"
-#include <entt/entity/registry.hpp>
+#include <entt/fwd.hpp>
 
 
 namespace josh {
 
 
 enum class GizmoOperation {
-    translation,
-    rotation,
-    scaling
+    Translation,
+    Rotation,
+    Scaling
 };
 
 
 enum class GizmoSpace {
-    world,
-    local
+    World,
+    Local
 };
 
 
 class ImGuizmoGizmos {
-private:
-    const PerspectiveCamera& cam_;
-    entt::registry& registry_;
-
 public:
-    GizmoOperation active_operation{ GizmoOperation::translation };
-    GizmoSpace     active_space    { GizmoSpace::world            };
+    GizmoOperation active_operation    { GizmoOperation::Translation };
+    GizmoSpace     active_space        { GizmoSpace::World           };
+    bool           display_debug_window{ false                       };
 
     ImGuizmoGizmos(const PerspectiveCamera& ref_camera, entt::registry& registry)
         : cam_     { ref_camera }
@@ -35,6 +32,10 @@ public:
 
     void new_frame();
     void display();
+
+private:
+    const PerspectiveCamera& cam_;
+    entt::registry&          registry_;
 };
 
 

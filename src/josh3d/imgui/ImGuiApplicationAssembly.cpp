@@ -1,6 +1,7 @@
 #include "ImGuiApplicationAssembly.hpp"
 #include "FrameTimer.hpp"
 #include "ImGuiHelpers.hpp"
+#include "ImGuiSceneList.hpp"
 #include "ImGuiSelected.hpp"
 #include "ImGuizmoGizmos.hpp"
 #include "PerspectiveCamera.hpp"
@@ -23,13 +24,19 @@ ImGuiApplicationAssembly::ImGuiApplicationAssembly(
     const PerspectiveCamera& cam,
     VirtualFilesystem& vfs
 )
-    : context_{ window }
-    , window_settings_{ window }
-    , vfs_control_{ vfs }
-    , stage_hooks_{ engine }
-    , registry_hooks_{ registry }
-    , selected_menu_{ registry }
-    , gizmos_{ cam, registry }
+    : window_         { window        }
+    , engine_         { engine        }
+    , registry_       { registry      }
+    , cam_            { cam           }
+    , vfs_            { vfs           }
+    , context_        { window        }
+    , window_settings_{ window        }
+    , vfs_control_    { vfs           }
+    , stage_hooks_    { engine        }
+    , registry_hooks_ { registry      }
+    , scene_list_     { registry      }
+    , selected_menu_  { registry      }
+    , gizmos_         { cam, registry }
 {}
 
 
@@ -70,17 +77,17 @@ void ImGuiApplicationAssembly::new_frame() {
         [this]() -> char {
             switch (active_gizmo_space()) {
                 using enum GizmoSpace;
-                case world: return 'W';
-                case local: return 'L';
+                case World: return 'W';
+                case Local: return 'L';
                 default:    return ' ';
             }
         }(),
         [this]() -> char {
             switch (active_gizmo_operation()) {
                 using enum GizmoOperation;
-                case translation: return 'T';
-                case rotation:    return 'R';
-                case scaling:     return 'S';
+                case Translation: return 'T';
+                case Rotation:    return 'R';
+                case Scaling:     return 'S';
                 default:          return ' ';
             }
         }()
@@ -136,10 +143,12 @@ void ImGuiApplicationAssembly::draw_widgets() {
 
             ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
 
+
             if (ImGui::BeginMenu("Window")) {
                 window_settings_.display();
                 ImGui::EndMenu();
             }
+
 
             if (ImGui::BeginMenu("ImGui")) {
 
@@ -152,8 +161,28 @@ void ImGuiApplicationAssembly::draw_widgets() {
 
                 reset_condition.set(ImGui::Button("Reset Dockspace"));
 
+                ImGui::Checkbox("Gizmo Debug Window", &gizmos_.display_debug_window);
+                ImGui::Checkbox("Show Model Matrix in Selected", &selected_menu_.display_model_matrix);
+
                 ImGui::EndMenu();
             }
+
+
+            if (ImGui::BeginMenu("Engine")) {
+
+                ImGui::Checkbox("RGB -> sRGB",    &engine_.enable_srgb_conversion);
+                ImGui::Checkbox("GPU/CPU Timers", &engine_.capture_stage_timings );
+
+                ImGui::BeginDisabled(!engine_.capture_stage_timings);
+                ImGui::SliderFloat(
+                    "Timing Interval, s", &engine_.stage_timing_averaging_interval_s,
+                    0.001f, 5.f, "%.3f", ImGuiSliderFlags_Logarithmic
+                );
+                ImGui::EndDisabled();
+
+                ImGui::EndMenu();
+            }
+
 
             if (ImGui::BeginMenu("VFS")) {
                 vfs_control_.display();
@@ -188,6 +217,10 @@ void ImGuiApplicationAssembly::draw_widgets() {
             registry_hooks_ .display();
         } ImGui::End();
 
+        if (ImGui::Begin("Scene")) {
+            scene_list_.display();
+        } ImGui::End();
+
         ImGui::PopStyleColor();
     }
 
@@ -208,13 +241,15 @@ void ImGuiApplicationAssembly::reset_dockspace(ImGuiID dockspace_id) {
     ImGui::DockBuilderSetNodeSize(dockspace_id, ImGui::GetMainViewport()->Size);
 
     float h_split = 3.5f;
-    auto left_id  = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left,  1.f / h_split, nullptr, &dockspace_id);
+    auto left_id        = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left,  1.f / h_split, nullptr, &dockspace_id);
     h_split -= 1.f;
-    auto right_id = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Right, 1.f / h_split, nullptr, &dockspace_id);
+    auto right_id       = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Right, 1.f / h_split, nullptr, &dockspace_id);
+    auto left_bottom_id = ImGui::DockBuilderSplitNode(left_id,      ImGuiDir_Down,  0.5f,          nullptr, &left_id     );
 
-    ImGui::DockBuilderDockWindow("Registry", left_id);
-    ImGui::DockBuilderDockWindow("Selected", left_id);
-    ImGui::DockBuilderDockWindow("Render Engine", right_id);
+    ImGui::DockBuilderDockWindow("Registry",      left_id       );
+    ImGui::DockBuilderDockWindow("Selected",      left_bottom_id);
+    ImGui::DockBuilderDockWindow("Scene",         left_id       );
+    ImGui::DockBuilderDockWindow("Render Engine", right_id      );
 
 
     ImGui::DockBuilderFinish(dockspace_id);

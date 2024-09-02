@@ -1,7 +1,7 @@
 #include "ModelComponents.hpp"
 #include "AssetManager.hpp"
 #include "ComponentLoaders.hpp"
-#include "ECSHelpers.hpp"
+#include "ObjectLifecycle.hpp"
 #include "ImGuiHelpers.hpp"
 #include "ImGuiComponentWidgets.hpp"
 #include "RuntimeError.hpp"
@@ -152,7 +152,7 @@ void ModelComponents::load_model_widget(entt::registry& registry) {
 
 void ModelComponents::model_list_widget(entt::registry& registry) {
 
-    auto to_remove = on_value_change_from<entt::handle>({}, &destroy_model);
+    auto to_remove = on_value_change_from<entt::handle>({}, &destroy_subtree);
 
     for (auto [e, transform, model_component]
         : registry.view<Transform, Model>().each())

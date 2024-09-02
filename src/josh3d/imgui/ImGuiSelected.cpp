@@ -1,10 +1,12 @@
 #include "ImGuiSelected.hpp"
-#include "ECSHelpers.hpp"
 #include "ImGuiComponentWidgets.hpp"
 #include "LightCasters.hpp"
-#include "ChildMesh.hpp"
 #include "Mesh.hpp"
-#include "Model.hpp"
+#include "ObjectLifecycle.hpp"
+#include "SceneGraph.hpp"
+#include "Skybox.hpp"
+#include "TerrainChunk.hpp"
+#include "Transform.hpp"
 #include "tags/Selected.hpp"
 #include <entt/entity/entity.hpp>
 #include <imgui.h>
@@ -13,50 +15,108 @@
 namespace josh {
 
 
+namespace imgui {
+
+
+struct GenericHeaderInfo {
+    const char* type_name = "UnknownEntityType";
+    const char* name      = "";
+};
+
+
+static auto GetGenericHeaderInfo(entt::handle handle)
+    -> GenericHeaderInfo
+{
+    const char* type_name = [&]() {
+        if (handle.all_of<Mesh>())             { return "Mesh";             }
+        if (handle.all_of<TerrainChunk>())     { return "TerrainChunk";     }
+        if (handle.all_of<AmbientLight>())     { return "AmbientLight";     }
+        if (handle.all_of<DirectionalLight>()) { return "DirectionalLight"; }
+        if (handle.all_of<PointLight>())       { return "PointLight";       }
+        if (handle.all_of<Skybox>())           { return "Skybox";           }
+
+
+        if (handle.all_of<Transform>()) {
+            if (has_children(handle)) { return "Node";   }
+            else                      { return "Orphan"; }
+        } else {
+            if (has_children(handle)) { return "GroupingNode";  } // Does this even make sense?
+            else                      { return "UnknownEntity"; }
+        }
+    }();
+
+    const char* name = [&]() {
+        if (const Name* name = handle.try_get<Name>()) {
+            return name->c_str();
+        } else {
+            return "";
+        }
+    }();
+
+    return { type_name, name };
+}
+
+
+void GenericHeaderText(entt::handle handle) {
+    const bool is_culled = has_tag<Culled>(handle);
+    if (is_culled) {
+        auto text_color = ImGui::GetStyleColorVec4(ImGuiCol_Text);
+        text_color.w *= 0.5f; // Dim text when culled.
+        ImGui::PushStyleColor(ImGuiCol_Text, text_color);
+    }
+
+    auto [type_name, name] = GetGenericHeaderInfo(handle);
+    ImGui::Text("[%d] [%s] %s", entt::to_entity(handle.entity()), type_name, name);
+
+    if (is_culled) {
+        ImGui::PopStyleColor();
+    }
+}
+
+
+} // namespace imgui
+
+
 void ImGuiSelected::display() {
 
-    auto destroy_other = [](entt::handle handle) { handle.destroy(); };
+    // auto to_remove = on_value_change_from<entt::handle>({}, &destroy_subtree);
 
-    auto to_remove_model = on_value_change_from<entt::handle>({}, &destroy_model);
-    auto to_remove_other = on_value_change_from<entt::handle>({}, +destroy_other);
+    for (auto entity : registry_.view<Selected>()) {
+        ImGui::PushID(void_id(entity));
+        const entt::handle handle{ registry_, entity };
 
-    for (auto [e] : registry_.view<Selected>().each()) {
 
-        entt::handle handle{ registry_, e };
+        imgui::GenericHeaderText(handle);
 
-        if (auto mesh = handle.try_get<Mesh>()) {
-            // Meshes.
-            imgui::MeshWidget(handle);
-            if (auto as_child = handle.try_get<ChildMesh>()) {
-
-                entt::handle parent_handle{ registry_, as_child->parent };
-                if (ImGui::TreeNode(void_id(e),
-                    "Part of Model [%d]", entt::to_entity(parent_handle.entity())))
-                {
-                    if (imgui::ModelWidget(parent_handle) == imgui::Feedback::Remove) {
-                        to_remove_model.set(parent_handle);
-                    }
-                    ImGui::TreePop();
-                }
-            }
-        } else if (auto model = handle.try_get<Model>()) {
-            // Models.
-            if (imgui::ModelWidget(handle) == imgui::Feedback::Remove) {
-                to_remove_model.set(handle);
-            }
-        } else if (auto plight = handle.try_get<PointLight>()) {
-            // Point Lights.
-            if (imgui::PointLightWidget(handle) == imgui::Feedback::Remove) {
-                to_remove_other.set(handle);
-            }
-        } else {
-            ImGui::Text("Unknown Entity [%d]", entt::to_entity(handle.entity()));
+        // Display Transform independent of other components.
+        if (auto transform = handle.try_get<Transform>()) {
+            imgui::TransformWidget(transform);
         }
 
-        // TODO:
-        // - Deal with lights;
-        // - Deal with terrain chunks.
+        // Mostly for debugging.
+        if (display_model_matrix) {
+            if (auto mtf = handle.try_get<MTransform>()) {
+                imgui::Matrix4x4DisplayWidget(mtf->model());
+            }
+        }
 
+        if (auto mesh = handle.try_get<Mesh>()) {
+            imgui::MaterialsWidget(handle);
+        }
+
+        if (auto plight = handle.try_get<PointLight>()) {
+            imgui::PointLightWidgetBody(handle);
+        }
+        if (auto dlight = handle.try_get<DirectionalLight>()) {
+            imgui::DirectionalLightWidget(handle);
+        }
+
+        if (auto alight = handle.try_get<AmbientLight>()) {
+            imgui::AmbientLightWidget(alight);
+        }
+
+        ImGui::Separator();
+        ImGui::PopID();
     }
 
 }

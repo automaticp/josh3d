@@ -9,20 +9,6 @@ namespace josh {
 
 void ImGuiEngineHooks::display() {
 
-    ImGui::Checkbox("RGB -> sRGB", &engine_.enable_srgb_conversion);
-    ImGui::Checkbox("GPU/CPU Timers", &engine_.capture_stage_timings);
-
-    ImGui::BeginDisabled(!engine_.capture_stage_timings);
-    ImGui::SliderFloat(
-        "Timing Interval, s", &engine_.stage_timing_averaging_interval_s,
-        0.001f, 5.f, "%.3f", ImGuiSliderFlags_Logarithmic
-    );
-    ImGui::EndDisabled();
-
-
-    ImGui::Separator();
-
-
     auto display_hooks = [this](auto stages_view) {
         auto& hooks = hooks_container_.hooks_;
 

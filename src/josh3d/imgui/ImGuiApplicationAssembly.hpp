@@ -1,5 +1,6 @@
 #pragma once
 #include "ImGuiContextWrapper.hpp"
+#include "ImGuiSceneList.hpp"
 #include "ImGuiSelected.hpp"
 #include "ImGuiWindowSettings.hpp"
 #include "ImGuiVFSControl.hpp"
@@ -39,11 +40,18 @@ Your UI entrypoint.
 */
 class ImGuiApplicationAssembly {
 private:
+    glfw::Window&            window_;
+    RenderEngine&            engine_;
+    entt::registry&          registry_;
+    const PerspectiveCamera& cam_;
+    VirtualFilesystem&       vfs_;
+
     ImGuiContextWrapper context_;
     ImGuiWindowSettings window_settings_;
     ImGuiVFSControl     vfs_control_;
-    ImGuiEngineHooks     stage_hooks_;
+    ImGuiEngineHooks    stage_hooks_;
     ImGuiRegistryHooks  registry_hooks_;
+    ImGuiSceneList      scene_list_;
     ImGuiSelected       selected_menu_;
     ImGuizmoGizmos      gizmos_;
 
@@ -72,12 +80,11 @@ public:
     float background_alpha{ 0.8f };
 
     ImGuiApplicationAssembly(
-        glfw::Window& window,
-        RenderEngine& engine,
-        entt::registry& registry,
+        glfw::Window&            window,
+        RenderEngine&            engine,
+        entt::registry&          registry,
         const PerspectiveCamera& cam,
-        VirtualFilesystem& vfs
-    );
+        VirtualFilesystem&       vfs);
 
     ImGuiEngineHooks::HooksContainer&       stage_hooks() noexcept { return stage_hooks_.hooks(); }
     const ImGuiEngineHooks::HooksContainer& stage_hooks() const noexcept { return stage_hooks_.hooks(); }

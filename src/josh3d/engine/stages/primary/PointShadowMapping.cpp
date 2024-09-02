@@ -6,7 +6,6 @@
 #include "tags/ShadowCasting.hpp"
 #include "tags/AlphaTested.hpp"
 #include "Materials.hpp"
-#include "ECSHelpers.hpp"
 #include "Transform.hpp"
 #include "LightCasters.hpp"
 #include "Mesh.hpp"
@@ -56,6 +55,12 @@ void PointShadowMapping::resize_cubemap_array_storage_if_needed(
     // the number of cubemaps needed to be allocated. Given that
     // a single depth cubemap is actually really big in memory,
     // asking for more than you need is a truly bad idea.
+
+    const auto calculate_view_size = [](auto view) -> size_t {
+        size_t count{ 0 };
+        for (auto _ [[maybe_unused]] : view) { ++count; }
+        return count;
+    };
 
     GLsizei new_size = GLsizei(calculate_view_size(plights_with_shadow));
 

@@ -1,5 +1,4 @@
 #pragma once
-#include "Size.hpp"
 #include <glm/glm.hpp>
 
 
@@ -10,7 +9,9 @@ struct AABB {
     glm::vec3 lbb; // Left-Bottom-Back
     glm::vec3 rtf; // Right-Top-Front
 
-    Extent3F extent() const noexcept;
+    auto extents()  const noexcept -> glm::vec3 { return rtf - lbb;       }
+    auto midpoint() const noexcept -> glm::vec3 { return (rtf + lbb) / 2; }
+
 };
 
 
@@ -18,7 +19,8 @@ struct LocalAABB {
     glm::vec3 lbb; // Left-Bottom-Back
     glm::vec3 rtf; // Right-Top-Front
 
-    Extent3F extent() const noexcept;
+    auto extents()  const noexcept -> glm::vec3 { return rtf - lbb;       }
+    auto midpoint() const noexcept -> glm::vec3 { return (rtf + lbb) / 2; }
 };
 
 

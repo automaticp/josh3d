@@ -5,11 +5,12 @@
 namespace josh {
 
 
-class ImGuiSelected {
+/*
+List of scene entities with proper scene-graph nesting.
+*/
+class ImGuiSceneList {
 public:
-    bool display_model_matrix{ false };
-
-    ImGuiSelected(entt::registry& registry) : registry_{ registry } {}
+    ImGuiSceneList(entt::registry& registry) : registry_{ registry } {}
 
     void display();
 

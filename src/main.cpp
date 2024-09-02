@@ -94,7 +94,7 @@ int main(int argc, const char* argv[]) {
         .openglProfile = glfw::OpenGlProfile::Core,
     }.apply();
 
-    glfw::Window window{ 800, 600, "Josh3d Demo" };
+    glfw::Window window{ 1280, 720, "Josh3d Demo" };
     glfw::makeContextCurrent(window);
     glfw::swapInterval(0);
     window.setInputModeCursor(glfw::CursorMode::Normal);

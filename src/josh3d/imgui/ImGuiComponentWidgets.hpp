@@ -1,12 +1,12 @@
 #pragma once
 #include "DefaultTextures.hpp"
-#include "ECSHelpers.hpp"
 #include "GLObjects.hpp"
 #include "ImGuiHelpers.hpp"
 #include "LightCasters.hpp"
 #include "Model.hpp"
 #include "Materials.hpp"
 #include "Name.hpp"
+#include "Tags.hpp"
 #include "Filesystem.hpp"
 #include "Transform.hpp"
 #include "VPath.hpp"
@@ -17,6 +17,7 @@
 #include <cassert>
 #include <entt/entity/entity.hpp>
 #include <entt/entity/fwd.hpp>
+#include <glm/fwd.hpp>
 #include <imgui.h>
 
 
@@ -64,6 +65,48 @@ inline bool TransformWidget(josh::Transform* transform) noexcept {
     );
 
     return feedback;
+}
+
+
+inline void Matrix4x4DisplayWidget(const glm::mat4& mat4) {
+    const size_t num_rows = 4;
+    const size_t num_cols = 4;
+    ImGuiTableFlags flags =
+        ImGuiTableFlags_Borders |
+        ImGuiTableFlags_SizingFixedFit |
+        ImGuiTableFlags_NoHostExtendX;
+    if (ImGui::BeginTable("Matrix4x4", num_cols, flags)) {
+        for (size_t row = 0; row < num_rows; ++row) {
+            ImGui::TableNextRow();
+            for (size_t col = 0; col < num_cols; ++col) {
+                ImGui::TableSetColumnIndex(int(col));
+
+                ImGui::Text("%.3f", mat4[col][row]);
+            }
+        }
+        ImGui::EndTable();
+    }
+}
+
+
+inline void Matrix3x3DisplayWidget(const glm::mat3& mat3) {
+    const size_t num_rows = 3;
+    const size_t num_cols = 3;
+    ImGuiTableFlags flags =
+        ImGuiTableFlags_Borders |
+        ImGuiTableFlags_SizingFixedFit |
+        ImGuiTableFlags_NoHostExtendX;
+    if (ImGui::BeginTable("Matrix4x4", num_cols, flags)) {
+        for (size_t row = 0; row < num_rows; ++row) {
+            ImGui::TableNextRow();
+            for (size_t col = 0; col < num_cols; ++col) {
+                ImGui::TableSetColumnIndex(int(col));
+
+                ImGui::Text("%.3f", mat3[col][row]);
+            }
+        }
+        ImGui::EndTable();
+    }
 }
 
 
@@ -381,6 +424,51 @@ inline Feedback ModelWidget(entt::handle model_handle) noexcept {
     ModelWidgetBody(model_handle);
 
     ImGui::PopID();
+
+    return feedback;
+}
+
+
+inline bool AmbientLightWidget(AmbientLight* alight) {
+    return ImGui::ColorEdit3("Color", glm::value_ptr(alight->color), ImGuiColorEditFlags_DisplayHSV);
+}
+
+
+inline bool DirectionalLightWidget(entt::handle dlight_handle) {
+    bool feedback = false;
+
+    if (auto* dlight = dlight_handle.try_get<DirectionalLight>()) {
+
+        feedback |= ImGui::ColorEdit3("Color", glm::value_ptr(dlight->color), ImGuiColorEditFlags_DisplayHSV);
+        ImGui::SameLine();
+        bool has_shadow = has_tag<ShadowCasting>(dlight_handle);
+        if (ImGui::Checkbox("Shadow", &has_shadow)) {
+            switch_tag<ShadowCasting>(dlight_handle);
+            feedback |= true;
+        }
+
+
+        // TODO: Might actually make sense to represent direction
+        // as theta and phi pair internally. That way, there's no degeneracy.
+
+        // We swap x and y so that phi is rotation around x,
+        // and behaves more like the real Sun.
+        // We're probably not on the north pole, it's fine.
+        const glm::vec3 dir = dlight->direction;
+        glm::vec3 swapped_dir{ dir.y, dir.x, dir.z };
+        glm::vec2 polar = glm::degrees(glm::polar(swapped_dir));
+        if (ImGui::DragFloat2("Direction", glm::value_ptr(polar), 0.5f)) {
+            swapped_dir = glm::euclidean(glm::radians(glm::vec2{ polar.x, polar.y }));
+            // Un-swap back.
+            dlight->direction = glm::vec3{ swapped_dir.y, swapped_dir.x, swapped_dir.z };
+            feedback |= true;
+        }
+
+        ImGui::BeginDisabled();
+        ImGui::InputFloat3("Direction XYZ", glm::value_ptr(dlight->direction));
+        ImGui::EndDisabled();
+
+    }
 
     return feedback;
 }

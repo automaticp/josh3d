@@ -3,6 +3,7 @@
 #include "Filesystem.hpp"
 #include "GLAPIBinding.hpp"
 #include "Pixels.hpp"
+#include "SceneGraph.hpp"
 #include "TextureHelpers.hpp"
 #include "Transform.hpp"
 #include "BoundingSphere.hpp"
@@ -11,7 +12,6 @@
 #include "Mesh.hpp"
 #include "Model.hpp"
 #include "Name.hpp"
-#include "VPath.hpp"
 #include "Skybox.hpp"
 #include "tags/AlphaTested.hpp"
 #include <entt/entity/fwd.hpp>
@@ -39,12 +39,12 @@ inline Skybox& load_skybox_into(
 
 
 inline Model& emplace_model_asset_into(
-    entt::handle model_handle, SharedModelAsset asset)
+    entt::handle     model_handle,
+    SharedModelAsset asset)
 {
     auto& registry = *model_handle.registry();
 
     std::vector<entt::entity> children;
-
     children.resize(asset.meshes.size());
     registry.create(children.begin(), children.end());
 
@@ -68,17 +68,19 @@ inline Model& emplace_model_asset_into(
 
             // Emplace bounding geometry.
             // TODO: This is terrible, use AABB
-            auto [lbb, rtf] = mesh.aabb;
+            const auto [lbb, rtf] = mesh.aabb;
             float max_something = glm::max(glm::length(lbb), glm::length(rtf));
             mesh_handle.emplace<BoundingSphere>(max_something);
+            mesh_handle.emplace<LocalAABB>(mesh.aabb);
+            mesh_handle.emplace<Transform>();
 
 
             if (mesh.diffuse.has_value()) {
                 make_available<Binding::Texture2D>(mesh.diffuse->texture->id());
                 auto& diffuse = mesh_handle.emplace<MaterialDiffuse>(mesh.diffuse->texture);
 
-                // TODO: We check if the alpha channel even exitsts in the texture,
-                // to decide on whether alpha testing should be enabled. Is there a better way?
+                // We check if the alpha channel even exitsts in the texture,
+                // to decide on whether alpha testing should be enabled.
                 PixelComponentType alpha_component =
                     diffuse.texture->get_component_type<PixelComponent::Alpha>();
 
@@ -98,9 +100,9 @@ inline Model& emplace_model_asset_into(
             }
 
 
+            // TODO: Remove ChildMesh and Model. They are redundant.
             mesh_handle.emplace<ChildMesh>(model_handle.entity());
 
-            mesh_handle.emplace<Transform>();
             mesh_handle.emplace<Name>(mesh.path.subpath);
 
         }
@@ -110,6 +112,7 @@ inline Model& emplace_model_asset_into(
         throw;
     }
 
+    attach_children(model_handle, children);
     return model_handle.emplace<Model>(std::move(children)); // noexcept, effectively
 }
 

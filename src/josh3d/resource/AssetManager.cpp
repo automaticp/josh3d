@@ -235,7 +235,7 @@ void AssetManager::handle_load_request(LoadRequest&& request) {
         aiProcess_GenBoundingBoxes         |
         aiProcess_ImproveCacheLocality     |
         aiProcess_OptimizeGraph            |
-        aiProcess_OptimizeMeshes           |
+        // aiProcess_OptimizeMeshes           |
         aiProcess_RemoveRedundantMaterials;
 
 
@@ -337,7 +337,7 @@ void AssetManager::handle_load_request(LoadRequest&& request) {
                         min_channels = 3;
                         max_channels = 3;
                         break;
-                    case ImageIntent::Alpha:
+                    case ImageIntent::Alpha: // NOLINT(bugprone-branch-clone)
                         min_channels = 1;
                         max_channels = 1;
                         break;
