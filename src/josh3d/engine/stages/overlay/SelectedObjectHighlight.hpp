@@ -2,10 +2,11 @@
 #include "GLAPICommonTypes.hpp"
 #include "GLObjects.hpp"
 #include "GLProgram.hpp"
+#include "LightCasters.hpp"
 #include "RenderEngine.hpp"
+#include "SceneGraph.hpp"
 #include "ShaderBuilder.hpp"
 #include "UniformTraits.hpp" // IWYU pragma: keep (traits)
-#include "Model.hpp"
 #include "TerrainChunk.hpp"
 #include "Transform.hpp"
 #include "tags/Selected.hpp"
@@ -106,34 +107,36 @@ inline void SelectedObjectHighlight::operator()(
 
 
             for (GLint object_mask{ 255 };
-                auto [e, world_mtf] : registry.view<Selected, MTransform>().each())
+                const auto entity : registry.view<Selected, MTransform>())
             {
 
-                // Draws either a singular Mesh, or all Meshes in a Model
-                // as a *single object*. Multiple meshes of a selected Model
+                // Draws either a singular Mesh, or all Meshes in a subtree
+                // as a *single object*. Multiple meshes of a selected subtree
                 // will share the same outline without overlap.
-                auto draw_func = [&](entt::entity e) {
-                    if (auto mesh = registry.try_get<Mesh>(e)) {
+                auto draw_func = [&](entt::entity entity) {
+                    const entt::const_handle handle{ registry, entity };
 
-                        sp.uniform(model_loc, world_mtf.model());
-                        mesh->draw(bound_program, bound_fbo);
+                    traverse_subtree_preorder(handle, [&](entt::const_handle node) {
+                        if (auto mtf = node.try_get<MTransform>()) {
+                            if (auto mesh = node.try_get<Mesh>()) {
 
-                    } else if (auto model = registry.try_get<Model>(e)) {
+                                sp.uniform(model_loc, mtf->model());
+                                mesh->draw(bound_program, bound_fbo);
 
-                        for (const entt::entity& mesh_ent : model->meshes()) {
+                            } else if (auto terrain_chunk = node.try_get<TerrainChunk>()) {
 
-                            const auto& mesh_world_mtf = registry.get<MTransform>(mesh_ent);
-                            sp.uniform(model_loc, mesh_world_mtf.model());
-                            registry.get<Mesh>(mesh_ent).draw(bound_program, bound_fbo);
+                                sp.uniform(model_loc, mtf->model());
+                                terrain_chunk->mesh.draw(bound_program, bound_fbo);
 
+                            } else if (auto plight = node.try_get<PointLight>()) {
+
+                                // TODO: This probably won't work that well...
+                                sp.uniform(model_loc, mtf->model());
+                                engine.primitives().sphere_mesh().draw(bound_program, bound_fbo);
+
+                            }
                         }
-
-                    } else if (auto terrain_chunk = registry.try_get<TerrainChunk>(e)) {
-
-                        sp.uniform(model_loc, world_mtf.model());
-                        terrain_chunk->mesh.draw(bound_program, bound_fbo);
-
-                    }
+                    });
                 };
 
                 // Draw outline as lines, replacing everything except
@@ -161,7 +164,7 @@ inline void SelectedObjectHighlight::operator()(
                 glapi::enable(Capability::AntialiasedLines); // I don't think this works at all.
 
 
-                draw_func(e);
+                draw_func(entity);
 
 
                 // Solid-Fill the insides of the object by drawing it again,
@@ -185,7 +188,7 @@ inline void SelectedObjectHighlight::operator()(
 
                 glapi::set_polygon_rasterization_mode(PolygonRaserization::Fill);
 
-                draw_func(e);
+                draw_func(entity);
 
 
                 if (object_mask > 1) { --object_mask; }

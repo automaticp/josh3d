@@ -18,25 +18,27 @@ namespace josh {
 
 
 ImGuiApplicationAssembly::ImGuiApplicationAssembly(
-    glfw::Window& window,
-    RenderEngine& engine,
-    entt::registry& registry,
+    glfw::Window&            window,
+    RenderEngine&            engine,
+    entt::registry&          registry,
     const PerspectiveCamera& cam,
-    VirtualFilesystem& vfs
+    SceneImporter&           importer,
+    VirtualFilesystem&       vfs
 )
-    : window_         { window        }
-    , engine_         { engine        }
-    , registry_       { registry      }
-    , cam_            { cam           }
-    , vfs_            { vfs           }
-    , context_        { window        }
-    , window_settings_{ window        }
-    , vfs_control_    { vfs           }
-    , stage_hooks_    { engine        }
-    , registry_hooks_ { registry      }
-    , scene_list_     { registry      }
-    , selected_menu_  { registry      }
-    , gizmos_         { cam, registry }
+    : window_         { window             }
+    , engine_         { engine             }
+    , registry_       { registry           }
+    , cam_            { cam                }
+    , importer_       { importer           }
+    , vfs_            { vfs                }
+    , context_        { window             }
+    , window_settings_{ window             }
+    , vfs_control_    { vfs                }
+    , stage_hooks_    { engine             }
+    , registry_hooks_ { registry           }
+    , scene_list_     { registry, importer }
+    , selected_menu_  { registry           }
+    , gizmos_         { cam, registry      }
 {}
 
 

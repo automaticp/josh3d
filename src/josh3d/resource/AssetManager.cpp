@@ -248,6 +248,7 @@ void AssetManager::handle_load_request(LoadRequest&& request) {
                 error::AssetFileImportFailure(std::move(request.model.path.file), importer.GetErrorString())
             )
         );
+        return;
     }
 
 
@@ -532,6 +533,8 @@ void AssetManager::handle_load_request(LoadRequest&& request) {
                 pending_requests_.erase(it);
             }
         } // ~pending_requests_lock
+        importer.FreeScene();
+        return;
     }
 
 
@@ -781,6 +784,7 @@ void AssetManager::handle_upload_request(UploadRequest&& request) {
                 pending_requests_.erase(it);
             }
         } // ~pending_requests_lock
+        return;
     }
 
 }

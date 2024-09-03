@@ -3,11 +3,14 @@
 #include "GLObjects.hpp"
 #include "ImGuiHelpers.hpp"
 #include "LightCasters.hpp"
-#include "Model.hpp"
+#include "Mesh.hpp"
 #include "Materials.hpp"
 #include "Name.hpp"
+#include "SceneGraph.hpp"
+#include "Skybox.hpp"
 #include "Tags.hpp"
 #include "Filesystem.hpp"
+#include "TerrainChunk.hpp"
 #include "Transform.hpp"
 #include "VPath.hpp"
 #include "tags/AlphaTested.hpp"
@@ -22,6 +25,64 @@
 
 
 namespace josh::imgui {
+
+
+struct GenericHeaderInfo {
+    const char* type_name = "UnknownEntityType";
+    const char* name      = "";
+};
+
+
+inline auto GetGenericHeaderInfo(entt::handle handle)
+    -> GenericHeaderInfo
+{
+    const char* type_name = [&]() {
+        if (handle.all_of<Mesh>())             { return "Mesh";             }
+        if (handle.all_of<TerrainChunk>())     { return "TerrainChunk";     }
+        if (handle.all_of<AmbientLight>())     { return "AmbientLight";     }
+        if (handle.all_of<DirectionalLight>()) { return "DirectionalLight"; }
+        if (handle.all_of<PointLight>())       { return "PointLight";       }
+        if (handle.all_of<Skybox>())           { return "Skybox";           }
+
+
+        if (handle.all_of<Transform>()) {
+            if (has_children(handle)) { return "Node";   }
+            else                      { return "Orphan"; }
+        } else {
+            if (has_children(handle)) { return "GroupingNode";  } // Does this even make sense?
+            else                      { return "UnknownEntity"; }
+        }
+    }();
+
+    const char* name = [&]() {
+        if (const Name* name = handle.try_get<Name>()) {
+            return name->c_str();
+        } else {
+            return "";
+        }
+    }();
+
+    return { type_name, name };
+}
+
+
+inline void GenericHeaderText(entt::handle handle) {
+    const bool is_culled = has_tag<Culled>(handle);
+    if (is_culled) {
+        auto text_color = ImGui::GetStyleColorVec4(ImGuiCol_Text);
+        text_color.w *= 0.5f; // Dim text when culled.
+        ImGui::PushStyleColor(ImGuiCol_Text, text_color);
+    }
+
+    auto [type_name, name] = GetGenericHeaderInfo(handle);
+    ImGui::Text("[%d] [%s] %s", entt::to_entity(handle.entity()), type_name, name);
+
+    if (is_culled) {
+        ImGui::PopStyleColor();
+    }
+}
+
+
 
 
 inline bool TransformWidget(josh::Transform* transform) noexcept {
@@ -362,71 +423,6 @@ enum class Feedback {
     None,
     Remove
 };
-
-
-[[nodiscard]]
-inline Feedback ModelWidgetHeader(entt::handle model_handle) noexcept {
-    Feedback feedback{ Feedback::None };
-
-    // ImGui::PushID(void_id(model_handle.entity()));
-
-    SelectButton(model_handle);
-    ImGui::SameLine();
-    if (RemoveButton()) { feedback = Feedback::Remove; }
-    ImGui::SameLine();
-
-    if (auto name = model_handle.try_get<Name>()) {
-        ImGui::Text("Model [%d]: %s", entt::to_entity(model_handle.entity()), name->c_str());
-    } else {
-        ImGui::Text("Model [%d]",     entt::to_entity(model_handle.entity()));
-    }
-
-    return feedback;
-}
-
-
-inline void ModelWidgetBody(entt::handle model_handle) noexcept {
-
-    if (auto tf = model_handle.try_get<Transform>()) {
-        TransformWidget(tf);
-    }
-
-    if (auto path = model_handle.try_get<Path>()) {
-        PathWidget(path);
-    }
-
-    if (auto vpath = model_handle.try_get<VPath>()) {
-        VPathWidget(vpath);
-    }
-
-
-    if (ImGui::TreeNode("Meshes")) {
-
-        auto model = model_handle.try_get<Model>();
-        assert(model);
-
-        for (auto mesh_entity : model->meshes()) {    ;
-            MeshWidget({ *model_handle.registry(), mesh_entity });
-        }
-
-        ImGui::TreePop();
-    }
-
-}
-
-
-[[nodiscard]]
-inline Feedback ModelWidget(entt::handle model_handle) noexcept {
-
-    ImGui::PushID(void_id(model_handle.entity()));
-
-    auto feedback = ModelWidgetHeader(model_handle);
-    ModelWidgetBody(model_handle);
-
-    ImGui::PopID();
-
-    return feedback;
-}
 
 
 inline bool AmbientLightWidget(AmbientLight* alight) {

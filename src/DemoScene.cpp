@@ -1,9 +1,9 @@
 #include "DemoScene.hpp"
 #include "AssetManager.hpp"
-#include "ComponentLoaders.hpp"
 #include "GLPixelPackTraits.hpp"
 #include "GLTextures.hpp"
 #include "ImGuiApplicationAssembly.hpp"
+#include "Logging.hpp"
 #include "PerspectiveCamera.hpp"
 #include "Input.hpp"
 #include "InputFreeCamera.hpp"
@@ -20,7 +20,6 @@
 #include "tags/Selected.hpp"
 #include "tags/ShadowCasting.hpp"
 #include "Filesystem.hpp"
-#include "Name.hpp"
 #include "Tags.hpp"
 
 #include "stages/precompute/CSMSetup.hpp"
@@ -49,7 +48,6 @@
 
 #include "hooks/precompute/CSMSetup.hpp"
 #include "hooks/precompute/PointLightSetup.hpp"
-#include "hooks/precompute/TransformResolution.hpp"
 #include "hooks/primary/CascadedShadowMapping.hpp"
 #include "hooks/primary/PointShadowMapping.hpp"
 #include "hooks/primary/DeferredGeometry.hpp"
@@ -67,7 +65,6 @@
 #include "hooks/overlay/SelectedObjectHighlight.hpp"
 #include "hooks/overlay/BoundingSphereDebug.hpp"
 #include "hooks/registry/LightComponents.hpp"
-#include "hooks/registry/ModelComponents.hpp"
 #include "hooks/registry/TerrainComponents.hpp"
 #include "hooks/registry/SkyboxComponents.hpp"
 #include "hooks/registry/PerspectiveCamera.hpp"
@@ -76,6 +73,7 @@
 #include <entt/entt.hpp>
 #include <glbinding/gl/enum.h>
 #include <glfwpp/window.h>
+#include <exception>
 
 
 using namespace josh;
@@ -98,9 +96,24 @@ void DemoScene::applicate() {
 }
 
 
+void DemoScene::process_input() {}
+
+
 void DemoScene::update() {
     update_input_blocker_from_imgui_io_state();
     input_freecam_.update();
+
+
+    importer_.retire_completed_requests();
+    while (importer_.can_unpack_more()) {
+        try {
+            importer_.unpack_one_retired();
+        } catch (const std::exception& e) {
+            // TODO: We do need some kind of visual error sink on imgui side.
+            globals::logstream << "[ERROR UNPACKING ASSET]: " << e.what() << "\n";
+        }
+    }
+
 }
 
 
@@ -115,8 +128,9 @@ void DemoScene::render() {
 
 DemoScene::DemoScene(glfw::Window& window)
     : window_       { window                  }
-    , assman_       { vfs(), window           }
-    , primitives_   { assman_                 }
+    , assmanager_   { vfs(), window           }
+    , importer_     { assmanager_, registry_  }
+    , primitives_   { assmanager_             }
     , input_blocker_{                         }
     , input_        { window_, input_blocker_ }
     , input_freecam_{ cam_                    }
@@ -134,7 +148,7 @@ DemoScene::DemoScene(glfw::Window& window)
         globals::window_size.size_ref(), globals::frame_timer
     }
     , imgui_{
-        window_, rengine_, registry_, cam_, vfs()
+        window_, rengine_, registry_, cam_, importer_, vfs()
     }
 {
 
@@ -251,9 +265,8 @@ DemoScene::DemoScene(glfw::Window& window)
 
 
 
-
+    // TODO: Remove these.
     imgui_.registry_hooks().add_hook("Lights",  imguihooks::registry::LightComponents());
-    imgui_.registry_hooks().add_hook("Models",  imguihooks::registry::ModelComponents(assman_));
     imgui_.registry_hooks().add_hook("Skybox",  imguihooks::registry::SkyboxComponents());
     imgui_.registry_hooks().add_hook("Terrain", imguihooks::registry::TerrainComponents());
     imgui_.registry_hooks().add_hook("Camera",  imguihooks::registry::PerspectiveCamera(cam_));
@@ -382,35 +395,34 @@ inline void DemoScene::configure_input(SharedStorageView<GBuffer> gbuffer) {
 
 
 void DemoScene::init_registry() {
-    auto& r = registry_;
-
-    constexpr const char* path = "data/models/shadow_scene/shadow_scene.obj";
-
-    SharedModelAsset model_asset = get_result(assman_.load_model(AssetVPath{ VPath(path), {} }));
-
-    entt::handle model{ r, r.create() };
-
-    model.emplace<Path>(model_asset.path.file);
-    model.emplace<Name>(model_asset.path.file.filename());
-
-    emplace_model_asset_into(model, std::move(model_asset));
-
-    model.emplace<Transform>();
+    auto& registry = registry_;
 
 
-    r.emplace<AmbientLight>(r.create(), AmbientLight{
+    registry.emplace<AmbientLight>(registry.create(), AmbientLight{
         .color = { 0.15f, 0.15f, 0.1f }
     });
 
-    auto e = r.create();
-    r.emplace<DirectionalLight>(e, DirectionalLight{
+    auto dlight_entity = registry.create();
+    registry.emplace<DirectionalLight>(dlight_entity, DirectionalLight{
         .color = { 0.15f, 0.15f, 0.1f },
         .direction = { -0.2f, -1.0f, -0.3f }
     });
-    r.emplace<ShadowCasting>(e);
+    registry.emplace<ShadowCasting>(dlight_entity);
 
 
-    load_skybox_into(entt::handle{ r, r.create() }, VPath("data/skyboxes/yokohama/skybox.json"));
+    using namespace josh::filesystem_literals;
+
+    const auto model_vpath  = "data/models/shadow_scene/shadow_scene.obj"_vpath;
+    const auto skybox_vpath = "data/skyboxes/yokohama/skybox.json"_vpath;
+    const AssetPath model_apath { File(model_vpath),  {} };
+    const AssetPath skybox_apath{ File(skybox_vpath), {} };
+
+    importer_.request_model_import(model_apath);
+    importer_.request_skybox_import(skybox_apath);
+    importer_.wait_until_all_pending_are_complete();
+    importer_.retire_completed_requests();
+    importer_.unpack_all_retired();
+
 }
 
 

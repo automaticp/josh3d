@@ -84,6 +84,16 @@ inline void destroy_subtree(entt::handle handle) noexcept {
 }
 
 
+inline void destroy_and_orphan_children(entt::handle handle) noexcept {
+    if (has_children(handle)) {
+        detach_all_children(handle);
+    }
+    if (has_parent(handle)) {
+        detach_from_parent(handle);
+    }
+    handle.destroy();
+}
+
 
 
 } // namespace josh

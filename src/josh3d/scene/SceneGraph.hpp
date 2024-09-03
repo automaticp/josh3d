@@ -343,14 +343,16 @@ inline void detach_all_children(entt::handle parent_handle) noexcept {
 
 inline void mark_for_detachment(entt::handle child_handle) noexcept {
     assert(!child_handle.all_of<MarkedForDetachment>());
-    assert(child_handle.all_of<AsChild>());
     child_handle.emplace<MarkedForDetachment>();
 }
 
 
 inline void sweep_marked_for_detachment(entt::registry& registry) noexcept {
-    for (const entt::entity& child : registry.view<MarkedForDetachment>()) {
-        detach_from_parent({ registry, child });
+    for (const entt::entity entity : registry.view<MarkedForDetachment>()) {
+        const entt::handle handle{ registry, entity };
+        if (has_parent(handle)) {
+            detach_from_parent(handle);
+        }
     }
     registry.clear<MarkedForDetachment>();
 }
@@ -360,14 +362,25 @@ inline void sweep_marked_for_detachment(entt::registry& registry) noexcept {
 
 template<typename FuncT>
 concept traversal_function =
-    std::invocable<FuncT, entt::handle, ptrdiff_t> ||
-    std::invocable<FuncT, entt::handle>;
+    std::invocable<FuncT, entt::handle,       ptrdiff_t> ||
+    std::invocable<FuncT, entt::const_handle, ptrdiff_t> ||
+    std::invocable<FuncT, entt::handle>                  ||
+    std::invocable<FuncT, entt::const_handle>;
 
 namespace detail {
 // Helper to not spam `if constexpr` everywhere.
 template<traversal_function FuncT>
 void invoke_traversal_function(FuncT&& function, entt::handle handle, ptrdiff_t depth [[maybe_unused]]) {
     if constexpr (std::invocable<FuncT, entt::handle, ptrdiff_t>) {
+        function(handle, depth);
+    } else {
+        function(handle);
+    }
+}
+// I love duplicating everything for the const_handle!
+template<traversal_function FuncT>
+void invoke_traversal_function(FuncT&& function, entt::const_handle handle, ptrdiff_t depth [[maybe_unused]]) {
+    if constexpr (std::invocable<FuncT, entt::const_handle, ptrdiff_t>) {
         function(handle, depth);
     } else {
         function(handle);
@@ -397,6 +410,20 @@ inline void traverse_descendants_preorder(
 }
 
 
+template<traversal_function FuncT>
+inline void traverse_descendants_preorder(
+    entt::const_handle handle,
+    FuncT&&            function,
+    ptrdiff_t          depth = 0)
+{
+    for (const entt::const_handle child_handle : view_child_handles(handle)) {
+        detail::invoke_traversal_function(function, child_handle, depth + 1);
+        traverse_descendants_preorder(child_handle, function, depth + 1);
+    }
+}
+
+
+
 // Recursively iterate all nodes of a subtree starting at `handle` and call a function on them.
 template<traversal_function FuncT>
 inline void traverse_subtree_preorder(
@@ -409,6 +436,20 @@ inline void traverse_subtree_preorder(
         traverse_subtree_preorder(child_handle, function, depth + 1);
     }
 }
+
+
+template<traversal_function FuncT>
+inline void traverse_subtree_preorder(
+    entt::const_handle handle,
+    FuncT&&            function,
+    ptrdiff_t          depth = 0)
+{
+    detail::invoke_traversal_function(function, handle, depth);
+    for (const entt::const_handle child_handle : view_child_handles(handle)) {
+        traverse_subtree_preorder(child_handle, function, depth + 1);
+    }
+}
+
 
 
 // Traverse the tree edge from the current node up to the root, *including* the starting node.
@@ -428,6 +469,21 @@ inline void traverse_edge_upwards(
 }
 
 
+template<traversal_function FuncT>
+inline void traverse_edge_upwards(
+    entt::const_handle handle,
+    FuncT&&            function,
+    ptrdiff_t          depth = 0)
+{
+    do {
+        detail::invoke_traversal_function(function, handle, depth);
+        handle = get_parent_handle(handle);
+        --depth;
+    } while (handle.entity() != entt::null); // Signals the past-the-root.
+}
+
+
+
 // Traverse the tree edge from the current node up to the root, *excluding* the starting node.
 // This does nothing if the `handle` has no parents.
 //
@@ -437,6 +493,21 @@ inline void traverse_ancestors_upwards(
     entt::handle handle,
     FuncT&&      function,
     ptrdiff_t    depth = 0)
+{
+    handle = get_parent_handle(handle);
+    while (handle.entity() != entt::null) {
+        --depth;
+        detail::invoke_traversal_function(function, handle, depth);
+        handle = get_parent_handle(handle);
+    }
+}
+
+
+template<traversal_function FuncT>
+inline void traverse_ancestors_upwards(
+    entt::const_handle handle,
+    FuncT&&            function,
+    ptrdiff_t          depth = 0)
 {
     handle = get_parent_handle(handle);
     while (handle.entity() != entt::null) {

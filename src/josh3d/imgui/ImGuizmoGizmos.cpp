@@ -164,9 +164,11 @@ void ImGuizmoGizmos::display() {
         transform_targets.clear(); // Ensure that it's clear before pushing new elements.
 
         for (const entt::entity entity : selected) {
+            const entt::const_handle handle{ registry_, entity };
+
             entt::entity highest_selected{ entity };
 
-            traverse_ancestors_upwards({ registry_, entity }, [&](entt::handle ancestor) {
+            traverse_ancestors_upwards(handle, [&](entt::const_handle ancestor) {
                 if (has_tag<Selected>(ancestor)) {
                     highest_selected = ancestor.entity();
                 }

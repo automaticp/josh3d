@@ -136,19 +136,22 @@ inline void Sky::draw_skybox(
     RenderEnginePrimaryInterface& engine,
     const entt::registry&         registry)
 {
-    // TODO: Pulls a single skybox, obviously won't work when there are many.
-    registry.storage<Skybox>()->begin()->cubemap->bind_to_texture_unit(0);
+    if (!registry.view<Skybox>().empty()) {
 
-    BindGuard bound_camera_ubo = engine.bind_camera_ubo();
-    sp_skybox_->uniform("cubemap", 0);
+        // FIXME: Pulls a single skybox, obviously won't work when there are many.
+        registry.storage<Skybox>()->begin()->cubemap->bind_to_texture_unit(0);
 
-    {
-        BindGuard bound_program = sp_skybox_->use();
-        engine.draw([&](auto bound_fbo) {
-            engine.primitives().box_mesh().draw(bound_program, bound_fbo);
-        });
+        BindGuard bound_camera_ubo = engine.bind_camera_ubo();
+        sp_skybox_->uniform("cubemap", 0);
+
+        {
+            BindGuard bound_program = sp_skybox_->use();
+            engine.draw([&](auto bound_fbo) {
+                engine.primitives().box_mesh().draw(bound_program, bound_fbo);
+            });
+        }
+
     }
-
 }
 
 
@@ -158,7 +161,7 @@ inline void Sky::draw_procedural_sky(
     RenderEnginePrimaryInterface& engine,
     const entt::registry&         registry)
 {
-    // UB if no light, lmao
+    // FIXME: UB if no light, lmao
     const auto& light = *registry.storage<DirectionalLight>()->begin();
     const auto& cam   = engine.camera();
 

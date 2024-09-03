@@ -1,4 +1,5 @@
 #pragma once
+#include "SceneImporter.hpp"
 #include <entt/entity/fwd.hpp>
 
 
@@ -10,12 +11,19 @@ List of scene entities with proper scene-graph nesting.
 */
 class ImGuiSceneList {
 public:
-    ImGuiSceneList(entt::registry& registry) : registry_{ registry } {}
+    ImGuiSceneList(
+        entt::registry& registry,
+        SceneImporter&  importer
+    )
+        : registry_{ registry }
+        , importer_{ importer }
+    {}
 
     void display();
 
 private:
     entt::registry& registry_;
+    SceneImporter&  importer_;
 };
 
 

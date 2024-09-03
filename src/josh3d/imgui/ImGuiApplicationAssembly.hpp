@@ -10,6 +10,7 @@
 #include "AvgFrameTimeCounter.hpp"
 #include "ImGuizmoGizmos.hpp"
 #include "PerspectiveCamera.hpp"
+#include "SceneImporter.hpp"
 #include <string>
 #include <entt/fwd.hpp>
 
@@ -44,6 +45,7 @@ private:
     RenderEngine&            engine_;
     entt::registry&          registry_;
     const PerspectiveCamera& cam_;
+    SceneImporter&           importer_;
     VirtualFilesystem&       vfs_;
 
     ImGuiContextWrapper context_;
@@ -84,6 +86,7 @@ public:
         RenderEngine&            engine,
         entt::registry&          registry,
         const PerspectiveCamera& cam,
+        SceneImporter&           importer,
         VirtualFilesystem&       vfs);
 
     ImGuiEngineHooks::HooksContainer&       stage_hooks() noexcept { return stage_hooks_.hooks(); }

@@ -7,10 +7,8 @@
 #include "TextureHelpers.hpp"
 #include "Transform.hpp"
 #include "BoundingSphere.hpp"
-#include "ChildMesh.hpp"
 #include "Materials.hpp"
 #include "Mesh.hpp"
-#include "Model.hpp"
 #include "Name.hpp"
 #include "Skybox.hpp"
 #include "tags/AlphaTested.hpp"
@@ -38,13 +36,13 @@ inline Skybox& load_skybox_into(
 
 
 
-inline Model& emplace_model_asset_into(
+inline void emplace_model_asset_into(
     entt::handle     model_handle,
     SharedModelAsset asset)
 {
     auto& registry = *model_handle.registry();
 
-    std::vector<entt::entity> children;
+    thread_local std::vector<entt::entity> children;
     children.resize(asset.meshes.size());
     registry.create(children.begin(), children.end());
 
@@ -52,8 +50,8 @@ inline Model& emplace_model_asset_into(
 
         for (size_t i{ 0 }; i < children.size(); ++i) {
 
-            auto& mesh        = asset.meshes[i];
-            auto  mesh_handle = entt::handle(registry, children[i]);
+            SharedMeshAsset& mesh = asset.meshes[i];
+            entt::handle mesh_handle{ registry, children[i] };
 
             // Bind to make assets available in this thread.
             make_available<Binding::ArrayBuffer>       (mesh.vertices->id());
@@ -100,11 +98,7 @@ inline Model& emplace_model_asset_into(
             }
 
 
-            // TODO: Remove ChildMesh and Model. They are redundant.
-            mesh_handle.emplace<ChildMesh>(model_handle.entity());
-
             mesh_handle.emplace<Name>(mesh.path.subpath);
-
         }
 
     } catch (...) {
@@ -113,7 +107,6 @@ inline Model& emplace_model_asset_into(
     }
 
     attach_children(model_handle, children);
-    return model_handle.emplace<Model>(std::move(children)); // noexcept, effectively
 }
 
 

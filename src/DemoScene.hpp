@@ -5,6 +5,7 @@
 #include "Input.hpp"
 #include "InputFreeCamera.hpp"
 #include "Primitives.hpp"
+#include "SceneImporter.hpp"
 #include "SharedStorage.hpp"
 #include "RenderEngine.hpp"
 
@@ -21,15 +22,16 @@ class DemoScene {
 public:
     DemoScene(glfw::Window& window);
     void applicate();
-    void process_input() {}
+    void process_input();
     void update();
     void render();
 
 private:
-    glfw::Window&      window_;
-    entt::registry     registry_;
-    josh::AssetManager assman_;
-    josh::Primitives   primitives_;
+    glfw::Window&       window_;
+    entt::registry      registry_;
+    josh::AssetManager  assmanager_;
+    josh::SceneImporter importer_;
+    josh::Primitives    primitives_;
 
     josh::SimpleInputBlocker   input_blocker_;
     josh::BasicRebindableInput input_;

@@ -4,7 +4,8 @@
 
 
 namespace josh {
-
+// TODO: Separate scene representation of lights from the GPU structs.
+// TODO: Also remove position/orientation in scene repr. and use the Transform.
 
 struct AmbientLight {
     alignas(std430::align_vec3) glm::vec3 color;
