@@ -1,49 +1,102 @@
 #include "DeferredShading.hpp"
+#include "Components.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLAPICommonTypes.hpp"
 #include "GLBuffers.hpp"
 #include "GLObjectHelpers.hpp"
 #include "GLProgram.hpp"
+#include "LightsGPU.hpp"
 #include "Mesh.hpp"
+#include "Tags.hpp"
+#include "Transform.hpp"
 #include "UniformTraits.hpp" // IWYU pragma: keep (traits)
 #include "LightCasters.hpp"
 #include "BoundingSphere.hpp"
 #include "tags/ShadowCasting.hpp"
 #include "RenderEngine.hpp"
-#include <algorithm>
+#include <entt/entity/fwd.hpp>
 #include <entt/entity/registry.hpp>
 #include <glbinding/gl/gl.h>
 #include <range/v3/all.hpp>
 #include <range/v3/view/map.hpp>
+#include <ranges>
 
 
 
 
 namespace josh::stages::primary {
+namespace {
+
+
+struct ALight {
+    glm::vec3 color;
+};
+
+
+auto get_active_alight_or_default(const entt::registry& registry)
+    -> ALight
+{
+    const auto alight_handle = get_active_ambient_light(registry);
+    glm::vec3 color{ 0.f, 0.f, 0.f };
+    if (alight_handle.valid()) {
+        color = alight_handle.get<AmbientLight>().color;
+    }
+    return { color };
+}
+
+
+
+struct DLight {
+    glm::vec3 color;
+    glm::vec3 direction;
+    bool      cast_shadows;
+};
+
+
+auto get_active_dlight_or_default(const entt::registry& registry)
+    -> DLight
+{
+    const auto dlight = get_active_directional_light(registry);
+    glm::vec3 color       { 0.f, 0.f, 0.f };
+    glm::vec3 direction   { 1.f, 1.f, 1.f };
+    bool      cast_shadows{ false };
+    if (dlight.valid() && has_component<Transform>(dlight)) {
+        color        = dlight.get<DirectionalLight>().color;
+        direction    = dlight.get<Transform>().orientation() * glm::vec3{ 0.f, 0.f, -1.f };
+        cast_shadows = has_tag<ShadowCasting>(dlight);
+    }
+    return { color, direction, cast_shadows };
+}
+
+
+} // namespace
+
+
 
 
 void DeferredShading::operator()(
     RenderEnginePrimaryInterface& engine)
 {
     update_cascade_buffer();
-
-    auto [num_plights_with_shadow, num_plights_no_shadow] = update_point_light_buffers(engine.registry());
+    update_point_light_buffers(engine.registry());
 
     if (mode == Mode::SinglePass) {
-        draw_singlepass(engine, num_plights_with_shadow, num_plights_no_shadow);
+        draw_singlepass(engine);
     } else if (mode == Mode::MultiPass) {
-        draw_multipass (engine, num_plights_with_shadow, num_plights_no_shadow);
+        draw_multipass (engine);
     }
 }
 
 
+
+
 void DeferredShading::draw_singlepass(
-    RenderEnginePrimaryInterface& engine,
-    NumElems                      num_plights_with_shadow, // TODO: Is there no better way to communicate this?
-    NumElems                      num_plights_no_shadow)
+    RenderEnginePrimaryInterface& engine)
 {
     const auto& registry = engine.registry();
     BindGuard bound_camera_ubo = engine.bind_camera_ubo();
+
+    const RawProgram<> sp = sp_singlepass_;
 
     // GBuffer.
     gbuffer_->depth_texture()   .bind_to_texture_unit(0);
@@ -51,78 +104,68 @@ void DeferredShading::draw_singlepass(
     gbuffer_->albedo_texture()  .bind_to_texture_unit(2);
     gbuffer_->specular_texture().bind_to_texture_unit(3);
     MultibindGuard bound_gbuffer_samplers{
-        target_sampler_             ->bind_to_texture_unit(0),
-        target_sampler_             ->bind_to_texture_unit(1),
-        target_sampler_             ->bind_to_texture_unit(2),
-        target_sampler_             ->bind_to_texture_unit(3),
+        target_sampler_->bind_to_texture_unit(0),
+        target_sampler_->bind_to_texture_unit(1),
+        target_sampler_->bind_to_texture_unit(2),
+        target_sampler_->bind_to_texture_unit(3),
     };
 
-    sp_singlepass_->uniform("gbuffer.tex_depth",    0);
-    sp_singlepass_->uniform("gbuffer.tex_normals",  1);
-    sp_singlepass_->uniform("gbuffer.tex_albedo",   2);
-    sp_singlepass_->uniform("gbuffer.tex_specular", 3);
+    sp.uniform("gbuffer.tex_depth",    0);
+    sp.uniform("gbuffer.tex_normals",  1);
+    sp.uniform("gbuffer.tex_albedo",   2);
+    sp.uniform("gbuffer.tex_specular", 3);
 
     // AO.
     input_ao_->blurred_texture                   .bind_to_texture_unit(5);
     BindGuard bound_ao_sampler = target_sampler_->bind_to_texture_unit(5);
-    sp_singlepass_->uniform("tex_ambient_occlusion",   5);
-    sp_singlepass_->uniform("use_ambient_occlusion",   use_ambient_occlusion);
-    sp_singlepass_->uniform("ambient_occlusion_power", ambient_occlusion_power);
+    sp.uniform("tex_ambient_occlusion",   5);
+    sp.uniform("use_ambient_occlusion",   use_ambient_occlusion);
+    sp.uniform("ambient_occlusion_power", ambient_occlusion_power);
 
     // Ambient light.
-    auto& alight = *registry.storage<AmbientLight>()->begin();
-    sp_singlepass_->uniform("ambient_light.color", alight.color);
+    {
+        const auto [color] = get_active_alight_or_default(registry);
+        sp.uniform("ambient_light.color", color);
+    }
 
     // Directional light.
-    auto [dlight_ent, dlight] = *registry.view<DirectionalLight>().each().begin();
-    sp_singlepass_->uniform("dir_light.color",        dlight.color);
-    sp_singlepass_->uniform("dir_light.direction",    dlight.direction);
-    sp_singlepass_->uniform("dir_shadow.do_cast",     registry.all_of<ShadowCasting>(dlight_ent));
+    {
+        const auto [color, direction, cast_shadows] = get_active_dlight_or_default(registry);
+        sp.uniform("dir_light.color",     color);
+        sp.uniform("dir_light.direction", direction);
+        sp.uniform("dir_shadow.do_cast",  cast_shadows);
+    }
 
     // Directional shadows.
     input_csm_->dir_shadow_maps_tgt.depth_attachment().texture().bind_to_texture_unit(4);
     BindGuard bound_csm_sampler =                  csm_sampler_->bind_to_texture_unit(4);
-    sp_singlepass_->uniform("dir_shadow.cascades",            4);
-    sp_singlepass_->uniform("dir_shadow.base_bias_tx",        dir_params.base_bias_tx);
-    sp_singlepass_->uniform("dir_shadow.do_blend_cascades",   dir_params.blend_cascades);
-    sp_singlepass_->uniform("dir_shadow.blend_size_inner_tx", dir_params.blend_size_inner_tx);
-    sp_singlepass_->uniform("dir_shadow.pcf_extent",          dir_params.pcf_extent);
-    sp_singlepass_->uniform("dir_shadow.pcf_offset",          dir_params.pcf_offset);
+    sp.uniform("dir_shadow.cascades",            4);
+    sp.uniform("dir_shadow.base_bias_tx",        dir_params.base_bias_tx);
+    sp.uniform("dir_shadow.do_blend_cascades",   dir_params.blend_cascades);
+    sp.uniform("dir_shadow.blend_size_inner_tx", dir_params.blend_size_inner_tx);
+    sp.uniform("dir_shadow.pcf_extent",          dir_params.pcf_extent);
+    sp.uniform("dir_shadow.pcf_offset",          dir_params.pcf_offset);
     csm_params_buf_->bind_to_index<BufferTargetIndexed::ShaderStorage>(3);
 
     // Point lights.
-    sp_singlepass_->uniform("fade_start_fraction",  plight_fade_start_fraction);
-    sp_singlepass_->uniform("fade_length_fraction", plight_fade_length_fraction);
+    sp.uniform("fade_start_fraction",  plight_fade_start_fraction);
+    sp.uniform("fade_length_fraction", plight_fade_length_fraction);
+    plights_with_shadow_buf_.bind_to_ssbo_index(1);
+    plights_no_shadow_buf_  .bind_to_ssbo_index(2);
 
     // Point light shadows.
     input_psm_->point_shadow_maps_tgt.depth_attachment().texture().bind_to_texture_unit(6);
     BindGuard bound_psm_sampler =                    psm_sampler_->bind_to_texture_unit(6);
-    sp_singlepass_->uniform("point_shadow.maps",        6);
-    sp_singlepass_->uniform("point_shadow.bias_bounds", point_params.bias_bounds);
-    sp_singlepass_->uniform("point_shadow.pcf_extent",  point_params.pcf_extent);
-    sp_singlepass_->uniform("point_shadow.pcf_offset",  point_params.pcf_offset);
-    OffsetElems with_shadows_offset{ 0 };
-    OffsetElems no_shadows_offset  { num_plights_with_shadow };
-    if (num_plights_with_shadow != 0) {
-        plights_buf_->bind_range_to_index<BufferTargetIndexed::ShaderStorage>(
-            with_shadows_offset, num_plights_with_shadow, 1
-        );
-    } else {
-        unbind_indexed_from_context<BindingIndexed::ShaderStorageBuffer>(1);
-    }
-    if (num_plights_no_shadow != 0) {
-        plights_buf_->bind_range_to_index<BufferTargetIndexed::ShaderStorage>(
-            no_shadows_offset,   num_plights_no_shadow,   2
-        );
-    } else {
-        unbind_indexed_from_context<BindingIndexed::ShaderStorageBuffer>(2);
-    }
+    sp.uniform("point_shadow.maps",        6);
+    sp.uniform("point_shadow.bias_bounds", point_params.bias_bounds);
+    sp.uniform("point_shadow.pcf_extent",  point_params.pcf_extent);
+    sp.uniform("point_shadow.pcf_offset",  point_params.pcf_offset);
 
 
 
     glapi::disable(Capability::DepthTesting);
     {
-        BindGuard bound_program = sp_singlepass_->use();
+        BindGuard bound_program = sp.use();
         engine.draw([&](auto bound_fbo) {
             engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
         });
@@ -171,9 +214,7 @@ void DeferredShading::draw_singlepass(
 // Either way, I'm leaving this implementation here for now,
 // so that it could be used as a stepping stone / testbed for other stuff.
 void DeferredShading::draw_multipass(
-    RenderEnginePrimaryInterface& engine,
-    NumElems                      num_plights_with_shadow,
-    NumElems                      num_plights_no_shadow)
+    RenderEnginePrimaryInterface& engine)
 {
     const auto& registry   = engine.registry();
     BindGuard bound_camera = engine.bind_camera_ubo();
@@ -183,10 +224,10 @@ void DeferredShading::draw_multipass(
     gbuffer_->albedo_texture()  .bind_to_texture_unit(2);
     gbuffer_->specular_texture().bind_to_texture_unit(3);
     MultibindGuard bound_gbuffer_samplers{
-        target_sampler_             ->bind_to_texture_unit(0),
-        target_sampler_             ->bind_to_texture_unit(1),
-        target_sampler_             ->bind_to_texture_unit(2),
-        target_sampler_             ->bind_to_texture_unit(3),
+        target_sampler_->bind_to_texture_unit(0),
+        target_sampler_->bind_to_texture_unit(1),
+        target_sampler_->bind_to_texture_unit(2),
+        target_sampler_->bind_to_texture_unit(3),
     };
 
     auto set_common_uniforms = [&](RawProgram<> sp) {
@@ -198,14 +239,16 @@ void DeferredShading::draw_multipass(
 
     // Ambient + Directional Light Pass.
     {
-        RawProgram<> sp = sp_pass_ambi_dir_;
+        const RawProgram<> sp = sp_pass_ambi_dir_;
         BindGuard bound_program = sp.use();
 
         set_common_uniforms(sp);
 
         // Ambient Light.
-        auto& ambi = *registry.storage<AmbientLight>()->begin();
-        sp.uniform("ambi_light.color", ambi.color);
+        {
+            const auto [color] = get_active_alight_or_default(registry);
+            sp.uniform("ambi_light.color", color);
+        }
 
         // Ambient Occlusion.
         input_ao_->blurred_texture                   .bind_to_texture_unit(4);
@@ -215,15 +258,17 @@ void DeferredShading::draw_multipass(
         sp.uniform("ambi_occlusion.power",         ambient_occlusion_power);
 
         // Directional Light.
-        auto [dlight_ent, dlight] = *registry.view<DirectionalLight>().each().begin();
-        sp.uniform("dir_light.color",        dlight.color);
-        sp.uniform("dir_light.direction",    dlight.direction);
+        {
+            const auto [color, direction, cast_shadows] = get_active_dlight_or_default(registry);
+            sp.uniform("dir_light.color",     color);
+            sp.uniform("dir_light.direction", direction);
+            sp.uniform("dir_shadow.do_cast",  cast_shadows);
+        }
 
         // CSM.
         input_csm_->dir_shadow_maps_tgt.depth_attachment().texture().bind_to_texture_unit(5);
         BindGuard bound_csm_sampler =                  csm_sampler_->bind_to_texture_unit(5);
         sp.uniform("dir_shadow.cascades",            5);
-        sp.uniform("dir_shadow.do_cast",             registry.all_of<ShadowCasting>(dlight_ent));
         sp.uniform("dir_shadow.base_bias_tx",        dir_params.base_bias_tx);
         sp.uniform("dir_shadow.do_blend_cascades",   dir_params.blend_cascades);
         sp.uniform("dir_shadow.blend_size_inner_tx", dir_params.blend_size_inner_tx);
@@ -290,35 +335,27 @@ void DeferredShading::draw_multipass(
 
 
     // Point Lights No Shadows Pass.
-    if (num_plights_no_shadow != 0) {
-        RawProgram<> sp = sp_pass_plight_no_shadow_;
+    if (plights_no_shadow_buf_.num_staged() != 0) {
+        const RawProgram<> sp = sp_pass_plight_no_shadow_;
         BindGuard bound_program = sp.use();
 
         set_common_uniforms(sp);
         set_plight_uniforms(sp);
 
-        OffsetElems no_shadows_offset{ num_plights_with_shadow };
-        plights_buf_->bind_range_to_index<BufferTargetIndexed::ShaderStorage>(
-            no_shadows_offset, num_plights_no_shadow, 0
-        );
+        plights_no_shadow_buf_.bind_to_ssbo_index(0);
 
-
-        instance_draw_plight_spheres(num_plights_no_shadow, bound_program.token());
-
+        instance_draw_plight_spheres(plights_no_shadow_buf_.num_staged(), bound_program.token());
     }
 
     // Point Lights With Shadows Pass.
-    if (num_plights_with_shadow != 0) {
-        RawProgram<> sp = sp_pass_plight_with_shadow_;
+    if (plights_with_shadow_buf_.num_staged() != 0) {
+        const RawProgram<> sp = sp_pass_plight_with_shadow_;
         BindGuard bound_program = sp.use();
 
         set_common_uniforms(sp);
         set_plight_uniforms(sp);
 
-        OffsetElems with_shadows_offset{ 0 };
-        plights_buf_->bind_range_to_index<BufferTargetIndexed::ShaderStorage>(
-            with_shadows_offset, num_plights_with_shadow, 0
-        );
+        plights_with_shadow_buf_.bind_to_ssbo_index(0);
 
         // Point Shadows.
         input_psm_->point_shadow_maps_tgt.depth_attachment().texture().bind_to_texture_unit(4);
@@ -328,9 +365,7 @@ void DeferredShading::draw_multipass(
         sp.uniform("point_shadows.pcf_extent",  point_params.pcf_extent);
         sp.uniform("point_shadows.pcf_offset",  point_params.pcf_offset);
 
-
-        instance_draw_plight_spheres(num_plights_with_shadow, bound_program.token());
-
+        instance_draw_plight_spheres(plights_with_shadow_buf_.num_staged(), bound_program.token());
     }
 
 
@@ -341,69 +376,36 @@ void DeferredShading::draw_multipass(
 
 
 void DeferredShading::update_cascade_buffer() {
-
     auto& params = input_csm_->params;
     resize_to_fit(csm_params_buf_, NumElems{ params.size() });
-
-    std::span mapped = csm_params_buf_->map_for_write();
-    do {
-        std::ranges::copy(params, mapped.begin());
-    } while (!csm_params_buf_->unmap_current());
-
+    csm_params_buf_->upload_data(params);
 }
 
 
-auto DeferredShading::update_point_light_buffers(
+void DeferredShading::update_point_light_buffers(
     const entt::registry& registry)
-        -> std::tuple<NumElems, NumElems>
 {
-    const size_t num_plights = registry.storage<PointLight>()->size();
+    auto plights_with_shadow_view = registry.view<MTransform, PointLight, BoundingSphere, ShadowCasting>();
+    auto plights_no_shadow_view   = registry.view<MTransform, PointLight, BoundingSphere>(entt::exclude<ShadowCasting>);
 
-    NumElems num_with_shadow{ 0 };
-    NumElems num_no_shadow  { 0 };
-
-    if (num_plights == 0) {
-        return { num_with_shadow, num_no_shadow };
-    }
-
-
-    resize_to_fit(plights_buf_, NumElems{ num_plights });
-
-    auto plights_with_shadow_view = registry.view<PointLight, BoundingSphere, ShadowCasting>();
-    auto plights_no_shadow_view   = registry.view<PointLight, BoundingSphere>(entt::exclude<ShadowCasting>);
-
-
-    std::span mapped = plights_buf_->map_for_write();
-    do {
-
-        // From PointLight and BoundingSphere to combined PLight structure.
-        auto repack = [](const auto& tuple) {
-            const auto& [e, plight, sphere] = tuple;
-            return PLight{
-                .color       = plight.color,
-                .position    = plight.position,
-                .radius      = sphere.radius,
-                .attenuation = plight.attenuation
-            };
+    // From tuple<MTransform, PointLight, BoundingSphere> to combined GPU-layout structure.
+    auto repack = [](auto tuple) {
+        const auto& [_, mtf, plight, sphere] = tuple;
+        return PointLightBoundedGPU{
+            .color       = plight.color,
+            .position    = mtf.decompose_position(),
+            .radius      = sphere.radius,
+            .attenuation = {
+                .constant  = plight.attenuation.constant,
+                .linear    = plight.attenuation.linear,
+                .quadratic = plight.attenuation.quadratic
+            }
         };
+    };
 
-        auto end_with_shadow = std::ranges::copy(
-            plights_with_shadow_view.each() | std::views::transform(repack),
-            mapped.begin()
-        ).out;
+    plights_with_shadow_buf_.restage(plights_with_shadow_view.each() | std::views::transform(repack));
+    plights_no_shadow_buf_  .restage(plights_no_shadow_view.each()   | std::views::transform(repack));
 
-        std::ranges::copy(
-            plights_no_shadow_view.each() | std::views::transform(repack),
-            end_with_shadow
-        );
-
-        num_with_shadow = NumElems(end_with_shadow - mapped.begin());
-        num_no_shadow   = NumElems(num_plights - num_with_shadow);
-
-    } while (!plights_buf_->unmap_current());
-
-
-    return { num_with_shadow, num_no_shadow };
 }
 
 

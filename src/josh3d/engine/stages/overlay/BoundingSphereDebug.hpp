@@ -62,13 +62,12 @@ inline void BoundingSphereDebug::operator()(
     engine.draw([&, this](auto bound_fbo) {
 
         auto per_mesh_draw_func = [&] (
-            const entt::entity&               entity [[maybe_unused]],
-            const MTransform&                 world_mtf,
+            const entt::entity&,
+            const MTransform&     mtf,
             const BoundingSphere& sphere)
         {
-
-            const glm::vec3 sphere_center = world_mtf.decompose_position();
-            const glm::vec3 mesh_scaling  = world_mtf.decompose_local_scale();
+            const glm::vec3 sphere_center = mtf.decompose_position();
+            const glm::vec3 mesh_scaling  = mtf.decompose_local_scale();
             const glm::vec3 sphere_scale  = glm::vec3{ sphere.scaled_radius(mesh_scaling) };
 
             const auto sphere_transf = Transform().translate(sphere_center).scale(sphere_scale);
@@ -79,12 +78,14 @@ inline void BoundingSphereDebug::operator()(
         };
 
         auto per_plight_draw_func = [&] (
-            const entt::entity&               entity [[maybe_unused]],
-            const PointLight&               plight,
+            const entt::entity&,
+            const PointLight&,
+            const MTransform&     mtf,
             const BoundingSphere& sphere)
         {
-            const glm::vec3 sphere_scale = glm::vec3{ sphere.radius };
-            const auto sphere_transf = Transform().translate(plight.position).scale(sphere_scale);
+            const glm::vec3 sphere_center = mtf.decompose_position();
+            const glm::vec3 sphere_scale  = glm::vec3{ sphere.radius };
+            const auto sphere_transf = Transform().translate(sphere_center).scale(sphere_scale);
 
             sp_->uniform("model", sphere_transf.mtransform().model());
 
@@ -93,11 +94,11 @@ inline void BoundingSphereDebug::operator()(
 
 
         if (selected_only) {
-            registry.view<MTransform, BoundingSphere, Selected>().each(per_mesh_draw_func);
-            registry.view<PointLight, BoundingSphere, Selected>().each(per_plight_draw_func);
+            registry.view<MTransform, BoundingSphere, Selected>(entt::exclude<PointLight>).each(per_mesh_draw_func);
+            registry.view<PointLight, MTransform, BoundingSphere, Selected>().each(per_plight_draw_func);
         } else {
-            registry.view<MTransform, BoundingSphere>().each(per_mesh_draw_func);
-            registry.view<PointLight, BoundingSphere>().each(per_plight_draw_func);
+            registry.view<MTransform, BoundingSphere>(entt::exclude<PointLight>).each(per_mesh_draw_func);
+            registry.view<PointLight, MTransform, BoundingSphere>().each(per_plight_draw_func);
         }
     });
 

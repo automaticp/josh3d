@@ -1,27 +1,72 @@
 #pragma once
-#include "Layout.hpp"
+#include "detail/Active.hpp"
+#include <entt/entity/fwd.hpp>
+#include <entt/entity/entity.hpp>
 #include <glm/glm.hpp>
 
 
+/*
+Scene definitons of light sources.
+
+Positions/Orientations are to be inferred from Transforms.
+*/
 namespace josh {
-// TODO: Separate scene representation of lights from the GPU structs.
-// TODO: Also remove position/orientation in scene repr. and use the Transform.
+
 
 struct AmbientLight {
-    alignas(std430::align_vec3) glm::vec3 color;
+    glm::vec3 color;
 };
+
+
+struct ActiveAmbientLight {
+    entt::entity entity{ entt::null };
+};
+
+
+[[nodiscard]] inline auto get_active_ambient_light(entt::registry& registry)
+    -> entt::handle
+{
+    return detail::get_active<ActiveAmbientLight, AmbientLight>(registry);
+}
+
+[[nodiscard]] inline auto get_active_ambient_light(const entt::registry& registry)
+    -> entt::const_handle
+{
+    return detail::get_active<ActiveAmbientLight, AmbientLight>(registry);
+}
+
+
 
 
 struct DirectionalLight {
-    alignas(std430::align_vec3) glm::vec3 color;
-    alignas(std430::align_vec3) glm::vec3 direction;
+    glm::vec3 color;
 };
 
 
+struct ActiveDirectionalLight {
+    entt::entity entity{ entt::null };
+};
+
+
+[[nodiscard]] inline auto get_active_directional_light(entt::registry& registry)
+    -> entt::handle
+{
+    return detail::get_active<ActiveDirectionalLight, DirectionalLight>(registry);
+}
+
+[[nodiscard]] inline auto get_active_directional_light(const entt::registry& registry)
+    -> entt::const_handle
+{
+    return detail::get_active<ActiveDirectionalLight, DirectionalLight>(registry);
+}
+
+
+
+
 struct Attenuation {
-    alignas(std430::align_float) float constant;
-    alignas(std430::align_float) float linear;
-    alignas(std430::align_float) float quadratic;
+    float constant;
+    float linear;
+    float quadratic;
 
     float get_attenuation(float distance) const noexcept {
         return 1.f / (
@@ -34,19 +79,16 @@ struct Attenuation {
 
 
 struct PointLight {
-    alignas(std430::align_vec3) glm::vec3 color;
-    alignas(std430::align_vec3) glm::vec3 position;
+    glm::vec3   color;
     Attenuation attenuation;
 };
 
 
 struct SpotLight {
-    alignas(std430::align_vec3) glm::vec3 color;
-    alignas(std430::align_vec3) glm::vec3 position;
-    alignas(std430::align_vec3) glm::vec3 direction;
+    glm::vec3   color;
     Attenuation attenuation;
-    alignas(std430::align_float) float inner_cutoff_radians;
-    alignas(std430::align_float) float outer_cutoff_radians;
+    float       inner_cutoff_radians;
+    float       outer_cutoff_radians;
 };
 
 

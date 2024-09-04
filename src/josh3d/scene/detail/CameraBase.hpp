@@ -45,7 +45,7 @@ public:
         -> ViewFrustumAsPlanes
     {
         return planes_local_frustum_.to_world_space(
-            Transform{ transform.position(), transform.rotation(), glm::vec3{ 1.f } }
+            Transform{ transform.position(), transform.orientation(), glm::vec3{ 1.f } }
         );
     }
 
@@ -54,7 +54,7 @@ public:
         -> ViewFrustumAsQuads
     {
         return quads_local_frustum_.to_world_space(
-            Transform{ transform.position(), transform.rotation(), glm::vec3{ 1.f } }
+            Transform{ transform.position(), transform.orientation(), glm::vec3{ 1.f } }
         );
     }
 
@@ -78,7 +78,7 @@ public:
         -> OrthonormalBasis3D
     {
         OrthonormalBasis3D basis{ globals::basis };
-        basis.rotate(transform.rotation());
+        basis.rotate(transform.orientation());
         return basis;
     }
 

@@ -1,11 +1,14 @@
 #pragma once
+#include "Components.hpp"
 #include "LightCasters.hpp"
 #include "RenderEngine.hpp"
+#include "Tags.hpp"
 #include "ViewFrustum.hpp"
 #include "SharedStorage.hpp"
 #include "PerspectiveCamera.hpp"
 #include "Transform.hpp"
 #include "Basis.hpp"
+#include "tags/ShadowCasting.hpp"
 #include <glm/glm.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
@@ -83,17 +86,27 @@ private:
 inline void CSMSetup::operator()(
     RenderEnginePrecomputeInterface& engine)
 {
-    build_from_camera(
-        engine.camera(),
-        engine.registry().view<DirectionalLight>().storage()->begin()->direction
-    );
+    const entt::const_handle dlight_handle =
+        get_active_directional_light(engine.registry());
+
+    if (dlight_handle.valid()                   &&
+        has_component<Transform>(dlight_handle) &&
+        has_tag<ShadowCasting>(dlight_handle))
+    {
+        // TODO: Should be decompose_orientation().
+        const glm::vec3 light_dir =
+            dlight_handle.get<Transform>().orientation() * glm::vec3{ 0.f, 0.f, -1.f };
+
+        build_from_camera(engine.camera(), light_dir);
+    }
 }
 
 
 
 
 inline void CSMSetup::build_from_camera(
-    const PerspectiveCamera& cam, const glm::vec3& light_dir) noexcept
+    const PerspectiveCamera& cam,
+    const glm::vec3&         light_dir) noexcept
 {
 
     output_->resolution = resolution;

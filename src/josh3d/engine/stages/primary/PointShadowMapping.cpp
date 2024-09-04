@@ -88,7 +88,7 @@ void PointShadowMapping::map_point_shadows(
 
 
     auto plights_with_shadows_view =
-        registry.view<PointLight, BoundingSphere, ShadowCasting>();
+        registry.view<PointLight, MTransform, BoundingSphere, ShadowCasting>();
 
 
     auto bound_fbo = maps.bind_draw();
@@ -138,9 +138,9 @@ void PointShadowMapping::map_point_shadows(
         BindGuard bound_program = sp_with_alpha_->use();
 
         for (GLint cubemap_id{ 0 };
-            auto [_, plight, sphere] : plights_with_shadows_view.each())
+            auto [_, plight, mtf, sphere] : plights_with_shadows_view.each())
         {
-            set_per_light_uniforms(sp_with_alpha_, plight.position, cubemap_id, z_near, sphere.radius);
+            set_per_light_uniforms(sp_with_alpha_, mtf.decompose_position(), cubemap_id, z_near, sphere.radius);
             draw_all_world_geometry_with_alpha_test(bound_program, bound_fbo, registry);
 
             ++cubemap_id;
@@ -152,9 +152,9 @@ void PointShadowMapping::map_point_shadows(
         BindGuard bound_program = sp_no_alpha_->use();
 
         for (GLint cubemap_id{ 0 };
-            auto [_, plight, sphere] : plights_with_shadows_view.each())
+            auto [_, plight, mtf, sphere] : plights_with_shadows_view.each())
         {
-            set_per_light_uniforms(sp_no_alpha_, plight.position, cubemap_id, z_near, sphere.radius);
+            set_per_light_uniforms(sp_no_alpha_, mtf.decompose_position(), cubemap_id, z_near, sphere.radius);
             draw_all_world_geometry_no_alpha_test(bound_program, bound_fbo, registry);
 
             ++cubemap_id;

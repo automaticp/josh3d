@@ -1,7 +1,9 @@
 #pragma once
+#include "Components.hpp"
 #include "CubemapData.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLAPICommonTypes.hpp"
+#include "GLProgram.hpp"
 #include "TextureHelpers.hpp"
 #include "UniformTraits.hpp" // IWYU pragma: keep (traits)
 #include "LightCasters.hpp"
@@ -161,22 +163,32 @@ inline void Sky::draw_procedural_sky(
     RenderEnginePrimaryInterface& engine,
     const entt::registry&         registry)
 {
-    // FIXME: UB if no light, lmao
-    const auto& light = *registry.storage<DirectionalLight>()->begin();
-    const auto& cam   = engine.camera();
-
+    const RawProgram<> sp = sp_proc_;
     BindGuard bound_camera_ubo = engine.bind_camera_ubo();
 
-    const glm::vec3 light_dir_view_space =
-        glm::normalize(glm::vec3{ cam.view_mat() * glm::vec4{ light.direction, 0.f } });
+    // TODO: We should decompose_orientation() from the MTransform instead.
+    // Oh god, this sounds like hell. WHY would you ever parent a directional light?!
+    const entt::const_handle dlight_handle = get_active_directional_light(registry);
+    if (dlight_handle.valid() && has_component<Transform>(dlight_handle)) {
 
-    sp_proc_->uniform("light_dir_view_space", light_dir_view_space);
-    sp_proc_->uniform("sky_color",            procedural_sky_params.sky_color);
-    sp_proc_->uniform("sun_color",            procedural_sky_params.sun_color);
-    sp_proc_->uniform("sun_size_rad",         glm::radians(procedural_sky_params.sun_size_deg));
+        const glm::vec3 light_dir =
+            dlight_handle.get<Transform>().orientation() * glm::vec3{ 0.f, 0.f, -1.f };
+
+        const glm::vec3 light_dir_view_space =
+            glm::normalize(glm::vec3{ engine.camera().view_mat() * glm::vec4{ light_dir, 0.f } });
+
+
+        sp.uniform("sun_size_rad",         glm::radians(procedural_sky_params.sun_size_deg));
+        sp.uniform("light_dir_view_space", light_dir_view_space);
+        sp.uniform("sun_color",            procedural_sky_params.sun_color);
+    } else {
+        sp.uniform("sun_size_rad", 0.f); // Signals to not draw "sun".
+    }
+
+    sp.uniform("sky_color", procedural_sky_params.sky_color);
 
     {
-        BindGuard bound_program = sp_proc_->use();
+        BindGuard bound_program = sp.use();
         engine.draw([&](auto bound_fbo) {
             engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
         });

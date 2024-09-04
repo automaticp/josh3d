@@ -134,7 +134,7 @@ void CascadedShadowMapping::map_dir_light_shadow_cascade(
 
         // This is used later in the shading stage.
         output_->params.emplace_back(
-            CascadeParams{
+            CascadeParamsGPU{
                 .projview = cascade.projection * cascade.view,
                 .scale    = { w, h, d },
                 .z_split  = cascade.z_split

@@ -74,6 +74,8 @@
 #include <glbinding/gl/enum.h>
 #include <glfwpp/window.h>
 #include <exception>
+#include <glm/ext.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 
 using namespace josh;
@@ -397,17 +399,19 @@ inline void DemoScene::configure_input(SharedStorageView<GBuffer> gbuffer) {
 void DemoScene::init_registry() {
     auto& registry = registry_;
 
+    const entt::handle alight_handle{ registry, registry.create() };
 
-    registry.emplace<AmbientLight>(registry.create(), AmbientLight{
+    alight_handle.emplace<AmbientLight>(AmbientLight{
         .color = { 0.15f, 0.15f, 0.1f }
     });
+    make_active<ActiveAmbientLight>(alight_handle);
 
-    auto dlight_entity = registry.create();
-    registry.emplace<DirectionalLight>(dlight_entity, DirectionalLight{
-        .color = { 0.15f, 0.15f, 0.1f },
-        .direction = { -0.2f, -1.0f, -0.3f }
-    });
-    registry.emplace<ShadowCasting>(dlight_entity);
+    const entt::handle dlight_handle{ registry, registry.create() };
+    const glm::quat dlight_orientation = glm::quatLookAt(glm::vec3{ -0.2f, -1.f, -0.3f }, { 0.f, 1.f, 0.f });
+    dlight_handle.emplace<DirectionalLight>(DirectionalLight{ .color = { 0.15f, 0.15f, 0.1f } });
+    dlight_handle.emplace<Transform>(Transform().rotate(dlight_orientation));
+    set_tag<ShadowCasting>(dlight_handle);
+    make_active<ActiveDirectionalLight>(dlight_handle);
 
 
     using namespace josh::filesystem_literals;

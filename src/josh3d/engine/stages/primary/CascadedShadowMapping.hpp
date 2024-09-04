@@ -17,7 +17,7 @@
 namespace josh {
 
 
-struct CascadeParams {
+struct CascadeParamsGPU {
     alignas(std430::align_vec4)  glm::mat4 projview{};
     alignas(std430::align_vec3)  glm::vec3 scale{};
     alignas(std430::align_float) float     z_split{};
@@ -34,7 +34,7 @@ struct CascadedShadowMaps {
         { InternalFormat::DepthComponent32F }
     };
 
-    std::vector<CascadeParams> params{
+    std::vector<CascadeParamsGPU> params{
         size_t(dir_shadow_maps_tgt.depth_attachment().num_array_elements())
     };
 };

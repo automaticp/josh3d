@@ -1,4 +1,8 @@
 #include "LightComponents.hpp"
+#include "Tags.hpp"
+#include "LightCasters.hpp"
+#include "Components.hpp"
+#include "Transform.hpp"
 #include "tags/ShadowCasting.hpp"
 #include "ImGuiHelpers.hpp"
 #include <entt/core/fwd.hpp>
@@ -41,25 +45,6 @@ void LightComponents::operator()(entt::registry& registry) {
                 }
             }
 
-
-            // TODO: Might actually make sense to represent direction
-            // as theta and phi pair internally. That way, there's no degeneracy.
-
-            // We swap x and y so that phi is rotation around x,
-            // and behaves more like the real Sun.
-            // We're probably not on the north pole, it's fine.
-            glm::vec3 swapped_dir{ dir.direction.y, dir.direction.x, dir.direction.z };
-            glm::vec2 polar = glm::degrees(glm::polar(swapped_dir));
-            if (ImGui::DragFloat2("Direction", glm::value_ptr(polar), 0.5f)) {
-                swapped_dir = glm::euclidean(glm::radians(glm::vec2{ polar.x, polar.y }));
-                // Un-swap back.
-                dir.direction = glm::vec3{ swapped_dir.y, swapped_dir.x, swapped_dir.z };
-            }
-
-            ImGui::BeginDisabled();
-            ImGui::InputFloat3("Direction XYZ", glm::value_ptr(dir.direction));
-            ImGui::EndDisabled();
-
             ImGui::PopID();
         }
 
@@ -68,24 +53,31 @@ void LightComponents::operator()(entt::registry& registry) {
 
     if (ImGui::TreeNode("Point")) {
 
+        thread_local PointLight template_plight{
+            .color       = { 1.f, 1.f, 0.8f },
+            .attenuation = { .constant = 0.05f, .linear = 0.0f, .quadratic = 0.2f }
+        };
+        thread_local glm::vec3 template_position{ 0.f };
+        thread_local bool      template_has_shadow{ true };
 
         bool display_node = ImGui::TreeNode("Configure New");
         ImGui::SameLine();
         if (ImGui::SmallButton("Create")) {
-            auto e = registry.create();
-            registry.emplace<PointLight>(e, plight_template_);
-            if (plight_has_shadow_) {
-                registry.emplace<ShadowCasting>(e);
+            const entt::handle new_plight{ registry, registry.create() };
+            new_plight.emplace<PointLight>(template_plight);
+            new_plight.emplace<Transform>().translate(template_position);
+            if (template_has_shadow) {
+                set_tag<ShadowCasting>(new_plight);
             }
         }
 
         if (display_node) {
-            ImGui::DragFloat3("Position", glm::value_ptr(plight_template_.position), 0.2f);
-            ImGui::ColorEdit3("Color", glm::value_ptr(plight_template_.color), ImGuiColorEditFlags_DisplayHSV);
+            ImGui::DragFloat3("Position", value_ptr(template_position), 0.2f, -FLT_MAX, FLT_MAX);
+            ImGui::ColorEdit3("Color",    value_ptr(template_plight.color), ImGuiColorEditFlags_DisplayHSV);
             ImGui::SameLine();
-            ImGui::Checkbox("Shadow", &plight_has_shadow_);
+            ImGui::Checkbox("Shadow", &template_has_shadow);
             ImGui::DragFloat3(
-                "Atten. (c/l/q)", &plight_template_.attenuation.constant,
+                "Atten. (c/l/q)", &template_plight.attenuation.constant,
                 0.1f, 0.f, 100.f, "%.4f", ImGuiSliderFlags_Logarithmic
             );
 
@@ -113,7 +105,6 @@ void LightComponents::operator()(entt::registry& registry) {
 
             if (display_node) {
 
-                ImGui::DragFloat3("Position", glm::value_ptr(plight.position), 0.2f);
                 ImGui::ColorEdit3("Color", glm::value_ptr(plight.color), ImGuiColorEditFlags_DisplayHSV);
                 ImGui::SameLine();
                 bool has_shadow = registry.all_of<ShadowCasting>(e);
@@ -140,11 +131,9 @@ void LightComponents::operator()(entt::registry& registry) {
         }
 
         if (to_duplicate != entt::null) {
-            auto new_e = registry.create();
-            registry.emplace<PointLight>(new_e, registry.get<PointLight>(to_duplicate));
-            if (registry.all_of<ShadowCasting>(to_duplicate)) {
-                registry.emplace<ShadowCasting>(new_e);
-            }
+            const entt::handle old_plight{ registry, to_duplicate      };
+            const entt::handle new_plight{ registry, registry.create() };
+            copy_components<PointLight, Transform, ShadowCasting>(new_plight, old_plight);
         }
 
         ImGui::TreePop();

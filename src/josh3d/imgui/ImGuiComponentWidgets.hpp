@@ -97,7 +97,7 @@ inline bool TransformWidget(josh::Transform* transform) noexcept {
     // FIXME: This is slightly more usable, but the singularity for Pitch around 90d
     // is still unstable. In general: Local X is Pitch, Global Y is Yaw, and Local Z is Roll.
     // Stll very messy to use, but should get the ball rolling.
-    const glm::quat& q = transform->rotation();
+    const glm::quat& q = transform->orientation();
     // Swap quaternion axes to make pitch around (local) X axis.
     // Also GLM for some reason assumes that the locking [-90, 90] axis is
     // associated with Yaw, not Pitch...? Maybe I am confused here but
@@ -116,7 +116,7 @@ inline bool TransformWidget(josh::Transform* transform) noexcept {
         euler.z = glm::mod(euler.z, 360.f);
         // Un-shuffle back both the euler angles and quaternions.
         glm::quat p = glm::quat(glm::radians(glm::vec3{ euler.y, euler.x, euler.z }));
-        transform->rotation() = glm::quat{ p.w, p.y, p.x, p.z };
+        transform->orientation() = glm::quat{ p.w, p.y, p.x, p.z };
         feedback |= true;
     }
 
@@ -436,34 +436,14 @@ inline bool DirectionalLightWidget(entt::handle dlight_handle) {
     if (auto* dlight = dlight_handle.try_get<DirectionalLight>()) {
 
         feedback |= ImGui::ColorEdit3("Color", glm::value_ptr(dlight->color), ImGuiColorEditFlags_DisplayHSV);
+
         ImGui::SameLine();
+
         bool has_shadow = has_tag<ShadowCasting>(dlight_handle);
         if (ImGui::Checkbox("Shadow", &has_shadow)) {
             switch_tag<ShadowCasting>(dlight_handle);
             feedback |= true;
         }
-
-
-        // TODO: Might actually make sense to represent direction
-        // as theta and phi pair internally. That way, there's no degeneracy.
-
-        // We swap x and y so that phi is rotation around x,
-        // and behaves more like the real Sun.
-        // We're probably not on the north pole, it's fine.
-        const glm::vec3 dir = dlight->direction;
-        glm::vec3 swapped_dir{ dir.y, dir.x, dir.z };
-        glm::vec2 polar = glm::degrees(glm::polar(swapped_dir));
-        if (ImGui::DragFloat2("Direction", glm::value_ptr(polar), 0.5f)) {
-            swapped_dir = glm::euclidean(glm::radians(glm::vec2{ polar.x, polar.y }));
-            // Un-swap back.
-            dlight->direction = glm::vec3{ swapped_dir.y, swapped_dir.x, swapped_dir.z };
-            feedback |= true;
-        }
-
-        ImGui::BeginDisabled();
-        ImGui::InputFloat3("Direction XYZ", glm::value_ptr(dlight->direction));
-        ImGui::EndDisabled();
-
     }
 
     return feedback;
@@ -486,11 +466,12 @@ inline Feedback PointLightWidgetHeader(entt::handle plight_handle) noexcept {
 
 inline void PointLightWidgetBody(entt::handle plight_handle) noexcept {
 
-    if (auto plight = plight_handle.try_get<PointLight>()) {
+    if (auto* plight = plight_handle.try_get<PointLight>()) {
 
-        ImGui::DragFloat3("Position", glm::value_ptr(plight->position), 0.2f);
         ImGui::ColorEdit3("Color", glm::value_ptr(plight->color), ImGuiColorEditFlags_DisplayHSV);
+
         ImGui::SameLine();
+
         bool has_shadow = has_tag<ShadowCasting>(plight_handle);
         if (ImGui::Checkbox("Shadow", &has_shadow)) {
             switch_tag<ShadowCasting>(plight_handle);

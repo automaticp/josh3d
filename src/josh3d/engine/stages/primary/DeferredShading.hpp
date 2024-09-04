@@ -2,11 +2,11 @@
 #include "GLAPICommonTypes.hpp"
 #include "GLObjects.hpp"
 #include "GLScalars.hpp"
-#include "Layout.hpp"
-#include "LightCasters.hpp"
+#include "LightsGPU.hpp"
 #include "ShaderBuilder.hpp"
 #include "SharedStorage.hpp"
 #include "GBufferStorage.hpp"
+#include "UploadBuffer.hpp"
 #include "VPath.hpp"
 #include "stages/primary/PointShadowMapping.hpp"
 #include "stages/primary/CascadedShadowMapping.hpp"
@@ -102,15 +102,9 @@ private:
             .get()
     };
 
-    struct PLight {
-        alignas(std430::align_vec3)  glm::vec3 color;
-        alignas(std430::align_vec3)  glm::vec3 position;
-        alignas(std430::align_float) float     radius;
-        Attenuation                     attenuation;
-    };
-
-    UniqueBuffer<PLight>        plights_buf_;
-    UniqueBuffer<CascadeParams> csm_params_buf_;
+    UploadBuffer<PointLightBoundedGPU> plights_with_shadow_buf_;
+    UploadBuffer<PointLightBoundedGPU> plights_no_shadow_buf_;
+    UniqueBuffer<CascadeParamsGPU>     csm_params_buf_;
 
     UniqueSampler target_sampler_ = []() {
         UniqueSampler s;
@@ -143,18 +137,12 @@ private:
         return s;
     }();
 
-    auto update_point_light_buffers(const entt::registry& registry) -> std::tuple<NumElems, NumElems>;
+    void update_point_light_buffers(const entt::registry& registry);
     void update_cascade_buffer();
 
-    void draw_singlepass(
-        RenderEnginePrimaryInterface& engine,
-        NumElems                      num_plights_with_shadow,
-        NumElems                      num_plights_no_shadow);
+    void draw_singlepass(RenderEnginePrimaryInterface& engine);
+    void draw_multipass (RenderEnginePrimaryInterface& engine);
 
-    void draw_multipass(
-        RenderEnginePrimaryInterface& engine,
-        NumElems                      num_plights_with_shadow,
-        NumElems                      num_plights_no_shadow);
 };
 
 

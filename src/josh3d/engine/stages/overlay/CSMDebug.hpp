@@ -1,7 +1,9 @@
 #pragma once
+#include "Components.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLAPICommonTypes.hpp"
 #include "GLBuffers.hpp"
+#include "Transform.hpp"
 #include "UniformTraits.hpp" // IWYU pragma: keep (traits)
 #include "GLObjectHelpers.hpp"
 #include "GLObjects.hpp"
@@ -68,7 +70,7 @@ private:
     SharedStorageView<CascadeViews>       views_;
     SharedStorageView<CascadedShadowMaps> maps_;
 
-    UniqueBuffer<CascadeParams> csm_params_buf_;
+    UniqueBuffer<CascadeParamsGPU> csm_params_buf_;
 
 
     void draw_views_overlay(RenderEngineOverlayInterface& engine);
@@ -96,27 +98,28 @@ inline void CSMDebug::draw_views_overlay(
     RenderEngineOverlayInterface& engine)
 {
     const auto& registry   = engine.registry();
-    BindGuard bound_camera = engine.bind_camera_ubo();
+    const entt::const_handle dlight_handle = get_active_directional_light(registry);
 
-    // FIXME: Figure out what information we need here exactly.
-    // Cause I'm passing data that's largely irrelevant for the debug.
-    // AFAIK we only need the projview matrices.
-    resize_to_fit(csm_params_buf_, NumElems{ maps_->params.size() });
-    csm_params_buf_->upload_data(maps_->params);
-    csm_params_buf_->bind_to_index<BufferTargetIndexed::ShaderStorage>(3);
+    if (dlight_handle.valid() && has_component<Transform>(dlight_handle)) {
+        const glm::vec3 light_dir = dlight_handle.get<Transform>().orientation() * glm::vec3{ 0.f, 0.f, -1.f };
 
-    gbuffer_->depth_texture()  .bind_to_texture_unit(0);
-    gbuffer_->normals_texture().bind_to_texture_unit(1);
+        BindGuard bound_camera = engine.bind_camera_ubo();
 
-    sp_views_->uniform("tex_depth",   0);
-    sp_views_->uniform("tex_normals", 1);
+        // FIXME: Figure out what information we need here exactly.
+        // Cause I'm passing data that's largely irrelevant for the debug.
+        // AFAIK we only need the projview matrices.
+        resize_to_fit(csm_params_buf_, NumElems{ maps_->params.size() });
+        csm_params_buf_->upload_data(maps_->params);
+        csm_params_buf_->bind_to_index<BufferTargetIndexed::ShaderStorage>(3);
 
-    const auto& storage = *registry.storage<DirectionalLight>();
+        gbuffer_->depth_texture()  .bind_to_texture_unit(0);
+        gbuffer_->normals_texture().bind_to_texture_unit(1);
 
-    if (auto dir_light_it = storage.begin(); dir_light_it != storage.end()) {
+        sp_views_->uniform("tex_depth",   0);
+        sp_views_->uniform("tex_normals", 1);
 
-        sp_views_->uniform("dir_light.color",     dir_light_it->color);
-        sp_views_->uniform("dir_light.direction", dir_light_it->direction);
+        sp_views_->uniform("dir_light.color",     dlight_handle.get<DirectionalLight>().color);
+        sp_views_->uniform("dir_light.direction", light_dir);
 
         glapi::disable(Capability::DepthTesting);
         {
@@ -126,7 +129,6 @@ inline void CSMDebug::draw_views_overlay(
         glapi::enable(Capability::DepthTesting);
 
     }
-
 }
 
 
