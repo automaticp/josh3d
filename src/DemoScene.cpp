@@ -64,7 +64,6 @@
 #include "hooks/overlay/GBufferDebug.hpp"
 #include "hooks/overlay/SelectedObjectHighlight.hpp"
 #include "hooks/overlay/BoundingSphereDebug.hpp"
-#include "hooks/registry/TerrainComponents.hpp"
 #include "hooks/registry/PerspectiveCamera.hpp"
 
 #include <entt/entity/fwd.hpp>
@@ -266,7 +265,6 @@ DemoScene::DemoScene(glfw::Window& window)
 
 
     // TODO: Remove these.
-    imgui_.registry_hooks().add_hook("Terrain", imguihooks::registry::TerrainComponents());
     imgui_.registry_hooks().add_hook("Camera",  imguihooks::registry::PerspectiveCamera(cam_));
 
 

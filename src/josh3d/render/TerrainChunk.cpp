@@ -1,20 +1,39 @@
-#pragma once
-#include "CommonConcepts.hpp" // IWYU pragma: keep (concepts)
-#include "MeshData.hpp"
-#include "Size.hpp"
-#include "Index.hpp"
-#include "VertexPNUTB.hpp"
-#include <cassert>
-#include <glm/glm.hpp>
+#include "TerrainChunk.hpp"
+#include "GLAPICommonTypes.hpp"
+#include "GLObjectHelpers.hpp"
+#include "GLObjects.hpp"
+#include "GLTextures.hpp"
+#include "PixelData.hpp"
+#include "Pixels.hpp"
+#include "PixelPackTraits.hpp" // IWYU pragma: keep
+#include <random>
+#include <utility>
 
 
 namespace josh {
+namespace {
+
+
+auto generate_terrain_heightmap_data(float max_height, const Size2S& resolution)
+    -> PixelData<pixel::RedF>
+{
+    thread_local std::mt19937 urng{ std::random_device{}() };
+    std::uniform_real_distribution<float> dist{ 0.f, max_height };
+
+    PixelData<pixel::RedF> heightmap_data{ resolution };
+    for (auto& px : heightmap_data) {
+        px.r = dist(urng);
+    }
+
+    return heightmap_data;
+}
 
 
 template<of_signature<float(const Index2S&)> MappingF>
 [[nodiscard]] inline auto generate_terrain_mesh(
-    Size2S     num_vertices_xy,
-    MappingF&& mapping_fun)
+    const Extent2F& extents,
+    const Size2S&   num_vertices_xy,
+    MappingF&&      mapping_fun)
         -> MeshData<VertexPNUTB>
 {
     const size_t size_x = num_vertices_xy.width;
@@ -32,9 +51,9 @@ template<of_signature<float(const Index2S&)> MappingF>
             v.uv.s = float(xid) / float(size_x - 1);
             v.uv.t = float(yid) / float(size_y - 1);
 
-            v.position.x = v.uv.s;
+            v.position.x = v.uv.s * extents.width;
             v.position.y = std::invoke(std::forward<MappingF>(mapping_fun), Index2S{ xid, yid });
-            v.position.z = v.uv.t;
+            v.position.z = v.uv.t * extents.height;
 
             // Replaced later in a second pass.
             v.normal = glm::vec3{ 0.f, 1.f, 0.f };
@@ -68,11 +87,8 @@ template<of_signature<float(const Index2S&)> MappingF>
 
             // Winding order is CCW.
 
-            // Triangle |\:
-            emplace_triangle(quad.tl, quad.bl, quad.br);
-            // Triangle \|:
-            emplace_triangle(quad.tl, quad.br, quad.tr);
-
+            emplace_triangle(quad.tl, quad.bl, quad.br); // |\ triangle.
+            emplace_triangle(quad.tl, quad.br, quad.tr); // \| triangle.
             ++quad_id;
         }
         ++quad_id; // Skip the last vertex each row.
@@ -101,6 +117,43 @@ template<of_signature<float(const Index2S&)> MappingF>
 
 
     return result;
+}
+
+
+auto create_heightmap_texture(const PixelData<pixel::RedF>& heightmap)
+    -> UniqueTexture2D
+{
+    Size2I resolution{ heightmap.resolution() };
+    UniqueTexture2D texture;
+    texture->allocate_storage(resolution, InternalFormat::R32F, max_num_levels(resolution));
+    texture->upload_image_region({ {}, resolution }, heightmap.data());
+    texture->generate_mipmaps();
+    texture->set_sampler_min_mag_filters(MinFilter::NearestMipmapLinear, MagFilter::Nearest);
+    return texture;
+}
+
+
+} // namespace
+
+
+
+
+
+auto create_terrain_chunk(
+    float           max_height,
+    const Extent2F& extents,
+    const Size2S&   resolution)
+        -> TerrainChunk
+{
+    auto heightmap_data = generate_terrain_heightmap_data(max_height, resolution);
+    auto mesh_data      = generate_terrain_mesh(extents, resolution, [&](const Index2S& idx) { return heightmap_data.at(idx).r; });
+    auto mesh           = Mesh(mesh_data);
+    auto heightmap      = create_heightmap_texture(heightmap_data);
+    return {
+        .mesh           = std::move(mesh),
+        .heightmap_data = std::move(heightmap_data),
+        .heightmap      = std::move(heightmap),
+    };
 }
 
 

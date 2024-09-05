@@ -7,6 +7,8 @@
 #include "ObjectLifecycle.hpp"
 #include "SceneGraph.hpp"
 #include "Tags.hpp"
+#include "TerrainChunk.hpp"
+#include "Transform.hpp"
 #include "tags/Selected.hpp"
 #include "tags/ShadowCasting.hpp"
 #include <entt/entity/entity.hpp>
@@ -209,6 +211,11 @@ void ImGuiSceneList::display() {
 
     bool create_new_alight = false;
 
+    thread_local float      new_terrain_max_height = 5.f;
+    thread_local glm::vec2  new_terrain_extents   { 100.f, 100.f };
+    thread_local glm::ivec2 new_terrain_resolution{ 100,   100   };
+
+    bool create_new_terrain = false;
 
     thread_local std::string import_model_vpath;
     thread_local AssetPath   import_model_apath;
@@ -274,11 +281,20 @@ void ImGuiSceneList::display() {
                 ImGui::Checkbox("Shadow", &new_dlight_cast_shadow);
                 ImGui::EndMenu();
             }
-            // TODO:
 
             ImGui::Separator();
 
-            ImGui::MenuItem("TerrainChunk (TODO)");
+            if (ImGui::BeginMenu("TerrainChunk")) {
+                if (ImGui::IsItemClicked()) {
+                    create_new_terrain = true;
+                }
+                ImGui::DragFloat("Max Height", &new_terrain_max_height, 0.2f, 0.f, FLT_MAX);
+                ImGui::DragFloat2("Extents", value_ptr(new_terrain_extents), 0.2, 0.f, FLT_MAX);
+                ImGui::DragInt2("Resolution", value_ptr(new_terrain_resolution), 1.f, 1, 4096);
+                ImGui::EndMenu();
+            }
+
+            // TODO: Camera.
 
             ImGui::EndMenu();
         }
@@ -451,6 +467,14 @@ void ImGuiSceneList::display() {
         if (!has_active<DirectionalLight>(registry)) {
             make_active<DirectionalLight>(new_dlight);
         }
+    }
+
+    if (create_new_terrain) {
+        const entt::handle new_terrain{ registry, registry.create() };
+        const Size2S   resolution{ size_t(new_terrain_resolution.x), size_t(new_terrain_resolution.y) };
+        const Extent2F extents   { new_terrain_extents.x, new_terrain_extents.y };
+        new_terrain.emplace<TerrainChunk>(create_terrain_chunk(new_terrain_max_height, extents, resolution));
+        new_terrain.emplace<Transform>();
     }
 
     if (import_model_signal) {

@@ -27,7 +27,7 @@ void main() {
 // #endif // ENABLE_ALPHA_TESTING
 
     out_normal    = gl_FrontFacing ? normal : -normal;
-    out_albedo    = mat_diffuse.rgb;
+    out_albedo    = vec3(mat_diffuse.r);
     out_specular  = 0.2;
     out_object_id = object_id;
 }

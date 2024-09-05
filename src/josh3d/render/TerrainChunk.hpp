@@ -15,4 +15,11 @@ struct TerrainChunk {
 };
 
 
-} // namespace josh::components
+auto create_terrain_chunk(
+    float           max_height,
+    const Extent2F& extents,
+    const Size2S&   resolution)
+        -> TerrainChunk;
+
+
+} // namespace josh
