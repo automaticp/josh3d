@@ -1,5 +1,5 @@
 #pragma once
-#include "Components.hpp"
+#include "Active.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLAPICommonTypes.hpp"
 #include "GLBuffers.hpp"
@@ -97,11 +97,11 @@ inline void CSMDebug::operator()(
 inline void CSMDebug::draw_views_overlay(
     RenderEngineOverlayInterface& engine)
 {
-    const auto& registry   = engine.registry();
-    const entt::const_handle dlight_handle = get_active_directional_light(registry);
+    const auto& registry = engine.registry();
 
-    if (dlight_handle.valid() && has_component<Transform>(dlight_handle)) {
-        const glm::vec3 light_dir = dlight_handle.get<Transform>().orientation() * glm::vec3{ 0.f, 0.f, -1.f };
+    if (const auto dlight = get_active<DirectionalLight, Transform>(registry)) {
+
+        const glm::vec3 light_dir = dlight.get<Transform>().orientation() * glm::vec3{ 0.f, 0.f, -1.f };
 
         BindGuard bound_camera = engine.bind_camera_ubo();
 
@@ -118,7 +118,7 @@ inline void CSMDebug::draw_views_overlay(
         sp_views_->uniform("tex_depth",   0);
         sp_views_->uniform("tex_normals", 1);
 
-        sp_views_->uniform("dir_light.color",     dlight_handle.get<DirectionalLight>().color);
+        sp_views_->uniform("dir_light.color",     dlight.get<DirectionalLight>().color);
         sp_views_->uniform("dir_light.direction", light_dir);
 
         glapi::disable(Capability::DepthTesting);

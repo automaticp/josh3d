@@ -1,4 +1,6 @@
 #pragma once
+#include "Active.hpp"
+#include "Components.hpp"
 #include "DefaultTextures.hpp"
 #include "GLObjects.hpp"
 #include "ImGuiHelpers.hpp"
@@ -33,19 +35,18 @@ struct GenericHeaderInfo {
 };
 
 
-inline auto GetGenericHeaderInfo(entt::handle handle)
+inline auto GetGenericHeaderInfo(entt::const_handle handle)
     -> GenericHeaderInfo
 {
     const char* type_name = [&]() {
-        if (handle.all_of<Mesh>())             { return "Mesh";             }
-        if (handle.all_of<TerrainChunk>())     { return "TerrainChunk";     }
-        if (handle.all_of<AmbientLight>())     { return "AmbientLight";     }
-        if (handle.all_of<DirectionalLight>()) { return "DirectionalLight"; }
-        if (handle.all_of<PointLight>())       { return "PointLight";       }
-        if (handle.all_of<Skybox>())           { return "Skybox";           }
+        if (has_component<Mesh>            (handle)) { return "Mesh";             }
+        if (has_component<TerrainChunk>    (handle)) { return "TerrainChunk";     }
+        if (has_component<AmbientLight>    (handle)) { return "AmbientLight";     }
+        if (has_component<DirectionalLight>(handle)) { return "DirectionalLight"; }
+        if (has_component<PointLight>      (handle)) { return "PointLight";       }
+        if (has_component<Skybox>          (handle)) { return "Skybox";           }
 
-
-        if (handle.all_of<Transform>()) {
+        if (has_component<Transform>(handle)) {
             if (has_children(handle)) { return "Node";   }
             else                      { return "Orphan"; }
         } else {
@@ -66,9 +67,17 @@ inline auto GetGenericHeaderInfo(entt::handle handle)
 }
 
 
-inline void GenericHeaderText(entt::handle handle) {
-    const bool is_culled = has_tag<Culled>(handle);
-    if (is_culled) {
+inline bool GetGenericVisibility(entt::const_handle handle) {
+    if (has_component<AmbientLight>    (handle)) { return is_active<AmbientLight>    (handle); }
+    if (has_component<DirectionalLight>(handle)) { return is_active<DirectionalLight>(handle); }
+    if (has_component<Skybox>          (handle)) { return is_active<Skybox>          (handle); }
+    return !has_tag<Culled>(handle);
+}
+
+
+inline void GenericHeaderText(entt::const_handle handle) {
+    const bool is_visible = GetGenericVisibility(handle);
+    if (!is_visible) {
         auto text_color = ImGui::GetStyleColorVec4(ImGuiCol_Text);
         text_color.w *= 0.5f; // Dim text when culled.
         ImGui::PushStyleColor(ImGuiCol_Text, text_color);
@@ -77,11 +86,33 @@ inline void GenericHeaderText(entt::handle handle) {
     auto [type_name, name] = GetGenericHeaderInfo(handle);
     ImGui::Text("[%d] [%s] %s", entt::to_entity(handle.entity()), type_name, name);
 
-    if (is_culled) {
+    if (!is_visible) {
         ImGui::PopStyleColor();
     }
 }
 
+
+struct GenericActiveInfo {
+    bool can_be_active{ false };
+    bool is_active    { false };
+};
+
+
+inline auto GetGenericActiveInfo(entt::const_handle handle)
+    -> GenericActiveInfo
+{
+    if (has_component<AmbientLight>    (handle)) { return { true, is_active<AmbientLight>    (handle) }; }
+    if (has_component<DirectionalLight>(handle)) { return { true, is_active<DirectionalLight>(handle) }; }
+    if (has_component<Skybox>          (handle)) { return { true, is_active<Skybox>          (handle) }; }
+    return { false, false };
+}
+
+
+inline void GenericMakeActive(entt::handle handle) {
+    if (has_component<AmbientLight>    (handle)) { make_active<AmbientLight>    (handle); }
+    if (has_component<DirectionalLight>(handle)) { make_active<DirectionalLight>(handle); }
+    if (has_component<Skybox>          (handle)) { make_active<Skybox>          (handle); }
+}
 
 
 

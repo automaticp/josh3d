@@ -1,8 +1,7 @@
 #pragma once
-#include "Components.hpp"
 #include "LightCasters.hpp"
 #include "RenderEngine.hpp"
-#include "Tags.hpp"
+#include "Active.hpp"
 #include "ViewFrustum.hpp"
 #include "SharedStorage.hpp"
 #include "PerspectiveCamera.hpp"
@@ -86,16 +85,12 @@ private:
 inline void CSMSetup::operator()(
     RenderEnginePrecomputeInterface& engine)
 {
-    const entt::const_handle dlight_handle =
-        get_active_directional_light(engine.registry());
-
-    if (dlight_handle.valid()                   &&
-        has_component<Transform>(dlight_handle) &&
-        has_tag<ShadowCasting>(dlight_handle))
+    if (const auto dlight =
+        get_active<DirectionalLight, Transform, ShadowCasting>(engine.registry()))
     {
-        // TODO: Should be decompose_orientation().
+        // TODO: Should be decompose_orientation() from MTransform.
         const glm::vec3 light_dir =
-            dlight_handle.get<Transform>().orientation() * glm::vec3{ 0.f, 0.f, -1.f };
+            dlight.get<Transform>().orientation() * glm::vec3{ 0.f, 0.f, -1.f };
 
         build_from_camera(engine.camera(), light_dir);
     }

@@ -1,5 +1,5 @@
 #include "DeferredShading.hpp"
-#include "Components.hpp"
+#include "Active.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLAPICommonTypes.hpp"
 #include "GLBuffers.hpp"
@@ -36,10 +36,9 @@ struct ALight {
 auto get_active_alight_or_default(const entt::registry& registry)
     -> ALight
 {
-    const auto alight_handle = get_active_ambient_light(registry);
     glm::vec3 color{ 0.f, 0.f, 0.f };
-    if (alight_handle.valid()) {
-        color = alight_handle.get<AmbientLight>().color;
+    if (const auto alight = get_active<AmbientLight>(registry)) {
+        color = alight.get<AmbientLight>().color;
     }
     return { color };
 }
@@ -56,11 +55,11 @@ struct DLight {
 auto get_active_dlight_or_default(const entt::registry& registry)
     -> DLight
 {
-    const auto dlight = get_active_directional_light(registry);
     glm::vec3 color       { 0.f, 0.f, 0.f };
     glm::vec3 direction   { 1.f, 1.f, 1.f };
     bool      cast_shadows{ false };
-    if (dlight.valid() && has_component<Transform>(dlight)) {
+
+    if (const auto dlight = get_active<DirectionalLight, Transform>(registry)) {
         color        = dlight.get<DirectionalLight>().color;
         direction    = dlight.get<Transform>().orientation() * glm::vec3{ 0.f, 0.f, -1.f };
         cast_shadows = has_tag<ShadowCasting>(dlight);

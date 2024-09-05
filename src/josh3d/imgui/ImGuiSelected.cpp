@@ -1,4 +1,6 @@
 #include "ImGuiSelected.hpp"
+#include "Active.hpp"
+#include "Components.hpp"
 #include "ImGuiComponentWidgets.hpp"
 #include "LightCasters.hpp"
 #include "Mesh.hpp"
@@ -39,6 +41,7 @@ void ImGuiSelected::display() {
         if (auto plight = handle.try_get<PointLight>()) {
             imgui::PointLightWidgetBody(handle);
         }
+
         if (auto dlight = handle.try_get<DirectionalLight>()) {
             imgui::DirectionalLightWidget(handle);
         }

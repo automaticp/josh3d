@@ -1,4 +1,5 @@
 #include "SceneImporter.hpp"
+#include "Active.hpp"
 #include "AssetManager.hpp"
 #include "ComponentLoaders.hpp"
 #include "Transform.hpp"
@@ -97,13 +98,16 @@ auto unpack_model(entt::registry& registry, Future<SharedModelAsset> future)
 auto unpack_skybox(entt::registry& registry, const AssetPath& json_file)
     -> entt::entity
 {
-    const entt::entity new_entity = registry.create();
-
+    entt::handle new_handle{ registry, registry.create() };
     try {
-        load_skybox_into({ registry, new_entity }, File(json_file.file));
-        return new_entity;
+        load_skybox_into(new_handle, File(json_file.file));
+        // TODO: Is this the right place to handle this?
+        if (!has_active<Skybox>(registry)) {
+            make_active<Skybox>(new_handle);
+        }
+        return new_handle.entity();
     } catch (...) {
-        registry.destroy(new_entity);
+        new_handle.destroy();
         throw;
     }
 }

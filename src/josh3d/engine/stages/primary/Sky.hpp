@@ -1,5 +1,5 @@
 #pragma once
-#include "Components.hpp"
+#include "Active.hpp"
 #include "CubemapData.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLAPICommonTypes.hpp"
@@ -11,6 +11,7 @@
 #include "ShaderBuilder.hpp"
 #include "Skybox.hpp"
 #include "VPath.hpp"
+#include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
 #include <glbinding/gl/functions.h>
 #include <glbinding/gl/gl.h>
@@ -138,10 +139,9 @@ inline void Sky::draw_skybox(
     RenderEnginePrimaryInterface& engine,
     const entt::registry&         registry)
 {
-    if (!registry.view<Skybox>().empty()) {
+    if (const auto skybox_handle = get_active<Skybox>(registry)) {
 
-        // FIXME: Pulls a single skybox, obviously won't work when there are many.
-        registry.storage<Skybox>()->begin()->cubemap->bind_to_texture_unit(0);
+        skybox_handle.get<Skybox>().cubemap->bind_to_texture_unit(0);
 
         BindGuard bound_camera_ubo = engine.bind_camera_ubo();
         sp_skybox_->uniform("cubemap", 0);
@@ -152,7 +152,8 @@ inline void Sky::draw_skybox(
                 engine.primitives().box_mesh().draw(bound_program, bound_fbo);
             });
         }
-
+    } else {
+        draw_procedural_sky(engine, registry); // Fallback.
     }
 }
 
@@ -166,13 +167,12 @@ inline void Sky::draw_procedural_sky(
     const RawProgram<> sp = sp_proc_;
     BindGuard bound_camera_ubo = engine.bind_camera_ubo();
 
-    // TODO: We should decompose_orientation() from the MTransform instead.
-    // Oh god, this sounds like hell. WHY would you ever parent a directional light?!
-    const entt::const_handle dlight_handle = get_active_directional_light(registry);
-    if (dlight_handle.valid() && has_component<Transform>(dlight_handle)) {
+    if (const auto dlight = get_active<DirectionalLight, Transform>(registry)) {
 
+        // TODO: We should decompose_orientation() from the MTransform instead.
+        // Oh god, this sounds like hell. WHY would you ever parent a directional light?!
         const glm::vec3 light_dir =
-            dlight_handle.get<Transform>().orientation() * glm::vec3{ 0.f, 0.f, -1.f };
+            dlight.get<Transform>().orientation() * glm::vec3{ 0.f, 0.f, -1.f };
 
         const glm::vec3 light_dir_view_space =
             glm::normalize(glm::vec3{ engine.camera().view_mat() * glm::vec4{ light_dir, 0.f } });

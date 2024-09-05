@@ -1,15 +1,18 @@
 #include "ImGuiSceneList.hpp"
+#include "Active.hpp"
 #include "Filesystem.hpp"
 #include "ImGuiComponentWidgets.hpp"
 #include "ImGuiHelpers.hpp"
+#include "LightCasters.hpp"
 #include "ObjectLifecycle.hpp"
 #include "SceneGraph.hpp"
 #include "Tags.hpp"
-#include "tags/Culled.hpp"
 #include "tags/Selected.hpp"
+#include "tags/ShadowCasting.hpp"
 #include <entt/entity/entity.hpp>
 #include <entt/entity/fwd.hpp>
 #include <exception>
+#include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 #include <imgui_stdlib.h>
 
@@ -19,6 +22,10 @@ namespace {
 
 
 struct Signals {
+
+    struct MakeActive {
+        entt::entity target = entt::null;
+    } make_active;
 
     struct Selection {
         entt::entity target      = entt::null;
@@ -46,9 +53,15 @@ void display_item_popup(
     Signals&     signals)
 {
     imgui::GenericHeaderText(handle);
-
+    const auto [can_be_active, is_active] = imgui::GetGenericActiveInfo(handle);
 
     ImGui::Separator();
+
+    ImGui::BeginDisabled(!can_be_active || is_active);
+    if (ImGui::MenuItem("Make Active")) {
+        signals.make_active.target = handle.entity();
+    }
+    ImGui::EndDisabled();
 
     if (ImGui::MenuItem("Select")) {
         signals.selection.target      = handle.entity();
@@ -108,8 +121,8 @@ bool begin_entity_display(
         flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
     }
 
-    const bool is_culled = has_tag<Culled>(handle);
-    if (is_culled) {
+    const bool is_visible = imgui::GetGenericVisibility(handle);
+    if (!is_visible) {
         auto text_color = ImGui::GetStyleColorVec4(ImGuiCol_Text);
         text_color.w *= 0.5f; // Dim text when culled.
         ImGui::PushStyleColor(ImGuiCol_Text, text_color);
@@ -120,7 +133,7 @@ bool begin_entity_display(
         "[%d] [%s] %s", entt::to_entity(handle.entity()), type_name, name
     );
 
-    if (is_culled) {
+    if (!is_visible) {
         ImGui::PopStyleColor();
     }
 
@@ -176,19 +189,39 @@ void ImGuiSceneList::display() {
         display_node_recursive(handle, signals);
     }
 
+    thread_local glm::vec3 new_node_position{ 0.f, 1.f, 0.f };
+
+    bool create_new_node = false;
+
+    thread_local PointLight new_plight_template{ .color{ 1.f, 1.f, 1.f }, .attenuation{ 0.05f, 0.0f, 0.2f } };
+    thread_local glm::vec3  new_plight_position{ 0.f, 1.f, 0.f };
+    thread_local bool       new_plight_cast_shadow{ true };
+
+    bool create_new_plight = false;
+
+    thread_local DirectionalLight new_dlight_template{ .color{ 1.f, 1.f, 1.f } };
+    thread_local bool             new_dlight_cast_shadow{ true };
+
+    bool create_new_dlight = false;
+
+
+    thread_local AmbientLight new_alight_template{ .color{ 0.1f, 0.1f, 0.1f } };
+
+    bool create_new_alight = false;
+
 
     thread_local std::string import_model_vpath;
     thread_local AssetPath   import_model_apath;
     thread_local std::string import_model_error_message;
 
+    bool open_import_model_popup  = false; // Just opens the popup.
+    bool import_model_signal      = false; // Actually sends the load request.
+
     thread_local std::string import_skybox_vpath;
     thread_local AssetPath   import_skybox_apath;
     thread_local std::string import_skybox_error_message;
 
-    bool open_import_model_popup  = false; // Just opens the popup.
     bool open_import_skybox_popup = false;
-
-    bool import_model_signal      = false; // Actually sends the load request.
     bool import_skybox_signal     = false;
 
 
@@ -198,11 +231,54 @@ void ImGuiSceneList::display() {
         ImGuiPopupFlags_NoOpenOverItems))
     {
         if (ImGui::BeginMenu("New")) {
+
+            if (ImGui::BeginMenu("Node")) {
+                if (ImGui::IsItemClicked()) {
+                    create_new_node = true;
+                }
+                ImGui::DragFloat3("Position", value_ptr(new_plight_position), 0.2f, -FLT_MAX, FLT_MAX);
+                ImGui::EndMenu();
+            }
+
+            ImGui::Separator();
+
+            if (ImGui::BeginMenu("PointLight")) {
+                if (ImGui::IsItemClicked()) {
+                    create_new_plight = true;
+                }
+                ImGui::DragFloat3("Position", value_ptr(new_plight_position), 0.2f, -FLT_MAX, FLT_MAX);
+                ImGui::ColorEdit3("Color",    value_ptr(new_plight_template.color), ImGuiColorEditFlags_DisplayHSV);
+                ImGui::SameLine();
+                ImGui::Checkbox("Shadow", &new_plight_cast_shadow);
+                ImGui::DragFloat3(
+                    "Atten. (c/l/q)", &new_plight_template.attenuation.constant,
+                    0.1f, 0.f, 100.f, "%.4f", ImGuiSliderFlags_Logarithmic
+                );
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("AmbientLight")) {
+                if (ImGui::IsItemClicked()) {
+                    create_new_alight = true;
+                }
+                ImGui::ColorEdit3("Color", value_ptr(new_alight_template.color), ImGuiColorEditFlags_DisplayHSV);
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("DirectionalLight")) {
+                if (ImGui::IsItemClicked()) {
+                    create_new_dlight = true;
+                }
+                ImGui::ColorEdit3("Color", value_ptr(new_dlight_template.color), ImGuiColorEditFlags_DisplayHSV);
+                ImGui::SameLine();
+                ImGui::Checkbox("Shadow", &new_dlight_cast_shadow);
+                ImGui::EndMenu();
+            }
             // TODO:
-            ImGui::MenuItem("Node");
-            ImGui::MenuItem("PointLight");
-            ImGui::MenuItem("TerrainChunk");
-            ImGui::MenuItem("Actually not implemented...");
+
+            ImGui::Separator();
+
+            ImGui::MenuItem("TerrainChunk (TODO)");
 
             ImGui::EndMenu();
         }
@@ -290,8 +366,11 @@ void ImGuiSceneList::display() {
 
     // Handle signals.
 
-    if (signals.selection.target != entt::null) {
-        const entt::handle target_handle{ registry, signals.selection.target };
+    if (const auto target_handle = entt::handle{ registry, signals.make_active.target }) {
+        imgui::GenericMakeActive(target_handle);
+    }
+
+    if (const auto target_handle = entt::handle{ registry, signals.selection.target }) {
 
         if (signals.selection.toggle_mode) {
             switch_tag<Selected>(target_handle);
@@ -302,16 +381,14 @@ void ImGuiSceneList::display() {
     }
 
 
-    if (signals.detach_from_parent.target != entt::null) {
-        const entt::handle target_handle{ registry, signals.detach_from_parent.target };
+    if (const auto target_handle = entt::handle{ registry, signals.detach_from_parent.target }) {
         if (has_parent(target_handle)) {
             detach_from_parent(target_handle);
         }
     }
 
 
-    if (signals.attach_selected.target != entt::null) {
-        const entt::handle target_handle{ registry, signals.attach_selected.target };
+    if (const auto target_handle = entt::handle{ registry, signals.attach_selected.target }) {
 
         const bool was_selected = unset_tag<Selected>(target_handle); // To not detach the target itself.
 
@@ -330,8 +407,7 @@ void ImGuiSceneList::display() {
     }
 
 
-    if (signals.destroy.target != entt::null) {
-        const entt::handle target_handle{ registry, signals.destroy.target };
+    if (const auto target_handle = entt::handle{ registry, signals.destroy.target }) {
 
         if (signals.destroy.with_descendants) {
             destroy_subtree(target_handle);
@@ -340,6 +416,42 @@ void ImGuiSceneList::display() {
         }
     }
 
+
+    if (create_new_node) {
+        const entt::handle new_node{ registry, registry.create() };
+        new_node.emplace<Transform>().translate(new_node_position);
+    }
+
+    if (create_new_plight) {
+        const entt::handle new_plight{ registry, registry.create() };
+        new_plight.emplace<PointLight>(new_plight_template);
+        new_plight.emplace<Transform>().translate(new_plight_position);
+        if (new_plight_cast_shadow) {
+            set_tag<ShadowCasting>(new_plight);
+        }
+    }
+
+    if (create_new_alight) {
+        const entt::handle new_alight{ registry, registry.create() };
+        new_alight.emplace<AmbientLight>(new_alight_template);
+        if (!has_active<AmbientLight>(registry)) {
+            make_active<AmbientLight>(new_alight);
+        }
+    }
+
+    if (create_new_dlight) {
+        const entt::handle new_dlight{ registry, registry.create() };
+        new_dlight.emplace<DirectionalLight>(new_dlight_template);
+        new_dlight.emplace<Transform>().orientation() =
+            // TODO: Initial orientation?
+            glm::quatLookAt(glm::vec3{ 0.f, -1.f, 0.f }, { 0.f, 0.f, -1.f });
+        if (new_dlight_cast_shadow) {
+            set_tag<ShadowCasting>(new_dlight);
+        }
+        if (!has_active<DirectionalLight>(registry)) {
+            make_active<DirectionalLight>(new_dlight);
+        }
+    }
 
     if (import_model_signal) {
         importer_.request_model_import(import_model_apath);

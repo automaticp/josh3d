@@ -1,5 +1,4 @@
 #pragma once
-#include "detail/Active.hpp"
 #include <entt/entity/fwd.hpp>
 #include <entt/entity/entity.hpp>
 #include <glm/glm.hpp>
@@ -18,49 +17,9 @@ struct AmbientLight {
 };
 
 
-struct ActiveAmbientLight {
-    entt::entity entity{ entt::null };
-};
-
-
-[[nodiscard]] inline auto get_active_ambient_light(entt::registry& registry)
-    -> entt::handle
-{
-    return detail::get_active<ActiveAmbientLight, AmbientLight>(registry);
-}
-
-[[nodiscard]] inline auto get_active_ambient_light(const entt::registry& registry)
-    -> entt::const_handle
-{
-    return detail::get_active<ActiveAmbientLight, AmbientLight>(registry);
-}
-
-
-
-
 struct DirectionalLight {
     glm::vec3 color;
 };
-
-
-struct ActiveDirectionalLight {
-    entt::entity entity{ entt::null };
-};
-
-
-[[nodiscard]] inline auto get_active_directional_light(entt::registry& registry)
-    -> entt::handle
-{
-    return detail::get_active<ActiveDirectionalLight, DirectionalLight>(registry);
-}
-
-[[nodiscard]] inline auto get_active_directional_light(const entt::registry& registry)
-    -> entt::const_handle
-{
-    return detail::get_active<ActiveDirectionalLight, DirectionalLight>(registry);
-}
-
-
 
 
 struct Attenuation {

@@ -64,9 +64,7 @@
 #include "hooks/overlay/GBufferDebug.hpp"
 #include "hooks/overlay/SelectedObjectHighlight.hpp"
 #include "hooks/overlay/BoundingSphereDebug.hpp"
-#include "hooks/registry/LightComponents.hpp"
 #include "hooks/registry/TerrainComponents.hpp"
-#include "hooks/registry/SkyboxComponents.hpp"
 #include "hooks/registry/PerspectiveCamera.hpp"
 
 #include <entt/entity/fwd.hpp>
@@ -239,9 +237,9 @@ DemoScene::DemoScene(glfw::Window& window)
 
 
     rengine_.add_next_precompute_stage("CSM Setup",            std::move(csmbuilder));
-    rengine_.add_next_precompute_stage("Point Light Setup",    std::move(plightsetup));
-    rengine_.add_next_precompute_stage("Frustum Culling",      std::move(frustumculler));
-    rengine_.add_next_precompute_stage("Transfrom Resolution", std::move(tfresolution));
+    rengine_.add_next_precompute_stage("Point Light Setup",    std::move(plightsetup));   // NOLINT(performance-move-const-arg)
+    rengine_.add_next_precompute_stage("Frustum Culling",      std::move(frustumculler)); // NOLINT(performance-move-const-arg)
+    rengine_.add_next_precompute_stage("Transfrom Resolution", std::move(tfresolution));  // NOLINT(performance-move-const-arg)
 
     rengine_.add_next_primary_stage("Point Shadow Mapping",      std::move(psmapping));
     rengine_.add_next_primary_stage("Cascaded Shadow Mapping",   std::move(csmapping));
@@ -268,8 +266,6 @@ DemoScene::DemoScene(glfw::Window& window)
 
 
     // TODO: Remove these.
-    imgui_.registry_hooks().add_hook("Lights",  imguihooks::registry::LightComponents());
-    imgui_.registry_hooks().add_hook("Skybox",  imguihooks::registry::SkyboxComponents());
     imgui_.registry_hooks().add_hook("Terrain", imguihooks::registry::TerrainComponents());
     imgui_.registry_hooks().add_hook("Camera",  imguihooks::registry::PerspectiveCamera(cam_));
 
@@ -404,14 +400,14 @@ void DemoScene::init_registry() {
     alight_handle.emplace<AmbientLight>(AmbientLight{
         .color = { 0.15f, 0.15f, 0.1f }
     });
-    make_active<ActiveAmbientLight>(alight_handle);
+    make_active<AmbientLight>(alight_handle);
 
     const entt::handle dlight_handle{ registry, registry.create() };
     const glm::quat dlight_orientation = glm::quatLookAt(glm::vec3{ -0.2f, -1.f, -0.3f }, { 0.f, 1.f, 0.f });
     dlight_handle.emplace<DirectionalLight>(DirectionalLight{ .color = { 0.15f, 0.15f, 0.1f } });
     dlight_handle.emplace<Transform>(Transform().rotate(dlight_orientation));
     set_tag<ShadowCasting>(dlight_handle);
-    make_active<ActiveDirectionalLight>(dlight_handle);
+    make_active<DirectionalLight>(dlight_handle);
 
 
     using namespace josh::filesystem_literals;
@@ -426,6 +422,8 @@ void DemoScene::init_registry() {
     importer_.wait_until_all_pending_are_complete();
     importer_.retire_completed_requests();
     importer_.unpack_all_retired();
+
+    make_active<Skybox>({ registry, registry.view<Skybox>().back() });
 
 }
 

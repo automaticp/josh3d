@@ -225,7 +225,7 @@ private:
     inline static const RawDefaultFramebuffer<GLMutable> default_fbo_;
 
 
-    struct CameraData {
+    struct CameraDataGPU {
         // TODO: std140
         alignas(std430::align_vec3)  glm::vec3   position_ws; // World-space position
         alignas(std430::align_float) float       z_near;
@@ -239,7 +239,7 @@ private:
         alignas(std430::align_vec4)  glm::mat4   inv_projview;
     };
 
-    UniqueBuffer<CameraData> camera_ubo_{ allocate_buffer<CameraData>(NumElems{ 1 }) };
+    UniqueBuffer<CameraDataGPU> camera_ubo_{ allocate_buffer<CameraDataGPU>(NumElems{ 1 }) };
     void update_camera_ubo() noexcept;
 
 
