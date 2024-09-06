@@ -47,24 +47,10 @@
 #include "stages/overlay/SelectedObjectHighlight.hpp"
 #include "stages/overlay/BoundingSphereDebug.hpp"
 
-#include "hooks/precompute/CSMSetup.hpp"
-#include "hooks/precompute/PointLightSetup.hpp"
-#include "hooks/primary/CascadedShadowMapping.hpp"
-#include "hooks/primary/PointShadowMapping.hpp"
-#include "hooks/primary/DeferredGeometry.hpp"
-#include "hooks/primary/SSAO.hpp"
-#include "hooks/primary/DeferredShading.hpp"
-#include "hooks/primary/LightDummies.hpp"
-#include "hooks/primary/Sky.hpp"
-#include "hooks/postprocess/Bloom.hpp"
-#include "hooks/postprocess/FXAA.hpp"
-#include "hooks/postprocess/HDREyeAdaptation.hpp"
-#include "hooks/postprocess/Fog.hpp"
-#include "hooks/overlay/CSMDebug.hpp"
-#include "hooks/overlay/SSAODebug.hpp"
-#include "hooks/overlay/GBufferDebug.hpp"
-#include "hooks/overlay/SelectedObjectHighlight.hpp"
-#include "hooks/overlay/BoundingSphereDebug.hpp"
+#include "hooks/precompute/AllPrecomputeHooks.hpp"
+#include "hooks/primary/AllPrimaryHooks.hpp"
+#include "hooks/postprocess/AllPostprocessHooks.hpp"
+#include "hooks/overlay/AllOverlayHooks.hpp"
 
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
