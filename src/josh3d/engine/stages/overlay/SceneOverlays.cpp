@@ -1,69 +1,34 @@
-#pragma once
-#include "GLAPICommonTypes.hpp"
-#include "GLObjects.hpp"
+#include "SceneOverlays.hpp"
+#include "BoundingSphere.hpp"
 #include "GLProgram.hpp"
 #include "LightCasters.hpp"
 #include "RenderEngine.hpp"
-#include "SceneGraph.hpp"
-#include "ShaderBuilder.hpp"
-#include "UniformTraits.hpp" // IWYU pragma: keep (traits)
 #include "TerrainChunk.hpp"
+#include "UniformTraits.hpp"
+#include "SceneGraph.hpp"
 #include "Transform.hpp"
 #include "tags/Selected.hpp"
-#include "Mesh.hpp"
-#include "VPath.hpp"
-#include <glbinding/gl/bitfield.h>
-#include <glbinding/gl/boolean.h>
-#include <glbinding/gl/enum.h>
-#include <glbinding/gl/functions.h>
-#include <glm/glm.hpp>
-#include <glbinding/gl/gl.h>
-#include <entt/entt.hpp>
-
-
+#include <entt/entity/fwd.hpp>
 
 
 namespace josh::stages::overlay {
 
 
-class SelectedObjectHighlight {
-public:
-    bool show_overlay{ true };
-
-    float     outline_width   { 3.f };
-    glm::vec4 outline_color   { 0.0f, 0.0f,   0.0f, 0.784f };
-    glm::vec4 inner_fill_color{ 1.0f, 0.612f, 0.0f, 0.392f };
-
-    void operator()(RenderEngineOverlayInterface& engine);
-
-
-
-private:
-    UniqueProgram sp_stencil_prep_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/basic_mesh.vert"))
-            .load_frag(VPath("src/shaders/ovl_selected_stencil_prep.frag"))
-            .get()
-    };
-
-    UniqueProgram sp_highlight_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/postprocess.vert"))
-            .load_frag(VPath("src/shaders/ovl_selected_highlight.frag"))
-            .get()
-    };
-
-};
+void SceneOverlays::operator()(RenderEngineOverlayInterface& engine) {
+    draw_selected_highlight(engine);
+    draw_bounding_volumes  (engine);
+}
 
 
 
 
-inline void SelectedObjectHighlight::operator()(
+void SceneOverlays::draw_selected_highlight(
     RenderEngineOverlayInterface& engine)
 {
     const auto& registry = engine.registry();
+    const auto& params   = selected_highlight_params;
 
-    if (!show_overlay) { return; }
+    if (!params.show_overlay) { return; }
     if (registry.view<Selected>().empty()) { return; }
 
     BindGuard bound_camera_ubo = engine.bind_camera_ubo();
@@ -100,7 +65,7 @@ inline void SelectedObjectHighlight::operator()(
         // and that will include 0 and 1 too. Also, importantly, this excludes
         // previously drawn outlines, so they are not overwritten.
         {
-            RawProgram<> sp = sp_stencil_prep_;
+            RawProgram<> sp = sp_highlight_stencil_prep_;
             BindGuard bound_program = sp.use();
 
             const Location model_loc = sp.get_uniform_location("model");
@@ -160,7 +125,7 @@ inline void SelectedObjectHighlight::operator()(
                 // Trying to mesh.draw(GL_LINES) results in missing edges.
 
                 glapi::set_polygon_rasterization_mode(PolygonRaserization::Line);
-                glapi::set_line_width(2.f * outline_width); // Times 2 cause half is cut by inner fill.
+                glapi::set_line_width(2.f * params.outline_width); // Times 2 cause half is cut by inner fill.
                 glapi::enable(Capability::AntialiasedLines); // I don't think this works at all.
 
 
@@ -224,7 +189,7 @@ inline void SelectedObjectHighlight::operator()(
                 StencilOp::Keep, // spass->dfail
                 StencilOp::Keep  // spass->dpass
             );
-            sp_highlight_->uniform("color", outline_color);
+            sp_highlight_->uniform("color", params.outline_color);
             engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
 
 
@@ -235,7 +200,7 @@ inline void SelectedObjectHighlight::operator()(
                 StencilOp::Keep, // spass->dfail
                 StencilOp::Keep  // spass->dpass
             );
-            sp_highlight_->uniform("color", inner_fill_color);
+            sp_highlight_->uniform("color", params.inner_fill_color);
             engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
 
         }
@@ -250,6 +215,79 @@ inline void SelectedObjectHighlight::operator()(
     });
 
 }
+
+
+
+
+void SceneOverlays::draw_bounding_volumes(
+    RenderEngineOverlayInterface& engine)
+{
+    using glm::vec3, glm::mat4;
+    const auto& registry = engine.registry();
+    const auto& params   = bounding_volumes_params;
+
+    if (!params.show_volumes) { return; }
+    if (params.selected_only && registry.view<Selected>().empty()) { return; }
+
+
+    const RawProgram<> sp = sp_bounding_volumes_;
+
+    glapi::enable(Capability::DepthTesting);
+    glapi::set_polygon_rasterization_mode(PolygonRaserization::Line);
+    glapi::set_line_width(params.line_width);
+
+    BindGuard bound_camera_ubo = engine.bind_camera_ubo();
+    sp.uniform("color", params.line_color);
+
+
+    BindGuard bound_program = sp.use();
+
+    engine.draw([&](auto bound_fbo) {
+
+        const Location model_loc = sp.get_uniform_location("model");
+
+        auto per_mesh_draw_aabb = [&] (
+            const entt::entity&,
+            const AABB&          aabb)
+        {
+            const mat4 world_mat = glm::translate(aabb.midpoint()) * glm::scale(aabb.extents() / 2);
+
+            sp.uniform(model_loc, world_mat);
+
+            engine.primitives().box_mesh().draw(bound_program, bound_fbo);
+        };
+
+        auto per_plight_draw_sphere = [&] (
+            const entt::entity&,
+            const PointLight&,
+            const MTransform&     mtf,
+            const BoundingSphere& sphere)
+        {
+            const vec3 sphere_center = mtf.decompose_position();
+            const vec3 sphere_scale  = glm::vec3{ sphere.radius };
+            const auto sphere_transf = Transform().translate(sphere_center).scale(sphere_scale);
+
+            sp.uniform(model_loc, sphere_transf.mtransform().model());
+
+            engine.primitives().sphere_mesh().draw(bound_program, bound_fbo);
+        };
+
+
+        if (params.selected_only) {
+            registry.view<AABB, Selected>(entt::exclude<PointLight>).each(per_mesh_draw_aabb);
+            registry.view<PointLight, MTransform, BoundingSphere, Selected>().each(per_plight_draw_sphere);
+        } else {
+            registry.view<AABB>(entt::exclude<PointLight>).each(per_mesh_draw_aabb);
+            registry.view<PointLight, MTransform, BoundingSphere>().each(per_plight_draw_sphere);
+        }
+    });
+
+    glapi::disable(Capability::DepthTesting);
+    glapi::set_polygon_rasterization_mode(PolygonRaserization::Fill);
+
+}
+
+
 
 
 

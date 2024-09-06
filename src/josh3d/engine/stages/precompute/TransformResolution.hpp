@@ -1,7 +1,5 @@
 #pragma once
 #include "RenderEngine.hpp"
-#include <entt/entity/entity.hpp>
-#include <entt/entity/fwd.hpp>
 
 
 namespace josh::stages::precompute {

@@ -6,7 +6,6 @@
 #include "SceneGraph.hpp"
 #include "TextureHelpers.hpp"
 #include "Transform.hpp"
-#include "BoundingSphere.hpp"
 #include "Materials.hpp"
 #include "Mesh.hpp"
 #include "Name.hpp"
@@ -65,10 +64,9 @@ inline void emplace_model_asset_into(
             );
 
             // Emplace bounding geometry.
-            // TODO: This is terrible, use AABB
-            const auto [lbb, rtf] = mesh.aabb;
-            float max_something = glm::max(glm::length(lbb), glm::length(rtf));
-            mesh_handle.emplace<BoundingSphere>(max_something);
+            //
+            // TODO: We should consider importing the scene-graph and
+            // full Transform information from the assets.
             mesh_handle.emplace<LocalAABB>(mesh.aabb);
             mesh_handle.emplace<Transform>();
 

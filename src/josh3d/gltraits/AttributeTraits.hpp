@@ -1,4 +1,5 @@
 #pragma once
+// IWYU pragma: always_keep
 #include "GLAttributeTraits.hpp"
 #include "VertexPNUTB.hpp"
 #include <tuple>

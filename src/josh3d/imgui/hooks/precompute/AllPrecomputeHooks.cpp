@@ -1,7 +1,9 @@
 #include "AllPrecomputeHooks.hpp"
 #include "detail/SimpleStageHookMacro.hpp"
-#include "stages/precompute/CSMSetup.hpp"        // IWYU pragma: keep
-#include "stages/precompute/PointLightSetup.hpp" // IWYU pragma: keep
+// IWYU pragma: begin_keep
+#include "stages/precompute/CSMSetup.hpp"
+#include "stages/precompute/PointLightSetup.hpp"
+// IWYU pragma: end_keep
 #include <imgui.h>
 
 

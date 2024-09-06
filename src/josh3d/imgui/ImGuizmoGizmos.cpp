@@ -1,4 +1,6 @@
 #include "ImGuizmoGizmos.hpp"
+#include "AABB.hpp"
+#include "Components.hpp"
 #include "SceneGraph.hpp"
 #include "ImGuiComponentWidgets.hpp"
 #include "Tags.hpp"
@@ -132,6 +134,7 @@ void ImGuizmoGizmos::display(
     const glm::mat4& proj_mat)
 {
     using glm::mat3, glm::mat4, glm::vec3, glm::vec4, glm::quat;
+    auto& registry = registry_;
 
     bool debug_window_open = false;
     if (display_debug_window) {
@@ -139,7 +142,7 @@ void ImGuizmoGizmos::display(
     }
 
     // MTransform must have been computed from the scene graph and individual Transforms.
-    auto selected = registry_.view<Selected, Transform, MTransform>();
+    auto selected = registry.view<Selected, Transform, MTransform>();
 
     // Size of the dense storage for the leading component.
     // Not every selected will necessarily have a Transform and MTransform, however.
@@ -193,8 +196,18 @@ void ImGuizmoGizmos::display(
         vec3 midpoint_world{ 0.f, 0.f, 0.f }; // Contravariant position of the midpoint in world-space.
 
         for (const entt::entity entity : transform_targets) {
-            const vec3 r_world = selected.get<MTransform>(entity).decompose_position();
-            midpoint_world += r_world; // This is just asking for precision issues...
+            const entt::handle handle{ registry, entity };
+
+            if (preferred_location == GizmoLocation::AABBMidpoint &&
+                has_component<AABB>(handle))
+            {
+                // If has world-space AABB, use the midpoint of that.
+                midpoint_world += handle.get<AABB>().midpoint();
+            } else {
+                // Otherwise, use the position of the local origin.
+                midpoint_world += selected.get<MTransform>(entity).decompose_position();
+            }
+
         }
         midpoint_world /= transform_targets.size();
 
@@ -410,7 +423,7 @@ void ImGuizmoGizmos::display(
 
 
             for (const entt::entity entity : transform_targets) {
-                const entt::handle handle{ registry_, entity };
+                const entt::handle handle{ registry, entity };
 
                 const MTransform& mtransform = handle.get<MTransform>();
 

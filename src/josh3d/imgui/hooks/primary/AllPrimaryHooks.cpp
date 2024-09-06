@@ -1,12 +1,14 @@
 #include "AllPrimaryHooks.hpp"
 #include "detail/SimpleStageHookMacro.hpp"
-#include "stages/primary/CascadedShadowMapping.hpp" // IWYU pragma: keep
-#include "stages/primary/DeferredGeometry.hpp"      // IWYU pragma: keep
-#include "stages/primary/DeferredShading.hpp"       // IWYU pragma: keep
-#include "stages/primary/LightDummies.hpp"          // IWYU pragma: keep
-#include "stages/primary/PointShadowMapping.hpp"    // IWYU pragma: keep
-#include "stages/primary/Sky.hpp"                   // IWYU pragma: keep
-#include "stages/primary/SSAO.hpp"                  // IWYU pragma: keep
+// IWYU pragma: begin_keep
+#include "stages/primary/CascadedShadowMapping.hpp"
+#include "stages/primary/DeferredGeometry.hpp"
+#include "stages/primary/DeferredShading.hpp"
+#include "stages/primary/LightDummies.hpp"
+#include "stages/primary/PointShadowMapping.hpp"
+#include "stages/primary/Sky.hpp"
+#include "stages/primary/SSAO.hpp"
+// IWYU pragma: end_keep
 #include <imgui.h>
 
 

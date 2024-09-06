@@ -3,6 +3,7 @@
 #include "GLProgram.hpp"
 #include "LightCasters.hpp"
 #include "Logging.hpp"
+#include "Tags.hpp"
 #include "tags/AlphaTested.hpp"
 #include "tags/CulledFromCSM.hpp"
 #include "Materials.hpp"
@@ -24,11 +25,11 @@ namespace josh::stages::primary {
 void CascadedShadowMapping::operator()(
     RenderEnginePrimaryInterface& engine)
 {
-    // Check if the scene's directional light has shadowcasting enabled.
-    auto dlight_ent = *engine.registry().view<DirectionalLight>().begin();
-    if (!engine.registry().all_of<ShadowCasting>(dlight_ent)) {
-        // Early-out if no shadowcasting.
-        return;
+    // Check if the scene's directional light has shadow-casting enabled.
+    if (const auto dlight = get_active<DirectionalLight>(engine.registry())) {
+        if (!has_tag<ShadowCasting>(dlight)) {
+            return; // Early-out if no shadow-casting.
+        }
     }
 
     resize_cascade_storage_if_needed();

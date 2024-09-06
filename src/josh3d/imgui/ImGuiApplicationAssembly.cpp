@@ -163,6 +163,19 @@ void ImGuiApplicationAssembly::draw_widgets() {
                 reset_condition.set(ImGui::Button("Reset Dockspace"));
 
                 ImGui::Checkbox("Gizmo Debug Window", &gizmos_.display_debug_window);
+
+                const char* gizmo_locations[] = {
+                    "Local Origin",
+                    "AABB Midpoint"
+                };
+
+                int location_id = to_underlying(gizmos_.preferred_location);
+                if (ImGui::ListBox("Gizmo Locaton", &location_id,
+                    gizmo_locations, std::size(gizmo_locations), 2))
+                {
+                    gizmos_.preferred_location = GizmoLocation{ location_id };
+                }
+
                 ImGui::Checkbox("Show Model Matrix in Selected", &selected_menu_.display_model_matrix);
 
                 ImGui::EndMenu();

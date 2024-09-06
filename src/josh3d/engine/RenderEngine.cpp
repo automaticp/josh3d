@@ -111,12 +111,12 @@ void RenderEngine::update_camera_data(
     float            z_far) noexcept
 {
     using glm::vec3, glm::mat4, glm::mat3;
-    const vec3 position_ws  = view[3];
     const mat4 projview     = proj * view;
     const mat4 inv_view     = inverse(view);
     const mat3 normal_view  = transpose(inv_view);
     const mat4 inv_proj     = inverse(proj);
     const mat4 inv_projview = inverse(projview);
+    const vec3 position_ws  = inv_view[3];
 
     camera_data_ = CameraDataGPU{
         .position_ws  = position_ws,

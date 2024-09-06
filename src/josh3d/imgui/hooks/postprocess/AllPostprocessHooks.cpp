@@ -1,11 +1,13 @@
 #include "AllPostprocessHooks.hpp"
 #include "detail/SimpleStageHookMacro.hpp"
-#include "stages/postprocess/Bloom.hpp"            // IWYU pragma: keep
-#include "stages/postprocess/Fog.hpp"              // IWYU pragma: keep
-#include "stages/postprocess/FXAA.hpp"             // IWYU pragma: keep
-#include "stages/postprocess/GammaCorrection.hpp"  // IWYU pragma: keep
-#include "stages/postprocess/HDR.hpp"              // IWYU pragma: keep
-#include "stages/postprocess/HDREyeAdaptation.hpp" // IWYU pragma: keep
+// IWYU pragma: begin_keep
+#include "stages/postprocess/Bloom.hpp"
+#include "stages/postprocess/Fog.hpp"
+#include "stages/postprocess/FXAA.hpp"
+#include "stages/postprocess/GammaCorrection.hpp"
+#include "stages/postprocess/HDR.hpp"
+#include "stages/postprocess/HDREyeAdaptation.hpp"
+// IWYU pragma: end_keep
 #include "ImGuiHelpers.hpp"
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
