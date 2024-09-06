@@ -1,5 +1,6 @@
 #pragma once
 #include "Active.hpp"
+#include "Camera.hpp"
 #include "Components.hpp"
 #include "DefaultTextures.hpp"
 #include "GLObjects.hpp"
@@ -17,12 +18,12 @@
 #include "VPath.hpp"
 #include "tags/AlphaTested.hpp"
 #include "tags/Culled.hpp"
-#include "tags/Selected.hpp"
 #include "tags/ShadowCasting.hpp"
 #include <cassert>
 #include <entt/entity/entity.hpp>
 #include <entt/entity/fwd.hpp>
 #include <glm/fwd.hpp>
+#include <glm/trigonometric.hpp>
 #include <imgui.h>
 
 
@@ -45,6 +46,7 @@ inline auto GetGenericHeaderInfo(entt::const_handle handle)
         if (has_component<DirectionalLight>(handle)) { return "DirectionalLight"; }
         if (has_component<PointLight>      (handle)) { return "PointLight";       }
         if (has_component<Skybox>          (handle)) { return "Skybox";           }
+        if (has_component<Camera>          (handle)) { return "Camera";           }
 
         if (has_component<Transform>(handle)) {
             if (has_children(handle)) { return "Node";   }
@@ -71,6 +73,7 @@ inline bool GetGenericVisibility(entt::const_handle handle) {
     if (has_component<AmbientLight>    (handle)) { return is_active<AmbientLight>    (handle); }
     if (has_component<DirectionalLight>(handle)) { return is_active<DirectionalLight>(handle); }
     if (has_component<Skybox>          (handle)) { return is_active<Skybox>          (handle); }
+    if (has_component<Camera>          (handle)) { return is_active<Camera>          (handle); }
     return !has_tag<Culled>(handle);
 }
 
@@ -104,6 +107,7 @@ inline auto GetGenericActiveInfo(entt::const_handle handle)
     if (has_component<AmbientLight>    (handle)) { return { true, is_active<AmbientLight>    (handle) }; }
     if (has_component<DirectionalLight>(handle)) { return { true, is_active<DirectionalLight>(handle) }; }
     if (has_component<Skybox>          (handle)) { return { true, is_active<Skybox>          (handle) }; }
+    if (has_component<Camera>          (handle)) { return { true, is_active<Camera>          (handle) }; }
     return { false, false };
 }
 
@@ -112,23 +116,24 @@ inline void GenericMakeActive(entt::handle handle) {
     if (has_component<AmbientLight>    (handle)) { make_active<AmbientLight>    (handle); }
     if (has_component<DirectionalLight>(handle)) { make_active<DirectionalLight>(handle); }
     if (has_component<Skybox>          (handle)) { make_active<Skybox>          (handle); }
+    if (has_component<Camera>          (handle)) { make_active<Camera>          (handle); }
 }
 
 
 
-inline bool TransformWidget(josh::Transform* transform) noexcept {
+inline bool TransformWidget(josh::Transform& transform) noexcept {
 
     bool feedback{ false };
 
     feedback |= ImGui::DragFloat3(
-        "Position", glm::value_ptr(transform->position()),
+        "Position", glm::value_ptr(transform.position()),
         0.2f, -FLT_MAX, FLT_MAX
     );
 
     // FIXME: This is slightly more usable, but the singularity for Pitch around 90d
     // is still unstable. In general: Local X is Pitch, Global Y is Yaw, and Local Z is Roll.
     // Stll very messy to use, but should get the ball rolling.
-    const glm::quat& q = transform->orientation();
+    const glm::quat& q = transform.orientation();
     // Swap quaternion axes to make pitch around (local) X axis.
     // Also GLM for some reason assumes that the locking [-90, 90] axis is
     // associated with Yaw, not Pitch...? Maybe I am confused here but
@@ -147,13 +152,13 @@ inline bool TransformWidget(josh::Transform* transform) noexcept {
         euler.z = glm::mod(euler.z, 360.f);
         // Un-shuffle back both the euler angles and quaternions.
         glm::quat p = glm::quat(glm::radians(glm::vec3{ euler.y, euler.x, euler.z }));
-        transform->orientation() = glm::quat{ p.w, p.y, p.x, p.z };
+        transform.orientation() = glm::quat{ p.w, p.y, p.x, p.z };
         feedback |= true;
     }
 
     feedback |= ImGui::DragFloat3(
-        "Scale", glm::value_ptr(transform->scaling()),
-        0.1f, 0.01f, 100.f, "%.3f", ImGuiSliderFlags_Logarithmic
+        "Scale", glm::value_ptr(transform.scaling()),
+        0.1f, 0.001f, 1000.f, "%.3f", ImGuiSliderFlags_Logarithmic
     );
 
     return feedback;
@@ -219,8 +224,8 @@ inline void VPathWidget(josh::VPath* vpath) noexcept {
 
 inline void MaterialsWidget(entt::handle mesh) noexcept {
 
-    const float  text_height = ImGui::GetTextLineHeight();
-    const ImVec2 preview_size    { 4.f * text_height, 4.f * text_height };
+    const float  text_height  = ImGui::GetTextLineHeight();
+    const ImVec2 preview_size = { 4.f * text_height, 4.f * text_height };
 
     constexpr ImVec4 tex_tint        { 1.f, 1.f, 1.f, 1.f };
     constexpr ImVec4 tex_frame_color { .5f, .5f, .5f, .5f };
@@ -361,103 +366,10 @@ inline void MaterialsWidget(entt::handle mesh) noexcept {
 }
 
 
-inline bool SelectButton(entt::handle handle) noexcept {
-    bool feedback{ false };
-
-    const bool is_selected = handle.all_of<Selected>();
-    constexpr ImVec4 selected_color{ .2f, .6f, .2f, 1.f };
-
-    ImGui::PushID(void_id(handle.entity()));
-
-    if (is_selected) {
-        ImGui::PushStyleColor(ImGuiCol_Button, selected_color);
-
-        if (ImGui::SmallButton("Select")) {
-            handle.erase<Selected>();
-            feedback = true;
-        }
-
-        ImGui::PopStyleColor();
-    } else /* not selected */ {
-        if (ImGui::SmallButton("Select")) {
-            handle.emplace<Selected>();
-            feedback = true;
-        }
+inline void AmbientLightWidget(entt::handle alight_handle) {
+    if (auto* alight = alight_handle.try_get<AmbientLight>()) {
+        ImGui::ColorEdit3("Color", glm::value_ptr(alight->color), ImGuiColorEditFlags_DisplayHSV);
     }
-
-    ImGui::PopID();
-
-    return feedback;
-}
-
-
-// Does not remove anything, just signals that it has been pressed.
-[[nodiscard]]
-inline bool RemoveButton() noexcept {
-    bool feedback{ false };
-
-    if (ImGui::SmallButton("Remove")) {
-        feedback = true;
-    }
-
-    return feedback;
-}
-
-
-inline void MeshWidgetHeader(entt::handle mesh_handle) noexcept {
-
-    SelectButton(mesh_handle);
-    ImGui::SameLine();
-
-    const bool is_culled = mesh_handle.all_of<Culled>();
-    if (is_culled) {
-        auto text_color = ImGui::GetStyleColorVec4(ImGuiCol_Text);
-        text_color.w *= 0.5f; // Dim text when culled.
-        ImGui::PushStyleColor(ImGuiCol_Text, text_color);
-    }
-
-    if (auto name = mesh_handle.try_get<Name>()) {
-        ImGui::Text("Mesh [%d]: %s", entt::to_entity(mesh_handle.entity()), name->c_str());
-    } else {
-        ImGui::Text("Mesh [%d]",     entt::to_entity(mesh_handle.entity()));
-    }
-
-    if (is_culled) {
-        ImGui::PopStyleColor();
-    }
-
-}
-
-
-inline void MeshWidgetBody(entt::handle mesh_handle) noexcept {
-
-    if (auto tf = mesh_handle.try_get<Transform>()) {
-        TransformWidget(tf);
-    }
-
-    MaterialsWidget(mesh_handle);
-}
-
-
-inline void MeshWidget(entt::handle mesh_handle) noexcept {
-
-    ImGui::PushID(void_id(mesh_handle.entity()));
-
-    MeshWidgetHeader(mesh_handle);
-    MeshWidgetBody(mesh_handle);
-
-    ImGui::PopID();
-}
-
-
-enum class Feedback {
-    None,
-    Remove
-};
-
-
-inline bool AmbientLightWidget(AmbientLight* alight) {
-    return ImGui::ColorEdit3("Color", glm::value_ptr(alight->color), ImGuiColorEditFlags_DisplayHSV);
 }
 
 
@@ -476,20 +388,6 @@ inline bool DirectionalLightWidget(entt::handle dlight_handle) {
             feedback |= true;
         }
     }
-
-    return feedback;
-}
-
-
-inline Feedback PointLightWidgetHeader(entt::handle plight_handle) noexcept {
-    Feedback feedback{ Feedback::None };
-
-    SelectButton(plight_handle);
-    ImGui::SameLine();
-    if (RemoveButton()) { feedback = Feedback::Remove; }
-    ImGui::SameLine();
-
-    ImGui::Text("Point Light [%d]", entt::to_entity(plight_handle.entity()));
 
     return feedback;
 }
@@ -517,17 +415,31 @@ inline void PointLightWidgetBody(entt::handle plight_handle) noexcept {
 }
 
 
-inline Feedback PointLightWidget(entt::handle plight_handle) noexcept {
-    ImGui::PushID(void_id(plight_handle.entity()));
+inline bool CameraWidget(entt::handle camera_handle) noexcept {
+    bool need_update = false;
+    if (auto* camera = camera_handle.try_get<Camera>()) {
+        auto params = camera->get_params();
 
-    Feedback feedback = PointLightWidgetHeader(plight_handle);
-    PointLightWidgetBody(plight_handle);
+        if (ImGui::DragFloatRange2("Z Near/Far", &params.z_near, &params.z_far,
+            0.2f, 0.0001f, 10000.f, "%.4f", nullptr, ImGuiSliderFlags_Logarithmic))
+        {
+            need_update |= true;
+        }
 
-    ImGui::PopID();
-    return feedback;
+        float fovy_deg = glm::degrees(params.fovy_rad);
+        if (ImGui::DragFloat("Y FoV, deg", &fovy_deg,
+            0.2f, 0.f, FLT_MAX))
+        {
+            params.fovy_rad = glm::radians(fovy_deg);
+            need_update |= true;
+        }
+
+        if (need_update) {
+            camera->update_params(params);
+        }
+    }
+    return need_update;
 }
-
-
 
 
 } // namespace josh::imgui

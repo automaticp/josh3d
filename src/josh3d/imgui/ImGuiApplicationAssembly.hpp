@@ -5,11 +5,9 @@
 #include "ImGuiWindowSettings.hpp"
 #include "ImGuiVFSControl.hpp"
 #include "ImGuiEngineHooks.hpp"
-#include "ImGuiRegistryHooks.hpp"
 #include "ImGuiSelected.hpp"
 #include "AvgFrameTimeCounter.hpp"
 #include "ImGuizmoGizmos.hpp"
-#include "PerspectiveCamera.hpp"
 #include "SceneImporter.hpp"
 #include <string>
 #include <entt/fwd.hpp>
@@ -44,7 +42,6 @@ private:
     glfw::Window&            window_;
     RenderEngine&            engine_;
     entt::registry&          registry_;
-    const PerspectiveCamera& cam_;
     SceneImporter&           importer_;
     VirtualFilesystem&       vfs_;
 
@@ -52,7 +49,6 @@ private:
     ImGuiWindowSettings window_settings_;
     ImGuiVFSControl     vfs_control_;
     ImGuiEngineHooks    stage_hooks_;
-    ImGuiRegistryHooks  registry_hooks_;
     ImGuiSceneList      scene_list_;
     ImGuiSelected       selected_menu_;
     ImGuizmoGizmos      gizmos_;
@@ -82,18 +78,14 @@ public:
     float background_alpha{ 0.8f };
 
     ImGuiApplicationAssembly(
-        glfw::Window&            window,
-        RenderEngine&            engine,
-        entt::registry&          registry,
-        const PerspectiveCamera& cam,
-        SceneImporter&           importer,
-        VirtualFilesystem&       vfs);
+        glfw::Window&      window,
+        RenderEngine&      engine,
+        entt::registry&    registry,
+        SceneImporter&     importer,
+        VirtualFilesystem& vfs);
 
     ImGuiEngineHooks::HooksContainer&       stage_hooks() noexcept { return stage_hooks_.hooks(); }
     const ImGuiEngineHooks::HooksContainer& stage_hooks() const noexcept { return stage_hooks_.hooks(); }
-
-    ImGuiRegistryHooks::HooksContainer&       registry_hooks() noexcept { return registry_hooks_.hooks(); }
-    const ImGuiRegistryHooks::HooksContainer& registry_hooks() const noexcept { return registry_hooks_.hooks(); }
 
     bool is_hidden() const noexcept { return hidden_; }
     void set_hidden(bool hidden) noexcept { hidden_ = hidden; }

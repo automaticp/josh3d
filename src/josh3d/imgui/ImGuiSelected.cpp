@@ -1,5 +1,5 @@
 #include "ImGuiSelected.hpp"
-#include "Active.hpp"
+#include "Camera.hpp"
 #include "Components.hpp"
 #include "ImGuiComponentWidgets.hpp"
 #include "LightCasters.hpp"
@@ -24,7 +24,7 @@ void ImGuiSelected::display() {
 
         // Display Transform independent of other components.
         if (auto transform = handle.try_get<Transform>()) {
-            imgui::TransformWidget(transform);
+            imgui::TransformWidget(*transform);
         }
 
         // Mostly for debugging.
@@ -34,24 +34,28 @@ void ImGuiSelected::display() {
             }
         }
 
-        if (auto mesh = handle.try_get<Mesh>()) {
+        if (has_component<Mesh>(handle)) {
             imgui::MaterialsWidget(handle);
         }
 
-        if (auto plight = handle.try_get<PointLight>()) {
+        if (has_component<PointLight>(handle)) {
             imgui::PointLightWidgetBody(handle);
         }
 
-        if (auto dlight = handle.try_get<DirectionalLight>()) {
+        if (has_component<DirectionalLight>(handle)) {
             imgui::DirectionalLightWidget(handle);
         }
 
-        if (auto alight = handle.try_get<AmbientLight>()) {
-            imgui::AmbientLightWidget(alight);
+        if (has_component<AmbientLight>(handle)) {
+            imgui::AmbientLightWidget(handle);
         }
 
-        ImGui::Separator();
+        if (has_component<Camera>(handle)) {
+            imgui::CameraWidget(handle);
+        }
 
+
+        ImGui::Separator();
 
         ImGui::PopID();
     }

@@ -1,12 +1,14 @@
 #include "ImGuiApplicationAssembly.hpp"
+#include "Active.hpp"
 #include "FrameTimer.hpp"
 #include "ImGuiHelpers.hpp"
 #include "ImGuiSceneList.hpp"
 #include "ImGuiSelected.hpp"
 #include "ImGuizmoGizmos.hpp"
-#include "PerspectiveCamera.hpp"
+#include "Camera.hpp"
 #include "RenderEngine.hpp"
 #include "Size.hpp"
+#include "Transform.hpp"
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <cstdio>
@@ -18,27 +20,24 @@ namespace josh {
 
 
 ImGuiApplicationAssembly::ImGuiApplicationAssembly(
-    glfw::Window&            window,
-    RenderEngine&            engine,
-    entt::registry&          registry,
-    const PerspectiveCamera& cam,
-    SceneImporter&           importer,
-    VirtualFilesystem&       vfs
+    glfw::Window&      window,
+    RenderEngine&      engine,
+    entt::registry&    registry,
+    SceneImporter&     importer,
+    VirtualFilesystem& vfs
 )
     : window_         { window             }
     , engine_         { engine             }
     , registry_       { registry           }
-    , cam_            { cam                }
     , importer_       { importer           }
     , vfs_            { vfs                }
     , context_        { window             }
     , window_settings_{ window             }
     , vfs_control_    { vfs                }
     , stage_hooks_    { engine             }
-    , registry_hooks_ { registry           }
     , scene_list_     { registry, importer }
     , selected_menu_  { registry           }
-    , gizmos_         { cam, registry      }
+    , gizmos_         { registry           }
 {}
 
 
@@ -215,10 +214,6 @@ void ImGuiApplicationAssembly::draw_widgets() {
             selected_menu_.display();
         } ImGui::End();
 
-        if (ImGui::Begin("Registry")) {
-            registry_hooks_ .display();
-        } ImGui::End();
-
         if (ImGui::Begin("Scene")) {
             scene_list_.display();
         } ImGui::End();
@@ -231,7 +226,11 @@ void ImGuiApplicationAssembly::draw_widgets() {
 
 void ImGuiApplicationAssembly::display() {
     draw_widgets();
-    gizmos_.display();
+    if (const auto camera = get_active<Camera, MTransform>(registry_)) {
+        const glm::mat4 view_mat = inverse(camera.get<MTransform>().model());
+        const glm::mat4 proj_mat = camera.get<Camera>().projection_mat();
+        gizmos_.display(view_mat, proj_mat);
+    }
     context_.render();
 }
 
@@ -248,7 +247,6 @@ void ImGuiApplicationAssembly::reset_dockspace(ImGuiID dockspace_id) {
     auto right_id       = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Right, 1.f / h_split, nullptr, &dockspace_id);
     auto left_bottom_id = ImGui::DockBuilderSplitNode(left_id,      ImGuiDir_Down,  0.5f,          nullptr, &left_id     );
 
-    ImGui::DockBuilderDockWindow("Registry",      left_id       );
     ImGui::DockBuilderDockWindow("Selected",      left_bottom_id);
     ImGui::DockBuilderDockWindow("Scene",         left_id       );
     ImGui::DockBuilderDockWindow("Render Engine", right_id      );

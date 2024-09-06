@@ -1,4 +1,6 @@
 #pragma once
+#include "Active.hpp"
+#include "Camera.hpp"
 #include "Mesh.hpp"
 #include "RenderEngine.hpp"
 #include "tags/Culled.hpp"
@@ -23,7 +25,7 @@ public:
 private:
     template<typename CullTagT = Culled>
     void cull_from_bounding_spheres(
-        entt::registry& registry,
+        entt::registry&            registry,
         const ViewFrustumAsPlanes& frustum);
 };
 
@@ -33,10 +35,12 @@ private:
 inline void FrustumCulling::operator()(
     RenderEnginePrecomputeInterface& engine)
 {
-    cull_from_bounding_spheres<Culled>(
-        engine.registry(),
-        engine.camera().get_frustum_as_planes()
-    );
+    if (const auto camera = get_active<Camera, MTransform>(engine.registry())) {
+        cull_from_bounding_spheres<Culled>(
+            engine.registry(),
+            camera.get<Camera>().view_frustum_as_planes().transformed(camera.get<MTransform>().model())
+        );
+    }
 }
 
 
@@ -44,7 +48,7 @@ inline void FrustumCulling::operator()(
 
 template<typename CullTagT>
 void FrustumCulling::cull_from_bounding_spheres(
-    entt::registry& registry,
+    entt::registry&            registry,
     const ViewFrustumAsPlanes& frustum)
 {
     // Assume the frustum has been correctly

@@ -131,6 +131,7 @@ public:
 
     explicit(false) MTransform(const glm::mat4& model) : model_{ model } {}
 
+    // Aka. world->local change-of-basis.
     const glm::mat4& model() const noexcept {
         return model_;
     }

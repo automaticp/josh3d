@@ -5,6 +5,7 @@
 #include "GLAPICommonTypes.hpp"
 #include "GLProgram.hpp"
 #include "TextureHelpers.hpp"
+#include "Transform.hpp"
 #include "UniformTraits.hpp" // IWYU pragma: keep (traits)
 #include "LightCasters.hpp"
 #include "RenderEngine.hpp"
@@ -36,7 +37,7 @@ public:
         float     sun_size_deg{ 0.5f };
     };
 
-    SkyType             sky_type{ SkyType::Skybox };
+    SkyType             sky_type{ SkyType::Procedural };
     ProceduralSkyParams procedural_sky_params{};
 
     void operator()(RenderEnginePrimaryInterface& engine);
@@ -175,7 +176,7 @@ inline void Sky::draw_procedural_sky(
             dlight.get<Transform>().orientation() * glm::vec3{ 0.f, 0.f, -1.f };
 
         const glm::vec3 light_dir_view_space =
-            glm::normalize(glm::vec3{ engine.camera().view_mat() * glm::vec4{ light_dir, 0.f } });
+            glm::normalize(glm::vec3{ engine.camera_data().view * glm::vec4{ light_dir, 0.f } });
 
 
         sp.uniform("sun_size_rad",         glm::radians(procedural_sky_params.sun_size_deg));

@@ -1,7 +1,7 @@
 #pragma once
 #include "AssetManager.hpp"
 #include "ImGuiApplicationAssembly.hpp"
-#include "PerspectiveCamera.hpp"
+#include "Camera.hpp"
 #include "Input.hpp"
 #include "InputFreeCamera.hpp"
 #include "Primitives.hpp"
@@ -32,13 +32,11 @@ private:
     josh::AssetManager  assmanager_;
     josh::SceneImporter importer_;
     josh::Primitives    primitives_;
+    josh::RenderEngine  rengine_;
 
     josh::SimpleInputBlocker   input_blocker_;
     josh::BasicRebindableInput input_;
     josh::InputFreeCamera      input_freecam_;
-
-    josh::PerspectiveCamera cam_;
-    josh::RenderEngine      rengine_;
 
     josh::ImGuiApplicationAssembly imgui_;
 

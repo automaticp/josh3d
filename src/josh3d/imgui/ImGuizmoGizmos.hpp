@@ -1,5 +1,5 @@
 #pragma once
-#include "PerspectiveCamera.hpp"
+#include "Camera.hpp"
 #include <entt/fwd.hpp>
 
 
@@ -25,17 +25,13 @@ public:
     GizmoSpace     active_space        { GizmoSpace::World           };
     bool           display_debug_window{ false                       };
 
-    ImGuizmoGizmos(const PerspectiveCamera& ref_camera, entt::registry& registry)
-        : cam_     { ref_camera }
-        , registry_{ registry   }
-    {}
+    ImGuizmoGizmos(entt::registry& registry) : registry_{ registry } {}
 
     void new_frame();
-    void display();
+    void display(const glm::mat4& view_mat, const glm::mat4& proj_mat);
 
 private:
-    const PerspectiveCamera& cam_;
-    entt::registry&          registry_;
+    entt::registry& registry_;
 };
 
 

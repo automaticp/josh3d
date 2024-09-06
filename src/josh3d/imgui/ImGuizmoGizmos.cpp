@@ -127,7 +127,10 @@ This will require translation of all objects w.r.t. the midpoint. Should be doab
 
 
 
-void ImGuizmoGizmos::display() {
+void ImGuizmoGizmos::display(
+    const glm::mat4& view_mat,
+    const glm::mat4& proj_mat)
+{
     using glm::mat3, glm::mat4, glm::vec3, glm::vec4, glm::quat;
 
     bool debug_window_open = false;
@@ -235,9 +238,6 @@ void ImGuizmoGizmos::display() {
                 default: std::terminate();
             }
         }();
-
-        const mat4 view_mat = cam_.view_mat();
-        const mat4 proj_mat = cam_.projection_mat();
 
         const bool manipulated =
             ImGuizmo::Manipulate(

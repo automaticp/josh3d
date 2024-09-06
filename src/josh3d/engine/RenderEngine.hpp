@@ -7,7 +7,6 @@
 #include "GLMutability.hpp"
 #include "GLTextures.hpp"
 #include "Layout.hpp"
-#include "PerspectiveCamera.hpp"
 #include "FrameTimer.hpp"
 #include "GLObjects.hpp"
 #include "Primitives.hpp"
@@ -92,13 +91,11 @@ public:
 
     RenderEngine(
         entt::registry&    registry,
-        PerspectiveCamera& cam,        // TODO: Should not be a reference.
         const Primitives&  primitives,
         const Size2I&      resolution,
         const FrameTimer&  frame_timer // TODO: Should not be a reference.
     )
         : registry_       { registry     }
-        , cam_            { cam          }
         , primitives_     { primitives   }
         , frame_timer_    { frame_timer  }
         , main_swapchain_ { make_main_target(resolution), make_main_target(resolution) }
@@ -164,11 +161,7 @@ public:
 
     Size2I main_resolution() const noexcept { return main_swapchain_.resolution(); }
 
-    auto&       camera()       noexcept { return cam_; }
-    const auto& camera() const noexcept { return cam_; }
-
     const Primitives& primitives() const noexcept { return primitives_; }
-
     const FrameTimer& frame_timer() const noexcept { return frame_timer_; }
 
     void resize(const Size2I& new_resolution) {
@@ -191,12 +184,8 @@ private:
     std::vector<PostprocessStage> postprocess_;
     std::vector<OverlayStage>     overlay_;
 
-    entt::registry& registry_;
-
-    PerspectiveCamera& cam_;
-
+    entt::registry&   registry_;
     const Primitives& primitives_;
-
     const FrameTimer& frame_timer_;
 
 
@@ -239,8 +228,13 @@ private:
         alignas(std430::align_vec4)  glm::mat4   inv_projview;
     };
 
+    CameraDataGPU               camera_data_;
     UniqueBuffer<CameraDataGPU> camera_ubo_{ allocate_buffer<CameraDataGPU>(NumElems{ 1 }) };
-    void update_camera_ubo() noexcept;
+    void update_camera_data(
+        const glm::mat4& view,
+        const glm::mat4& proj,
+        float            z_near,
+        float            z_far) noexcept;
 
 
     void resize_depth(const Size2I& new_resolution) {
@@ -269,24 +263,24 @@ private:
 
 
 class RenderEngineCommonInterface {
-protected:
-    RenderEngine& engine_;
-    RenderEngineCommonInterface(RenderEngine& engine) : engine_{ engine } {}
-
 public:
-    const entt::registry&    registry()        const noexcept { return engine_.registry_;   }
-    const Primitives&        primitives()      const noexcept { return engine_.primitives_; }
-    const PerspectiveCamera& camera()          const noexcept { return engine_.cam_;        }
+    auto registry()    const noexcept -> const entt::registry& { return engine_.registry_;   }
+    auto primitives()  const noexcept -> const Primitives&     { return engine_.primitives_; }
+    auto camera_data() const noexcept -> const auto&           { return engine_.camera_data_; }
     // TODO: Something about window resolution being separate?
     // TODO: Also main_resolution() is not accurate in Overlay stages.
-    Size2I                   main_resolution() const noexcept { return engine_.main_resolution(); }
-    const FrameTimer&        frame_timer()     const noexcept { return engine_.frame_timer_;      }
+    auto main_resolution() const noexcept -> Size2I            { return engine_.main_resolution(); }
+    auto frame_timer()     const noexcept -> const FrameTimer& { return engine_.frame_timer_;      }
 
     auto bind_camera_ubo(GLuint index = 0) const noexcept
         -> BindToken<BindingIndexed::UniformBuffer>
     {
         return engine_.camera_ubo_->bind_to_index<BufferTargetIndexed::Uniform>(index);
     }
+
+protected:
+    RenderEngine& engine_;
+    RenderEngineCommonInterface(RenderEngine& engine) : engine_{ engine } {}
 };
 
 
@@ -304,9 +298,8 @@ private:
     {}
 
 public:
-          entt::registry& registry()       noexcept { return engine_.registry_; }
-    const entt::registry& registry() const noexcept { return engine_.registry_; }
-
+    auto registry()       noexcept ->       entt::registry& { return engine_.registry_; }
+    auto registry() const noexcept -> const entt::registry& { return engine_.registry_; }
 };
 
 

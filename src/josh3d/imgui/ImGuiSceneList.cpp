@@ -1,5 +1,6 @@
 #include "ImGuiSceneList.hpp"
 #include "Active.hpp"
+#include "Camera.hpp"
 #include "Filesystem.hpp"
 #include "ImGuiComponentWidgets.hpp"
 #include "ImGuiHelpers.hpp"
@@ -217,6 +218,11 @@ void ImGuiSceneList::display() {
 
     bool create_new_terrain = false;
 
+    thread_local glm::vec3 new_camera_position{ 0.f, 1.f, 0.f };
+
+    bool create_new_camera = false;
+
+
     thread_local std::string import_model_vpath;
     thread_local AssetPath   import_model_apath;
     thread_local std::string import_model_error_message;
@@ -294,7 +300,15 @@ void ImGuiSceneList::display() {
                 ImGui::EndMenu();
             }
 
-            // TODO: Camera.
+            ImGui::Separator();
+
+            if (ImGui::BeginMenu("Camera")) {
+                if (ImGui::IsItemClicked()) {
+                    create_new_camera = true;
+                }
+                ImGui::DragFloat3("Position", value_ptr(new_camera_position), 0.2f, -FLT_MAX, FLT_MAX);
+                ImGui::EndMenu();
+            }
 
             ImGui::EndMenu();
         }
@@ -475,6 +489,15 @@ void ImGuiSceneList::display() {
         const Extent2F extents   { new_terrain_extents.x, new_terrain_extents.y };
         new_terrain.emplace<TerrainChunk>(create_terrain_chunk(new_terrain_max_height, extents, resolution));
         new_terrain.emplace<Transform>();
+    }
+
+    if (create_new_camera) {
+        const entt::handle new_camera{ registry, registry.create() };
+        new_camera.emplace<Camera>(Camera::Params{});
+        new_camera.emplace<Transform>().translate(new_camera_position);
+        if (!has_active<Camera>(registry)) {
+            make_active<Camera>(new_camera);
+        }
     }
 
     if (import_model_signal) {

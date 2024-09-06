@@ -1,7 +1,10 @@
 #include "RenderEngine.hpp"
+#include "Active.hpp"
+#include "Camera.hpp"
 #include "GLFramebuffer.hpp"
 #include "GLObjects.hpp"
 #include "RenderStage.hpp"
+#include "Transform.hpp"
 #include "WindowSizeCache.hpp"
 #include <chrono>
 #include <entt/entt.hpp>
@@ -20,10 +23,21 @@ namespace josh {
 void RenderEngine::render() {
 
     // Update camera.
-    auto params = cam_.get_params();
-    params.aspect_ratio = main_resolution().aspect_ratio();
-    cam_.update_params(params);
-    update_camera_ubo();
+    // TODO: Orthographic has no notion of aspect_ratio.
+    // TODO: Should this be done after precompute? As precompute can change what's active.
+    // TODO: Absence if an active camera, in general, is pretty bad. Do we even render?
+    if (const auto camera = get_active<Camera>(registry_)) {
+        Camera& cam = camera.get<Camera>();
+        auto params = cam.get_params();
+        params.aspect_ratio = main_resolution().aspect_ratio();
+        cam.update_params(params);
+
+        glm::mat4 view{ 1.f };
+        if (auto* mtf = camera.try_get<MTransform>()) {
+            view = inverse(mtf->model()); // model is W2C, view is C2W.
+        }
+        update_camera_data(view, cam.projection_mat(), params.z_near, params.z_far);
+    }
 
     // Update viewport.
     glapi::set_viewport({ {}, main_resolution() });
@@ -90,20 +104,24 @@ void RenderEngine::render() {
 
 
 
-void RenderEngine::update_camera_ubo() noexcept {
-    const auto&     params       = cam_.get_params();
-    const glm::mat4 view         = cam_.view_mat();
-    const glm::mat4 proj         = cam_.projection_mat();
-    const glm::mat4 projview     = proj * view;
-    const glm::mat4 inv_view     = glm::inverse(view);
-    const glm::mat3 normal_view  = glm::transpose(inv_view);
-    const glm::mat4 inv_proj     = glm::inverse(proj);
-    const glm::mat4 inv_projview = glm::inverse(projview);
+void RenderEngine::update_camera_data(
+    const glm::mat4& view,
+    const glm::mat4& proj,
+    float            z_near,
+    float            z_far) noexcept
+{
+    using glm::vec3, glm::mat4, glm::mat3;
+    const vec3 position_ws  = view[3];
+    const mat4 projview     = proj * view;
+    const mat4 inv_view     = inverse(view);
+    const mat3 normal_view  = transpose(inv_view);
+    const mat4 inv_proj     = inverse(proj);
+    const mat4 inv_projview = inverse(projview);
 
-    const CameraDataGPU data{
-        .position_ws  = cam_.transform.position(),
-        .z_near       = params.z_near,
-        .z_far        = params.z_far,
+    camera_data_ = CameraDataGPU{
+        .position_ws  = position_ws,
+        .z_near       = z_near,
+        .z_far        = z_far,
         .view         = view,
         .proj         = proj,
         .projview     = projview,
@@ -113,7 +131,7 @@ void RenderEngine::update_camera_ubo() noexcept {
         .inv_projview = inv_projview
     };
 
-    camera_ubo_->upload_data({ &data, 1 });
+    camera_ubo_->upload_data({ &camera_data_, 1 });
 }
 
 

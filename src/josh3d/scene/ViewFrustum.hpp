@@ -1,5 +1,4 @@
 #pragma once
-#include "Transform.hpp"
 #include <glm/glm.hpp>
 #include <cmath>
 #include <array>
@@ -11,15 +10,22 @@ namespace josh {
 struct Quad {
     std::array<glm::vec3, 4> points{};
 
-    Quad transformed(const glm::mat4& transform_mat) const noexcept {
-        return {
-            transform_mat * glm::vec4{ points[0], 0.f },
-            transform_mat * glm::vec4{ points[1], 0.f },
-            transform_mat * glm::vec4{ points[2], 0.f },
-            transform_mat * glm::vec4{ points[3], 0.f },
-        };
-    }
+    auto transformed(const glm::mat4& world_mat) const noexcept
+        -> Quad;
 };
+
+
+inline auto Quad::transformed(const glm::mat4& world_mat) const noexcept
+    -> Quad
+{
+    return {
+        world_mat * glm::vec4{ points[0], 1.f },
+        world_mat * glm::vec4{ points[1], 1.f },
+        world_mat * glm::vec4{ points[2], 1.f },
+        world_mat * glm::vec4{ points[3], 1.f },
+    };
+}
+
 
 
 /*
@@ -43,26 +49,25 @@ private:
 public:
     // Constructs a two-quad frustum in local space
     // with rectangular z-symmetric near and far planes.
-    static ViewFrustumAsQuads make_local_z_symmetric(
+    static auto make_local_z_symmetric(
         float near_width, float near_height,
-        float far_width, float far_height,
-        float z_near, float z_far) noexcept;
+        float far_width,  float far_height,
+        float z_near,     float z_far) noexcept
+            -> ViewFrustumAsQuads;
 
     // Consturcts a two-quad frustum in local space
     // for a perspective projection.
-    static ViewFrustumAsQuads make_local_perspective(
+    static auto make_local_perspective(
         float fovy_rad, float aspect_ratio,
-        float z_near, float z_far) noexcept;
+        float z_near,   float z_far) noexcept
+            -> ViewFrustumAsQuads;
 
     // Returns a frustum transformed into world-space according to transform.
-    ViewFrustumAsQuads to_world_space(const Transform& transform) const noexcept;
+    auto transformed(const glm::mat4& world_mat) const noexcept
+        -> ViewFrustumAsQuads;
 
-    ViewFrustumAsQuads transformed(const glm::mat4& transform_mat) const noexcept {
-        return { near_.transformed(transform_mat), far_.transformed(transform_mat) };
-    }
-
-    const Quad& near() const noexcept { return near_; }
-    const Quad& far()  const noexcept { return far_;  }
+    auto near() const noexcept -> const Quad& { return near_; }
+    auto far()  const noexcept -> const Quad& { return far_;  }
 
 };
 
@@ -71,9 +76,9 @@ public:
 
 inline auto ViewFrustumAsQuads::make_local_z_symmetric(
     float near_width, float near_height,
-    float far_width, float far_height,
-    float z_near, float z_far) noexcept
-    -> ViewFrustumAsQuads
+    float far_width,  float far_height,
+    float z_near,     float z_far) noexcept
+        -> ViewFrustumAsQuads
 {
     const float nhw = near_width  / 2.f;
     const float nhh = near_height / 2.f;
@@ -97,8 +102,8 @@ inline auto ViewFrustumAsQuads::make_local_z_symmetric(
 
 inline auto ViewFrustumAsQuads::make_local_perspective(
     float fovy_rad, float aspect_ratio,
-    float z_near, float z_far) noexcept
-    -> ViewFrustumAsQuads
+    float z_near,   float z_far) noexcept
+        -> ViewFrustumAsQuads
 {
     using std::tan, std::atan;
 
@@ -117,17 +122,11 @@ inline auto ViewFrustumAsQuads::make_local_perspective(
 }
 
 
-
-inline auto ViewFrustumAsQuads::to_world_space(
-    const Transform& transform) const noexcept
-    ->ViewFrustumAsQuads
+inline auto ViewFrustumAsQuads::transformed(const glm::mat4& world_mat) const noexcept
+    -> ViewFrustumAsQuads
 {
-    const glm::mat4 model_mat = transform.mtransform().model();
-    return { near_.transformed(model_mat), far_.transformed(model_mat) };
+    return { near_.transformed(world_mat), far_.transformed(world_mat) };
 }
-
-
-
 
 
 
@@ -141,8 +140,45 @@ struct Plane {
     // The (closest_distance * normal) gives the position of
     // the closest to the origin point of the plane.
     float closest_distance{ 0.f };
+
+    auto transformed(const glm::mat4& world_mat) const noexcept -> Plane;
 };
 
+
+// TODO: This probably should work with a change-of-basis matrix directly.
+inline auto Plane::transformed(const glm::mat4& world_mat) const noexcept
+    -> Plane
+{
+    const glm::mat3 L2W_mat3 = inverse(world_mat);
+    const glm::vec3 position = world_mat[3];
+
+    // WARN: I derived this from simplified 2D diagrams on paper.
+    // I could easily be missing some important considerations that
+    // appliy in 3D alone. Or I could be just dumb in some other way.
+    // Either way, this may not work.
+    //
+    // WARN 2: I adopted this from a previous implemetation that used
+    // a plain Transform instead of a full mat4. This may work even less now.
+
+    const glm::vec3 new_normal = normalize(normal * L2W_mat3);
+
+    // Reproject the parent (camera) position onto the new normal.
+    // This should give us a separation distance between the new plane
+    // and its local origin.
+    const float new_closest_distance =
+        closest_distance + glm::dot(new_normal, position);
+    // For a simple transform a couple notable cases take place:
+    //
+    // - The near and far planes are just moved along the position axis
+    //   by the position.length(). Normals and position lines are parallel:
+    //   the dot product is 1 or -1 times position.length();
+    //
+    // - The side planes of the orthographic projection do not change their
+    //   closest distance. The normal and position lines are perpendicular:
+    //   the dot product is 0.
+
+    return { new_normal, new_closest_distance };
+}
 
 
 
@@ -164,44 +200,49 @@ private:
         Plane near, Plane far,
         Plane left, Plane right,
         Plane top,  Plane bottom)
-        : near_{ near }, far_{ far }
-        , left_{ left }, right_{ right }
-        , top_{ top },   bottom_{ bottom }
+        : near_{ near }, far_   { far    }
+        , left_{ left }, right_ { right  }
+        , top_ { top  }, bottom_{ bottom }
     {}
 
 public:
     // Constructs a local frustum for a perspective projection
     // in the shape of a rectangular right pyramid frustum.
-    static ViewFrustumAsPlanes make_local_perspective(
+    static auto make_local_perspective(
         float fovy_rad, float aspect_ratio,
-        float z_near, float z_far) noexcept;
+        float z_near,   float z_far) noexcept
+            -> ViewFrustumAsPlanes;
 
     // Constructs a local frustum for an orthographic projection
     // in the shape of a rectangular box.
-    static ViewFrustumAsPlanes make_local_orthographic(
-        float left_side, float right_side,
+    static auto make_local_orthographic(
+        float left_side,   float right_side,
         float bottom_side, float top_side,
-        float z_near, float z_far) noexcept;
+        float z_near,      float z_far) noexcept
+            -> ViewFrustumAsPlanes;
 
     // Constructs a local frustum for an orthographic projection
     // in the shape of a view-axis symmetric rectangular box.
-    static ViewFrustumAsPlanes make_local_orthographic(
-        float width, float height,
-        float z_near, float z_far) noexcept;
+    static auto make_local_orthographic(
+        float width,  float height,
+        float z_near, float z_far) noexcept
+            -> ViewFrustumAsPlanes;
 
     // Returns a frustum transformed into world-space according to transform.
     // WARN: Does not work for non-default scale, I think.
-    ViewFrustumAsPlanes to_world_space(const Transform& transform) const noexcept;
+    // ViewFrustumAsPlanes to_world_space(const Transform& transform) const noexcept;
 
     // Returns a frustum transformed according to transform matrix.
-    // ViewFrustumAsPlanes transformed(const glm::mat4& transform_mat) const noexcept;
+    // TODO: This is an incredible description, indeed.
+    auto transformed(const glm::mat4& world_mat) const noexcept
+        -> ViewFrustumAsPlanes;
 
-    const Plane& near()   const noexcept { return near_; }
-    const Plane& far()    const noexcept { return far_;    }
-    const Plane& left()   const noexcept { return left_;   }
-    const Plane& right()  const noexcept { return right_;  }
-    const Plane& top()    const noexcept { return top_;    }
-    const Plane& bottom() const noexcept { return bottom_; }
+    auto near()   const noexcept -> const Plane& { return near_;   }
+    auto far()    const noexcept -> const Plane& { return far_;    }
+    auto left()   const noexcept -> const Plane& { return left_;   }
+    auto right()  const noexcept -> const Plane& { return right_;  }
+    auto top()    const noexcept -> const Plane& { return top_;    }
+    auto bottom() const noexcept -> const Plane& { return bottom_; }
 };
 
 
@@ -209,8 +250,8 @@ public:
 
 inline auto ViewFrustumAsPlanes::make_local_perspective(
     float fovy_rad, float aspect_ratio,
-    float z_near, float z_far) noexcept
-    -> ViewFrustumAsPlanes
+    float z_near,   float z_far) noexcept
+        -> ViewFrustumAsPlanes
 {
     // RH (X: right, Y: up, Z: back) coordinate system.
 
@@ -234,10 +275,10 @@ inline auto ViewFrustumAsPlanes::make_local_perspective(
 
 
 inline auto ViewFrustumAsPlanes::make_local_orthographic(
-    float left_side, float right_side,
+    float left_side,   float right_side,
     float bottom_side, float top_side,
-    float z_near, float z_far) noexcept
-    -> ViewFrustumAsPlanes
+    float z_near,      float z_far) noexcept
+        -> ViewFrustumAsPlanes
 {
     const Plane near { {  0.f,  0.f,  1.f }, z_near      };
     const Plane far  { {  0.f,  0.f, -1.f }, z_far       };
@@ -250,9 +291,9 @@ inline auto ViewFrustumAsPlanes::make_local_orthographic(
 
 
 inline auto ViewFrustumAsPlanes::make_local_orthographic(
-    float width, float height,
+    float width,  float height,
     float z_near, float z_far) noexcept
-    -> ViewFrustumAsPlanes
+        -> ViewFrustumAsPlanes
 {
     const float hw = width  / 2.f;
     const float hh = height / 2.f;
@@ -260,42 +301,16 @@ inline auto ViewFrustumAsPlanes::make_local_orthographic(
 }
 
 
-inline auto ViewFrustumAsPlanes::to_world_space(
-    const Transform& transform) const noexcept
+inline auto ViewFrustumAsPlanes::transformed(const glm::mat4& world_mat) const noexcept
     -> ViewFrustumAsPlanes
 {
-    const glm::mat3 normal_model = transform.mtransform().normal_model();
-
-    auto transform_plane = [&](const Plane& plane) -> Plane {
-        // WARN: I derived this from simplified 2D diagrams on paper.
-        // I could easily be missing some important considerations that
-        // appliy in 3D alone. Or I could be just dumb in some other way.
-        // Either way, this may not work.
-        const glm::vec3 new_normal = normal_model * plane.normal;
-
-        // Reproject the parent (camera) position onto the new normal.
-        // This should give us a separation distance between the new plane
-        // and its local origin.
-        const float new_closest_distance =
-            plane.closest_distance + glm::dot(new_normal, transform.position());
-        // Do note that a couple edge cases take place:
-        // - The near and far planes are just moved along the position axis
-        //   by the position.length(). Normals and position lines are parallel:
-        //   the dot product is 1 or -1 times position.length();
-        // - The side planes of the orthographic projection do not change their
-        //   closest distance. The normal and position lines are perpendicular:
-        //   the dot product is 0.
-
-        return { new_normal, new_closest_distance };
-    };
-
     return {
-        transform_plane(near_), transform_plane(far_),
-        transform_plane(left_), transform_plane(right_),
-        transform_plane(top_),  transform_plane(bottom_)
+        near_.transformed(world_mat), far_   .transformed(world_mat),
+        left_.transformed(world_mat), right_ .transformed(world_mat),
+        top_ .transformed(world_mat), bottom_.transformed(world_mat),
     };
-
 }
+
 
 
 

@@ -110,15 +110,17 @@ void PointShadowMapping::map_point_shadows(
             z_far
         );
 
-        const auto& basis = globals::basis;
+        constexpr glm::vec3 x{ 1.f, 0.f, 0.f };
+        constexpr glm::vec3 y{ 0.f, 1.f, 0.f };
+        constexpr glm::vec3 z{ 0.f, 0.f, 1.f };
 
         const glm::mat4 views[6]{
-            glm::lookAt(pos, pos + basis.x(), -basis.y()),
-            glm::lookAt(pos, pos - basis.x(), -basis.y()),
-            glm::lookAt(pos, pos + basis.y(),  basis.z()),
-            glm::lookAt(pos, pos - basis.y(), -basis.z()),
-            glm::lookAt(pos, pos + basis.z(), -basis.y()),
-            glm::lookAt(pos, pos - basis.z(), -basis.y()),
+            glm::lookAt(pos, pos + x, -y),
+            glm::lookAt(pos, pos - x, -y),
+            glm::lookAt(pos, pos + y,  z),
+            glm::lookAt(pos, pos - y, -z),
+            glm::lookAt(pos, pos + z, -y),
+            glm::lookAt(pos, pos - z, -y),
         };
 
         Location views_loc = sp.get_uniform_location("views");

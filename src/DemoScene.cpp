@@ -1,10 +1,11 @@
 #include "DemoScene.hpp"
+#include "Active.hpp"
 #include "AssetManager.hpp"
 #include "GLPixelPackTraits.hpp"
 #include "GLTextures.hpp"
 #include "ImGuiApplicationAssembly.hpp"
 #include "Logging.hpp"
-#include "PerspectiveCamera.hpp"
+#include "Camera.hpp"
 #include "Input.hpp"
 #include "InputFreeCamera.hpp"
 #include "LightCasters.hpp"
@@ -64,7 +65,6 @@
 #include "hooks/overlay/GBufferDebug.hpp"
 #include "hooks/overlay/SelectedObjectHighlight.hpp"
 #include "hooks/overlay/BoundingSphereDebug.hpp"
-#include "hooks/registry/PerspectiveCamera.hpp"
 
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
@@ -73,6 +73,7 @@
 #include <exception>
 #include <glm/ext.hpp>
 #include <glm/gtc/quaternion.hpp>
+#include <glm/trigonometric.hpp>
 
 
 using namespace josh;
@@ -95,13 +96,19 @@ void DemoScene::applicate() {
 }
 
 
-void DemoScene::process_input() {}
+void DemoScene::process_input() {
+    if (const auto camera = get_active<Camera, Transform>(registry_)) {
+        input_freecam_.update(
+            globals::frame_timer.delta<float>(),
+            camera.get<Camera>(),
+            camera.get<Transform>()
+        );
+    }
+}
 
 
 void DemoScene::update() {
     update_input_blocker_from_imgui_io_state();
-    input_freecam_.update();
-
 
     importer_.retire_completed_requests();
     while (importer_.can_unpack_more()) {
@@ -130,32 +137,18 @@ DemoScene::DemoScene(glfw::Window& window)
     , assmanager_   { vfs(), window           }
     , importer_     { assmanager_, registry_  }
     , primitives_   { assmanager_             }
+    , rengine_      { registry_, primitives_, globals::window_size.size_ref(), globals::frame_timer }
     , input_blocker_{                         }
     , input_        { window_, input_blocker_ }
-    , input_freecam_{ cam_                    }
-    , cam_          {
-        PerspectiveCameraParams{
-            .fovy_rad     = glm::radians(80.f),
-            .aspect_ratio = globals::window_size.size_ref().aspect_ratio(),
-            .z_near       = 0.1f,
-            .z_far        = 500.f
-        },
-        josh::Transform().translate({ 0.f, 1.f, 0.f })
-    }
-    , rengine_{
-        registry_, cam_, primitives_,
-        globals::window_size.size_ref(), globals::frame_timer
-    }
-    , imgui_{
-        window_, rengine_, registry_, cam_, importer_, vfs()
-    }
+    , input_freecam_{                         }
+    , imgui_        { window_, rengine_, registry_, importer_, vfs() }
 {
 
 
     auto csmbuilder    = stages::precompute::CSMSetup();
     auto plightsetup   = stages::precompute::PointLightSetup();
-    auto frustumculler = stages::precompute::FrustumCulling();
     auto tfresolution  = stages::precompute::TransformResolution();
+    auto frustumculler = stages::precompute::FrustumCulling();
 
 
     auto psmapping   = stages::primary::PointShadowMapping();
@@ -237,8 +230,8 @@ DemoScene::DemoScene(glfw::Window& window)
 
     rengine_.add_next_precompute_stage("CSM Setup",            std::move(csmbuilder));
     rengine_.add_next_precompute_stage("Point Light Setup",    std::move(plightsetup));   // NOLINT(performance-move-const-arg)
-    rengine_.add_next_precompute_stage("Frustum Culling",      std::move(frustumculler)); // NOLINT(performance-move-const-arg)
     rengine_.add_next_precompute_stage("Transfrom Resolution", std::move(tfresolution));  // NOLINT(performance-move-const-arg)
+    rengine_.add_next_precompute_stage("Frustum Culling",      std::move(frustumculler)); // NOLINT(performance-move-const-arg)
 
     rengine_.add_next_primary_stage("Point Shadow Mapping",      std::move(psmapping));
     rengine_.add_next_primary_stage("Cascaded Shadow Mapping",   std::move(csmapping));
@@ -263,13 +256,7 @@ DemoScene::DemoScene(glfw::Window& window)
     rengine_.add_next_overlay_stage("Bounding Spheres",          std::move(cullspheres));
 
 
-
-    // TODO: Remove these.
-    imgui_.registry_hooks().add_hook("Camera",  imguihooks::registry::PerspectiveCamera(cam_));
-
-
     configure_input(gbuffer_read_view);
-
     init_registry();
 }
 
@@ -394,10 +381,7 @@ void DemoScene::init_registry() {
     auto& registry = registry_;
 
     const entt::handle alight_handle{ registry, registry.create() };
-
-    alight_handle.emplace<AmbientLight>(AmbientLight{
-        .color = { 0.15f, 0.15f, 0.1f }
-    });
+    alight_handle.emplace<AmbientLight>(AmbientLight{ .color = { 0.15f, 0.15f, 0.1f } });
     make_active<AmbientLight>(alight_handle);
 
     const entt::handle dlight_handle{ registry, registry.create() };
@@ -411,17 +395,24 @@ void DemoScene::init_registry() {
     using namespace josh::filesystem_literals;
 
     const auto model_vpath  = "data/models/shadow_scene/shadow_scene.obj"_vpath;
-    const auto skybox_vpath = "data/skyboxes/yokohama/skybox.json"_vpath;
     const AssetPath model_apath { File(model_vpath),  {} };
-    const AssetPath skybox_apath{ File(skybox_vpath), {} };
 
     importer_.request_model_import(model_apath);
-    importer_.request_skybox_import(skybox_apath);
     importer_.wait_until_all_pending_are_complete();
     importer_.retire_completed_requests();
     importer_.unpack_all_retired();
 
-    make_active<Skybox>({ registry, registry.view<Skybox>().back() });
+
+    const entt::handle camera_handle{ registry, registry.create() };
+    const Camera::Params camera_params{
+        .fovy_rad     = glm::radians(80.f),
+        .aspect_ratio = globals::window_size.size_ref().aspect_ratio(),
+        .z_near       = 0.1f,
+        .z_far        = 500.f,
+    };
+    camera_handle.emplace<Camera>(camera_params);
+    camera_handle.emplace<Transform>().translate({ 0.f, 1.f, 0.f });
+    make_active<Camera>(camera_handle);
 
 }
 

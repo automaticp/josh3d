@@ -151,7 +151,7 @@ inline void Fog::draw_barometric_fog(
     // We want to compute the effect in the view-space,
     // because world-space calculations incur precision issues
     // at large separation from the origin.
-    const float eye_height = engine.camera().transform.position().y;
+    const float eye_height = engine.camera_data().position_ws.y;
     float density_at_eye_height = float(
         double(base_density) * glm::exp(-double(eye_height) / double(H))
     );

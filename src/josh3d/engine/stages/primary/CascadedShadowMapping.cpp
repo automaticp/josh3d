@@ -125,7 +125,7 @@ void CascadedShadowMapping::map_dir_light_shadow_cascade(
     output_->params.clear();
     for (const auto& cascade : input_->cascades) {
 
-        const glm::mat4& proj = cascade.projection;
+        const glm::mat4& proj = cascade.proj;
         // Knowing the orthographic projection matrix, we can extract the
         // scale of the cascade in world-space/light-view-space.
         float w =  2.f / proj[0][0];
@@ -135,7 +135,7 @@ void CascadedShadowMapping::map_dir_light_shadow_cascade(
         // This is used later in the shading stage.
         output_->params.emplace_back(
             CascadeParamsGPU{
-                .projview = cascade.projection * cascade.view,
+                .projview = cascade.proj * cascade.view,
                 .scale    = { w, h, d },
                 .z_split  = cascade.z_split
             }
@@ -175,7 +175,7 @@ void CascadedShadowMapping::map_dir_light_shadow_cascade(
         Location view_loc = sp.get_uniform_location("views");
 
         for (GLsizei cascade_id{ 0 }; cascade_id < num_cascades; ++cascade_id) {
-            sp.uniform(Location{ proj_loc + cascade_id }, cascades[cascade_id].projection);
+            sp.uniform(Location{ proj_loc + cascade_id }, cascades[cascade_id].proj);
             sp.uniform(Location{ view_loc + cascade_id }, cascades[cascade_id].view);
         }
         sp.uniform("num_cascades", num_cascades);

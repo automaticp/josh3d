@@ -4,9 +4,8 @@
 #include "Active.hpp"
 #include "ViewFrustum.hpp"
 #include "SharedStorage.hpp"
-#include "PerspectiveCamera.hpp"
+#include "Camera.hpp"
 #include "Transform.hpp"
-#include "Basis.hpp"
 #include "tags/ShadowCasting.hpp"
 #include <glm/glm.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
@@ -24,7 +23,7 @@ namespace josh {
 struct CascadeView {
     ViewFrustumAsPlanes frustum;
     glm::mat4 view;
-    glm::mat4 projection;
+    glm::mat4 proj;
     float     z_split;
 };
 
@@ -76,7 +75,11 @@ public:
     void operator()(RenderEnginePrecomputeInterface& engine);
 
 private:
-    void build_from_camera(const PerspectiveCamera& cam, const glm::vec3& light_dir) noexcept;
+    void build_from_camera(
+        const glm::vec3&           cam_position,
+        const ViewFrustumAsPlanes& frustum_as_planes,
+        const ViewFrustumAsQuads&  frustum_as_quads,
+        const glm::vec3&           light_dir) noexcept;
 };
 
 
@@ -92,7 +95,18 @@ inline void CSMSetup::operator()(
         const glm::vec3 light_dir =
             dlight.get<Transform>().orientation() * glm::vec3{ 0.f, 0.f, -1.f };
 
-        build_from_camera(engine.camera(), light_dir);
+        if (const auto camera = get_active<Camera, MTransform>(engine.registry())) {
+            const MTransform& mtf       = camera.get<MTransform>();
+            const glm::mat4&  world_mat = mtf.model();
+            const Camera&     cam       = camera.get<Camera>();
+            build_from_camera(
+                mtf.decompose_position(),
+                cam.view_frustum_as_planes().transformed(world_mat),
+                cam.view_frustum_as_quads() .transformed(world_mat),
+                light_dir
+            );
+        }
+
     }
 }
 
@@ -100,22 +114,18 @@ inline void CSMSetup::operator()(
 
 
 inline void CSMSetup::build_from_camera(
-    const PerspectiveCamera& cam,
-    const glm::vec3&         light_dir) noexcept
+    const glm::vec3&           cam_position,
+    const ViewFrustumAsPlanes& frustum_as_planes, // In world-space.
+    const ViewFrustumAsQuads&  frustum_as_quads,  // In world-space.
+    const glm::vec3&           light_dir) noexcept
 {
-
-    output_->resolution = resolution;
+    using glm::vec2, glm::vec3, glm::mat3, glm::mat4, glm::quat;
 
     // WARN: This is still heavily WIP.
 
-    const ViewFrustumAsPlanes planes_frust = cam.get_frustum_as_planes();
-    const ViewFrustumAsQuads  quads_frust  = cam.get_frustum_as_quads();
-    const OrthonormalBasis3D  cam_basis    = cam.get_local_basis();
-
-
+    // TODO: There's still clipping for the largest cascade.
     const float largest_observable_length = // OR IS IT?
-        glm::length(cam.get_local_frustum_as_quads().far().points[0]);
-    // There's still clipping for the largest cascade.
+        glm::length(frustum_as_quads.far().points[0] - cam_position);
 
     const float z_near{ 0.f };
     const float z_far { 2 * largest_observable_length };
@@ -126,38 +136,27 @@ inline void CSMSetup::build_from_camera(
     // TODO: What's a good upvector?
     // Global basis upvector is a good choice because it doesn't
     // rotate the cascade with the frustum, reducing shimmer.
-    const glm::vec3 shadow_cam_upvector{
-        globals::basis.y()
+    const vec3 shadow_cam_upvector = glm::vec3{ 0.f, 1.f, 0.f };
         // glm::orthonormalize(-cam_basis.z(), globals::basis.y())
-    };
 
     // Techincally, there's no position, but this marks the Z = 0 point
     // for each shadow camera in world space. This, together with the quatLookAt
     // is used to get the proper Transform for the construction of the
     // world-space ViewFrustum for each shadow camera.
-    const glm::vec3 shadow_cam_position{
-        cam.transform.position() - (cam_offset * light_dir)
-    };
+    const vec3 shadow_cam_position = cam_position - (cam_offset * light_dir);
 
-    const glm::mat4 shadow_look_at = glm::lookAt(
-        shadow_cam_position,
-        cam.transform.position(),
-        shadow_cam_upvector
-    );
-
-    const glm::quat shadow_look_at_quat = glm::quatLookAt(
-        light_dir, shadow_cam_upvector
-    );
+    const mat4 shadow_look_at      = glm::lookAt(shadow_cam_position, cam_position, shadow_cam_upvector);
+    const quat shadow_look_at_quat = glm::quatLookAt(light_dir, shadow_cam_upvector);
 
     // The view space is shared across all cascades.
     // Each cascade "looks at" the camera origin from the same Z = 0 point.
     // The only difference is in the horizontal/vertical projection boundaries.
     // TODO: This *might* be worth changing to allow different Z = 0 points per cascade.
-    const Transform shadow_view_transform{
-        shadow_cam_position, shadow_look_at_quat, glm::vec3{ 1.f }
-    };
+    const Transform shadow_view_transform{ shadow_cam_position, shadow_look_at_quat, glm::vec3{ 1.f } };
 
-    const auto cam_frust_in_shadow_view = quads_frust.transformed(shadow_look_at);
+    // Shadow look_at is a view matrix of shadowcam-space, which is a shadow->world CoB.
+    // We use it to transform the contravariant frustum points from world to shadow-space.
+    const auto cam_frust_in_shadow_view = frustum_as_quads.transformed(shadow_look_at);
 
     const auto& near = cam_frust_in_shadow_view.near();
     const auto& far  = cam_frust_in_shadow_view.far();
@@ -174,20 +173,20 @@ inline void CSMSetup::build_from_camera(
     // of the far plane, to account for most extreme cases as well.
     // FIXME: This might be the cause of the far side shadow clipping.
     constexpr float inf{ std::numeric_limits<float>::infinity() };
-    glm::vec2 min{  inf,  inf };
-    glm::vec2 max{ -inf, -inf };
+    vec2 min{  inf,  inf };
+    vec2 max{ -inf, -inf };
     {
-        auto minmax_update_from_corner = [&](const glm::vec3& corner) {
+        auto minmax_update_from_corner = [&](const vec3& corner) {
             min.x = std::min(min.x, corner.x);
             min.y = std::min(min.y, corner.y);
             max.x = std::max(max.x, corner.x);
             max.y = std::max(max.y, corner.y);
         };
 
-        for (const glm::vec3& corner : cam_frust_in_shadow_view.near().points) {
+        for (const vec3& corner : cam_frust_in_shadow_view.near().points) {
             minmax_update_from_corner(corner);
         }
-        for (const glm::vec3& corner : cam_frust_in_shadow_view.far().points) {
+        for (const vec3& corner : cam_frust_in_shadow_view.far().points) {
             minmax_update_from_corner(corner);
         }
     }
@@ -239,8 +238,7 @@ inline void CSMSetup::build_from_camera(
 
             // This is a position of the shadowcam in space that's oriented like
             // the shadow view but centered on the world origin.
-            const glm::vec3 center =
-                glm::mat3{ shadow_look_at } * shadow_cam_position;
+            const vec3 center = mat3(shadow_look_at) * shadow_cam_position;
 
             // Size of a single shadowmap pixel in shadowmap view-space.
             Extent2F px_scale{
@@ -266,20 +264,19 @@ inline void CSMSetup::build_from_camera(
 
         snap_to_grid(l, r, b, t);
 
-        const glm::mat4 shadow_projection =
-            glm::ortho(l, r, b, t, z_near, z_far);
+        const mat4 shadow_proj = glm::ortho(l, r, b, t, z_near, z_far);
 
         output_->cascades.emplace_back(CascadeView{
             .frustum =
                 ViewFrustumAsPlanes::make_local_orthographic(l, r, b, t, z_near, z_far)
-                    .to_world_space(shadow_view_transform),
-            .view       = shadow_look_at,
-            .projection = shadow_projection,
-            .z_split    = 0.f // FIXME: This
+                    .transformed(shadow_view_transform.mtransform().model()),
+            .view    = shadow_look_at,
+            .proj    = shadow_proj,
+            .z_split = 0.f // FIXME: This
         });
 
     }
-
+    output_->resolution = resolution;
 }
 
 
