@@ -237,6 +237,7 @@ auto get_result(Future<T> future)
         }
         [[noreturn]] T operator()(std::monostate) const {
             assert(false);
+            std::terminate();
         }
     };
 

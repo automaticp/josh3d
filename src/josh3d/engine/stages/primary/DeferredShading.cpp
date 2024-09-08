@@ -2,8 +2,6 @@
 #include "Active.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLAPICommonTypes.hpp"
-#include "GLBuffers.hpp"
-#include "GLObjectHelpers.hpp"
 #include "GLProgram.hpp"
 #include "LightsGPU.hpp"
 #include "Mesh.hpp"
@@ -12,6 +10,7 @@
 #include "UniformTraits.hpp" // IWYU pragma: keep (traits)
 #include "LightCasters.hpp"
 #include "BoundingSphere.hpp"
+#include "stages/primary/CascadedShadowMapping.hpp"
 #include "tags/ShadowCasting.hpp"
 #include "RenderEngine.hpp"
 #include <entt/entity/fwd.hpp>
@@ -136,15 +135,15 @@ void DeferredShading::draw_singlepass(
     }
 
     // Directional shadows.
-    input_csm_->dir_shadow_maps_tgt.depth_attachment().texture().bind_to_texture_unit(4);
-    BindGuard bound_csm_sampler =                  csm_sampler_->bind_to_texture_unit(4);
+    input_csm_->maps.depth_attachment().texture().bind_to_texture_unit(4);
+    BindGuard bound_csm_sampler =   csm_sampler_->bind_to_texture_unit(4);
     sp.uniform("dir_shadow.cascades",            4);
     sp.uniform("dir_shadow.base_bias_tx",        dir_params.base_bias_tx);
-    sp.uniform("dir_shadow.do_blend_cascades",   dir_params.blend_cascades);
-    sp.uniform("dir_shadow.blend_size_inner_tx", dir_params.blend_size_inner_tx);
+    sp.uniform("dir_shadow.do_blend_cascades",   input_csm_->blend_possible);
+    sp.uniform("dir_shadow.blend_size_inner_tx", input_csm_->blend_max_size_inner_tx);
     sp.uniform("dir_shadow.pcf_extent",          dir_params.pcf_extent);
     sp.uniform("dir_shadow.pcf_offset",          dir_params.pcf_offset);
-    csm_params_buf_->bind_to_index<BufferTargetIndexed::ShaderStorage>(3);
+    csm_views_buf_.bind_to_ssbo_index(3);
 
     // Point lights.
     sp.uniform("fade_start_fraction",  plight_fade_start_fraction);
@@ -265,15 +264,15 @@ void DeferredShading::draw_multipass(
         }
 
         // CSM.
-        input_csm_->dir_shadow_maps_tgt.depth_attachment().texture().bind_to_texture_unit(5);
-        BindGuard bound_csm_sampler =                  csm_sampler_->bind_to_texture_unit(5);
+        input_csm_->maps.depth_attachment().texture().bind_to_texture_unit(5);
+        BindGuard bound_csm_sampler =   csm_sampler_->bind_to_texture_unit(5);
         sp.uniform("dir_shadow.cascades",            5);
         sp.uniform("dir_shadow.base_bias_tx",        dir_params.base_bias_tx);
-        sp.uniform("dir_shadow.do_blend_cascades",   dir_params.blend_cascades);
-        sp.uniform("dir_shadow.blend_size_inner_tx", dir_params.blend_size_inner_tx);
+        sp.uniform("dir_shadow.do_blend_cascades",   input_csm_->blend_possible);
+        sp.uniform("dir_shadow.blend_size_inner_tx", input_csm_->blend_max_size_inner_tx);
         sp.uniform("dir_shadow.pcf_extent",          dir_params.pcf_extent);
         sp.uniform("dir_shadow.pcf_offset",          dir_params.pcf_offset);
-        csm_params_buf_->bind_to_index<BufferTargetIndexed::ShaderStorage>(0);
+        csm_views_buf_.bind_to_ssbo_index(0);
 
 
         engine.draw([&](auto bound_fbo) {
@@ -375,9 +374,7 @@ void DeferredShading::draw_multipass(
 
 
 void DeferredShading::update_cascade_buffer() {
-    auto& params = input_csm_->params;
-    resize_to_fit(csm_params_buf_, NumElems{ params.size() });
-    csm_params_buf_->upload_data(params);
+    csm_views_buf_.restage(input_csm_->views | std::views::transform(CascadeViewGPU::create_from));
 }
 
 

@@ -14,7 +14,6 @@ out vec4 frag_color;
 struct CascadeParams {
     mat4  projview;
     vec3  scale;
-    float z_split;
 };
 
 

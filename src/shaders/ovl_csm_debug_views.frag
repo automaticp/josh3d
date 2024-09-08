@@ -20,7 +20,6 @@ uniform struct DirectionalLight {
 struct CascadeParams {
     mat4  projview;
     vec3  scale;
-    float z_split;
 };
 
 layout (std430, binding = 3) restrict readonly

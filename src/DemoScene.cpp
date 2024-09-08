@@ -24,7 +24,6 @@
 #include "Filesystem.hpp"
 #include "Tags.hpp"
 
-#include "stages/precompute/CSMSetup.hpp"
 #include "stages/precompute/PointLightSetup.hpp"
 #include "stages/precompute/FrustumCulling.hpp"
 #include "stages/precompute/TransformResolution.hpp"
@@ -130,14 +129,13 @@ DemoScene::DemoScene(glfw::Window& window)
 {
 
 
-    auto csmbuilder    = stages::precompute::CSMSetup();
     auto plightsetup   = stages::precompute::PointLightSetup();
     auto tfresolution  = stages::precompute::TransformResolution();
     auto frustumculler = stages::precompute::FrustumCulling();
 
 
     auto psmapping   = stages::primary::PointShadowMapping();
-    auto csmapping   = stages::primary::CascadedShadowMapping(csmbuilder.share_output_view());
+    auto csmapping   = stages::primary::CascadedShadowMapping();
     auto idbuffer    = stages::primary::IDBufferStorage(rengine_.main_resolution());
     auto gbuffer     =
         stages::primary::GBufferStorage(
@@ -175,7 +173,6 @@ DemoScene::DemoScene(glfw::Window& window)
     auto gbugger     = stages::overlay::GBufferDebug(gbuffer.share_read_view());
     auto csmbugger   = stages::overlay::CSMDebug(
         gbuffer.share_read_view(),
-        csmbuilder.share_output_view(),
         csmapping.share_output_view()
     );
     auto ssaobugger  = stages::overlay::SSAODebug(
@@ -188,8 +185,6 @@ DemoScene::DemoScene(glfw::Window& window)
 
 
 
-
-    imgui_.stage_hooks().add_hook(imguihooks::precompute::CSMSetup());
     imgui_.stage_hooks().add_hook(imguihooks::precompute::PointLightSetup());
     imgui_.stage_hooks().add_hook(imguihooks::primary::PointShadowMapping());
     imgui_.stage_hooks().add_hook(imguihooks::primary::CascadedShadowMapping());
@@ -210,7 +205,6 @@ DemoScene::DemoScene(glfw::Window& window)
 
 
 
-    rengine_.add_next_precompute_stage("CSM Setup",            std::move(csmbuilder));
     rengine_.add_next_precompute_stage("Point Light Setup",    std::move(plightsetup));   // NOLINT(performance-move-const-arg)
     rengine_.add_next_precompute_stage("Transfrom Resolution", std::move(tfresolution));  // NOLINT(performance-move-const-arg)
     rengine_.add_next_precompute_stage("Frustum Culling",      std::move(frustumculler)); // NOLINT(performance-move-const-arg)

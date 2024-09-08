@@ -25,7 +25,6 @@ struct DirectionalShadow {
 struct CascadeParams {
     mat4  projview;
     vec3  scale;
-    float z_split;
 };
 
 

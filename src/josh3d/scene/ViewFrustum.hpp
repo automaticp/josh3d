@@ -1,31 +1,10 @@
 #pragma once
+#include "Geometry.hpp"
 #include <glm/glm.hpp>
 #include <cmath>
-#include <array>
 
 
 namespace josh {
-
-
-struct Quad {
-    std::array<glm::vec3, 4> points{};
-
-    auto transformed(const glm::mat4& world_mat) const noexcept
-        -> Quad;
-};
-
-
-inline auto Quad::transformed(const glm::mat4& world_mat) const noexcept
-    -> Quad
-{
-    return {
-        world_mat * glm::vec4{ points[0], 1.f },
-        world_mat * glm::vec4{ points[1], 1.f },
-        world_mat * glm::vec4{ points[2], 1.f },
-        world_mat * glm::vec4{ points[3], 1.f },
-    };
-}
-
 
 
 /*
@@ -131,61 +110,12 @@ inline auto ViewFrustumAsQuads::transformed(const glm::mat4& world_mat) const no
 
 
 
-
-struct Plane {
-    // The normal vector representing the direction the plane is "facing".
-    glm::vec3 normal{ 0.f, 0.f, -1.f };
-    // The closest signed distance between the origin and the plane.
-    // Can be negative to represent planes facing towards the origin.
-    // The (closest_distance * normal) gives the position of
-    // the closest to the origin point of the plane.
-    float closest_distance{ 0.f };
-
-    auto transformed(const glm::mat4& world_mat) const noexcept -> Plane;
-};
-
-
-// TODO: This probably should work with a change-of-basis matrix directly.
-inline auto Plane::transformed(const glm::mat4& world_mat) const noexcept
-    -> Plane
-{
-    const glm::mat3 L2W_mat3 = inverse(world_mat);
-    const glm::vec3 position = world_mat[3];
-
-    // WARN: I derived this from simplified 2D diagrams on paper.
-    // I could easily be missing some important considerations that
-    // appliy in 3D alone. Or I could be just dumb in some other way.
-    // Either way, this may not work.
-    //
-    // WARN 2: I adopted this from a previous implemetation that used
-    // a plain Transform instead of a full mat4. This may work even less now.
-
-    const glm::vec3 new_normal = normalize(normal * L2W_mat3);
-
-    // Reproject the parent (camera) position onto the new normal.
-    // This should give us a separation distance between the new plane
-    // and its local origin.
-    const float new_closest_distance =
-        closest_distance + glm::dot(new_normal, position);
-    // For a simple transform a couple notable cases take place:
-    //
-    // - The near and far planes are just moved along the position axis
-    //   by the position.length(). Normals and position lines are parallel:
-    //   the dot product is 1 or -1 times position.length();
-    //
-    // - The side planes of the orthographic projection do not change their
-    //   closest distance. The normal and position lines are perpendicular:
-    //   the dot product is 0.
-
-    return { new_normal, new_closest_distance };
-}
-
-
-
 /*
 Representation of a view frustum that describes the frustum as 6 planes.
 
 Better suited for frustum collision detection and culling.
+
+By convention, each plane is facing *outwards* from the frustum volume.
 */
 class ViewFrustumAsPlanes {
 private:
@@ -280,12 +210,12 @@ inline auto ViewFrustumAsPlanes::make_local_orthographic(
     float z_near,      float z_far) noexcept
         -> ViewFrustumAsPlanes
 {
-    const Plane near { {  0.f,  0.f,  1.f }, z_near      };
-    const Plane far  { {  0.f,  0.f, -1.f }, z_far       };
-    const Plane right{ {  1.f,  0.f,  0.f }, right_side  };
-    const Plane left { { -1.f,  0.f,  0.f }, left_side   };
-    const Plane top  { {  0.f,  1.f,  0.f }, top_side    };
-    const Plane btm  { {  0.f, -1.f,  0.f }, bottom_side };
+    const Plane near { {  0.f,  0.f,  1.f }, -z_near      };
+    const Plane far  { {  0.f,  0.f, -1.f },  z_far       };
+    const Plane right{ {  1.f,  0.f,  0.f },  right_side  };
+    const Plane left { { -1.f,  0.f,  0.f }, -left_side   };
+    const Plane top  { {  0.f,  1.f,  0.f },  top_side    };
+    const Plane btm  { {  0.f, -1.f,  0.f }, -bottom_side };
     return { near, far, left, right, top, btm };
 }
 

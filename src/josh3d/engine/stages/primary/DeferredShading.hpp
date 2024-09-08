@@ -21,6 +21,10 @@ namespace josh::stages::primary {
 
 class DeferredShading {
 public:
+    using Cascades       = CascadedShadowMapping::Cascades;
+    using CascadeView    = CascadedShadowMapping::CascadeView;
+    using CascadeViewGPU = CascadedShadowMapping::CascadeViewGPU;
+
     enum class Mode {
         SinglePass,
         MultiPass
@@ -34,8 +38,6 @@ public:
 
     struct DirShadowParams {
         GLfloat base_bias_tx{ 0.2f };
-        bool    blend_cascades{ true };
-        GLfloat blend_size_inner_tx{ 50.f };
         GLint   pcf_extent{ 1 };
         GLfloat pcf_offset{ 1.0f };
     };
@@ -54,10 +56,11 @@ public:
 
 
     DeferredShading(
-        SharedStorageView<GBuffer>                 gbuffer,
-        SharedStorageView<PointShadowMaps>         input_psm,
-        SharedStorageView<CascadedShadowMaps>      input_csm,
-        SharedStorageView<AmbientOcclusionBuffers> input_ao)
+        SharedView<GBuffer>                 gbuffer,
+        SharedView<PointShadowMaps>         input_psm,
+        SharedView<Cascades>                input_csm,
+        SharedView<AmbientOcclusionBuffers> input_ao
+    )
         : gbuffer_  { std::move(gbuffer)   }
         , input_psm_{ std::move(input_psm) }
         , input_csm_{ std::move(input_csm) }
@@ -68,10 +71,10 @@ public:
 
 
 private:
-    SharedStorageView<GBuffer>                 gbuffer_;
-    SharedStorageView<PointShadowMaps>         input_psm_;
-    SharedStorageView<CascadedShadowMaps>      input_csm_;
-    SharedStorageView<AmbientOcclusionBuffers> input_ao_;
+    SharedView<GBuffer>                 gbuffer_;
+    SharedView<PointShadowMaps>         input_psm_;
+    SharedView<Cascades>                input_csm_;
+    SharedView<AmbientOcclusionBuffers> input_ao_;
 
 
     UniqueProgram sp_singlepass_{
@@ -104,7 +107,7 @@ private:
 
     UploadBuffer<PointLightBoundedGPU> plights_with_shadow_buf_;
     UploadBuffer<PointLightBoundedGPU> plights_no_shadow_buf_;
-    UniqueBuffer<CascadeParamsGPU>     csm_params_buf_;
+    UploadBuffer<CascadeViewGPU>       csm_views_buf_;
 
     UniqueSampler target_sampler_ = []() {
         UniqueSampler s;

@@ -48,6 +48,8 @@ template<> struct attachment_kind_full_owner<AttachmentKind::SharedLayer> : std:
 
 template<AttachmentKind AKindV> struct attachment_kind_traits {
     static constexpr bool is_full_owner = attachment_kind_full_owner<AKindV>::value;
+    static constexpr bool is_layer      = AKindV == AttachmentKind::SharedLayer;
+    static constexpr bool is_shareable  = AKindV == AttachmentKind::Shareable;
 };
 
 
@@ -106,17 +108,17 @@ public:
 
 
 template<AttachmentKind AKindV>
-struct AttachmentInterface_ArrayCore {
+struct AttachmentInterface_Array {
 protected:
     GLsizei num_array_elements_{};
 
     // Initialization constructor for full owners.
-    AttachmentInterface_ArrayCore()
+    AttachmentInterface_Array()
         requires attachment_kind_traits<AKindV>::is_full_owner
     = default;
 
     // Replacement constructor for sharing ownership across types of attachments.
-    AttachmentInterface_ArrayCore(GLsizei num_array_elements) noexcept
+    AttachmentInterface_Array(GLsizei num_array_elements) noexcept
             requires (!attachment_kind_traits<AKindV>::is_full_owner)
         : num_array_elements_{ num_array_elements }
     {}
@@ -127,12 +129,12 @@ public:
 
 
 
-struct AttachmentInterface_MultisampleCore {
+struct AttachmentInterface_Multisample {
 protected:
     NumSamples      num_samples_      = NumSamples{ 1 };
     SampleLocations sample_locations_ = SampleLocations::NotFixed;
 
-    AttachmentInterface_MultisampleCore(NumSamples num_samples, SampleLocations sample_locations)
+    AttachmentInterface_Multisample(NumSamples num_samples, SampleLocations sample_locations)
         : num_samples_(num_samples), sample_locations_(sample_locations)
     {}
 public:
@@ -169,9 +171,25 @@ public:
 
 
 
+struct AttachmentInterface_Layer {
+protected:
+    Layer layer_;
+
+    AttachmentInterface_Layer(Layer layer) noexcept
+        : layer_{ layer }
+    {}
+public:
+    Layer layer() const noexcept { return layer_; }
+};
 
 
-template<typename CRTP, template<typename> typename OwnerT, typename TextureT, AttachmentKind AKindV>
+
+template<
+    typename CRTP,
+    template<typename> typename OwnerT,
+    typename TextureT,
+    AttachmentKind AKindV
+>
 struct AttachmentInterface
     : AttachmentInterface_Core<OwnerT, TextureT, AKindV>
     , conditional_mixin_t<
@@ -180,21 +198,26 @@ struct AttachmentInterface
     >
     , conditional_mixin_t<
         texture_traits<TextureT>::is_array,
-        AttachmentInterface_ArrayCore<AKindV>
+        AttachmentInterface_Array<AKindV>
     >
     , conditional_mixin_t<
         texture_traits<TextureT>::is_multisample,
-        AttachmentInterface_MultisampleCore
+        AttachmentInterface_Multisample
+    >
+    , conditional_mixin_t<
+        attachment_kind_traits<AKindV>::is_layer,
+        AttachmentInterface_Layer
     >
 {
 private:
     CRTP& self() noexcept { return static_cast<CRTP&>(*this); }
     using tt = texture_traits<TextureT>;
     using at = attachment_kind_traits<AKindV>;
-    using core_type             = AttachmentInterface_Core<OwnerT, TextureT, AKindV>;
-    using lod_core_type         = AttachmentInterface_LOD<AKindV>;
-    using array_core_type       = AttachmentInterface_ArrayCore<AKindV>;
-    using multisample_core_type = AttachmentInterface_MultisampleCore;
+    using core_type        = AttachmentInterface_Core<OwnerT, TextureT, AKindV>;
+    using lod_type         = AttachmentInterface_LOD<AKindV>;
+    using array_type       = AttachmentInterface_Array<AKindV>;
+    using multisample_type = AttachmentInterface_Multisample;
+    using layer_type       = AttachmentInterface_Layer;
 public:
 
     AttachmentInterface(InternalFormat iformat)
@@ -205,7 +228,7 @@ public:
     AttachmentInterface(InternalFormat iformat, LODPolicy lod_policy = LODPolicy::NoLOD)
         requires at::is_full_owner && (!tt::is_multisample) && tt::has_lod
             : core_type(iformat)
-            , lod_core_type(lod_policy)
+            , lod_type(lod_policy)
     {}
 
     AttachmentInterface(
@@ -214,12 +237,14 @@ public:
         SampleLocations sample_locations)
             requires at::is_full_owner && tt::is_multisample
         : core_type(iformat)
-        , multisample_core_type(num_samples, sample_locations)
+        , multisample_type(num_samples, sample_locations)
     {}
 
 protected:
     // Replacement constructors for shared types.
 
+    // TODO: This desperately needs some kind of "builder".
+    // How the f. do you synthesize a constructor at compile time?
 
     // Not LOD and Not MS.
 
@@ -238,7 +263,29 @@ protected:
         GLsizei          num_array_elements)
             requires (!at::is_full_owner) && (!tt::is_multisample) && (!tt::has_lod) && tt::is_array
         : core_type(std::move(texture), iformat, resolution)
-        , array_core_type(num_array_elements)
+        , array_type(num_array_elements)
+    {}
+
+    AttachmentInterface(
+        OwnerT<TextureT> texture,
+        InternalFormat   iformat,
+        const core_type::resolution_type& resolution,
+        Layer            layer)
+            requires (!at::is_full_owner) && at::is_layer && (!tt::is_multisample) && (!tt::has_lod) && (!tt::is_array)
+        : core_type(std::move(texture), iformat, resolution)
+        , layer_type(layer)
+    {}
+
+    AttachmentInterface(
+        OwnerT<TextureT> texture,
+        InternalFormat   iformat,
+        const core_type::resolution_type& resolution,
+        GLsizei          num_array_elements,
+        Layer            layer)
+            requires (!at::is_full_owner) && at::is_layer && (!tt::is_multisample) && (!tt::has_lod) && tt::is_array
+        : core_type(std::move(texture), iformat, resolution)
+        , array_type(num_array_elements)
+        , layer_type(layer)
     {}
 
 
@@ -252,7 +299,7 @@ protected:
         NumLevels        num_levels)
             requires (!at::is_full_owner) && tt::has_lod && (!tt::is_array)
         : core_type(std::move(texture), iformat, resolution)
-        , lod_core_type(lod_policy, num_levels)
+        , lod_type(lod_policy, num_levels)
     {}
 
     AttachmentInterface(
@@ -264,8 +311,36 @@ protected:
         NumLevels        num_levels)
             requires (!at::is_full_owner) && tt::has_lod && tt::is_array
         : core_type(std::move(texture), iformat, resolution)
-        , array_core_type(num_array_elements)
-        , lod_core_type(lod_policy, num_levels)
+        , array_type(num_array_elements)
+        , lod_type(lod_policy, num_levels)
+    {}
+
+    AttachmentInterface(
+        OwnerT<TextureT> texture,
+        InternalFormat   iformat,
+        const core_type::resolution_type& resolution,
+        Layer            layer,
+        LODPolicy        lod_policy,
+        NumLevels        num_levels)
+            requires (!at::is_full_owner) && at::is_layer && tt::has_lod && (!tt::is_array)
+        : core_type(std::move(texture), iformat, resolution)
+        , layer_type(layer)
+        , lod_type(lod_policy, num_levels)
+    {}
+
+    AttachmentInterface(
+        OwnerT<TextureT> texture,
+        InternalFormat   iformat,
+        const core_type::resolution_type& resolution,
+        GLsizei          num_array_elements,
+        Layer            layer,
+        LODPolicy        lod_policy,
+        NumLevels        num_levels)
+            requires (!at::is_full_owner) && at::is_layer && tt::has_lod && tt::is_array
+        : core_type(std::move(texture), iformat, resolution)
+        , array_type(num_array_elements)
+        , layer_type(layer)
+        , lod_type(lod_policy, num_levels)
     {}
 
 
@@ -279,7 +354,7 @@ protected:
         SampleLocations  sample_locations)
             requires (!at::is_full_owner) && tt::is_multisample && (!tt::is_array)
         : core_type(std::move(texture), iformat, resolution)
-        , multisample_core_type(num_samples, sample_locations)
+        , multisample_type(num_samples, sample_locations)
     {}
 
     AttachmentInterface(
@@ -291,11 +366,37 @@ protected:
         SampleLocations  sample_locations)
             requires (!at::is_full_owner) && tt::is_multisample && tt::is_array
         : core_type(std::move(texture), iformat, resolution)
-        , multisample_core_type(num_samples, sample_locations)
-        , array_core_type(num_array_elements)
+        , array_type(num_array_elements)
+        , multisample_type(num_samples, sample_locations)
     {}
 
+    AttachmentInterface(
+        OwnerT<TextureT> texture,
+        InternalFormat   iformat,
+        const core_type::resolution_type& resolution,
+        Layer            layer,
+        NumSamples       num_samples,
+        SampleLocations  sample_locations)
+            requires (!at::is_full_owner) && at::is_layer && tt::is_multisample && (!tt::is_array)
+        : core_type(std::move(texture), iformat, resolution)
+        , multisample_type(num_samples, sample_locations)
+        , layer_type(layer)
+    {}
 
+    AttachmentInterface(
+        OwnerT<TextureT> texture,
+        InternalFormat   iformat,
+        const core_type::resolution_type& resolution,
+        GLsizei          num_array_elements,
+        Layer            layer,
+        NumSamples       num_samples,
+        SampleLocations  sample_locations)
+            requires (!at::is_full_owner) && at::is_layer && tt::is_multisample && tt::is_array
+        : core_type(std::move(texture), iformat, resolution)
+        , array_type(num_array_elements)
+        , multisample_type(num_samples, sample_locations)
+        , layer_type(layer)
+    {}
 
 
 
@@ -421,16 +522,28 @@ public:
     // This inversion is here so that you could attach to Framebuffers without exposing
     // the mutable version of the underlying texture object.
     void attach_as_stencil_to(RawFramebuffer<GLMutable> fbo) noexcept {
-        // TODO: We have to handle whether to attach a whole texture or a layer here.
-        fbo.attach_texture_to_stencil_buffer(this->texture_);
+        if constexpr (at::is_layer) {
+            fbo.attach_texture_layer_to_stencil_buffer(this->texture_, this->layer_);
+        } else {
+            fbo.attach_texture_to_stencil_buffer(this->texture_);
+        }
     }
 
     void attach_as_depth_to(RawFramebuffer<GLMutable> fbo) noexcept {
-        fbo.attach_texture_to_depth_buffer(this->texture_);
+        if constexpr (at::is_layer) {
+            fbo.attach_texture_layer_to_depth_buffer(this->texture_, this->layer_);
+        } else {
+            fbo.attach_texture_to_depth_buffer(this->texture_);
+        }
+
     }
 
     void attach_as_color_to(RawFramebuffer<GLMutable> fbo, GLuint color_buffer) noexcept {
-        fbo.attach_texture_to_color_buffer(this->texture_, color_buffer);
+        if constexpr (at::is_layer) {
+            fbo.attach_texture_layer_to_color_buffer(this->texture_, this->layer_, color_buffer);
+        } else {
+            fbo.attach_texture_to_color_buffer(this->texture_, color_buffer);
+        }
     }
 
 };
@@ -529,10 +642,12 @@ class ShareableAttachment;
 
 
 
-// `Shareable` can be shared, `Shared` cannot. Capische?
-//
-// No public constructors other than copy/move.
-// This type must be created by calling `share()` on `ShareableAttachment`.
+/*
+`Shareable` can be shared, `Shared` cannot. Capische?
+
+No public constructors other than copy/move.
+This type must be created by calling `share()` on `ShareableAttachment`.
+*/
 template<Renderable RenderableV>
 class SharedAttachment
     : public detail::AttachmentInterface<
@@ -557,6 +672,39 @@ public:
     bool is_shared_from(const ShareableAttachment<RenderableV>& shareable) const noexcept;
     bool is_shared_with(const SharedAttachment<RenderableV>& shared) const noexcept;
 };
+
+
+/*
+Attachment as a shared layer of another.
+
+This type must be created by calling `share_layer()` on `ShareableAttachment`.
+*/
+template<Renderable RenderableV>
+class SharedLayerAttachment
+    : public detail::AttachmentInterface<
+        SharedLayerAttachment<RenderableV>,
+        GLShared,
+        detail::renderable_type_t<RenderableV>,
+        AttachmentKind::SharedLayer
+    >
+{
+private:
+    using AttachmentInterface =
+        detail::AttachmentInterface<
+            SharedLayerAttachment<RenderableV>,
+            GLShared,
+            detail::renderable_type_t<RenderableV>,
+            AttachmentKind::SharedLayer
+        >;
+
+    friend ShareableAttachment<RenderableV>;
+    using AttachmentInterface::AttachmentInterface;
+public:
+    bool is_shared_from(const ShareableAttachment<RenderableV>& shareable) const noexcept;
+    bool is_shared_with(const SharedLayerAttachment<RenderableV>& shared) const noexcept;
+};
+
+
 
 
 template<Renderable RenderableV>
@@ -599,8 +747,26 @@ public:
         }
     }
 
+    auto share_layer(Layer layer) noexcept
+        -> SharedLayerAttachment<RenderableV>
+            requires detail::renderable_traits_t<RenderableV>::is_layered
+    {
+        if constexpr (rt::has_lod) {
+            if constexpr (rt::is_array) { return { this->texture_, this->iformat_, this->resolution_, this->num_array_elements_, layer, this->lod_policy_, this->num_levels_ }; }
+            else                        { return { this->texture_, this->iformat_, this->resolution_,                            layer, this->lod_policy_, this->num_levels_ }; }
+        } else if constexpr (rt::is_multisample) {
+            if constexpr (rt::is_array) { return { this->texture_, this->iformat_, this->resolution_, this->num_array_elements_, layer, this->num_samples_, this->sample_locations_ }; }
+            else                        { return { this->texture_, this->iformat_, this->resolution_,                            layer, this->num_samples_, this->sample_locations_ }; }
+        } else {
+            return                               { this->texture_, this->iformat_, this->resolution_,                            layer                                              };
+        }
+    }
+
     bool is_shared_to(const SharedAttachment<RenderableV>& shared) const noexcept {
-        // TODO: Could potentially check the refcount address instead.
+        return shared.texture().id() == this->texture().id();
+    }
+
+    bool is_shared_to(const SharedLayerAttachment<RenderableV>& shared) const noexcept {
         return shared.texture().id() == this->texture().id();
     }
 };
@@ -622,6 +788,20 @@ inline bool SharedAttachment<RenderableV>::
     return shared.texture().id() == this->texture().id;
 }
 
+
+template<Renderable RenderableV>
+inline bool SharedLayerAttachment<RenderableV>::
+    is_shared_from(const ShareableAttachment<RenderableV>& shareable) const noexcept
+{
+    return shareable.is_shared_to(*this);
+}
+
+template<Renderable RenderableV>
+inline bool SharedLayerAttachment<RenderableV>::
+    is_shared_with(const SharedLayerAttachment<RenderableV>& shared) const noexcept
+{
+    return shared.texture().id() == this->texture().id;
+}
 
 
 

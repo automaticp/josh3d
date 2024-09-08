@@ -94,7 +94,9 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(overlay, SSAODebug) {
 
 JOSH3D_SIMPLE_STAGE_HOOK_BODY(overlay, SceneOverlays) {
 
-    if (ImGui::TreeNode("Selected Highlight")) {
+    ImGui::SeparatorText("Selected Highlight");
+
+    {
         auto& params = stage_.selected_highlight_params;
 
         ImGui::Checkbox("Show Highlight", &params.show_overlay);
@@ -102,11 +104,11 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(overlay, SceneOverlays) {
         ImGui::ColorEdit4("Fill", value_ptr(params.inner_fill_color), ImGuiColorEditFlags_DisplayHSV);
         auto [min, max] = glapi::limits::aliased_line_width_range();
         ImGui::SliderFloat("Outline Width", &params.outline_width, min, max / 2.f, "%.0f", ImGuiSliderFlags_Logarithmic);
-
-        ImGui::TreePop();
     }
 
-    if (ImGui::TreeNode("Bounding Volumes")) {
+    ImGui::SeparatorText("Bounding Volumes");
+
+    {
         auto& params = stage_.bounding_volumes_params;
 
         ImGui::Checkbox("Show Bounding Volumes", &params.show_volumes);
@@ -114,8 +116,6 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(overlay, SceneOverlays) {
         ImGui::ColorEdit3("Color", value_ptr(params.line_color), ImGuiColorEditFlags_DisplayHSV);
         auto [min, max] = glapi::limits::aliased_line_width_range();
         ImGui::SliderFloat("Line Width", &params.line_width, min, max, "%.0f", ImGuiSliderFlags_Logarithmic);
-
-        ImGui::TreePop();
     }
 
 
