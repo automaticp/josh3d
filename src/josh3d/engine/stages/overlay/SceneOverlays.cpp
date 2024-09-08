@@ -1,7 +1,10 @@
 #include "SceneOverlays.hpp"
+#include "AABB.hpp"
 #include "BoundingSphere.hpp"
+#include "Components.hpp"
 #include "GLProgram.hpp"
 #include "LightCasters.hpp"
+#include "Mesh.hpp"
 #include "RenderEngine.hpp"
 #include "TerrainChunk.hpp"
 #include "UniformTraits.hpp"
@@ -9,6 +12,7 @@
 #include "Transform.hpp"
 #include "tags/Selected.hpp"
 #include <entt/entity/fwd.hpp>
+#include <ranges>
 
 
 namespace josh::stages::overlay {
@@ -17,6 +21,7 @@ namespace josh::stages::overlay {
 void SceneOverlays::operator()(RenderEngineOverlayInterface& engine) {
     draw_selected_highlight(engine);
     draw_bounding_volumes  (engine);
+    draw_scene_graph_lines (engine);
 }
 
 
@@ -285,6 +290,94 @@ void SceneOverlays::draw_bounding_volumes(
 
 
 
+
+void SceneOverlays::draw_scene_graph_lines(
+    RenderEngineOverlayInterface& engine)
+{
+    using glm::vec3, glm::mat4;
+    const auto& registry = engine.registry();
+    const auto& params   = scene_graph_lines_params;
+
+    if (!params.show_lines) { return; }
+    if (params.selected_only && registry.view<Selected>().empty()) { return; }
+
+    // Update the buffer.
+    lines_buf_.clear();
+
+    auto get_line_point = [&](entt::const_handle node) {
+        if (params.use_aabb_midpoints && has_component<AABB>(node)) {
+            return node.get<AABB>().midpoint();
+        } else {
+            return node.get<MTransform>().decompose_position();
+        }
+    };
+
+    auto get_line = [&](entt::const_handle child) {
+        const vec3 start = get_line_point(get_parent_handle(child));
+        const vec3 end   = get_line_point(child);
+        return LineGPU{ start, end };
+    };
+
+    auto connectable = [](entt::const_handle node) {
+        if (const auto parent = get_parent_handle(node)) {
+            return
+                has_component<MTransform>(node) &&
+                has_component<MTransform>(parent);
+        }
+        return false;
+    };
+
+    // NOTE: This is somewhat braindead and should maybe be better.
+    // Especially, since it iterates the same connections if multiple
+    // overlapping subtrees of the same tree are selected.
+    //
+    // Something like the "highest common ancestor" from gizmos might be used
+    // but I don't want to touch node containers without node_allocator.
+    for (const auto entity : registry.view<Selected, MTransform>()) {
+        const entt::const_handle handle{ registry, entity };
+
+        traverse_subtree_preorder(handle, [&](entt::const_handle node) {
+            lines_buf_.stage(
+                view_child_handles(node)        |
+                std::views::filter(connectable) |
+                std::views::transform(get_line)
+            );
+        });
+
+    }
+
+    const RawProgram<> sp = sp_scene_graph_lines_;
+
+    BindGuard bound_cam   = engine.bind_camera_ubo();
+    BindGuard bound_lines = lines_buf_.bind_to_ssbo_index(0);
+
+    sp.uniform("color",     params.line_color);
+    sp.uniform("dash_size", params.dash_size);
+
+    BindGuard bound_program = sp.use();
+    BindGuard bound_vao     = empty_vao_->bind();
+
+    glapi::enable(Capability::DepthTesting);
+    glapi::enable(Capability::Blending);
+    glapi::set_line_width(params.line_width);
+
+    engine.draw([&](auto bound_fbo) {
+
+        glapi::draw_arrays(
+            bound_vao,
+            bound_program,
+            bound_fbo,
+            Primitive::Lines,
+            0,
+            2 * lines_buf_.num_staged()
+        );
+
+    });
+
+    glapi::disable(Capability::DepthTesting);
+    glapi::disable(Capability::Blending);
+
+}
 
 
 

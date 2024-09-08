@@ -27,7 +27,8 @@ public:
 
     Strategy strategy{ Strategy::PerCascadeCulling };
 
-    Size2I resolution{ 2048, 2048 }; // TODO: Only rectangular is allowed anyway, I think.
+    // Only rectangular is allowed.
+    Size1I side_resolution{ 2048 };
 
     // Limited in [1, max_cascades()].
     auto num_cascades() const noexcept -> size_t;
@@ -95,7 +96,6 @@ public:
     struct Cascades {
         using Target = RenderTarget<ShareableAttachment<Renderable::Texture2DArray>>;
         Target                   maps;
-        Size2I                   resolution;
         std::vector<CascadeView> views;
 
         // If false, draw lists were not used. They contain garbage.
@@ -114,7 +114,7 @@ public:
     auto view_output()       const noexcept -> const Cascades&      { return *cascades_;             }
 
     CascadedShadowMapping();
-    CascadedShadowMapping(size_t num_desired_cascades, const Size2I& resolution);
+    CascadedShadowMapping(size_t num_desired_cascades, const Size1I& side_resolution);
 
     void operator()(RenderEnginePrimaryInterface& engine);
 

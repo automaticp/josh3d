@@ -1,6 +1,7 @@
 #include "PointShadowMapping.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLProgram.hpp"
+#include "GLTextures.hpp"
 #include "UniformTraits.hpp" // IWYU pragma: keep (traits)
 #include "BoundingSphere.hpp"
 #include "tags/ShadowCasting.hpp"
@@ -16,10 +17,23 @@
 #include <glm/gtc/constants.hpp>
 
 
-using namespace gl;
-
-
 namespace josh::stages::primary {
+
+
+PointShadowMapping::PointShadowMapping(const Size1I& side_resolution)
+    : side_resolution{ side_resolution }
+    , product_{ PointShadows{
+        .maps = {
+            { side_resolution, side_resolution }, 0, // TODO: How is this legal?
+            { InternalFormat::DepthComponent32F }
+        }
+    }}
+{}
+
+
+PointShadowMapping::PointShadowMapping()
+    : PointShadowMapping(Size1I{ 1024 })
+{}
 
 
 void PointShadowMapping::operator()(
@@ -41,7 +55,7 @@ void PointShadowMapping::resize_cubemap_array_storage_if_needed(
 {
 
     auto plights_with_shadow =
-        registry.view<PointLight, ShadowCasting>();
+        registry.view<ShadowCasting, PointLight>();
 
     // This technically makes a redundant iteration over the view
     // because getting the size from a view is an O(n) operation.
@@ -65,9 +79,8 @@ void PointShadowMapping::resize_cubemap_array_storage_if_needed(
 
     GLsizei new_size = GLsizei(calculate_view_size(plights_with_shadow));
 
-    auto& maps = output_->point_shadow_maps_tgt;
-
-    maps.resize(new_size);
+    const Size2I resolution{ side_resolution, side_resolution };
+    product_->maps.resize(resolution, new_size);
 }
 
 
@@ -78,7 +91,7 @@ void PointShadowMapping::map_point_shadows(
     RenderEnginePrimaryInterface& engine)
 {
     const auto& registry = engine.registry();
-    auto& maps = output_->point_shadow_maps_tgt;
+    auto& maps = product_->maps;
 
 
     if (maps.num_array_elements() == 0) { return; }

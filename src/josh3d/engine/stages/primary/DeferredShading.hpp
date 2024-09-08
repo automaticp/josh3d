@@ -24,6 +24,7 @@ public:
     using Cascades       = CascadedShadowMapping::Cascades;
     using CascadeView    = CascadedShadowMapping::CascadeView;
     using CascadeViewGPU = CascadedShadowMapping::CascadeViewGPU;
+    using PointShadows   = PointShadowMapping::PointShadows;
 
     enum class Mode {
         SinglePass,
@@ -57,7 +58,7 @@ public:
 
     DeferredShading(
         SharedView<GBuffer>                 gbuffer,
-        SharedView<PointShadowMaps>         input_psm,
+        SharedView<PointShadows>            input_psm,
         SharedView<Cascades>                input_csm,
         SharedView<AmbientOcclusionBuffers> input_ao
     )
@@ -72,7 +73,7 @@ public:
 
 private:
     SharedView<GBuffer>                 gbuffer_;
-    SharedView<PointShadowMaps>         input_psm_;
+    SharedView<PointShadows>            input_psm_;
     SharedView<Cascades>                input_csm_;
     SharedView<AmbientOcclusionBuffers> input_ao_;
 

@@ -112,11 +112,26 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(overlay, SceneOverlays) {
         auto& params = stage_.bounding_volumes_params;
 
         ImGui::Checkbox("Show Bounding Volumes", &params.show_volumes);
-        ImGui::Checkbox("Selected Only", &params.selected_only);
-        ImGui::ColorEdit3("Color", value_ptr(params.line_color), ImGuiColorEditFlags_DisplayHSV);
+        ImGui::Checkbox("Selected Only##BV", &params.selected_only);
+        ImGui::ColorEdit3("Color##BV", value_ptr(params.line_color), ImGuiColorEditFlags_DisplayHSV);
         auto [min, max] = glapi::limits::aliased_line_width_range();
-        ImGui::SliderFloat("Line Width", &params.line_width, min, max, "%.0f", ImGuiSliderFlags_Logarithmic);
+        ImGui::SliderFloat("Line Width##BV", &params.line_width, min, max, "%.0f", ImGuiSliderFlags_Logarithmic);
     }
 
+    ImGui::SeparatorText("Relationship Lines");
+
+    {
+        auto& params = stage_.scene_graph_lines_params;
+
+        ImGui::Checkbox("Show Lines##RL", &params.show_lines);
+        ImGui::BeginDisabled();
+        ImGui::Checkbox("Selected Only##RL", &params.selected_only); // TODO
+        ImGui::EndDisabled();
+        ImGui::Checkbox("Use AABB Midpoints", &params.use_aabb_midpoints);
+        ImGui::SliderFloat("Dash Size", &params.dash_size, 0.f, 1.f, "%.3f", ImGuiSliderFlags_Logarithmic);
+        ImGui::ColorEdit4("Color##RL", value_ptr(params.line_color), ImGuiColorEditFlags_DisplayHSV);
+        auto [min, max] = glapi::limits::aliased_line_width_range();
+        ImGui::SliderFloat("Line Width##RL", &params.line_width, min, max, "%.0f", ImGuiSliderFlags_Logarithmic);
+    }
 
 }

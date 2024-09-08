@@ -32,20 +32,19 @@ namespace josh::stages::primary {
 
 CascadedShadowMapping::CascadedShadowMapping(
     size_t        num_desired_cascades,
-    const Size2I& resolution
+    const Size1I& side_resolution
 )
-    : resolution   { resolution }
-    , num_cascades_{ allowed_num_cascades(num_desired_cascades) }
+    : side_resolution{ side_resolution }
+    , num_cascades_  { allowed_num_cascades(num_desired_cascades) }
     , cascades_{ Cascades{
-        .maps      { resolution, GLsizei(num_cascades_), { InternalFormat::DepthComponent32F } },
-        .resolution{ resolution },
+        .maps      { { side_resolution, side_resolution }, GLsizei(num_cascades_), { InternalFormat::DepthComponent32F } },
         .views     {}
     } }
 {}
 
 
 CascadedShadowMapping::CascadedShadowMapping()
-    : CascadedShadowMapping(4, { 2048, 2048 })
+    : CascadedShadowMapping(4, { 2048 })
 {}
 
 
@@ -391,7 +390,7 @@ void CascadedShadowMapping::operator()(
     if (const auto dlight = get_active<DirectionalLight, Transform, ShadowCasting>(registry)) {
 
         // Resize maps.
-        cascades_->resolution = resolution;
+        const Size2I resolution{ side_resolution, side_resolution };
         cascades_->maps.resize(resolution, GLsizei(num_cascades())); // Will only resize on mismatch.
 
         // Update cascade views.
@@ -564,6 +563,16 @@ void CascadedShadowMapping::draw_with_culling_per_cascade(
     // The framebuffer would be incomplete.
     assert(num_cascades() != 0 && maps.num_array_elements() != 0);
 
+    // TODO: Should be part of the Framebuffer interface and exposed through RenderTarget.
+    // This is much faster than clearing each layer one-by-one. Don't do that.
+    const float clear_depth{ 1.f };
+    gl::glClearNamedFramebufferfv(
+        maps.framebuffer().id(),
+        gl::GL_DEPTH, // Buffer.
+        0,            // Must be 0.
+        &clear_depth  // "Color"
+    );
+
     glapi::set_viewport({ {}, maps.resolution() });
     glapi::enable(Capability::DepthTesting);
 
@@ -576,12 +585,9 @@ void CascadedShadowMapping::draw_with_culling_per_cascade(
         };
 
         cascade_layer_target_.reset_depth_attachment(
-            cascades_->maps.share_depth_attachment_layer(Layer(GLsizei(cascade_id)))
-        );
+            cascades_->maps.share_depth_attachment_layer(Layer(GLsizei(cascade_id))));
 
         BindGuard bound_fbo = cascade_layer_target_.bind_draw();
-
-        glapi::clear_depth_buffer(bound_fbo, 1.f);
 
         const auto& draw_lists = cascade_info.draw_lists;
 

@@ -153,8 +153,8 @@ void DeferredShading::draw_singlepass(
     plights_no_shadow_buf_  .bind_to_ssbo_index(2);
 
     // Point light shadows.
-    input_psm_->point_shadow_maps_tgt.depth_attachment().texture().bind_to_texture_unit(6);
-    BindGuard bound_psm_sampler =                    psm_sampler_->bind_to_texture_unit(6);
+    input_psm_->maps.depth_attachment().texture().bind_to_texture_unit(6);
+    BindGuard bound_psm_sampler =   psm_sampler_->bind_to_texture_unit(6);
     sp.uniform("point_shadow.maps",        6);
     sp.uniform("point_shadow.bias_bounds", point_params.bias_bounds);
     sp.uniform("point_shadow.pcf_extent",  point_params.pcf_extent);
@@ -357,8 +357,8 @@ void DeferredShading::draw_multipass(
         plights_with_shadow_buf_.bind_to_ssbo_index(0);
 
         // Point Shadows.
-        input_psm_->point_shadow_maps_tgt.depth_attachment().texture().bind_to_texture_unit(4);
-        BindGuard bound_psm_sampler =                    psm_sampler_->bind_to_texture_unit(4);
+        input_psm_->maps.depth_attachment().texture().bind_to_texture_unit(4);
+        BindGuard bound_psm_sampler =   psm_sampler_->bind_to_texture_unit(4);
         sp.uniform("point_shadows.maps",        4);
         sp.uniform("point_shadows.bias_bounds", point_params.bias_bounds);
         sp.uniform("point_shadows.pcf_extent",  point_params.pcf_extent);

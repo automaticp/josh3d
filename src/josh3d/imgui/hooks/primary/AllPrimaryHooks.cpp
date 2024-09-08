@@ -34,11 +34,11 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, CascadedShadowMapping) {
         stage_.set_num_cascades(size_t(num_cascades));
     }
 
-    int resolution = stage_.resolution.width;
-    if (ImGui::SliderInt("Resolution", &resolution,
+    int side_resolution = stage_.side_resolution;
+    if (ImGui::SliderInt("Resolution", &side_resolution,
         128, 8192, "%d", ImGuiSliderFlags_Logarithmic))
     {
-        stage_.resolution = Size2I{ resolution, resolution };
+        stage_.side_resolution = side_resolution;
     }
 
 
@@ -233,13 +233,11 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, LightDummies) {
 
 JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, PointShadowMapping) {
 
-    auto& maps = stage_.view_output().point_shadow_maps_tgt;
-
-    int resolution = maps.resolution().width;
-    if (ImGui::SliderInt("Resolution", &resolution,
+    int side_resolution = stage_.side_resolution;
+    if (ImGui::SliderInt("Resolution", &side_resolution,
         128, 8192, "%d", ImGuiSliderFlags_Logarithmic))
     {
-        stage_.resize_maps(Size2I{ resolution, resolution });
+        stage_.side_resolution = side_resolution;
     }
 
 }
