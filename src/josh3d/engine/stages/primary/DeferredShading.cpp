@@ -13,6 +13,7 @@
 #include "stages/primary/CascadedShadowMapping.hpp"
 #include "tags/ShadowCasting.hpp"
 #include "RenderEngine.hpp"
+#include "tags/Visible.hpp"
 #include <entt/entity/fwd.hpp>
 #include <entt/entity/registry.hpp>
 #include <glbinding/gl/gl.h>
@@ -381,8 +382,10 @@ void DeferredShading::update_cascade_buffer() {
 void DeferredShading::update_point_light_buffers(
     const entt::registry& registry)
 {
-    auto plights_with_shadow_view = registry.view<MTransform, PointLight, BoundingSphere, ShadowCasting>();
-    auto plights_no_shadow_view   = registry.view<MTransform, PointLight, BoundingSphere>(entt::exclude<ShadowCasting>);
+    // TODO: Uhh, how do I know that the order of lights in the view is the same as the
+    // order of shadow cubemaps in `input_psm_->maps`?
+    auto plights_with_shadow_view = registry.view<Visible, MTransform, PointLight, BoundingSphere, ShadowCasting>();
+    auto plights_no_shadow_view   = registry.view<Visible, MTransform, PointLight, BoundingSphere>(entt::exclude<ShadowCasting>);
 
     // From tuple<MTransform, PointLight, BoundingSphere> to combined GPU-layout structure.
     auto repack = [](auto tuple) {

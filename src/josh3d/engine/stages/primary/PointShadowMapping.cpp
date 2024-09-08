@@ -9,6 +9,7 @@
 #include "Transform.hpp"
 #include "LightCasters.hpp"
 #include "Mesh.hpp"
+#include "tags/Visible.hpp"
 #include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/functions.h>
 #include <glm/fwd.hpp>
@@ -88,7 +89,7 @@ void PointShadowMapping::map_point_shadows(
 
 
     auto plights_with_shadows_view =
-        registry.view<PointLight, MTransform, BoundingSphere, ShadowCasting>();
+        registry.view<PointLight, Visible, MTransform, BoundingSphere, ShadowCasting>();
 
 
     auto bound_fbo = maps.bind_draw();

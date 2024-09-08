@@ -1,14 +1,14 @@
 #include "DeferredGeometry.hpp"
 #include "GLProgram.hpp"
-#include "UniformTraits.hpp" // IWYU pragma: keep (traits)
+#include "UniformTraits.hpp"
 #include "Materials.hpp"
 #include "tags/AlphaTested.hpp"
-#include "tags/Culled.hpp"
 #include "Transform.hpp"
 #include "RenderEngine.hpp"
 #include "Transform.hpp"
 #include "Mesh.hpp"
 #include "DefaultTextures.hpp"
+#include "tags/Visible.hpp"
 #include <entt/core/type_traits.hpp>
 #include <entt/entity/entity.hpp>
 #include <entt/entity/fwd.hpp>
@@ -29,11 +29,11 @@ void DeferredGeometry::operator()(
     // Exclude to not draw the same meshes twice.
 
     // TODO: Anyway, I caved in, and we have 4 variations of shaders now...
-    // We should probably rework the mesh layout and remove the combination with/withoun normals.
-    auto view_ds_at    = registry.view<MTransform, Mesh, AlphaTested>(entt::exclude<MaterialNormal, Culled>);
-    auto view_ds_noat  = registry.view<MTransform, Mesh>(entt::exclude<MaterialNormal, Culled, AlphaTested>);
-    auto view_dsn_at   = registry.view<MTransform, Mesh, MaterialNormal, AlphaTested>(entt::exclude<Culled>);
-    auto view_dsn_noat = registry.view<MTransform, Mesh, MaterialNormal>(entt::exclude<Culled, AlphaTested>);
+    // We should probably rework the mesh layout and remove the combination with/without normals.
+    auto view_ds_at    = registry.view<Visible, MTransform, Mesh, AlphaTested>(entt::exclude<MaterialNormal>);
+    auto view_ds_noat  = registry.view<Visible, MTransform, Mesh>(entt::exclude<MaterialNormal, AlphaTested>);
+    auto view_dsn_at   = registry.view<Visible, MTransform, Mesh, MaterialNormal, AlphaTested>();
+    auto view_dsn_noat = registry.view<Visible, MTransform, Mesh, MaterialNormal>(entt::exclude<AlphaTested>);
 
     // TODO: Mutual exclusions like these are generally
     // uncomfortable to do in EnTT. Is there a better way?

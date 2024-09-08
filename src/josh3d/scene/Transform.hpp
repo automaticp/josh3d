@@ -13,16 +13,6 @@
 namespace josh {
 
 
-// Convenience to express the standard basis in local space.
-//
-// TODO: A separate header for this is overkill.
-// But maybe move this somewhere else still.
-constexpr glm::vec3 X{ 1.f, 0.f, 0.f };
-constexpr glm::vec3 Y{ 0.f, 1.f, 0.f };
-constexpr glm::vec3 Z{ 0.f, 0.f, 1.f };
-
-
-
 class MTransform;
 
 

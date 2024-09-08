@@ -246,7 +246,7 @@ void SceneOverlays::draw_bounding_volumes(
 
         const Location model_loc = sp.get_uniform_location("model");
 
-        auto per_mesh_draw_aabb = [&] (
+        auto draw_aabb = [&] (
             const entt::entity&,
             const AABB&          aabb)
         {
@@ -257,28 +257,24 @@ void SceneOverlays::draw_bounding_volumes(
             engine.primitives().box_mesh().draw(bound_program, bound_fbo);
         };
 
-        auto per_plight_draw_sphere = [&] (
+        auto draw_sphere = [&] (
             const entt::entity&,
-            const PointLight&,
-            const MTransform&     mtf,
             const BoundingSphere& sphere)
         {
-            const vec3 sphere_center = mtf.decompose_position();
-            const vec3 sphere_scale  = glm::vec3{ sphere.radius };
-            const auto sphere_transf = Transform().translate(sphere_center).scale(sphere_scale);
+            const mat4 world_mat = glm::translate(sphere.position) * glm::scale(vec3(sphere.radius));
 
-            sp.uniform(model_loc, sphere_transf.mtransform().model());
+            sp.uniform(model_loc, world_mat);
 
             engine.primitives().sphere_mesh().draw(bound_program, bound_fbo);
         };
 
 
         if (params.selected_only) {
-            registry.view<AABB, Selected>(entt::exclude<PointLight>).each(per_mesh_draw_aabb);
-            registry.view<PointLight, MTransform, BoundingSphere, Selected>().each(per_plight_draw_sphere);
+            registry.view<Selected, AABB>()          .each(draw_aabb);
+            registry.view<Selected, BoundingSphere>().each(draw_sphere);
         } else {
-            registry.view<AABB>(entt::exclude<PointLight>).each(per_mesh_draw_aabb);
-            registry.view<PointLight, MTransform, BoundingSphere>().each(per_plight_draw_sphere);
+            registry.view<AABB>()          .each(draw_aabb);
+            registry.view<BoundingSphere>().each(draw_sphere);
         }
     });
 

@@ -92,7 +92,7 @@ inline void PointLightSetup::operator()(
         const float max_distance =
             solve_for_distance(plight.attenuation, max_attenuation);
 
-        registry.emplace_or_replace<BoundingSphere>(e, max_distance);
+        registry.emplace_or_replace<LocalBoundingSphere>(e, glm::vec3{}, max_distance);
     }
 }
 

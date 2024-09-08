@@ -19,6 +19,7 @@
 #include "VPath.hpp"
 #include "VirtualFilesystem.hpp"
 #include "stages/overlay/SceneOverlays.hpp"
+#include "stages/precompute/BoundingVolumeResolution.hpp"
 #include "tags/Selected.hpp"
 #include "tags/ShadowCasting.hpp"
 #include "Filesystem.hpp"
@@ -131,6 +132,7 @@ DemoScene::DemoScene(glfw::Window& window)
 
     auto plightsetup   = stages::precompute::PointLightSetup();
     auto tfresolution  = stages::precompute::TransformResolution();
+    auto bvresolution  = stages::precompute::BoundingVolumeResolution();
     auto frustumculler = stages::precompute::FrustumCulling();
 
 
@@ -207,6 +209,7 @@ DemoScene::DemoScene(glfw::Window& window)
 
     rengine_.add_next_precompute_stage("Point Light Setup",    std::move(plightsetup));   // NOLINT(performance-move-const-arg)
     rengine_.add_next_precompute_stage("Transfrom Resolution", std::move(tfresolution));  // NOLINT(performance-move-const-arg)
+    rengine_.add_next_precompute_stage("BV Resolution",        std::move(bvresolution));  // NOLINT(performance-move-const-arg)
     rengine_.add_next_precompute_stage("Frustum Culling",      std::move(frustumculler)); // NOLINT(performance-move-const-arg)
 
     rengine_.add_next_primary_stage("Point Shadow Mapping",      std::move(psmapping));

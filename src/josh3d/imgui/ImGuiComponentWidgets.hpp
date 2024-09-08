@@ -1,5 +1,7 @@
 #pragma once
+#include "AABB.hpp"
 #include "Active.hpp"
+#include "BoundingSphere.hpp"
 #include "Camera.hpp"
 #include "Components.hpp"
 #include "DefaultTextures.hpp"
@@ -17,8 +19,8 @@
 #include "Transform.hpp"
 #include "VPath.hpp"
 #include "tags/AlphaTested.hpp"
-#include "tags/Culled.hpp"
 #include "tags/ShadowCasting.hpp"
+#include "tags/Visible.hpp"
 #include <cassert>
 #include <entt/entity/entity.hpp>
 #include <entt/entity/fwd.hpp>
@@ -74,7 +76,12 @@ inline bool GetGenericVisibility(entt::const_handle handle) {
     if (has_component<DirectionalLight>(handle)) { return is_active<DirectionalLight>(handle); }
     if (has_component<Skybox>          (handle)) { return is_active<Skybox>          (handle); }
     if (has_component<Camera>          (handle)) { return is_active<Camera>          (handle); }
-    return !has_tag<Culled>(handle);
+
+    if (handle.any_of<AABB, BoundingSphere>()) {
+        return has_tag<Visible>(handle);
+    } else {
+        return true;
+    }
 }
 
 
@@ -166,17 +173,17 @@ inline bool TransformWidget(josh::Transform& transform) noexcept {
 
 
 inline void Matrix4x4DisplayWidget(const glm::mat4& mat4) {
-    const size_t num_rows = 4;
-    const size_t num_cols = 4;
+    const int num_rows = 4;
+    const int num_cols = 4;
     ImGuiTableFlags flags =
         ImGuiTableFlags_Borders |
         ImGuiTableFlags_SizingFixedFit |
         ImGuiTableFlags_NoHostExtendX;
     if (ImGui::BeginTable("Matrix4x4", num_cols, flags)) {
-        for (size_t row = 0; row < num_rows; ++row) {
+        for (int row = 0; row < num_rows; ++row) {
             ImGui::TableNextRow();
-            for (size_t col = 0; col < num_cols; ++col) {
-                ImGui::TableSetColumnIndex(int(col));
+            for (int col = 0; col < num_cols; ++col) {
+                ImGui::TableSetColumnIndex(col);
 
                 ImGui::Text("%.3f", mat4[col][row]);
             }
@@ -187,17 +194,17 @@ inline void Matrix4x4DisplayWidget(const glm::mat4& mat4) {
 
 
 inline void Matrix3x3DisplayWidget(const glm::mat3& mat3) {
-    const size_t num_rows = 3;
-    const size_t num_cols = 3;
+    const int num_rows = 3;
+    const int num_cols = 3;
     ImGuiTableFlags flags =
         ImGuiTableFlags_Borders |
         ImGuiTableFlags_SizingFixedFit |
         ImGuiTableFlags_NoHostExtendX;
     if (ImGui::BeginTable("Matrix4x4", num_cols, flags)) {
-        for (size_t row = 0; row < num_rows; ++row) {
+        for (int row = 0; row < num_rows; ++row) {
             ImGui::TableNextRow();
-            for (size_t col = 0; col < num_cols; ++col) {
-                ImGui::TableSetColumnIndex(int(col));
+            for (int col = 0; col < num_cols; ++col) {
+                ImGui::TableSetColumnIndex(col);
 
                 ImGui::Text("%.3f", mat3[col][row]);
             }

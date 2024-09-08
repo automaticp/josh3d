@@ -50,15 +50,6 @@ void TransformResolution::operator()(
         // Then go down to children and update their transforms.
         resolve_transforms_recursive(root_handle, root_mtf);
     }
-
-
-    // TODO: This shouldn't be done here, but I need it for testing right now.
-    for (const auto [entity, local_aabb, mtf] :
-        registry.view<LocalAABB, MTransform>().each())
-    {
-        const entt::handle handle{ registry, entity };
-        handle.emplace_or_replace<AABB>(local_aabb.transformed(mtf.model()));
-    }
 }
 
 
