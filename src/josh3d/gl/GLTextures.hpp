@@ -100,7 +100,7 @@ To using strong integer types:
     `fbo.attach_texture_layer_to_color_buffer(tex, Layer{ 3 }, 1, MipLevel{ 0 });`
 
 */
-JOSH3D_DEFINE_STRONG_SCALAR(Layer, GLint)
+JOSH3D_DEFINE_STRONG_SCALAR(Layer, GLint);
 
 
 /*
@@ -114,8 +114,8 @@ To using strong integer types:
     `fbo.attach_texture_layer_to_color_buffer(tex, Layer{ 3 }, 1, MipLevel{ 0 });`
 
 */
-JOSH3D_DEFINE_STRONG_SCALAR(MipLevel, GLint)
-JOSH3D_DEFINE_STRONG_SCALAR(NumLevels, GLsizei)
+JOSH3D_DEFINE_STRONG_SCALAR(MipLevel,  GLint);
+JOSH3D_DEFINE_STRONG_SCALAR(NumLevels, GLsizei);
 
 
 
@@ -128,7 +128,7 @@ implementation-dependent. However, the resulting value for TEXTURE_SAMPLES
 is guaranteed to be greater than or equal to samples and no more than the next
 larger sample count supported by the implementation."
 */
-JOSH3D_DEFINE_STRONG_SCALAR(NumSamples, GLsizei)
+JOSH3D_DEFINE_STRONG_SCALAR(NumSamples, GLsizei);
 
 
 enum struct SampleLocations : bool {

@@ -844,7 +844,7 @@ enum class Face : GLuint {
 };
 
 
-JOSH3D_DEFINE_STRONG_SCALAR(Mask, GLuint)
+JOSH3D_DEFINE_STRONG_SCALAR(Mask, GLuint);
 
 
 namespace glapi {

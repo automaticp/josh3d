@@ -7,7 +7,7 @@
 namespace josh {
 
 
-JOSH3D_DEFINE_STRONG_SCALAR(Location, GLint)
+JOSH3D_DEFINE_STRONG_SCALAR(Location, GLint);
 
 
 template<mutability_tag MutT>

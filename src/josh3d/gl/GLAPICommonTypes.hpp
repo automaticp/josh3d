@@ -22,9 +22,9 @@ inline BufferMask operator|(const BufferMask& lhs, const BufferMask& rhs) noexce
 
 
 
-JOSH3D_DEFINE_STRONG_SCALAR(OffsetBytes, GLsizeiptr)
-JOSH3D_DEFINE_STRONG_SCALAR(OffsetElems, GLsizeiptr)
-JOSH3D_DEFINE_STRONG_SCALAR(NumElems,    GLsizeiptr)
+JOSH3D_DEFINE_STRONG_SCALAR(OffsetBytes, GLsizeiptr);
+JOSH3D_DEFINE_STRONG_SCALAR(OffsetElems, GLsizeiptr);
+JOSH3D_DEFINE_STRONG_SCALAR(NumElems,    GLsizeiptr);
 
 
 

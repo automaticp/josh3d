@@ -52,9 +52,10 @@ void Bloom2::operator()(
     resize_bloom_texture(bloom_texture_, { main_resolution.width / 2, main_resolution.height / 2 });
 
     // Put an upper cap on the number of levels.
-    const NumLevels max_levels = NumLevels(GLsizei(max_downsample_levels));
-    const NumLevels has_levels = NumLevels(GLsizei(num_available_levels()));
+    const NumLevels max_levels = GLsizei(max_downsample_levels);
+    const NumLevels has_levels = GLsizei(num_available_levels());
     const NumLevels num_levels = std::min(max_levels, has_levels);
+    const MipLevel  last_lod   = num_levels - 1;
 
     // Downsample.
     {
@@ -81,9 +82,9 @@ void Bloom2::operator()(
         // Then progressively downsample further.
         bloom_texture_->bind_to_texture_unit(0); // Always bound, but we don't sample overlapping LODs.
 
-        for (MipLevel lod{ 0 }; lod < num_levels - 1; lod = MipLevel{ lod + 1 }) {
+        for (MipLevel lod{ 0 }; lod < last_lod; ++lod) {
             const MipLevel src_lod        = lod;
-            const MipLevel dst_lod        = MipLevel{ lod + 1 };
+            const MipLevel dst_lod        = lod + 1;
             const Size2I   dst_resolution = bloom_texture_->get_resolution(dst_lod);
 
             // Sample from:
@@ -124,9 +125,9 @@ void Bloom2::operator()(
 
         bloom_texture_->bind_to_texture_unit(0);
 
-        for (MipLevel lod = MipLevel{ num_levels - 1 }; lod > 0; lod = MipLevel{ lod - 1 }) {
+        for (MipLevel lod = last_lod; lod > 0; --lod) {
             const MipLevel src_lod        = lod;
-            const MipLevel dst_lod        = MipLevel{ lod - 1 };
+            const MipLevel dst_lod        = lod - 1;
             const Size2I   dst_resolution = bloom_texture_->get_resolution(dst_lod);
 
             // Sample from:
@@ -159,8 +160,8 @@ void Bloom2::operator()(
 
         engine.screen_color().bind_to_texture_unit(0);
         bloom_texture_      ->bind_to_texture_unit(1);
-        bloom_texture_->set_base_lod(MipLevel(0));
-        bloom_texture_->set_max_lod (MipLevel(0));
+        bloom_texture_->set_base_lod(0);
+        bloom_texture_->set_max_lod (0);
 
         sp.uniform("screen_color", 0);
         sp.uniform("bloom_color",  1);
