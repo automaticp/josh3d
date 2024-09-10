@@ -1,7 +1,6 @@
 #pragma once
 #include "AssetManager.hpp"
 #include "ImGuiApplicationAssembly.hpp"
-#include "Camera.hpp"
 #include "Input.hpp"
 #include "InputFreeCamera.hpp"
 #include "Primitives.hpp"

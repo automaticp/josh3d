@@ -5,7 +5,6 @@
 #include "UploadBuffer.hpp"
 #include "stages/primary/CascadedShadowMapping.hpp"
 #include "RenderEngine.hpp"
-#include "ShaderBuilder.hpp"
 #include "VPath.hpp"
 #include "stages/primary/GBufferStorage.hpp"
 
@@ -42,19 +41,13 @@ private:
     SharedView<GBuffer>  gbuffer_;
     SharedView<Cascades> cascades_;
 
-    UniqueProgram sp_views_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/postprocess.vert"))
-            .load_frag(VPath("src/shaders/ovl_csm_debug_views.frag"))
-            .get()
-    };
+    ShaderToken sp_views_ = shader_pool().get({
+        .vert = VPath("src/shaders/postprocess.vert"),
+        .frag = VPath("src/shaders/ovl_csm_debug_views.frag")});
 
-    UniqueProgram sp_maps_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/postprocess.vert"))
-            .load_frag(VPath("src/shaders/ovl_csm_debug_maps.frag"))
-            .get()
-    };
+    ShaderToken sp_maps_ = shader_pool().get({
+        .vert = VPath("src/shaders/postprocess.vert"),
+        .frag = VPath("src/shaders/ovl_csm_debug_maps.frag")});
 
     UniqueSampler maps_sampler_ = []{
         UniqueSampler s;

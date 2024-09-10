@@ -3,9 +3,8 @@
 #include "GLTextures.hpp"
 #include "RenderEngine.hpp"
 #include "RenderTarget.hpp"
-#include "ShaderBuilder.hpp"
+#include "ShaderPool.hpp"
 #include "SharedStorage.hpp"
-#include "GLObjects.hpp"
 #include "VPath.hpp"
 #include <entt/entity/fwd.hpp>
 #include <glbinding/gl/enum.h>
@@ -45,23 +44,17 @@ public:
 private:
     SharedStorage<PointShadows> product_;
 
-    UniqueProgram sp_with_alpha_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/depth_cubemap.vert"))
-            .load_geom(VPath("src/shaders/depth_cubemap_array.geom"))
-            .load_frag(VPath("src/shaders/depth_cubemap.frag"))
-            .define("ENABLE_ALPHA_TESTING")
-            .get()
-    };
+    ShaderToken sp_with_alpha_ = shader_pool().get({
+        .vert = VPath("src/shaders/depth_cubemap.vert"),
+        .geom = VPath("src/shaders/depth_cubemap_array.geom"),
+        .frag = VPath("src/shaders/depth_cubemap.frag")},
+        ProgramDefines()
+            .define("ENABLE_ALPHA_TESTING", 1));
 
-    UniqueProgram sp_no_alpha_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/depth_cubemap.vert"))
-            .load_geom(VPath("src/shaders/depth_cubemap_array.geom"))
-            .load_frag(VPath("src/shaders/depth_cubemap.frag"))
-            .get()
-    };
-
+    ShaderToken sp_no_alpha_ = shader_pool().get({
+        .vert = VPath("src/shaders/depth_cubemap.vert"),
+        .geom = VPath("src/shaders/depth_cubemap_array.geom"),
+        .frag = VPath("src/shaders/depth_cubemap.frag")});
 
     void map_point_shadows(RenderEnginePrimaryInterface& engine);
 

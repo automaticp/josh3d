@@ -17,16 +17,11 @@
 #include <entt/fwd.hpp>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/gl.h>
-#include <functional>
 #include <ranges>
 #include <string>
 #include <utility>
 #include <vector>
 
-
-
-
-// WIP
 
 
 
@@ -80,6 +75,16 @@ class RenderEngineOverlayInterface;
 
 class RenderEngine {
 public:
+    enum class HDRFormat : GLuint {
+        R11F_G11F_B10F  = GLuint(InternalFormat::R11F_G11F_B10F),
+        RGB16F          = GLuint(InternalFormat::RGB16F),
+        RGB32F          = GLuint(InternalFormat::RGB32F), // Don't know why you'd want this but...
+    };
+
+    HDRFormat main_buffer_format;
+
+    Size2I    main_resolution;
+
     // Enables RGB -> sRGB conversion at the end of the postprocessing pass.
     bool  enable_srgb_conversion{ true };
     // Enables profiling of GPU/CPU times taken per each stage.
@@ -92,17 +97,10 @@ public:
     RenderEngine(
         entt::registry&    registry,
         const Primitives&  primitives,
-        const Size2I&      resolution,
-        const FrameTimer&  frame_timer // TODO: Should not be a reference.
-    )
-        : registry_       { registry     }
-        , primitives_     { primitives   }
-        , frame_timer_    { frame_timer  }
-        , main_swapchain_ { make_main_target(resolution), make_main_target(resolution) }
-    {
-        // Because we are sharing the depth in the swapchain, we have to bother to sync the size manually.
-        resize_depth(main_resolution());
-    }
+        const Size2I&      main_resolution,
+        HDRFormat          main_buffer_format,
+        const FrameTimer&  frame_timer); // TODO: Should not be a reference. TODO: Why? I forgot...
+
 
     void render();
 
@@ -150,25 +148,16 @@ public:
     }
 
 
-    RawTexture2D<GLConst>   main_depth_texture()          const noexcept { return depth_.texture(); }
-    const auto&             main_depth_attachment()       const noexcept { return depth_;           }
-    auto                    share_main_depth_attachment()       noexcept { return depth_.share();   }
+    RawTexture2D<GLConst>   main_depth_texture()          const noexcept { return main_depth_.texture(); }
+    const auto&             main_depth_attachment()       const noexcept { return main_depth_;           }
+    auto                    share_main_depth_attachment()       noexcept { return main_depth_.share();   }
 
     RawTexture2D<GLConst>   main_color_texture()          const noexcept { return main_swapchain_.back_target().color_attachment().texture(); }
     const auto&             main_color_attachment()       const noexcept { return main_swapchain_.back_target().color_attachment();           }
     auto                    share_main_color_attachment()       noexcept { return main_swapchain_.back_target().share_color_attachment();     }
 
-
-    Size2I main_resolution() const noexcept { return main_swapchain_.resolution(); }
-
     const Primitives& primitives() const noexcept { return primitives_; }
     const FrameTimer& frame_timer() const noexcept { return frame_timer_; }
-
-    void resize(const Size2I& new_resolution) {
-        main_swapchain_.resize(new_resolution);
-        resize_depth(new_resolution);
-    }
-
 
 
 private:
@@ -193,20 +182,18 @@ private:
         SharedAttachment<Renderable::Texture2D>,    // Depth
         ShareableAttachment<Renderable::Texture2D>  // Color
     >;
+    using DepthAttachment = ShareableAttachment<Renderable::Texture2D>;
 
-    ShareableAttachment<Renderable::Texture2D> depth_{
-        // TODO: Floating-point depth is not blittable to the default fbo.
-        // How would we do it then?
-        InternalFormat::Depth24_Stencil8
-    };
+    static auto make_main_depth(const Size2I& resolution)
+        -> DepthAttachment;
 
-    MainTarget make_main_target(const Size2I& resolution) {
-        return {
-            resolution,
-            depth_.share(),
-            { InternalFormat::RGBA16F }
-        };
-    }
+    DepthAttachment main_depth_;
+
+    static auto make_main_swapchain(
+        const Size2I&    resolution,
+        InternalFormat   iformat,
+        DepthAttachment& depth)
+            -> SwapChain<MainTarget>;
 
     SwapChain<MainTarget> main_swapchain_;
 
@@ -215,7 +202,6 @@ private:
 
 
     struct CameraDataGPU {
-        // TODO: std140
         alignas(std430::align_vec3)  glm::vec3   position_ws; // World-space position
         alignas(std430::align_float) float       z_near;
         alignas(std430::align_float) float       z_far;
@@ -236,14 +222,6 @@ private:
         float            z_near,
         float            z_far) noexcept;
 
-
-    void resize_depth(const Size2I& new_resolution) {
-        depth_.resize(new_resolution);
-        if (!main_swapchain_.back_target().depth_attachment().is_shared_from(depth_)) {
-            main_swapchain_.front_target().reset_depth_attachment(depth_.share());
-            main_swapchain_.back_target() .reset_depth_attachment(depth_.share());
-        }
-    }
 
     void execute_precompute_stages();
     void render_primary_stages();
@@ -269,8 +247,8 @@ public:
     auto camera_data() const noexcept -> const auto&           { return engine_.camera_data_; }
     // TODO: Something about window resolution being separate?
     // TODO: Also main_resolution() is not accurate in Overlay stages.
-    auto main_resolution() const noexcept -> Size2I            { return engine_.main_resolution(); }
-    auto frame_timer()     const noexcept -> const FrameTimer& { return engine_.frame_timer_;      }
+    auto main_resolution() const noexcept -> const Size2I&     { return engine_.main_resolution; }
+    auto frame_timer()     const noexcept -> const FrameTimer& { return engine_.frame_timer_;    }
 
     auto bind_camera_ubo(GLuint index = 0) const noexcept
         -> BindToken<BindingIndexed::UniformBuffer>
@@ -324,8 +302,8 @@ public:
     // a Draw framebuffer within the callable.
     template<std::invocable<BindToken<Binding::DrawFramebuffer>> CallableT>
     void draw(CallableT&& draw_func) {
-        BindGuard bound_fbo{ engine_.main_swapchain_.back_target().bind_draw() };
-        std::invoke(std::forward<CallableT>(draw_func), bound_fbo.token());
+        BindGuard bound_fbo = engine_.main_swapchain_.back_target().bind_draw();
+        draw_func(bound_fbo.token());
     }
 
     // The RenderEngine's main framebuffer is not exposed here because
@@ -416,7 +394,7 @@ public:
     // a Draw framebuffer within the callable.
     template<std::invocable<BindToken<Binding::DrawFramebuffer>> CallableT>
     void draw(CallableT&& draw_func) {
-        std::invoke(std::forward<CallableT>(draw_func), engine_.default_fbo_.bind_draw());
+        draw_func(engine_.default_fbo_.bind_draw());
     }
 
 };

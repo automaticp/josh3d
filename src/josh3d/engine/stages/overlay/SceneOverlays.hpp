@@ -1,7 +1,7 @@
 #pragma once
 #include "GLObjects.hpp"
 #include "RenderEngine.hpp"
-#include "ShaderBuilder.hpp"
+#include "ShaderPool.hpp"
 #include "UploadBuffer.hpp"
 
 
@@ -38,29 +38,20 @@ public:
 private:
     void draw_selected_highlight(RenderEngineOverlayInterface& engine);
 
-    UniqueProgram sp_highlight_stencil_prep_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/basic_mesh.vert"))
-            .load_frag(VPath("src/shaders/ovl_selected_stencil_prep.frag"))
-            .get()
-    };
+    ShaderToken sp_highlight_stencil_prep_ = shader_pool().get({
+        .vert = VPath("src/shaders/basic_mesh.vert"),
+        .frag = VPath("src/shaders/ovl_selected_stencil_prep.frag")});
 
-    UniqueProgram sp_highlight_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/postprocess.vert"))
-            .load_frag(VPath("src/shaders/ovl_selected_highlight.frag"))
-            .get()
-    };
+    ShaderToken sp_highlight_ = shader_pool().get({
+        .vert = VPath("src/shaders/postprocess.vert"),
+        .frag = VPath("src/shaders/ovl_selected_highlight.frag")});
 
 
     void draw_bounding_volumes(RenderEngineOverlayInterface& engine);
 
-    UniqueProgram sp_bounding_volumes_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/ovl_bounding_volumes.vert"))
-            .load_frag(VPath("src/shaders/ovl_bounding_volumes.frag"))
-            .get()
-    };
+    ShaderToken sp_bounding_volumes_ = shader_pool().get({
+        .vert = VPath("src/shaders/ovl_bounding_volumes.vert"),
+        .frag = VPath("src/shaders/ovl_bounding_volumes.frag")});
 
 
     void draw_scene_graph_lines(RenderEngineOverlayInterface& engine);
@@ -73,12 +64,9 @@ private:
     UploadBuffer<LineGPU> lines_buf_;
     UniqueVertexArray     empty_vao_;
 
-    UniqueProgram sp_scene_graph_lines_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/ovl_dashed_lines.vert"))
-            .load_frag(VPath("src/shaders/ovl_dashed_lines.frag"))
-            .get()
-    };
+    ShaderToken sp_scene_graph_lines_ = shader_pool().get({
+        .vert = VPath("src/shaders/ovl_dashed_lines.vert"),
+        .frag = VPath("src/shaders/ovl_dashed_lines.frag")});
 
 };
 

@@ -4,7 +4,7 @@
 #include "Layout.hpp"
 #include "RenderEngine.hpp"
 #include "RenderTarget.hpp"
-#include "ShaderBuilder.hpp"
+#include "ShaderPool.hpp"
 #include "SharedStorage.hpp"
 #include "VPath.hpp"
 #include "ViewFrustum.hpp"
@@ -128,42 +128,35 @@ private:
 
     void draw_all_cascades_with_geometry_shader(RenderEnginePrimaryInterface& engine);
 
-    UniqueProgram sp_singlepass_gs_with_alpha_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/depth_map_cascade.vert"))
-            .load_geom(VPath("src/shaders/depth_map_cascade.geom"))
-            .load_frag(VPath("src/shaders/depth_map_cascade.frag"))
-            .define("MAX_VERTICES", std::to_string(3ull * max_cascades()))
-            .define("ENABLE_ALPHA_TESTING")
-            .get()
-    };
+    ShaderToken sp_singlepass_gs_with_alpha_ = shader_pool().get({
+        .vert = VPath("src/shaders/depth_map_cascade.vert"),
+        .geom = VPath("src/shaders/depth_map_cascade.geom"),
+        .frag = VPath("src/shaders/depth_map_cascade.frag")},
+        ProgramDefines()
+            .define("MAX_VERTICES", 3ull * max_cascades())
+            .define("ENABLE_ALPHA_TESTING", 1));
 
-    UniqueProgram sp_singlepass_gs_no_alpha_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/depth_map_cascade.vert"))
-            .load_geom(VPath("src/shaders/depth_map_cascade.geom"))
-            .load_frag(VPath("src/shaders/depth_map_cascade.frag"))
-            .define("MAX_VERTICES", std::to_string(3ull * max_cascades()))
-            .get()
-    };
+    ShaderToken sp_singlepass_gs_no_alpha_ = shader_pool().get({
+        .vert = VPath("src/shaders/depth_map_cascade.vert"),
+        .geom = VPath("src/shaders/depth_map_cascade.geom"),
+        .frag = VPath("src/shaders/depth_map_cascade.frag")},
+        ProgramDefines()
+            .define("MAX_VERTICES", 3ull * max_cascades()));
 
 
     void draw_with_culling_per_cascade(RenderEnginePrimaryInterface& engine);
 
-    UniqueProgram sp_per_cascade_with_alpha_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/depth_map.vert"))
-            .load_frag(VPath("src/shaders/depth_map.frag"))
-            .define("ENABLE_ALPHA_TESTING")
-            .get()
-    };
+    ShaderToken sp_per_cascade_with_alpha_ = shader_pool().get({
+        .vert = VPath("src/shaders/depth_map.vert"),
+        .frag = VPath("src/shaders/depth_map.frag")},
+        ProgramDefines()
+            .define("ENABLE_ALPHA_TESTING", 1));
 
-    UniqueProgram sp_per_cascade_no_alpha_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/depth_map.vert"))
-            .load_frag(VPath("src/shaders/depth_map.frag"))
-            .get()
-    };
+    ShaderToken sp_per_cascade_no_alpha_ = shader_pool().get({
+        .vert = VPath("src/shaders/depth_map.vert"),
+        .frag = VPath("src/shaders/depth_map.frag")});
+
+
 
     using CascadeLayerTarget = RenderTarget<SharedLayerAttachment<Renderable::Texture2DArray>>;
     CascadeLayerTarget cascade_layer_target_{ cascades_->maps.share_depth_attachment_layer(Layer{ 0 }) };

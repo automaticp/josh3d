@@ -3,6 +3,7 @@
 
 
 JOSH3D_SIMPLE_STAGE_HOOK(postprocess, Bloom)
+JOSH3D_SIMPLE_STAGE_HOOK(postprocess, Bloom2)
 JOSH3D_SIMPLE_STAGE_HOOK(postprocess, Fog)
 JOSH3D_SIMPLE_STAGE_HOOK(postprocess, FXAA)
 JOSH3D_SIMPLE_STAGE_HOOK(postprocess, GammaCorrection)

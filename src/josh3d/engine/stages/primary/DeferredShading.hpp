@@ -3,7 +3,7 @@
 #include "GLObjects.hpp"
 #include "GLScalars.hpp"
 #include "LightsGPU.hpp"
-#include "ShaderBuilder.hpp"
+#include "ShaderPool.hpp"
 #include "SharedStorage.hpp"
 #include "GBufferStorage.hpp"
 #include "UploadBuffer.hpp"
@@ -77,34 +77,21 @@ private:
     SharedView<Cascades>                input_csm_;
     SharedView<AmbientOcclusionBuffers> input_ao_;
 
+    ShaderToken sp_singlepass_ = shader_pool().get({
+        .vert = VPath("src/shaders/dfr_shading.vert"),
+        .frag = VPath("src/shaders/dfr_shading_adpn_shadow_csm.frag")});
 
-    UniqueProgram sp_singlepass_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/dfr_shading.vert"))
-            .load_frag(VPath("src/shaders/dfr_shading_adpn_shadow_csm.frag"))
-            .get()
-    };
+    ShaderToken sp_pass_plight_with_shadow_ = shader_pool().get({
+        .vert = VPath("src/shaders/dfr_shading_point.vert"),
+        .frag = VPath("src/shaders/dfr_shading_point_with_shadow.frag")});
 
-    UniqueProgram sp_pass_plight_with_shadow_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/dfr_shading_point.vert"))
-            .load_frag(VPath("src/shaders/dfr_shading_point_with_shadow.frag"))
-            .get()
-    };
+    ShaderToken sp_pass_plight_no_shadow_ = shader_pool().get({
+        .vert = VPath("src/shaders/dfr_shading_point.vert"),
+        .frag = VPath("src/shaders/dfr_shading_point_no_shadow.frag")});
 
-    UniqueProgram sp_pass_plight_no_shadow_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/dfr_shading_point.vert"))
-            .load_frag(VPath("src/shaders/dfr_shading_point_no_shadow.frag"))
-            .get()
-    };
-
-    UniqueProgram sp_pass_ambi_dir_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/dfr_shading.vert"))
-            .load_frag(VPath("src/shaders/dfr_shading_ambi_ao_dir_csm.frag"))
-            .get()
-    };
+    ShaderToken sp_pass_ambi_dir_ = shader_pool().get({
+        .vert = VPath("src/shaders/dfr_shading.vert"),
+        .frag = VPath("src/shaders/dfr_shading_ambi_ao_dir_csm.frag")});
 
     UploadBuffer<PointLightBoundedGPU> plights_with_shadow_buf_;
     UploadBuffer<PointLightBoundedGPU> plights_no_shadow_buf_;

@@ -9,6 +9,7 @@
 #include "Filesystem.hpp"
 #include "GlobalContext.hpp"
 #include "Logging.hpp"
+#include "ShaderPool.hpp"
 #include "VirtualFilesystem.hpp"
 #include "WindowSizeCache.hpp"
 

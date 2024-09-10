@@ -2,12 +2,12 @@
 #include "Attachments.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLObjects.hpp"
+#include "ShaderPool.hpp"
 #include "SharedStorage.hpp"
 #include "Transform.hpp"
 #include "UniformTraits.hpp" // IWYU pragma: keep (traits)
 #include "LightCasters.hpp"
 #include "RenderEngine.hpp"
-#include "ShaderBuilder.hpp"
 #include "UploadBuffer.hpp"
 #include "VPath.hpp"
 #include "Mesh.hpp"
@@ -27,7 +27,7 @@ class LightDummies {
 public:
     bool  display{ true };
     float light_scale{ 0.1f };
-    bool  attenuate_color{ false };
+    bool  attenuate_color{ true };
 
     LightDummies(
         SharedAttachment<Renderable::Texture2D> depth,
@@ -44,12 +44,10 @@ public:
     void operator()(RenderEnginePrimaryInterface& engine);
 
 private:
-    UniqueProgram sp_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/light_dummies_point.vert"))
-            .load_frag(VPath("src/shaders/light_dummies_point.frag"))
-            .get()
-    };
+    ShaderToken sp_ = shader_pool().get({
+        .vert = VPath("src/shaders/light_dummies_point.vert"),
+        .frag = VPath("src/shaders/light_dummies_point.frag"),
+    });
 
     using Target = RenderTarget<
         SharedAttachment<Renderable::Texture2D>, // Depth
@@ -92,7 +90,7 @@ inline void LightDummies::operator()(RenderEnginePrimaryInterface& engine) {
         BindGuard bound_camera_ubo      = engine.bind_camera_ubo();
         BindGuard bound_instance_buffer = plight_params_.bind_to_ssbo_index(0);
 
-        BindGuard bound_program = sp_->use();
+        BindGuard bound_program = sp_.get().use();
         BindGuard bound_fbo     = target_.bind_draw();
 
         const Mesh& mesh = engine.primitives().sphere_mesh();

@@ -640,6 +640,8 @@ namespace detail {
 #define JOSH3D_TEXTURE_MIXIN_HEADER                                                  \
 private:                                                                             \
     GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); } \
+    auto&  as_self()       noexcept { return static_cast<const CRTP&>(*this);      } \
+    auto&  as_self() const noexcept { return static_cast<const CRTP&>(*this);      } \
     using mt = mutability_traits<CRTP>;                                              \
     using tt = texture_target_traits<TargetV>;                                       \
 public:
@@ -937,9 +939,20 @@ struct TextureDSAInterface_Queries_InternalFormat {
     // Wraps `glGetTextureLevelParameteriv` with `pname = GL_TEXTURE_INTERNAL_FORMAT` and `level = 0`.
     auto get_internal_format() const noexcept
         -> InternalFormat
+            requires (!tt::has_lod)
     {
         GLenum internal_format;
         gl::glGetTextureLevelParameteriv(self_id(), 0, gl::GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
+        return enum_cast<InternalFormat>(internal_format);
+    }
+
+    // Wraps `glGetTextureLevelParameteriv` with `pname = GL_TEXTURE_INTERNAL_FORMAT` and `level = level`.
+    auto get_internal_format(MipLevel level = MipLevel{ 0 }) const noexcept
+        -> InternalFormat
+            requires tt::has_lod
+    {
+        GLenum internal_format;
+        gl::glGetTextureLevelParameteriv(self_id(), level, gl::GL_TEXTURE_INTERNAL_FORMAT, &internal_format);
         return enum_cast<InternalFormat>(internal_format);
     }
 
@@ -2645,7 +2658,7 @@ private:
     void clear_image_impl(MipLevel level) const noexcept {
         // This is one of those functions that requires you to specify *correct* type and format
         // even though there's no data to unpack and the pointer is NULL. Insane.
-        InternalFormat internal_format = this->get_internal_format(level);
+        InternalFormat internal_format = as_self().get_internal_format(level);
         GLenum format = best_unpack_format(enum_cast<GLenum>(TargetV), enum_cast<GLenum>(internal_format));
         GLenum type   = best_unpack_type  (enum_cast<GLenum>(TargetV), enum_cast<GLenum>(internal_format));
         gl::glClearTexImage(
@@ -2677,7 +2690,7 @@ private:
     {
         // This is one of those functions that requires you to specify *correct* type and format
         // even though there's no data to unpack and the pointer is NULL. Insane.
-        InternalFormat internal_format = this->get_internal_format(level);
+        InternalFormat internal_format = as_self().get_internal_format(level);
         GLenum format = best_unpack_format(enum_cast<GLenum>(TargetV), enum_cast<GLenum>(internal_format));
         GLenum type   = best_unpack_type  (enum_cast<GLenum>(TargetV), enum_cast<GLenum>(internal_format));
 

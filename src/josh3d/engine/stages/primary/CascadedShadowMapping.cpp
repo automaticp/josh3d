@@ -526,27 +526,36 @@ void CascadedShadowMapping::draw_all_cascades_with_geometry_shader(
     };
 
 
-    if (enable_face_culling) {
-        glapi::enable(Capability::FaceCulling);
-        glapi::set_face_culling_target(enum_cast<Faces>(faces_to_cull));
-    } else {
-        glapi::disable(Capability::FaceCulling);
+    {
+        const RawProgram<> sp = sp_singlepass_gs_no_alpha_.get();
+
+        if (enable_face_culling) {
+            glapi::enable(Capability::FaceCulling);
+            glapi::set_face_culling_target(enum_cast<Faces>(faces_to_cull));
+        } else {
+            glapi::disable(Capability::FaceCulling);
+        }
+
+        set_common_uniforms(sp);
+        // You could have no AT requested, or you could have an AT flag,
+        // but no diffuse material to sample from. Both ignore Alpha-Testing.
+        auto no_alpha           = registry.view<MTransform, Mesh>(entt::exclude<AlphaTested>);
+        auto with_at_no_diffuse = registry.view<MTransform, Mesh, AlphaTested>(entt::exclude<MaterialDiffuse>);
+        draw_meshes_no_alpha(sp, bound_fbo, registry, no_alpha);
+        draw_meshes_no_alpha(sp, bound_fbo, registry, with_at_no_diffuse);
     }
 
-    set_common_uniforms(sp_singlepass_gs_no_alpha_);
-    // You could have no AT requested, or you could have an AT flag,
-    // but no diffuse material to sample from. Both ignore Alpha-Testing.
-    auto no_alpha           = registry.view<MTransform, Mesh>(entt::exclude<AlphaTested>);
-    auto with_at_no_diffuse = registry.view<MTransform, Mesh, AlphaTested>(entt::exclude<MaterialDiffuse>);
-    draw_meshes_no_alpha(sp_singlepass_gs_no_alpha_, bound_fbo, registry, no_alpha);
-    draw_meshes_no_alpha(sp_singlepass_gs_no_alpha_, bound_fbo, registry, with_at_no_diffuse);
 
-    glapi::set_face_culling_target(Faces::Back);
-    glapi::disable(Capability::FaceCulling);
+    {
+        const RawProgram<> sp = sp_singlepass_gs_with_alpha_.get();
 
-    set_common_uniforms(sp_singlepass_gs_with_alpha_);
-    auto with_alpha = registry.view<MTransform, Mesh, AlphaTested>();
-    draw_meshes_no_alpha(sp_singlepass_gs_with_alpha_, bound_fbo, registry, with_alpha);
+        glapi::set_face_culling_target(Faces::Back);
+        glapi::disable(Capability::FaceCulling);
+
+        set_common_uniforms(sp);
+        auto with_alpha = registry.view<MTransform, Mesh, AlphaTested>();
+        draw_meshes_with_alpha(sp, bound_fbo, registry, with_alpha);
+    }
 
 }
 
@@ -591,21 +600,31 @@ void CascadedShadowMapping::draw_with_culling_per_cascade(
 
         const auto& draw_lists = cascade_info.draw_lists;
 
-        if (enable_face_culling) {
-            glapi::enable(Capability::FaceCulling);
-            glapi::set_face_culling_target(enum_cast<Faces>(faces_to_cull));
-        } else {
-            glapi::disable(Capability::FaceCulling);
+
+        {
+            const RawProgram<> sp = sp_per_cascade_no_alpha_.get();
+
+            if (enable_face_culling) {
+                glapi::enable(Capability::FaceCulling);
+                glapi::set_face_culling_target(enum_cast<Faces>(faces_to_cull));
+            } else {
+                glapi::disable(Capability::FaceCulling);
+            }
+
+            set_common_uniforms(sp);
+            draw_meshes_no_alpha(sp, bound_fbo, registry, draw_lists.visible_noat);
         }
 
-        set_common_uniforms(sp_per_cascade_no_alpha_);
-        draw_meshes_no_alpha(sp_per_cascade_no_alpha_, bound_fbo, registry, draw_lists.visible_noat);
 
-        glapi::set_face_culling_target(Faces::Back);
-        glapi::disable(Capability::FaceCulling);
+        {
+            const RawProgram<> sp = sp_per_cascade_with_alpha_.get();
 
-        set_common_uniforms(sp_per_cascade_with_alpha_);
-        draw_meshes_with_alpha(sp_per_cascade_with_alpha_, bound_fbo, registry, draw_lists.visible_at);
+            glapi::set_face_culling_target(Faces::Back);
+            glapi::disable(Capability::FaceCulling);
+
+            set_common_uniforms(sp);
+            draw_meshes_with_alpha(sp, bound_fbo, registry, draw_lists.visible_at);
+        }
     }
 
 }

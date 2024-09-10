@@ -1,8 +1,7 @@
 #pragma once
 #include "stages/primary/GBufferStorage.hpp"
 #include "RenderStage.hpp"
-#include "GLObjects.hpp"
-#include "ShaderBuilder.hpp"
+#include "ShaderPool.hpp"
 #include "SharedStorage.hpp"
 #include "VPath.hpp"
 #include <entt/entity/fwd.hpp>
@@ -24,35 +23,25 @@ public:
 
 
 private:
-    UniqueProgram sp_ds_at{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/dfr_geometry_mat_ds.vert"))
-            .load_frag(VPath("src/shaders/dfr_geometry_mat_ds.frag"))
-            .define("ENABLE_ALPHA_TESTING")
-            .get()
-    };
+    ShaderToken sp_ds_at = shader_pool().get({
+        .vert = VPath("src/shaders/dfr_geometry_mat_ds.vert"),
+        .frag = VPath("src/shaders/dfr_geometry_mat_ds.frag")},
+        ProgramDefines()
+            .define("ENABLE_ALPHA_TESTING", 1));
 
-    UniqueProgram sp_ds_noat{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/dfr_geometry_mat_ds.vert"))
-            .load_frag(VPath("src/shaders/dfr_geometry_mat_ds.frag"))
-            .get()
-    };
+    ShaderToken sp_ds_noat = shader_pool().get({
+        .vert = VPath("src/shaders/dfr_geometry_mat_ds.vert"),
+        .frag = VPath("src/shaders/dfr_geometry_mat_ds.frag")});
 
-    UniqueProgram sp_dsn_at{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/dfr_geometry_mat_dsn.vert"))
-            .load_frag(VPath("src/shaders/dfr_geometry_mat_dsn.frag"))
-            .define("ENABLE_ALPHA_TESTING")
-            .get()
-        };
+    ShaderToken sp_dsn_at = shader_pool().get({
+        .vert = VPath("src/shaders/dfr_geometry_mat_dsn.vert"),
+        .frag = VPath("src/shaders/dfr_geometry_mat_dsn.frag")},
+        ProgramDefines()
+            .define("ENABLE_ALPHA_TESTING", 1));
 
-    UniqueProgram sp_dsn_noat{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/dfr_geometry_mat_dsn.vert"))
-            .load_frag(VPath("src/shaders/dfr_geometry_mat_dsn.frag"))
-            .get()
-        };
+    ShaderToken sp_dsn_noat = shader_pool().get({
+        .vert = VPath("src/shaders/dfr_geometry_mat_dsn.vert"),
+        .frag = VPath("src/shaders/dfr_geometry_mat_dsn.frag")});
 
 
     SharedStorageMutableView<GBuffer> gbuffer_;

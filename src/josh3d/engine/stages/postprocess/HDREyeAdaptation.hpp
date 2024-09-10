@@ -4,7 +4,7 @@
 #include "GLObjectHelpers.hpp"
 #include "GLObjects.hpp"
 #include "RenderEngine.hpp"
-#include "ShaderBuilder.hpp"
+#include "ShaderPool.hpp"
 #include "StaticRing.hpp"
 #include "VPath.hpp"
 #include "Size.hpp"
@@ -14,10 +14,8 @@
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
 #include <glbinding/gl/types.h>
-#include <cmath>
 #include <glm/fwd.hpp>
-
-
+#include <cmath>
 
 
 namespace josh::stages::postprocess {
@@ -56,27 +54,17 @@ public:
     void operator()(RenderEnginePostprocessInterface& engine);
 
 
-
 private:
-    UniqueProgram sp_tonemap_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/postprocess.vert"))
-            .load_frag(VPath("src/shaders/pp_hdr_eye_adaptation_tonemap.frag"))
-            .get()
-    };
 
-    UniqueProgram sp_block_reduce_{
-        ShaderBuilder()
-            .load_comp(VPath("src/shaders/pp_hdr_eye_adaptation_sample_image_block.comp"))
-            .get()
-    };
+    ShaderToken sp_tonemap_ = shader_pool().get({
+        .vert = VPath("src/shaders/postprocess.vert"),
+        .frag = VPath("src/shaders/pp_hdr_eye_adaptation_tonemap.frag")});
 
-    UniqueProgram sp_recursive_reduce_{
-        ShaderBuilder()
-            .load_comp(VPath("src/shaders/pp_hdr_eye_adaptation_recursive_reduce.comp"))
-            .get()
-    };
+    ShaderToken sp_block_reduce_ = shader_pool().get({
+        .comp = VPath("src/shaders/pp_hdr_eye_adaptation_sample_image_block.comp")});
 
+    ShaderToken sp_recursive_reduce_ = shader_pool().get({
+        .comp = VPath("src/shaders/pp_hdr_eye_adaptation_recursive_reduce.comp")});
 
     // Doublebuffering for the buffers that contain screen values,
     // so that the adaptation shader could write the new screen value
@@ -148,57 +136,60 @@ inline void HDREyeAdaptation::operator()(
         intermediate_buf_->bind_to_index<BufferTargetIndexed::ShaderStorage>(0);
 
         // Do a first block extraction reduce pass.
-
-        sp_block_reduce_->uniform("screen_color", 0);
         {
-            BindGuard bound_program = sp_block_reduce_->use();
-            glapi::dispatch_compute(bound_program, dims.width, dims.height, 1);
+            const auto sp = sp_block_reduce_.get();
+            sp.uniform("screen_color", 0);
+            glapi::dispatch_compute(sp.use(), dims.width, dims.height, 1);
         }
 
         // Do a recursive reduction on the intermediate buffer.
         // Take the mean and write the result into the the next_value_buffer().
+        {
+            const auto sp = sp_recursive_reduce_.get();
 
-        auto div_up = [](auto val, auto denom) {
-            bool up = val % denom;
-            return val / denom + up;
-        };
+            auto div_up = [](auto val, auto denom) {
+                bool up = val % denom;
+                return val / denom + up;
+            };
 
-        value_bufs_.current()->bind_to_index<BufferTargetIndexed::ShaderStorage>(1); // Read
-        value_bufs_.next()   ->bind_to_index<BufferTargetIndexed::ShaderStorage>(2); // Write
+            value_bufs_.current()->bind_to_index<BufferTargetIndexed::ShaderStorage>(1); // Read
+            value_bufs_.next()   ->bind_to_index<BufferTargetIndexed::ShaderStorage>(2); // Write
 
-        const float fold_weight = adaptation_rate * engine.frame_timer().delta<float>();
+            const float fold_weight = adaptation_rate * engine.frame_timer().delta<float>();
 
 
-        sp_recursive_reduce_->uniform("mean_fold_weight", fold_weight);
-        sp_recursive_reduce_->uniform("block_size",       GLuint(block_size));
+            sp.uniform("mean_fold_weight", fold_weight);
+            sp.uniform("block_size",       GLuint(block_size));
 
-        size_t num_workgroups = buf_size;
-        GLuint dispatch_depth{ 0 };
+            size_t num_workgroups = buf_size;
+            GLuint dispatch_depth{ 0 };
 
-        BindGuard bound_program = sp_recursive_reduce_->use();
-        do {
-            num_workgroups = div_up(num_workgroups, batch_size);
+            BindGuard bound_program = sp.use();
+            do {
+                num_workgroups = div_up(num_workgroups, batch_size);
 
-            sp_recursive_reduce_->uniform("dispatch_depth", dispatch_depth);
+                sp.uniform("dispatch_depth", dispatch_depth);
 
-            glapi::memory_barrier(BarrierMask::ShaderStorageBit);
-            glapi::dispatch_compute(bound_program, num_workgroups, 1, 1);
+                glapi::memory_barrier(BarrierMask::ShaderStorageBit);
+                glapi::dispatch_compute(bound_program, num_workgroups, 1, 1);
 
-            ++dispatch_depth;
-        } while (num_workgroups > 1);
+                ++dispatch_depth;
+            } while (num_workgroups > 1);
 
-        assert(num_workgroups == 1);
-
+            assert(num_workgroups == 1);
+        }
     }
 
     // Do a tonemapping pass.
-    value_bufs_.current()->bind_to_index<BufferTargetIndexed::ShaderStorage>(1);
-    sp_tonemap_->uniform("color",           0);
-    sp_tonemap_->uniform("value_range",     value_range);
-    sp_tonemap_->uniform("exposure_factor", exposure_factor);
-
     {
-        BindGuard bound_program = sp_tonemap_->use();
+        const auto sp = sp_tonemap_.get();
+
+        value_bufs_.current()->bind_to_index<BufferTargetIndexed::ShaderStorage>(1);
+        sp.uniform("color",           0);
+        sp.uniform("value_range",     value_range);
+        sp.uniform("exposure_factor", exposure_factor);
+
+        BindGuard bound_program = sp.use();
         glapi::memory_barrier(BarrierMask::ShaderStorageBit);
         engine.draw(bound_program);
     }

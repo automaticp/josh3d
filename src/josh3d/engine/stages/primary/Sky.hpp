@@ -4,12 +4,12 @@
 #include "GLAPIBinding.hpp"
 #include "GLAPICommonTypes.hpp"
 #include "GLProgram.hpp"
+#include "ShaderPool.hpp"
 #include "TextureHelpers.hpp"
 #include "Transform.hpp"
-#include "UniformTraits.hpp" // IWYU pragma: keep (traits)
+#include "UniformTraits.hpp"
 #include "LightCasters.hpp"
 #include "RenderEngine.hpp"
-#include "ShaderBuilder.hpp"
 #include "Skybox.hpp"
 #include "VPath.hpp"
 #include <entt/entity/fwd.hpp>
@@ -44,19 +44,13 @@ public:
 
 
 private:
-    UniqueProgram sp_skybox_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/skybox.vert"))
-            .load_frag(VPath("src/shaders/skybox.frag"))
-            .get()
-    };
+    ShaderToken sp_skybox_ = shader_pool().get({
+        .vert = VPath("src/shaders/skybox.vert"),
+        .frag = VPath("src/shaders/skybox.frag")});
 
-    UniqueProgram sp_proc_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/sky_procedural.vert"))
-            .load_frag(VPath("src/shaders/sky_procedural.frag"))
-            .get()
-    };
+    ShaderToken sp_proc_ = shader_pool().get({
+        .vert = VPath("src/shaders/sky_procedural.vert"),
+        .frag = VPath("src/shaders/sky_procedural.frag")});
 
     UniqueCubemap debug_skybox_cubemap_ = load_debug_skybox();
 
@@ -67,11 +61,11 @@ private:
 
     void draw_skybox(
         RenderEnginePrimaryInterface& engine,
-        const entt::registry& registry);
+        const entt::registry&         registry);
 
     void draw_procedural_sky(
         RenderEnginePrimaryInterface& engine,
-        const entt::registry& registry);
+        const entt::registry&         registry);
 
 };
 
@@ -122,10 +116,12 @@ inline void Sky::draw_debug_skybox(
     debug_skybox_cubemap_->bind_to_texture_unit(0);
 
     BindGuard bound_camera_ubo = engine.bind_camera_ubo();
-    sp_skybox_->uniform("cubemap", 0);
+    const RawProgram<> sp = sp_skybox_.get();
+
+    sp.uniform("cubemap", 0);
 
     {
-        BindGuard bound_program = sp_skybox_->use();
+        BindGuard bound_program = sp.use();
         engine.draw([&](auto bound_fbo) {
             engine.primitives().box_mesh().draw(bound_program, bound_fbo);
         });
@@ -145,10 +141,12 @@ inline void Sky::draw_skybox(
         skybox_handle.get<Skybox>().cubemap->bind_to_texture_unit(0);
 
         BindGuard bound_camera_ubo = engine.bind_camera_ubo();
-        sp_skybox_->uniform("cubemap", 0);
+        const RawProgram<> sp = sp_skybox_;
+
+        sp.uniform("cubemap", 0);
 
         {
-            BindGuard bound_program = sp_skybox_->use();
+            BindGuard bound_program = sp.use();
             engine.draw([&](auto bound_fbo) {
                 engine.primitives().box_mesh().draw(bound_program, bound_fbo);
             });

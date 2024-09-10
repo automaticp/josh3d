@@ -1,8 +1,10 @@
 #include "RenderEngine.hpp"
 #include "Active.hpp"
+#include "EnumUtils.hpp"
 #include "Camera.hpp"
 #include "GLFramebuffer.hpp"
 #include "GLObjects.hpp"
+#include "GLTextures.hpp"
 #include "RenderStage.hpp"
 #include "Transform.hpp"
 #include "WindowSizeCache.hpp"
@@ -20,7 +22,84 @@
 namespace josh {
 
 
+auto RenderEngine::make_main_depth(const Size2I& resolution)
+    -> DepthAttachment
+{
+    DepthAttachment depth{ InternalFormat::Depth24_Stencil8 };
+    depth.resize(resolution);
+    return depth;
+}
+
+
+auto RenderEngine::make_main_swapchain(
+    const Size2I&    resolution,
+    InternalFormat   iformat,
+    DepthAttachment& depth)
+        -> SwapChain<MainTarget>
+{
+    return {
+        MainTarget{ resolution, depth.share(), { iformat } },
+        MainTarget{ resolution, depth.share(), { iformat } }
+    };
+}
+
+
+
+RenderEngine::RenderEngine(
+    entt::registry&    registry,
+    const Primitives&  primitives,
+    const Size2I&      main_resolution,
+    HDRFormat          main_buffer_format,
+    const FrameTimer&  frame_timer // TODO: Should not be a reference.
+)
+    : main_buffer_format{ main_buffer_format }
+    , main_resolution   { main_resolution    }
+    , registry_         { registry        }
+    , primitives_       { primitives      }
+    , frame_timer_      { frame_timer     }
+    , main_depth_       {
+        make_main_depth(main_resolution)
+    }
+    , main_swapchain_   {
+        make_main_swapchain(
+            main_resolution,
+            enum_cast<InternalFormat>(main_buffer_format),
+            main_depth_
+        )
+    }
+{}
+
+
+
+
 void RenderEngine::render() {
+
+    // Update main render buffer if necessary.
+    const bool resolution_changed =
+        main_resolution != main_swapchain_.resolution();
+
+    const bool iformat_changed =
+        enum_cast<InternalFormat>(main_buffer_format) !=
+            main_swapchain_.back_target().color_attachment().internal_format();
+
+    if (resolution_changed || iformat_changed) {
+
+        main_depth_.resize(main_resolution);
+
+        if (iformat_changed) {
+
+            const InternalFormat new_iformat = enum_cast<InternalFormat>(main_buffer_format);
+            // Will also reattach new depth.
+            main_swapchain_ = make_main_swapchain(main_resolution, new_iformat, main_depth_);
+
+        } else {
+
+            main_swapchain_.resize(main_resolution);
+            main_swapchain_.front_target().reset_depth_attachment(main_depth_.share());
+            main_swapchain_.back_target() .reset_depth_attachment(main_depth_.share());
+
+        }
+    }
 
     // Update camera.
     // TODO: Orthographic has no notion of aspect_ratio.
@@ -29,7 +108,7 @@ void RenderEngine::render() {
     if (const auto camera = get_active<Camera>(registry_)) {
         Camera& cam = camera.get<Camera>();
         auto params = cam.get_params();
-        params.aspect_ratio = main_resolution().aspect_ratio();
+        params.aspect_ratio = main_resolution.aspect_ratio();
         cam.update_params(params);
 
         glm::mat4 view{ 1.f };
@@ -40,7 +119,7 @@ void RenderEngine::render() {
     }
 
     // Update viewport.
-    glapi::set_viewport({ {}, main_resolution() });
+    glapi::set_viewport({ {}, main_resolution });
 
 
     // Precompute.
@@ -67,7 +146,7 @@ void RenderEngine::render() {
 
     main_swapchain_.front_target().framebuffer().blit_to(
         default_fbo_,
-        { {}, main_resolution()           }, // Internal rendering resolution.
+        { {}, main_resolution             }, // Internal rendering resolution.
         { {}, globals::window_size.size() }, // This is technically window size and can technically differ, technically.
         BufferMask::ColorBit | BufferMask::DepthBit,
         BlitFilter::Nearest

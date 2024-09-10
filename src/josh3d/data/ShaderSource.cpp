@@ -9,7 +9,7 @@ namespace josh {
 auto ShaderSource::find_version_directive() const noexcept
     -> std::optional<VersionInfo>
 {
-    // 1 or 2 captures:                        (c 1)   (capture 2 optional)
+    // 1 or 2 captures:                                   (c 1)   (capture 2 optional)
     auto m  = ctre::multiline_search<R"(^\h*#\h*version\h+(\d+)\h+(core|compatibility)?\h*$)">(text_);
 
     if (m) {
@@ -29,7 +29,7 @@ auto ShaderSource::find_version_directive() const noexcept
 auto ShaderSource::find_include_directive() const noexcept
     -> std::optional<IncludeInfo>
 {
-    // 1 capture:                             (capture 1)
+    // 1 capture:                                        (capture 1)
     auto m = ctre::multiline_search<R"(^\h*#\h*include\h*(<.+>|".+")\h*$)">(text_);
     // Captures either: "..." or <...>, so need to strip chars later.
 

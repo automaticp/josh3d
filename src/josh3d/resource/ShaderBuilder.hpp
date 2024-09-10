@@ -257,8 +257,8 @@ inline void ShaderBuilder::UnevaluatedShader::resolve_includes() {
 
             included.emplace(canonical_path);
         }
-    };
-};
+    }
+}
 
 
 

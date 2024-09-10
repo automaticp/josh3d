@@ -2,6 +2,7 @@
 #include "detail/SimpleStageHookMacro.hpp"
 // IWYU pragma: begin_keep
 #include "stages/postprocess/Bloom.hpp"
+#include "stages/postprocess/Bloom2.hpp"
 #include "stages/postprocess/Fog.hpp"
 #include "stages/postprocess/FXAA.hpp"
 #include "stages/postprocess/GammaCorrection.hpp"
@@ -72,6 +73,23 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(postprocess, Bloom) {
 
         ImGui::TreePop();
     }
+
+}
+
+
+JOSH3D_SIMPLE_STAGE_HOOK_BODY(postprocess, Bloom2) {
+
+    ImGui::Checkbox("Use Bloom", &stage_.enable_bloom);
+    int max_levels = int(stage_.max_downsample_levels);
+    if (ImGui::SliderInt("Max Levels", &max_levels, 1, 20)) {
+        stage_.max_downsample_levels = max_levels;
+    }
+    ImGui::BeginDisabled();
+    int available_levels = int(stage_.num_available_levels());
+    ImGui::InputInt("Available Levels", &available_levels);
+    ImGui::EndDisabled();
+    ImGui::SliderFloat("Bloom Weight", &stage_.bloom_weight, 0.f, 1.f, "%.3f", ImGuiSliderFlags_Logarithmic);
+    ImGui::SliderFloat("Filter Scale, px", &stage_.filter_scale_px, 0.01f, 100.f, "%.3f", ImGuiSliderFlags_Logarithmic);
 
 }
 

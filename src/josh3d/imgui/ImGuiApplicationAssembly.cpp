@@ -12,6 +12,7 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <cstdio>
+#include <iterator>
 
 
 
@@ -193,6 +194,35 @@ void ImGuiApplicationAssembly::draw_widgets() {
                     0.001f, 5.f, "%.3f", ImGuiSliderFlags_Logarithmic
                 );
                 ImGui::EndDisabled();
+
+                using HDRFormat = RenderEngine::HDRFormat;
+
+                const HDRFormat formats[3]{
+                    HDRFormat::R11F_G11F_B10F,
+                    HDRFormat::RGB16F,
+                    HDRFormat::RGB32F
+                };
+
+                const char* format_names[3]{
+                    "R11F_G11F_B10F",
+                    "RGB16F",
+                    "RGB32F",
+                };
+
+                size_t current_idx = 0;
+                for (const HDRFormat format : formats) {
+                    if (format == engine_.main_buffer_format) { break; }
+                    ++current_idx;
+                }
+
+                if (ImGui::BeginCombo("HDR Format", format_names[current_idx])) {
+                    for (size_t i{ 0 }; i < std::size(formats); ++i) {
+                        if (ImGui::Selectable(format_names[i], current_idx == i)) {
+                            engine_.main_buffer_format = formats[i];
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
 
                 ImGui::EndMenu();
             }

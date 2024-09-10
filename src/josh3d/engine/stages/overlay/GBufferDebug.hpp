@@ -2,10 +2,10 @@
 #include "GLAPIBinding.hpp"
 #include "GLAPICommonTypes.hpp"
 #include "GLObjects.hpp"
+#include "ShaderPool.hpp"
 #include "stages/primary/GBufferStorage.hpp"
 #include "EnumUtils.hpp"
 #include "RenderEngine.hpp"
-#include "ShaderBuilder.hpp"
 #include "SharedStorage.hpp"
 #include "GLScalars.hpp"
 #include "VPath.hpp"
@@ -45,20 +45,15 @@ public:
 private:
     SharedStorageView<GBuffer> gbuffer_;
 
-    UniqueProgram sp_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/postprocess.vert"))
-            .load_frag(VPath("src/shaders/ovl_gbuffer_debug.frag"))
-            .get()
-    };
+    ShaderToken sp_ = shader_pool().get({
+        .vert = VPath("src/shaders/postprocess.vert"),
+        .frag = VPath("src/shaders/ovl_gbuffer_debug.frag")});
 
     UniqueSampler integer_sampler_ = [] {
         UniqueSampler s;
         s->set_min_mag_filters(MinFilter::Nearest, MagFilter::Nearest);
         return s;
     }();
-
-
 
 };
 
@@ -83,15 +78,17 @@ inline void GBufferDebug::operator()(
 
     BindGuard bound_integer_sampler = integer_sampler_->bind_to_texture_unit(4);
 
-    sp_->uniform("mode",                 to_underlying(mode));
-    sp_->uniform("gbuffer.tex_depth",    0);
-    sp_->uniform("gbuffer.tex_normals",  1);
-    sp_->uniform("gbuffer.tex_albedo",   2);
-    sp_->uniform("gbuffer.tex_specular", 3);
-    sp_->uniform("tex_object_id",        4);
+    const auto sp = sp_.get();
+
+    sp.uniform("mode",                 to_underlying(mode));
+    sp.uniform("gbuffer.tex_depth",    0);
+    sp.uniform("gbuffer.tex_normals",  1);
+    sp.uniform("gbuffer.tex_albedo",   2);
+    sp.uniform("gbuffer.tex_specular", 3);
+    sp.uniform("tex_object_id",        4);
 
 
-    engine.draw_fullscreen_quad(sp_->use());
+    engine.draw_fullscreen_quad(sp.use());
 
 }
 

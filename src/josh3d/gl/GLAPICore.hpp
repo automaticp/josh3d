@@ -484,7 +484,13 @@ inline void memory_barrier(BarrierMask barriers) noexcept {
 
 
 
+namespace glapi {
 
+inline void texture_barrier() noexcept {
+    gl::glTextureBarrier();
+}
+
+} // namespace glapi
 
 
 

@@ -151,12 +151,13 @@ void PointShadowMapping::map_point_shadows(
 
 
     {
-        BindGuard bound_program = sp_with_alpha_->use();
+        const RawProgram<> sp = sp_with_alpha_;
+        BindGuard bound_program = sp.use();
 
         for (GLint cubemap_id{ 0 };
             auto [_, plight, mtf, sphere] : plights_with_shadows_view.each())
         {
-            set_per_light_uniforms(sp_with_alpha_, mtf.decompose_position(), cubemap_id, z_near, sphere.radius);
+            set_per_light_uniforms(sp, mtf.decompose_position(), cubemap_id, z_near, sphere.radius);
             draw_all_world_geometry_with_alpha_test(bound_program, bound_fbo, registry);
 
             ++cubemap_id;
@@ -165,12 +166,13 @@ void PointShadowMapping::map_point_shadows(
 
 
     {
-        BindGuard bound_program = sp_no_alpha_->use();
+        const RawProgram<> sp = sp_no_alpha_;
+        BindGuard bound_program = sp.use();
 
         for (GLint cubemap_id{ 0 };
             auto [_, plight, mtf, sphere] : plights_with_shadows_view.each())
         {
-            set_per_light_uniforms(sp_no_alpha_, mtf.decompose_position(), cubemap_id, z_near, sphere.radius);
+            set_per_light_uniforms(sp, mtf.decompose_position(), cubemap_id, z_near, sphere.radius);
             draw_all_world_geometry_no_alpha_test(bound_program, bound_fbo, registry);
 
             ++cubemap_id;
@@ -192,9 +194,10 @@ void PointShadowMapping::draw_all_world_geometry_no_alpha_test(
     // Assumes that projection and view are already set.
 
     auto draw_from_view = [&](auto view) {
-        const Location model_loc = sp_no_alpha_->get_uniform_location("model");
+        const RawProgram<> sp = sp_no_alpha_;
+        const Location model_loc = sp.get_uniform_location("model");
         for (auto [entity, world_mtf, mesh] : view.each()) {
-            sp_no_alpha_->uniform(model_loc, world_mtf.model());
+            sp.uniform(model_loc, world_mtf.model());
             mesh.draw(bound_program, bound_fbo);
         }
     };
@@ -204,13 +207,8 @@ void PointShadowMapping::draw_all_world_geometry_no_alpha_test(
     //
     // Both ignore Alpha-Testing.
 
-    draw_from_view(
-        registry.view<MTransform, Mesh>(entt::exclude<AlphaTested>)
-    );
-
-    draw_from_view(
-        registry.view<MTransform, Mesh, AlphaTested>(entt::exclude<MaterialDiffuse>)
-    );
+    draw_from_view(registry.view<MTransform, Mesh>(entt::exclude<AlphaTested>));
+    draw_from_view(registry.view<MTransform, Mesh, AlphaTested>(entt::exclude<MaterialDiffuse>));
 
 }
 
@@ -221,19 +219,20 @@ void PointShadowMapping::draw_all_world_geometry_with_alpha_test(
     const entt::registry&               registry)
 {
     // Assumes that projection and view are already set.
+    const RawProgram<> sp = sp_with_alpha_;
 
-    sp_with_alpha_->uniform("material.diffuse", 0);
+    sp.uniform("material.diffuse", 0);
 
     auto meshes_with_alpha_view =
         registry.view<MTransform, Mesh, MaterialDiffuse, AlphaTested>();
 
 
-    const Location model_loc = sp_with_alpha_->get_uniform_location("model");
+    const Location model_loc = sp.get_uniform_location("model");
     for (auto [entity, world_mtf, mesh, diffuse]
         : meshes_with_alpha_view.each())
     {
         diffuse.texture->bind_to_texture_unit(0);
-        sp_with_alpha_->uniform(model_loc, world_mtf.model());
+        sp.uniform(model_loc, world_mtf.model());
         mesh.draw(bound_program, bound_fbo);
     }
 

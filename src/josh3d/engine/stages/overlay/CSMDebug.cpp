@@ -31,6 +31,7 @@ void CSMDebug::draw_views_overlay(
 
         const glm::vec3 light_dir = dlight.get<Transform>().orientation() * glm::vec3{ 0.f, 0.f, -1.f };
 
+        const auto sp = sp_views_.get();
         BindGuard bound_camera = engine.bind_camera_ubo();
 
         csm_views_buf_.restage(cascades_->views | std::views::transform(CascadeViewGPU::create_from));
@@ -39,15 +40,15 @@ void CSMDebug::draw_views_overlay(
         gbuffer_->depth_texture()  .bind_to_texture_unit(0);
         gbuffer_->normals_texture().bind_to_texture_unit(1);
 
-        sp_views_->uniform("tex_depth",   0);
-        sp_views_->uniform("tex_normals", 1);
+        sp.uniform("tex_depth",   0);
+        sp.uniform("tex_normals", 1);
 
-        sp_views_->uniform("dir_light.color",     dlight.get<DirectionalLight>().color);
-        sp_views_->uniform("dir_light.direction", light_dir);
+        sp.uniform("dir_light.color",     dlight.get<DirectionalLight>().color);
+        sp.uniform("dir_light.direction", light_dir);
 
         glapi::disable(Capability::DepthTesting);
         {
-            BindGuard bound_program = sp_views_->use();
+            BindGuard bound_program = sp.use();
             engine.draw_fullscreen_quad(bound_program);
         }
         glapi::enable(Capability::DepthTesting);
@@ -59,16 +60,16 @@ void CSMDebug::draw_views_overlay(
 void CSMDebug::draw_maps_overlay(
     RenderEngineOverlayInterface& engine)
 {
-
+    const auto sp = sp_maps_.get();
     cascades_->maps.depth_attachment().texture() .bind_to_texture_unit(0);
     BindGuard bound_maps_sampler = maps_sampler_->bind_to_texture_unit(0);
 
-    sp_maps_->uniform("cascades",   0);
-    sp_maps_->uniform("cascade_id", cascade_id);
+    sp.uniform("cascades",   0);
+    sp.uniform("cascade_id", cascade_id);
 
     glapi::disable(Capability::DepthTesting);
     {
-        BindGuard bound_program = sp_maps_->use();
+        BindGuard bound_program = sp.use();
         engine.draw_fullscreen_quad(bound_program);
     }
     glapi::enable(Capability::DepthTesting);

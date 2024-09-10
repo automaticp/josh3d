@@ -70,7 +70,7 @@ void SceneOverlays::draw_selected_highlight(
         // and that will include 0 and 1 too. Also, importantly, this excludes
         // previously drawn outlines, so they are not overwritten.
         {
-            RawProgram<> sp = sp_highlight_stencil_prep_;
+            const RawProgram<> sp = sp_highlight_stencil_prep_;
             BindGuard bound_program = sp.use();
 
             const Location model_loc = sp.get_uniform_location("model");
@@ -179,7 +179,8 @@ void SceneOverlays::draw_selected_highlight(
         glapi::set_blend_factors(BlendFactor::SrcAlpha, BlendFactor::OneMinusSrcAlpha);
 
         {
-            BindGuard bound_program = sp_highlight_->use();
+            const RawProgram<> sp = sp_highlight_;
+            BindGuard bound_program = sp.use();
 
 
             // Outline.
@@ -194,7 +195,7 @@ void SceneOverlays::draw_selected_highlight(
                 StencilOp::Keep, // spass->dfail
                 StencilOp::Keep  // spass->dpass
             );
-            sp_highlight_->uniform("color", params.outline_color);
+            sp.uniform("color", params.outline_color);
             engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
 
 
@@ -205,7 +206,7 @@ void SceneOverlays::draw_selected_highlight(
                 StencilOp::Keep, // spass->dfail
                 StencilOp::Keep  // spass->dpass
             );
-            sp_highlight_->uniform("color", params.inner_fill_color);
+            sp.uniform("color", params.inner_fill_color);
             engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
 
         }

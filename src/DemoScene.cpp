@@ -11,6 +11,7 @@
 #include "LightCasters.hpp"
 #include "Primitives.hpp"
 #include "SceneGraph.hpp"
+#include "ShaderPool.hpp"
 #include "SharedStorage.hpp"
 #include "WindowSizeCache.hpp"
 #include "FrameTimer.hpp"
@@ -19,15 +20,15 @@
 #include "VPath.hpp"
 #include "VirtualFilesystem.hpp"
 #include "stages/overlay/SceneOverlays.hpp"
-#include "stages/precompute/BoundingVolumeResolution.hpp"
 #include "tags/Selected.hpp"
 #include "tags/ShadowCasting.hpp"
 #include "Filesystem.hpp"
 #include "Tags.hpp"
 
 #include "stages/precompute/PointLightSetup.hpp"
-#include "stages/precompute/FrustumCulling.hpp"
 #include "stages/precompute/TransformResolution.hpp"
+#include "stages/precompute/BoundingVolumeResolution.hpp"
+#include "stages/precompute/FrustumCulling.hpp"
 #include "stages/primary/CascadedShadowMapping.hpp"
 #include "stages/primary/PointShadowMapping.hpp"
 #include "stages/primary/SSAO.hpp"
@@ -38,7 +39,7 @@
 #include "stages/primary/DeferredShading.hpp"
 #include "stages/primary/LightDummies.hpp"
 #include "stages/primary/Sky.hpp"
-#include "stages/postprocess/Bloom.hpp"
+#include "stages/postprocess/Bloom2.hpp"
 #include "stages/postprocess/FXAA.hpp"
 #include "stages/postprocess/HDREyeAdaptation.hpp"
 #include "stages/postprocess/Fog.hpp"
@@ -105,6 +106,10 @@ void DemoScene::update() {
         }
     }
 
+    if (shader_pool().supports_hot_reload()) {
+        shader_pool().hot_reload();
+    }
+
 }
 
 
@@ -122,7 +127,13 @@ DemoScene::DemoScene(glfw::Window& window)
     , assmanager_   { vfs(), window           }
     , importer_     { assmanager_, registry_  }
     , primitives_   { assmanager_             }
-    , rengine_      { registry_, primitives_, globals::window_size.size_ref(), globals::frame_timer }
+    , rengine_      {
+        registry_,
+        primitives_,
+        globals::window_size.size_ref(),
+        RenderEngine::HDRFormat::R11F_G11F_B10F,
+        globals::frame_timer
+    }
     , input_blocker_{                         }
     , input_        { window_, input_blocker_ }
     , input_freecam_{                         }
@@ -138,10 +149,10 @@ DemoScene::DemoScene(glfw::Window& window)
 
     auto psmapping   = stages::primary::PointShadowMapping();
     auto csmapping   = stages::primary::CascadedShadowMapping();
-    auto idbuffer    = stages::primary::IDBufferStorage(rengine_.main_resolution());
+    auto idbuffer    = stages::primary::IDBufferStorage(rengine_.main_resolution);
     auto gbuffer     =
         stages::primary::GBufferStorage(
-            rengine_.main_resolution(),
+            rengine_.main_resolution,
             // This is me sharing the depth target between the GBuffer and the
             // main framebuffer of the RenderEngine, so that deferred and forward draws
             // would overlap properly. Seems to work so far...
@@ -167,8 +178,8 @@ DemoScene::DemoScene(glfw::Window& window)
 
 
     auto fog       = stages::postprocess::Fog();
-    auto blooming  = stages::postprocess::Bloom(rengine_.main_resolution());
-    auto hdreyeing = stages::postprocess::HDREyeAdaptation(rengine_.main_resolution());
+    auto bloom2    = stages::postprocess::Bloom2();
+    auto hdreyeing = stages::postprocess::HDREyeAdaptation(rengine_.main_resolution);
     auto fxaaaaaaa = stages::postprocess::FXAA();
 
 
@@ -196,7 +207,7 @@ DemoScene::DemoScene(glfw::Window& window)
     imgui_.stage_hooks().add_hook(imguihooks::primary::LightDummies());
     imgui_.stage_hooks().add_hook(imguihooks::primary::Sky());
     imgui_.stage_hooks().add_hook(imguihooks::postprocess::Fog());
-    imgui_.stage_hooks().add_hook(imguihooks::postprocess::Bloom());
+    imgui_.stage_hooks().add_hook(imguihooks::postprocess::Bloom2());
     imgui_.stage_hooks().add_hook(imguihooks::postprocess::HDREyeAdaptation());
     imgui_.stage_hooks().add_hook(imguihooks::postprocess::FXAA());
     imgui_.stage_hooks().add_hook(imguihooks::overlay::GBufferDebug());
@@ -223,10 +234,10 @@ DemoScene::DemoScene(glfw::Window& window)
     rengine_.add_next_primary_stage("Light Dummies",             std::move(lightdummies));
     rengine_.add_next_primary_stage("Sky",                       std::move(sky));
 
-    rengine_.add_next_postprocess_stage("Fog",                std::move(fog));
-    rengine_.add_next_postprocess_stage("Bloom",              std::move(blooming));
+    rengine_.add_next_postprocess_stage("Fog",                std::move(fog));       // NOLINT(performance-move-const-arg)
+    rengine_.add_next_postprocess_stage("Bloom2",             std::move(bloom2));
     rengine_.add_next_postprocess_stage("HDR Eye Adaptation", std::move(hdreyeing));
-    rengine_.add_next_postprocess_stage("FXAA",               std::move(fxaaaaaaa));
+    rengine_.add_next_postprocess_stage("FXAA",               std::move(fxaaaaaaa)); // NOLINT(performance-move-const-arg)
 
     rengine_.add_next_overlay_stage("GBuffer Debug",  std::move(gbugger));
     rengine_.add_next_overlay_stage("CSM Debug",      std::move(csmbugger));
@@ -241,7 +252,7 @@ DemoScene::DemoScene(glfw::Window& window)
 
 
 
-inline void DemoScene::configure_input(SharedStorageView<GBuffer> gbuffer) {
+void DemoScene::configure_input(SharedStorageView<GBuffer> gbuffer) {
 
     input_freecam_.configure(input_);
 
@@ -346,7 +357,7 @@ inline void DemoScene::configure_input(SharedStorageView<GBuffer> gbuffer) {
     window_.framebufferSizeEvent.setCallback(
         [this](glfw::Window& /* window */ , int w, int h) {
             globals::window_size.set_to({ w, h });
-            rengine_.resize({ w, h });
+            rengine_.main_resolution = { w, h };
         }
     );
 

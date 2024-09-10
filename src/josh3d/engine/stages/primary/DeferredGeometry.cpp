@@ -117,8 +117,8 @@ void DeferredGeometry::operator()(
         glapi::disable(Capability::FaceCulling);
     }
 
-    draw_ds (sp_ds_noat,  view_ds_noat );
-    draw_dsn(sp_dsn_noat, view_dsn_noat);
+    draw_ds (sp_ds_noat.get(),  view_ds_noat );
+    draw_dsn(sp_dsn_noat.get(), view_dsn_noat);
 
 
     // Alpha-Tested.
@@ -126,8 +126,8 @@ void DeferredGeometry::operator()(
 
     glapi::disable(Capability::FaceCulling);
 
-    draw_ds (sp_ds_at,  view_ds_at );
-    draw_dsn(sp_dsn_at, view_dsn_at);
+    draw_ds (sp_ds_at.get(),  view_ds_at );
+    draw_dsn(sp_dsn_at.get(), view_dsn_at);
 
 }
 

@@ -95,7 +95,7 @@ void DeferredShading::draw_singlepass(
     const auto& registry = engine.registry();
     BindGuard bound_camera_ubo = engine.bind_camera_ubo();
 
-    const RawProgram<> sp = sp_singlepass_;
+    const RawProgram<> sp = sp_singlepass_.get();
 
     // GBuffer.
     gbuffer_->depth_texture()   .bind_to_texture_unit(0);
@@ -238,7 +238,7 @@ void DeferredShading::draw_multipass(
 
     // Ambient + Directional Light Pass.
     {
-        const RawProgram<> sp = sp_pass_ambi_dir_;
+        const RawProgram<> sp = sp_pass_ambi_dir_.get();
         BindGuard bound_program = sp.use();
 
         set_common_uniforms(sp);
@@ -335,7 +335,7 @@ void DeferredShading::draw_multipass(
 
     // Point Lights No Shadows Pass.
     if (plights_no_shadow_buf_.num_staged() != 0) {
-        const RawProgram<> sp = sp_pass_plight_no_shadow_;
+        const RawProgram<> sp = sp_pass_plight_no_shadow_.get();
         BindGuard bound_program = sp.use();
 
         set_common_uniforms(sp);
@@ -348,7 +348,7 @@ void DeferredShading::draw_multipass(
 
     // Point Lights With Shadows Pass.
     if (plights_with_shadow_buf_.num_staged() != 0) {
-        const RawProgram<> sp = sp_pass_plight_with_shadow_;
+        const RawProgram<> sp = sp_pass_plight_with_shadow_.get();
         BindGuard bound_program = sp.use();
 
         set_common_uniforms(sp);
