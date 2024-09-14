@@ -255,21 +255,31 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(postprocess, HDREyeAdaptation) {
         stage_.num_y_sample_blocks = num_y_samples;
     }
 
-    auto dims = stage_.get_sampling_block_dims();
-    ImGui::Text(
-        "Num Blocks: (%lu, %lu)[%lu]",
-        dims.width, dims.height, dims.area()
-    );
+    ImGui::Checkbox("Read Back Exposure", &stage_.read_back_exposure);
 
-    ImGui::Text(
-        "Block Size: (%lu, %lu)[%lu]",
-        stage_.block_dims.width, stage_.block_dims.height, stage_.block_size
-    );
+    if (ImGui::TreeNode("Stats")) {
 
-    ImGui::Text(
-        "Num Samples: (%lu, %lu)[%lu]",
-        dims.width * 8, dims.height * 8, dims.area() * 64
-    );
+        ImGui::Text("Latest Exposure: %.3f",     stage_.view_output().exposure);
+        ImGui::Text("Latest Screen Value: %.3f", stage_.view_output().screen_value);
+        ImGui::Text("Latency (Frames): %lu",     stage_.view_output().latency_in_frames);
 
+        auto dims = stage_.get_sampling_block_dims();
+        ImGui::Text(
+            "Num Blocks: (%lu, %lu)[%lu]",
+            dims.width, dims.height, dims.area()
+        );
+
+        ImGui::Text(
+            "Block Size: (%lu, %lu)[%lu]",
+            stage_.block_dims.width, stage_.block_dims.height, stage_.block_size
+        );
+
+        ImGui::Text(
+            "Num Samples: (%lu, %lu)[%lu]",
+            dims.width * 8, dims.height * 8, dims.area() * 64
+        );
+
+        ImGui::TreePop();
+    }
 
 }

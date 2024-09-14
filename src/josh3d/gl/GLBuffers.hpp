@@ -448,7 +448,7 @@ public:
 private:
     std::span<T> get_current_mapping_span_impl() const noexcept {
         NumElems num_elements = get_current_mapping_size();
-        const void* ptr;
+        void* ptr;
         gl::glGetNamedBufferPointerv(self_id(), gl::GL_BUFFER_MAP_POINTER, &ptr);
         return { static_cast<T*>(ptr), num_elements };
     }

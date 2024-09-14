@@ -8,6 +8,7 @@
 #include "GLObjects.hpp"
 #include <cassert>
 #include <iterator>
+#include <algorithm>
 #include <ranges>
 
 
@@ -119,7 +120,13 @@ template<trivially_copyable T>
 void UploadBuffer<T>::ensure_synced() {
     if (!is_synced()) {
         // TODO: Do we care about flags? Because they will be defaulted here.
-        expand_to_fit_amortized(buffer_, num_staged());
+        const bool was_reallocated =
+            expand_to_fit_amortized(buffer_, num_staged());
+
+        if (!was_reallocated) {
+            buffer_->invalidate_contents();
+        }
+
         buffer_->upload_data(staged_);
         was_synced();
     }
