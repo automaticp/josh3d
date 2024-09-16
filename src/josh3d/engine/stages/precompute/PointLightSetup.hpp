@@ -3,7 +3,6 @@
 #include "LightCasters.hpp"
 #include "BoundingSphere.hpp"
 #include <glm/common.hpp>
-#include <limits>
 
 
 namespace josh::stages::precompute {
@@ -11,7 +10,16 @@ namespace josh::stages::precompute {
 
 class PointLightSetup {
 public:
-    float threshold_fraction{ 0.005f };
+    enum class Strategy {
+        FixedRadius,
+        RadiosityThreshold,
+        // ReverseExposure
+    };
+
+    Strategy strategy{ Strategy::RadiosityThreshold };
+
+    float bounding_radius    { 10.0f  };
+    float radiosity_threshold{ 0.005f };
 
     void operator()(RenderEnginePrecomputeInterface& engine);
 
@@ -25,74 +33,109 @@ inline void PointLightSetup::operator()(
 {
     auto& registry = engine.registry();
 
-    // TODO: max_attenuation should be chosen based on the light source intensity.
-    const float max_attenuation = threshold_fraction;
+    /*
+    For a perfect point light, spectral radiosity transmitted by a spherical
+    shell with radius r is:
 
-    auto solve_for_distance = [](
-        const Attenuation& attenuation_coeffs,
-        float                     attenuation)
-            -> float
-    {
-        /*
-        Source light color Cs is attenuated by a factor A
-        over distance r from the source point, and produces apparent color Ca:
+        J(r) = P / (4 * pi * r^2)
 
-            Ca(r) = A(r) * Cs
+    where P is the spectral power of the point source.
 
-        Attenuation factor A is related to the attenuation coefficients a, b, c as:
+    Since initially, we specify P as the primary parameter of the point lights,
+    it's spectral irradiance can be obtained by "attenuating" the spectral power.
 
-           1/A = a*r^2 + b*r + c
+    In the shader, we'll have something like
 
-        where a > 0, b and c >= 0.
+        struct PointLight {
+            ...
+            vec3 color;
+            ...
+        };
 
-        For a mathematical point source: b = 0 and c = 0, and the attenuation
-        is described by a singular ~ r^-2 term.
+    Where each component of `color` represents spectral power of that particular
+    color band. For a computed `r` between the point light and the fragment,
+    the final fragment irradiance is obtained without any extra parameters:
 
-        There are no point sources IRL however, as every light source has finite surface area.
-        Coefficient b and c can be used to roughly approximate non-infinitesimal sources.
+        frag_color += point_ligth.color / (4 * pi * r^2);
 
-        Solving for r we get some bouts of high school (or middle school?) math:
+    It is useful, however, to ignore this contribution if it is sufficiently small.
+    This allows us to "cull" the light source entirely from computation.
 
-            D = b^2 - 4*a*(c - 1/A)
+    For that, we can define a spectral radiosity threshold J0, below which
+    the light contribution will be ignored. If we can compute or define
+    the J0 for each point source in the scene, this would allow us to construct
+    a bounding sphere with radius r0 for culling:
 
-            r = (-b +/- sqrt(D)) / (2*a)
+        r0 = sqrt(P / (4 * pi * J0))
 
-        The solution only exists if D >= 0, that is, the following holds:
+    Defining J0 can be done in multiple ways:
 
-            (b^2 / 4*a) >= (c - 1/A)
+        1. By absolute attenutation threshold A0 = A(r0), where A(r) is defined as:
 
-        - If c < 1/A, this always holds true, since a > 0 and b >= 0.
-        - If c = 1/A, this also always holds true, but both solutions
-          (r = 0 and r = -b/a) are outside of the domain of r > 0.
-        - If c > 1/A, the solution can exist if the above still holds,
-          but it will be strictly at r < 0 (again, not useful to us).
+            A(r) = 1 / (4 * pi * r^2)
 
-        Thus we need to always satisfy c < 1/A by either redifining A
-        or clamping the expression (c - 1/A) between -inf and -(something small).
+        Then the bounding radius is simply:
 
-        Due to floating point normalization it's probably better if we clamp r too.
-        */
+            r0 = sqrt(1 / (4 * pi * A0))
 
-        constexpr float something_small = 0.0001f; // Yeah, well...
-        constexpr float inf = std::numeric_limits<float>::infinity();
+        and attenuation threshold can be related back to the J0 as:
+
+            A0 = J0 / P
+
+        This is quick and dirty purely geometric estimation, and has
+        one disasterous downside:
+            - The r0 is the same for *all* point lights, independent of their power.
+
+        2. By absolute J0. This gives an already specified radius:
+
+            r0 = sqrt(P / (4 * pi * J0))
+
+        except that P is *spectral* and is per rgb component, so it makes sense
+        to clamp to the highest `Pmax = max(Pr, Pg, Pb)`, such that:
+
+            r0 = sqrt(Pmax / (4 * pi * J0))
+
+        This gives us the bounding radius that actually *scales* with the light
+        power P. The major downsides of this approach:
+            - J0 must be manually set and adjusted per lighting conditions;
+            - Bright sources in dark environments can have their light cut-off too early;
+            - Dim sources in bright environments can have their bounding volumes way too big,
+              reducing effectivness of culling.
+
+        3. The main issue with the previous approach is that it does not consider
+        the illumination conditions of the scene, that is, whether the contribution
+        below the threshold J0 could still visually impact the scene and by how much.
+
+        This is where the reverse exposure technique comes in to pin the J0 at the
+        bottom of the effective dynamic range.
+
+        More on that later (when I implement it :^).
+
+    */
 
 
-        const auto [c, b, a] = attenuation_coeffs;
-        const float A        = attenuation;
-
-        const float D = (b * b) - 4.f * a * glm::clamp(c - 1 / A, -inf, -something_small);
-        const float r = (-b + glm::sqrt(D)) / (2*a);
-
-        return glm::clamp(r, something_small, inf);
-    };
+    using glm::vec3;
+    using std::max, std::sqrt;
+    constexpr float four_pi = 4.f * glm::pi<float>();
 
 
-    for (auto [e, plight] : registry.view<PointLight>().each()) {
+    if (strategy == Strategy::FixedRadius) {
 
-        const float max_distance =
-            solve_for_distance(plight.attenuation, max_attenuation);
+        for (auto [e, plight] : registry.view<PointLight>().each()) {
+            const float r0 = bounding_radius;
+            registry.emplace_or_replace<LocalBoundingSphere>(e, glm::vec3{}, r0);
+        }
 
-        registry.emplace_or_replace<LocalBoundingSphere>(e, glm::vec3{}, max_distance);
+    } else if (strategy == Strategy::RadiosityThreshold) {
+
+        for (auto [e, plight] : registry.view<PointLight>().each()) {
+            const vec3  P    = plight.hdr_color();
+            const float Pmax = max({ P.x, P.y, P.z });
+            const float J0   = radiosity_threshold;
+            const float r0   = sqrt(Pmax / (four_pi * J0));
+            registry.emplace_or_replace<LocalBoundingSphere>(e, glm::vec3{}, r0);
+        }
+
     }
 }
 

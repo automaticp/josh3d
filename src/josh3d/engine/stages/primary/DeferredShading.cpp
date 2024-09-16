@@ -38,7 +38,7 @@ auto get_active_alight_or_default(const entt::registry& registry)
 {
     glm::vec3 color{ 0.f, 0.f, 0.f };
     if (const auto alight = get_active<AmbientLight>(registry)) {
-        color = alight.get<AmbientLight>().color;
+        color = alight.get<AmbientLight>().hdr_color();
     }
     return { color };
 }
@@ -60,7 +60,7 @@ auto get_active_dlight_or_default(const entt::registry& registry)
     bool      cast_shadows{ false };
 
     if (const auto dlight = get_active<DirectionalLight, Transform>(registry)) {
-        color        = dlight.get<DirectionalLight>().color;
+        color        = dlight.get<DirectionalLight>().hdr_color();
         direction    = dlight.get<Transform>().orientation() * glm::vec3{ 0.f, 0.f, -1.f };
         cast_shadows = has_tag<ShadowCasting>(dlight);
     }
@@ -391,14 +391,9 @@ void DeferredShading::update_point_light_buffers(
     auto repack = [](auto tuple) {
         const auto& [_, mtf, plight, sphere] = tuple;
         return PointLightBoundedGPU{
-            .color       = plight.color,
+            .color       = plight.hdr_color(),
             .position    = mtf.decompose_position(),
             .radius      = sphere.radius,
-            .attenuation = {
-                .constant  = plight.attenuation.constant,
-                .linear    = plight.attenuation.linear,
-                .quadratic = plight.attenuation.quadratic
-            }
         };
     };
 

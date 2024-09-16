@@ -84,7 +84,7 @@ inline void LightDummies::operator()(RenderEnginePrimaryInterface& engine) {
     relink_attachments(engine);
     update_plight_params(engine.registry());
 
-    const auto num_plights = plight_params_.num_staged();
+    const auto num_plights = GLsizei(plight_params_.num_staged());
 
     if (num_plights) {
         BindGuard bound_camera_ubo      = engine.bind_camera_ubo();
@@ -119,9 +119,13 @@ inline void LightDummies::update_plight_params(
     auto plight_params_view = registry.view<PointLight, MTransform>().each()
         | std::views::transform([this](auto tuple) {
             const auto& [entity, plight, mtf] = tuple;
-            const auto color = plight.color *
-                // This doesn't really look that great...
-                (attenuate_color ? plight.attenuation.get_attenuation(light_scale) : 1.f);
+
+            const float shell_attenuation =
+                1.f / (4.f * glm::pi<float>() * light_scale * light_scale);
+
+            const auto color = plight.hdr_color() *
+                (attenuate_color ? shell_attenuation : 1.f);
+
             return PLightParamsGPU{
                 .position = mtf.decompose_position(),
                 .scale    = light_scale,

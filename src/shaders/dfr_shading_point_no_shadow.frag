@@ -8,17 +8,9 @@
 out vec4 frag_color;
 
 
-struct PLight {
-    vec3        color;
-    vec3        position;
-    float       radius;
-    Attenuation attenuation;
-};
-
-
 in Interface {
-    flat uint  plight_id;
-    PLight     plight;
+    flat uint         plight_id;
+    PointLightBounded plight;
 } in_;
 
 
@@ -31,7 +23,7 @@ uniform float   fade_length_fraction;
 
 void add_point_light_illumination(
     inout vec3 color,
-    PLight     plight,
+    PointLight plight,
     float      obscurance,
     vec3       light_to_frag,
     vec3       normal_dir,
@@ -59,9 +51,13 @@ void main() {
 
     // Point Light.
     {
+        const PointLight plight = { in_.plight.color, in_.plight.position };
+        // const PointLight plight = { in_.plight.color,
+        // The above crashes glsl_analyzer ^
+
         add_point_light_illumination(
             result_color,
-            in_.plight,
+            plight,
             obscurance,
             light_to_frag,
             normal_dir,
@@ -91,7 +87,7 @@ void main() {
 
 void add_point_light_illumination(
     inout vec3 color,
-    PLight     plight,
+    PointLight plight,
     float      obscurance,
     vec3       light_to_frag,
     vec3       normal_dir,
@@ -106,10 +102,10 @@ void add_point_light_illumination(
     const float diffuse_alignment  = max(dot(normal_dir, light_dir),   0.0);
     const float specular_alignment = max(dot(normal_dir, halfway_dir), 0.0);
 
-    const float distance_factor = get_attenuation_factor(plight.attenuation, length(light_vec));
+    const float distance_attenuation = get_distance_attenuation(length(light_vec));
 
-    const float diffuse_strength   = distance_factor * diffuse_alignment;
-    const float specular_strength  = distance_factor * pow(specular_alignment, 128.0);
+    const float diffuse_strength   = distance_attenuation * diffuse_alignment;
+    const float specular_strength  = distance_attenuation * pow(specular_alignment, 128.0);
 
     color += plight.color * diffuse_strength  * albedo   * (1.0 - obscurance);
     color += plight.color * specular_strength * specular * (1.0 - obscurance);

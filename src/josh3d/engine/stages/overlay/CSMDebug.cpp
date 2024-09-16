@@ -43,7 +43,7 @@ void CSMDebug::draw_views_overlay(
         sp.uniform("tex_depth",   0);
         sp.uniform("tex_normals", 1);
 
-        sp.uniform("dir_light.color",     dlight.get<DirectionalLight>().color);
+        sp.uniform("dir_light.color",     dlight.get<DirectionalLight>().hdr_color());
         sp.uniform("dir_light.direction", light_dir);
 
         glapi::disable(Capability::DepthTesting);

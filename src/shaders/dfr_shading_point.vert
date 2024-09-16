@@ -8,34 +8,26 @@
 layout (location = 0) in vec3 in_pos;
 
 
-struct PLight {
-    vec3        color;
-    vec3        position;
-    float       radius;
-    Attenuation attenuation;
-};
-
-
 out Interface {
-    flat uint  plight_id;
-    PLight     plight;
+    flat uint         plight_id;
+    PointLightBounded plight;
 } out_;
 
 
 layout (std430, binding = 0) restrict readonly
 buffer PointLightsBlock {
-    PLight point_lights[];
+    PointLightBounded point_lights[];
 };
 
 
 
 
 void main() {
-    uint   plight_id = gl_InstanceID;
-    PLight plight    = point_lights[plight_id];
+    const uint              plight_id = gl_InstanceID;
+    const PointLightBounded plight    = point_lights[plight_id];
 
-    vec4 pos_ws = vec4(plight.position + (in_pos * plight.radius), 1.0);
-    vec4 pos_ps = camera.projview * pos_ws;
+    const vec4 pos_ws = vec4(plight.position + (in_pos * plight.radius), 1.0);
+    const vec4 pos_ps = camera.projview * pos_ws;
 
     gl_Position    = pos_ps;
     out_.plight_id = plight_id;

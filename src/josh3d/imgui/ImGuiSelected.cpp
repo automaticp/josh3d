@@ -39,19 +39,19 @@ void ImGuiSelected::display() {
         }
 
         if (has_component<PointLight>(handle)) {
-            imgui::PointLightWidgetBody(handle);
+            imgui::PointLightHandleWidget(handle);
         }
 
         if (has_component<DirectionalLight>(handle)) {
-            imgui::DirectionalLightWidget(handle);
+            imgui::DirectionalLightHandleWidget(handle);
         }
 
         if (has_component<AmbientLight>(handle)) {
-            imgui::AmbientLightWidget(handle);
+            imgui::AmbientLightHandleWidget(handle);
         }
 
         if (has_component<Camera>(handle)) {
-            imgui::CameraWidget(handle);
+            imgui::CameraHandleWidget(handle);
         }
 
 

@@ -196,7 +196,7 @@ void ImGuiSceneList::display() {
 
     bool create_new_node = false;
 
-    thread_local PointLight new_plight_template{ .color{ 1.f, 1.f, 1.f }, .attenuation{ 0.05f, 0.0f, 0.2f } };
+    thread_local PointLight new_plight_template{ .color{ 1.f, 1.f, 1.f }, .power = 10.f };
     thread_local glm::vec3  new_plight_position{ 0.f, 1.f, 0.f };
     thread_local bool       new_plight_cast_shadow{ true };
 
@@ -260,13 +260,8 @@ void ImGuiSceneList::display() {
                     create_new_plight = true;
                 }
                 ImGui::DragFloat3("Position", value_ptr(new_plight_position), 0.2f, -FLT_MAX, FLT_MAX);
-                ImGui::ColorEdit3("Color",    value_ptr(new_plight_template.color), ImGuiColorEditFlags_DisplayHSV);
-                ImGui::SameLine();
+                imgui::PointLightWidget(new_plight_template);
                 ImGui::Checkbox("Shadow", &new_plight_cast_shadow);
-                ImGui::DragFloat3(
-                    "Atten. (c/l/q)", &new_plight_template.attenuation.constant,
-                    0.1f, 0.f, 100.f, "%.4f", ImGuiSliderFlags_Logarithmic
-                );
                 ImGui::EndMenu();
             }
 
@@ -274,7 +269,7 @@ void ImGuiSceneList::display() {
                 if (ImGui::IsItemClicked()) {
                     create_new_alight = true;
                 }
-                ImGui::ColorEdit3("Color", value_ptr(new_alight_template.color), ImGuiColorEditFlags_DisplayHSV);
+                imgui::AmbientLightWidget(new_alight_template);
                 ImGui::EndMenu();
             }
 
@@ -282,8 +277,7 @@ void ImGuiSceneList::display() {
                 if (ImGui::IsItemClicked()) {
                     create_new_dlight = true;
                 }
-                ImGui::ColorEdit3("Color", value_ptr(new_dlight_template.color), ImGuiColorEditFlags_DisplayHSV);
-                ImGui::SameLine();
+                imgui::DirectionalLightWidget(new_dlight_template);
                 ImGui::Checkbox("Shadow", &new_dlight_cast_shadow);
                 ImGui::EndMenu();
             }

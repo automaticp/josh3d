@@ -373,56 +373,81 @@ inline void MaterialsWidget(entt::handle mesh) noexcept {
 }
 
 
-inline void AmbientLightWidget(entt::handle alight_handle) {
-    if (auto* alight = alight_handle.try_get<AmbientLight>()) {
-        ImGui::ColorEdit3("Color", glm::value_ptr(alight->color), ImGuiColorEditFlags_DisplayHSV);
-    }
-}
-
-
-inline bool DirectionalLightWidget(entt::handle dlight_handle) {
+inline bool AmbientLightWidget(AmbientLight& alight) {
     bool feedback = false;
-
-    if (auto* dlight = dlight_handle.try_get<DirectionalLight>()) {
-
-        feedback |= ImGui::ColorEdit3("Color", glm::value_ptr(dlight->color), ImGuiColorEditFlags_DisplayHSV);
-
-        ImGui::SameLine();
-
-        bool has_shadow = has_tag<ShadowCasting>(dlight_handle);
-        if (ImGui::Checkbox("Shadow", &has_shadow)) {
-            switch_tag<ShadowCasting>(dlight_handle);
-            feedback |= true;
-        }
-    }
-
+    feedback |= ImGui::ColorEdit3("Color", glm::value_ptr(alight.color), ImGuiColorEditFlags_DisplayHSV);
+    feedback |= ImGui::DragFloat("Irradiance, W/m^2", &alight.irradiance, 0.1f, 0.f, FLT_MAX);
     return feedback;
 }
 
 
-inline void PointLightWidgetBody(entt::handle plight_handle) noexcept {
-
-    if (auto* plight = plight_handle.try_get<PointLight>()) {
-
-        ImGui::ColorEdit3("Color", glm::value_ptr(plight->color), ImGuiColorEditFlags_DisplayHSV);
-
-        ImGui::SameLine();
-
-        bool has_shadow = has_tag<ShadowCasting>(plight_handle);
-        if (ImGui::Checkbox("Shadow", &has_shadow)) {
-            switch_tag<ShadowCasting>(plight_handle);
-        }
-
-        ImGui::DragFloat3(
-            "Atten. (c/l/q)", &plight->attenuation.constant,
-            0.1f, 0.f, 100.f, "%.4f", ImGuiSliderFlags_Logarithmic
-        );
-
+inline bool AmbientLightHandleWidget(entt::handle alight_handle) {
+    if (auto* alight = alight_handle.try_get<AmbientLight>()) {
+        return AmbientLightWidget(*alight);
     }
+    return false;
 }
 
 
-inline bool CameraWidget(entt::handle camera_handle) noexcept {
+inline bool ShadowCastingHandleWidget(entt::handle light_handle) {
+    bool has_shadow = has_tag<ShadowCasting>(light_handle);
+    if (ImGui::Checkbox("Shadow", &has_shadow)) {
+        switch_tag<ShadowCasting>(light_handle);
+        return true;
+    }
+    return false;
+}
+
+
+inline bool DirectionalLightWidget(DirectionalLight& dlight) {
+    bool feedback = false;
+    feedback |= ImGui::ColorEdit3("Color", glm::value_ptr(dlight.color), ImGuiColorEditFlags_DisplayHSV);
+    feedback |= ImGui::DragFloat("Irradiance, W/m^2", &dlight.irradiance, 0.1f, 0.f, FLT_MAX);
+    return feedback;
+}
+
+
+inline bool DirectionalLightHandleWidget(entt::handle dlight_handle) {
+    bool feedback = false;
+    if (auto* dlight = dlight_handle.try_get<DirectionalLight>()) {
+        feedback |= DirectionalLightWidget(*dlight);
+        feedback |= ShadowCastingHandleWidget(dlight_handle);
+    }
+    return feedback;
+}
+
+
+inline bool PointLightRadiantFluxWidget(float& quadratic_attenuation) noexcept {
+    bool feedback = false;
+    constexpr float four_pi = 4.f * glm::pi<float>();
+    float rf = four_pi / quadratic_attenuation;
+    if (ImGui::DragFloat("Radiant Power, W", &rf, 0.1f, 0.f, FLT_MAX)) {
+        quadratic_attenuation = four_pi / rf;
+        feedback |= true;
+    }
+    return feedback;
+}
+
+
+inline bool PointLightWidget(PointLight& plight) {
+    bool feedback = false;
+    feedback |= ImGui::ColorEdit3("Color", glm::value_ptr(plight.color), ImGuiColorEditFlags_DisplayHSV);
+    feedback |= ImGui::DragFloat("Radiant Power, W", &plight.power, 0.1f, 0.f, FLT_MAX);
+    return feedback;
+}
+
+
+inline bool PointLightHandleWidget(entt::handle plight_handle) {
+    bool feedback = false;
+    if (auto* plight = plight_handle.try_get<PointLight>()) {
+        feedback |= PointLightWidget(*plight);
+        feedback |= ShadowCastingHandleWidget(plight_handle);
+    }
+    return feedback;
+}
+
+
+inline bool CameraHandleWidget(entt::handle camera_handle) noexcept {
     bool need_update = false;
     if (auto* camera = camera_handle.try_get<Camera>()) {
         auto params = camera->get_params();
