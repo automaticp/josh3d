@@ -124,41 +124,41 @@ void DeferredShading::draw_singlepass(
     // Ambient light.
     {
         const auto [color] = get_active_alight_or_default(registry);
-        sp.uniform("ambient_light.color", color);
+        sp.uniform("alight.color", color);
     }
 
     // Directional light.
     {
         const auto [color, direction, cast_shadows] = get_active_dlight_or_default(registry);
-        sp.uniform("dir_light.color",     color);
-        sp.uniform("dir_light.direction", direction);
-        sp.uniform("dir_shadow.do_cast",  cast_shadows);
+        sp.uniform("dlight.color",        color);
+        sp.uniform("dlight.direction",    direction);
+        sp.uniform("dlight_cast_shadows", cast_shadows);
     }
 
     // Directional shadows.
     input_csm_->maps.depth_attachment().texture().bind_to_texture_unit(4);
     BindGuard bound_csm_sampler =   csm_sampler_->bind_to_texture_unit(4);
-    sp.uniform("dir_shadow.cascades",            4);
-    sp.uniform("dir_shadow.base_bias_tx",        dir_params.base_bias_tx);
-    sp.uniform("dir_shadow.do_blend_cascades",   input_csm_->blend_possible);
-    sp.uniform("dir_shadow.blend_size_inner_tx", input_csm_->blend_max_size_inner_tx);
-    sp.uniform("dir_shadow.pcf_extent",          dir_params.pcf_extent);
-    sp.uniform("dir_shadow.pcf_offset",          dir_params.pcf_offset);
+    sp.uniform("csm_maps",                       4);
+    sp.uniform("csm_params.base_bias_tx",        dir_params.base_bias_tx);
+    const float blend_size_best_tx =
+        input_csm_->blend_possible ? input_csm_->blend_max_size_inner_tx : 0.f;
+    sp.uniform("csm_params.blend_size_best_tx",  blend_size_best_tx);
+    sp.uniform("csm_params.pcf_extent",          dir_params.pcf_extent);
+    sp.uniform("csm_params.pcf_offset_inner_tx", dir_params.pcf_offset);
     csm_views_buf_.bind_to_ssbo_index(3);
 
     // Point lights.
-    sp.uniform("fade_start_fraction",  plight_fade_start_fraction);
-    sp.uniform("fade_length_fraction", plight_fade_length_fraction);
+    sp.uniform("plight_fade_start_fraction",  plight_fade_start_fraction);
     plights_with_shadow_buf_.bind_to_ssbo_index(1);
     plights_no_shadow_buf_  .bind_to_ssbo_index(2);
 
     // Point light shadows.
     input_psm_->maps.depth_attachment().texture().bind_to_texture_unit(6);
     BindGuard bound_psm_sampler =   psm_sampler_->bind_to_texture_unit(6);
-    sp.uniform("point_shadow.maps",        6);
-    sp.uniform("point_shadow.bias_bounds", point_params.bias_bounds);
-    sp.uniform("point_shadow.pcf_extent",  point_params.pcf_extent);
-    sp.uniform("point_shadow.pcf_offset",  point_params.pcf_offset);
+    sp.uniform("psm_maps",               6);
+    sp.uniform("psm_params.bias_bounds", point_params.bias_bounds);
+    sp.uniform("psm_params.pcf_extent",  point_params.pcf_extent);
+    sp.uniform("psm_params.pcf_offset",  point_params.pcf_offset);
 
 
 
@@ -229,7 +229,7 @@ void DeferredShading::draw_multipass(
         target_sampler_->bind_to_texture_unit(3),
     };
 
-    auto set_common_uniforms = [&](RawProgram<> sp) {
+    auto set_gbuffer_uniforms = [&](RawProgram<> sp) {
         sp.uniform("gbuffer.tex_depth",    0);
         sp.uniform("gbuffer.tex_normals",  1);
         sp.uniform("gbuffer.tex_albedo",   2);
@@ -241,38 +241,39 @@ void DeferredShading::draw_multipass(
         const RawProgram<> sp = sp_pass_ambi_dir_.get();
         BindGuard bound_program = sp.use();
 
-        set_common_uniforms(sp);
+        set_gbuffer_uniforms(sp);
 
         // Ambient Light.
         {
             const auto [color] = get_active_alight_or_default(registry);
-            sp.uniform("ambi_light.color", color);
+            sp.uniform("alight.color", color);
         }
 
         // Ambient Occlusion.
         input_ao_->blurred_texture                   .bind_to_texture_unit(4);
         BindGuard bound_ao_sampler = target_sampler_->bind_to_texture_unit(4);
-        sp.uniform("ambi_occlusion.tex_occlusion", 4);
-        sp.uniform("ambi_occlusion.use",           use_ambient_occlusion);
-        sp.uniform("ambi_occlusion.power",         ambient_occlusion_power);
+        sp.uniform("use_ambient_occlusion",    use_ambient_occlusion);
+        sp.uniform("tex_ambient_occlusion",    4);
+        sp.uniform("ambient_occlusion_power",  ambient_occlusion_power);
 
         // Directional Light.
         {
             const auto [color, direction, cast_shadows] = get_active_dlight_or_default(registry);
-            sp.uniform("dir_light.color",     color);
-            sp.uniform("dir_light.direction", direction);
-            sp.uniform("dir_shadow.do_cast",  cast_shadows);
+            sp.uniform("dlight.color",        color);
+            sp.uniform("dlight.direction",    direction);
+            sp.uniform("dlight_cast_shadows", cast_shadows);
         }
 
         // CSM.
         input_csm_->maps.depth_attachment().texture().bind_to_texture_unit(5);
         BindGuard bound_csm_sampler =   csm_sampler_->bind_to_texture_unit(5);
-        sp.uniform("dir_shadow.cascades",            5);
-        sp.uniform("dir_shadow.base_bias_tx",        dir_params.base_bias_tx);
-        sp.uniform("dir_shadow.do_blend_cascades",   input_csm_->blend_possible);
-        sp.uniform("dir_shadow.blend_size_inner_tx", input_csm_->blend_max_size_inner_tx);
-        sp.uniform("dir_shadow.pcf_extent",          dir_params.pcf_extent);
-        sp.uniform("dir_shadow.pcf_offset",          dir_params.pcf_offset);
+        sp.uniform("csm_maps",                       5);
+        sp.uniform("csm_params.base_bias_tx",        dir_params.base_bias_tx);
+        const float blend_size_best_tx =
+            input_csm_->blend_possible ? input_csm_->blend_max_size_inner_tx : 0.f;
+        sp.uniform("csm_params.blend_size_best_tx",  blend_size_best_tx);
+        sp.uniform("csm_params.pcf_extent",          dir_params.pcf_extent);
+        sp.uniform("csm_params.pcf_offset_inner_tx", dir_params.pcf_offset);
         csm_views_buf_.bind_to_ssbo_index(0);
 
 
@@ -282,12 +283,6 @@ void DeferredShading::draw_multipass(
             glapi::enable(Capability::DepthTesting);
         });
     }
-
-
-    auto set_plight_uniforms = [&](RawProgram<> sp) {
-        sp.uniform("fade_start_fraction",  plight_fade_start_fraction);
-        sp.uniform("fade_length_fraction", plight_fade_length_fraction);
-    };
 
 
     auto instance_draw_plight_spheres = [&](
@@ -338,8 +333,8 @@ void DeferredShading::draw_multipass(
         const RawProgram<> sp = sp_pass_plight_no_shadow_.get();
         BindGuard bound_program = sp.use();
 
-        set_common_uniforms(sp);
-        set_plight_uniforms(sp);
+        set_gbuffer_uniforms(sp);
+        sp.uniform("plight_fade_start_fraction", plight_fade_start_fraction);
 
         plights_no_shadow_buf_.bind_to_ssbo_index(0);
 
@@ -351,18 +346,18 @@ void DeferredShading::draw_multipass(
         const RawProgram<> sp = sp_pass_plight_with_shadow_.get();
         BindGuard bound_program = sp.use();
 
-        set_common_uniforms(sp);
-        set_plight_uniforms(sp);
+        set_gbuffer_uniforms(sp);
+        sp.uniform("plight_fade_start_fraction", plight_fade_start_fraction);
 
         plights_with_shadow_buf_.bind_to_ssbo_index(0);
 
         // Point Shadows.
         input_psm_->maps.depth_attachment().texture().bind_to_texture_unit(4);
         BindGuard bound_psm_sampler =   psm_sampler_->bind_to_texture_unit(4);
-        sp.uniform("point_shadows.maps",        4);
-        sp.uniform("point_shadows.bias_bounds", point_params.bias_bounds);
-        sp.uniform("point_shadows.pcf_extent",  point_params.pcf_extent);
-        sp.uniform("point_shadows.pcf_offset",  point_params.pcf_offset);
+        sp.uniform("psm_maps",               4);
+        sp.uniform("psm_params.bias_bounds", point_params.bias_bounds);
+        sp.uniform("psm_params.pcf_extent",  point_params.pcf_extent);
+        sp.uniform("psm_params.pcf_offset",  point_params.pcf_offset);
 
         instance_draw_plight_spheres(plights_with_shadow_buf_.num_staged(), bound_program.token());
     }

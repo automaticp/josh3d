@@ -53,7 +53,6 @@ public:
     float ambient_occlusion_power{ 0.8f };
 
     float plight_fade_start_fraction { 0.75f }; // [0, 1] in fraction of bounding radius.
-    float plight_fade_length_fraction{ 0.20f };
 
 
     DeferredShading(
@@ -79,7 +78,7 @@ private:
 
     ShaderToken sp_singlepass_ = shader_pool().get({
         .vert = VPath("src/shaders/dfr_shading.vert"),
-        .frag = VPath("src/shaders/dfr_shading_adpn_shadow_csm.frag")});
+        .frag = VPath("src/shaders/dfr_shading_singlepass.frag")});
 
     ShaderToken sp_pass_plight_with_shadow_ = shader_pool().get({
         .vert = VPath("src/shaders/dfr_shading_point.vert"),
@@ -91,7 +90,7 @@ private:
 
     ShaderToken sp_pass_ambi_dir_ = shader_pool().get({
         .vert = VPath("src/shaders/dfr_shading.vert"),
-        .frag = VPath("src/shaders/dfr_shading_ambi_ao_dir_csm.frag")});
+        .frag = VPath("src/shaders/dfr_shading_ambi_dir.frag")});
 
     UploadBuffer<PointLightBoundedGPU> plights_with_shadow_buf_;
     UploadBuffer<PointLightBoundedGPU> plights_no_shadow_buf_;

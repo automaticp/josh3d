@@ -27,9 +27,9 @@ void main() {
     const PointLightBounded plight    = point_lights[plight_id];
 
     const vec4 pos_ws = vec4(plight.position + (in_pos * plight.radius), 1.0);
-    const vec4 pos_ps = camera.projview * pos_ws;
+    const vec4 pos_cs = camera.projview * pos_ws;
 
-    gl_Position    = pos_ps;
+    gl_Position    = pos_cs;
     out_.plight_id = plight_id;
     out_.plight    = plight;
 }

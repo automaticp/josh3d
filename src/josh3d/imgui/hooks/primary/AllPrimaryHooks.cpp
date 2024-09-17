@@ -168,24 +168,18 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, DeferredShading) {
             0.0, 1.0, "%.3f", ImGuiSliderFlags_Logarithmic
         );
 
-        ImGui::SliderFloat(
-            "Fade Length", &stage_.plight_fade_length_fraction,
-            0.0, 1.0, "%.3f", ImGuiSliderFlags_Logarithmic
-        );
-
-
         ImGui::SliderFloat2(
-            "Shadow Bias",
+            "Shadow Bias##PSM",
             glm::value_ptr(stage_.point_params.bias_bounds),
             0.00001f, 0.5f, "%.5f", ImGuiSliderFlags_Logarithmic
         );
 
         ImGui::SliderInt(
-            "PCF Extent", &stage_.point_params.pcf_extent, 0, 6
+            "PCF Extent##PSM", &stage_.point_params.pcf_extent, 0, 6
         );
 
         ImGui::SliderFloat(
-            "PCF Offset", &stage_.point_params.pcf_offset,
+            "PCF Offset##PSM", &stage_.point_params.pcf_offset,
             0.001f, 1.0f, "%.3f", ImGuiSliderFlags_Logarithmic
         );
 
@@ -197,17 +191,17 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, DeferredShading) {
     {
 
         ImGui::SliderFloat(
-            "Base Bias, tx",
+            "Base Bias, tx##CSM",
             &stage_.dir_params.base_bias_tx,
             0.01f, 100.0f, "%.2f", ImGuiSliderFlags_Logarithmic
         );
 
         ImGui::SliderInt(
-            "PCF Extent", &stage_.dir_params.pcf_extent, 0, 12
+            "PCF Extent##CSM", &stage_.dir_params.pcf_extent, 0, 12
         );
 
         ImGui::SliderFloat(
-            "PCF Offset, tx", &stage_.dir_params.pcf_offset,
+            "PCF Offset, tx##CSM", &stage_.dir_params.pcf_offset,
             0.01f, 10.0f, "%.2f", ImGuiSliderFlags_Logarithmic
         );
 

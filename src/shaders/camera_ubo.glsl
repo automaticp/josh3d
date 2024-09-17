@@ -5,7 +5,12 @@
 #include "camera.glsl"
 
 
-layout (std140, binding = 0)
+#ifndef CAMERA_UBO_BINDING
+#define CAMERA_UBO_BINDING 0
+#endif
+
+
+layout (std140, binding = CAMERA_UBO_BINDING)
 uniform CameraBlock {
     Camera camera;
 };
