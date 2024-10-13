@@ -148,7 +148,7 @@ inline auto ShaderBuilder::get()
             UniqueShaderType         shader_obj,
             const UnevaluatedShader& shader)
         {
-            shader_obj->set_source(shader.source.text());
+            shader_obj->set_source(shader.source.text_view());
             shader_obj->compile();
             if (!shader_obj->has_compiled_successfully()) {
                 throw error::ShaderCompilationFailure(
@@ -163,10 +163,11 @@ inline auto ShaderBuilder::get()
     for (auto& shader : shaders_) {
 
         for (auto& define : defines_) {
-            const bool was_found =
-                shader.source.find_and_insert_as_next_line("#version", define.get_define_string());
-            // TODO: This should just insert at the first line instead, if the #version is not found.
-            assert(was_found);
+            if (std::optional ver_dir = ShaderSource::find_version_directive(shader.source)) {
+                shader.source.insert_line_on_line_after(ver_dir->full.begin(), define.get_define_string());
+            } else {
+                shader.source.insert_line_on_line_before(shader.source.begin(), define.get_define_string());
+            }
         }
 
         switch (shader.type) {
@@ -210,16 +211,9 @@ inline void ShaderBuilder::UnevaluatedShader::resolve_includes() {
     // 7. Add canonical path of the new include to the "included set".
     // 8. Repeat from (2) unitl no more #includes are found.
 
-    auto strip = [](std::string_view sv) {
-        sv.remove_prefix(1);
-        sv.remove_suffix(1);
-        return sv;
-    };
-
     if (path.empty()) {
-        auto include_info = source.find_include_directive();
-        if (include_info.has_value()) {
-            throw error::IncludeResolutionFailure(std::string(strip(include_info->include_arg)));
+        if (std::optional include_dir = ShaderSource::find_include_directive(source)) {
+            throw error::IncludeResolutionFailure(include_dir->quoted_path.to_string());
         } else {
             return;
         }
@@ -227,34 +221,17 @@ inline void ShaderBuilder::UnevaluatedShader::resolve_includes() {
 
     Path parent_dir = path.parent_path();
 
-    while (auto include_info = source.find_include_directive()) {
-        std::string_view stripped = strip(include_info->include_arg);
+    while (std::optional include_dir = ShaderSource::find_include_directive(source)) {
 
-        Path relative_path{ stripped };
-        // TODO: Can fail.
-        Path canonical_path = std::filesystem::canonical(parent_dir / relative_path);
-
+        const Path relative_path{ include_dir->path.view() };
+        const Path canonical_path = std::filesystem::canonical(parent_dir / relative_path); // Can fail.
 
         if (included.contains(canonical_path)) {
             // Just erase the #include line.
-            ShaderSource empty_contents{{}};
-
-            source.replace_include_line_with_contents(
-                include_info->line_begin,
-                include_info->line_end,
-                empty_contents
-            );
-
+            source.remove_subrange(include_dir->full);
         } else {
-            // TODO: Can fail.
-            ShaderSource included_contents{ read_file(File(canonical_path)) };
-
-            source.replace_include_line_with_contents(
-                include_info->line_begin,
-                include_info->line_end,
-                included_contents
-            );
-
+            ShaderSource included_contents{ read_file(File(canonical_path)) }; // Can fail.
+            source.replace_subrange(include_dir->full, included_contents);
             included.emplace(canonical_path);
         }
     }

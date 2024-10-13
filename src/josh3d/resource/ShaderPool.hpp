@@ -13,6 +13,18 @@ class ShaderPool;
 class ShaderPoolImpl;
 
 
+// Returns a thread_local `ShaderPool`.
+//
+// Must be accessed after creating `GlobalContext` in the same thread,
+// or by calling `init_thread_local_shader_pool()` and subsequently
+// `clear_thread_local_shader_pool()` before destroying OpenGL context.
+auto shader_pool() -> ShaderPool&;
+void init_thread_local_shader_pool();
+void clear_thread_local_shader_pool();
+
+
+
+
 class ShaderToken {
 public:
 
@@ -95,18 +107,6 @@ public:
 private:
     std::unique_ptr<ShaderPoolImpl> pimpl_;
 };
-
-
-
-
-// Returns a thread_local `ShaderPool`.
-//
-// Must be accessed after creating `GlobalContext` in the same thread,
-// or by calling `init_thread_local_shader_pool()` and subsequently
-// `clear_thread_local_shader_pool()` before destroying OpenGL context.
-auto shader_pool() -> ShaderPool&;
-void init_thread_local_shader_pool();
-void clear_thread_local_shader_pool();
 
 
 

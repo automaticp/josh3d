@@ -190,6 +190,7 @@ inline void attach_child(
     entt::entity new_child) noexcept
 {
     const entt::handle new_child_handle{ *parent_handle.registry(), new_child };
+    assert(new_child_handle != parent_handle && "Attempted to attach to self.");
     assert(!new_child_handle.all_of<AsChild>() && "Entity already has a parent.");
 
     auto& as_parent = parent_handle.get_or_emplace<AsParent>(0, entt::null);
@@ -239,6 +240,7 @@ inline void attach_children(
     for (const entt::entity child_entity : new_child_entities) {
 
         const entt::handle child_handle{ registry, child_entity };
+        assert(child_handle != parent_handle && "Attempted to attach to self.");
         assert(!child_handle.all_of<AsChild>() && "Entity already has a parent.");
 
         // Connect this to the current head.

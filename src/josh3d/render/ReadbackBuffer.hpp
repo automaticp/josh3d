@@ -145,7 +145,7 @@ auto ReadbackBuffer<T>::num_elements() const noexcept
 
 template<trivially_copyable T>
 void ReadbackBuffer<T>::get_data_into(std::span<T> out_buf) const noexcept {
-    assert(out_buf >= buffer_.get_num_elements());
+    assert(out_buf.size() >= buffer_->get_num_elements());
 
     const RawFenceSync<>::nanoseconds timeout{ 1'000'000 };
     while (fence_->flush_and_wait_for(timeout) == SyncWaitResult::TimeoutExpired) {
