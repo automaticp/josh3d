@@ -1,40 +1,44 @@
 #pragma once
-#include "PerspectiveCamera.hpp"
-#include <entt/entity/registry.hpp>
+#include "Camera.hpp"
+#include <entt/fwd.hpp>
 
 
 namespace josh {
 
 
 enum class GizmoOperation {
-    translation,
-    rotation,
-    scaling
+    Translation,
+    Rotation,
+    Scaling
 };
 
 
 enum class GizmoSpace {
-    world,
-    local
+    World,
+    Local
+};
+
+
+enum class GizmoLocation {
+    LocalOrigin,
+    AABBMidpoint
 };
 
 
 class ImGuizmoGizmos {
-private:
-    const PerspectiveCamera& cam_;
-    entt::registry& registry_;
-
 public:
-    GizmoOperation active_operation{ GizmoOperation::translation };
-    GizmoSpace     active_space    { GizmoSpace::world            };
+    GizmoOperation active_operation    { GizmoOperation::Translation };
+    GizmoSpace     active_space        { GizmoSpace::World           };
+    GizmoLocation  preferred_location  { GizmoLocation::AABBMidpoint };
+    bool           display_debug_window{ false                       };
 
-    ImGuizmoGizmos(const PerspectiveCamera& ref_camera, entt::registry& registry)
-        : cam_     { ref_camera }
-        , registry_{ registry   }
-    {}
+    ImGuizmoGizmos(entt::registry& registry) : registry_{ registry } {}
 
     void new_frame();
-    void display();
+    void display(const glm::mat4& view_mat, const glm::mat4& proj_mat);
+
+private:
+    entt::registry& registry_;
 };
 
 

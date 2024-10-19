@@ -1,4 +1,5 @@
 #pragma once
+// IWYU pragma: always_keep
 #include "GLPixelPackTraits.hpp"
 #include "Pixels.hpp"
 

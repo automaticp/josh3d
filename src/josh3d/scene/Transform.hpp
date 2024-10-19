@@ -12,10 +12,12 @@
 
 namespace josh {
 
+
 class MTransform;
 
+
 /*
-Transform expressed as postion, rotation and scale.
+Transform expressed as postion, orientation and scale.
 
 Can be used when the transforms have to be changed frequently
 and also queried at the same time.
@@ -30,26 +32,26 @@ only applies along the local basis.
 */
 class Transform {
 private:
-    glm::vec3 position_{ 0.f };
-    glm::quat rotation_{ 1.f, 0.f, 0.f, 0.f };
-    glm::vec3 scale_{ 1.f };
+    glm::vec3 position_   { 0.f, 0.f, 0.f };
+    glm::quat orientation_{ 1.f, 0.f, 0.f, 0.f };
+    glm::vec3 scale_      { 1.f, 1.f, 1.f };
 
 public:
     Transform() = default;
 
-    Transform(const glm::vec3& position, const glm::quat& rotation, const glm::vec3& scale)
-        : position_{ position }
-        , rotation_{ rotation }
-        , scale_{ scale }
+    Transform(const glm::vec3& position, const glm::quat& orientation, const glm::vec3& scale)
+        : position_   { position    }
+        , orientation_{ orientation }
+        , scale_      { scale       }
     {}
 
-    const glm::vec3& position() const noexcept { return position_; }
-    const glm::quat& rotation() const noexcept { return rotation_; }
-    const glm::vec3& scaling() const noexcept { return scale_; }
+    const glm::vec3& position()    const noexcept { return position_;    }
+    const glm::quat& orientation() const noexcept { return orientation_; }
+    const glm::vec3& scaling()     const noexcept { return scale_;       }
 
-    glm::vec3& position() noexcept { return position_; }
-    glm::quat& rotation() noexcept { return rotation_; }
-    glm::vec3& scaling() noexcept { return scale_; }
+    glm::vec3& position()    noexcept { return position_;    }
+    glm::quat& orientation() noexcept { return orientation_; }
+    glm::vec3& scaling()     noexcept { return scale_;       }
 
 
 
@@ -59,12 +61,12 @@ public:
     }
 
     Transform& rotate(const glm::quat& quaternion) noexcept {
-        rotation_ *= quaternion;
+        orientation_ *= quaternion;
         return *this;
     }
 
     Transform& rotate(float angle_rad, const glm::vec3& axis) noexcept {
-        rotation_ = glm::rotate(rotation_, angle_rad, axis);
+        orientation_ = glm::rotate(orientation_, angle_rad, axis);
         return *this;
     }
 
@@ -74,23 +76,11 @@ public:
     }
 
 
-    [[deprecated("The Transform does not describe the Skew transformation, therefore, \
-        it cannot properly propagate Scaling after Rotation. This operator is not equivalent \
-        to a model matrix multiplication. Do not use this.")]]
-    Transform operator*(const Transform& other) const noexcept {
-        return {
-            this->position_ + this->scale_ * (this->rotation_ * other.position_),
-            this->rotation_ * other.rotation_,
-            this->scale_    * other.scale_
-        };
-    }
-
-
     // Get an euler angle representation of rotation:
     // (X, Y, Z) == (Pitch, Yaw, Roll).
     // Differs from GLM in that the locking axis is Pitch not Yaw.
     glm::vec3 get_euler() const noexcept {
-        const auto& q = rotation_;
+        const auto& q = orientation_;
         const glm::quat q_shfl{ q.w, q.y, q.x, q.z };
 
         const glm::vec3 euler{
@@ -107,10 +97,11 @@ public:
     // NOT with GLM's eulerAngles().
     void set_euler(const glm::vec3& euler) noexcept {
         const glm::quat p{ glm::vec3{ euler.y, euler.x, euler.z } };
-        rotation_ = glm::quat{ p.w, p.y, p.x, p.z };
+        orientation_ = glm::quat{ p.w, p.y, p.x, p.z };
     }
 
 
+    // Compute a local MTransform (aka. Model/World matrix) from this Transform.
     MTransform mtransform() const noexcept;
 
 };
@@ -140,6 +131,7 @@ public:
 
     explicit(false) MTransform(const glm::mat4& model) : model_{ model } {}
 
+    // Aka. world->local change-of-basis.
     const glm::mat4& model() const noexcept {
         return model_;
     }
@@ -149,45 +141,26 @@ public:
     }
 
 
-    // FIXME: Why do these && overloads even exist, eh?
-
-    MTransform& translate(const glm::vec3& delta) & noexcept {
+    MTransform& translate(const glm::vec3& delta) noexcept {
         model_ = glm::translate(model_, delta);
         return *this;
     }
 
-    MTransform translate(const glm::vec3& delta) && noexcept {
-        return glm::translate(model_, delta);
-    }
-
-
-    MTransform& rotate(const glm::quat& quaternion) & noexcept {
+    MTransform& rotate(const glm::quat& quaternion) noexcept {
         model_ = model_ * glm::mat4_cast(quaternion);
         return *this;
     }
 
-    MTransform rotate(const glm::quat& quaternion) && noexcept {
-        return model_ * glm::mat4_cast(quaternion);
-    }
-
-    MTransform& rotate(float angle_rad, const glm::vec3& axis) & noexcept {
+    MTransform& rotate(float angle_rad, const glm::vec3& axis) noexcept {
         model_ = glm::rotate(model_, angle_rad, axis);
         return *this;
     }
 
-    MTransform rotate(float angle_rad, const glm::vec3& axis) && noexcept {
-        return glm::rotate(model_, angle_rad, axis);
-    }
-
-
-    MTransform& scale(const glm::vec3& xyz_scaling) & noexcept {
+    MTransform& scale(const glm::vec3& xyz_scaling) noexcept {
         model_ = glm::scale(model_, xyz_scaling);
         return *this;
     }
 
-    MTransform scale(const glm::vec3& xyz_scaling) && noexcept {
-        return glm::scale(model_, xyz_scaling);
-    }
 
     MTransform operator*(const MTransform& other) const noexcept {
         return { this->model() * other.model() };
@@ -217,7 +190,7 @@ public:
 inline MTransform Transform::mtransform() const noexcept {
     return MTransform()
         .translate(position_)
-        .rotate(rotation_)
+        .rotate(orientation_)
         .scale(scale_);
 }
 

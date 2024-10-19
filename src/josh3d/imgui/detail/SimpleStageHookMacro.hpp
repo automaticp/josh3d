@@ -1,8 +1,12 @@
 #pragma once
-#include "AnyRef.hpp"
+#include "AnyRef.hpp" // IWYU pragma: keep
 
 
 #define JOSH3D_SIMPLE_STAGE_HOOK(stage_type, stage_name)                   \
+    namespace josh::stages::stage_type {                                   \
+        class stage_name;                                                  \
+    }                                                                      \
+                                                                           \
     namespace josh::imguihooks::stage_type {                               \
                                                                            \
                                                                            \

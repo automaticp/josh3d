@@ -8,10 +8,10 @@
 #include "Attachments.hpp"
 #include "GLTextures.hpp"
 #include "RenderTarget.hpp"
+#include "ShaderPool.hpp"
 #include "SwapChain.hpp"
-#include "UniformTraits.hpp" // IWYU pragma: keep (traits)
+#include "UniformTraits.hpp"
 #include "RenderEngine.hpp"
-#include "ShaderBuilder.hpp"
 #include "Size.hpp"
 #include "VPath.hpp"
 #include <glbinding/gl/enum.h>
@@ -35,8 +35,8 @@ public:
     size_t    blur_iterations{ 1 };
     float     offset_scale{ 1.f };
 
-    float  gaussian_sample_range{ 1.8f }; // TODO: This should be a set/get pair
-    size_t gaussian_samples{ 4 };         // so that the buffer update would happen in-place.
+    float  gaussian_sample_range{ 3.13f }; // TODO: This should be a set/get pair
+    size_t gaussian_samples{ 2 };          // so that the buffer update would happen in-place.
 
     Bloom(const Size2I& initial_resolution);
 
@@ -51,29 +51,18 @@ public:
     }
 
 
-
-
 private:
-    UniqueProgram sp_extract_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/postprocess.vert"))
-            .load_frag(VPath("src/shaders/pp_bloom_threshold_extract.frag"))
-            .get()
-    };
+    ShaderToken sp_extract_ = shader_pool().get({
+        .vert = VPath("src/shaders/postprocess.vert"),
+        .frag = VPath("src/shaders/pp_bloom_threshold_extract.frag")});
 
-    UniqueProgram sp_twopass_gaussian_blur_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/postprocess.vert"))
-            .load_frag(VPath("src/shaders/pp_bloom_twopass_gaussian_blur.frag"))
-            .get()
-    };
+    ShaderToken sp_twopass_gaussian_blur_ = shader_pool().get({
+        .vert = VPath("src/shaders/postprocess.vert"),
+        .frag = VPath("src/shaders/pp_bloom_twopass_gaussian_blur.frag")});
 
-    UniqueProgram sp_blend_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/postprocess.vert"))
-            .load_frag(VPath("src/shaders/pp_bloom_blend.frag"))
-            .get()
-    };
+    ShaderToken sp_blend_ = shader_pool().get({
+        .vert = VPath("src/shaders/postprocess.vert"),
+        .frag = VPath("src/shaders/pp_bloom_blend.frag")});
 
     using BlurTarget    = RenderTarget<NoDepthAttachment, UniqueAttachment<Renderable::Texture2D>>;
     using BlurSwapChain = SwapChain<BlurTarget>;
@@ -88,7 +77,7 @@ private:
     static BlurTarget make_blur_target(const Size2I& resolution) {
         return {
             resolution,
-            { InternalFormat::RGBA16F } // HDR Color
+            { InternalFormat::R11F_G11F_B10F }
         };
     }
 
@@ -153,11 +142,12 @@ inline void Bloom::operator()(
 
     // Extract.
     {
+        const auto sp = sp_extract_.get();
         engine.screen_color().bind_to_texture_unit(0);
-        sp_extract_->uniform("screen_color",     0);
-        sp_extract_->uniform("threshold_bounds", threshold_bounds);
-        blur_chain_.draw_and_swap([&, this](auto bound_fbo) {
-            BindGuard bound_program = sp_extract_->use();
+        sp.uniform("screen_color",     0);
+        sp.uniform("threshold_bounds", threshold_bounds);
+        blur_chain_.draw_and_swap([&](auto bound_fbo) {
+            BindGuard bound_program = sp.use();
             engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
         });
     }
@@ -165,16 +155,17 @@ inline void Bloom::operator()(
 
     // Blur.
     {
+        const auto sp = sp_twopass_gaussian_blur_.get();
         weights_buf_->bind_to_index<BufferTargetIndexed::ShaderStorage>(0);
-        sp_twopass_gaussian_blur_->uniform("offset_scale", offset_scale);
-        sp_twopass_gaussian_blur_->uniform("screen_color", 0); // Same unit, different textures.
+        sp.uniform("offset_scale", offset_scale);
+        sp.uniform("screen_color", 0); // Same unit, different textures.
 
-        BindGuard bound_program = sp_twopass_gaussian_blur_->use();
+        BindGuard bound_program = sp.use();
 
         for (size_t i{ 0 }; i < (2 * blur_iterations); ++i) {
             // Need to rebind after every swap.
             blur_chain_.front_target().color_attachment().texture().bind_to_texture_unit(0);
-            sp_twopass_gaussian_blur_->uniform("blur_horizontally", bool(i % 2));
+            sp.uniform("blur_horizontally", bool(i % 2));
 
             blur_chain_.draw_and_swap([&](auto bound_fbo) {
                 engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
@@ -186,12 +177,13 @@ inline void Bloom::operator()(
     // Blend.
     // TODO: Why is this a separate shader and not just using blend mode?
     {
+        const auto sp = sp_blend_.get();
         engine.screen_color().bind_to_texture_unit(0);
         blur_chain_.front_target().color_attachment().texture().bind_to_texture_unit(1);
-        sp_blend_->uniform("screen_color", 0);
-        sp_blend_->uniform("bloom_color",  1);
+        sp.uniform("screen_color", 0);
+        sp.uniform("bloom_color",  1);
         {
-            BindGuard bound_program = sp_blend_->use();
+            BindGuard bound_program = sp.use();
             engine.draw(bound_program);
         }
     }

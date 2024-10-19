@@ -1,9 +1,8 @@
 #pragma once
 #include "GLAPIBinding.hpp"
-#include "GLMutability.hpp"
 #include "GLObjects.hpp"
 #include "RenderEngine.hpp"
-#include "ShaderBuilder.hpp"
+#include "ShaderPool.hpp"
 #include "VPath.hpp"
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
@@ -24,12 +23,9 @@ public:
 
 
 private:
-    UniqueProgram sp_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/postprocess.vert"))
-            .load_frag(VPath("src/shaders/pp_hdr.frag"))
-            .get()
-    };
+    ShaderToken sp_ = shader_pool().get({
+        .vert = VPath("src/shaders/postprocess.vert"),
+        .frag = VPath("src/shaders/pp_hdr.frag")});
 
 };
 
@@ -39,14 +35,14 @@ private:
 inline void HDR::operator()(
     RenderEnginePostprocessInterface& engine)
 {
-
+    const auto sp = sp_.get();
     engine.screen_color().bind_to_texture_unit(0);
-    sp_->uniform("color",        0);
-    sp_->uniform("use_reinhard", use_reinhard);
-    sp_->uniform("use_exposure", use_exposure);
-    sp_->uniform("exposure",     exposure);
+    sp.uniform("color",        0);
+    sp.uniform("use_reinhard", use_reinhard);
+    sp.uniform("use_exposure", use_exposure);
+    sp.uniform("exposure",     exposure);
 
-    BindGuard bound_program = sp_->use();
+    BindGuard bound_program = sp.use();
     engine.draw(bound_program);
 
 }

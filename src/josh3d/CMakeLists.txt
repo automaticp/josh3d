@@ -50,7 +50,6 @@ set(SUBTARGETS
     render
     resource
     scene
-    terrain
     util
 )
 
@@ -114,15 +113,14 @@ endfunction()
 
 
 subtarget_link_internal(imgui      PUBLIC engine filesystem input util PRIVATE data gl scene resource)
-subtarget_link_internal(engine     PUBLIC data filesystem gl gltraits render resource scene terrain util)
-subtarget_link_internal(terrain    PUBLIC data gl gltraits scene resource util layout imgui #[[ well... ]])
-subtarget_link_internal(render     INTERFACE data gl gltraits util layout)
+subtarget_link_internal(engine     PUBLIC data filesystem gl gltraits render resource scene util)
+subtarget_link_internal(render     PUBLIC data gl gltraits util layout)
 subtarget_link_internal(resource   PUBLIC data filesystem gl gltraits scene util layout PRIVATE render)
 subtarget_link_internal(data       PUBLIC util layout)
-subtarget_link_internal(input      INTERFACE util scene)
+subtarget_link_internal(input      PUBLIC util scene)
 subtarget_link_internal(gl         PUBLIC util layout)
 subtarget_link_internal(gltraits   INTERFACE gl layout)
-subtarget_link_internal(scene      INTERFACE util layout)
+subtarget_link_internal(scene      PUBLIC util layout)
 subtarget_link_internal(filesystem PUBLIC util)
 subtarget_link_internal(layout)
 subtarget_link_internal(util)
@@ -155,10 +153,10 @@ endforeach()
 target_link_libraries(josh3d-data     PRIVATE   ctre::ctre)
 target_link_libraries(josh3d-engine   PUBLIC    glfwpp::glfwpp EnTT::EnTT)
 target_link_libraries(josh3d-gl       PUBLIC    glbinding::glbinding)
-target_link_libraries(josh3d-imgui    PUBLIC    imgui::imgui imguizmo::imguizmo PRIVATE glfwpp::glfwpp)
+target_link_libraries(josh3d-imgui    PUBLIC    imgui::imgui unofficial::imguizmo::imguizmo PRIVATE glfwpp::glfwpp)
 target_link_libraries(josh3d-resource PUBLIC    assimp::assimp #[[ should be private ]] PRIVATE stb::stb nlohmann_json::nlohmann_json)
 # target_link_libraries(josh3d-render)
 # target_link_libraries(josh3d-layout)
-target_link_libraries(josh3d-scene    INTERFACE EnTT::EnTT)
+target_link_libraries(josh3d-scene    PUBLIC    EnTT::EnTT)
 target_link_libraries(josh3d-util     PUBLIC    glbinding::glbinding glbinding::glbinding-aux glfwpp::glfwpp)
 

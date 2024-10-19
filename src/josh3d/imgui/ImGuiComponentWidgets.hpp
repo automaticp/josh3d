@@ -1,41 +1,146 @@
 #pragma once
+#include "AABB.hpp"
+#include "Active.hpp"
+#include "BoundingSphere.hpp"
+#include "Camera.hpp"
+#include "Components.hpp"
 #include "DefaultTextures.hpp"
-#include "ECSHelpers.hpp"
 #include "GLObjects.hpp"
 #include "ImGuiHelpers.hpp"
 #include "LightCasters.hpp"
-#include "components/Model.hpp"
-#include "components/Materials.hpp"
-#include "components/Name.hpp"
-#include "components/Path.hpp"
-#include "components/Transform.hpp"
-#include "components/VPath.hpp"
+#include "Mesh.hpp"
+#include "Materials.hpp"
+#include "Name.hpp"
+#include "SceneGraph.hpp"
+#include "Skybox.hpp"
+#include "Tags.hpp"
+#include "Filesystem.hpp"
+#include "TerrainChunk.hpp"
+#include "Transform.hpp"
+#include "VPath.hpp"
 #include "tags/AlphaTested.hpp"
-#include "tags/Culled.hpp"
-#include "tags/Selected.hpp"
 #include "tags/ShadowCasting.hpp"
+#include "tags/Visible.hpp"
 #include <cassert>
 #include <entt/entity/entity.hpp>
 #include <entt/entity/fwd.hpp>
+#include <glm/fwd.hpp>
+#include <glm/trigonometric.hpp>
 #include <imgui.h>
 
 
 namespace josh::imgui {
 
 
-inline bool TransformWidget(josh::components::Transform* transform) noexcept {
+struct GenericHeaderInfo {
+    const char* type_name = "UnknownEntityType";
+    const char* name      = "";
+};
+
+
+inline auto GetGenericHeaderInfo(entt::const_handle handle)
+    -> GenericHeaderInfo
+{
+    const char* type_name = [&]() {
+        if (has_component<Mesh>            (handle)) { return "Mesh";             }
+        if (has_component<TerrainChunk>    (handle)) { return "TerrainChunk";     }
+        if (has_component<AmbientLight>    (handle)) { return "AmbientLight";     }
+        if (has_component<DirectionalLight>(handle)) { return "DirectionalLight"; }
+        if (has_component<PointLight>      (handle)) { return "PointLight";       }
+        if (has_component<Skybox>          (handle)) { return "Skybox";           }
+        if (has_component<Camera>          (handle)) { return "Camera";           }
+
+        if (has_component<Transform>(handle)) {
+            if (has_children(handle)) { return "Node";   }
+            else                      { return "Orphan"; }
+        } else {
+            if (has_children(handle)) { return "GroupingNode";  } // Does this even make sense?
+            else                      { return "UnknownEntity"; }
+        }
+    }();
+
+    const char* name = [&]() {
+        if (const Name* name = handle.try_get<Name>()) {
+            return name->c_str();
+        } else {
+            return "";
+        }
+    }();
+
+    return { type_name, name };
+}
+
+
+inline bool GetGenericVisibility(entt::const_handle handle) {
+    if (has_component<AmbientLight>    (handle)) { return is_active<AmbientLight>    (handle); }
+    if (has_component<DirectionalLight>(handle)) { return is_active<DirectionalLight>(handle); }
+    if (has_component<Skybox>          (handle)) { return is_active<Skybox>          (handle); }
+    if (has_component<Camera>          (handle)) { return is_active<Camera>          (handle); }
+
+    if (handle.any_of<AABB, BoundingSphere>()) {
+        return has_tag<Visible>(handle);
+    } else {
+        return true;
+    }
+}
+
+
+inline void GenericHeaderText(entt::const_handle handle) {
+    const bool is_visible = GetGenericVisibility(handle);
+    if (!is_visible) {
+        auto text_color = ImGui::GetStyleColorVec4(ImGuiCol_Text);
+        text_color.w *= 0.5f; // Dim text when culled.
+        ImGui::PushStyleColor(ImGuiCol_Text, text_color);
+    }
+
+    auto [type_name, name] = GetGenericHeaderInfo(handle);
+    ImGui::Text("[%d] [%s] %s", entt::to_entity(handle.entity()), type_name, name);
+
+    if (!is_visible) {
+        ImGui::PopStyleColor();
+    }
+}
+
+
+struct GenericActiveInfo {
+    bool can_be_active{ false };
+    bool is_active    { false };
+};
+
+
+inline auto GetGenericActiveInfo(entt::const_handle handle)
+    -> GenericActiveInfo
+{
+    if (has_component<AmbientLight>    (handle)) { return { true, is_active<AmbientLight>    (handle) }; }
+    if (has_component<DirectionalLight>(handle)) { return { true, is_active<DirectionalLight>(handle) }; }
+    if (has_component<Skybox>          (handle)) { return { true, is_active<Skybox>          (handle) }; }
+    if (has_component<Camera>          (handle)) { return { true, is_active<Camera>          (handle) }; }
+    return { false, false };
+}
+
+
+inline void GenericMakeActive(entt::handle handle) {
+    if (has_component<AmbientLight>    (handle)) { make_active<AmbientLight>    (handle); }
+    if (has_component<DirectionalLight>(handle)) { make_active<DirectionalLight>(handle); }
+    if (has_component<Skybox>          (handle)) { make_active<Skybox>          (handle); }
+    if (has_component<Camera>          (handle)) { make_active<Camera>          (handle); }
+}
+
+
+
+inline bool TransformWidget(josh::Transform& transform) noexcept {
 
     bool feedback{ false };
 
     feedback |= ImGui::DragFloat3(
-        "Position", glm::value_ptr(transform->position()),
+        "Position", glm::value_ptr(transform.position()),
         0.2f, -FLT_MAX, FLT_MAX
     );
 
     // FIXME: This is slightly more usable, but the singularity for Pitch around 90d
     // is still unstable. In general: Local X is Pitch, Global Y is Yaw, and Local Z is Roll.
     // Stll very messy to use, but should get the ball rolling.
-    const glm::quat& q = transform->rotation();
+    const glm::quat& q = transform.orientation();
     // Swap quaternion axes to make pitch around (local) X axis.
     // Also GLM for some reason assumes that the locking [-90, 90] axis is
     // associated with Yaw, not Pitch...? Maybe I am confused here but
@@ -54,38 +159,80 @@ inline bool TransformWidget(josh::components::Transform* transform) noexcept {
         euler.z = glm::mod(euler.z, 360.f);
         // Un-shuffle back both the euler angles and quaternions.
         glm::quat p = glm::quat(glm::radians(glm::vec3{ euler.y, euler.x, euler.z }));
-        transform->rotation() = glm::quat{ p.w, p.y, p.x, p.z };
+        transform.orientation() = glm::quat{ p.w, p.y, p.x, p.z };
         feedback |= true;
     }
 
     feedback |= ImGui::DragFloat3(
-        "Scale", glm::value_ptr(transform->scaling()),
-        0.1f, 0.01f, 100.f, "%.3f", ImGuiSliderFlags_Logarithmic
+        "Scale", glm::value_ptr(transform.scaling()),
+        0.1f, 0.001f, 1000.f, "%.3f", ImGuiSliderFlags_Logarithmic
     );
 
     return feedback;
 }
 
 
-inline void NameWidget(josh::components::Name* name) noexcept {
-    ImGui::Text("Name: %s", name->name.c_str());
+inline void Matrix4x4DisplayWidget(const glm::mat4& mat4) {
+    const int num_rows = 4;
+    const int num_cols = 4;
+    ImGuiTableFlags flags =
+        ImGuiTableFlags_Borders |
+        ImGuiTableFlags_SizingFixedFit |
+        ImGuiTableFlags_NoHostExtendX;
+    if (ImGui::BeginTable("Matrix4x4", num_cols, flags)) {
+        for (int row = 0; row < num_rows; ++row) {
+            ImGui::TableNextRow();
+            for (int col = 0; col < num_cols; ++col) {
+                ImGui::TableSetColumnIndex(col);
+
+                ImGui::Text("%.3f", mat4[col][row]);
+            }
+        }
+        ImGui::EndTable();
+    }
 }
 
 
-inline void PathWidget(josh::components::Path* path) noexcept {
+inline void Matrix3x3DisplayWidget(const glm::mat3& mat3) {
+    const int num_rows = 3;
+    const int num_cols = 3;
+    ImGuiTableFlags flags =
+        ImGuiTableFlags_Borders |
+        ImGuiTableFlags_SizingFixedFit |
+        ImGuiTableFlags_NoHostExtendX;
+    if (ImGui::BeginTable("Matrix4x4", num_cols, flags)) {
+        for (int row = 0; row < num_rows; ++row) {
+            ImGui::TableNextRow();
+            for (int col = 0; col < num_cols; ++col) {
+                ImGui::TableSetColumnIndex(col);
+
+                ImGui::Text("%.3f", mat3[col][row]);
+            }
+        }
+        ImGui::EndTable();
+    }
+}
+
+
+inline void NameWidget(josh::Name* name) noexcept {
+    ImGui::Text("Name: %s", name->c_str());
+}
+
+
+inline void PathWidget(josh::Path* path) noexcept {
     ImGui::Text("Path: %s", path->c_str());
 }
 
 
-inline void VPathWidget(josh::components::VPath* vpath) noexcept {
+inline void VPathWidget(josh::VPath* vpath) noexcept {
     ImGui::Text("VPath: %s", vpath->path().c_str());
 }
 
 
 inline void MaterialsWidget(entt::handle mesh) noexcept {
 
-    const float  text_height = ImGui::GetTextLineHeight();
-    const ImVec2 preview_size    { 4.f * text_height, 4.f * text_height };
+    const float  text_height  = ImGui::GetTextLineHeight();
+    const ImVec2 preview_size = { 4.f * text_height, 4.f * text_height };
 
     constexpr ImVec4 tex_tint        { 1.f, 1.f, 1.f, 1.f };
     constexpr ImVec4 tex_frame_color { .5f, .5f, .5f, .5f };
@@ -171,7 +318,7 @@ inline void MaterialsWidget(entt::handle mesh) noexcept {
 
 
     bool can_be_alpha_tested{ false };
-    if (auto material = mesh.try_get<components::MaterialDiffuse>()) {
+    if (auto material = mesh.try_get<MaterialDiffuse>()) {
         material_widget(
             material->texture, "Diffuse", "Diffuse Popup", tex_frame_color, tex_tint
         );
@@ -186,7 +333,7 @@ inline void MaterialsWidget(entt::handle mesh) noexcept {
     }
 
 
-    if (auto material = mesh.try_get<components::MaterialSpecular>()) {
+    if (auto material = mesh.try_get<MaterialSpecular>()) {
         ImGui::SameLine();
         material_widget(
             material->texture, "Specular", "Specular Popup", tex_frame_color, tex_tint
@@ -199,7 +346,7 @@ inline void MaterialsWidget(entt::handle mesh) noexcept {
     }
 
 
-    if (auto material = mesh.try_get<components::MaterialNormal>()) {
+    if (auto material = mesh.try_get<MaterialNormal>()) {
         ImGui::SameLine();
         material_widget(
             material->texture, "Normal", "Normal Popup", tex_frame_color, tex_tint
@@ -213,225 +360,118 @@ inline void MaterialsWidget(entt::handle mesh) noexcept {
 
 
     if (can_be_alpha_tested) {
-        bool is_alpha_tested = mesh.all_of<tags::AlphaTested>();
+        bool is_alpha_tested = mesh.all_of<AlphaTested>();
         ImGui::SameLine();
         if (ImGui::Checkbox("Alpha-Testing", &is_alpha_tested)) {
             if (is_alpha_tested) {
-                mesh.emplace<tags::AlphaTested>();
+                mesh.emplace<AlphaTested>();
             } else {
-                mesh.remove<tags::AlphaTested>();
+                mesh.remove<AlphaTested>();
             }
         }
     }
 }
 
 
-inline bool SelectButton(entt::handle handle) noexcept {
-    bool feedback{ false };
+inline bool AmbientLightWidget(AmbientLight& alight) {
+    bool feedback = false;
+    feedback |= ImGui::ColorEdit3("Color", glm::value_ptr(alight.color), ImGuiColorEditFlags_DisplayHSV);
+    feedback |= ImGui::DragFloat("Irradiance, W/m^2", &alight.irradiance, 0.1f, 0.f, FLT_MAX);
+    return feedback;
+}
 
-    const bool is_selected = handle.all_of<tags::Selected>();
-    constexpr ImVec4 selected_color{ .2f, .6f, .2f, 1.f };
 
-    ImGui::PushID(void_id(handle.entity()));
+inline bool AmbientLightHandleWidget(entt::handle alight_handle) {
+    if (auto* alight = alight_handle.try_get<AmbientLight>()) {
+        return AmbientLightWidget(*alight);
+    }
+    return false;
+}
 
-    if (is_selected) {
-        ImGui::PushStyleColor(ImGuiCol_Button, selected_color);
 
-        if (ImGui::SmallButton("Select")) {
-            handle.erase<tags::Selected>();
-            feedback = true;
+inline bool ShadowCastingHandleWidget(entt::handle light_handle) {
+    bool has_shadow = has_tag<ShadowCasting>(light_handle);
+    if (ImGui::Checkbox("Shadow", &has_shadow)) {
+        switch_tag<ShadowCasting>(light_handle);
+        return true;
+    }
+    return false;
+}
+
+
+inline bool DirectionalLightWidget(DirectionalLight& dlight) {
+    bool feedback = false;
+    feedback |= ImGui::ColorEdit3("Color", glm::value_ptr(dlight.color), ImGuiColorEditFlags_DisplayHSV);
+    feedback |= ImGui::DragFloat("Irradiance, W/m^2", &dlight.irradiance, 0.1f, 0.f, FLT_MAX);
+    return feedback;
+}
+
+
+inline bool DirectionalLightHandleWidget(entt::handle dlight_handle) {
+    bool feedback = false;
+    if (auto* dlight = dlight_handle.try_get<DirectionalLight>()) {
+        feedback |= DirectionalLightWidget(*dlight);
+        feedback |= ShadowCastingHandleWidget(dlight_handle);
+    }
+    return feedback;
+}
+
+
+inline bool PointLightRadiantFluxWidget(float& quadratic_attenuation) noexcept {
+    bool feedback = false;
+    constexpr float four_pi = 4.f * glm::pi<float>();
+    float rf = four_pi / quadratic_attenuation;
+    if (ImGui::DragFloat("Radiant Power, W", &rf, 0.1f, 0.f, FLT_MAX)) {
+        quadratic_attenuation = four_pi / rf;
+        feedback |= true;
+    }
+    return feedback;
+}
+
+
+inline bool PointLightWidget(PointLight& plight) {
+    bool feedback = false;
+    feedback |= ImGui::ColorEdit3("Color", glm::value_ptr(plight.color), ImGuiColorEditFlags_DisplayHSV);
+    feedback |= ImGui::DragFloat("Radiant Power, W", &plight.power, 0.1f, 0.f, FLT_MAX);
+    return feedback;
+}
+
+
+inline bool PointLightHandleWidget(entt::handle plight_handle) {
+    bool feedback = false;
+    if (auto* plight = plight_handle.try_get<PointLight>()) {
+        feedback |= PointLightWidget(*plight);
+        feedback |= ShadowCastingHandleWidget(plight_handle);
+    }
+    return feedback;
+}
+
+
+inline bool CameraHandleWidget(entt::handle camera_handle) noexcept {
+    bool need_update = false;
+    if (auto* camera = camera_handle.try_get<Camera>()) {
+        auto params = camera->get_params();
+
+        if (ImGui::DragFloatRange2("Z Near/Far", &params.z_near, &params.z_far,
+            0.2f, 0.0001f, 10000.f, "%.4f", nullptr, ImGuiSliderFlags_Logarithmic))
+        {
+            need_update |= true;
         }
 
-        ImGui::PopStyleColor();
-    } else /* not selected */ {
-        if (ImGui::SmallButton("Select")) {
-            handle.emplace<tags::Selected>();
-            feedback = true;
-        }
-    }
-
-    ImGui::PopID();
-
-    return feedback;
-}
-
-
-// Does not remove anything, just signals that it has been pressed.
-[[nodiscard]]
-inline bool RemoveButton() noexcept {
-    bool feedback{ false };
-
-    if (ImGui::SmallButton("Remove")) {
-        feedback = true;
-    }
-
-    return feedback;
-}
-
-
-inline void MeshWidgetHeader(entt::handle mesh_handle) noexcept {
-
-    SelectButton(mesh_handle);
-    ImGui::SameLine();
-
-    const bool is_culled = mesh_handle.all_of<tags::Culled>();
-    if (is_culled) {
-        auto text_color = ImGui::GetStyleColorVec4(ImGuiCol_Text);
-        text_color.w *= 0.5f; // Dim text when culled.
-        ImGui::PushStyleColor(ImGuiCol_Text, text_color);
-    }
-
-    if (auto name = mesh_handle.try_get<components::Name>()) {
-        ImGui::Text("Mesh [%d]: %s", entt::to_entity(mesh_handle.entity()), name->name.c_str());
-    } else {
-        ImGui::Text("Mesh [%d]",     entt::to_entity(mesh_handle.entity()));
-    }
-
-    if (is_culled) {
-        ImGui::PopStyleColor();
-    }
-
-}
-
-
-inline void MeshWidgetBody(entt::handle mesh_handle) noexcept {
-
-    if (auto tf = mesh_handle.try_get<components::Transform>()) {
-        TransformWidget(tf);
-    }
-
-    MaterialsWidget(mesh_handle);
-}
-
-
-inline void MeshWidget(entt::handle mesh_handle) noexcept {
-
-    ImGui::PushID(void_id(mesh_handle.entity()));
-
-    MeshWidgetHeader(mesh_handle);
-    MeshWidgetBody(mesh_handle);
-
-    ImGui::PopID();
-}
-
-
-enum class Feedback {
-    None,
-    Remove
-};
-
-
-[[nodiscard]]
-inline Feedback ModelWidgetHeader(entt::handle model_handle) noexcept {
-    Feedback feedback{ Feedback::None };
-
-    // ImGui::PushID(void_id(model_handle.entity()));
-
-    SelectButton(model_handle);
-    ImGui::SameLine();
-    if (RemoveButton()) { feedback = Feedback::Remove; }
-    ImGui::SameLine();
-
-    if (auto name = model_handle.try_get<components::Name>()) {
-        ImGui::Text("Model [%d]: %s", entt::to_entity(model_handle.entity()), name->name.c_str());
-    } else {
-        ImGui::Text("Model [%d]",     entt::to_entity(model_handle.entity()));
-    }
-
-    return feedback;
-}
-
-
-inline void ModelWidgetBody(entt::handle model_handle) noexcept {
-
-    if (auto tf = model_handle.try_get<components::Transform>()) {
-        TransformWidget(tf);
-    }
-
-    if (auto path = model_handle.try_get<components::Path>()) {
-        PathWidget(path);
-    }
-
-    if (auto vpath = model_handle.try_get<components::VPath>()) {
-        VPathWidget(vpath);
-    }
-
-
-    if (ImGui::TreeNode("Meshes")) {
-
-        auto model = model_handle.try_get<components::Model>();
-        assert(model);
-
-        for (auto mesh_entity : model->meshes()) {    ;
-            MeshWidget({ *model_handle.registry(), mesh_entity });
+        float fovy_deg = glm::degrees(params.fovy_rad);
+        if (ImGui::DragFloat("Y FoV, deg", &fovy_deg,
+            0.2f, 0.f, FLT_MAX))
+        {
+            params.fovy_rad = glm::radians(fovy_deg);
+            need_update |= true;
         }
 
-        ImGui::TreePop();
-    }
-
-}
-
-
-[[nodiscard]]
-inline Feedback ModelWidget(entt::handle model_handle) noexcept {
-
-    ImGui::PushID(void_id(model_handle.entity()));
-
-    auto feedback = ModelWidgetHeader(model_handle);
-    ModelWidgetBody(model_handle);
-
-    ImGui::PopID();
-
-    return feedback;
-}
-
-
-inline Feedback PointLightWidgetHeader(entt::handle plight_handle) noexcept {
-    Feedback feedback{ Feedback::None };
-
-    SelectButton(plight_handle);
-    ImGui::SameLine();
-    if (RemoveButton()) { feedback = Feedback::Remove; }
-    ImGui::SameLine();
-
-    ImGui::Text("Point Light [%d]", entt::to_entity(plight_handle.entity()));
-
-    return feedback;
-}
-
-
-inline void PointLightWidgetBody(entt::handle plight_handle) noexcept {
-
-    if (auto plight = plight_handle.try_get<light::Point>()) {
-
-        ImGui::DragFloat3("Position", glm::value_ptr(plight->position), 0.2f);
-        ImGui::ColorEdit3("Color", glm::value_ptr(plight->color), ImGuiColorEditFlags_DisplayHSV);
-        ImGui::SameLine();
-        bool has_shadow = has_tag<tags::ShadowCasting>(plight_handle);
-        if (ImGui::Checkbox("Shadow", &has_shadow)) {
-            switch_tag<tags::ShadowCasting>(plight_handle);
+        if (need_update) {
+            camera->update_params(params);
         }
-
-        ImGui::DragFloat3(
-            "Atten. (c/l/q)", &plight->attenuation.constant,
-            0.1f, 0.f, 100.f, "%.4f", ImGuiSliderFlags_Logarithmic
-        );
-
     }
+    return need_update;
 }
-
-
-inline Feedback PointLightWidget(entt::handle plight_handle) noexcept {
-    ImGui::PushID(void_id(plight_handle.entity()));
-
-    Feedback feedback = PointLightWidgetHeader(plight_handle);
-    PointLightWidgetBody(plight_handle);
-
-    ImGui::PopID();
-    return feedback;
-}
-
-
 
 
 } // namespace josh::imgui

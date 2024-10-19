@@ -1,14 +1,14 @@
 #include "DeferredGeometry.hpp"
 #include "GLProgram.hpp"
-#include "UniformTraits.hpp" // IWYU pragma: keep (traits)
-#include "components/Materials.hpp"
+#include "UniformTraits.hpp"
+#include "Materials.hpp"
 #include "tags/AlphaTested.hpp"
-#include "tags/Culled.hpp"
 #include "Transform.hpp"
 #include "RenderEngine.hpp"
 #include "Transform.hpp"
 #include "Mesh.hpp"
 #include "DefaultTextures.hpp"
+#include "tags/Visible.hpp"
 #include <entt/core/type_traits.hpp>
 #include <entt/entity/entity.hpp>
 #include <entt/entity/fwd.hpp>
@@ -29,24 +29,24 @@ void DeferredGeometry::operator()(
     // Exclude to not draw the same meshes twice.
 
     // TODO: Anyway, I caved in, and we have 4 variations of shaders now...
-    // We should probably rework the mesh layout and remove the combination with/withoun normals.
-    auto view_ds_at    = registry.view<MTransform, Mesh, tags::AlphaTested>(entt::exclude<components::MaterialNormal, tags::Culled>);
-    auto view_ds_noat  = registry.view<MTransform, Mesh>(entt::exclude<components::MaterialNormal, tags::Culled, tags::AlphaTested>);
-    auto view_dsn_at   = registry.view<MTransform, Mesh, components::MaterialNormal, tags::AlphaTested>(entt::exclude<tags::Culled>);
-    auto view_dsn_noat = registry.view<MTransform, Mesh, components::MaterialNormal>(entt::exclude<tags::Culled, tags::AlphaTested>);
+    // We should probably rework the mesh layout and remove the combination with/without normals.
+    auto view_ds_at    = registry.view<Visible, MTransform, Mesh, AlphaTested>(entt::exclude<MaterialNormal>);
+    auto view_ds_noat  = registry.view<Visible, MTransform, Mesh>(entt::exclude<MaterialNormal, AlphaTested>);
+    auto view_dsn_at   = registry.view<Visible, MTransform, Mesh, MaterialNormal, AlphaTested>();
+    auto view_dsn_noat = registry.view<Visible, MTransform, Mesh, MaterialNormal>(entt::exclude<AlphaTested>);
 
     // TODO: Mutual exclusions like these are generally
     // uncomfortable to do in EnTT. Is there a better way?
 
     const auto apply_ds_materials = [&](entt::entity e, RawProgram<> sp, Location shininess_loc) {
 
-        if (auto mat_d = registry.try_get<components::MaterialDiffuse>(e)) {
+        if (auto mat_d = registry.try_get<MaterialDiffuse>(e)) {
             mat_d->texture->bind_to_texture_unit(0);
         } else {
             globals::default_diffuse_texture().bind_to_texture_unit(0);
         }
 
-        if (auto mat_s = registry.try_get<components::MaterialSpecular>(e)) {
+        if (auto mat_s = registry.try_get<MaterialSpecular>(e)) {
             mat_s->texture->bind_to_texture_unit(1);
             sp.uniform(shininess_loc, mat_s->shininess);
         } else {
@@ -117,8 +117,8 @@ void DeferredGeometry::operator()(
         glapi::disable(Capability::FaceCulling);
     }
 
-    draw_ds (sp_ds_noat,  view_ds_noat );
-    draw_dsn(sp_dsn_noat, view_dsn_noat);
+    draw_ds (sp_ds_noat.get(),  view_ds_noat );
+    draw_dsn(sp_dsn_noat.get(), view_dsn_noat);
 
 
     // Alpha-Tested.
@@ -126,8 +126,8 @@ void DeferredGeometry::operator()(
 
     glapi::disable(Capability::FaceCulling);
 
-    draw_ds (sp_ds_at,  view_ds_at );
-    draw_dsn(sp_dsn_at, view_dsn_at);
+    draw_ds (sp_ds_at.get(),  view_ds_at );
+    draw_dsn(sp_dsn_at.get(), view_dsn_at);
 
 }
 

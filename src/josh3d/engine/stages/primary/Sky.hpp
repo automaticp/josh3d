@@ -1,14 +1,18 @@
 #pragma once
+#include "Active.hpp"
 #include "CubemapData.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLAPICommonTypes.hpp"
+#include "GLProgram.hpp"
+#include "ShaderPool.hpp"
 #include "TextureHelpers.hpp"
-#include "UniformTraits.hpp" // IWYU pragma: keep (traits)
+#include "Transform.hpp"
+#include "UniformTraits.hpp"
 #include "LightCasters.hpp"
 #include "RenderEngine.hpp"
-#include "ShaderBuilder.hpp"
-#include "components/Skybox.hpp"
+#include "Skybox.hpp"
 #include "VPath.hpp"
+#include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
 #include <glbinding/gl/functions.h>
 #include <glbinding/gl/gl.h>
@@ -33,26 +37,20 @@ public:
         float     sun_size_deg{ 0.5f };
     };
 
-    SkyType             sky_type{ SkyType::Skybox };
+    SkyType             sky_type{ SkyType::Procedural };
     ProceduralSkyParams procedural_sky_params{};
 
     void operator()(RenderEnginePrimaryInterface& engine);
 
 
 private:
-    UniqueProgram sp_skybox_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/skybox.vert"))
-            .load_frag(VPath("src/shaders/skybox.frag"))
-            .get()
-    };
+    ShaderToken sp_skybox_ = shader_pool().get({
+        .vert = VPath("src/shaders/skybox.vert"),
+        .frag = VPath("src/shaders/skybox.frag")});
 
-    UniqueProgram sp_proc_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/sky_procedural.vert"))
-            .load_frag(VPath("src/shaders/sky_procedural.frag"))
-            .get()
-    };
+    ShaderToken sp_proc_ = shader_pool().get({
+        .vert = VPath("src/shaders/sky_procedural.vert"),
+        .frag = VPath("src/shaders/sky_procedural.frag")});
 
     UniqueCubemap debug_skybox_cubemap_ = load_debug_skybox();
 
@@ -63,11 +61,11 @@ private:
 
     void draw_skybox(
         RenderEnginePrimaryInterface& engine,
-        const entt::registry& registry);
+        const entt::registry&         registry);
 
     void draw_procedural_sky(
         RenderEnginePrimaryInterface& engine,
-        const entt::registry& registry);
+        const entt::registry&         registry);
 
 };
 
@@ -118,10 +116,12 @@ inline void Sky::draw_debug_skybox(
     debug_skybox_cubemap_->bind_to_texture_unit(0);
 
     BindGuard bound_camera_ubo = engine.bind_camera_ubo();
-    sp_skybox_->uniform("cubemap", 0);
+    const RawProgram<> sp = sp_skybox_.get();
+
+    sp.uniform("cubemap", 0);
 
     {
-        BindGuard bound_program = sp_skybox_->use();
+        BindGuard bound_program = sp.use();
         engine.draw([&](auto bound_fbo) {
             engine.primitives().box_mesh().draw(bound_program, bound_fbo);
         });
@@ -136,19 +136,24 @@ inline void Sky::draw_skybox(
     RenderEnginePrimaryInterface& engine,
     const entt::registry&         registry)
 {
-    // TODO: Pulls a single skybox, obviously won't work when there are many.
-    registry.storage<components::Skybox>().begin()->cubemap->bind_to_texture_unit(0);
+    if (const auto skybox_handle = get_active<Skybox>(registry)) {
 
-    BindGuard bound_camera_ubo = engine.bind_camera_ubo();
-    sp_skybox_->uniform("cubemap", 0);
+        skybox_handle.get<Skybox>().cubemap->bind_to_texture_unit(0);
 
-    {
-        BindGuard bound_program = sp_skybox_->use();
-        engine.draw([&](auto bound_fbo) {
-            engine.primitives().box_mesh().draw(bound_program, bound_fbo);
-        });
+        BindGuard bound_camera_ubo = engine.bind_camera_ubo();
+        const RawProgram<> sp = sp_skybox_;
+
+        sp.uniform("cubemap", 0);
+
+        {
+            BindGuard bound_program = sp.use();
+            engine.draw([&](auto bound_fbo) {
+                engine.primitives().box_mesh().draw(bound_program, bound_fbo);
+            });
+        }
+    } else {
+        draw_procedural_sky(engine, registry); // Fallback.
     }
-
 }
 
 
@@ -158,22 +163,31 @@ inline void Sky::draw_procedural_sky(
     RenderEnginePrimaryInterface& engine,
     const entt::registry&         registry)
 {
-    // UB if no light, lmao
-    const auto& light = *registry.storage<light::Directional>().begin();
-    const auto& cam   = engine.camera();
-
+    const RawProgram<> sp = sp_proc_;
     BindGuard bound_camera_ubo = engine.bind_camera_ubo();
 
-    const glm::vec3 light_dir_view_space =
-        glm::normalize(glm::vec3{ cam.view_mat() * glm::vec4{ light.direction, 0.f } });
+    if (const auto dlight = get_active<DirectionalLight, Transform>(registry)) {
 
-    sp_proc_->uniform("light_dir_view_space", light_dir_view_space);
-    sp_proc_->uniform("sky_color",            procedural_sky_params.sky_color);
-    sp_proc_->uniform("sun_color",            procedural_sky_params.sun_color);
-    sp_proc_->uniform("sun_size_rad",         glm::radians(procedural_sky_params.sun_size_deg));
+        // TODO: We should decompose_orientation() from the MTransform instead.
+        // Oh god, this sounds like hell. WHY would you ever parent a directional light?!
+        const glm::vec3 light_dir =
+            dlight.get<Transform>().orientation() * glm::vec3{ 0.f, 0.f, -1.f };
+
+        const glm::vec3 light_dir_view_space =
+            glm::normalize(glm::vec3{ engine.camera_data().view * glm::vec4{ light_dir, 0.f } });
+
+
+        sp.uniform("sun_size_rad",         glm::radians(procedural_sky_params.sun_size_deg));
+        sp.uniform("light_dir_view_space", light_dir_view_space);
+        sp.uniform("sun_color",            procedural_sky_params.sun_color);
+    } else {
+        sp.uniform("sun_size_rad", 0.f); // Signals to not draw "sun".
+    }
+
+    sp.uniform("sky_color", procedural_sky_params.sky_color);
 
     {
-        BindGuard bound_program = sp_proc_->use();
+        BindGuard bound_program = sp.use();
         engine.draw([&](auto bound_fbo) {
             engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
         });

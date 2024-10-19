@@ -1,8 +1,7 @@
 #pragma once
-#include "GLMutability.hpp"
 #include "GLObjects.hpp"
 #include "RenderEngine.hpp"
-#include "ShaderBuilder.hpp"
+#include "ShaderPool.hpp"
 #include "VPath.hpp"
 #include <entt/fwd.hpp>
 #include <glbinding/gl/gl.h>
@@ -20,14 +19,11 @@ public:
 
     void operator()(RenderEnginePostprocessInterface& engine);
 
-
 private:
-    UniqueProgram sp_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/postprocess.vert"))
-            .load_frag(VPath("src/shaders/pp_gamma.frag"))
-            .get()
-    };
+    ShaderToken sp_ = shader_pool().get({
+        .vert = VPath("src/shaders/postprocess.vert"),
+        .frag = VPath("src/shaders/pp_gamma.frag")});
+
 };
 
 
@@ -36,11 +32,11 @@ private:
 inline void GammaCorrection::operator()(
     RenderEnginePostprocessInterface& engine)
 {
-
+    const auto sp = sp_.get();
     engine.screen_color().bind_to_texture_unit(0);
-    sp_->uniform("color", 0);
+    sp.uniform("color", 0);
 
-    BindGuard bound_program = sp_->use();
+    BindGuard bound_program = sp.use();
 
     if (use_srgb) {
 
@@ -50,7 +46,7 @@ inline void GammaCorrection::operator()(
 
     } else /* custom gamma */ {
 
-        sp_->uniform("gamma", gamma);
+        sp.uniform("gamma", gamma);
         engine.draw(bound_program);
 
     }

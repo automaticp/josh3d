@@ -14,26 +14,23 @@ struct DirectionalLight {
 };
 
 
-struct Attenuation {
-    float constant;
-    float linear;
-    float quadratic;
-};
-
-
 struct PointLight {
     vec3 color;
     vec3 position;
-    Attenuation attenuation;
 };
 
 
-float get_attenuation_factor(Attenuation att, float source_distance) {
-    return 1.0 / (
-        att.constant +
-        att.linear * source_distance +
-        att.quadratic * (source_distance * source_distance)
-    );
+struct PointLightBounded {
+    vec3  color;
+    vec3  position;
+    float radius;
+};
+
+
+float get_distance_attenuation(float distance_to_frag) {
+    const float four_pi              = 4.0 * 3.141593;
+    const float distance_attenuation = 1.0 / (four_pi * distance_to_frag * distance_to_frag);
+    return distance_attenuation;
 }
 
 

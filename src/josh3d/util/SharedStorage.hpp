@@ -69,6 +69,10 @@ public:
 };
 
 
+template<typename T>
+using SharedView = SharedStorageView<T>; // Typedef for simplicity.
+
+
 
 
 /*
@@ -99,6 +103,10 @@ public:
     SharedStorageMutableView(SharedStorageMutableView&&) = default;
     SharedStorageMutableView& operator=(SharedStorageMutableView&&) = default;
 };
+
+
+template<typename T>
+using SharedMutableView = SharedStorageMutableView<T>;
 
 
 

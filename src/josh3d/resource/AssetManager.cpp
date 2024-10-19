@@ -235,7 +235,7 @@ void AssetManager::handle_load_request(LoadRequest&& request) {
         aiProcess_GenBoundingBoxes         |
         aiProcess_ImproveCacheLocality     |
         aiProcess_OptimizeGraph            |
-        aiProcess_OptimizeMeshes           |
+        // aiProcess_OptimizeMeshes           |
         aiProcess_RemoveRedundantMaterials;
 
 
@@ -248,6 +248,7 @@ void AssetManager::handle_load_request(LoadRequest&& request) {
                 error::AssetFileImportFailure(std::move(request.model.path.file), importer.GetErrorString())
             )
         );
+        return;
     }
 
 
@@ -337,7 +338,7 @@ void AssetManager::handle_load_request(LoadRequest&& request) {
                         min_channels = 3;
                         max_channels = 3;
                         break;
-                    case ImageIntent::Alpha:
+                    case ImageIntent::Alpha: // NOLINT(bugprone-branch-clone)
                         min_channels = 1;
                         max_channels = 1;
                         break;
@@ -532,6 +533,8 @@ void AssetManager::handle_load_request(LoadRequest&& request) {
                 pending_requests_.erase(it);
             }
         } // ~pending_requests_lock
+        importer.FreeScene();
+        return;
     }
 
 
@@ -781,6 +784,7 @@ void AssetManager::handle_upload_request(UploadRequest&& request) {
                 pending_requests_.erase(it);
             }
         } // ~pending_requests_lock
+        return;
     }
 
 }

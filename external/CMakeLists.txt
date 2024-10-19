@@ -58,6 +58,7 @@ add_library(glfwpp::glfwpp ALIAS GLFWPP)
 
 find_package(glm CONFIG REQUIRED)
 set_target_properties(glm::glm PROPERTIES IMPORTED_GLOBAL TRUE)
+target_compile_definitions(glm::glm INTERFACE GLM_ENABLE_EXPERIMENTAL)
 
 
 
@@ -69,8 +70,9 @@ set_target_properties(imgui::imgui PROPERTIES IMPORTED_GLOBAL TRUE)
 
 
 # === Imguizmo ===
-find_package(imguizmo CONFIG REQUIRED)
-set_target_properties(imguizmo::imguizmo PROPERTIES IMPORTED_GLOBAL TRUE)
+
+find_package(unofficial-imguizmo CONFIG REQUIRED)
+set_target_properties(unofficial::imguizmo::imguizmo PROPERTIES IMPORTED_GLOBAL TRUE)
 
 
 

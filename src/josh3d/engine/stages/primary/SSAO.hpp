@@ -6,14 +6,15 @@
 #include "GLBuffers.hpp"
 #include "GLObjectHelpers.hpp"
 #include "GLObjects.hpp"
+#include "GLProgram.hpp"
 #include "GLTextures.hpp"
 #include "PixelData.hpp"
-#include "PixelPackTraits.hpp" // IWYU pragma: keep (traits)
-#include "UniformTraits.hpp"   // IWYU pragma: keep (traits)
+#include "PixelPackTraits.hpp"
+#include "ShaderPool.hpp"
+#include "UniformTraits.hpp"
 #include "Pixels.hpp"
 #include "RenderEngine.hpp"
 #include "RenderTarget.hpp"
-#include "ShaderBuilder.hpp"
 #include "SharedStorage.hpp"
 #include "VPath.hpp"
 #include "GLScalars.hpp"
@@ -96,20 +97,13 @@ public:
 
 
 private:
-    UniqueProgram sp_sampling_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/postprocess.vert"))
-            .load_frag(VPath("src/shaders/ssao_sampling.frag"))
-            .get()
-    };
+    ShaderToken sp_sampling_ = shader_pool().get({
+        .vert = VPath("src/shaders/postprocess.vert"),
+        .frag = VPath("src/shaders/ssao_sampling.frag")});
 
-    UniqueProgram sp_blur_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/postprocess.vert"))
-            .load_frag(VPath("src/shaders/ssao_blur.frag"))
-            .get()
-    };
-
+    ShaderToken sp_blur_ = shader_pool().get({
+        .vert = VPath("src/shaders/postprocess.vert"),
+        .frag = VPath("src/shaders/ssao_blur.frag")});
 
     SharedStorageView<GBuffer> gbuffer_;
 
@@ -141,10 +135,6 @@ private:
             GLsizei(float(resolution.height) / resolution_divisor),
         };
     }
-
-
-
-
 
 
     UniqueTexture2D noise_texture_;
@@ -309,6 +299,7 @@ inline void SSAO::operator()(
 
     // Sampling pass.
     {
+        const RawProgram<> sp = sp_sampling_;
         BindGuard bound_camera = engine.bind_camera_ubo();
 
         gbuffer_->depth_texture()        .bind_to_texture_unit(0);
@@ -320,20 +311,20 @@ inline void SSAO::operator()(
 
         noise_texture_->bind_to_texture_unit(2);
 
-        sp_sampling_->uniform("tex_depth",         0);
-        sp_sampling_->uniform("tex_normals",       1);
-        sp_sampling_->uniform("tex_noise",         2);
+        sp.uniform("tex_depth",   0);
+        sp.uniform("tex_normals", 1);
+        sp.uniform("tex_noise",   2);
 
-        sp_sampling_->uniform("radius",            radius);
-        sp_sampling_->uniform("bias",              bias);
-        sp_sampling_->uniform("noise_size",        noise_size);
-        sp_sampling_->uniform("noise_mode",        to_underlying(noise_mode));
+        sp.uniform("radius",      radius);
+        sp.uniform("bias",        bias);
+        sp.uniform("noise_size",  noise_size);
+        sp.uniform("noise_mode",  to_underlying(noise_mode));
 
 
         sampling_kernel_->bind_to_index<BufferTargetIndexed::ShaderStorage>(0);
 
         {
-            BindGuard bound_program = sp_sampling_->use();
+            BindGuard bound_program = sp.use();
             BindGuard bound_fbo     = noisy_target_.bind_draw();
 
             glapi::clear_color_buffer(bound_fbo, 0, RGBAF{ .r=0.f });
@@ -346,11 +337,12 @@ inline void SSAO::operator()(
 
     // Blur pass.
     {
-        sp_blur_->uniform("noisy_occlusion", 0);
+        const RawProgram<> sp = sp_blur_;
+        sp.uniform("noisy_occlusion", 0);
         noisy_target_.color_attachment().texture()         .bind_to_texture_unit(0);
         BindGuard bound_noisy_ao_sampler = target_sampler_->bind_to_texture_unit(0);
         {
-            BindGuard bound_program = sp_blur_->use();
+            BindGuard bound_program = sp.use();
             BindGuard bound_fbo     = blurred_target_.bind_draw();
 
             engine.primitives().quad_mesh().draw(bound_program, bound_fbo);
@@ -359,7 +351,7 @@ inline void SSAO::operator()(
     }
 
     // Update output.
-    output_->noisy_texture   = noisy_target_.color_attachment().texture();
+    output_->noisy_texture   = noisy_target_  .color_attachment().texture();
     output_->blurred_texture = blurred_target_.color_attachment().texture();
 
     // TODO: This is not my responsibility, but everyone else suffers if I don't do this ;_;

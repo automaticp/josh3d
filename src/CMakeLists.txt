@@ -1,4 +1,4 @@
-add_executable(josh3d-demo main.cpp)
+add_executable(josh3d-demo DemoScene.cpp main.cpp)
 target_include_directories(josh3d-demo PRIVATE ./)
 target_compile_features(josh3d-demo PRIVATE cxx_std_20)
 

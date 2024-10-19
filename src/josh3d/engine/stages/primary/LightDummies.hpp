@@ -1,21 +1,21 @@
 #pragma once
 #include "Attachments.hpp"
 #include "GLAPIBinding.hpp"
-#include "GLBuffers.hpp"
-#include "GLObjectHelpers.hpp"
 #include "GLObjects.hpp"
+#include "ShaderPool.hpp"
 #include "SharedStorage.hpp"
+#include "Transform.hpp"
 #include "UniformTraits.hpp" // IWYU pragma: keep (traits)
 #include "LightCasters.hpp"
 #include "RenderEngine.hpp"
-#include "ShaderBuilder.hpp"
+#include "UploadBuffer.hpp"
 #include "VPath.hpp"
 #include "Mesh.hpp"
 #include "stages/primary/IDBufferStorage.hpp"
-#include <algorithm>
 #include <entt/entity/entity.hpp>
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
+#include <ranges>
 
 
 
@@ -27,7 +27,7 @@ class LightDummies {
 public:
     bool  display{ true };
     float light_scale{ 0.1f };
-    bool  attenuate_color{ false };
+    bool  attenuate_color{ true };
 
     LightDummies(
         SharedAttachment<Renderable::Texture2D> depth,
@@ -44,12 +44,10 @@ public:
     void operator()(RenderEnginePrimaryInterface& engine);
 
 private:
-    UniqueProgram sp_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/light_dummies_point.vert"))
-            .load_frag(VPath("src/shaders/light_dummies_point.frag"))
-            .get()
-    };
+    ShaderToken sp_ = shader_pool().get({
+        .vert = VPath("src/shaders/light_dummies_point.vert"),
+        .frag = VPath("src/shaders/light_dummies_point.frag"),
+    });
 
     using Target = RenderTarget<
         SharedAttachment<Renderable::Texture2D>, // Depth
@@ -63,14 +61,14 @@ private:
 
     void relink_attachments(RenderEnginePrimaryInterface& engine);
 
-    struct PLightParams {
+    struct PLightParamsGPU {
         alignas(std430::align_vec3)  glm::vec3  position;
         alignas(std430::align_float) float      scale;
         alignas(std430::align_vec3)  glm::vec3  color;
         alignas(std430::align_uint)  uint       id;
     };
 
-    UniqueBuffer<PLightParams> plight_params_;
+    UploadBuffer<PLightParamsGPU> plight_params_;
 
     void update_plight_params(const entt::registry& registry);
 
@@ -85,18 +83,18 @@ inline void LightDummies::operator()(RenderEnginePrimaryInterface& engine) {
 
     relink_attachments(engine);
     update_plight_params(engine.registry());
-    const auto num_plights = GLsizei(plight_params_->get_num_elements());
+
+    const auto num_plights = GLsizei(plight_params_.num_staged());
 
     if (num_plights) {
-        BindGuard bound_camera_ubo = engine.bind_camera_ubo();
+        BindGuard bound_camera_ubo      = engine.bind_camera_ubo();
+        BindGuard bound_instance_buffer = plight_params_.bind_to_ssbo_index(0);
 
-        plight_params_->bind_to_index<BufferTargetIndexed::ShaderStorage>(0);
-
-        BindGuard bound_program = sp_->use();
+        BindGuard bound_program = sp_.get().use();
         BindGuard bound_fbo     = target_.bind_draw();
 
         const Mesh& mesh = engine.primitives().sphere_mesh();
-        BindGuard bound_vao{ mesh.vertex_array().bind() };
+        BindGuard bound_vao = mesh.vertex_array().bind();
 
         glapi::draw_elements_instanced(
             bound_vao,
@@ -118,36 +116,25 @@ inline void LightDummies::operator()(RenderEnginePrimaryInterface& engine) {
 inline void LightDummies::update_plight_params(
     const entt::registry& registry)
 {
-    auto plights_view = registry.view<light::Point>();
-    const size_t num_plights = plights_view.size();
+    auto plight_params_view = registry.view<PointLight, MTransform>().each()
+        | std::views::transform([this](auto tuple) {
+            const auto& [entity, plight, mtf] = tuple;
 
-    resize_to_fit(plight_params_, NumElems{ num_plights });
+            const float shell_attenuation =
+                1.f / (4.f * glm::pi<float>() * light_scale * light_scale);
 
-    if (num_plights) {
+            const auto color = plight.hdr_color() *
+                (attenuate_color ? shell_attenuation : 1.f);
 
-        auto mapped = plight_params_->map_for_write();
-        do {
+            return PLightParamsGPU{
+                .position = mtf.decompose_position(),
+                .scale    = light_scale,
+                .color    = color,
+                .id       = to_integral(entity),
+            };
+        });
 
-            auto params_view = plights_view.each() |
-                std::views::transform([this](auto each) {
-                    auto& [e, plight] = each;
-                    auto light_color =
-                        attenuate_color ?
-                            // This doesn't really look that great...
-                            plight.color * plight.attenuation.get_attenuation(light_scale) :
-                            plight.color;
-                    return PLightParams{
-                        .position = plight.position,
-                        .scale    = light_scale,
-                        .color    = light_color,
-                        .id       = entt::to_integral(e)
-                    };
-                });
-            std::ranges::copy(params_view, mapped.begin());
-
-        } while (!plight_params_->unmap_current());
-
-    }
+    plight_params_.restage(plight_params_view);
 }
 
 

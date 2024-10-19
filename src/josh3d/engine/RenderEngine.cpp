@@ -1,7 +1,12 @@
 #include "RenderEngine.hpp"
+#include "Active.hpp"
+#include "EnumUtils.hpp"
+#include "Camera.hpp"
 #include "GLFramebuffer.hpp"
 #include "GLObjects.hpp"
+#include "GLTextures.hpp"
 #include "RenderStage.hpp"
+#include "Transform.hpp"
 #include "WindowSizeCache.hpp"
 #include <chrono>
 #include <entt/entt.hpp>
@@ -17,16 +22,104 @@
 namespace josh {
 
 
+auto RenderEngine::make_main_depth(const Size2I& resolution)
+    -> DepthAttachment
+{
+    DepthAttachment depth{ InternalFormat::Depth24_Stencil8 };
+    depth.resize(resolution);
+    return depth;
+}
+
+
+auto RenderEngine::make_main_swapchain(
+    const Size2I&    resolution,
+    InternalFormat   iformat,
+    DepthAttachment& depth)
+        -> SwapChain<MainTarget>
+{
+    return {
+        MainTarget{ resolution, depth.share(), { iformat } },
+        MainTarget{ resolution, depth.share(), { iformat } }
+    };
+}
+
+
+
+RenderEngine::RenderEngine(
+    entt::registry&    registry,
+    const Primitives&  primitives,
+    const Size2I&      main_resolution,
+    HDRFormat          main_buffer_format,
+    const FrameTimer&  frame_timer // TODO: Should not be a reference.
+)
+    : main_buffer_format{ main_buffer_format }
+    , main_resolution   { main_resolution    }
+    , registry_         { registry        }
+    , primitives_       { primitives      }
+    , frame_timer_      { frame_timer     }
+    , main_depth_       {
+        make_main_depth(main_resolution)
+    }
+    , main_swapchain_   {
+        make_main_swapchain(
+            main_resolution,
+            enum_cast<InternalFormat>(main_buffer_format),
+            main_depth_
+        )
+    }
+{}
+
+
+
+
 void RenderEngine::render() {
 
+    // Update main render buffer if necessary.
+    const bool resolution_changed =
+        main_resolution != main_swapchain_.resolution();
+
+    const bool iformat_changed =
+        enum_cast<InternalFormat>(main_buffer_format) !=
+            main_swapchain_.back_target().color_attachment().internal_format();
+
+    if (resolution_changed || iformat_changed) {
+
+        main_depth_.resize(main_resolution);
+
+        if (iformat_changed) {
+
+            const InternalFormat new_iformat = enum_cast<InternalFormat>(main_buffer_format);
+            // Will also reattach new depth.
+            main_swapchain_ = make_main_swapchain(main_resolution, new_iformat, main_depth_);
+
+        } else {
+
+            main_swapchain_.resize(main_resolution);
+            main_swapchain_.front_target().reset_depth_attachment(main_depth_.share());
+            main_swapchain_.back_target() .reset_depth_attachment(main_depth_.share());
+
+        }
+    }
+
     // Update camera.
-    auto params = cam_.get_params();
-    params.aspect_ratio = main_resolution().aspect_ratio();
-    cam_.update_params(params);
-    update_camera_ubo();
+    // TODO: Orthographic has no notion of aspect_ratio.
+    // TODO: Should this be done after precompute? As precompute can change what's active.
+    // TODO: Absence if an active camera, in general, is pretty bad. Do we even render?
+    if (const auto camera = get_active<Camera>(registry_)) {
+        Camera& cam = camera.get<Camera>();
+        auto params = cam.get_params();
+        params.aspect_ratio = main_resolution.aspect_ratio();
+        cam.update_params(params);
+
+        glm::mat4 view{ 1.f };
+        if (auto* mtf = camera.try_get<MTransform>()) {
+            view = inverse(mtf->model()); // model is W2C, view is C2W.
+        }
+        update_camera_data(view, cam.projection_mat(), params.z_near, params.z_far);
+    }
 
     // Update viewport.
-    glapi::set_viewport({ {}, main_resolution() });
+    glapi::set_viewport({ {}, main_resolution });
 
 
     // Precompute.
@@ -53,7 +146,7 @@ void RenderEngine::render() {
 
     main_swapchain_.front_target().framebuffer().blit_to(
         default_fbo_,
-        { {}, main_resolution()           }, // Internal rendering resolution.
+        { {}, main_resolution             }, // Internal rendering resolution.
         { {}, globals::window_size.size() }, // This is technically window size and can technically differ, technically.
         BufferMask::ColorBit | BufferMask::DepthBit,
         BlitFilter::Nearest
@@ -90,20 +183,24 @@ void RenderEngine::render() {
 
 
 
-void RenderEngine::update_camera_ubo() noexcept {
-    const auto&     params       = cam_.get_params();
-    const glm::mat4 view         = cam_.view_mat();
-    const glm::mat4 proj         = cam_.projection_mat();
-    const glm::mat4 projview     = proj * view;
-    const glm::mat4 inv_view     = glm::inverse(view);
-    const glm::mat3 normal_view  = glm::transpose(inv_view);
-    const glm::mat4 inv_proj     = glm::inverse(proj);
-    const glm::mat4 inv_projview = glm::inverse(projview);
+void RenderEngine::update_camera_data(
+    const glm::mat4& view,
+    const glm::mat4& proj,
+    float            z_near,
+    float            z_far) noexcept
+{
+    using glm::vec3, glm::mat4, glm::mat3;
+    const mat4 projview     = proj * view;
+    const mat4 inv_view     = inverse(view);
+    const mat3 normal_view  = transpose(inv_view);
+    const mat4 inv_proj     = inverse(proj);
+    const mat4 inv_projview = inverse(projview);
+    const vec3 position_ws  = inv_view[3];
 
-    const CameraData data{
-        .position_ws  = cam_.transform.position(),
-        .z_near       = params.z_near,
-        .z_far        = params.z_far,
+    camera_data_ = CameraDataGPU{
+        .position_ws  = position_ws,
+        .z_near       = z_near,
+        .z_far        = z_far,
         .view         = view,
         .proj         = proj,
         .projview     = projview,
@@ -113,7 +210,7 @@ void RenderEngine::update_camera_ubo() noexcept {
         .inv_projview = inv_projview
     };
 
-    camera_ubo_->upload_data({ &data, 1 });
+    camera_ubo_->upload_data({ &camera_data_, 1 });
 }
 
 

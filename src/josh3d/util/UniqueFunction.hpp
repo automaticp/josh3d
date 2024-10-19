@@ -1,11 +1,9 @@
 #pragma once
-#include "CommonConcepts.hpp" // IWYU pragma: keep (concepts)
+#include "CommonConcepts.hpp"
 #include "AnyRef.hpp"
-#include <concepts>
 #include <cstddef>
 #include <memory>
 #include <cassert>
-#include <functional>
 #include <type_traits>
 #include <typeinfo>
 #include <utility>
@@ -50,7 +48,7 @@ private:
         CallableT target;
 
         UFConcrete(CallableT&& target) : target{ std::move(target) } {}
-        ResT operator()(ArgTs... args) override { return std::invoke(target, std::forward<ArgTs>(args)...); }
+        ResT operator()(ArgTs... args) override { return target(std::forward<ArgTs>(args)...); }
 
         const std::type_info& type() const noexcept override { return typeid(CallableT); }
 
@@ -77,7 +75,7 @@ public:
 
     ResT operator()(ArgTs... args) {
         assert(target_ptr_ && "UniqueFunction with no target has been invoked");
-        return std::invoke(*target_ptr_, std::forward<ArgTs>(args)...);
+        return (*target_ptr_)(std::forward<ArgTs>(args)...);
     }
 
 

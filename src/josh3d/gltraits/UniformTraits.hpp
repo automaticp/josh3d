@@ -1,4 +1,5 @@
 #pragma once
+// IWYU pragma: always_keep
 #include "detail/SingleArgMacro.hpp"
 #include "GLUniformTraits.hpp"
 #include "GLProgram.hpp"

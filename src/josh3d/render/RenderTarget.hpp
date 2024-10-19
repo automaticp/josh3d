@@ -1,5 +1,5 @@
 #pragma once
-#include "CommonConcepts.hpp" // IWYU pragma: keep (concepts)
+#include "CommonConcepts.hpp"
 #include "EnumUtils.hpp"
 #include "GLAPICommonTypes.hpp"
 #include "GLFramebuffer.hpp"
@@ -63,7 +63,10 @@ concept color_attachment_index_in_bounds = requires {
 
 
 
-
+/*
+This, along with Attachments, is the most terrible, unmaintainable,
+TMP-filled garbage I have ever written. It's incredible, really.
+*/
 template<typename DepthAttachmentT, typename ...ColorAttachmentTs>
 class RenderTarget {
     static constexpr bool is_any_attachment_multisample() noexcept;
@@ -225,7 +228,7 @@ public:
     auto share_depth_attachment() noexcept
         requires
             has_depth_attachment &&
-            (depth_attachment_type::attachment_kind == AttachmentKind::Shareable)
+            depth_attachment_kind_traits::is_shareable
     {
         return depth_.share();
     }
@@ -234,10 +237,28 @@ public:
     auto share_color_attachment() noexcept
         requires
             color_attachment_index_in_bounds<Idx, num_color_attachments> &&
-            (color_attachment_type<Idx>::attachment_kind == AttachmentKind::Shareable)
+            color_attachment_kind_traits<Idx>::is_shareable
     {
         return get_color<Idx>().share();
     }
+
+    auto share_depth_attachment_layer(Layer layer) noexcept
+        requires
+            has_depth_attachment &&
+            depth_attachment_kind_traits::is_shareable
+    {
+        return depth_.share_layer(layer);
+    }
+
+    template<auto Idx = size_t{ 0 }>
+    auto share_color_attachment_layer(Layer layer) noexcept
+        requires
+            color_attachment_index_in_bounds<Idx, num_color_attachments> &&
+            color_attachment_kind_traits<Idx>::is_shareable
+    {
+        return get_color<Idx>().share_layer(layer);
+    }
+
 
 
 

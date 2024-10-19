@@ -2,11 +2,11 @@
 #include "GLAPICommonTypes.hpp"
 #include "GLObjects.hpp"
 #include "GLScalars.hpp"
-#include "Layout.hpp"
-#include "LightCasters.hpp"
-#include "ShaderBuilder.hpp"
+#include "LightsGPU.hpp"
+#include "ShaderPool.hpp"
 #include "SharedStorage.hpp"
 #include "GBufferStorage.hpp"
+#include "UploadBuffer.hpp"
 #include "VPath.hpp"
 #include "stages/primary/PointShadowMapping.hpp"
 #include "stages/primary/CascadedShadowMapping.hpp"
@@ -21,6 +21,11 @@ namespace josh::stages::primary {
 
 class DeferredShading {
 public:
+    using Cascades       = CascadedShadowMapping::Cascades;
+    using CascadeView    = CascadedShadowMapping::CascadeView;
+    using CascadeViewGPU = CascadedShadowMapping::CascadeViewGPU;
+    using PointShadows   = PointShadowMapping::PointShadows;
+
     enum class Mode {
         SinglePass,
         MultiPass
@@ -34,8 +39,6 @@ public:
 
     struct DirShadowParams {
         GLfloat base_bias_tx{ 0.2f };
-        bool    blend_cascades{ true };
-        GLfloat blend_size_inner_tx{ 50.f };
         GLint   pcf_extent{ 1 };
         GLfloat pcf_offset{ 1.0f };
     };
@@ -50,14 +53,14 @@ public:
     float ambient_occlusion_power{ 0.8f };
 
     float plight_fade_start_fraction { 0.75f }; // [0, 1] in fraction of bounding radius.
-    float plight_fade_length_fraction{ 0.20f };
 
 
     DeferredShading(
-        SharedStorageView<GBuffer>                 gbuffer,
-        SharedStorageView<PointShadowMaps>         input_psm,
-        SharedStorageView<CascadedShadowMaps>      input_csm,
-        SharedStorageView<AmbientOcclusionBuffers> input_ao)
+        SharedView<GBuffer>                 gbuffer,
+        SharedView<PointShadows>            input_psm,
+        SharedView<Cascades>                input_csm,
+        SharedView<AmbientOcclusionBuffers> input_ao
+    )
         : gbuffer_  { std::move(gbuffer)   }
         , input_psm_{ std::move(input_psm) }
         , input_csm_{ std::move(input_csm) }
@@ -68,49 +71,30 @@ public:
 
 
 private:
-    SharedStorageView<GBuffer>                 gbuffer_;
-    SharedStorageView<PointShadowMaps>         input_psm_;
-    SharedStorageView<CascadedShadowMaps>      input_csm_;
-    SharedStorageView<AmbientOcclusionBuffers> input_ao_;
+    SharedView<GBuffer>                 gbuffer_;
+    SharedView<PointShadows>            input_psm_;
+    SharedView<Cascades>                input_csm_;
+    SharedView<AmbientOcclusionBuffers> input_ao_;
 
+    ShaderToken sp_singlepass_ = shader_pool().get({
+        .vert = VPath("src/shaders/dfr_shading.vert"),
+        .frag = VPath("src/shaders/dfr_shading_singlepass.frag")});
 
-    UniqueProgram sp_singlepass_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/dfr_shading.vert"))
-            .load_frag(VPath("src/shaders/dfr_shading_adpn_shadow_csm.frag"))
-            .get()
-    };
+    ShaderToken sp_pass_plight_with_shadow_ = shader_pool().get({
+        .vert = VPath("src/shaders/dfr_shading_point.vert"),
+        .frag = VPath("src/shaders/dfr_shading_point_with_shadow.frag")});
 
-    UniqueProgram sp_pass_plight_with_shadow_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/dfr_shading_point.vert"))
-            .load_frag(VPath("src/shaders/dfr_shading_point_with_shadow.frag"))
-            .get()
-    };
+    ShaderToken sp_pass_plight_no_shadow_ = shader_pool().get({
+        .vert = VPath("src/shaders/dfr_shading_point.vert"),
+        .frag = VPath("src/shaders/dfr_shading_point_no_shadow.frag")});
 
-    UniqueProgram sp_pass_plight_no_shadow_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/dfr_shading_point.vert"))
-            .load_frag(VPath("src/shaders/dfr_shading_point_no_shadow.frag"))
-            .get()
-    };
+    ShaderToken sp_pass_ambi_dir_ = shader_pool().get({
+        .vert = VPath("src/shaders/dfr_shading.vert"),
+        .frag = VPath("src/shaders/dfr_shading_ambi_dir.frag")});
 
-    UniqueProgram sp_pass_ambi_dir_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/dfr_shading.vert"))
-            .load_frag(VPath("src/shaders/dfr_shading_ambi_ao_dir_csm.frag"))
-            .get()
-    };
-
-    struct PLight {
-        alignas(std430::align_vec3)  glm::vec3 color;
-        alignas(std430::align_vec3)  glm::vec3 position;
-        alignas(std430::align_float) float     radius;
-        light::Attenuation                     attenuation;
-    };
-
-    UniqueBuffer<PLight>        plights_buf_;
-    UniqueBuffer<CascadeParams> csm_params_buf_;
+    UploadBuffer<PointLightBoundedGPU> plights_with_shadow_buf_;
+    UploadBuffer<PointLightBoundedGPU> plights_no_shadow_buf_;
+    UploadBuffer<CascadeViewGPU>       csm_views_buf_;
 
     UniqueSampler target_sampler_ = []() {
         UniqueSampler s;
@@ -143,18 +127,12 @@ private:
         return s;
     }();
 
-    auto update_point_light_buffers(const entt::registry& registry) -> std::tuple<NumElems, NumElems>;
+    void update_point_light_buffers(const entt::registry& registry);
     void update_cascade_buffer();
 
-    void draw_singlepass(
-        RenderEnginePrimaryInterface& engine,
-        NumElems                      num_plights_with_shadow,
-        NumElems                      num_plights_no_shadow);
+    void draw_singlepass(RenderEnginePrimaryInterface& engine);
+    void draw_multipass (RenderEnginePrimaryInterface& engine);
 
-    void draw_multipass(
-        RenderEnginePrimaryInterface& engine,
-        NumElems                      num_plights_with_shadow,
-        NumElems                      num_plights_no_shadow);
 };
 
 

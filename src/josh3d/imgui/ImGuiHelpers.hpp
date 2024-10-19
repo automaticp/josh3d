@@ -143,17 +143,13 @@ template<typename ValT, typename ActionF>
 
 
 
-} // namespace josh
-
-
-
-
-namespace josh::imgui {
+namespace imgui {
 
 
 // Wrapper of ImGui::Image that flips the image UVs
 // to accomodate the OpenGL bottom-left origin.
-inline void ImageGL(ImTextureID image_id,
+inline void ImageGL(
+    ImTextureID   image_id,
     const ImVec2& size,
     const ImVec4& tint_color = { 1.0f, 1.0f, 1.0f, 1.0f },
     const ImVec4& border_color = { 1.0f, 1.0f, 1.0f, 1.0f }) noexcept
@@ -165,4 +161,5 @@ inline void ImageGL(ImTextureID image_id,
 }
 
 
-} // namespace josh::imgui
+} // namespace imgui
+} // namespace josh

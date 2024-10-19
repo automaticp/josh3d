@@ -1,14 +1,18 @@
 #include "ImGuiApplicationAssembly.hpp"
+#include "Active.hpp"
 #include "FrameTimer.hpp"
 #include "ImGuiHelpers.hpp"
+#include "ImGuiSceneList.hpp"
 #include "ImGuiSelected.hpp"
 #include "ImGuizmoGizmos.hpp"
-#include "PerspectiveCamera.hpp"
+#include "Camera.hpp"
 #include "RenderEngine.hpp"
 #include "Size.hpp"
+#include "Transform.hpp"
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <cstdio>
+#include <iterator>
 
 
 
@@ -17,19 +21,24 @@ namespace josh {
 
 
 ImGuiApplicationAssembly::ImGuiApplicationAssembly(
-    glfw::Window& window,
-    RenderEngine& engine,
-    entt::registry& registry,
-    const PerspectiveCamera& cam,
+    glfw::Window&      window,
+    RenderEngine&      engine,
+    entt::registry&    registry,
+    SceneImporter&     importer,
     VirtualFilesystem& vfs
 )
-    : context_{ window }
-    , window_settings_{ window }
-    , vfs_control_{ vfs }
-    , stage_hooks_{ engine }
-    , registry_hooks_{ registry }
-    , selected_menu_{ registry }
-    , gizmos_{ cam, registry }
+    : window_         { window             }
+    , engine_         { engine             }
+    , registry_       { registry           }
+    , importer_       { importer           }
+    , vfs_            { vfs                }
+    , context_        { window             }
+    , window_settings_{ window             }
+    , vfs_control_    { vfs                }
+    , stage_hooks_    { engine             }
+    , scene_list_     { registry, importer }
+    , selected_menu_  { registry           }
+    , gizmos_         { registry           }
 {}
 
 
@@ -70,17 +79,17 @@ void ImGuiApplicationAssembly::new_frame() {
         [this]() -> char {
             switch (active_gizmo_space()) {
                 using enum GizmoSpace;
-                case world: return 'W';
-                case local: return 'L';
+                case World: return 'W';
+                case Local: return 'L';
                 default:    return ' ';
             }
         }(),
         [this]() -> char {
             switch (active_gizmo_operation()) {
                 using enum GizmoOperation;
-                case translation: return 'T';
-                case rotation:    return 'R';
-                case scaling:     return 'S';
+                case Translation: return 'T';
+                case Rotation:    return 'R';
+                case Scaling:     return 'S';
                 default:          return ' ';
             }
         }()
@@ -105,11 +114,12 @@ void ImGuiApplicationAssembly::draw_widgets() {
     // or on_value_change_from() after the widget scope.
     // How it still works somewhat "correctly" after both,
     // is beyond me.
-    ImGuiID dockspace_id =
-        ImGui::DockSpaceOverViewport(
-            ImGui::GetMainViewport(),
-            ImGuiDockNodeFlags_PassthruCentralNode
-        );
+    const ImGuiID dockspace_id = 1; // TODO: Is this an arbitraty nonzero value? IDK after the API change.
+    ImGui::DockSpaceOverViewport(
+        dockspace_id,
+        ImGui::GetMainViewport(),
+        ImGuiDockNodeFlags_PassthruCentralNode
+    );
     ImGui::PopStyleColor();
 
     // FIXME: Terrible, maybe will add "was resized" flag to WindowSizeCache instead.
@@ -135,10 +145,12 @@ void ImGuiApplicationAssembly::draw_widgets() {
 
             ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
 
+
             if (ImGui::BeginMenu("Window")) {
                 window_settings_.display();
                 ImGui::EndMenu();
             }
+
 
             if (ImGui::BeginMenu("ImGui")) {
 
@@ -151,8 +163,70 @@ void ImGuiApplicationAssembly::draw_widgets() {
 
                 reset_condition.set(ImGui::Button("Reset Dockspace"));
 
+                ImGui::Checkbox("Gizmo Debug Window", &gizmos_.display_debug_window);
+
+                const char* gizmo_locations[] = {
+                    "Local Origin",
+                    "AABB Midpoint"
+                };
+
+                int location_id = to_underlying(gizmos_.preferred_location);
+                if (ImGui::ListBox("Gizmo Locaton", &location_id,
+                    gizmo_locations, std::size(gizmo_locations), 2))
+                {
+                    gizmos_.preferred_location = GizmoLocation{ location_id };
+                }
+
+                ImGui::Checkbox("Show Model Matrix in Selected", &selected_menu_.display_model_matrix);
+
                 ImGui::EndMenu();
             }
+
+
+            if (ImGui::BeginMenu("Engine")) {
+
+                ImGui::Checkbox("RGB -> sRGB",    &engine_.enable_srgb_conversion);
+                ImGui::Checkbox("GPU/CPU Timers", &engine_.capture_stage_timings );
+
+                ImGui::BeginDisabled(!engine_.capture_stage_timings);
+                ImGui::SliderFloat(
+                    "Timing Interval, s", &engine_.stage_timing_averaging_interval_s,
+                    0.001f, 5.f, "%.3f", ImGuiSliderFlags_Logarithmic
+                );
+                ImGui::EndDisabled();
+
+                using HDRFormat = RenderEngine::HDRFormat;
+
+                const HDRFormat formats[3]{
+                    HDRFormat::R11F_G11F_B10F,
+                    HDRFormat::RGB16F,
+                    HDRFormat::RGB32F
+                };
+
+                const char* format_names[3]{
+                    "R11F_G11F_B10F",
+                    "RGB16F",
+                    "RGB32F",
+                };
+
+                size_t current_idx = 0;
+                for (const HDRFormat format : formats) {
+                    if (format == engine_.main_buffer_format) { break; }
+                    ++current_idx;
+                }
+
+                if (ImGui::BeginCombo("HDR Format", format_names[current_idx])) {
+                    for (size_t i{ 0 }; i < std::size(formats); ++i) {
+                        if (ImGui::Selectable(format_names[i], current_idx == i)) {
+                            engine_.main_buffer_format = formats[i];
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+
+                ImGui::EndMenu();
+            }
+
 
             if (ImGui::BeginMenu("VFS")) {
                 vfs_control_.display();
@@ -183,8 +257,8 @@ void ImGuiApplicationAssembly::draw_widgets() {
             selected_menu_.display();
         } ImGui::End();
 
-        if (ImGui::Begin("Registry")) {
-            registry_hooks_ .display();
+        if (ImGui::Begin("Scene")) {
+            scene_list_.display();
         } ImGui::End();
 
         ImGui::PopStyleColor();
@@ -195,7 +269,11 @@ void ImGuiApplicationAssembly::draw_widgets() {
 
 void ImGuiApplicationAssembly::display() {
     draw_widgets();
-    gizmos_.display();
+    if (const auto camera = get_active<Camera, MTransform>(registry_)) {
+        const glm::mat4 view_mat = inverse(camera.get<MTransform>().model());
+        const glm::mat4 proj_mat = camera.get<Camera>().projection_mat();
+        gizmos_.display(view_mat, proj_mat);
+    }
     context_.render();
 }
 
@@ -207,13 +285,14 @@ void ImGuiApplicationAssembly::reset_dockspace(ImGuiID dockspace_id) {
     ImGui::DockBuilderSetNodeSize(dockspace_id, ImGui::GetMainViewport()->Size);
 
     float h_split = 3.5f;
-    auto left_id  = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left,  1.f / h_split, nullptr, &dockspace_id);
+    auto left_id        = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left,  1.f / h_split, nullptr, &dockspace_id);
     h_split -= 1.f;
-    auto right_id = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Right, 1.f / h_split, nullptr, &dockspace_id);
+    auto right_id       = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Right, 1.f / h_split, nullptr, &dockspace_id);
+    auto left_bottom_id = ImGui::DockBuilderSplitNode(left_id,      ImGuiDir_Down,  0.5f,          nullptr, &left_id     );
 
-    ImGui::DockBuilderDockWindow("Registry", left_id);
-    ImGui::DockBuilderDockWindow("Selected", left_id);
-    ImGui::DockBuilderDockWindow("Render Engine", right_id);
+    ImGui::DockBuilderDockWindow("Selected",      left_bottom_id);
+    ImGui::DockBuilderDockWindow("Scene",         left_id       );
+    ImGui::DockBuilderDockWindow("Render Engine", right_id      );
 
 
     ImGui::DockBuilderFinish(dockspace_id);

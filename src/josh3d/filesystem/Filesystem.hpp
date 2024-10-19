@@ -162,10 +162,8 @@ public:
         }
     }
 
-
-    const Path& path() const noexcept {
-        return file_.path();
-    }
+    const Path& path()      const noexcept { return file_.path(); }
+    operator const Path& () const noexcept { return file_.path(); }
 
     // Vulnerable to TOCTOU, a hint, but no guarantees.
     bool is_valid() const {
@@ -219,10 +217,8 @@ public:
         }
     }
 
-
-    const Path& path() const noexcept {
-        return directory_.path();
-    }
+    const Path& path()     const noexcept { return directory_.path(); }
+    operator const Path&() const noexcept { return directory_.path(); }
 
     // Vulnerable to TOCTOU, a hint, but no guarantees.
     bool is_valid() const {

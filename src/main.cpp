@@ -9,6 +9,7 @@
 #include "Filesystem.hpp"
 #include "GlobalContext.hpp"
 #include "Logging.hpp"
+#include "ShaderPool.hpp"
 #include "VirtualFilesystem.hpp"
 #include "WindowSizeCache.hpp"
 
@@ -46,7 +47,7 @@ static auto try_parse_cli_args(cxxopts::Options& options, int argc, const char* 
 {
     try {
         return options.parse(argc, argv);
-    } catch (const cxxopts::OptionParseException& e) {
+    } catch (const cxxopts::exceptions::parsing& e) {
         std::cerr
             << e.what()       << "\n"
             << options.help() << "\n";
@@ -94,7 +95,7 @@ int main(int argc, const char* argv[]) {
         .openglProfile = glfw::OpenGlProfile::Core,
     }.apply();
 
-    glfw::Window window{ 800, 600, "Josh3d Demo" };
+    glfw::Window window{ 1280, 720, "Josh3d Demo" };
     glfw::makeContextCurrent(window);
     glfw::swapInterval(0);
     window.setInputModeCursor(glfw::CursorMode::Normal);

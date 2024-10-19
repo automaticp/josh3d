@@ -20,10 +20,10 @@
 namespace josh {
 
 
-JOSH3D_DEFINE_STRONG_SCALAR(AttributeIndex, GLuint)
-JOSH3D_DEFINE_STRONG_SCALAR(VertexBufferSlot, GLuint)
+JOSH3D_DEFINE_STRONG_SCALAR(AttributeIndex,   GLuint);
+JOSH3D_DEFINE_STRONG_SCALAR(VertexBufferSlot, GLuint);
 
-JOSH3D_DEFINE_STRONG_SCALAR(StrideBytes, GLsizei)
+JOSH3D_DEFINE_STRONG_SCALAR(StrideBytes, GLsizei);
 
 
 

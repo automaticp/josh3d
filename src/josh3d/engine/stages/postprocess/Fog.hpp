@@ -2,8 +2,8 @@
 #include "GLAPIBinding.hpp"
 #include "GLObjects.hpp"
 #include "RenderEngine.hpp"
-#include "UniformTraits.hpp" // IWYU pragma: keep (traits)
-#include "ShaderBuilder.hpp"
+#include "ShaderPool.hpp"
+#include "UniformTraits.hpp"
 #include "VPath.hpp"
 #include <entt/fwd.hpp>
 #include <glm/matrix.hpp>
@@ -72,20 +72,13 @@ public:
 
 
 private:
-    UniqueProgram sp_uniform_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/postprocess.vert"))
-            .load_frag(VPath("src/shaders/pp_fog_uniform.frag"))
-            .get()
-    };
+    ShaderToken sp_uniform_ = shader_pool().get({
+        .vert = VPath("src/shaders/postprocess.vert"),
+        .frag = VPath("src/shaders/pp_fog_uniform.frag")});
 
-    UniqueProgram sp_barometric_{
-        ShaderBuilder()
-            .load_vert(VPath("src/shaders/postprocess.vert"))
-            .load_frag(VPath("src/shaders/pp_fog_barometric.frag"))
-            .get()
-    };
-
+    ShaderToken sp_barometric_= shader_pool().get({
+        .vert = VPath("src/shaders/postprocess.vert"),
+        .frag = VPath("src/shaders/pp_fog_barometric.frag")});
 
     void draw_uniform_fog(RenderEnginePostprocessInterface& engine);
     void draw_barometric_fog(RenderEnginePostprocessInterface& engine);
@@ -112,14 +105,15 @@ inline void Fog::operator()(
 inline void Fog::draw_uniform_fog(
     RenderEnginePostprocessInterface& engine)
 {
+    const auto sp = sp_uniform_.get();
     BindGuard bound_camera_ubo = engine.bind_camera_ubo();
 
     engine.screen_depth().bind_to_texture_unit(1);
-    sp_uniform_->uniform("depth",          1);
-    sp_uniform_->uniform("fog_color",      fog_color);
-    sp_uniform_->uniform("mean_free_path", uniform_fog_params.mean_free_path);
-    sp_uniform_->uniform("distance_power", uniform_fog_params.distance_power);
-    sp_uniform_->uniform("cutoff_offset",  uniform_fog_params.cutoff_offset);
+    sp.uniform("depth",          1);
+    sp.uniform("fog_color",      fog_color);
+    sp.uniform("mean_free_path", uniform_fog_params.mean_free_path);
+    sp.uniform("distance_power", uniform_fog_params.distance_power);
+    sp.uniform("cutoff_offset",  uniform_fog_params.cutoff_offset);
 
     // This postprocessing effect is a bit special in that it can
     // get by with just blending. So we blend directly with the
@@ -131,7 +125,7 @@ inline void Fog::draw_uniform_fog(
     glapi::enable(Capability::Blending);
     glapi::set_blend_factors(BlendFactor::SrcAlpha, BlendFactor::OneMinusSrcAlpha);
     {
-        BindGuard bound_program = sp_uniform_->use();
+        BindGuard bound_program = sp.use();
         engine.draw_to_front(bound_program);
     }
     glapi::disable(Capability::Blending);
@@ -143,6 +137,7 @@ inline void Fog::draw_uniform_fog(
 inline void Fog::draw_barometric_fog(
     RenderEnginePostprocessInterface& engine)
 {
+    const auto sp = sp_barometric_.get();
     BindGuard bound_camera_ubo = engine.bind_camera_ubo();
 
     // See comments in shader code to make sense of this.
@@ -151,22 +146,22 @@ inline void Fog::draw_barometric_fog(
     // We want to compute the effect in the view-space,
     // because world-space calculations incur precision issues
     // at large separation from the origin.
-    const float eye_height = engine.camera().transform.position().y;
+    const float eye_height = engine.camera_data().position_ws.y;
     float density_at_eye_height = float(
         double(base_density) * glm::exp(-double(eye_height) / double(H))
     );
 
 
     engine.screen_depth().bind_to_texture_unit(1);
-    sp_barometric_->uniform("depth",                  1);
-    sp_barometric_->uniform("fog_color",              fog_color);
-    sp_barometric_->uniform("scale_height",           H);
-    sp_barometric_->uniform("density_at_eye_height",  density_at_eye_height);
+    sp.uniform("depth",                  1);
+    sp.uniform("fog_color",              fog_color);
+    sp.uniform("scale_height",           H);
+    sp.uniform("density_at_eye_height",  density_at_eye_height);
 
     glapi::enable(Capability::Blending);
     glapi::set_blend_factors(BlendFactor::SrcAlpha, BlendFactor::OneMinusSrcAlpha);
     {
-        BindGuard bound_program = sp_barometric_->use();
+        BindGuard bound_program = sp.use();
         engine.draw_to_front(bound_program);
     }
     glapi::disable(Capability::Blending);

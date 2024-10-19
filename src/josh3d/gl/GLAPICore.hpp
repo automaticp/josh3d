@@ -484,7 +484,13 @@ inline void memory_barrier(BarrierMask barriers) noexcept {
 
 
 
+namespace glapi {
 
+inline void texture_barrier() noexcept {
+    gl::glTextureBarrier();
+}
+
+} // namespace glapi
 
 
 
@@ -838,7 +844,7 @@ enum class Face : GLuint {
 };
 
 
-JOSH3D_DEFINE_STRONG_SCALAR(Mask, GLuint)
+JOSH3D_DEFINE_STRONG_SCALAR(Mask, GLuint);
 
 
 namespace glapi {

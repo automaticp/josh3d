@@ -1,6 +1,5 @@
 #pragma once
-#include "CommonConcepts.hpp" // IWYU pragma: keep (concepts)
-#include "GLAPI.hpp"
+#include "CommonConcepts.hpp"
 #include "GLAPICommonTypes.hpp"
 #include "GLMutability.hpp"
 #include "GLBuffers.hpp"
@@ -79,12 +78,13 @@ void replace_buffer_like(UniqueBuffer<T>& buffer, NumElems elem_count) noexcept 
 
 
 // Contents and buffer object "name" are invalidated on resize.
+// Returns true if resize occurred, false otherwise.
 template<trivially_copyable T>
-void resize_to_fit(
+bool resize_to_fit(
     UniqueBuffer<T>& buffer,
     NumElems         new_elem_count) noexcept
 {
-    NumElems old_elem_count = buffer->get_num_elements();
+    const NumElems old_elem_count = buffer->get_num_elements();
 
     if (new_elem_count != old_elem_count) {
         if (old_elem_count == 0) {
@@ -98,49 +98,61 @@ void resize_to_fit(
         } else {
             detail::replace_buffer_like(buffer, new_elem_count);
         }
+        return true;
     }
+    return false;
 }
 
 
 template<trivially_copyable T>
-void expand_to_fit(
+bool expand_to_fit(
     UniqueBuffer<T>& buffer,
     NumElems         desired_elem_count) noexcept
 {
-    NumElems old_elem_count = buffer->get_num_elements();
+    const NumElems old_elem_count = buffer->get_num_elements();
 
-    if (old_elem_count == 0) {
-        buffer->allocate_storage(desired_elem_count);
-    } else if (desired_elem_count > old_elem_count) {
-        detail::replace_buffer_like(buffer, desired_elem_count);
+    if (desired_elem_count > old_elem_count) {
+        if (old_elem_count == 0) {
+            buffer->allocate_storage(desired_elem_count);
+        } else {
+            detail::replace_buffer_like(buffer, desired_elem_count);
+        }
+        return true;
     }
+    return false;
 }
 
 
 template<trivially_copyable T>
-void expand_to_fit_amortized(
+bool expand_to_fit_amortized(
     UniqueBuffer<T>& buffer,
     NumElems         desired_elem_count,
     double           amortization_factor = 1.5) noexcept
 {
     assert(amortization_factor >= 1.0);
-    NumElems old_elem_count = buffer->get_num_elements();
+    const NumElems old_elem_count = buffer->get_num_elements();
 
-    if (old_elem_count == 0) {
-        buffer->allocate_storage(desired_elem_count);
-    } else if (desired_elem_count > old_elem_count) {
-        NumElems amortized_size{
-            GLsizeiptr(double(old_elem_count.value) * amortization_factor)
-        };
-        // If the desired size is below the amortized size, then we are good.
-        // However, if the desired size exceeds the amortized size, then
-        // we allocate exactly the desired size instead.
-        if (desired_elem_count <= amortized_size) {
-            detail::replace_buffer_like(buffer, amortized_size);
-        } else /* desired exceeds amortized */ {
-            detail::replace_buffer_like(buffer, desired_elem_count);
+    if (desired_elem_count > old_elem_count) {
+        if (old_elem_count == 0) {
+            buffer->allocate_storage(desired_elem_count);
+        } else if (desired_elem_count > old_elem_count) {
+            NumElems amortized_size{
+                GLsizeiptr(double(old_elem_count.value) * amortization_factor)
+            };
+            // If the desired size is below the amortized size, then we are good
+            // to allocate the amortized size.
+            //
+            // However, if the desired size exceeds the amortized size, then
+            // we allocate exactly the desired size instead.
+            if (desired_elem_count <= amortized_size) {
+                detail::replace_buffer_like(buffer, amortized_size);
+            } else /* desired exceeds amortized */ {
+                detail::replace_buffer_like(buffer, desired_elem_count);
+            }
         }
+        return true;
     }
+    return false;
 }
 
 
