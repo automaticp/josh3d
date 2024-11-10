@@ -1,45 +1,37 @@
 # === boost ===
-
+# Boost::iostreams
 find_package(Boost REQUIRED COMPONENTS iostreams)
-set_target_properties(Boost::iostreams PROPERTIES IMPORTED_GLOBAL TRUE)
 
 
 # === cxxopts ===
-
+# cxxopts::cxxopts
 find_package(cxxopts CONFIG REQUIRED)
-set_target_properties(cxxopts::cxxopts PROPERTIES IMPORTED_GLOBAL TRUE)
 
 
 # === doctest ===
-
-find_package(doctest CONFIG REQUIRED)
-set_target_properties(doctest::doctest PROPERTIES IMPORTED_GLOBAL TRUE)
-
+# doctest::doctest
+if (JOSH3D_BUILD_TESTS)
+    find_package(doctest CONFIG REQUIRED)
+endif()
 
 # === Assimp ===
-
+# assimp::assimp
 find_package(assimp CONFIG REQUIRED)
-set_target_properties(assimp::assimp PROPERTIES IMPORTED_GLOBAL TRUE)
-
 
 
 # === entt ===
-
+# EnTT::EnTT
 find_package(EnTT CONFIG REQUIRED)
-set_target_properties(EnTT::EnTT PROPERTIES IMPORTED_GLOBAL TRUE)
-
 
 
 # === glbinding ===
-
+# glbinding::glbinding
+# glbinding::glbinding-aux
 find_package(glbinding CONFIG REQUIRED)
-set_target_properties(glbinding::glbinding PROPERTIES IMPORTED_GLOBAL TRUE)
-set_target_properties(glbinding::glbinding-aux PROPERTIES IMPORTED_GLOBAL TRUE)
-
 
 
 # === glfwpp ===
-
+# glfwpp::glfwpp
 include(FetchContent)
 
 FetchContent_Declare(
@@ -59,45 +51,35 @@ target_compile_definitions(GLFWPP INTERFACE GLFW_INCLUDE_NONE)
 add_library(glfwpp::glfwpp ALIAS GLFWPP)
 
 
-
 # === glm ===
-
+# glm::glm
 find_package(glm CONFIG REQUIRED)
-set_target_properties(glm::glm PROPERTIES IMPORTED_GLOBAL TRUE)
 target_compile_definitions(glm::glm INTERFACE GLM_ENABLE_EXPERIMENTAL)
 
 
-
 # === dear-imgui ===
-
+# imgui::imgui
 find_package(imgui CONFIG REQUIRED)
-set_target_properties(imgui::imgui PROPERTIES IMPORTED_GLOBAL TRUE)
-
 
 
 # === Imguizmo ===
-
+# unofficial::imguizmo::imguizmo
 find_package(unofficial-imguizmo CONFIG REQUIRED)
-set_target_properties(unofficial::imguizmo::imguizmo PROPERTIES IMPORTED_GLOBAL TRUE)
-
 
 
 # === range-v3 ===
-
+# range-v3::range-v3
+# range-v3::concepts
 find_package(range-v3 CONFIG REQUIRED)
-set_target_properties(range-v3::range-v3 PROPERTIES IMPORTED_GLOBAL TRUE)
-set_target_properties(range-v3::concepts PROPERTIES IMPORTED_GLOBAL TRUE)
-
 
 
 # === ctre ===
-
+# ctre::ctre
 find_package(ctre CONFIG REQUIRED)
-set_target_properties(ctre::ctre PROPERTIES IMPORTED_GLOBAL TRUE)
-
 
 
 # === stb ===
+# stb::stb
 
 # only provides Stb_INCLUDE_DIR, no target
 find_package(Stb REQUIRED)
@@ -109,7 +91,7 @@ target_include_directories(stb::stb INTERFACE ${Stb_INCLUDE_DIR})
 # this creates a single translation unit with all the relevant stb implementations;
 # no longer have to #define STB_..._IMPLEMENTATION in the project's .cpp files
 add_library(stb_implementation STATIC)
-target_sources(stb_implementation PRIVATE stb_implementation.c)
+target_sources(stb_implementation PRIVATE ${CMAKE_SOURCE_DIR}/external/stb_implementation.c)
 
 # get INCLUDE_DIR from stb to #include <stb_image.h>
 target_link_libraries(stb_implementation PRIVATE stb::stb)
@@ -118,11 +100,9 @@ target_link_libraries(stb_implementation PRIVATE stb::stb)
 target_link_libraries(stb::stb INTERFACE stb_implementation)
 
 
-
 # === nlohmann-json ===
-
+# nlohmann_json::nlohmann_json
 find_package(nlohmann_json CONFIG REQUIRED)
-set_target_properties(nlohmann_json::nlohmann_json PROPERTIES IMPORTED_GLOBAL TRUE)
 
 
 
