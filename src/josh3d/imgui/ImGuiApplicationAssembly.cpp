@@ -133,13 +133,17 @@ void ImGuiApplicationAssembly::draw_widgets() {
         old_size = new_size;
     }
 
+    thread_local bool show_demo_window = false;
+
     if (!is_hidden()) {
+
 
         auto reset_condition = on_value_change_from(false, [&, this] { reset_dockspace(dockspace_id); });
 
         auto bg_col = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
         bg_col.w = background_alpha;
         ImGui::PushStyleColor(ImGuiCol_WindowBg, bg_col);
+
 
         if (ImGui::BeginMainMenuBar()) {
             ImGui::TextUnformatted("Josh3D-Demo");
@@ -154,6 +158,8 @@ void ImGuiApplicationAssembly::draw_widgets() {
 
 
             if (ImGui::BeginMenu("ImGui")) {
+
+                ImGui::Checkbox("Show Demo Window", &show_demo_window);
 
                 ImGui::SliderFloat(
                     "FPS Avg. Interval, s", &avg_frame_timer_.averaging_interval,
@@ -292,6 +298,10 @@ void ImGuiApplicationAssembly::draw_widgets() {
         if (ImGui::Begin("Scene")) {
             scene_list_.display();
         } ImGui::End();
+
+        if (show_demo_window) {
+            ImGui::ShowDemoWindow();
+        }
 
         ImGui::PopStyleColor();
     }
