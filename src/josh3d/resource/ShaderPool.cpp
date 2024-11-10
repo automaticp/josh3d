@@ -469,7 +469,7 @@ void ShaderPoolImpl::sweep_reload_marked() {
             // proceed to resetting the structure in the registry.
             program_handle.get<UniqueProgram>() = load_and_compile_program(program_desc);
         } catch (const std::exception& e) {
-            globals::logstream << "[SHADER RELOAD FAILED]: " << e.what() << '\n';
+            logstream() << "[SHADER RELOAD FAILED]: " << e.what() << '\n';
             // On failure just skip the iteration. Don't touch the registry or anything.
             continue;
         }

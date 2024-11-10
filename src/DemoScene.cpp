@@ -65,20 +65,22 @@
 using namespace josh;
 
 
-void DemoScene::applicate() {
+bool DemoScene::is_done() const noexcept {
+    return window_.shouldClose();
+}
 
-    while (!window_.shouldClose()) {
-        josh::globals::frame_timer.update();
 
-        render();
+void DemoScene::execute_frame() {
 
-        glfw::pollEvents();
-        process_input();
-        update();
+    josh::globals::frame_timer.update();
 
-        window_.swapBuffers();
-    }
+    render();
 
+    glfw::pollEvents();
+    process_input();
+    update();
+
+    window_.swapBuffers();
 }
 
 
@@ -101,8 +103,7 @@ void DemoScene::update() {
         try {
             importer_.unpack_one_retired();
         } catch (const std::exception& e) {
-            // TODO: We do need some kind of visual error sink on imgui side.
-            globals::logstream << "[ERROR UNPACKING ASSET]: " << e.what() << "\n";
+            logstream() << "[ERROR UNPACKING ASSET]: " << e.what() << "\n";
         }
     }
 

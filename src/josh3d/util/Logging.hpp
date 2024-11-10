@@ -1,16 +1,12 @@
 #pragma once
-#include <iostream>
+#include <iosfwd>
 
 
 namespace josh {
 
 
-namespace globals {
-extern std::ostream& logstream;
-} // namespace globals
-
-
-void enable_glbinding_logger(std::ostream& os = globals::logstream);
+void set_logstream(std::ostream& os);
+auto logstream() -> std::ostream&;
 
 
 } // namespace josh

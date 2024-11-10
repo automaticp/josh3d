@@ -9,6 +9,7 @@
 #include "AvgFrameTimeCounter.hpp"
 #include "ImGuizmoGizmos.hpp"
 #include "SceneImporter.hpp"
+#include <sstream>
 #include <string>
 #include <entt/fwd.hpp>
 
@@ -53,6 +54,9 @@ private:
     ImGuiSelected       selected_menu_;
     ImGuizmoGizmos      gizmos_;
 
+    std::ostringstream log_sink_;
+    size_t             last_log_size_{};
+
     AvgFrameTimeCounter avg_frame_timer_{ 0.500f };
     // Well, lets hope the FPS doesn't exceed 99k.
     // It will just not display properly if it does, no UB.
@@ -94,6 +98,7 @@ public:
     void new_frame();
     void display();
 
+    auto get_log_sink() -> std::ostream& { return log_sink_; }
 
     GizmoOperation&       active_gizmo_operation() noexcept { return gizmos_.active_operation; }
     const GizmoOperation& active_gizmo_operation() const noexcept { return gizmos_.active_operation; }

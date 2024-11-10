@@ -8,10 +8,12 @@
 #include "SharedStorage.hpp"
 #include "RenderEngine.hpp"
 
+#include <boost/iostreams/tee.hpp>
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
 #include <glbinding/gl/enum.h>
 #include <glfwpp/window.h>
+#include <ostream>
 
 
 namespace josh { class GBuffer; }
@@ -20,10 +22,14 @@ namespace josh { class GBuffer; }
 class DemoScene {
 public:
     DemoScene(glfw::Window& window);
-    void applicate();
+    void execute_frame();
+    bool is_done() const noexcept;
+
     void process_input();
     void update();
     void render();
+
+    auto get_log_sink() -> std::ostream& { return imgui_.get_log_sink(); }
 
 private:
     glfw::Window&       window_;
@@ -38,7 +44,6 @@ private:
     josh::InputFreeCamera      input_freecam_;
 
     josh::ImGuiApplicationAssembly imgui_;
-
 
     void configure_input(josh::SharedStorageView<josh::GBuffer> gbuffer);
     void init_registry();

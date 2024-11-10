@@ -1,3 +1,9 @@
+# === boost ===
+
+find_package(Boost REQUIRED COMPONENTS iostreams)
+set_target_properties(Boost::iostreams PROPERTIES IMPORTED_GLOBAL TRUE)
+
+
 # === cxxopts ===
 
 find_package(cxxopts CONFIG REQUIRED)

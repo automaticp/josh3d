@@ -2,14 +2,17 @@
 #include <glbinding/glbinding.h>
 #include <glfwpp/glfwpp.h>
 #include <cxxopts.hpp> // This lib is kinda garbage from the POV of C++ idiomatics, replace later
+#include <boost/iostreams/tee.hpp>
+#include <boost/iostreams/stream.hpp>
 #include <optional>
+#include <iostream>
 #include <vector>
 
 #include "DemoScene.hpp"
 #include "Filesystem.hpp"
 #include "GlobalContext.hpp"
 #include "Logging.hpp"
-#include "ShaderPool.hpp"
+#include "GLUtils.hpp"
 #include "VirtualFilesystem.hpp"
 #include "WindowSizeCache.hpp"
 
@@ -28,8 +31,13 @@ static auto get_cli_options()
             cxxopts::value<std::vector<std::string>>()
         )
         (
-            "enable-gl-logging",
-            "Enable logging of: object creation/destruction OpenGL calls, OpenGL errors, etc.",
+            "log-gl-errors",
+            "Enable logging of OpenGL errors",
+            cxxopts::value<bool>()->default_value("true")
+        )
+        (
+            "log-gl-shaders",
+            "Enable logging of OpenGL shader compilation/linking",
             cxxopts::value<bool>()->default_value("true")
         )
         (
@@ -56,23 +64,27 @@ static auto try_parse_cli_args(cxxopts::Options& options, int argc, const char* 
 }
 
 
+
+
 int main(int argc, const char* argv[]) {
 
-    auto cli_options = get_cli_options();
-
+    auto cli_options      = get_cli_options();
     auto cli_parse_result = try_parse_cli_args(cli_options, argc, argv);
 
     if (!cli_parse_result.has_value()) {
         return 1;
     }
 
-    if (cli_parse_result->count("help")) {
+
+    auto& cli_args = cli_parse_result.value();
+
+    if (cli_args.count("help")) {
         std::cout << cli_options.help() << "\n";
         return 0;
     }
 
-    if (cli_parse_result->count("vroots")) {
-        auto vroot_strigns = (*cli_parse_result)["vroots"].as<std::vector<std::string>>();
+    if (cli_args.count("vroots")) {
+        auto vroot_strigns = cli_args["vroots"].as<std::vector<std::string>>();
 
         try {
             for (auto&& vroot : vroot_strigns) {
@@ -95,7 +107,7 @@ int main(int argc, const char* argv[]) {
         .openglProfile = glfw::OpenGlProfile::Core,
     }.apply();
 
-    glfw::Window window{ 1280, 720, "Josh3d Demo" };
+    glfw::Window window{ 1280, 720, "Josh3D Demo" };
     glfw::makeContextCurrent(window);
     glfw::swapInterval(0);
     window.setInputModeCursor(glfw::CursorMode::Normal);
@@ -103,19 +115,38 @@ int main(int argc, const char* argv[]) {
 
     glbinding::initialize(glfwGetProcAddress);
 
-    if ((*cli_parse_result)["enable-gl-logging"].as<bool>()) {
-        josh::enable_glbinding_logger();
-    }
-
 
     josh::globals::RAIIContext globals_context;
     josh::globals::window_size.track(window);
 
+    auto hook_gl_logs_to = [&](std::ostream& os) {
+        if (cli_args["log-gl-errors"].as<bool>()) {
+            josh::log_gl_errors(os);
+        }
+        if (cli_args["log-gl-shaders"].as<bool>()) {
+            josh::log_gl_shader_creation(os);
+        }
+    };
+
+
+    hook_gl_logs_to(josh::logstream()); // Hook now to report initialization failures.
+
 
     DemoScene application{ window };
 
-    application.applicate();
+    // The initialization will only log to the previously set logstream.
+    // Everything after will tee to the ImGui log window.
+    auto tee_device  = boost::iostreams::tee(std::clog, application.get_log_sink());
+    auto tee_ostream = boost::iostreams::stream(tee_device);
+    josh::set_logstream(tee_ostream);
 
+    hook_gl_logs_to(josh::logstream()); // Now re-hook to a tee between console and ImGui window.
+
+
+    while (!application.is_done()) {
+        application.execute_frame();
+        tee_ostream.flush(); // Does not auto flush, do it manually every frame.
+    }
 
     return 0;
 }

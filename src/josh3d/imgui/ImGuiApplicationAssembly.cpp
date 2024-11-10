@@ -11,6 +11,7 @@
 #include "Transform.hpp"
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <cmath>
 #include <cstdio>
 #include <iterator>
 
@@ -231,6 +232,37 @@ void ImGuiApplicationAssembly::draw_widgets() {
             if (ImGui::BeginMenu("VFS")) {
                 vfs_control_.display();
                 ImGui::EndMenu();
+            }
+
+
+            {
+                auto log_view = log_sink_.view();
+                const bool new_logs = log_view.size() > last_log_size_;
+
+                if (new_logs) {
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4{ 1.0, 1.0, 0.0, 1.0 });
+                }
+
+                // NOTE: This is somewhat messy. If this is common, might be worth writing helpers.
+                thread_local bool logs_open_b4 = false;
+                const bool        logs_open    = ImGui::BeginMenu("Logs");
+
+                if (new_logs) {
+                    ImGui::PopStyleColor();
+                }
+
+                const bool was_closed = !logs_open && logs_open_b4;
+
+                if (logs_open) {
+                    ImGui::TextUnformatted(log_view.begin(), log_view.end());
+                    ImGui::EndMenu();
+                }
+
+                if (was_closed) {
+                    last_log_size_ = log_view.size();
+                }
+
+                logs_open_b4 = logs_open;
             }
 
 
