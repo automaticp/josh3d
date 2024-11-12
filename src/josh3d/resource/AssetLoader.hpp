@@ -7,10 +7,9 @@
 #include "GLScalars.hpp"
 #include "ImageData.hpp"
 #include "MeshData.hpp"
+#include "OffscreenContext.hpp"
 #include "ThreadsafeQueue.hpp"
-#include "VPath.hpp"
 #include "VertexPNUTB.hpp"
-#include "VirtualFilesystem.hpp"
 #include <glbinding/gl/types.h>
 #include <cstdint>
 #include <stop_token>
@@ -42,15 +41,9 @@ enum class ImageIntent {
 
 
 
-
-struct AssetVPath {
-    VPath       file;
-    std::string subpath;
-
-    bool operator==(const AssetVPath& other) const noexcept = default;
-    std::strong_ordering operator<=>(const AssetVPath& other) const noexcept = default;
-};
-
+/*
+TODO: Encapsulate to guarantee canonicity.
+*/
 struct AssetPath {
     Path        file;
     std::string subpath;
@@ -135,8 +128,6 @@ protected:
 
 
 
-
-
 struct SharedTextureAsset {
     AssetPath            path;
     ImageIntent          intent;
@@ -161,34 +152,18 @@ struct SharedModelAsset {
 
 
 
-
-
-
-
-// The name is chosen purely for aesthetic reasons.
-class AssetManager {
+class AssetLoader {
 public:
-    AssetManager(VirtualFilesystem& vfs, const glfw::Window& shared_context);
+    AssetLoader(OffscreenContext& offscreen_context);
 
     // Request an asynchronous load of a resource at `path`.
     //
     // Resulting resources must be made visible in the rendering
     // thread by binding them to that thread's context before use.
-    auto load_model(const AssetPath&   path) -> Future<SharedModelAsset>;
-
-    // Request an asynchronous load of a resource at `vpath` as
-    // resolved through the referenced VirtualFilesystem.
-    //
-    // Resulting resources must be made visible in the rendering
-    // thread by binding them to that thread's context before use.
-    auto load_model(const AssetVPath& vpath) -> Future<SharedModelAsset>;
-
+    auto load_model(const AssetPath& path) -> Future<SharedModelAsset>;
 
 
 private:
-    // For path resolution, used by Main Thread.
-    VirtualFilesystem& vfs_;
-
 
     struct StoredTextureAsset {
         AssetPath       path;
@@ -309,8 +284,7 @@ private:
     };
 
     ThreadsafeQueue<DispatchRequest> dispatch_requests_;
-
-    std::jthread dispatch_thread_;
+    std::jthread                     dispatch_thread_;
 
     void dispatch_thread_loop(std::stop_token stoken);
     void handle_dispatch_request(DispatchRequest&& request);
@@ -323,8 +297,7 @@ private:
     };
 
     ThreadsafeQueue<LoadRequest> load_requests_;
-
-    std::jthread loading_thread_;
+    std::jthread                 loading_thread_;
 
     void loading_thread_loop(std::stop_token stoken);
     void handle_load_request(LoadRequest&& request);
@@ -336,13 +309,9 @@ private:
         Promise<SharedModelAsset> promise;
     };
 
-    ThreadsafeQueue<UploadRequest> upload_requests_;
+    OffscreenContext& offscreen_context_;
 
-    std::jthread uploading_thread_;
-
-    void uploading_thread_loop(std::stop_token stoken);
     void handle_upload_request(UploadRequest&& request);
-
 
 };
 

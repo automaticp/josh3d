@@ -3,6 +3,7 @@
 #include "RenderEngine.hpp"
 #include "ShaderPool.hpp"
 #include "UploadBuffer.hpp"
+#include "VPath.hpp"
 
 
 namespace josh::stages::overlay {

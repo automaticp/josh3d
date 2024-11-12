@@ -1,6 +1,7 @@
 #include "Filesystem.hpp"
 #include "VirtualFilesystem.hpp"
 #include "VPath.hpp"
+#include <filesystem>
 #include <functional>
 #include <optional>
 #include <utility>
@@ -23,6 +24,21 @@ VirtualFilesystem& vfs() noexcept {
 }
 
 
+
+
+auto VirtualFilesystem::try_resolve_path(const VPath& vpath) const
+    -> std::optional<Path>
+{
+
+    for (auto&& root : roots_) {
+        auto maybe_path = root.path() / vpath.path();
+        if (exists(maybe_path)) {
+            return std::move(maybe_path);
+        }
+    }
+
+    return std::nullopt;
+}
 
 
 auto VirtualFilesystem::try_resolve_file(const VPath& vpath) const
@@ -52,17 +68,6 @@ auto VirtualFilesystem::try_resolve_file(const VPath& vpath) const
 }
 
 
-auto VirtualFilesystem::resolve_file(const VPath& vpath) const
-    -> File
-{
-    if (auto maybe_file = try_resolve_file(vpath)) {
-        return std::move(maybe_file.value());
-    } else {
-        throw error::UnresolvedVirtualPath(vpath.path());
-    }
-}
-
-
 auto VirtualFilesystem::try_resolve_directory(const VPath& vpath) const
     -> std::optional<Directory>
 {
@@ -77,6 +82,30 @@ auto VirtualFilesystem::try_resolve_directory(const VPath& vpath) const
     }
 
     return std::nullopt;
+}
+
+
+
+
+auto VirtualFilesystem::resolve_path(const VPath& vpath) const
+    -> Path
+{
+    if (auto maybe_path = try_resolve_path(vpath)) {
+        return std::move(*maybe_path);
+    } else {
+        throw error::UnresolvedVirtualPath(vpath.path());
+    }
+}
+
+
+auto VirtualFilesystem::resolve_file(const VPath& vpath) const
+    -> File
+{
+    if (auto maybe_file = try_resolve_file(vpath)) {
+        return std::move(maybe_file.value());
+    } else {
+        throw error::UnresolvedVirtualPath(vpath.path());
+    }
 }
 
 

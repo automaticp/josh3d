@@ -3,6 +3,12 @@
 find_package(Boost REQUIRED COMPONENTS iostreams)
 
 
+# === fmt ===
+# fmt::fmt
+# fmt::fmt-header-only
+find_package(fmt CONFIG REQUIRED)
+
+
 # === cxxopts ===
 # cxxopts::cxxopts
 find_package(cxxopts CONFIG REQUIRED)

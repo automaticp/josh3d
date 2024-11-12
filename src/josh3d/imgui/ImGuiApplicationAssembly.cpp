@@ -7,6 +7,7 @@
 #include "ImGuizmoGizmos.hpp"
 #include "Camera.hpp"
 #include "RenderEngine.hpp"
+#include "SceneImporter.hpp"
 #include "Size.hpp"
 #include "Transform.hpp"
 #include <imgui.h>
@@ -25,19 +26,20 @@ ImGuiApplicationAssembly::ImGuiApplicationAssembly(
     glfw::Window&      window,
     RenderEngine&      engine,
     entt::registry&    registry,
-    SceneImporter&     importer,
+    AssetImporter&     asset_importer,
+    SceneImporter&     scene_importer,
     VirtualFilesystem& vfs
 )
     : window_         { window             }
     , engine_         { engine             }
     , registry_       { registry           }
-    , importer_       { importer           }
+    , asset_importer_ { asset_importer     }
     , vfs_            { vfs                }
     , context_        { window             }
     , window_settings_{ window             }
     , vfs_control_    { vfs                }
     , stage_hooks_    { engine             }
-    , scene_list_     { registry, importer }
+    , scene_list_     { registry, asset_importer, scene_importer }
     , selected_menu_  { registry           }
     , gizmos_         { registry           }
 {}

@@ -8,7 +8,7 @@
 #include "ImGuiSelected.hpp"
 #include "AvgFrameTimeCounter.hpp"
 #include "ImGuizmoGizmos.hpp"
-#include "SceneImporter.hpp"
+#include "AssetImporter.hpp"
 #include <sstream>
 #include <string>
 #include <entt/fwd.hpp>
@@ -43,7 +43,7 @@ private:
     glfw::Window&            window_;
     RenderEngine&            engine_;
     entt::registry&          registry_;
-    SceneImporter&           importer_;
+    AssetImporter&           asset_importer_;
     VirtualFilesystem&       vfs_;
 
     ImGuiContextWrapper context_;
@@ -85,11 +85,13 @@ public:
         glfw::Window&      window,
         RenderEngine&      engine,
         entt::registry&    registry,
-        SceneImporter&     importer,
+        AssetImporter&     asset_importer,
+        SceneImporter&     scene_importer,
         VirtualFilesystem& vfs);
 
-    ImGuiEngineHooks::HooksContainer&       stage_hooks() noexcept { return stage_hooks_.hooks(); }
-    const ImGuiEngineHooks::HooksContainer& stage_hooks() const noexcept { return stage_hooks_.hooks(); }
+
+    auto stage_hooks()       noexcept ->       ImGuiEngineHooks::HooksContainer& { return stage_hooks_.hooks(); }
+    auto stage_hooks() const noexcept -> const ImGuiEngineHooks::HooksContainer& { return stage_hooks_.hooks(); }
 
     bool is_hidden() const noexcept { return hidden_; }
     void set_hidden(bool hidden) noexcept { hidden_ = hidden; }
@@ -100,12 +102,11 @@ public:
 
     auto get_log_sink() -> std::ostream& { return log_sink_; }
 
-    GizmoOperation&       active_gizmo_operation() noexcept { return gizmos_.active_operation; }
-    const GizmoOperation& active_gizmo_operation() const noexcept { return gizmos_.active_operation; }
+    auto active_gizmo_operation()       noexcept ->       GizmoOperation& { return gizmos_.active_operation; }
+    auto active_gizmo_operation() const noexcept -> const GizmoOperation& { return gizmos_.active_operation; }
 
-    GizmoSpace&       active_gizmo_space() noexcept { return gizmos_.active_space; }
-    const GizmoSpace& active_gizmo_space() const noexcept { return gizmos_.active_space; }
-
+    auto active_gizmo_space()       noexcept ->       GizmoSpace& { return gizmos_.active_space; }
+    auto active_gizmo_space() const noexcept -> const GizmoSpace& { return gizmos_.active_space; }
 
     ImGuiIOWants get_io_wants() const noexcept;
 

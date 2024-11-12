@@ -5,6 +5,7 @@
         "glbinding",
         "glfw3",
         "boost-iostreams",
+        "fmt",
         "doctest",
         "cxxopts",
         "nlohmann-json",

@@ -17,6 +17,7 @@ Checks: 'boost-*,
     -modernize-return-braced-init-list,
     -modernize-concat-nested-namespaces,
     -modernize-use-auto,
+    -modernize-raw-string-literal,
     performance-*,
     portability-*'
 CheckOptions:

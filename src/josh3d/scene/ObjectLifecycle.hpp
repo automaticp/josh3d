@@ -1,5 +1,6 @@
 #pragma once
 #include "SceneGraph.hpp"
+#include <entt/entity/fwd.hpp>
 #include <entt/entity/handle.hpp>
 #include <entt/entity/registry.hpp>
 
@@ -47,9 +48,19 @@ To work around it, possible approaches are:
 A notable side effect of this feature is that the number of required allocations is further reduced in most cases.
 """
 
-The caveats above are the reason for existance of these helpers.
+The caveats above are the reason for existance of some of these helpers.
 */
 namespace josh {
+
+
+// Convinience for creation of a new handle.
+// Equivalent to `entt::handle(registry, registry.create());`
+inline auto create_handle(entt::registry& registry)
+    -> entt::handle
+{
+    return { registry, registry.create() };
+}
+
 
 
 /*

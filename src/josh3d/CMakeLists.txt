@@ -129,7 +129,7 @@ subtarget_link_internal(util)
 
 
 # Common external dependencies.
-set(common_external_deps glm::glm range-v3::range-v3 range-v3::concepts)
+set(common_external_deps glm::glm fmt::fmt range-v3::range-v3 range-v3::concepts)
 
 function(subtarget_link_common_external_deps SUBTARGET)
 

@@ -1,4 +1,4 @@
-#include "AssetManager.hpp"
+#include "AssetLoader.hpp"
 #include "Channels.hpp"
 #include "Future.hpp"
 #include "GLAPICore.hpp"
@@ -6,6 +6,7 @@
 #include "GLObjects.hpp"
 #include "GLPixelPackTraits.hpp"
 #include "GLTextures.hpp"
+#include "OffscreenContext.hpp"
 #include "TextureHelpers.hpp"
 #include "VertexPNUTB.hpp"
 #include <glfwpp/window.h>
@@ -29,48 +30,17 @@
 namespace josh {
 
 
-AssetManager::AssetManager(
-    VirtualFilesystem&  vfs,
-    const glfw::Window& shared_context)
-    : vfs_{ vfs }
-    , dispatch_thread_ { [this](std::stop_token stoken) { dispatch_thread_loop (std::move(stoken)); } }
-    , loading_thread_  { [this](std::stop_token stoken) { loading_thread_loop  (std::move(stoken)); } }
-    , uploading_thread_{
-        [&, this](std::stop_token stoken) {
-            glfw::WindowHints{
-                .visible             = false,
-                .contextVersionMajor = 4,
-                .contextVersionMinor = 6,
-                .openglProfile       = glfw::OpenGlProfile::Core,
-            }.apply();
-
-            glfw::Window window{ 1, 1, "Uploading Context", nullptr, &shared_context };
-            glfw::makeContextCurrent(window);
-
-            uploading_thread_loop(std::move(stoken));
-        }
-    }
+AssetLoader::AssetLoader(
+    OffscreenContext& offscreen_context)
+    : dispatch_thread_  { [this](std::stop_token stoken) { dispatch_thread_loop(std::move(stoken)); } }
+    , loading_thread_   { [this](std::stop_token stoken) { loading_thread_loop (std::move(stoken)); } }
+    , offscreen_context_{ offscreen_context }
 {}
 
 
 
 
-auto AssetManager::load_model(const AssetVPath& vpath)
-    -> Future<SharedModelAsset>
-{
-    auto [future, promise] = make_future_promise_pair<SharedModelAsset>();
-    try {
-        auto file = vfs_.resolve_file(vpath.file);
-        AssetPath apath{ std::filesystem::canonical(file.path()), vpath.subpath };
-        dispatch_requests_.emplace(std::move(apath), std::move(promise));
-    } catch (...) {
-        set_exception(std::move(promise), std::current_exception());
-    }
-    return std::move(future);
-}
-
-
-auto AssetManager::load_model(const AssetPath& path)
+auto AssetLoader::load_model(const AssetPath& path)
     -> Future<SharedModelAsset>
 {
     auto [future, promise] = make_future_promise_pair<SharedModelAsset>();
@@ -87,7 +57,7 @@ auto AssetManager::load_model(const AssetPath& path)
 
 
 
-void AssetManager::dispatch_thread_loop(std::stop_token stoken) { // NOLINT
+void AssetLoader::dispatch_thread_loop(std::stop_token stoken) { // NOLINT
     while (!stoken.stop_requested()) {
         std::optional<DispatchRequest> request = dispatch_requests_.wait_and_pop(stoken);
         if (!request.has_value()) {
@@ -98,7 +68,7 @@ void AssetManager::dispatch_thread_loop(std::stop_token stoken) { // NOLINT
 }
 
 
-void AssetManager::loading_thread_loop(std::stop_token stoken) { // NOLINT
+void AssetLoader::loading_thread_loop(std::stop_token stoken) { // NOLINT
     while (!stoken.stop_requested()) {
         std::optional<LoadRequest> request = load_requests_.wait_and_pop(stoken);
         if (!request.has_value()) {
@@ -109,19 +79,9 @@ void AssetManager::loading_thread_loop(std::stop_token stoken) { // NOLINT
 }
 
 
-void AssetManager::uploading_thread_loop(std::stop_token stoken) { // NOLINT
-    while (!stoken.stop_requested()) {
-        std::optional<UploadRequest> request = upload_requests_.wait_and_pop(stoken);
-        if (!request.has_value()) {
-            break;
-        }
-        handle_upload_request(std::move(request.value()));
-    }
-}
 
 
-
-auto AssetManager::stored_to_shared(const StoredTextureAsset& stored)
+auto AssetLoader::stored_to_shared(const StoredTextureAsset& stored)
     -> SharedTextureAsset
 {
     return SharedTextureAsset{
@@ -132,7 +92,7 @@ auto AssetManager::stored_to_shared(const StoredTextureAsset& stored)
 }
 
 
-auto AssetManager::stored_to_shared(const StoredMeshAsset& stored)
+auto AssetLoader::stored_to_shared(const StoredMeshAsset& stored)
     -> SharedMeshAsset
 {
     auto transform_tex = [](const std::optional<StoredTextureAsset>& opt)
@@ -158,7 +118,7 @@ auto AssetManager::stored_to_shared(const StoredMeshAsset& stored)
 
 
 
-auto AssetManager::stored_to_shared(const StoredModelAsset& stored)
+auto AssetLoader::stored_to_shared(const StoredModelAsset& stored)
     -> SharedModelAsset
 {
     auto result_view = stored.meshes
@@ -174,7 +134,7 @@ auto AssetManager::stored_to_shared(const StoredModelAsset& stored)
 
 
 
-void AssetManager::handle_dispatch_request(DispatchRequest&& request) {
+void AssetLoader::handle_dispatch_request(DispatchRequest&& request) {
 
     // Check if the Model is in cache, and if so, just resolve it here.
     {
@@ -222,7 +182,7 @@ void AssetManager::handle_dispatch_request(DispatchRequest&& request) {
 
 
 
-void AssetManager::handle_load_request(LoadRequest&& request) {
+void AssetLoader::handle_load_request(LoadRequest&& request) {
 
     thread_local Assimp::Importer importer;
 
@@ -539,9 +499,19 @@ void AssetManager::handle_load_request(LoadRequest&& request) {
 
 
     // Is this it?
-    // Now propagate the request further.
+    // Now propagate the request further, to upload it to the GPU.
 
-    upload_requests_.emplace(std::move(request.model), std::move(request.promise));
+    UploadRequest upload_request{
+        .model   = std::move(request.model),
+        .promise = std::move(request.promise)
+    };
+
+    auto upload_task = [this, request=std::move(upload_request)](glfw::Window&) mutable {
+        handle_upload_request(std::move(request));
+    };
+
+    offscreen_context_.emplace(std::move(upload_task));
+
 
     importer.FreeScene();
 }
@@ -553,7 +523,7 @@ void AssetManager::handle_load_request(LoadRequest&& request) {
 
 
 
-void AssetManager::handle_upload_request(UploadRequest&& request) {
+void AssetLoader::handle_upload_request(UploadRequest&& request) {
     try {
 
         // Upload each material texture.

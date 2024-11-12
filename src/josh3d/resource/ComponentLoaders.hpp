@@ -1,5 +1,6 @@
 #pragma once
-#include "AssetManager.hpp"
+#include "AssetLoader.hpp"
+#include "CubemapData.hpp"
 #include "Filesystem.hpp"
 #include "GLAPIBinding.hpp"
 #include "Pixels.hpp"
@@ -19,14 +20,16 @@ namespace josh {
 
 
 inline Skybox& load_skybox_into(
-    entt::handle handle, const File& skybox_json)
+    entt::handle handle,
+    const File&  skybox_json)
 {
-    auto data = load_cubemap_from_json<pixel::RGBA>(skybox_json);
+    CubemapPixelData<pixel::RGBA> data =
+        load_cubemap_from_json<pixel::RGBA>(skybox_json);
 
     UniqueCubemap cubemap =
         create_skybox_from_cubemap_data(data, InternalFormat::SRGBA8);
 
-    auto& skybox =
+    Skybox& skybox =
         handle.emplace_or_replace<Skybox>(std::move(cubemap));
 
     return skybox;

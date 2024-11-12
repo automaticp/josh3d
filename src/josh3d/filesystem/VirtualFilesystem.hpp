@@ -125,6 +125,23 @@ public:
     const auto& roots() const noexcept { return roots_; }
 
 
+    // Almost non-throwing path resolution*.
+    // Matches VPath against the roots in contained order
+    // until a valid path is found.
+    //
+    // * - Can throw underlying filesystem errors from is_valid()
+    // checks. Does not throw library-level exceptions.
+    [[nodiscard]] auto try_resolve_path(const VPath& vpath) const
+        -> std::optional<Path>;
+
+    // Throwing path resolution. Matches VPath against the
+    // roots in contained order until a valid path is found.
+    //
+    // Throws `error::UnresolvedVirtualPath` on failure.
+    [[nodiscard]] auto resolve_path(const VPath& vpath) const
+        -> Path;
+
+
     // Almost non-throwing file resolution*.
     // Matches VPath against the roots in contained order
     // until a valid file is found.

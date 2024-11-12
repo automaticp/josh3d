@@ -4,9 +4,9 @@
 #include "GLObjects.hpp"
 #include "UploadBuffer.hpp"
 #include "stages/primary/CascadedShadowMapping.hpp"
+#include "stages/primary/GBufferStorage.hpp"
 #include "RenderEngine.hpp"
 #include "VPath.hpp"
-#include "stages/primary/GBufferStorage.hpp"
 
 
 namespace josh::stages::overlay {

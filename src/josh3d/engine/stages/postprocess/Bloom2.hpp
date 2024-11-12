@@ -3,6 +3,7 @@
 #include "GLObjects.hpp"
 #include "RenderEngine.hpp"
 #include "ShaderPool.hpp"
+#include "VPath.hpp"
 
 
 namespace josh::stages::postprocess {

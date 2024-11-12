@@ -1,6 +1,6 @@
 #include "DemoScene.hpp"
 #include "Active.hpp"
-#include "AssetManager.hpp"
+#include "AssetLoader.hpp"
 #include "GLPixelPackTraits.hpp"
 #include "GLTextures.hpp"
 #include "ImGuiApplicationAssembly.hpp"
@@ -9,8 +9,11 @@
 #include "Input.hpp"
 #include "InputFreeCamera.hpp"
 #include "LightCasters.hpp"
+#include "ObjectLifecycle.hpp"
+#include "OffscreenContext.hpp"
 #include "Primitives.hpp"
 #include "SceneGraph.hpp"
+#include "SceneImporter.hpp"
 #include "ShaderPool.hpp"
 #include "SharedStorage.hpp"
 #include "WindowSizeCache.hpp"
@@ -98,10 +101,21 @@ void DemoScene::process_input() {
 void DemoScene::update() {
     update_input_blocker_from_imgui_io_state();
 
-    importer_.retire_completed_requests();
-    while (importer_.can_unpack_more()) {
+    asset_importer_.retire_completed_requests();
+    while (asset_importer_.can_unpack_more()) {
         try {
-            importer_.unpack_one_retired();
+            const entt::handle handle = asset_importer_.unpack_one_retired();
+            logstream() << "[UNPACKED ASSET]: [" << to_entity(handle.entity()) << "]";
+            if (const auto* path = handle.try_get<Path>()) {
+                logstream() << ", Path: " << *path;
+            } else if (const auto* asset_path = handle.try_get<AssetPath>()) {
+                logstream() << ", AssetPath: " << asset_path->file;
+                if (asset_path->subpath.size()) {
+                    logstream() << "##" << asset_path->subpath;
+                }
+            }
+
+            logstream() << "\n";
         } catch (const std::exception& e) {
             logstream() << "[ERROR UNPACKING ASSET]: " << e.what() << "\n";
         }
@@ -124,11 +138,13 @@ void DemoScene::render() {
 
 
 DemoScene::DemoScene(glfw::Window& window)
-    : window_       { window                  }
-    , assmanager_   { vfs(), window           }
-    , importer_     { assmanager_, registry_  }
-    , primitives_   { assmanager_             }
-    , rengine_      {
+    : window_           { window                     }
+    , offscreen_context_{ window                     }
+    , asset_loader_     { offscreen_context_         }
+    , asset_importer_   { asset_loader_              }
+    , scene_importer_   { asset_importer_, registry_ }
+    , primitives_       { asset_loader_              }
+    , rengine_          {
         registry_,
         primitives_,
         globals::window_size.size_ref(),
@@ -138,7 +154,7 @@ DemoScene::DemoScene(glfw::Window& window)
     , input_blocker_{                         }
     , input_        { window_, input_blocker_ }
     , input_freecam_{                         }
-    , imgui_        { window_, rengine_, registry_, importer_, vfs() }
+    , imgui_        { window_, rengine_, registry_, asset_importer_, scene_importer_, vfs() }
 {
 
 
@@ -370,11 +386,11 @@ void DemoScene::configure_input(SharedStorageView<GBuffer> gbuffer) {
 void DemoScene::init_registry() {
     auto& registry = registry_;
 
-    const entt::handle alight_handle{ registry, registry.create() };
+    const entt::handle alight_handle = create_handle(registry);
     alight_handle.emplace<AmbientLight>(AmbientLight{ .color = { 0.15f, 0.15f, 0.1f } });
     make_active<AmbientLight>(alight_handle);
 
-    const entt::handle dlight_handle{ registry, registry.create() };
+    const entt::handle dlight_handle = create_handle(registry);
     const glm::quat dlight_orientation = glm::quatLookAt(glm::vec3{ -0.2f, -1.f, -0.3f }, { 0.f, 1.f, 0.f });
     dlight_handle.emplace<DirectionalLight>(DirectionalLight{ .color = { 0.15f, 0.15f, 0.1f } });
     dlight_handle.emplace<Transform>(Transform().rotate(dlight_orientation));
@@ -385,15 +401,15 @@ void DemoScene::init_registry() {
     using namespace josh::filesystem_literals;
 
     const auto model_vpath  = "data/models/shadow_scene/shadow_scene.obj"_vpath;
-    const AssetPath model_apath { File(model_vpath),  {} };
+    const AssetPath model_apath{ File(model_vpath),  {} };
 
-    importer_.request_model_import(model_apath);
-    importer_.wait_until_all_pending_are_complete();
-    importer_.retire_completed_requests();
-    importer_.unpack_all_retired();
+    const entt::handle model_handle = create_handle(registry);
+    model_handle.emplace<Transform>();
+    asset_importer_.request_model_import(model_apath, model_handle);
+    asset_importer_.wait_until_all_pending_are_complete();
+    asset_importer_.retire_completed_requests();
 
-
-    const entt::handle camera_handle{ registry, registry.create() };
+    const entt::handle camera_handle = create_handle(registry);
     const Camera::Params camera_params{
         .fovy_rad     = glm::radians(80.f),
         .aspect_ratio = globals::window_size.size_ref().aspect_ratio(),

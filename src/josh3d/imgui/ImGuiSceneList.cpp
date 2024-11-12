@@ -5,6 +5,7 @@
 #include "ImGuiComponentWidgets.hpp"
 #include "ImGuiHelpers.hpp"
 #include "LightCasters.hpp"
+#include "Logging.hpp"
 #include "ObjectLifecycle.hpp"
 #include "SceneGraph.hpp"
 #include "Tags.hpp"
@@ -237,6 +238,15 @@ void ImGuiSceneList::display() {
     bool open_import_skybox_popup = false;
     bool import_skybox_signal     = false;
 
+    thread_local std::string import_scene_vpath;
+    thread_local Path        import_scene_filepath;
+    thread_local std::string import_scene_error_message;
+
+    bool open_import_scene_popup = false;
+    bool import_scene_signal     = false;
+
+
+
 
 
     if (ImGui::BeginPopupContextWindow(nullptr,
@@ -308,6 +318,9 @@ void ImGuiSceneList::display() {
         }
 
         if (ImGui::BeginMenu("Import")) {
+
+            open_import_scene_popup  = ImGui::MenuItem("Scene");
+            ImGui::Separator();
             open_import_model_popup  = ImGui::MenuItem("Model");
             open_import_skybox_popup = ImGui::MenuItem("Skybox");
 
@@ -318,6 +331,38 @@ void ImGuiSceneList::display() {
     }
 
 
+    if (open_import_scene_popup) {
+        ImGui::OpenPopup("ImportScenePopup");
+    }
+    if (ImGui::BeginPopup("ImportScenePopup")) {
+        bool should_load = false;
+
+        if (open_import_scene_popup) {
+            ImGui::SetKeyboardFocusHere(); // On first open, focus on text input.
+        }
+        const auto text_flags = ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue;
+        should_load |= ImGui::InputText("Scene VPath", &import_scene_vpath, text_flags);
+        should_load |= ImGui::Button("Load");
+
+        if (!import_scene_error_message.empty()) {
+            ImGui::SameLine();
+            ImGui::TextUnformatted(import_scene_error_message.c_str());
+        }
+
+        if (should_load) {
+            // Try resolving the VPath here, if that fails, display the error immediately.
+            try {
+                import_scene_filepath      = File(VPath(import_scene_vpath));
+                import_scene_signal        = true;
+                import_scene_error_message = {};
+                ImGui::CloseCurrentPopup();
+            } catch (const std::exception& e) {
+                import_scene_error_message = e.what();
+            }
+        }
+
+        ImGui::EndPopup();
+    }
 
 
     if (open_import_model_popup) {
@@ -494,13 +539,26 @@ void ImGuiSceneList::display() {
         }
     }
 
+
     if (import_model_signal) {
-        importer_.request_model_import(import_model_apath);
+        const entt::handle new_model = create_handle(registry);
+        new_model.emplace<Transform>();
+        asset_importer_.request_model_import(import_model_apath, new_model);
     }
 
-
     if (import_skybox_signal) {
-        importer_.request_skybox_import(import_skybox_apath);
+        const entt::handle new_skybox = create_handle(registry);
+        new_skybox.emplace<Transform>();
+        asset_importer_.request_skybox_import(import_skybox_apath, new_skybox);
+    }
+
+    if (import_scene_signal) {
+        try {
+            scene_importer_.import_from_json_file(import_scene_filepath);
+            logstream() << "[IMPORTING SCENE]: " << import_scene_filepath << '\n';
+        } catch (const std::exception& e) {
+            logstream() << "[SCENE IMPORT ERROR]: " << e.what() << '\n';
+        }
     }
 }
 
