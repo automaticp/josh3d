@@ -26,20 +26,22 @@ ImGuiApplicationAssembly::ImGuiApplicationAssembly(
     glfw::Window&      window,
     RenderEngine&      engine,
     entt::registry&    registry,
-    AssetImporter&     asset_importer,
+    AssetLoader&       asset_loader,
+    AssetUnpacker&     asset_unpacker,
     SceneImporter&     scene_importer,
     VirtualFilesystem& vfs
 )
     : window_         { window             }
     , engine_         { engine             }
     , registry_       { registry           }
-    , asset_importer_ { asset_importer     }
+    , asset_unpacker_ { asset_unpacker     }
     , vfs_            { vfs                }
     , context_        { window             }
     , window_settings_{ window             }
     , vfs_control_    { vfs                }
     , stage_hooks_    { engine             }
-    , scene_list_     { registry, asset_importer, scene_importer }
+    , scene_list_     { registry, asset_unpacker, scene_importer }
+    , asset_browser_  { asset_loader       }
     , selected_menu_  { registry           }
     , gizmos_         { registry           }
 {}
@@ -135,12 +137,9 @@ void ImGuiApplicationAssembly::draw_widgets() {
         old_size = new_size;
     }
 
-    thread_local bool show_demo_window = false;
-
     if (!is_hidden()) {
 
-
-        auto reset_condition = on_value_change_from(false, [&, this] { reset_dockspace(dockspace_id); });
+        auto reset_later = on_signal([&, this] { reset_dockspace(dockspace_id); });
 
         auto bg_col = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
         bg_col.w = background_alpha;
@@ -160,8 +159,13 @@ void ImGuiApplicationAssembly::draw_widgets() {
 
 
             if (ImGui::BeginMenu("ImGui")) {
+                ImGui::Checkbox("Render Engine", &show_engine_hooks );
+                ImGui::Checkbox("Scene",         &show_scene_list   );
+                ImGui::Checkbox("Selected",      &show_selected     );
+                ImGui::Checkbox("Assets",        &show_asset_browser);
+                ImGui::Checkbox("Demo Window",   &show_demo_window  );
 
-                ImGui::Checkbox("Show Demo Window", &show_demo_window);
+                ImGui::Separator();
 
                 ImGui::SliderFloat(
                     "FPS Avg. Interval, s", &avg_frame_timer_.averaging_interval,
@@ -170,7 +174,7 @@ void ImGuiApplicationAssembly::draw_widgets() {
 
                 ImGui::SliderFloat("Bg. Alpha", &background_alpha, 0.f, 1.f);
 
-                reset_condition.set(ImGui::Button("Reset Dockspace"));
+                reset_later.set(ImGui::Button("Reset Dockspace"));
 
                 ImGui::Checkbox("Gizmo Debug Window", &gizmos_.display_debug_window);
 
@@ -289,17 +293,29 @@ void ImGuiApplicationAssembly::draw_widgets() {
         }
 
 
-        if (ImGui::Begin("Render Engine")) {
-            stage_hooks_.display();
-        } ImGui::End();
+        if (show_engine_hooks) {
+            if (ImGui::Begin("Render Engine")) {
+                stage_hooks_.display();
+            } ImGui::End();
+        }
 
-        if (ImGui::Begin("Selected")) {
-            selected_menu_.display();
-        } ImGui::End();
+        if (show_selected) {
+            if (ImGui::Begin("Selected")) {
+                selected_menu_.display();
+            } ImGui::End();
+        }
 
-        if (ImGui::Begin("Scene")) {
-            scene_list_.display();
-        } ImGui::End();
+        if (show_scene_list) {
+            if (ImGui::Begin("Scene")) {
+                scene_list_.display();
+            } ImGui::End();
+        }
+
+        if (show_asset_browser) {
+            if (ImGui::Begin("Assets")) {
+                asset_browser_.display();
+            } ImGui::End();
+        }
 
         if (show_demo_window) {
             ImGui::ShowDemoWindow();

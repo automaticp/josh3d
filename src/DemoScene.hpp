@@ -4,7 +4,7 @@
 #include "Input.hpp"
 #include "InputFreeCamera.hpp"
 #include "Primitives.hpp"
-#include "AssetImporter.hpp"
+#include "AssetUnpacker.hpp"
 #include "SceneImporter.hpp"
 #include "SharedStorage.hpp"
 #include "RenderEngine.hpp"
@@ -37,7 +37,7 @@ private:
     entt::registry         registry_;
     josh::OffscreenContext offscreen_context_;
     josh::AssetLoader      asset_loader_;
-    josh::AssetImporter    asset_importer_;
+    josh::AssetUnpacker    asset_unpacker_;
     josh::SceneImporter    scene_importer_;
     josh::Primitives       primitives_;
     josh::RenderEngine     rengine_;

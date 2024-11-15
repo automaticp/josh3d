@@ -543,19 +543,19 @@ void ImGuiSceneList::display() {
     if (import_model_signal) {
         const entt::handle new_model = create_handle(registry);
         new_model.emplace<Transform>();
-        asset_importer_.request_model_import(import_model_apath, new_model);
+        asset_unpacker_.request_model_import(import_model_apath, new_model);
     }
 
     if (import_skybox_signal) {
         const entt::handle new_skybox = create_handle(registry);
         new_skybox.emplace<Transform>();
-        asset_importer_.request_skybox_import(import_skybox_apath, new_skybox);
+        asset_unpacker_.request_skybox_import(import_skybox_apath, new_skybox);
     }
 
     if (import_scene_signal) {
         try {
-            scene_importer_.import_from_json_file(import_scene_filepath);
             logstream() << "[IMPORTING SCENE]: " << import_scene_filepath << '\n';
+            scene_importer_.import_from_json_file(import_scene_filepath);
         } catch (const std::exception& e) {
             logstream() << "[SCENE IMPORT ERROR]: " << e.what() << '\n';
         }

@@ -99,7 +99,7 @@ inline void emplace_model_asset_into(
             }
 
 
-            mesh_handle.emplace<Name>(mesh.path.subpath);
+            mesh_handle.emplace<Name>(std::string(mesh.path.subpath()));
         }
 
     } catch (...) {

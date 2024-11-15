@@ -16,6 +16,7 @@
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 #include <assimp/vector3.h>
+#include <boost/scope/defer.hpp>
 #include <exception>
 #include <filesystem>
 #include <mutex>
@@ -40,16 +41,11 @@ AssetLoader::AssetLoader(
 
 
 
-auto AssetLoader::load_model(const AssetPath& path)
+auto AssetLoader::load_model(AssetPath apath)
     -> Future<SharedModelAsset>
 {
     auto [future, promise] = make_future_promise_pair<SharedModelAsset>();
-    try {
-        AssetPath apath{ std::filesystem::canonical(path.file), path.subpath };
-        dispatch_requests_.emplace(std::move(apath), std::move(promise));
-    } catch (...) {
-        set_exception(std::move(promise), std::current_exception());
-    }
+    dispatch_requests_.emplace(std::move(apath), std::move(promise));
     return std::move(future);
 }
 
@@ -173,7 +169,11 @@ void AssetLoader::handle_dispatch_request(DispatchRequest&& request) {
 
     load_requests_.emplace(
         LoadRequest{
-            .model   = UnresolvedModel{ .path = std::move(request.path) },
+            .model = UnresolvedModel{
+                .path     = std::move(request.path),
+                .meshes   = {}, // To be filled out later.
+                .textures = {}, // To be filled out later.
+            },
             .promise = std::move(request.promise),
         }
     );
@@ -185,6 +185,7 @@ void AssetLoader::handle_dispatch_request(DispatchRequest&& request) {
 void AssetLoader::handle_load_request(LoadRequest&& request) {
 
     thread_local Assimp::Importer importer;
+    BOOST_SCOPE_DEFER [&] { importer.FreeScene(); };
 
     constexpr auto flags =
     // You can EmbedTextures here but I need to move the data out.
@@ -199,13 +200,13 @@ void AssetLoader::handle_load_request(LoadRequest&& request) {
         aiProcess_RemoveRedundantMaterials;
 
 
-    const aiScene* scene = importer.ReadFile(request.model.path.file.c_str(), flags);
+    const aiScene* scene = importer.ReadFile(request.model.path.entry().c_str(), flags);
 
     if (!scene) {
         set_exception(
             std::move(request.promise),
             std::make_exception_ptr(
-                error::AssetFileImportFailure(std::move(request.model.path.file), importer.GetErrorString())
+                error::AssetFileImportFailure(request.model.path.entry(), importer.GetErrorString())
             )
         );
         return;
@@ -227,7 +228,7 @@ void AssetLoader::handle_load_request(LoadRequest&& request) {
         // These thread_locals are reused on each new load,
         // their contents never leave the scope of this function.
         thread_local std::unordered_map<AssetPath, TextureIndex> tex_index_map;
-        tex_index_map.clear();
+        BOOST_SCOPE_DEFER [&] { tex_index_map.clear(); };
 
         struct MaterialInfo {
             TextureIndex diffuse_id  = -1;
@@ -236,7 +237,7 @@ void AssetLoader::handle_load_request(LoadRequest&& request) {
         };
 
         thread_local std::vector<MaterialInfo> material_info; // Heap allocation? More like keep allocation.
-        material_info.clear();
+        BOOST_SCOPE_DEFER [&] { material_info.clear(); };
 
 
         // This will be moved to `UnresolvedModel` later.
@@ -256,7 +257,7 @@ void AssetLoader::handle_load_request(LoadRequest&& request) {
             auto get_full_path = [&](const aiMaterial& material, aiTextureType type) -> AssetPath {
                 aiString filename;
                 material.GetTexture(type, 0u, &filename);
-                return AssetPath{ request.model.path.file.parent_path() / filename.C_Str(), {} };
+                return AssetPath{ request.model.path.entry().parent_path() / filename.C_Str(), {} };
             };
 
             auto get_texture_type = [&](ImageIntent intent) -> aiTextureType {
@@ -266,7 +267,7 @@ void AssetLoader::handle_load_request(LoadRequest&& request) {
                     case ImageIntent::Specular:
                         return aiTextureType_SPECULAR;
                     case ImageIntent::Normal:
-                        if (Assimp::BaseImporter::SimpleExtensionCheck(request.model.path.file, "obj")) {
+                        if (Assimp::BaseImporter::SimpleExtensionCheck(request.model.path.entry(), "obj")) {
                             return aiTextureType_HEIGHT;
                         } else {
                             return aiTextureType_NORMALS;
@@ -353,7 +354,7 @@ void AssetLoader::handle_load_request(LoadRequest&& request) {
                             // 3. Load and emplace if not found.
                             auto [min_channels, max_channels] = get_minmax_channels(intent);
                             auto image_data = load_image_data_from_file<chan::UByte>(
-                                File(path.file), min_channels, max_channels
+                                File(path.entry()), min_channels, max_channels
                             );
                             textures.emplace_back(ImageDataAsset{
                                 .path   = std::move(path),
@@ -458,13 +459,13 @@ void AssetLoader::handle_load_request(LoadRequest&& request) {
         auto meshes = std::span(scene->mMeshes, scene->mNumMeshes);
         for (const auto& mesh : meshes) {
 
-            auto path      = AssetPath{ request.model.path.file, mesh->mName.C_Str() };
+            auto path      = AssetPath{ request.model.path.entry(), mesh->mName.C_Str() };
             auto aabb      = LocalAABB{ v2v(mesh->mAABB.mMin), v2v(mesh->mAABB.mMax) };
             auto mesh_data = get_mesh_data(*mesh);
 
             MeshDataAsset data_asset{
                 .path = std::move(path),
-                .aabb = std::move(aabb),
+                .aabb = aabb,
                 .data = std::move(mesh_data),
             };
 
@@ -493,7 +494,6 @@ void AssetLoader::handle_load_request(LoadRequest&& request) {
                 pending_requests_.erase(it);
             }
         } // ~pending_requests_lock
-        importer.FreeScene();
         return;
     }
 
@@ -511,15 +511,74 @@ void AssetLoader::handle_load_request(LoadRequest&& request) {
     };
 
     offscreen_context_.emplace(std::move(upload_task));
-
-
-    importer.FreeScene();
 }
 
 
 
 
+namespace {
 
+
+auto pick_pixel_data_format(size_t num_channels)
+    -> PixelDataFormat
+{
+    switch (num_channels) {
+        case 1: return PixelDataFormat::Red;
+        case 2: return PixelDataFormat::RG;
+        case 3: return PixelDataFormat::RGB;
+        case 4: return PixelDataFormat::RGBA;
+        default: assert(false); return {};
+    }
+}
+
+
+auto pick_internal_format(size_t num_channels, ImageIntent intent)
+    -> InternalFormat
+{
+    // TODO: Why are we failing when the num_channels is "incorrect"?
+    // What would happen if we just used the closest available format?
+    switch (intent) {
+        case ImageIntent::Albedo:
+            switch (num_channels) {
+                case 3: return InternalFormat::SRGB8;
+                case 4: return InternalFormat::SRGBA8;
+                default: assert(false); return {};
+            }
+        case ImageIntent::Specular:
+            switch (num_channels) {
+                case 1: return InternalFormat::R8;
+                default: assert(false); return {};
+            }
+        case ImageIntent::Normal:
+            switch (num_channels) {
+                case 3: return InternalFormat::RGB8;
+                default: assert(false); return {};
+            }
+        case ImageIntent::Alpha:
+            switch (num_channels) {
+                case 1: return InternalFormat::R8;
+                default: assert(false); return {};
+            }
+        case ImageIntent::Heightmap:
+            switch (num_channels) {
+                case 1: return InternalFormat::R8;
+                default: assert(false); return {};
+            }
+        case ImageIntent::Unknown:
+        default:
+            switch (num_channels) {
+                case 1: return InternalFormat::R8;
+                case 2: return InternalFormat::RG8;
+                case 3: return InternalFormat::RGB8;
+                case 4: return InternalFormat::RGBA8;
+                default: assert(false); return {};
+            }
+    }
+    // Don't return here, clang-tidy will warn if return is missing above.
+}
+
+
+} // namespace
 
 
 
@@ -532,8 +591,7 @@ void AssetLoader::handle_upload_request(UploadRequest&& request) {
         // more likely, `ImageDataAsset` that needs to be uploaded to the GPU memory.
 
         for (UnresolvedTexture& texture : request.model.textures) {
-            if (auto data_asset = std::get_if<ImageDataAsset>(&texture)) {
-
+            if (auto* data_asset = std::get_if<ImageDataAsset>(&texture)) {
 
                 // 0. Recheck Cache.
                 {
@@ -558,59 +616,12 @@ void AssetLoader::handle_upload_request(UploadRequest&& request) {
 
 
                 // 1. Upload
-                const auto num_channels = data_asset->data.num_channels();
-                const auto intent       = data_asset->intent;
+                const size_t      num_channels = data_asset->data.num_channels();
+                const ImageIntent intent       = data_asset->intent;
 
-                const auto type   = PixelDataType::UByte;
-                const auto format = [&]() -> PixelDataFormat {
-                    switch (num_channels) {
-                        case 1: return PixelDataFormat::Red;
-                        case 2: return PixelDataFormat::RG;
-                        case 3: return PixelDataFormat::RGB;
-                        case 4: return PixelDataFormat::RGBA;
-                        default: assert(false); return {};
-                    }
-                }();
-
-                const auto iformat = [&]() -> InternalFormat {
-                    switch (intent) {
-                        case ImageIntent::Albedo:
-                            switch (num_channels) {
-                                case 3: return InternalFormat::SRGB8;
-                                case 4: return InternalFormat::SRGBA8;
-                                default: assert(false); return {};
-                            }
-                        case ImageIntent::Specular:
-                            switch (num_channels) {
-                                case 1: return InternalFormat::R8;
-                                default: assert(false); return {};
-                            }
-                        case ImageIntent::Normal:
-                            switch (num_channels) {
-                                case 3: return InternalFormat::RGB8;
-                                default: assert(false); return {};
-                            }
-                        case ImageIntent::Alpha:
-                            switch (num_channels) {
-                                case 1: return InternalFormat::R8;
-                                default: assert(false); return {};
-                            }
-                        case ImageIntent::Heightmap:
-                            switch (num_channels) {
-                                case 1: return InternalFormat::R8;
-                                default: assert(false); return {};
-                            }
-                        case ImageIntent::Unknown:
-                        default:
-                            switch (num_channels) {
-                                case 1: return InternalFormat::R8;
-                                case 2: return InternalFormat::RG8;
-                                case 3: return InternalFormat::RGB8;
-                                case 4: return InternalFormat::RGBA8;
-                                default: assert(false); return {};
-                            }
-                    }
-                }();
+                const PixelDataType   type    = PixelDataType::UByte;
+                const PixelDataFormat format  = pick_pixel_data_format(num_channels);
+                const InternalFormat  iformat = pick_internal_format(num_channels, intent);
 
                 StoredTextureAsset asset{
                     .path    = std::move(data_asset->path),
@@ -676,7 +687,7 @@ void AssetLoader::handle_upload_request(UploadRequest&& request) {
 
                 StoredMeshAsset asset{
                     .path     = std::move(data_asset->path),
-                    .aabb     = std::move(data_asset->aabb),
+                    .aabb     = data_asset->aabb,
                     .vertices = std::move(verts_buf),
                     .indices  = std::move(indices_buf),
                     .diffuse  = get_texture(unresolved_mesh.diffuse_id),

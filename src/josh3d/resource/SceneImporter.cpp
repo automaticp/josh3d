@@ -1,5 +1,5 @@
 #include "SceneImporter.hpp"
-#include "AssetImporter.hpp"
+#include "AssetUnpacker.hpp"
 #include "AssetLoader.hpp"
 #include "LightCasters.hpp"
 #include "Logging.hpp"
@@ -18,8 +18,9 @@
 #include <nlohmann/json.hpp>
 #include <fmt/core.h>
 #include <fmt/format.h>
-#include <cstdint>
 #include <range/v3/view/enumerate.hpp>
+#include <boost/scope/defer.hpp>
+#include <cstdint>
 #include <stdexcept>
 #include <string_view>
 
@@ -116,7 +117,7 @@ void SceneImporter::import_from_json(const json& j) {
 
 
     thread_local std::unordered_map<ID, Entry> id2entry;
-    id2entry.clear();
+    BOOST_SCOPE_DEFER [&] { id2entry.clear(); };
 
 
     // TODO: This is an interesting idea that can help with all
@@ -294,10 +295,10 @@ auto get_asset_path(const json& j_entity)
     }
 
     if (path) {
-        return { .file=path->get<Path>(), .subpath={} };
+        return { path->get<Path>() };
     } else if (vpath) {
         const auto vp = VPath(vpath->get<Path>());
-        return { .file=vfs().resolve_path(vp), .subpath={} };
+        return { vfs().resolve_path(vp) };
     } else {
         throw error::RuntimeError("External import needs \"path\" or \"vpath\" specified.");
     }
@@ -306,16 +307,16 @@ auto get_asset_path(const json& j_entity)
 
 
 
-void import_model(AssetImporter& asset_importer, const json& j_entity, entt::handle handle) {
+void import_model(AssetUnpacker& asset_unpacker, const json& j_entity, entt::handle handle) {
     AssetPath asset_path = get_asset_path(j_entity);
-    asset_importer.request_model_import(asset_path, handle);
+    asset_unpacker.request_model_import(asset_path, handle);
     handle.emplace<AssetPath>(std::move(asset_path));
 }
 
 
-void import_skybox(AssetImporter& asset_importer, const json& j_entity, entt::handle handle) {
+void import_skybox(AssetUnpacker& asset_unpacker, const json& j_entity, entt::handle handle) {
     AssetPath asset_path = get_asset_path(j_entity);
-    asset_importer.request_skybox_import(asset_path, handle);
+    asset_unpacker.request_skybox_import(asset_path, handle);
     handle.emplace<AssetPath>(std::move(asset_path));
 }
 
@@ -373,12 +374,12 @@ void SceneImporter::register_importer(std::string_view type, TypeImporter import
 }
 
 
-SceneImporter::SceneImporter(AssetImporter& asset_importer, entt::registry& registry)
+SceneImporter::SceneImporter(AssetUnpacker& asset_unpacker, entt::registry& registry)
     : registry_{ registry }
 {
-    auto& ai = asset_importer;
-    register_importer("Model",            [&](const json& j, entt::handle h) { import_model (ai, j, h); });
-    register_importer("Skybox",           [&](const json& j, entt::handle h) { import_skybox(ai, j, h); });
+    auto& au = asset_unpacker;
+    register_importer("Model",            [&](const json& j, entt::handle h) { import_model (au, j, h); });
+    register_importer("Skybox",           [&](const json& j, entt::handle h) { import_skybox(au, j, h); });
     register_importer("PointLight",       &import_point_light      );
     register_importer("DirectionalLight", &import_directional_light);
     register_importer("AmbientLight",     &import_ambient_light    );

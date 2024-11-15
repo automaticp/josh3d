@@ -4,13 +4,8 @@
 #include "VPath.hpp"
 #include "ImGuiHelpers.hpp"
 #include "RuntimeError.hpp"
-#include <concepts>
-#include <functional>
 #include <imgui.h>
 #include <imgui_stdlib.h>
-#include <type_traits>
-#include <algorithm>
-#include <utility>
 
 
 
@@ -22,7 +17,7 @@ void ImGuiVFSControl::roots_listbox_widget() {
     using it_t = VFSRoots::const_iterator;
     VFSRoots& roots = vfs_.roots();
 
-    auto to_remove = on_value_change_from(roots.end(),
+    auto remove_later = on_value_change_from(roots.end(),
         [&](const auto& to_remove) { roots.erase(to_remove); });
 
 
@@ -42,7 +37,7 @@ void ImGuiVFSControl::roots_listbox_widget() {
 
                 ImGui::SameLine(ImGui::GetContentRegionAvail().x - 2.f * ImGui::CalcTextSize("X").x);
                 if (ImGui::SmallButton("X")) {
-                    to_remove.set(it);
+                    remove_later.set(it);
                 }
             }
             ImGui::EndGroup();
@@ -101,18 +96,18 @@ void ImGuiVFSControl::add_new_root_widget() {
         }
     };
 
-    auto add_root_signal = on_value_change_from(false, try_add_root);
+    auto add_root_later = on_signal(try_add_root);
 
     if (ImGui::InputText("##New Root Input", &new_root_,
             ImGuiInputTextFlags_EnterReturnsTrue))
     {
-        add_root_signal.set(true);
+        add_root_later.set(true);
     }
 
     ImGui::SameLine();
 
     if (ImGui::Button("New Root##Button")) {
-        add_root_signal.set(true);
+        add_root_later.set(true);
     }
 
 }

@@ -5,6 +5,8 @@
         "glbinding",
         "glfw3",
         "boost-iostreams",
+        "boost-container",
+        "boost-scope",
         "fmt",
         "doctest",
         "cxxopts",

@@ -57,6 +57,7 @@
 
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
+#include <entt/entity/view.hpp>
 #include <glbinding/gl/enum.h>
 #include <glfwpp/window.h>
 #include <exception>
@@ -101,17 +102,17 @@ void DemoScene::process_input() {
 void DemoScene::update() {
     update_input_blocker_from_imgui_io_state();
 
-    asset_importer_.retire_completed_requests();
-    while (asset_importer_.can_unpack_more()) {
+    asset_unpacker_.retire_completed_requests();
+    while (asset_unpacker_.can_unpack_more()) {
         try {
-            const entt::handle handle = asset_importer_.unpack_one_retired();
+            const entt::handle handle = asset_unpacker_.unpack_one_retired();
             logstream() << "[UNPACKED ASSET]: [" << to_entity(handle.entity()) << "]";
             if (const auto* path = handle.try_get<Path>()) {
                 logstream() << ", Path: " << *path;
             } else if (const auto* asset_path = handle.try_get<AssetPath>()) {
-                logstream() << ", AssetPath: " << asset_path->file;
-                if (asset_path->subpath.size()) {
-                    logstream() << "##" << asset_path->subpath;
+                logstream() << ", AssetPath: " << asset_path->entry();
+                if (asset_path->subpath().size()) {
+                    logstream() << "##" << asset_path->subpath();
                 }
             }
 
@@ -141,8 +142,8 @@ DemoScene::DemoScene(glfw::Window& window)
     : window_           { window                     }
     , offscreen_context_{ window                     }
     , asset_loader_     { offscreen_context_         }
-    , asset_importer_   { asset_loader_              }
-    , scene_importer_   { asset_importer_, registry_ }
+    , asset_unpacker_   { asset_loader_              }
+    , scene_importer_   { asset_unpacker_, registry_ }
     , primitives_       { asset_loader_              }
     , rengine_          {
         registry_,
@@ -154,7 +155,15 @@ DemoScene::DemoScene(glfw::Window& window)
     , input_blocker_{                         }
     , input_        { window_, input_blocker_ }
     , input_freecam_{                         }
-    , imgui_        { window_, rengine_, registry_, asset_importer_, scene_importer_, vfs() }
+    , imgui_        {
+        window_,
+        rengine_,
+        registry_,
+        asset_loader_,
+        asset_unpacker_,
+        scene_importer_,
+        vfs()
+    }
 {
 
 
@@ -405,9 +414,9 @@ void DemoScene::init_registry() {
 
     const entt::handle model_handle = create_handle(registry);
     model_handle.emplace<Transform>();
-    asset_importer_.request_model_import(model_apath, model_handle);
-    asset_importer_.wait_until_all_pending_are_complete();
-    asset_importer_.retire_completed_requests();
+    asset_unpacker_.request_model_import(model_apath, model_handle);
+    asset_unpacker_.wait_until_all_pending_are_complete();
+    asset_unpacker_.retire_completed_requests();
 
     const entt::handle camera_handle = create_handle(registry);
     const Camera::Params camera_params{

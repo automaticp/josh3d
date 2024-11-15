@@ -1,6 +1,8 @@
 # === boost ===
 # Boost::iostreams
-find_package(Boost REQUIRED COMPONENTS iostreams)
+# Boost::scope
+# Boost::container
+find_package(Boost REQUIRED COMPONENTS iostreams container scope)
 
 
 # === fmt ===

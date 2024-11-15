@@ -1,5 +1,5 @@
 #pragma once
-#include "AssetImporter.hpp"
+#include "AssetUnpacker.hpp"
 #include "UniqueFunction.hpp"
 #include <entt/entity/fwd.hpp>
 #include <nlohmann/json_fwd.hpp>
@@ -15,7 +15,7 @@ class SceneImporter {
 public:
     using TypeImporter = UniqueFunction<void(const nlohmann::json&, entt::handle)>;
 
-    SceneImporter(AssetImporter& asset_importer, entt::registry& registry);
+    SceneImporter(AssetUnpacker& asset_unpacker, entt::registry& registry);
 
     void import_from_json_file(const Path& json_file);
     void import_from_json(const nlohmann::json& json);

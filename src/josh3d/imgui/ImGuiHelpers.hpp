@@ -141,6 +141,13 @@ template<typename ValT, typename ActionF>
 }
 
 
+// OnValueCondition that triggers when the signal is set to `true`.
+// Initially disengaged.
+template<typename ActionF>
+[[nodiscard]] auto on_signal(ActionF&& action) {
+    return on_value_change_from(false, std::forward<ActionF>(action));
+}
+
 
 
 namespace imgui {

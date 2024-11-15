@@ -172,14 +172,14 @@ auto ThreadPool::emplace(Fun&& fun, Args&&... args)
         last_emplaced_idx_.store(last_idx, std::memory_order_relaxed);
     }
 
-    return future;
+    return std::move(future);
 }
 
 
 
 
 inline void ThreadPool::execution_loop(
-    std::stop_token stoken,
+    std::stop_token stoken, // NOLINT: performance-*
     const size_t    thread_idx)
 {
     startup_latch_.arrive_and_wait();

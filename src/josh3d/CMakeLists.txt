@@ -129,7 +129,16 @@ subtarget_link_internal(util)
 
 
 # Common external dependencies.
-set(common_external_deps glm::glm fmt::fmt range-v3::range-v3 range-v3::concepts)
+set(common_external_deps
+    Boost::container
+    Boost::iostreams
+    Boost::scope
+    glm::glm
+    fmt::fmt
+    range-v3::range-v3
+    range-v3::concepts
+)
+
 
 function(subtarget_link_common_external_deps SUBTARGET)
 
@@ -158,5 +167,5 @@ target_link_libraries(josh3d-resource PUBLIC    assimp::assimp #[[ should be pri
 # target_link_libraries(josh3d-render)
 # target_link_libraries(josh3d-layout)
 target_link_libraries(josh3d-scene    PUBLIC    EnTT::EnTT)
-target_link_libraries(josh3d-util     PUBLIC    glfwpp::glfwpp #[[ should be in engine ]] Boost::iostreams)
+target_link_libraries(josh3d-util     PUBLIC    glfwpp::glfwpp #[[ should be in engine ]])
 

@@ -13,8 +13,8 @@ namespace josh {
 namespace {
 
 
-Mesh load_simple_mesh(AssetLoader& asset_loader, Path path) {
-    auto shared_mesh = get_result(asset_loader.load_model(AssetPath{ std::move(path), {} })).meshes.at(0);
+Mesh load_simple_mesh(AssetLoader& asset_loader, const Path& path) {
+    auto shared_mesh = get_result(asset_loader.load_model(path)).meshes.at(0);
     make_available<Binding::ArrayBuffer>       (shared_mesh.vertices->id());
     make_available<Binding::ElementArrayBuffer>(shared_mesh.indices->id() );
     return Mesh::from_buffers<VertexPNUTB>(std::move(shared_mesh.vertices), std::move(shared_mesh.indices));

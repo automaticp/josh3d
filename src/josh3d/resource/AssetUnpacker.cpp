@@ -1,4 +1,4 @@
-#include "AssetImporter.hpp"
+#include "AssetUnpacker.hpp"
 #include "Active.hpp"
 #include "AssetLoader.hpp"
 #include "ComponentLoaders.hpp"
@@ -12,31 +12,31 @@
 namespace josh {
 
 
-void AssetImporter::request_model_import(const AssetPath& path, entt::handle handle) {
+void AssetUnpacker::request_model_import(const AssetPath& path, entt::handle handle) {
     pending_models_.push_back({ asset_loader_.load_model(path), handle });
 }
 
 
-void AssetImporter::request_skybox_import(const AssetPath& path, entt::handle handle) {
+void AssetUnpacker::request_skybox_import(const AssetPath& path, entt::handle handle) {
     retired_skyboxes_.push_back({ path, handle });
 }
 
 
-void AssetImporter::wait_until_all_pending_are_complete() const {
+void AssetUnpacker::wait_until_all_pending_are_complete() const {
     for (const auto& request : pending_models_) {
         request.future.wait_for_result();
     }
 }
 
 
-auto AssetImporter::num_pending() const noexcept
+auto AssetUnpacker::num_pending() const noexcept
     -> size_t
 {
     return pending_models_.size();
 }
 
 
-auto AssetImporter::retire_completed_requests()
+auto AssetUnpacker::retire_completed_requests()
     -> size_t
 {
     auto subrange_of_completed =
@@ -58,21 +58,21 @@ auto AssetImporter::retire_completed_requests()
 }
 
 
-auto AssetImporter::num_retired() const noexcept
+auto AssetUnpacker::num_retired() const noexcept
     -> size_t
 {
     return retired_models_.size() + retired_skyboxes_.size();
 }
 
 
-bool AssetImporter::can_unpack_more() const noexcept {
+bool AssetUnpacker::can_unpack_more() const noexcept {
     return bool(num_retired());
 }
 
 
 
 
-auto AssetImporter::unpack_one_retired()
+auto AssetUnpacker::unpack_one_retired()
     -> entt::handle
 {
 
@@ -88,7 +88,7 @@ auto AssetImporter::unpack_one_retired()
 
         SkyboxRequest request = pop_back(retired_skyboxes_);
         request.handle.emplace_or_replace<AssetPath>(request.path);
-        load_skybox_into(request.handle, File(request.path.file));
+        load_skybox_into(request.handle, File(request.path.entry()));
         // TODO: Is this the right place to handle this?
         if (!has_active<Skybox>(*request.handle.registry())) {
             make_active<Skybox>(request.handle);

@@ -1,5 +1,5 @@
 #pragma once
-#include "AssetImporter.hpp"
+#include "AssetUnpacker.hpp"
 #include "SceneImporter.hpp"
 #include <entt/entity/fwd.hpp>
 
@@ -14,11 +14,11 @@ class ImGuiSceneList {
 public:
     ImGuiSceneList(
         entt::registry& registry,
-        AssetImporter&  asset_importer,
+        AssetUnpacker&  asset_unpacker,
         SceneImporter&  scene_importer
     )
         : registry_      { registry       }
-        , asset_importer_{ asset_importer }
+        , asset_unpacker_{ asset_unpacker }
         , scene_importer_{ scene_importer }
     {}
 
@@ -26,7 +26,7 @@ public:
 
 private:
     entt::registry& registry_;
-    AssetImporter&  asset_importer_;
+    AssetUnpacker&  asset_unpacker_;
     SceneImporter&  scene_importer_;
 };
 

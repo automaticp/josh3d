@@ -10,10 +10,11 @@
 #include "OffscreenContext.hpp"
 #include "ThreadsafeQueue.hpp"
 #include "VertexPNUTB.hpp"
-#include <glbinding/gl/types.h>
+#include <concepts>
 #include <cstdint>
 #include <stop_token>
 #include <unordered_map>
+#include <utility>
 #include <variant>
 #include <mutex>
 #include <shared_mutex>
@@ -42,24 +43,53 @@ enum class ImageIntent {
 
 
 /*
-TODO: Encapsulate to guarantee canonicity.
+A canonical path to an asset on disk with an optional subpath
+to identify file subresources. Immutable.
+
+The intent is to make this hashable and "reliable" for caching.
+
+Reliable is in quotes because we still have at least some unsolved problems:
+
+    - Files modified after caching need to be checked for changes
+      if full syncronization with state on disk is desired.
+
+    - Case-insesitive filesystems (cough-cough, Windows...)
+      can produce different paths to the same resource.
+      Usually this is just a redundancy problem, not a correctness one.
+
 */
-struct AssetPath {
-    Path        file;
-    std::string subpath;
+class AssetPath {
+public:
+    AssetPath() = default;
+
+    AssetPath(const Path& entry)
+        : entry_{ canonical(entry) }
+    {}
+
+    AssetPath(const Path& entry, std::string subpath)
+        : entry_  { canonical(entry)   }
+        , subpath_{ std::move(subpath) }
+    {}
+
+    auto entry()   const noexcept -> const Path&      { return entry_;   }
+    auto subpath() const noexcept -> std::string_view { return subpath_; }
 
     bool operator==(const AssetPath& other) const noexcept = default;
     std::strong_ordering operator<=>(const AssetPath& other) const noexcept = default;
+
+private:
+    Path        entry_;
+    std::string subpath_;
 };
 
 
 } // namespace josh
 namespace std {
 template<> struct hash<josh::AssetPath> {
-    std::size_t operator()(const josh::AssetPath& value) const noexcept {
+    std::size_t operator()(const josh::AssetPath& asset_path) const noexcept {
         // This is probably terrible, but...
-        const auto phash = hash<josh::Path>{}(value.file);
-        const auto shash = hash<std::string>{}(value.subpath);
+        const auto phash = hash<josh::Path>{}(asset_path.entry());
+        const auto shash = hash<std::string_view>{}(asset_path.subpath());
         return phash ^ (shash << 1);
         // I really don't care.
     }
@@ -160,10 +190,7 @@ public:
     //
     // Resulting resources must be made visible in the rendering
     // thread by binding them to that thread's context before use.
-    auto load_model(const AssetPath& path) -> Future<SharedModelAsset>;
-
-
-private:
+    auto load_model(AssetPath apath) -> Future<SharedModelAsset>;
 
     struct StoredTextureAsset {
         AssetPath       path;
@@ -186,22 +213,27 @@ private:
         std::vector<StoredMeshAsset> meshes;
     };
 
+    using ModelCache   = std::unordered_map<AssetPath, StoredModelAsset>;
+    using MeshCache    = std::unordered_map<AssetPath, StoredMeshAsset>;
+    using TextureCache = std::unordered_map<AssetPath, StoredTextureAsset>;
+
     static auto stored_to_shared(const StoredTextureAsset& stored) -> SharedTextureAsset;
     static auto stored_to_shared(const StoredMeshAsset&    stored) -> SharedMeshAsset;
     static auto stored_to_shared(const StoredModelAsset&   stored) -> SharedModelAsset;
 
+    // TODO: Move "cache" to a separate type?
+    void peek_model_cache  (std::invocable<const ModelCache&>   auto&& peek_func);
+    void peek_mesh_cache   (std::invocable<const MeshCache&>    auto&& peek_func);
+    void peek_texture_cache(std::invocable<const TextureCache&> auto&& peek_func);
 
 
-
-
-
+private:
     std::unordered_map<AssetPath, StoredTextureAsset> texture_cache_;
     std::unordered_map<AssetPath, StoredMeshAsset>    mesh_cache_;
     std::unordered_map<AssetPath, StoredModelAsset>   model_cache_;
     std::shared_mutex                                 texture_cache_mutex_;
-    std::mutex                                        mesh_cache_mutex_; // Unused?
-    std::mutex                                        model_cache_mutex_;
-
+    std::shared_mutex                                 mesh_cache_mutex_; // Unused?
+    std::shared_mutex                                 model_cache_mutex_;
 
 
     struct ImageDataAsset {
@@ -215,9 +247,6 @@ private:
         LocalAABB             aabb;
         MeshData<VertexPNUTB> data;
     };
-
-
-
 
 
     // Mesh and Texture assets are tiny state-machines
@@ -256,8 +285,6 @@ private:
         std::vector<UnresolvedMesh>    meshes;
         std::vector<UnresolvedTexture> textures;
     };
-
-
 
 
     // We operate in terms of 4 threads:
@@ -314,6 +341,27 @@ private:
     void handle_upload_request(UploadRequest&& request);
 
 };
+
+
+
+
+void AssetLoader::peek_model_cache(std::invocable<const ModelCache&> auto&& peek_func) {
+    std::shared_lock read_lock{ model_cache_mutex_ };
+    peek_func(model_cache_);
+}
+
+
+void AssetLoader::peek_mesh_cache(std::invocable<const MeshCache&> auto&& peek_func) {
+    std::shared_lock read_lock{ mesh_cache_mutex_ };
+    peek_func(mesh_cache_);
+}
+
+
+void AssetLoader::peek_texture_cache(std::invocable<const TextureCache&> auto&& peek_func) {
+    std::shared_lock read_lock{ texture_cache_mutex_ };
+    peek_func(texture_cache_);
+}
+
 
 
 

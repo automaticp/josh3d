@@ -17,12 +17,13 @@ Each request can exist in one of the 3 states:
     - Complete Pending   - must be retired with a call to `retire_completed_requests()`;
     - Retired            - must be unpacked with a call to `unpack_one_request()`.
 
-NOTE: Has no relation to the Assimp library.
 */
-class AssetImporter {
+class AssetUnpacker {
 public:
-    AssetImporter(AssetLoader& asset_loader) : asset_loader_{ asset_loader } {}
+    AssetUnpacker(AssetLoader& asset_loader) : asset_loader_{ asset_loader } {}
 
+    // TODO: Might make sense to provide an api that just associates
+    // the handle and an existing Future<Shared*Asset>.
     void request_model_import(const AssetPath& path, entt::handle handle);
 
     // NOTE: Not async right now. Will load when unpack is called.
