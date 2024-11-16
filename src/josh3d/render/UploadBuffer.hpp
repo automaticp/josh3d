@@ -14,12 +14,6 @@
 
 namespace josh {
 
-// TODO: Should be vocabulary in gl.
-struct BufferRange {
-    OffsetElems offset;
-    NumElems    count;
-};
-
 
 /*
 Buffer wrapper for a particular usage pattern:

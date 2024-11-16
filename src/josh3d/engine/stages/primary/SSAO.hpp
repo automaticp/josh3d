@@ -149,9 +149,8 @@ private:
 
     // We use vec4 to avoid issues with alignment in std430,
     // even though we only need vec3 of data.
-    UniqueBuffer<glm::vec4> sampling_kernel_{
-        allocate_buffer<glm::vec4>(NumElems{ 12 }, StorageMode::StaticServer)
-    };
+    UniqueBuffer<glm::vec4> sampling_kernel_ =
+        allocate_buffer<glm::vec4>(NumElems{ 12 }, { .mode = StorageMode::StaticServer });
 
     float min_sample_angle_rad_{ glm::radians(5.f) };
 
@@ -217,11 +216,11 @@ inline void SSAO::regenerate_kernels() {
         return vec;
     };
 
-    std::span<glm::vec4> mapped = sampling_kernel_->map_for_write(
-        PendingOperations::SynchronizeOnMap,
-        FlushPolicy::AutomaticOnUnmap,
-        PreviousContents::InvalidateAll
-    );
+    std::span<glm::vec4> mapped = sampling_kernel_->map_for_write({
+        .pending_ops       = PendingOperations::SynchronizeOnMap,
+        .flush_policy      = FlushPolicy::AutomaticOnUnmap,
+        .previous_contents = PreviousContents::InvalidateAll
+    });
 
     // TODO: Now this is actually very problematic, because the driver
     // sometimes just keeps failing unmapping if there's a bug elsewhere.

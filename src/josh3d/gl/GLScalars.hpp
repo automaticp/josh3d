@@ -1,6 +1,6 @@
 #pragma once
-#include <glbinding/gl/types.h>
-#include <glbinding/gl/boolean.h>
+#include <glbinding/gl/types.h>   // IWYU pragma: export
+#include <glbinding/gl/boolean.h> // IWYU pragma: export
 
 /*
 Exposes basic scalars used by OpenGL: GLint, GLenum, GLsizei, etc.

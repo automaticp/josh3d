@@ -668,10 +668,10 @@ void AssetLoader::handle_upload_request(UploadRequest&& request) {
                 const auto& indices = data_asset->data.elements();
 
                 SharedBuffer<VertexPNUTB> verts_buf =
-                    specify_buffer(std::span<const VertexPNUTB>(verts), StorageMode::StaticServer);
+                    specify_buffer(std::span<const VertexPNUTB>(verts), { .mode = StorageMode::StaticServer });
 
                 SharedBuffer<GLuint> indices_buf =
-                    specify_buffer(std::span<const GLuint>(indices), StorageMode::StaticServer);
+                    specify_buffer(std::span<const GLuint>(indices), { .mode = StorageMode::StaticServer });
 
 
 

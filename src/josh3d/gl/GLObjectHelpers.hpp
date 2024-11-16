@@ -7,8 +7,9 @@
 #include "GLTextures.hpp"
 #include "DecayToRaw.hpp" // IWYU pragma: export
 #include "Size.hpp"
-#include <bit>
 #include <glbinding/gl/types.h>
+#include <algorithm>
+#include <bit>
 
 
 namespace josh {
@@ -16,26 +17,22 @@ namespace josh {
 
 template<typename T>
 UniqueBuffer<T> allocate_buffer(
-    NumElems             num_elements,
-    StorageMode          storage_mode       = StorageMode::DynamicServer,
-    PermittedMapping     mapping_policy     = PermittedMapping::ReadWrite,
-    PermittedPersistence persistence_policy = PermittedPersistence::NotPersistent) noexcept
+    NumElems               num_elements,
+    const StoragePolicies& policies = {}) noexcept
 {
     UniqueBuffer<T> buffer;
-    buffer->allocate_storage(num_elements, storage_mode, mapping_policy, persistence_policy);
+    buffer->allocate_storage(num_elements, policies);
     return buffer;
 }
 
 
 template<typename T>
 UniqueBuffer<T> specify_buffer(
-    std::span<const T>   src_buf,
-    StorageMode          storage_mode       = StorageMode::DynamicServer,
-    PermittedMapping     mapping_policy     = PermittedMapping::ReadWrite,
-    PermittedPersistence persistence_policy = PermittedPersistence::NotPersistent) noexcept
+    std::span<const T>     src_buf,
+    const StoragePolicies& policies = {}) noexcept
 {
     UniqueBuffer<T> buffer;
-    buffer->specify_storage(src_buf, storage_mode, mapping_policy, persistence_policy);
+    buffer->specify_storage(src_buf, policies);
     return buffer;
 }
 
@@ -44,19 +41,19 @@ UniqueBuffer<T> specify_buffer(
 
 template<typename T>
 UniqueBuffer<T> allocate_buffer_like(RawBuffer<T, GLConst> buffer) noexcept {
-    const auto [mode, mapping, persistence] = buffer.get_storage_policies();
-    const NumElems num_elements             = buffer.get_num_elements();
+    const StoragePolicies policies = buffer.get_storage_policies();
+    const NumElems num_elements    = buffer.get_num_elements();
 
-    return allocate_buffer<T>(num_elements, mode, mapping, persistence);
+    return allocate_buffer<T>(num_elements, policies);
 }
 
 
 template<typename T>
 UniqueBuffer<T> copy_buffer(RawBuffer<T, GLConst> buffer) noexcept {
-    const auto [mode, mapping, persistence] = buffer.get_storage_policies();
-    const NumElems num_elements             = buffer.get_num_elements();
+    const StoragePolicies policies = buffer.get_storage_policies();
+    const NumElems num_elements    = buffer.get_num_elements();
 
-    UniqueBuffer<T> new_buffer = allocate_buffer<T>(num_elements, mode, mapping, persistence);
+    UniqueBuffer<T> new_buffer = allocate_buffer<T>(num_elements, policies);
     buffer.copy_data_to(new_buffer, num_elements);
 
     return new_buffer;
@@ -69,20 +66,22 @@ namespace detail {
 
 template<typename T>
 void replace_buffer_like(UniqueBuffer<T>& buffer, NumElems elem_count) noexcept {
-    StoragePolicies policies = buffer->get_storage_policies();
+    const StoragePolicies policies = buffer->get_storage_policies();
     buffer = UniqueBuffer<T>();
-    buffer->allocate_storage(elem_count, policies.storage_mode, policies.permitted_mapping, policies.permitted_persistence);
+    buffer->allocate_storage(elem_count, policies);
 }
 
 } // namespace detail
 
 
 // Contents and buffer object "name" are invalidated on resize.
+// `policies` are passed into the allocation call if resize happens.
 // Returns true if resize occurred, false otherwise.
 template<trivially_copyable T>
 bool resize_to_fit(
-    UniqueBuffer<T>& buffer,
-    NumElems         new_elem_count) noexcept
+    UniqueBuffer<T>&       buffer,
+    NumElems               new_elem_count,
+    const StoragePolicies& policies = {}) noexcept
 {
     const NumElems old_elem_count = buffer->get_num_elements();
 
@@ -92,11 +91,12 @@ bool resize_to_fit(
             // Allocate one with default parameters for storage mode and mapping.
             // Those are DynamicServer storage, ReadWrite permitted mapping and NotPersistent persistence.
             // If you cared enough about these flags, then you wouldn't use this function.
-            buffer->allocate_storage(new_elem_count);
+            buffer->allocate_storage(new_elem_count, policies);
         } else if (new_elem_count == 0) {
-            buffer = {}; // TODO: This is questionable, as we drop the policies.
+            buffer = {}; // Policies are dropped here.
         } else {
-            detail::replace_buffer_like(buffer, new_elem_count);
+            buffer = {};
+            buffer->allocate_storage(new_elem_count, policies);
         }
         return true;
     }
@@ -106,53 +106,50 @@ bool resize_to_fit(
 
 template<trivially_copyable T>
 bool expand_to_fit(
-    UniqueBuffer<T>& buffer,
-    NumElems         desired_elem_count) noexcept
+    UniqueBuffer<T>&       buffer,
+    NumElems               desired_elem_count,
+    const StoragePolicies& policies = {}) noexcept
 {
     const NumElems old_elem_count = buffer->get_num_elements();
 
     if (desired_elem_count > old_elem_count) {
-        if (old_elem_count == 0) {
-            buffer->allocate_storage(desired_elem_count);
-        } else {
-            detail::replace_buffer_like(buffer, desired_elem_count);
+        if (old_elem_count != 0) {
+            buffer = {};
         }
+        buffer->allocate_storage(desired_elem_count, policies);
         return true;
     }
     return false;
 }
 
 
+// Returns the new number of elements.
 template<trivially_copyable T>
-bool expand_to_fit_amortized(
-    UniqueBuffer<T>& buffer,
-    NumElems         desired_elem_count,
-    double           amortization_factor = 1.5) noexcept
+auto expand_to_fit_amortized(
+    UniqueBuffer<T>&       buffer,
+    NumElems               desired_elem_count,
+    const StoragePolicies& policies = {},
+    double                 amortization_factor = 1.5) noexcept
+        -> NumElems
 {
     assert(amortization_factor >= 1.0);
     const NumElems old_elem_count = buffer->get_num_elements();
 
     if (desired_elem_count > old_elem_count) {
-        if (old_elem_count == 0) {
-            buffer->allocate_storage(desired_elem_count);
-        } else if (desired_elem_count > old_elem_count) {
-            NumElems amortized_size{
-                GLsizeiptr(double(old_elem_count.value) * amortization_factor)
-            };
-            // If the desired size is below the amortized size, then we are good
-            // to allocate the amortized size.
-            //
-            // However, if the desired size exceeds the amortized size, then
-            // we allocate exactly the desired size instead.
-            if (desired_elem_count <= amortized_size) {
-                detail::replace_buffer_like(buffer, amortized_size);
-            } else /* desired exceeds amortized */ {
-                detail::replace_buffer_like(buffer, desired_elem_count);
-            }
+        const NumElems amortized_count = GLsizeiptr(double(old_elem_count) * amortization_factor);
+        // If the desired size is below the amortized size, then we are good
+        // to allocate the amortized size.
+        //
+        // However, if the desired size exceeds the amortized size, then
+        // we allocate exactly the desired size instead.
+        const NumElems new_elem_count = std::max(amortized_count, desired_elem_count);
+        if (old_elem_count != 0) {
+            buffer = {};
         }
-        return true;
+        buffer->allocate_storage(new_elem_count, policies);
+        return new_elem_count;
     }
-    return false;
+    return old_elem_count;
 }
 
 

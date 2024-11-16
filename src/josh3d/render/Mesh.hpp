@@ -92,22 +92,19 @@ Mesh::Mesh(const MeshData<VertexT>& data)
     SharedUntypedBuffer   vbo;
     SharedBuffer<GLuint>  ebo;
 
-    vbo->as_typed<VertexT>().specify_storage(
-        data.vertices(),
-        StorageMode::StaticServer,
-        PermittedMapping::NoMapping,
-        PermittedPersistence::NotPersistent
-    );
+    const StoragePolicies policies{
+        .mode        = StorageMode::StaticServer,
+        .mapping     = PermittedMapping::NoMapping,
+        .persistence = PermittedPersistence::NotPersistent
+    };
+
+
+    vbo->as_typed<VertexT>().specify_storage(data.vertices(), policies);
 
     vao_->attach_vertex_buffer(VertexBufferSlot{ 0 }, vbo, OffsetBytes{ 0 }, StrideBytes{ sizeof(VertexT) });
 
     if (num_elements_) {
-        ebo->specify_storage(
-            data.elements(),
-            StorageMode::StaticServer,
-            PermittedMapping::NoMapping,
-            PermittedPersistence::NotPersistent
-        );
+        ebo->specify_storage(data.elements(), policies);
 
         vao_->attach_element_buffer(ebo);
     }

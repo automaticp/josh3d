@@ -26,7 +26,7 @@ HDREyeAdaptation::HDREyeAdaptation(const Size2I& initial_resolution) noexcept
     : intermediate_buf_{
         allocate_buffer<float>(
             NumElems{ dispatch_dimensions(num_y_sample_blocks, initial_resolution.aspect_ratio()).area() },
-            StorageMode::StaticServer
+            { .mode = StorageMode::StaticServer }
         )
     }
     , current_dims_{ dispatch_dimensions(num_y_sample_blocks, initial_resolution.aspect_ratio()) }

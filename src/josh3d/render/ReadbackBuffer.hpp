@@ -2,6 +2,7 @@
 #include "CommonConcepts.hpp"
 #include "GLBuffers.hpp"
 #include "GLFenceSync.hpp"
+#include "GLObjectHelpers.hpp"
 #include "GLObjects.hpp"
 #include "Mesh.hpp"
 #include <algorithm>
@@ -79,16 +80,22 @@ template<trivially_copyable T>
 auto ReadbackBuffer<T>::fetch(RawBuffer<T, GLConst> other)
     -> ReadbackBuffer<T>
 {
-    UniqueBuffer<T> readback;
     const NumElems num_elements = other.get_num_elements();
+    const StoragePolicies policies{
+        .mode        = StorageMode::StaticServer,
+        .mapping     = PermittedMapping::Read,
+        .persistence = PermittedPersistence::Persistent,
+    };
 
-    readback->allocate_storage(num_elements,
-        StorageMode::StaticServer, PermittedMapping::Read, PermittedPersistence::Persistent);
+    UniqueBuffer<T> readback = allocate_buffer<T>(num_elements, policies);
 
     // SynchronizeOnMap is needed to make sure the storage is actually allocated.
     // We will drop the mapped pointer here, and retrieve it later when reading the value.
-    auto mapped [[maybe_unused]] = readback->map_for_read(
-        PendingOperations::SynchronizeOnMap, Persistence::Persistent);
+    const MappingReadPolicies mapping_policies{
+        .pending_ops = PendingOperations::SynchronizeOnMap,
+        .persistence = Persistence::Persistent,
+    };
+    auto mapped [[maybe_unused]] = readback->map_for_read(mapping_policies);
 
     other.copy_data_to(readback.get(), num_elements);
 

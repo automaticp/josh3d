@@ -1,7 +1,6 @@
 #pragma once
 #include "GLAPI.hpp"
 #include "GLAPIBinding.hpp"
-#include "GLBuffers.hpp"
 #include "GLAttributeTraits.hpp"
 #include "GLKind.hpp"
 #include "GLScalars.hpp"
@@ -11,9 +10,10 @@
 #include "detail/RawGLHandle.hpp"
 #include "detail/StaticAssertFalseMacro.hpp"
 #include "detail/StrongScalar.hpp"
-#include <concepts>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
+#include <concepts>
+#include <span>
 
 
 

@@ -33,23 +33,21 @@ void buffer_operations() noexcept {
 
     UniqueBuffer<float> buf;
 
-    buf->allocate_storage(
-        NumElems{ 1 },
-        StorageMode::StaticServer,
-        PermittedMapping::ReadWrite);
+    buf->allocate_storage(1, { .mode = StorageMode::StaticServer, .mapping = PermittedMapping::ReadWrite });
 
-    auto mapped = buf->map_range_for_write(
-        OffsetElems{ 0 },
-        NumElems{ 1 },
+    const MappingWritePolicies policies{
         PendingOperations::SynchronizeOnMap,
         FlushPolicy::MustFlushExplicity,
         PreviousContents::InvalidateMappedRange,
-        Persistence::NotPersistent);
+        Persistence::NotPersistent
+    };
+    const BufferRange range{ OffsetElems{ 0 }, NumElems{ 1 } };
+    auto mapped = buf->map_range_for_write(range, policies);
 
     do {
 
         mapped[0] = 1.f;
-        buf->flush_mapped_range(OffsetElems{ 0 }, NumElems{ 1 });
+        buf->flush_mapped_range({ OffsetElems{ 0 }, NumElems{ 1 } });
 
     } while (!buf->unmap_current());
 

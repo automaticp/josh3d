@@ -29,6 +29,14 @@ class RawUntypedBuffer;
 
 
 
+struct BufferRange {
+    OffsetElems offset;
+    NumElems    count;
+};
+
+
+
+
 enum class StorageMode : GLuint {
     StaticServer  = GLuint(gl::GL_NONE_BIT),            // STATIC_DRAW
     DynamicServer = GLuint(gl::GL_DYNAMIC_STORAGE_BIT), // DYNAMIC_DRAW
@@ -55,9 +63,9 @@ enum class PermittedPersistence : GLuint {
 
 
 struct StoragePolicies {
-    StorageMode          storage_mode          = StorageMode::DynamicServer;
-    PermittedMapping     permitted_mapping     = PermittedMapping::ReadWrite;
-    PermittedPersistence permitted_persistence = PermittedPersistence::NotPersistent;
+    StorageMode          mode        = StorageMode::DynamicServer;
+    PermittedMapping     mapping     = PermittedMapping::ReadWrite;
+    PermittedPersistence persistence = PermittedPersistence::NotPersistent;
 };
 
 
@@ -78,10 +86,6 @@ enum class MappingAccess : GLuint {
     Write     = GLuint(gl::GL_MAP_WRITE_BIT),
     ReadWrite = Read | Write,
 };
-
-
-
-
 
 
 enum class PendingOperations : GLuint {
@@ -113,13 +117,36 @@ enum class Persistence : GLuint {
 
 
 
-// Return type for querying all policies at once.
+struct MappingReadPolicies {
+    PendingOperations pending_ops = PendingOperations::SynchronizeOnMap;
+    Persistence       persistence = Persistence::NotPersistent;
+};
+
+
+struct MappingWritePolicies {
+    PendingOperations pending_ops       = PendingOperations::SynchronizeOnMap;
+    FlushPolicy       flush_policy      = FlushPolicy::AutomaticOnUnmap;
+    PreviousContents  previous_contents = PreviousContents::DoNotInvalidate;
+    Persistence       persistence       = Persistence::NotPersistent;
+};
+
+
+struct MappingReadWritePolicies {
+    PendingOperations pending_ops  = PendingOperations::SynchronizeOnMap;
+    FlushPolicy       flush_policy = FlushPolicy::AutomaticOnUnmap;
+    Persistence       persistence  = Persistence::NotPersistent;
+};
+
+
+/*
+Return type for querying all policies at once.
+*/
 struct MappingPolicies {
     MappingAccess     access;
-    PendingOperations pending_operations = PendingOperations::SynchronizeOnMap;
-    FlushPolicy       flush_policy       = FlushPolicy::AutomaticOnUnmap;
-    PreviousContents  previous_contents  = PreviousContents::DoNotInvalidate;
-    Persistence       persistence        = Persistence::NotPersistent;
+    PendingOperations pending_ops       = PendingOperations::SynchronizeOnMap;
+    FlushPolicy       flush_policy      = FlushPolicy::AutomaticOnUnmap;
+    PreviousContents  previous_contents = PreviousContents::DoNotInvalidate;
+    Persistence       persistence       = Persistence::NotPersistent;
 };
 
 
@@ -236,9 +263,9 @@ public:
         constexpr GLuint persistence_mask = GLuint(gl::GL_MAP_PERSISTENT_BIT | gl::GL_MAP_COHERENT_BIT);
 
         return {
-            .storage_mode          = StorageMode         { flags & mode_mask        },
-            .permitted_mapping     = PermittedMapping    { flags & mapping_mask     },
-            .permitted_persistence = PermittedPersistence{ flags & persistence_mask },
+            .mode          = StorageMode         { flags & mode_mask        },
+            .mapping     = PermittedMapping    { flags & mapping_mask     },
+            .persistence = PermittedPersistence{ flags & persistence_mask },
         };
     }
 
@@ -293,96 +320,78 @@ public:
 
     // Wraps `glMapNamedBufferRange` with `access = GL_MAP_READ_BIT | [flags]`.
     [[nodiscard]] std::span<const T> map_range_for_read(
-        OffsetElems       elem_offset,
-        NumElems          elem_count,
-        PendingOperations pending_ops  = PendingOperations::SynchronizeOnMap,
-        Persistence       persistence  = Persistence::NotPersistent) const noexcept
+        const BufferRange&         buffer_range,
+        const MappingReadPolicies& policies = {}) const noexcept
     {
         gl::BufferAccessMask access{
-            to_underlying(pending_ops) |
-            to_underlying(persistence)
+            to_underlying(policies.pending_ops) |
+            to_underlying(policies.persistence)
         };
-        return map_buffer_range_impl<T>(
-            self_id(), elem_offset, elem_count,
-            access, gl::GL_MAP_READ_BIT
-        );
+        const auto& [offset, count] = buffer_range;
+        return map_buffer_range_impl<T>(self_id(), offset, count, access, gl::GL_MAP_READ_BIT);
     }
 
     // Wraps `glMapNamedBufferRange` with `offset = 0`, `length = get_size_bytes()` and `access = GL_MAP_READ_BIT | [flags]`.
     //
     // Maps the entire buffer.
     [[nodiscard]] std::span<const T> map_for_read(
-        PendingOperations pending_ops = PendingOperations::SynchronizeOnMap,
-        Persistence       persistence = Persistence::NotPersistent) const noexcept
+        const MappingReadPolicies& policies = {}) const noexcept
     {
-        return map_range_for_read(OffsetElems{ 0 }, self().get_num_elements(), pending_ops, persistence);
+        const BufferRange whole_buffer_range{ OffsetElems{ 0 }, self().get_num_elements() };
+        return map_range_for_read(whole_buffer_range, policies);
     }
 
     // Wraps `glMapNamedBufferRange` with `access = GL_MAP_WRITE_BIT | [flags]`.
     [[nodiscard]] std::span<T> map_range_for_write(
-        OffsetElems       elem_offset,
-        NumElems          elem_count,
-        PendingOperations pending_ops       = PendingOperations::SynchronizeOnMap,
-        FlushPolicy       flush_policy      = FlushPolicy::AutomaticOnUnmap,
-        PreviousContents  previous_contents = PreviousContents::DoNotInvalidate,
-        Persistence       persistence       = Persistence::NotPersistent) const noexcept
+        const BufferRange&          buffer_range,
+        const MappingWritePolicies& policies = {}) const noexcept
             requires mt::is_mutable
     {
         gl::BufferAccessMask access{
-            to_underlying(pending_ops)       |
-            to_underlying(flush_policy)      |
-            to_underlying(previous_contents) |
-            to_underlying(persistence)
+            to_underlying(policies.pending_ops)       |
+            to_underlying(policies.flush_policy)      |
+            to_underlying(policies.previous_contents) |
+            to_underlying(policies.persistence)
         };
-        return map_buffer_range_impl<T>(
-            self_id(), elem_offset, elem_count,
-            access, gl::GL_MAP_WRITE_BIT
-        );
+        const auto& [offset, count] = buffer_range;
+        return map_buffer_range_impl<T>(self_id(), offset, count, access, gl::GL_MAP_WRITE_BIT);
     }
 
     // Wraps `glMapNamedBufferRange` with `offset = 0`, `length = get_size_bytes()` and `access = GL_MAP_WRITE_BIT | [flags]`.
     //
     // Maps the entire buffer.
     [[nodiscard]] std::span<T> map_for_write(
-        PendingOperations pending_ops       = PendingOperations::SynchronizeOnMap,
-        FlushPolicy       flush_policy      = FlushPolicy::AutomaticOnUnmap,
-        PreviousContents  previous_contents = PreviousContents::DoNotInvalidate,
-        Persistence       persistence       = Persistence::NotPersistent) const noexcept
+        const MappingWritePolicies& policies = {}) const noexcept
             requires mt::is_mutable
     {
-        return map_range_for_write(OffsetElems{ 0 }, self().get_num_elements(), pending_ops, flush_policy, previous_contents, persistence);
+        const BufferRange whole_buffer_range{ OffsetElems{ 0 }, self().get_num_elements() };
+        return map_range_for_write(whole_buffer_range, policies);
     }
 
     // Wraps `glMapNamedBufferRange` with `access = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | [flags]`.
     [[nodiscard]] std::span<T> map_range_for_readwrite(
-        OffsetElems       elem_offset,
-        NumElems          elem_count,
-        PendingOperations pending_ops = PendingOperations::SynchronizeOnMap,
-        FlushPolicy       flush_polcy = FlushPolicy::AutomaticOnUnmap,
-        Persistence       persistence = Persistence::NotPersistent) const noexcept
+        const BufferRange&              buffer_range,
+        const MappingReadWritePolicies& policies = {}) const noexcept
             requires mt::is_mutable
     {
         gl::BufferAccessMask access{
-            to_underlying(pending_ops)  |
-            to_underlying(flush_polcy) |
-            to_underlying(persistence)
+            to_underlying(policies.pending_ops)  |
+            to_underlying(policies.flush_policy) |
+            to_underlying(policies.persistence)
         };
-        return map_buffer_range_impl<T>(
-            self_id(), elem_offset, elem_count,
-            access, (gl::GL_MAP_READ_BIT | gl::GL_MAP_WRITE_BIT)
-        );
+        const auto& [offset, count] = buffer_range;
+        return map_buffer_range_impl<T>(self_id(), offset, count, access, (gl::GL_MAP_READ_BIT | gl::GL_MAP_WRITE_BIT));
     }
 
     // Wraps `glMapNamedBufferRange` with `offset = 0`, `length = get_size_bytes()` and `access = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | [flags]`.
     //
     // Maps the entire buffer.
     [[nodiscard]] std::span<T> map_for_readwrite(
-        PendingOperations      pending_ops = PendingOperations::SynchronizeOnMap,
-        FlushPolicy            flush_polcy = FlushPolicy::AutomaticOnUnmap,
-        Persistence            persistence = Persistence::NotPersistent) const noexcept
+        const MappingReadWritePolicies& policies = {}) const noexcept
             requires mt::is_mutable
     {
-        return map_range_for_readwrite(OffsetElems{ 0 }, self().get_num_elements(), pending_ops, flush_polcy, persistence);
+        const BufferRange whole_buffer_range{ OffsetElems{ 0 }, self().get_num_elements() };
+        return map_range_for_readwrite(whole_buffer_range, policies);
     }
 
 
@@ -429,7 +438,7 @@ public:
 
         return {
             .access             = MappingAccess    { flags & access_mask            },
-            .pending_operations = PendingOperations{ flags & pending_mask           },
+            .pending_ops        = PendingOperations{ flags & pending_mask           },
             .flush_policy       = FlushPolicy      { flags & flush_mask             },
             .previous_contents  = PreviousContents { flags & previous_contents_mask },
             .persistence        = Persistence      { flags & persistence_mask       },
@@ -513,15 +522,11 @@ public:
     // The buffer object must previously have been mapped with the
     // `BufferMapping[Read]WriteAccess` equal to one of the `*MustFlushExplicitly` options.
     void flush_mapped_range(
-        OffsetElems elem_offset,
-        NumElems    elem_count) const noexcept
+        const BufferRange& buffer_range) const noexcept
             requires mt::is_mutable
     {
-        gl::glFlushMappedNamedBufferRange(
-            self_id(),
-            elem_offset.value * sizeof(T),
-            elem_count.value  * sizeof(T)
-        );
+        const auto& [offset, count] = buffer_range;
+        gl::glFlushMappedNamedBufferRange(self_id(), offset * sizeof(T), count * sizeof(T));
     }
 
 };
@@ -609,6 +614,7 @@ public:
     // Wraps `glNamedBufferStorage` with `flags = storage_mode | mapping_policy | persistence_policy`.
     //
     // Creates immutable storage and initializes it with the contents of `src_buf`.
+    [[deprecated]]
     void specify_storage(
         std::span<const T>   src_buf,
         StorageMode          storage_mode       = StorageMode::DynamicServer,
@@ -626,9 +632,28 @@ public:
         );
     }
 
+    // Wraps `glNamedBufferStorage` with `flags = mode | mapping | persistence`.
+    //
+    // Creates immutable storage and initializes it with the contents of `src_buf`.
+    void specify_storage(
+        std::span<const T>     src_buf,
+        const StoragePolicies& policies) const noexcept
+            requires mt::is_mutable
+    {
+        gl::BufferStorageMask flags{
+            to_underlying(policies.mode)        |
+            to_underlying(policies.mapping)     |
+            to_underlying(policies.persistence)
+        };
+        gl::glNamedBufferStorage(
+            self_id(), src_buf.size_bytes(), src_buf.data(), flags
+        );
+    }
+
     // Wraps `glNamedBufferStorage` with `data = nullptr` and `flags = storage_mode | mapping_policy | persistence_policy`.
     //
     // Creates immutable storage leaving the contents undefined.
+    [[deprecated]]
     void allocate_storage(
         NumElems             num_elements,
         StorageMode          storage_mode       = StorageMode::DynamicServer,
@@ -640,6 +665,24 @@ public:
             to_underlying(storage_mode)       |
             to_underlying(mapping_policy)     |
             to_underlying(persistence_policy)
+        };
+        gl::glNamedBufferStorage(
+            self_id(), num_elements.value * sizeof(T), nullptr, flags
+        );
+    }
+
+    // Wraps `glNamedBufferStorage` with `data = nullptr` and `flags = mode | mapping | persistence`.
+    //
+    // Creates immutable storage leaving the contents undefined.
+    void allocate_storage(
+        NumElems               num_elements,
+        const StoragePolicies& policies) const noexcept
+            requires mt::is_mutable
+    {
+        gl::BufferStorageMask flags{
+            to_underlying(policies.mode)        |
+            to_underlying(policies.mapping)     |
+            to_underlying(policies.persistence)
         };
         gl::glNamedBufferStorage(
             self_id(), num_elements.value * sizeof(T), nullptr, flags
@@ -682,6 +725,8 @@ public:
     //
     // Will copy `src_elem_count` elements from this Buffer to `dst_buffer`.
     // No alignment or layout is considered. Copies bytes directly, similar to `memcpy`.
+    //
+    // TODO: Template parameter here suppresses implicit conversion from UniqueBuffer -> RawBuffer.
     template<typename DstT = T>
     void copy_data_to(
         mt::template type_template<DstT, GLMutable> dst_buffer,
