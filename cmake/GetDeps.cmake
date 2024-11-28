@@ -2,13 +2,29 @@
 # Boost::iostreams
 # Boost::scope
 # Boost::container
-find_package(Boost REQUIRED COMPONENTS iostreams container scope)
+# Boost::outcome
+find_package(Boost REQUIRED COMPONENTS iostreams container scope outcome)
 
 
 # === fmt ===
 # fmt::fmt
 # fmt::fmt-header-only
 find_package(fmt CONFIG REQUIRED)
+
+
+# === cppcoro ===
+# cppcoro::cppcoro
+include(FetchContent)
+
+FetchContent_Declare(
+    cppcoro
+    GIT_REPOSITORY https://github.com/andreasbuhr/cppcoro
+    GIT_TAG        a4ef65281814b18fdd1ac5457d3e219347ec6cb8
+)
+
+FetchContent_MakeAvailable(cppcoro)
+
+add_library(cppcoro::cppcoro ALIAS cppcoro)
 
 
 # === cxxopts ===

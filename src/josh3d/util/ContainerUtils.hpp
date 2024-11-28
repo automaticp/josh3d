@@ -2,6 +2,7 @@
 #include "CommonConcepts.hpp"
 #include <concepts>
 #include <type_traits>
+#include <utility>
 
 
 namespace josh {
@@ -75,22 +76,76 @@ concept has_optional_interface = requires(T opt) {
 //
 template<has_optional_interface T>
 auto try_get(T& opt)
-    -> T::value_type*
+    -> auto*
 {
-    return opt ? &(*opt) : nullptr;
+    using value_type = std::remove_cvref_t<decltype(*opt)>;
+    return opt ? &(*opt) : static_cast<value_type*>(nullptr);
 }
 
 
 template<has_optional_interface T>
 auto try_get(const T& opt)
-    -> const T::value_type*
+    -> const auto*
 {
-    opt ? &(*opt) : nullptr;
+    using value_type = std::remove_cvref_t<decltype(*opt)>;
+    opt ? &(*opt) : static_cast<const value_type*>(nullptr);
 }
 
 
 template<has_optional_interface T>
 auto try_get(T&& rvalue) = delete;
+
+
+// Moves the value out and resets the optional to default-constructed state.
+template<has_optional_interface T>
+auto move_out(T& opt) {
+    auto value = std::move(*opt);
+    opt = {};
+    return std::move(value);
+}
+
+
+template<has_optional_interface T>
+auto move_out(T&&) = delete;
+
+
+
+
+template<typename T, typename AltT>
+concept has_variant_get_interface = requires(T var) {
+    get<AltT>(var);
+};
+
+
+template<typename T, typename AltT>
+concept has_variant_alternative_interface = requires(T var) {
+    { holds_alternative<AltT>(var) } -> std::same_as<bool>;
+};
+
+
+// Moves the value out and resets the variant to default-constructed state.
+// This is best used when the variant has some sentinel "null" type as the first alternative.
+template<typename AlternativeT, has_variant_get_interface<AlternativeT> T>
+auto move_out(T& variant) {
+    auto value = std::move(get<AlternativeT>(variant));
+    variant = {};
+    return std::move(value);
+}
+
+
+template<typename AlternativeT, has_variant_alternative_interface<AlternativeT> T>
+bool is(const T& variant) noexcept {
+    return holds_alternative<AlternativeT>(variant);
+}
+
+
+
+// Discard/destroy any movable type by creating a scope, moving
+// the object there and closing the scope right after.
+template<forwarded_as_rvalue T>
+void discard(T&& object) noexcept(std::is_nothrow_move_constructible_v<std::remove_cvref_t<T>>) {
+    auto _ = static_cast<std::remove_reference_t<T>&&>(object);
+}
 
 
 

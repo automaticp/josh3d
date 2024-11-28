@@ -133,6 +133,8 @@ set(common_external_deps
     Boost::container
     Boost::iostreams
     Boost::scope
+    Boost::outcome
+    cppcoro::cppcoro
     glm::glm
     fmt::fmt
     range-v3::range-v3

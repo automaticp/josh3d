@@ -7,6 +7,7 @@
         "boost-iostreams",
         "boost-container",
         "boost-scope",
+        "boost-outcome",
         "fmt",
         "doctest",
         "cxxopts",

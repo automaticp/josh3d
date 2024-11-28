@@ -31,6 +31,12 @@ concept not_move_or_copy_constructor_of =
     !(sizeof...(Args) == 1 && (same_as_remove_cvref<T, Args> && ...));
 
 
+// Basic attempt to detect where T&& *actually* binds to the nonconst rvalue reference.
+// That is, we can move the argument.
+template<typename T>
+concept forwarded_as_rvalue = std::is_rvalue_reference_v<T&&> && !std::is_const_v<T>;
+
+
 // https://stackoverflow.com/questions/31762958/check-if-class-is-a-template-specialization
 template<typename T, template<typename...> typename Template>
 struct is_specialization : std::false_type {};
