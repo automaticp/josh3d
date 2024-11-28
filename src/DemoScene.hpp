@@ -1,6 +1,7 @@
 #pragma once
 #include "AssetUnpacker.hpp"
 #include "AssetManager.hpp"
+#include "CompletionContext.hpp"
 #include "ImGuiApplicationAssembly.hpp"
 #include "Input.hpp"
 #include "InputFreeCamera.hpp"
@@ -33,16 +34,17 @@ public:
     auto get_log_sink() -> std::ostream& { return imgui_.get_log_sink(); }
 
 private:
-    glfw::Window&          window_;
-    entt::registry         registry_;
-    josh::ThreadPool       loading_pool_;
-    josh::OffscreenContext offscreen_context_;
-    josh::MeshRegistry     mesh_registry_;
-    josh::AssetManager     asset_manager_;
-    josh::AssetUnpacker    asset_unpacker_;
-    josh::SceneImporter    scene_importer_;
-    josh::Primitives       primitives_;
-    josh::RenderEngine     rengine_;
+    glfw::Window&           window_;
+    entt::registry          registry_;
+    josh::ThreadPool        loading_pool_;
+    josh::OffscreenContext  offscreen_context_;
+    josh::CompletionContext completion_context_;
+    josh::MeshRegistry      mesh_registry_;
+    josh::AssetManager      asset_manager_;
+    josh::AssetUnpacker     asset_unpacker_;
+    josh::SceneImporter     scene_importer_;
+    josh::Primitives        primitives_;
+    josh::RenderEngine      rengine_;
 
     josh::SimpleInputBlocker   input_blocker_;
     josh::BasicRebindableInput input_;

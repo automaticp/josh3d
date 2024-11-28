@@ -34,13 +34,15 @@ namespace josh {
 
 
 AssetManager::AssetManager(
-    ThreadPool&       loading_pool,
-    OffscreenContext& offscreen_context,
-    MeshRegistry&     mesh_registry
+    ThreadPool&        loading_pool,
+    OffscreenContext&  offscreen_context,
+    CompletionContext& completion_context,
+    MeshRegistry&      mesh_registry
 )
-    : thread_pool_      { loading_pool      }
-    , offscreen_context_{ offscreen_context }
-    , mesh_registry_    { mesh_registry     }
+    : thread_pool_       { loading_pool       }
+    , offscreen_context_ { offscreen_context  }
+    , completion_context_{ completion_context }
+    , mesh_registry_     { mesh_registry      }
 {}
 
 
@@ -516,27 +518,25 @@ auto AssetManager::load_model(AssetPath path)
     // Then, we need to wait on all of the textures.
     //
     // - We can switch back to the thread pool and just block.
-    //   This will take thread pool resources away, which is sad.
+    //   Not only does this take the thread pool resources away, which is sad,
+    //   but this also can deadlock the thread pool under certain conditions.
     //
     // - Or we can submit this to some kind of WhenAll handler,
     //   that sweeps through requests like these.
-    //   There, we just co_await on a when_all repeatedly, until
-    //   all the subtasks are complete, and *only then* reschedule
-    //   back to the thread pool, or just complete the request
-    //   directly on the WhenAll thread.
+    //   There, we *just somehow wait* until all of the subtasks
+    //   are complete, and *only then* reschedule back to the thread pool.
 
 
     {
+        co_await completion_context_.until_all_ready(texture_jobs);
         co_await reschedule_to(thread_pool_);
     }
 
 
-    // We'll just block in the thread pool for now, for simplicity.
-    // FIXME: I think this can deadlock due to some unfortunate task-stealing.
-
     const size_t num_textures = texture_jobs.size();
     texture_assets.reserve(num_textures);
     for (auto& texture_job : texture_jobs) {
+        assert(texture_job.is_ready());
         texture_assets.emplace_back(texture_job.get_result());
     }
     texture_jobs.clear();

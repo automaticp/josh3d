@@ -594,4 +594,66 @@ auto reschedule_to(ExecutorT& executor)
 
 
 
+template<typename T>
+struct readyable_traits {
+    static bool is_ready(const T& readyable) { return readyable.is_ready(); }
+};
+
+
+template<typename T>
+concept readyable = requires(T r) {
+    { readyable_traits<T>::is_ready(r) } -> std::convertible_to<bool>;
+};
+
+
+// Suspend if the readyable is not ready.
+template<readyable T>
+auto when_ready(T&& readyable)
+    -> awaiter<void> auto
+{
+    using rt = readyable_traits<std::remove_cvref_t<T>>;
+    struct Awaiter {
+        T readyable;
+        bool await_ready() const noexcept { return rt::is_ready(readyable); }
+        bool await_suspend(std::coroutine_handle<>) const noexcept { return !rt::is_ready(readyable); }
+        void await_resume() const noexcept {}
+    };
+    return Awaiter{ FORWARD(readyable) };
+}
+
+
+// Suspend if the readyable is not ready.
+//
+// Resume with `false` if it still not ready after resumption.
+// To keep suspending until the thing becomes ready:
+//
+//   while (!co_await if_not_ready(thing));
+//
+// The suspended coroutine handle can be retrieved by passing a second out parameter:
+//
+//   std::coroutine_handle<> suspended_self;
+//   while (!co_await if_not_ready(thing, &suspended_self));
+//
+template<readyable T, typename PromiseT = void>
+auto if_not_ready(T&& readyable, std::coroutine_handle<PromiseT>* out_suspended = nullptr)
+    -> awaiter<bool> auto
+{
+    using rt = readyable_traits<std::remove_cvref_t<T>>;
+    struct Awaiter {
+        T                        readyable;
+        std::coroutine_handle<>* out_suspended;
+        bool await_ready() const noexcept { return rt::is_ready(readyable); }
+        bool await_suspend(std::coroutine_handle<> h) const noexcept {
+            const bool suspend = !rt::is_ready(readyable);
+            if (suspend && out_suspended) {
+                *out_suspended = h;
+            }
+            return suspend;
+        }
+        bool await_resume() const noexcept { return rt::is_ready(readyable); }
+    };
+    return Awaiter{ readyable, out_suspended };
+}
+
+
 } // namespace josh

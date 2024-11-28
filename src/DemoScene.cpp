@@ -150,7 +150,7 @@ DemoScene::DemoScene(glfw::Window& window)
     : window_           { window }
     , loading_pool_     { 6      }
     , offscreen_context_{ window }
-    , asset_manager_    { loading_pool_, offscreen_context_, mesh_registry_ }
+    , asset_manager_    { loading_pool_, offscreen_context_, completion_context_, mesh_registry_ }
     , asset_unpacker_   { registry_ }
     , scene_importer_   { asset_manager_, asset_unpacker_, registry_ }
     , primitives_       { asset_manager_ }

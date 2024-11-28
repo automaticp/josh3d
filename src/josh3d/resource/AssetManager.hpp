@@ -1,6 +1,7 @@
 #pragma once
 #include "Asset.hpp"
 #include "AssetCache.hpp"
+#include "CompletionContext.hpp"
 #include "Coroutines.hpp"
 #include "ThreadPool.hpp"
 #include "OffscreenContext.hpp"
@@ -15,9 +16,10 @@ namespace josh {
 class AssetManager {
 public:
     AssetManager(
-        ThreadPool&       loading_pool, // Best to use a separate pool for this.
-        OffscreenContext& offscreen_context,
-        MeshRegistry&     mesh_registry);
+        ThreadPool&        loading_pool, // Best to use a separate pool for this.
+        OffscreenContext&  offscreen_context,
+        CompletionContext& completion_context,
+        MeshRegistry&      mesh_registry);
 
     // Must be called periodically from the main context.
     void update();
@@ -31,11 +33,12 @@ public:
         -> Job<SharedTextureAsset>;
 
 private:
-    AssetCache        cache_;
-    ThreadPool&       thread_pool_;
-    OffscreenContext& offscreen_context_;
-    MeshRegistry&     mesh_registry_; // TODO: Not supported right now. Need to have a local context for that.
-    TaskCounterGuard  task_counter_; // Must be last so that it block all other memvars from destruction.
+    AssetCache         cache_;
+    ThreadPool&        thread_pool_;
+    OffscreenContext&  offscreen_context_;
+    CompletionContext& completion_context_;
+    MeshRegistry&      mesh_registry_; // TODO: Not supported right now. Need to have a local context for that.
+    TaskCounterGuard   task_counter_; // Must be last so that it block all other memvars from destruction.
 };
 
 
