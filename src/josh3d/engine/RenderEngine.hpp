@@ -9,6 +9,7 @@
 #include "Layout.hpp"
 #include "FrameTimer.hpp"
 #include "GLObjects.hpp"
+#include "MeshRegistry.hpp"
 #include "Primitives.hpp"
 #include "RenderTarget.hpp"
 #include "Size.hpp"
@@ -82,7 +83,6 @@ public:
     };
 
     HDRFormat main_buffer_format;
-
     Size2I    main_resolution;
 
     // Enables RGB -> sRGB conversion at the end of the postprocessing pass.
@@ -95,11 +95,12 @@ public:
 
 
     RenderEngine(
-        entt::registry&    registry,
-        const Primitives&  primitives,
-        const Size2I&      main_resolution,
-        HDRFormat          main_buffer_format,
-        const FrameTimer&  frame_timer); // TODO: Should not be a reference. TODO: Why? I forgot...
+        entt::registry&     registry,
+        const MeshRegistry& mesh_registry,
+        const Primitives&   primitives,
+        const Size2I&       main_resolution,
+        HDRFormat           main_buffer_format,
+        const FrameTimer&   frame_timer); // TODO: Should not be a reference. TODO: Why? I forgot...
 
 
     void render();
@@ -173,9 +174,10 @@ private:
     std::vector<PostprocessStage> postprocess_;
     std::vector<OverlayStage>     overlay_;
 
-    entt::registry&   registry_;
-    const Primitives& primitives_;
-    const FrameTimer& frame_timer_;
+    entt::registry&     registry_;
+    const MeshRegistry& mesh_registry_;
+    const Primitives&   primitives_;
+    const FrameTimer&   frame_timer_;
 
 
     using MainTarget = RenderTarget<
@@ -242,9 +244,10 @@ private:
 
 class RenderEngineCommonInterface {
 public:
-    auto registry()    const noexcept -> const entt::registry& { return engine_.registry_;   }
-    auto primitives()  const noexcept -> const Primitives&     { return engine_.primitives_; }
-    auto camera_data() const noexcept -> const auto&           { return engine_.camera_data_; }
+    auto meshes()       const noexcept -> const MeshRegistry&   { return engine_.mesh_registry_; }
+    auto registry()     const noexcept -> const entt::registry& { return engine_.registry_;      }
+    auto primitives()   const noexcept -> const Primitives&     { return engine_.primitives_;    }
+    auto camera_data()  const noexcept -> const auto&           { return engine_.camera_data_;   }
     // TODO: Something about window resolution being separate?
     // TODO: Also main_resolution() is not accurate in Overlay stages.
     auto main_resolution() const noexcept -> const Size2I&     { return engine_.main_resolution; }

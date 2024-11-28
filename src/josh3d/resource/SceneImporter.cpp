@@ -1,6 +1,7 @@
 #include "SceneImporter.hpp"
 #include "AssetUnpacker.hpp"
-#include "AssetLoader.hpp"
+#include "AssetManager.hpp"
+#include "ECS.hpp"
 #include "LightCasters.hpp"
 #include "Logging.hpp"
 #include "ObjectLifecycle.hpp"
@@ -307,17 +308,27 @@ auto get_asset_path(const json& j_entity)
 
 
 
-void import_model(AssetUnpacker& asset_unpacker, const json& j_entity, entt::handle handle) {
-    AssetPath asset_path = get_asset_path(j_entity);
-    asset_unpacker.request_model_import(asset_path, handle);
-    handle.emplace<AssetPath>(std::move(asset_path));
+void import_model(
+    AssetManager&  asset_manager,
+    AssetUnpacker& asset_unpacker,
+    const json&    j_entity,
+    entt::handle   handle)
+{
+    AssetPath apath = get_asset_path(j_entity);
+    auto job = asset_manager.load_model(MOVE(apath));
+    asset_unpacker.submit_model_for_unpacking(handle.entity(), MOVE(job));
 }
 
 
-void import_skybox(AssetUnpacker& asset_unpacker, const json& j_entity, entt::handle handle) {
-    AssetPath asset_path = get_asset_path(j_entity);
-    asset_unpacker.request_skybox_import(asset_path, handle);
-    handle.emplace<AssetPath>(std::move(asset_path));
+void import_skybox(
+    AssetManager&  asset_manager [[maybe_unused]],
+    AssetUnpacker& asset_unpacker,
+    const json&    j_entity,
+    entt::handle   handle)
+{
+    AssetPath apath = get_asset_path(j_entity);
+    // TODO: There's no job right now...
+    asset_unpacker.submit_skybox_for_unpacking(handle.entity(), MOVE(apath));
 }
 
 
@@ -374,12 +385,17 @@ void SceneImporter::register_importer(std::string_view type, TypeImporter import
 }
 
 
-SceneImporter::SceneImporter(AssetUnpacker& asset_unpacker, entt::registry& registry)
+SceneImporter::SceneImporter(
+    AssetManager&   asset_manager,
+    AssetUnpacker&  asset_unpacker,
+    Registry&       registry
+)
     : registry_{ registry }
 {
+    auto& am = asset_manager;
     auto& au = asset_unpacker;
-    register_importer("Model",            [&](const json& j, entt::handle h) { import_model (au, j, h); });
-    register_importer("Skybox",           [&](const json& j, entt::handle h) { import_skybox(au, j, h); });
+    register_importer("Model",            [&](const json& j, entt::handle h) { import_model (am, au, j, h); });
+    register_importer("Skybox",           [&](const json& j, entt::handle h) { import_skybox(am, au, j, h); });
     register_importer("PointLight",       &import_point_light      );
     register_importer("DirectionalLight", &import_directional_light);
     register_importer("AmbientLight",     &import_ambient_light    );

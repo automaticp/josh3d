@@ -1,8 +1,7 @@
 #pragma once
-#include "AssetLoader.hpp"
-#include "Future.hpp"
-#include <entt/entity/fwd.hpp>
-#include <vector>
+#include "Asset.hpp"
+#include "Coroutines.hpp"
+#include "ECS.hpp"
 
 
 namespace josh {
@@ -20,14 +19,13 @@ Each request can exist in one of the 3 states:
 */
 class AssetUnpacker {
 public:
-    AssetUnpacker(AssetLoader& asset_loader) : asset_loader_{ asset_loader } {}
+    AssetUnpacker(Registry& registry) : registry_{ registry } {}
 
-    // TODO: Might make sense to provide an api that just associates
-    // the handle and an existing Future<Shared*Asset>.
-    void request_model_import(const AssetPath& path, entt::handle handle);
+    // Associate an entity with a pending state for a model.
+    void submit_model_for_unpacking(Entity entity, SharedJob<SharedModelAsset> model_job);
 
-    // NOTE: Not async right now. Will load when unpack is called.
-    void request_skybox_import(const AssetPath& path, entt::handle handle);
+    // NOTE: Not async right now. Will load directly when `unpack_one_retired()` is called.
+    void submit_skybox_for_unpacking(Entity entity, AssetPath path);
 
     // Number of requests not yet retired. Either because they are
     // not complete, or because the `retire_completed_requests()`
@@ -62,10 +60,10 @@ public:
     // the resolution process. Keep calling this function in a loop to "handle"
     // all exceptions.
     //
-    //     importer.retire_completed_requests();
-    //     while (importer.can_unpack_more()) {
+    //     unpacker.retire_completed_requests();
+    //     while (unpacker.can_unpack_more()) {
     //         try {
-    //             importer.unpack_one_request();
+    //             unpacker.unpack_one_retired();
     //         } catch (const RuntimeError& e) {
     //             // Log or do something else.
     //         }
@@ -74,26 +72,19 @@ public:
     // Returns a handle associated with the new imported asset
     // or an "invalid handle" if nothing was unpacked.
     //
-    auto unpack_one_retired() -> entt::handle;
+    auto unpack_one_retired() -> Handle;
+
+    // An overload of `unpack_one_retired()` that will set the `out_handle`
+    // before attempting actions that could result in an exception.
+    //
+    // This allows you to know unpacking which handle failed during
+    // exception handling.
+    void unpack_one_retired(Handle& out_handle);
 
 private:
-    AssetLoader& asset_loader_;
-
-    struct ModelRequest {
-        Future<SharedModelAsset> future;
-        entt::handle             handle;
-    };
-
-    std::vector<ModelRequest> pending_models_;
-    std::vector<ModelRequest> retired_models_;
-
-    struct SkyboxRequest {
-        AssetPath    path;
-        entt::handle handle;
-    };
-
-    std::vector<SkyboxRequest> retired_skyboxes_; // Not async, so they are never "pending".
+    Registry& registry_;
 };
+
 
 
 } // namespace josh

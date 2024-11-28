@@ -1,6 +1,6 @@
 #pragma once
 #include "CommonConcepts.hpp"
-#include "detail/SingleArgMacro.hpp"
+#include "SingleArgMacro.hpp"
 #include "GLAPI.hpp"
 #include "GLScalars.hpp"
 #include <concepts>

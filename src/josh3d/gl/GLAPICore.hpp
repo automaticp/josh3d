@@ -1,3 +1,4 @@
+#pragma once
 #include "DecayToRaw.hpp"
 #include "EnumUtils.hpp"
 #include "GLAPI.hpp"

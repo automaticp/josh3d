@@ -1,6 +1,7 @@
 #include "DemoScene.hpp"
 #include "Active.hpp"
-#include "AssetLoader.hpp"
+#include "AssetManager.hpp"
+#include "AssetUnpacker.hpp"
 #include "GLPixelPackTraits.hpp"
 #include "GLTextures.hpp"
 #include "ImGuiApplicationAssembly.hpp"
@@ -102,25 +103,32 @@ void DemoScene::process_input() {
 void DemoScene::update() {
     update_input_blocker_from_imgui_io_state();
 
+    asset_manager_.update();
+
     asset_unpacker_.retire_completed_requests();
     while (asset_unpacker_.can_unpack_more()) {
+        Handle unpacked_handle;
         try {
-            const entt::handle handle = asset_unpacker_.unpack_one_retired();
-            logstream() << "[UNPACKED ASSET]: [" << to_entity(handle.entity()) << "]";
-            if (const auto* path = handle.try_get<Path>()) {
+            asset_unpacker_.unpack_one_retired(unpacked_handle);
+
+            const Entity entity = unpacked_handle.entity();
+            logstream() << "[UNPACKED ASSET]: [" << to_entity(entity) << "]";
+            if (const auto* path = unpacked_handle.try_get<Path>()) {
                 logstream() << ", Path: " << *path;
-            } else if (const auto* asset_path = handle.try_get<AssetPath>()) {
+            } else if (const auto* asset_path = unpacked_handle.try_get<AssetPath>()) {
                 logstream() << ", AssetPath: " << asset_path->entry();
                 if (asset_path->subpath().size()) {
                     logstream() << "##" << asset_path->subpath();
                 }
             }
-
             logstream() << "\n";
+
         } catch (const std::exception& e) {
-            logstream() << "[ERROR UNPACKING ASSET]: " << e.what() << "\n";
+            const Entity entity = unpacked_handle.entity();
+            logstream() << "[ERROR UNPACKING ASSET]: [" << to_entity(entity) << "] " << e.what() << "\n";
         }
     }
+
 
     if (shader_pool().supports_hot_reload()) {
         shader_pool().hot_reload();
@@ -139,27 +147,27 @@ void DemoScene::render() {
 
 
 DemoScene::DemoScene(glfw::Window& window)
-    : window_           { window                     }
-    , offscreen_context_{ window                     }
-    , asset_loader_     { offscreen_context_         }
-    , asset_unpacker_   { asset_loader_              }
-    , scene_importer_   { asset_unpacker_, registry_ }
-    , primitives_       { asset_loader_              }
+    : window_           { window }
+    , loading_pool_     { 6      }
+    , offscreen_context_{ window }
+    , asset_manager_    { loading_pool_, offscreen_context_, mesh_registry_ }
+    , asset_unpacker_   { registry_ }
+    , scene_importer_   { asset_manager_, asset_unpacker_, registry_ }
+    , primitives_       { asset_manager_ }
     , rengine_          {
         registry_,
+        mesh_registry_,
         primitives_,
         globals::window_size.size_ref(),
         RenderEngine::HDRFormat::R11F_G11F_B10F,
         globals::frame_timer
     }
-    , input_blocker_{                         }
     , input_        { window_, input_blocker_ }
-    , input_freecam_{                         }
     , imgui_        {
         window_,
         rengine_,
         registry_,
-        asset_loader_,
+        asset_manager_,
         asset_unpacker_,
         scene_importer_,
         vfs()
@@ -414,9 +422,8 @@ void DemoScene::init_registry() {
 
     const entt::handle model_handle = create_handle(registry);
     model_handle.emplace<Transform>();
-    asset_unpacker_.request_model_import(model_apath, model_handle);
+    asset_unpacker_.submit_model_for_unpacking(model_handle, asset_manager_.load_model(model_apath));
     asset_unpacker_.wait_until_all_pending_are_complete();
-    asset_unpacker_.retire_completed_requests();
 
     const entt::handle camera_handle = create_handle(registry);
     const Camera::Params camera_params{

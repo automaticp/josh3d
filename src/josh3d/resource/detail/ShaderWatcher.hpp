@@ -1,5 +1,6 @@
 #pragma once
 #include "Filesystem.hpp"
+#include "Semantics.hpp"
 #include "ThreadsafeQueue.hpp"
 #include "UniqueFunction.hpp"
 #include <cstdint>
@@ -28,18 +29,6 @@
 namespace josh::detail {
 
 
-// TODO: Should be general Utility.
-struct Immovable {
-    constexpr Immovable()                            = default;
-    constexpr Immovable(const Immovable&)            = delete;
-    constexpr Immovable(Immovable&&)                 = delete;
-    constexpr Immovable& operator=(const Immovable&) = delete;
-    constexpr Immovable& operator=(Immovable&&)      = delete;
-};
-
-
-
-
 #ifdef JOSH3D_SHADER_WATCHER_LINUX
 
 
@@ -58,7 +47,7 @@ public:
 private:
     using WD = int; // Watch Descriptor.
 
-    class INotifyInstance : private Immovable {
+    class INotifyInstance : private Immovable<INotifyInstance> {
     public:
         INotifyInstance();
         ~INotifyInstance() noexcept;

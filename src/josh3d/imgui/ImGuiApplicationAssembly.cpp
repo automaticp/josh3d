@@ -1,6 +1,11 @@
 #include "ImGuiApplicationAssembly.hpp"
 #include "Active.hpp"
+#include "Asset.hpp"
+#include "AssetManager.hpp"
+#include "CategoryCasts.hpp"
+#include "ContainerUtils.hpp"
 #include "FrameTimer.hpp"
+#include "GLAPIBinding.hpp"
 #include "ImGuiHelpers.hpp"
 #include "ImGuiSceneList.hpp"
 #include "ImGuiSelected.hpp"
@@ -10,11 +15,16 @@
 #include "SceneImporter.hpp"
 #include "Size.hpp"
 #include "Transform.hpp"
+#include "VPath.hpp"
+#include "VirtualFilesystem.hpp"
+#include <exception>
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <range/v3/view/enumerate.hpp>
 #include <cmath>
 #include <cstdio>
 #include <iterator>
+#include <optional>
 
 
 
@@ -26,7 +36,7 @@ ImGuiApplicationAssembly::ImGuiApplicationAssembly(
     glfw::Window&      window,
     RenderEngine&      engine,
     entt::registry&    registry,
-    AssetLoader&       asset_loader,
+    AssetManager&      asset_manager,
     AssetUnpacker&     asset_unpacker,
     SceneImporter&     scene_importer,
     VirtualFilesystem& vfs
@@ -34,14 +44,15 @@ ImGuiApplicationAssembly::ImGuiApplicationAssembly(
     : window_         { window             }
     , engine_         { engine             }
     , registry_       { registry           }
+    , asset_manager_  { asset_manager      }
     , asset_unpacker_ { asset_unpacker     }
     , vfs_            { vfs                }
     , context_        { window             }
     , window_settings_{ window             }
     , vfs_control_    { vfs                }
     , stage_hooks_    { engine             }
-    , scene_list_     { registry, asset_unpacker, scene_importer }
-    , asset_browser_  { asset_loader       }
+    , scene_list_     { registry, asset_manager, asset_unpacker, scene_importer }
+    , asset_browser_  { asset_manager      }
     , selected_menu_  { registry           }
     , gizmos_         { registry           }
 {}
@@ -164,6 +175,7 @@ void ImGuiApplicationAssembly::draw_widgets() {
                 ImGui::Checkbox("Selected",      &show_selected     );
                 ImGui::Checkbox("Assets",        &show_asset_browser);
                 ImGui::Checkbox("Demo Window",   &show_demo_window  );
+                ImGui::Checkbox("Asset Manager", &show_asset_manager);
 
                 ImGui::Separator();
 
@@ -319,6 +331,120 @@ void ImGuiApplicationAssembly::draw_widgets() {
 
         if (show_demo_window) {
             ImGui::ShowDemoWindow();
+        }
+
+        if (show_asset_manager) {
+            if (ImGui::Begin("Asset Manager")) {
+                thread_local std::optional<SharedTextureAsset>            texture_asset;
+                thread_local std::optional<SharedJob<SharedTextureAsset>> last_texture_job;
+                thread_local std::string                                  texture_vpath;
+
+                thread_local std::optional<SharedModelAsset>            model_asset;
+                thread_local std::optional<SharedJob<SharedModelAsset>> last_model_job;
+                thread_local std::string                                model_vpath;
+
+                thread_local std::string last_error;
+
+
+                if (last_texture_job && !last_texture_job->is_ready()) {
+                    ImGui::TextUnformatted("Loading Texture...");
+                }
+                if (last_model_job && !last_model_job->is_ready()) {
+                    ImGui::TextUnformatted("Loading Model...");
+                }
+
+
+                if (last_texture_job && last_texture_job->is_ready()) {
+                    try {
+                        texture_asset = move_out(last_texture_job).get_result();
+                        make_available<Binding::Texture2D>(texture_asset->texture->id());
+                        last_error = {};
+                    } catch (const std::exception& e) {
+                        last_error = e.what();
+                    }
+                }
+                if (last_model_job && last_model_job->is_ready()) {
+                    try {
+                        model_asset = move_out(last_model_job).get_result();
+                        for (auto& mesh : model_asset->meshes) {
+                            if (auto* asset = try_get(mesh.diffuse )) { make_available<Binding::Texture2D>(asset->texture->id()); }
+                            if (auto* asset = try_get(mesh.specular)) { make_available<Binding::Texture2D>(asset->texture->id()); }
+                            if (auto* asset = try_get(mesh.normal  )) { make_available<Binding::Texture2D>(asset->texture->id()); }
+                            make_available<Binding::ArrayBuffer>       (mesh.vertices->id());
+                            make_available<Binding::ElementArrayBuffer>(mesh.indices->id() );
+                        }
+                    } catch (const std::exception& e) {
+                        last_error = e.what();
+                    }
+                }
+
+
+                if (texture_asset) {
+                    ImGui::TextUnformatted(texture_asset->path.entry().c_str());
+                    imgui::ImageGL(texture_asset->texture->id(), { 480, 480 });
+                }
+                if (model_asset) {
+                    ImGui::TextUnformatted(model_asset->path.entry().c_str());
+                    for (auto& mesh : model_asset->meshes) {
+                        ImGui::TextUnformatted(mesh.path.subpath().begin());
+                        size_t next_id{ 0 };
+                        GLuint ids[3];
+                        if (auto* asset = try_get(mesh.diffuse )) { ids[next_id++] = asset->texture->id(); }
+                        if (auto* asset = try_get(mesh.specular)) { ids[next_id++] = asset->texture->id(); }
+                        if (auto* asset = try_get(mesh.normal  )) { ids[next_id++] = asset->texture->id(); }
+                        const auto visible_ids = std::span(ids, next_id);
+                        using ranges::views::enumerate;
+                        for (auto [i, id] : enumerate(visible_ids)) {
+                            imgui::ImageGL(id, { 64, 64 });
+                            if (i < visible_ids.size() - 1) { ImGui::SameLine(); }
+                        }
+                    }
+                }
+
+
+                auto load_texture_later = on_signal([&, this] {
+                    try {
+                        Path path = vfs().resolve_path(VPath(texture_vpath));
+                        last_texture_job = asset_manager_.load_texture({ MOVE(path) }, ImageIntent::Unknown);
+                    } catch (const std::exception& e) {
+                        last_error = e.what();
+                    }
+                });
+                auto load_model_later = on_signal([&, this] {
+                    try {
+                        Path path = vfs().resolve_path(VPath(model_vpath));
+                        last_model_job = asset_manager_.load_model({ MOVE(path) });
+                    } catch (const std::exception& e) {
+                        last_error = e.what();
+                    }
+                });
+
+
+                if (ImGui::InputText("VPath##Texture", &texture_vpath, ImGuiInputTextFlags_EnterReturnsTrue)) {
+                    load_texture_later.set(true);
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Load Texture")) {
+                    load_texture_later.set(true);
+                }
+
+                if (ImGui::InputText("VPath##Model", &model_vpath, ImGuiInputTextFlags_EnterReturnsTrue)) {
+                    load_model_later.set(true);
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Load Model")) {
+                    load_model_later.set(true);
+                }
+
+
+
+
+
+
+                if (!last_error.empty()) {
+                    ImGui::TextUnformatted(last_error.c_str());
+                }
+            } ImGui::End();
         }
 
         ImGui::PopStyleColor();

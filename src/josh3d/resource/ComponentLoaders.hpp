@@ -1,8 +1,9 @@
 #pragma once
-#include "AssetLoader.hpp"
+#include "Asset.hpp"
 #include "CubemapData.hpp"
 #include "Filesystem.hpp"
 #include "GLAPIBinding.hpp"
+#include "GLObjects.hpp"
 #include "Pixels.hpp"
 #include "SceneGraph.hpp"
 #include "TextureHelpers.hpp"

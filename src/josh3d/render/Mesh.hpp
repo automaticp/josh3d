@@ -86,8 +86,8 @@ public:
 
 template<specializes_attribute_traits VertexT>
 Mesh::Mesh(const MeshData<VertexT>& data)
-    : num_elements_{ GLsizei(data.elements().size()) }
-    , num_vertices_{ GLsizei(data.vertices().size()) }
+    : num_elements_{ GLsizei(data.elements.size()) }
+    , num_vertices_{ GLsizei(data.vertices.size()) }
 {
     SharedUntypedBuffer   vbo;
     SharedBuffer<GLuint>  ebo;
@@ -99,12 +99,12 @@ Mesh::Mesh(const MeshData<VertexT>& data)
     };
 
 
-    vbo->as_typed<VertexT>().specify_storage(data.vertices(), policies);
+    vbo->as_typed<VertexT>().specify_storage(data.vertices, policies);
 
     vao_->attach_vertex_buffer(VertexBufferSlot{ 0 }, vbo, OffsetBytes{ 0 }, StrideBytes{ sizeof(VertexT) });
 
     if (num_elements_) {
-        ebo->specify_storage(data.elements(), policies);
+        ebo->specify_storage(data.elements, policies);
 
         vao_->attach_element_buffer(ebo);
     }

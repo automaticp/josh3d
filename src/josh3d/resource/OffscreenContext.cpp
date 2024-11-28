@@ -53,7 +53,7 @@ void OffscreenContext::offscreen_thread_loop(
 }
 
 
-auto OffscreenContext::emplace(Task task)
+auto OffscreenContext::emplace_request(Task task)
     -> Future<void>
 {
     auto [future, promise] = make_future_promise_pair<void>();

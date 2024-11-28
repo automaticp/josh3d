@@ -157,7 +157,7 @@ public:
 
     // Converting move c-tor.
     template<std::convertible_to<RawHandleT> OtherHandleT>
-    GLShared(GLShared<OtherHandleT>&& other)
+    GLShared(GLShared<OtherHandleT>&& other) noexcept
         : handle_       { std::exchange(other.handle_,        OtherHandleT::from_id(0)) }
         , control_block_{ std::exchange(other.control_block_, nullptr)                  }
     {}

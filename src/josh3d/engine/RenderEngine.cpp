@@ -5,6 +5,7 @@
 #include "GLFramebuffer.hpp"
 #include "GLObjects.hpp"
 #include "GLTextures.hpp"
+#include "MeshRegistry.hpp"
 #include "RenderStage.hpp"
 #include "Transform.hpp"
 #include "WindowSizeCache.hpp"
@@ -46,17 +47,19 @@ auto RenderEngine::make_main_swapchain(
 
 
 RenderEngine::RenderEngine(
-    entt::registry&    registry,
-    const Primitives&  primitives,
-    const Size2I&      main_resolution,
-    HDRFormat          main_buffer_format,
-    const FrameTimer&  frame_timer // TODO: Should not be a reference.
+    entt::registry&     registry,
+    const MeshRegistry& mesh_registry,
+    const Primitives&   primitives,
+    const Size2I&       main_resolution,
+    HDRFormat           main_buffer_format,
+    const FrameTimer&   frame_timer // TODO: Should not be a reference.
 )
     : main_buffer_format{ main_buffer_format }
     , main_resolution   { main_resolution    }
-    , registry_         { registry        }
-    , primitives_       { primitives      }
-    , frame_timer_      { frame_timer     }
+    , registry_         { registry           }
+    , mesh_registry_    { mesh_registry      }
+    , primitives_       { primitives         }
+    , frame_timer_      { frame_timer        }
     , main_depth_       {
         make_main_depth(main_resolution)
     }

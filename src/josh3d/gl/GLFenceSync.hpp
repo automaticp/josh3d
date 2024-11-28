@@ -4,7 +4,7 @@
 #include "GLScalars.hpp"
 #include "GLMutability.hpp"
 #include "EnumUtils.hpp"
-#include "detail/SingleArgMacro.hpp"
+#include "SingleArgMacro.hpp"
 #include "detail/MagicConstructorsMacro.hpp"
 #include "detail/RawGLHandle.hpp"
 #include <glbinding/gl/bitfield.h>

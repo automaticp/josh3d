@@ -1,59 +1,73 @@
 #include "AssetUnpacker.hpp"
 #include "Active.hpp"
-#include "AssetLoader.hpp"
+#include "Asset.hpp"
+#include "CategoryCasts.hpp"
 #include "ComponentLoaders.hpp"
-#include "ContainerUtils.hpp"
-#include <entt/entity/fwd.hpp>
-#include <algorithm>
+#include "ECS.hpp"
 #include <cstddef>
-#include <iterator>
 
 
 namespace josh {
 
 
-void AssetUnpacker::request_model_import(const AssetPath& path, entt::handle handle) {
-    pending_models_.push_back({ asset_loader_.load_model(path), handle });
+// Externally inacessible wrapper types used to create "private" storage in the registry.
+template<typename T> struct Pending { T value; };
+template<typename T> struct Retired { T value; };
+
+
+using PendingModel = Pending<SharedJob<SharedModelAsset>>;
+using RetiredModel = Retired<SharedJob<SharedModelAsset>>; // Still a job, to preserve the exception until unpacking.
+
+
+struct RetiredSkybox { AssetPath path; };
+
+
+void AssetUnpacker::submit_model_for_unpacking(
+    Entity                      entity,
+    SharedJob<SharedModelAsset> model_job)
+{
+    using pending_type = Pending<SharedJob<SharedModelAsset>>;
+    registry_.emplace_or_replace<pending_type>(entity, MOVE(model_job));
 }
 
 
-void AssetUnpacker::request_skybox_import(const AssetPath& path, entt::handle handle) {
-    retired_skyboxes_.push_back({ path, handle });
-}
-
-
-void AssetUnpacker::wait_until_all_pending_are_complete() const {
-    for (const auto& request : pending_models_) {
-        request.future.wait_for_result();
-    }
+void AssetUnpacker::submit_skybox_for_unpacking(
+    Entity    entity,
+    AssetPath path)
+{
+    // This is special because we directly emplace retired state.
+    // The loading will be done sychronously once the unpack() is called.
+    registry_.emplace_or_replace<RetiredSkybox>(entity, MOVE(path));
 }
 
 
 auto AssetUnpacker::num_pending() const noexcept
     -> size_t
 {
-    return pending_models_.size();
+    const size_t result = registry_.view<PendingModel>().size();
+    // Add more pending if supported.
+    return result;
+}
+
+
+void AssetUnpacker::wait_until_all_pending_are_complete() const {
+    for (const auto [e, pending] : registry_.view<PendingModel>().each()) {
+        pending.value.wait_until_ready();
+    }
 }
 
 
 auto AssetUnpacker::retire_completed_requests()
     -> size_t
 {
-    auto subrange_of_completed =
-        // This is likely very scuffed, because is_available() can become true as the sequence is
-        // iterated. But it only changes one way. Either way, this is not to guaranteed
-        // to be std::is_partitioned() after this operation. This could be UB...
-        std::ranges::partition(pending_models_,
-            // Partitions such that `true` are first, `false` are second,
-            // and returns the range of the second group, that is: is_available() == true.
-            [](const ModelRequest& request) { return !request.future.is_available(); });
-
-    std::ranges::move(subrange_of_completed, std::back_inserter(retired_models_));
-
-    const size_t num_retired = subrange_of_completed.size();
-
-    pending_models_.erase(subrange_of_completed.begin(), subrange_of_completed.end());
-
+    size_t num_retired{ 0 };
+    for (auto [e, pending] : registry_.view<PendingModel>().each()) {
+        if (pending.value.is_ready()) {
+            registry_.emplace_or_replace<RetiredModel>(e, MOVE(pending.value));
+            registry_.erase<PendingModel>(e);
+            ++num_retired;
+        }
+    }
     return num_retired;
 }
 
@@ -61,7 +75,10 @@ auto AssetUnpacker::retire_completed_requests()
 auto AssetUnpacker::num_retired() const noexcept
     -> size_t
 {
-    return retired_models_.size() + retired_skyboxes_.size();
+    const size_t result =
+        registry_.view<RetiredModel> ().size() +
+        registry_.view<RetiredSkybox>().size();
+    return result;
 }
 
 
@@ -70,33 +87,41 @@ bool AssetUnpacker::can_unpack_more() const noexcept {
 }
 
 
-
-
 auto AssetUnpacker::unpack_one_retired()
-    -> entt::handle
+    -> Handle
 {
+    Handle handle;
+    unpack_one_retired(handle);
+    return handle;
+}
 
-    if (!retired_models_.empty()) {
 
-        ModelRequest     request = pop_back(retired_models_);
-        SharedModelAsset asset   = get_result(std::move(request.future)); // Can throw.
-        request.handle.emplace_or_replace<AssetPath>(asset.path);
-        emplace_model_asset_into(request.handle, std::move(asset));
-        return request.handle;
+void AssetUnpacker::unpack_one_retired(Handle& handle) {
+    // For-loops are decieving here, we return after the first entity.
+    handle = {};
 
-    } else if (!retired_skyboxes_.empty()) {
-
-        SkyboxRequest request = pop_back(retired_skyboxes_);
-        request.handle.emplace_or_replace<AssetPath>(request.path);
-        load_skybox_into(request.handle, File(request.path.entry()));
-        // TODO: Is this the right place to handle this?
-        if (!has_active<Skybox>(*request.handle.registry())) {
-            make_active<Skybox>(request.handle);
-        }
-        return request.handle;
+    for (const Entity entity : registry_.view<RetiredModel>()) {
+        handle = { registry_, entity };
+        SharedJob<SharedModelAsset> retired = MOVE(handle.get<RetiredModel>().value);
+        handle.erase<RetiredModel>(); // Erase first, so that on exception the request is gone.
+        SharedModelAsset asset = retired.get_result(); // Can rethrow the exception here.
+        handle.emplace_or_replace<AssetPath>(asset.path);
+        emplace_model_asset_into(handle, MOVE(asset));
+        return;
     }
 
-    return {};
+    for (const Entity entity : registry_.view<RetiredSkybox>()) {
+        handle = { registry_, entity };
+        AssetPath apath = MOVE(handle.get<RetiredSkybox>().path);
+        handle.erase<RetiredSkybox>();
+        load_skybox_into(handle, File(apath.entry())); // Can throw here.
+        handle.emplace_or_replace<AssetPath>(MOVE(apath));
+        // TODO: Is this the right place to handle this?
+        if (!has_active<Skybox>(registry_)) {
+            make_active<Skybox>(handle);
+        }
+        return;
+    }
 }
 
 

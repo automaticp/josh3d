@@ -1,5 +1,5 @@
 #pragma once
-#include "AssetLoader.hpp"
+#include "AssetManager.hpp"
 #include "Mesh.hpp"
 
 
@@ -8,7 +8,7 @@ namespace josh {
 
 class Primitives {
 public:
-    Primitives(AssetLoader& asset_loader);
+    Primitives(AssetManager& asset_manager);
 
     const Mesh& plane_mesh()  const noexcept { return plane_mesh_;  }
     const Mesh& box_mesh()    const noexcept { return box_mesh_;    }

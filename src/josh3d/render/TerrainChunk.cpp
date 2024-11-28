@@ -42,7 +42,7 @@ template<of_signature<float(const Index2S&)> MappingF>
     assert(size_x > 1 && size_y > 1);
 
     MeshData<VertexPNUTB> result;
-    result.vertices().reserve(num_vertices_xy.area());
+    result.vertices.reserve(num_vertices_xy.area());
 
     for (size_t yid{ 0 }; yid < size_y; ++yid) {
         for (size_t xid{ 0 }; xid < size_x; ++xid) {
@@ -62,11 +62,11 @@ template<of_signature<float(const Index2S&)> MappingF>
             v.tangent   = {};
             v.bitangent = {};
 
-            result.vertices().emplace_back(v);
+            result.vertices.emplace_back(v);
         }
     }
 
-    result.elements().reserve(6 * (size_x - 1) * (size_y - 1));
+    result.elements.reserve(6 * (size_x - 1) * (size_y - 1));
     unsigned quad_id{ 0 };
     for (size_t yid{ 0 }; yid < size_y - 1; ++yid) {
         for (size_t xid{ 0 }; xid < size_x - 1; ++xid) {
@@ -80,9 +80,9 @@ template<of_signature<float(const Index2S&)> MappingF>
             };
 
             auto emplace_triangle = [&](unsigned v0, unsigned v1, unsigned v2) {
-                result.elements().emplace_back(v0);
-                result.elements().emplace_back(v1);
-                result.elements().emplace_back(v2);
+                result.elements.emplace_back(v0);
+                result.elements.emplace_back(v1);
+                result.elements.emplace_back(v2);
             };
 
             // Winding order is CCW.
@@ -95,14 +95,14 @@ template<of_signature<float(const Index2S&)> MappingF>
     }
 
 
-    for (size_t tri_id{ 0 }; tri_id < result.elements().size(); tri_id += 3) {
-        unsigned v0id = result.elements()[tri_id];
-        unsigned v1id = result.elements()[tri_id + 1];
-        unsigned v2id = result.elements()[tri_id + 2];
+    for (size_t tri_id{ 0 }; tri_id < result.elements.size(); tri_id += 3) {
+        unsigned v0id = result.elements[tri_id];
+        unsigned v1id = result.elements[tri_id + 1];
+        unsigned v2id = result.elements[tri_id + 2];
 
-        auto& v0 = result.vertices()[v0id];
-        auto& v1 = result.vertices()[v1id];
-        auto& v2 = result.vertices()[v2id];
+        auto& v0 = result.vertices[v0id];
+        auto& v1 = result.vertices[v1id];
+        auto& v2 = result.vertices[v2id];
 
         glm::vec3 normal = glm::normalize(
             glm::cross(v1.position - v0.position, v2.position - v0.position)

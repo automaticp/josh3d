@@ -1,14 +1,14 @@
 #pragma once
-#include "AssetLoader.hpp"
+#include "AssetUnpacker.hpp"
+#include "AssetManager.hpp"
 #include "ImGuiApplicationAssembly.hpp"
 #include "Input.hpp"
 #include "InputFreeCamera.hpp"
+#include "MeshRegistry.hpp"
 #include "Primitives.hpp"
-#include "AssetUnpacker.hpp"
 #include "SceneImporter.hpp"
 #include "SharedStorage.hpp"
 #include "RenderEngine.hpp"
-
 #include <boost/iostreams/tee.hpp>
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
@@ -35,8 +35,10 @@ public:
 private:
     glfw::Window&          window_;
     entt::registry         registry_;
+    josh::ThreadPool       loading_pool_;
     josh::OffscreenContext offscreen_context_;
-    josh::AssetLoader      asset_loader_;
+    josh::MeshRegistry     mesh_registry_;
+    josh::AssetManager     asset_manager_;
     josh::AssetUnpacker    asset_unpacker_;
     josh::SceneImporter    scene_importer_;
     josh::Primitives       primitives_;

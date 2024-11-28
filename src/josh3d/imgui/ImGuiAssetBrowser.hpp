@@ -1,5 +1,5 @@
 #pragma once
-#include "AssetLoader.hpp"
+#include "AssetManager.hpp"
 
 
 namespace josh {
@@ -7,12 +7,13 @@ namespace josh {
 
 class ImGuiAssetBrowser {
 public:
-    ImGuiAssetBrowser(AssetLoader& asset_loader) : asset_loader_{ asset_loader } {}
+    ImGuiAssetBrowser(AssetManager& asset_manager) : asset_manager_{ asset_manager } {}
 
+    // TODO: Does nothing for now. The AssetManager does not expose anything for browsing yet.
     void display();
 
 private:
-    AssetLoader& asset_loader_;
+    AssetManager& asset_manager_;
 };
 
 

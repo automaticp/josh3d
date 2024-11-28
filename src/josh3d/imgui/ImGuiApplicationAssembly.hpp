@@ -1,4 +1,6 @@
 #pragma once
+#include "AssetUnpacker.hpp"
+#include "AssetManager.hpp"
 #include "ImGuiAssetBrowser.hpp"
 #include "ImGuiContextWrapper.hpp"
 #include "ImGuiSceneList.hpp"
@@ -9,7 +11,6 @@
 #include "ImGuiSelected.hpp"
 #include "AvgFrameTimeCounter.hpp"
 #include "ImGuizmoGizmos.hpp"
-#include "AssetUnpacker.hpp"
 #include <sstream>
 #include <string>
 #include <entt/fwd.hpp>
@@ -46,6 +47,7 @@ public:
     bool show_selected      = true;
     bool show_asset_browser = false;
     bool show_demo_window   = false; // For debugging.
+    bool show_asset_manager = false; // For debugging.
 
     float background_alpha{ 0.8f };
 
@@ -53,8 +55,8 @@ public:
         glfw::Window&      window,
         RenderEngine&      engine,
         entt::registry&    registry,
-        AssetLoader&       asset_loader,
-        AssetUnpacker&     asset_unpacker,
+        AssetManager&      asset_manager,
+        AssetUnpacker&     asset_2npacker_,
         SceneImporter&     scene_importer,
         VirtualFilesystem& vfs);
 
@@ -85,6 +87,7 @@ private:
     glfw::Window&      window_;
     RenderEngine&      engine_;
     entt::registry&    registry_;
+    AssetManager&      asset_manager_;
     AssetUnpacker&     asset_unpacker_;
     VirtualFilesystem& vfs_;
 

@@ -543,13 +543,13 @@ void ImGuiSceneList::display() {
     if (import_model_signal) {
         const entt::handle new_model = create_handle(registry);
         new_model.emplace<Transform>();
-        asset_unpacker_.request_model_import(import_model_apath, new_model);
+        asset_unpacker_.submit_model_for_unpacking(new_model, asset_manager_.load_model(import_model_apath));
     }
 
     if (import_skybox_signal) {
         const entt::handle new_skybox = create_handle(registry);
         new_skybox.emplace<Transform>();
-        asset_unpacker_.request_skybox_import(import_skybox_apath, new_skybox);
+        asset_unpacker_.submit_skybox_for_unpacking(new_skybox, import_skybox_apath);
     }
 
     if (import_scene_signal) {
