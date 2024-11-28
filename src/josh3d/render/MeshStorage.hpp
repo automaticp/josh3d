@@ -1,13 +1,13 @@
 #pragma once
 #include "GLAPICommonTypes.hpp"
+#include "GLAPICore.hpp"
 #include "GLAttributeTraits.hpp"
 #include "GLBuffers.hpp"
 #include "GLMutability.hpp"
 #include "GLObjects.hpp"
 #include "GLScalars.hpp"
 #include "GLVertexArray.hpp"
-#include "Mesh.hpp"
-#include "AttributeTraits.hpp"
+#include "detail/StrongScalar.hpp"
 #include <range/v3/view/enumerate.hpp>
 #include <algorithm>
 #include <cassert>
@@ -20,7 +20,10 @@
 namespace josh {
 
 
-enum class MeshID : uint32_t {};
+template<typename VertexT>
+struct MeshID {
+    uint64_t value{};
+};
 
 
 template<specializes_attribute_traits VertexT>
@@ -28,18 +31,22 @@ class MeshStorage {
 public:
     using vertex_type = VertexT;
     using index_type  = GLint;
+    using id_type     = MeshID<vertex_type>;
+
+    constexpr auto primitive_type() const noexcept -> Primitive   { return Primitive::Triangles; }
+    constexpr auto element_type()   const noexcept -> ElementType { return ElementType::UInt;    }
 
     MeshStorage();
 
     void query(
-        std::span<const MeshID> ids,
-        std::span<GLintptr>     out_offsets,
-        std::span<GLsizei>      out_counts,
-        std::span<GLint>        out_baseverts) const;
+        std::span<const id_type> ids,
+        std::span<GLintptr>      out_offsets,
+        std::span<GLsizei>       out_counts,
+        std::span<GLint>         out_baseverts) const;
 
     // TODO:
     void query_indirect(
-        std::span<const MeshID>                ids,
+        std::span<const id_type>               ids,
         std::span<DrawElementsIndirectCommand> out_commands) const;
 
     void query_range(
@@ -57,13 +64,13 @@ public:
     auto insert(
         std::ranges::sized_range auto&& verts,
         std::ranges::sized_range auto&& indices)
-            -> MeshID;
+            -> id_type;
 
     // Will generate indices for all verts by simply incrementing an integer.
     [[nodiscard]]
     auto insert(
         std::ranges::sized_range auto&& verts)
-            -> MeshID;
+            -> id_type;
 
     // Access the VAO that is bound to all of the mesh data.
     auto vertex_array() const noexcept
@@ -115,6 +122,8 @@ private:
 };
 
 
+
+
 template<specializes_attribute_traits VertexT>
 MeshStorage<VertexT>::MeshStorage() {
     const AttributeIndex first_attrib{ 0 };
@@ -133,7 +142,7 @@ template<specializes_attribute_traits VertexT>
 auto MeshStorage<VertexT>::insert(
     std::ranges::sized_range auto&& verts,
     std::ranges::sized_range auto&& indices)
-        -> MeshID
+        -> id_type
 {
     const StoragePolicies policies{
         .mode        = StorageMode::StaticServer,
@@ -226,7 +235,7 @@ template<specializes_attribute_traits VertexT>
 [[nodiscard]]
 auto MeshStorage<VertexT>::insert(
     std::ranges::sized_range auto&& verts)
-        -> MeshID
+        -> id_type
 {
     using std::views::iota;
     const NumElems num_verts = std::ranges::ssize(verts);
@@ -237,10 +246,10 @@ auto MeshStorage<VertexT>::insert(
 
 template<specializes_attribute_traits VertexT>
 void MeshStorage<VertexT>::query(
-    std::span<const MeshID> ids,
-    std::span<GLintptr>     out_offsets,
-    std::span<GLsizei>      out_counts,
-    std::span<GLint>        out_baseverts) const
+    std::span<const id_type> ids,
+    std::span<GLintptr>      out_offsets,
+    std::span<GLsizei>       out_counts,
+    std::span<GLint>         out_baseverts) const
 {
     assert(ids.size() == out_offsets.size());
     assert(ids.size() == out_counts.size());
@@ -265,9 +274,9 @@ void MeshStorage<VertexT>::query_range(
     std::output_iterator<GLsizei>  auto&& out_counts,
     std::output_iterator<GLint>    auto&& out_baseverts) const
 {
-    for (const MeshID mesh_id : ids) {
-        assert(size_t(mesh_id) < table_.size());
-        const MeshPlacement& placement = table_[size_t(mesh_id)];
+    for (const id_type mesh_id : ids) {
+        assert(size_t(mesh_id.value) < table_.size());
+        const MeshPlacement& placement = table_[size_t(mesh_id.value)];
 
         *out_offsets++   = placement.offset;
         *out_counts++    = placement.count;
