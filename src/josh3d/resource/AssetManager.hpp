@@ -32,6 +32,14 @@ public:
     auto load_texture(AssetPath path, ImageIntent intent)
         -> Job<SharedTextureAsset>;
 
+    [[nodiscard]]
+    auto load_cubemap(AssetPath path, CubemapIntent intent)
+        -> Job<SharedCubemapAsset>;
+
+    // TODO: Both ImageIntent and CubemapIntent should be part of the
+    // key in AssetCache, as the resulting resources cannot be reused
+    // across intents.
+
 private:
     AssetCache         cache_;
     ThreadPool&        thread_pool_;

@@ -321,14 +321,14 @@ void import_model(
 
 
 void import_skybox(
-    AssetManager&  asset_manager [[maybe_unused]],
+    AssetManager&  asset_manager,
     AssetUnpacker& asset_unpacker,
     const json&    j_entity,
     entt::handle   handle)
 {
     AssetPath apath = get_asset_path(j_entity);
-    // TODO: There's no job right now...
-    asset_unpacker.submit_skybox_for_unpacking(handle.entity(), MOVE(apath));
+    auto job = asset_manager.load_cubemap(MOVE(apath), CubemapIntent::Skybox);
+    asset_unpacker.submit_skybox_for_unpacking(handle.entity(), MOVE(job));
 }
 
 

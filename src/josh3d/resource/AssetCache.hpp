@@ -1,6 +1,7 @@
 #pragma once
 #include "Asset.hpp"
 #include "Coroutines.hpp"
+#include <exception>
 #include <tuple>
 #include <unordered_map>
 #include <vector>
@@ -49,18 +50,18 @@ public:
     //
     // Returns the number of pending requests resolved.
     template<AssetKind KindV>
-    auto fail_and_resolve_pending(const AssetPath& path, std::exception_ptr exception)
+    auto fail_and_resolve_pending(const AssetPath& path, std::exception_ptr exception = std::current_exception())
         -> size_t;
 
 private:
     template<AssetKind KindV>
     struct Storage {
         static constexpr AssetKind asset_kind = KindV;
-
+        using key_type      = AssetPath;
         using shared_handle = Job<SharedAsset<KindV>>::shared_handle;
-        using CacheMap      = std::unordered_map<AssetPath, StoredAsset<KindV>>;
+        using CacheMap      = std::unordered_map<key_type, StoredAsset<KindV>>;
         using PendingList   = std::vector<shared_handle>;
-        using PendingMap    = std::unordered_map<AssetPath, PendingList>;
+        using PendingMap    = std::unordered_map<key_type, PendingList>;
 
         CacheMap                  cache;
         PendingMap                pending;
@@ -69,7 +70,7 @@ private:
     };
 
     template<AssetKind ...KindVs> using StorageArrayT = std::tuple<Storage<KindVs>...>;
-    using StorageArray = StorageArrayT<AssetKind::Model, AssetKind::Texture>;
+    using StorageArray = StorageArrayT<AssetKind::Model, AssetKind::Texture, AssetKind::Cubemap>;
 
     StorageArray caches_;
 
@@ -83,8 +84,10 @@ private:
 
 template<AssetKind KindV>
 struct AssetCache::GetIfCachedAwaiter {
-    Storage<KindV>&  storage;
-    const AssetPath& path;
+    using storage_type = Storage<KindV>;
+    using key_type     = storage_type::key_type;
+    storage_type&   storage;
+    const key_type& key;
 
     std::optional<SharedAsset<KindV>>    cached_result = std::nullopt;
     Job<SharedAsset<KindV>>::handle_type handle        = nullptr;
@@ -94,7 +97,7 @@ struct AssetCache::GetIfCachedAwaiter {
             // It is quite unlikely that we actually encounter a pending request,
             // so adjust our access accordingly.
             const std::shared_lock cache_lock{ storage.cache_mutex };
-            if (const auto* item = try_find(storage.cache, path)) {
+            if (const auto* item = try_find(storage.cache, key)) {
                 cached_result = item->second;
                 return true;
             }
@@ -106,13 +109,13 @@ struct AssetCache::GetIfCachedAwaiter {
         {
             handle = h; // Stash the handle for later.
             const std::shared_lock cache_lock{ storage.cache_mutex };
-            if (const auto* item = try_find(storage.cache, path)) {
+            if (const auto* item = try_find(storage.cache, key)) {
                 cached_result = item->second;
                 return false;
             }
             {
                 const std::scoped_lock pending_lock{ storage.pending_mutex };
-                auto [it, was_emplaced] = storage.pending.try_emplace(path);
+                auto [it, was_emplaced] = storage.pending.try_emplace(key);
 
                 // If we just emplaced a new entry, then don't actually add ourselves to pending,
                 // we'll be the ones resolving this request. Don't suspend, resume with a nullopt.

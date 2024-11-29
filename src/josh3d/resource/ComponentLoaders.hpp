@@ -25,10 +25,10 @@ inline Skybox& load_skybox_into(
     const File&  skybox_json)
 {
     CubemapPixelData<pixel::RGBA> data =
-        load_cubemap_from_json<pixel::RGBA>(skybox_json);
+        load_cubemap_pixel_data_from_json<pixel::RGBA>(skybox_json);
 
     UniqueCubemap cubemap =
-        create_skybox_from_cubemap_data(data, InternalFormat::SRGBA8);
+        create_skybox_from_cubemap_pixel_data(data, InternalFormat::SRGBA8);
 
     Skybox& skybox =
         handle.emplace_or_replace<Skybox>(std::move(cubemap));

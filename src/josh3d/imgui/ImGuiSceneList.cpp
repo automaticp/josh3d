@@ -1,5 +1,6 @@
 #include "ImGuiSceneList.hpp"
 #include "Active.hpp"
+#include "Asset.hpp"
 #include "Camera.hpp"
 #include "Filesystem.hpp"
 #include "ImGuiComponentWidgets.hpp"
@@ -543,13 +544,15 @@ void ImGuiSceneList::display() {
     if (import_model_signal) {
         const entt::handle new_model = create_handle(registry);
         new_model.emplace<Transform>();
-        asset_unpacker_.submit_model_for_unpacking(new_model, asset_manager_.load_model(import_model_apath));
+        auto job = asset_manager_.load_model(import_model_apath);
+        asset_unpacker_.submit_model_for_unpacking(new_model, MOVE(job));
     }
 
     if (import_skybox_signal) {
         const entt::handle new_skybox = create_handle(registry);
         new_skybox.emplace<Transform>();
-        asset_unpacker_.submit_skybox_for_unpacking(new_skybox, import_skybox_apath);
+        auto job = asset_manager_.load_cubemap(import_skybox_apath, CubemapIntent::Skybox);
+        asset_unpacker_.submit_skybox_for_unpacking(new_skybox, MOVE(job));
     }
 
     if (import_scene_signal) {

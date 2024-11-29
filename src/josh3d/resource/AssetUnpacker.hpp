@@ -24,8 +24,8 @@ public:
     // Associate an entity with a pending state for a model.
     void submit_model_for_unpacking(Entity entity, SharedJob<SharedModelAsset> model_job);
 
-    // NOTE: Not async right now. Will load directly when `unpack_one_retired()` is called.
-    void submit_skybox_for_unpacking(Entity entity, AssetPath path);
+    // Associate an entity with a pending state for a skybox.
+    void submit_skybox_for_unpacking(Entity entity, SharedJob<SharedCubemapAsset> skybox_job);
 
     // Number of requests not yet retired. Either because they are
     // not complete, or because the `retire_completed_requests()`

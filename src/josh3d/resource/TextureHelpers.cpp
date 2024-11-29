@@ -2,7 +2,6 @@
 #include "Channels.hpp"
 #include "Filesystem.hpp"
 #include "MallocSupport.hpp"
-#include "Pixels.hpp"
 #include "ReadFile.hpp"
 #include "Size.hpp"
 #include <algorithm>
@@ -84,7 +83,12 @@ auto load_image_from_file_impl<chan::Float>(
         -> UntypedImageLoadResult<chan::Float>;
 
 
-std::array<File, 6> parse_cubemap_json_for_files(const File& json_file) {
+} // namespace detail
+
+
+auto parse_cubemap_json_for_files(const File& json_file)
+    -> std::array<File, 6>
+{
 
     std::string contents = read_file(json_file);
 
@@ -104,5 +108,4 @@ std::array<File, 6> parse_cubemap_json_for_files(const File& json_file) {
 }
 
 
-} // namespace detail
 } // namespace josh

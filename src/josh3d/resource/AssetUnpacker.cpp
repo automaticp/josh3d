@@ -4,7 +4,10 @@
 #include "CategoryCasts.hpp"
 #include "ComponentLoaders.hpp"
 #include "ECS.hpp"
+#include "GLAPIBinding.hpp"
+#include "Skybox.hpp"
 #include <cstddef>
+#include <type_traits>
 
 
 namespace josh {
@@ -14,46 +17,45 @@ namespace josh {
 template<typename T> struct Pending { T value; };
 template<typename T> struct Retired { T value; };
 
-
-using PendingModel = Pending<SharedJob<SharedModelAsset>>;
-using RetiredModel = Retired<SharedJob<SharedModelAsset>>; // Still a job, to preserve the exception until unpacking.
-
-
-struct RetiredSkybox { AssetPath path; };
+using ModelJob  = SharedJob<SharedModelAsset>;
+using SkyboxJob = SharedJob<SharedCubemapAsset>;
 
 
 void AssetUnpacker::submit_model_for_unpacking(
     Entity                      entity,
     SharedJob<SharedModelAsset> model_job)
 {
-    using pending_type = Pending<SharedJob<SharedModelAsset>>;
-    registry_.emplace_or_replace<pending_type>(entity, MOVE(model_job));
+    registry_.emplace_or_replace<Pending<ModelJob>>(entity, MOVE(model_job));
 }
 
 
 void AssetUnpacker::submit_skybox_for_unpacking(
-    Entity    entity,
-    AssetPath path)
+    Entity                        entity,
+    SharedJob<SharedCubemapAsset> skybox_job)
 {
-    // This is special because we directly emplace retired state.
-    // The loading will be done sychronously once the unpack() is called.
-    registry_.emplace_or_replace<RetiredSkybox>(entity, MOVE(path));
+    registry_.emplace_or_replace<Pending<SkyboxJob>>(entity, MOVE(skybox_job));
 }
 
 
 auto AssetUnpacker::num_pending() const noexcept
     -> size_t
 {
-    const size_t result = registry_.view<PendingModel>().size();
+    const size_t result =
+        registry_.view<Pending<ModelJob>>().size() +
+        registry_.view<Pending<SkyboxJob>>().size();
     // Add more pending if supported.
     return result;
 }
 
 
 void AssetUnpacker::wait_until_all_pending_are_complete() const {
-    for (const auto [e, pending] : registry_.view<PendingModel>().each()) {
-        pending.value.wait_until_ready();
-    }
+    auto wait = [&]<typename T>(std::type_identity<T>) {
+        for (const auto [e, pending] : registry_.view<Pending<T>>().each()) {
+            pending.value.wait_until_ready();
+        }
+    };
+    wait(std::type_identity<ModelJob> {});
+    wait(std::type_identity<SkyboxJob>{});
 }
 
 
@@ -61,13 +63,18 @@ auto AssetUnpacker::retire_completed_requests()
     -> size_t
 {
     size_t num_retired{ 0 };
-    for (auto [e, pending] : registry_.view<PendingModel>().each()) {
-        if (pending.value.is_ready()) {
-            registry_.emplace_or_replace<RetiredModel>(e, MOVE(pending.value));
-            registry_.erase<PendingModel>(e);
+
+    auto retire = [&]<typename T>(std::type_identity<T>) {
+        for (auto [e, pending] : registry_.view<Pending<T>>().each()) {
+            registry_.emplace_or_replace<Retired<T>>(e, MOVE(pending.value));
+            registry_.erase<Pending<T>>(e);
             ++num_retired;
         }
-    }
+    };
+
+    retire(std::type_identity<ModelJob> {});
+    retire(std::type_identity<SkyboxJob>{});
+
     return num_retired;
 }
 
@@ -76,8 +83,8 @@ auto AssetUnpacker::num_retired() const noexcept
     -> size_t
 {
     const size_t result =
-        registry_.view<RetiredModel> ().size() +
-        registry_.view<RetiredSkybox>().size();
+        registry_.view<Retired<ModelJob>> ().size() +
+        registry_.view<Retired<SkyboxJob>>().size();
     return result;
 }
 
@@ -100,22 +107,25 @@ void AssetUnpacker::unpack_one_retired(Handle& handle) {
     // For-loops are decieving here, we return after the first entity.
     handle = {};
 
-    for (const Entity entity : registry_.view<RetiredModel>()) {
+    for (const Entity entity : registry_.view<Retired<ModelJob>>()) {
         handle = { registry_, entity };
-        SharedJob<SharedModelAsset> retired = MOVE(handle.get<RetiredModel>().value);
-        handle.erase<RetiredModel>(); // Erase first, so that on exception the request is gone.
+        ModelJob retired = MOVE(handle.get<Retired<ModelJob>>().value);
+        handle.erase<Retired<ModelJob>>(); // Erase first, so that on exception the request is gone.
         SharedModelAsset asset = retired.get_result(); // Can rethrow the exception here.
         handle.emplace_or_replace<AssetPath>(asset.path);
         emplace_model_asset_into(handle, MOVE(asset));
         return;
     }
 
-    for (const Entity entity : registry_.view<RetiredSkybox>()) {
+    for (const Entity entity : registry_.view<Retired<SkyboxJob>>()) {
         handle = { registry_, entity };
-        AssetPath apath = MOVE(handle.get<RetiredSkybox>().path);
-        handle.erase<RetiredSkybox>();
-        load_skybox_into(handle, File(apath.entry())); // Can throw here.
-        handle.emplace_or_replace<AssetPath>(MOVE(apath));
+        SkyboxJob retired = MOVE(handle.get<Retired<SkyboxJob>>().value);
+        handle.erase<Retired<SkyboxJob>>();
+        SharedCubemapAsset asset = retired.get_result(); // Can rethrow the exception here.
+        handle.emplace_or_replace<AssetPath>(MOVE(asset.path));
+        make_available<Binding::Cubemap>(asset.cubemap->id());
+        handle.emplace_or_replace<Skybox>(MOVE(asset.cubemap));
+
         // TODO: Is this the right place to handle this?
         if (!has_active<Skybox>(registry_)) {
             make_active<Skybox>(handle);

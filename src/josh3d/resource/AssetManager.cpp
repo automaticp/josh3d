@@ -2,8 +2,11 @@
 #include "Asset.hpp"
 #include "Channels.hpp"
 #include "ContainerUtils.hpp"
+#include "CubemapData.hpp"
+#include "Filesystem.hpp"
 #include "GLAPICore.hpp"
 #include "GLObjectHelpers.hpp"
+#include "GLObjects.hpp"
 #include "GLPixelPackTraits.hpp"
 #include "GLTextures.hpp"
 #include "ImageData.hpp"
@@ -22,11 +25,12 @@
 #include <assimp/scene.h>
 #include <boost/scope/defer.hpp>
 #include <boost/scope/scope_fail.hpp>
+#include <exception>
 #include <range/v3/view/enumerate.hpp>
 #include <cassert>
 #include <cstdint>
-#include <exception>
 #include <optional>
+#include <range/v3/view/transform.hpp>
 #include <utility>
 
 
@@ -101,7 +105,6 @@ auto pick_internal_format(size_t num_channels, ImageIntent intent)
                 default: assert(false); return {};
             }
         case ImageIntent::Unknown:
-        default:
             switch (num_channels) {
                 case 1: return InternalFormat::R8;
                 case 2: return InternalFormat::RG8;
@@ -111,6 +114,30 @@ auto pick_internal_format(size_t num_channels, ImageIntent intent)
             }
     }
     // Don't return here, clang-tidy will warn if return is missing above.
+    std::terminate();
+}
+
+
+auto pick_internal_format(size_t num_channels, CubemapIntent intent)
+    -> InternalFormat
+{
+    switch (intent) {
+        case CubemapIntent::Skybox:
+            switch (num_channels) {
+                case 3: return InternalFormat::SRGB8;
+                case 4: return InternalFormat::SRGBA8;
+                default: assert(false); return {};
+            }
+        case CubemapIntent::Unknown:
+            switch (num_channels) {
+                case 1: return InternalFormat::R8;
+                case 2: return InternalFormat::RG8;
+                case 3: return InternalFormat::RGB8;
+                case 4: return InternalFormat::RGBA8;
+                default: assert(false); return {};
+            }
+    }
+    std::terminate();
 }
 
 
@@ -143,9 +170,7 @@ auto AssetManager::load_texture(AssetPath path, ImageIntent intent)
     // Otherwise we need to load and resolve it ourselves.
 
     const auto on_exception = // Resolve the pending requests with the same exception.
-        boost::scope::scope_fail([&] {
-            cache_.fail_and_resolve_pending<AssetKind::Texture>(path, std::current_exception());
-        });
+        boost::scope::scope_fail([&] { cache_.fail_and_resolve_pending<AssetKind::Texture>(path); });
 
 
     // Do the image loading/decompression with stb.
@@ -189,6 +214,120 @@ auto AssetManager::load_texture(AssetPath path, ImageIntent intent)
 }
 
 
+
+
+namespace {
+
+
+auto load_image_data(File file, ImageIntent intent, ThreadPool& thread_pool)
+    -> Job<ImageData<chan::UByte>>
+{
+    {
+        co_await reschedule_to(thread_pool);
+    }
+
+    auto [min_channels, max_channels] = image_intent_minmax_channels(intent);
+
+    co_return load_image_data_from_file<chan::UByte>(file, min_channels, max_channels);
+}
+
+
+} // namespace
+
+
+
+
+auto AssetManager::load_cubemap(AssetPath path, CubemapIntent intent)
+    -> Job<SharedCubemapAsset>
+{
+    using std::views::transform;
+    const auto task_guard = task_counter_.obtain_task_guard();
+
+
+    {
+        co_await reschedule_to(thread_pool_);
+    }
+
+
+    if (std::optional<SharedCubemapAsset> asset =
+        co_await cache_.get_if_cached_or_join_pending<AssetKind::Cubemap>(path))
+    {
+        co_return move_out(asset);
+    }
+
+    const auto on_exception =
+        boost::scope::scope_fail([&]{ cache_.fail_and_resolve_pending<AssetKind::Cubemap>(path); });
+
+
+    std::array<File, 6> files = parse_cubemap_json_for_files(File(path.entry()));
+
+    auto submit_side_loading = [&](const File& file)
+        -> Job<ImageData<chan::UByte>>
+    {
+        return load_image_data(file, ImageIntent::Albedo, thread_pool_);
+    };
+
+    std::array<Job<ImageData<chan::UByte>>, 6> jobs{
+        submit_side_loading(files[0]),
+        submit_side_loading(files[1]),
+        submit_side_loading(files[2]),
+        submit_side_loading(files[3]),
+        submit_side_loading(files[4]),
+        submit_side_loading(files[5]),
+    };
+
+
+    {
+        co_await completion_context_.until_all_ready(jobs);
+        co_await reschedule_to(offscreen_context_);
+    }
+
+
+    auto extract_data_result = [&](size_t side) {
+        assert(jobs[side].is_ready());
+        return MOVE(jobs[side]).get_result();
+    };
+
+    CubemapImageData<chan::UByte> data{
+        extract_data_result(0),
+        extract_data_result(1),
+        extract_data_result(2),
+        extract_data_result(3),
+        extract_data_result(4),
+        extract_data_result(5),
+    };
+
+    discard(MOVE(jobs));
+
+    const size_t          num_channels = data.sides().at(0).num_channels();
+    const PixelDataType   type         = PixelDataType::UByte;
+    const PixelDataFormat format       = pick_pixel_data_format(num_channels);
+    const InternalFormat  iformat      = pick_internal_format(num_channels, intent);
+
+    SharedCubemap cubemap = [&]{
+        switch (intent) {
+            case CubemapIntent::Skybox:
+                return create_skybox_from_cubemap_image_data(data, format, type, iformat);
+            case CubemapIntent::Unknown:
+                return create_material_cubemap_from_image_data(data, format, type, iformat);
+        }
+        std::terminate();
+    }();
+
+    glapi::flush();
+    discard(MOVE(data));
+    glapi::finish();
+
+
+    StoredCubemapAsset asset{
+        .path    = MOVE(path),
+        .intent  = intent,
+        .cubemap = MOVE(cubemap),
+    };
+
+    cache_.cache_and_resolve_pending(asset.path, asset);
+    co_return MOVE(asset);
+}
 
 
 
@@ -291,11 +430,10 @@ auto get_mesh_data(const aiMesh& mesh)
 
 
 
-
 auto AssetManager::load_model(AssetPath path)
     -> Job<SharedModelAsset>
 {
-    // NOTE: See load_texture_async() for comments on the general flow of execution.
+    // NOTE: See load_texture() for comments on the general flow of execution.
     using ranges::views::enumerate;
     const auto task_guard = task_counter_.obtain_task_guard();
 
@@ -312,9 +450,7 @@ auto AssetManager::load_model(AssetPath path)
     }
 
     const auto on_exception =
-        boost::scope::scope_fail([&] {
-            cache_.fail_and_resolve_pending<AssetKind::Model>(path, std::current_exception());
-        });
+        boost::scope::scope_fail([&] { cache_.fail_and_resolve_pending<AssetKind::Model>(path); });
 
 
 

@@ -53,7 +53,7 @@ template<typename PixelT>
         -> PixelData<PixelT>;
 
 template<typename PixelT>
-[[nodiscard]] auto load_cubemap_from_files(
+[[nodiscard]] auto load_cubemap_pixel_data_from_files(
     const File& posx, const File& negx,
     const File& posy, const File& negy,
     const File& posz, const File& negz,
@@ -61,10 +61,14 @@ template<typename PixelT>
         -> CubemapPixelData<PixelT>;
 
 template<typename PixelT>
-[[nodiscard]] auto load_cubemap_from_json(
+[[nodiscard]] auto load_cubemap_pixel_data_from_json(
     const File& json_file,
     bool        flip_vertically = true)
         -> CubemapPixelData<PixelT>;
+
+auto parse_cubemap_json_for_files(
+    const File& json_file)
+        -> std::array<File, 6>;
 
 
 
@@ -74,25 +78,41 @@ template<typename PixelT>
 template<typename ChannelT>
 [[nodiscard]] auto create_material_texture_from_image_data(
     const ImageData<ChannelT>& data,
-    PixelDataFormat             format,
-    PixelDataType               type,
-    InternalFormat              iformat)
+    PixelDataFormat            format,
+    PixelDataType              type,
+    InternalFormat             iformat)
         -> UniqueTexture2D;
 
-template<typename PixelT>
+template<typename ChannelT>
+[[nodiscard]] auto create_material_cubemap_from_image_data(
+    const CubemapImageData<ChannelT>& data,
+    PixelDataFormat                   format,
+    PixelDataType                     type,
+    InternalFormat                    internal_format)
+        -> UniqueCubemap;
+
+template<typename ChannelT>
+[[nodiscard]] auto create_skybox_from_cubemap_image_data(
+    const CubemapImageData<ChannelT>& data,
+    PixelDataFormat                   format,
+    PixelDataType                     type,
+    InternalFormat                    internal_format)
+        -> UniqueCubemap;
+
+template<specifies_pixel_pack_traits PixelT>
 [[nodiscard]] auto create_material_texture_from_pixel_data(
     const PixelData<PixelT>& data,
     InternalFormat           internal_format)
         -> UniqueTexture2D;
 
-template<typename PixelT>
-[[nodiscard]] auto create_material_cubemap_from_data(
+template<specifies_pixel_pack_traits PixelT>
+[[nodiscard]] auto create_material_cubemap_from_pixel_data(
     const CubemapPixelData<PixelT>& data,
     InternalFormat                  internal_format)
         -> UniqueCubemap;
 
-template<typename PixelT>
-[[nodiscard]] auto create_skybox_from_cubemap_data(
+template<specifies_pixel_pack_traits PixelT>
+[[nodiscard]] auto create_skybox_from_cubemap_pixel_data(
     const CubemapPixelData<PixelT>& data,
     InternalFormat                  internal_format)
         -> UniqueCubemap;
@@ -107,9 +127,9 @@ namespace detail {
 template<typename ChanT>
 struct UntypedImageLoadResult {
     unique_malloc_ptr<ChanT[]> data;
-    Size2S size;
-    size_t num_channels;
-    size_t num_channels_in_file;
+    Size2S                     resolution;
+    size_t                     num_channels;
+    size_t                     num_channels_in_file;
 };
 
 template<typename ChanT>
@@ -137,9 +157,6 @@ auto load_image_from_file_impl<chan::Float>(
         -> UntypedImageLoadResult<chan::Float>;
 
 
-std::array<File, 6> parse_cubemap_json_for_files(const File& json_file);
-
-
 } // namespace detail
 
 
@@ -156,7 +173,7 @@ template<typename ChannelT>
 
     return {
         std::move(im.data),
-        im.size,
+        im.resolution,
         im.num_channels
     };
 }
@@ -174,17 +191,18 @@ template<typename PixelT>
         detail::load_image_from_file_impl<typename tr::channel_type>(file, tr::n_channels, tr::n_channels, flip_vertically);
 
     return PixelData<PixelT>::from_channel_data(
-        std::move(im.data), im.size
+        std::move(im.data), im.resolution
     );
 }
 
 
 template<typename PixelT>
-[[nodiscard]] CubemapPixelData<PixelT> load_cubemap_from_files(
+[[nodiscard]] auto load_cubemap_pixel_data_from_files(
     const File& posx, const File& negx,
     const File& posy, const File& negy,
     const File& posz, const File& negz,
     bool flip_vertically)
+        -> CubemapPixelData<PixelT>
 {
     return CubemapPixelData<PixelT> {
         load_pixel_data_from_file<PixelT>(posx, flip_vertically),
@@ -198,11 +216,13 @@ template<typename PixelT>
 
 
 template<typename PixelT>
-[[nodiscard]] CubemapPixelData<PixelT> load_cubemap_from_json(
-    const File& json_file, bool flip_vertically)
+[[nodiscard]] auto load_cubemap_pixel_data_from_json(
+    const File& json_file,
+    bool        flip_vertically)
+        -> CubemapPixelData<PixelT>
 {
-    std::array<File, 6> files = detail::parse_cubemap_json_for_files(json_file);
-    return load_cubemap_from_files<PixelT>(
+    std::array<File, 6> files = parse_cubemap_json_for_files(json_file);
+    return load_cubemap_pixel_data_from_files<PixelT>(
         files[0], files[1],
         files[2], files[3],
         files[4], files[5],
@@ -214,7 +234,7 @@ template<typename PixelT>
 
 template<typename ChannelT>
 [[nodiscard]] auto create_material_texture_from_image_data(
-    const ImageData<ChannelT>& data,
+    const ImageData<ChannelT>&  data,
     PixelDataFormat             format,
     PixelDataType               type,
     InternalFormat              iformat)
@@ -250,7 +270,7 @@ template<specifies_pixel_pack_traits PixelT>
 
 
 template<specifies_pixel_pack_traits PixelT>
-[[nodiscard]] auto create_material_cubemap_from_data(
+[[nodiscard]] auto create_material_cubemap_from_pixel_data(
     const CubemapPixelData<PixelT>& data,
     InternalFormat                  internal_format)
         -> UniqueCubemap
@@ -273,8 +293,35 @@ template<specifies_pixel_pack_traits PixelT>
 }
 
 
-template<typename PixelT>
-[[nodiscard]] auto create_skybox_from_cubemap_data(
+template<typename ChannelT>
+[[nodiscard]] auto create_material_cubemap_from_image_data(
+    const CubemapImageData<ChannelT>& data,
+    PixelDataFormat                   format,
+    PixelDataType                     type,
+    InternalFormat                    internal_format)
+        -> UniqueCubemap
+{
+    const Size2I resolution{ data.sides()[0].resolution() };
+
+    UniqueCubemap cubemap;
+    cubemap->allocate_storage(resolution, internal_format, max_num_levels(resolution));
+
+    for (GLint face_id{ 0 }; face_id < 6; ++face_id) {
+        const auto face_data = data.sides()[face_id].data();
+        const Region3I region{ { 0, 0, face_id }, { resolution, 1 } };
+        cubemap->upload_image_region(region, format, type, face_data, MipLevel{ 0 });
+    }
+
+    cubemap->generate_mipmaps();
+    cubemap->set_sampler_min_mag_filters(MinFilter::LinearMipmapLinear, MagFilter::Linear);
+    cubemap->set_sampler_wrap_all(Wrap::ClampToEdge);
+
+    return cubemap;
+}
+
+
+template<specifies_pixel_pack_traits PixelT>
+[[nodiscard]] auto create_skybox_from_cubemap_pixel_data(
     const CubemapPixelData<PixelT>& data,
     InternalFormat                  internal_format)
         -> UniqueCubemap
@@ -309,6 +356,37 @@ template<typename PixelT>
 }
 
 
+template<typename ChannelT>
+[[nodiscard]] auto create_skybox_from_cubemap_image_data(
+    const CubemapImageData<ChannelT>& data,
+    PixelDataFormat                   format,
+    PixelDataType                     type,
+    InternalFormat                    internal_format)
+        -> UniqueCubemap
+{
+    const Size2I resolution{ data.sides()[0].resolution() };
+
+    UniqueCubemap cubemap;
+    cubemap->allocate_storage(resolution, internal_format, max_num_levels(resolution));
+
+    for (GLint face_id{ 0 }; face_id < 6; ++face_id) {
+        const auto face_data = data.sides()[face_id].data();
+        auto target_face_id = face_id;
+        switch (target_face_id) {
+            case 2: target_face_id = 3; break;
+            case 3: target_face_id = 2; break;
+            default: break;
+        }
+        const Region3I region{ { 0, 0, target_face_id }, { resolution, 1 } };
+        cubemap->upload_image_region(region, format, type, face_data, MipLevel{ 0 });
+    }
+
+    cubemap->generate_mipmaps();
+    cubemap->set_sampler_min_mag_filters(MinFilter::LinearMipmapLinear, MagFilter::Linear);
+    cubemap->set_sampler_wrap_all(Wrap::ClampToEdge);
+
+    return cubemap;
+}
 
 
 } // namespace josh

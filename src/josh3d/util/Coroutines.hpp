@@ -472,13 +472,22 @@ public:
     }
 
     // Obtain the result or raise an exception.
-    auto get_result() const
+    auto get_result() const&
         -> result_type&
     {
         assert(handle_);
         promise_type& p = handle_.get().promise();
         p.wait_for_result();
         return p.get_result();
+    }
+
+    auto get_result() &&
+        -> result_type
+    {
+        assert(handle_);
+        promise_type& p = handle_.get().promise();
+        p.wait_for_result();
+        return p.extract_result();
     }
 
     auto operator co_await() const& noexcept

@@ -98,10 +98,10 @@ inline void Sky::operator()(RenderEnginePrimaryInterface& engine) {
 inline UniqueCubemap Sky::load_debug_skybox() {
 
     CubemapPixelData data =
-        load_cubemap_from_json<pixel::RGB>(File("data/skyboxes/debug/skybox.json"));
+        load_cubemap_pixel_data_from_json<pixel::RGB>(File("data/skyboxes/debug/skybox.json"));
 
     UniqueCubemap cube =
-        create_skybox_from_cubemap_data(data, InternalFormat::SRGB8);
+        create_skybox_from_cubemap_pixel_data(data, InternalFormat::SRGB8);
 
     cube->set_sampler_min_mag_filters(MinFilter::Nearest, MagFilter::Nearest);
     return cube;

@@ -20,7 +20,7 @@ enum class AssetKind {
     Model,
     Mesh,
     Texture,
-    // Cubemap?
+    Cubemap,
 };
 
 
@@ -40,6 +40,18 @@ enum class ImageIntent {
 
 auto image_intent_minmax_channels(ImageIntent intent) noexcept
     -> std::pair<size_t, size_t>;
+
+
+/*
+CubemapIntent affects the channels and side
+orientation of loaded cubemaps.
+*/
+enum class CubemapIntent {
+    Unknown,
+    Skybox,
+};
+
+
 
 
 /*
@@ -107,10 +119,12 @@ template<AssetKind KindV> using SharedAsset = Asset<KindV, GLConst>;
 using StoredTextureAsset = StoredAsset<AssetKind::Texture>;
 using StoredMeshAsset    = StoredAsset<AssetKind::Mesh>;
 using StoredModelAsset   = StoredAsset<AssetKind::Model>;
+using StoredCubemapAsset = StoredAsset<AssetKind::Cubemap>;
 
 using SharedTextureAsset = SharedAsset<AssetKind::Texture>;
 using SharedMeshAsset    = SharedAsset<AssetKind::Mesh>;
 using SharedModelAsset   = SharedAsset<AssetKind::Model>;
+using SharedCubemapAsset = SharedAsset<AssetKind::Cubemap>;
 
 
 #define JOSH3D_ASSET_CONVERSION_OP(KindV, ...) \
@@ -160,6 +174,20 @@ struct Asset<AssetKind::Model, MutT> {
 
     JOSH3D_ASSET_CONVERSION_OP(AssetKind::Model, path, meshes)
     static constexpr AssetKind asset_kind = AssetKind::Model;
+};
+
+
+template<mutability_tag MutT>
+struct Asset<AssetKind::Cubemap, MutT> {
+    using mutability   = MutT;
+    using cubemap_type = GLShared<RawCubemap<MutT>>;
+
+    AssetPath     path;
+    CubemapIntent intent;
+    cubemap_type  cubemap;
+
+    JOSH3D_ASSET_CONVERSION_OP(AssetKind::Cubemap, path, intent, cubemap)
+    static constexpr AssetKind asset_kind = AssetKind::Cubemap;
 };
 
 
