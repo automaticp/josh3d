@@ -66,9 +66,11 @@ auto AssetUnpacker::retire_completed_requests()
 
     auto retire = [&]<typename T>(std::type_identity<T>) {
         for (auto [e, pending] : registry_.view<Pending<T>>().each()) {
-            registry_.emplace_or_replace<Retired<T>>(e, MOVE(pending.value));
-            registry_.erase<Pending<T>>(e);
-            ++num_retired;
+            if (pending.value.is_ready()) {
+                registry_.emplace_or_replace<Retired<T>>(e, MOVE(pending.value));
+                registry_.erase<Pending<T>>(e);
+                ++num_retired;
+            }
         }
     };
 
