@@ -1,6 +1,7 @@
 #include "AssetUnpacker.hpp"
 #include "Active.hpp"
 #include "Asset.hpp"
+#include "AssetManager.hpp"
 #include "CategoryCasts.hpp"
 #include "ComponentLoaders.hpp"
 #include "ECS.hpp"
@@ -48,10 +49,10 @@ auto AssetUnpacker::num_pending() const noexcept
 }
 
 
-void AssetUnpacker::wait_until_all_pending_are_complete() const {
+void AssetUnpacker::wait_until_all_pending_are_complete(AssetManager& asset_manager) const {
     auto wait = [&]<typename T>(std::type_identity<T>) {
         for (const auto [e, pending] : registry_.view<Pending<T>>().each()) {
-            pending.value.wait_until_ready();
+            asset_manager.wait_until_ready(pending.value);
         }
     };
     wait(std::type_identity<ModelJob> {});

@@ -2,7 +2,7 @@
 #include "ContainerUtils.hpp"
 #include "GLAttributeTraits.hpp"
 #include "MeshStorage.hpp"
-#include <any>
+#include <boost/any/unique_any.hpp>
 #include <typeindex>
 #include <unordered_map>
 #include <utility>
@@ -39,7 +39,7 @@ public:
     bool remove_storage_for();
 
 private:
-    std::unordered_map<std::type_index, std::any> storages_;
+    std::unordered_map<std::type_index, boost::anys::unique_any> storages_;
 };
 
 
@@ -48,7 +48,7 @@ private:
 template<specializes_attribute_traits VertexT>
 void MeshRegistry::emplace_storage_for() {
     using storage_type = MeshStorage<VertexT>;
-    storages_.emplace(std::type_index(typeid(VertexT)), std::in_place_type<storage_type>);
+    storages_.emplace(std::type_index(typeid(VertexT)), boost::anys::in_place_type<storage_type>);
 }
 
 
@@ -64,7 +64,7 @@ auto MeshRegistry::storage_for()
 {
     using storage_type = MeshStorage<VertexT>;
     if (auto* item = try_find(storages_, std::type_index(typeid(VertexT)))) {
-        return std::any_cast<storage_type>(&item->second);
+        return any_cast<storage_type>(&item->second);
     } else {
         return nullptr;
     }
@@ -77,7 +77,7 @@ auto MeshRegistry::storage_for() const
 {
     using storage_type = MeshStorage<VertexT>;
     if (const auto* item = try_find(storages_, std::type_index(typeid(VertexT)))) {
-        return std::any_cast<storage_type>(&item->second);
+        return any_cast<storage_type>(&item->second);
     } else {
         return nullptr;
     }
@@ -90,8 +90,8 @@ auto MeshRegistry::ensure_storage_for()
 {
     using storage_type = MeshStorage<VertexT>;
     auto [it, was_emplaced] =
-        storages_.try_emplace(std::type_index(typeid(VertexT)), std::in_place_type<storage_type>);
-    return *std::any_cast<storage_type>(&it->second);
+        storages_.try_emplace(std::type_index(typeid(VertexT)), boost::anys::in_place_type<storage_type>);
+    return *any_cast<storage_type>(&it->second);
 }
 
 

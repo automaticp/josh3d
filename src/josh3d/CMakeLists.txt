@@ -134,6 +134,7 @@ set(common_external_deps
     Boost::iostreams
     Boost::scope
     Boost::outcome
+    Boost::any
     cppcoro::cppcoro
     glm::glm
     fmt::fmt

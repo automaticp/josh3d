@@ -27,6 +27,10 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, CascadedShadowMapping) {
         stage_.strategy = Strategy::PerCascadeCulling;
     }
 
+    ImGui::BeginDisabled(stage_.strategy != Strategy::PerCascadeCulling);
+    ImGui::Checkbox("MultiDraw Opaque", &stage_.multidraw_opaque);
+    ImGui::EndDisabled();
+
 
     int num_cascades = int(stage_.num_cascades());
     const int max_cascades = int(stage_.max_cascades());

@@ -6,6 +6,7 @@
 #include "RenderTarget.hpp"
 #include "ShaderPool.hpp"
 #include "SharedStorage.hpp"
+#include "UploadBuffer.hpp"
 #include "VPath.hpp"
 #include "ViewFrustum.hpp"
 #include <entt/entity/fwd.hpp>
@@ -26,6 +27,10 @@ public:
     };
 
     Strategy strategy{ Strategy::PerCascadeCulling };
+
+    // Use MeshStorage and MultiDrawElements for opaque meshes.
+    // TODO: Only works for PerCascadeCulling right now.
+    bool multidraw_opaque{ false };
 
     // Only rectangular is allowed.
     Size1I side_resolution{ 2048 };
@@ -68,7 +73,8 @@ public:
             std::vector<entt::entity> visible_at;
             std::vector<entt::entity> visible_noat;
         };
-        CSMDrawLists draw_lists;
+        CSMDrawLists            draw_lists;
+        UploadBuffer<glm::mat4> world_mats; // For multidraw of noat/opaque.
     };
 
 
@@ -156,6 +162,9 @@ private:
         .vert = VPath("src/shaders/depth_map.vert"),
         .frag = VPath("src/shaders/depth_map.frag")});
 
+    ShaderToken sp_per_cascade_opaque_multidraw_ = shader_pool().get({
+        .vert = VPath("src/shaders/depth_map_multidraw.vert"),
+        .frag = VPath("src/shaders/depth_map.frag")});
 
 
     using CascadeLayerTarget = RenderTarget<SharedLayerAttachment<Renderable::Texture2DArray>>;

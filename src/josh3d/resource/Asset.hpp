@@ -6,6 +6,7 @@
 #include "GLObjects.hpp"
 #include "CategoryCasts.hpp"
 #include "MapMacro.hpp"
+#include "MeshStorage.hpp"
 #include "VertexPNUTB.hpp"
 #include <compare>
 #include <functional>
@@ -149,18 +150,21 @@ struct Asset<AssetKind::Texture, MutT> {
 template<mutability_tag MutT>
 struct Asset<AssetKind::Mesh, MutT> {
     using mutability  = MutT;
-    using vertex_buffer_type = GLShared<RawBuffer<VertexPNUTB, MutT>>;
-    using index_buffer_type  = GLShared<RawBuffer<GLuint,      MutT>>;
+    using vertex_type = VertexPNUTB;
+    using index_type  = GLuint;
+    using vertex_buffer_type = GLShared<RawBuffer<vertex_type, MutT>>;
+    using index_buffer_type  = GLShared<RawBuffer<index_type,  MutT>>;
 
     AssetPath                         path;
     LocalAABB                         aabb;
     vertex_buffer_type                vertices;
     index_buffer_type                 indices;
+    MeshID<vertex_type>               mesh_id; // Both mesh_id and separate buffers exist for now.
     std::optional<SharedTextureAsset> diffuse;
     std::optional<SharedTextureAsset> specular;
     std::optional<SharedTextureAsset> normal;
 
-    JOSH3D_ASSET_CONVERSION_OP(AssetKind::Mesh, path, aabb, vertices, indices, diffuse, specular, normal)
+    JOSH3D_ASSET_CONVERSION_OP(AssetKind::Mesh, path, aabb, vertices, indices, mesh_id, diffuse, specular, normal)
     static constexpr AssetKind asset_kind = AssetKind::Mesh;
 };
 

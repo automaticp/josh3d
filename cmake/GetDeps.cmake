@@ -3,7 +3,8 @@
 # Boost::scope
 # Boost::container
 # Boost::outcome
-find_package(Boost REQUIRED COMPONENTS iostreams container scope outcome)
+# Boost::any
+find_package(Boost REQUIRED COMPONENTS iostreams container scope outcome any)
 
 
 # === fmt ===

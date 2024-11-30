@@ -34,7 +34,10 @@ public:
 
     // This is a hard sync that blocks until all pending requests become
     // complete, and can be retired.
-    void wait_until_all_pending_are_complete() const;
+    //
+    // TODO: Cannot currenty wait safely without asking the AssetManager
+    //  to keep spinning the update() loop.
+    void wait_until_all_pending_are_complete(class AssetManager& asset_manager) const;
 
     // Moves the requests that have been completed from the
     // pending list, to the "retired" list, allowing

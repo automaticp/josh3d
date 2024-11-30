@@ -162,8 +162,32 @@ inline void _draw_elements_basevertex() noexcept {
     // gl::glDrawElementsBaseVertex()
 }
 
-inline void _multidraw_elements_basevertex() noexcept {
-    // gl::glMultiDrawElementsBaseVertex()
+
+inline void multidraw_elements_basevertex(
+    BindToken<Binding::VertexArray>     bound_vertex_array     [[maybe_unused]],
+    BindToken<Binding::Program>         bound_program          [[maybe_unused]],
+    BindToken<Binding::DrawFramebuffer> bound_draw_framebuffer [[maybe_unused]],
+    Primitive                           primitive,
+    ElementType                         type,
+    // TODO: Arguments are easily confused.
+    std::span<const GLsizeiptr>         element_offsets_bytes,
+    std::span<const GLsizei>            element_counts,
+    std::span<const GLint>              element_baseverts) noexcept
+{
+    assert(bound_program.id()          == queries::bound_id(Binding::Program));
+    assert(bound_draw_framebuffer.id() == queries::bound_id(Binding::DrawFramebuffer));
+    assert(bound_vertex_array.id()     == queries::bound_id(Binding::VertexArray));
+    assert(element_offsets_bytes.size() == element_counts.size());
+    assert(element_offsets_bytes.size() == element_baseverts.size());
+    using offset_t = const void*;
+    gl::glMultiDrawElementsBaseVertex(
+        enum_cast<GLenum>(primitive),
+        element_counts.data(),
+        enum_cast<GLenum>(type),
+        reinterpret_cast<const offset_t*>(element_offsets_bytes.data()),
+        static_cast<GLsizei>(element_counts.size()),
+        element_baseverts.data()
+    );
 }
 
 

@@ -1,6 +1,7 @@
 #pragma once
 #include "Asset.hpp"
 #include "CubemapData.hpp"
+#include "ECS.hpp"
 #include "Filesystem.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLObjects.hpp"
@@ -21,8 +22,8 @@ namespace josh {
 
 
 inline Skybox& load_skybox_into(
-    entt::handle handle,
-    const File&  skybox_json)
+    Handle      handle,
+    const File& skybox_json)
 {
     CubemapPixelData<pixel::RGBA> data =
         load_cubemap_pixel_data_from_json<pixel::RGBA>(skybox_json);
@@ -40,7 +41,7 @@ inline Skybox& load_skybox_into(
 
 
 inline void emplace_model_asset_into(
-    entt::handle     model_handle,
+    Handle           model_handle,
     SharedModelAsset asset)
 {
     auto& registry = *model_handle.registry();
@@ -54,7 +55,7 @@ inline void emplace_model_asset_into(
         for (size_t i{ 0 }; i < children.size(); ++i) {
 
             SharedMeshAsset& mesh = asset.meshes[i];
-            entt::handle mesh_handle{ registry, children[i] };
+            const Handle mesh_handle{ registry, children[i] };
 
             // Bind to make assets available in this thread.
             make_available<Binding::ArrayBuffer>       (mesh.vertices->id());
@@ -66,6 +67,8 @@ inline void emplace_model_asset_into(
                     std::move(mesh.indices)
                 )
             );
+
+            mesh_handle.emplace<MeshID<VertexPNUTB>>(mesh.mesh_id);
 
             // Emplace bounding geometry.
             //

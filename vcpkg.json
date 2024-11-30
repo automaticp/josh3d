@@ -8,6 +8,7 @@
         "boost-container",
         "boost-scope",
         "boost-outcome",
+        "boost-any",
         "fmt",
         "doctest",
         "cxxopts",

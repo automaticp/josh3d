@@ -423,7 +423,7 @@ void DemoScene::init_registry() {
     const entt::handle model_handle = create_handle(registry);
     model_handle.emplace<Transform>();
     asset_unpacker_.submit_model_for_unpacking(model_handle, asset_manager_.load_model(model_apath));
-    asset_unpacker_.wait_until_all_pending_are_complete();
+    asset_unpacker_.wait_until_all_pending_are_complete(asset_manager_);
 
     const entt::handle camera_handle = create_handle(registry);
     const Camera::Params camera_params{

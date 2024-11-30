@@ -2,12 +2,16 @@
 #include "Active.hpp"
 #include "Camera.hpp"
 #include "Components.hpp"
+#include "ECS.hpp"
 #include "GLAPIBinding.hpp"
+#include "GLAPICore.hpp"
 #include "GLProgram.hpp"
 #include "GLUniformTraits.hpp"
 #include "GeometryCollision.hpp"
 #include "LightCasters.hpp"
+#include "MeshRegistry.hpp"
 #include "RenderEngine.hpp"
+#include "VertexPNUTB.hpp"
 #include "ViewFrustum.hpp"
 #include "tags/AlphaTested.hpp"
 #include "Materials.hpp"
@@ -21,6 +25,7 @@
 #include <glbinding-aux/Meta.h>
 #include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/functions.h>
+#include <iterator>
 #include <ranges>
 #include <span>
 
@@ -268,7 +273,8 @@ void fit_cascade_views_to_camera(
             .frustum_padded_world = frustum_padded_world,
             .view_mat      = shadow_look_at,
             .proj_mat      = shadow_proj,
-            .draw_lists    = {}   // Will be updated later, maybe. (Keep in a separate structure?)
+            .draw_lists    = {},  // Will be updated later, maybe. (Keep in a separate structure?)
+            .world_mats    = {},  // Same, will be used for multidraw calls. TODO: Why are we recreating this every frame?
         });
 
     }
@@ -464,6 +470,66 @@ void draw_meshes_no_alpha(
 }
 
 
+// Requires that each entity in `entities` has MTransform and MeshID<VertexPNUTB>.
+//
+// Assumes that projection and view uniforms are already set.
+void multidraw_opaque_meshes(
+    RawProgram<>                        sp,
+    BindToken<Binding::DrawFramebuffer> bound_fbo,
+    const MeshRegistry&                 mesh_registry,
+    const entt::registry&               registry,
+    std::ranges::input_range auto&&     entities,
+    UploadBuffer<glm::mat4>&            world_mats)
+{
+    using std::views::transform;
+    auto get_mesh_id   = [&](Entity e) -> decltype(auto) { return registry.get<MeshID<VertexPNUTB>>(e); };
+    auto get_world_mat = [&](Entity e) -> decltype(auto) { return registry.get<MTransform>(e).model();  };
+
+    thread_local struct MDParams {
+        std::vector<GLsizeiptr> offsets;
+        std::vector<GLsizei>    counts;
+        std::vector<GLint>      baseverts;
+        void clear_all() noexcept {
+            offsets  .clear();
+            counts   .clear();
+            baseverts.clear();
+        }
+    } md;
+
+    // Prepare world matrices for all drawable objects.
+    world_mats.restage(entities | transform(get_world_mat));
+    world_mats.bind_to_ssbo_index(0);
+
+
+    const auto* storage = mesh_registry.storage_for<VertexPNUTB>();
+
+    // Prepare multidraw call parameters.
+    md.clear_all();
+    storage->query_range(
+        entities | transform(get_mesh_id),
+        std::back_inserter(md.offsets),
+        std::back_inserter(md.counts),
+        std::back_inserter(md.baseverts)
+    );
+
+    // Draw all at once.
+    BindGuard bound_program = sp.use();
+    BindGuard bound_vao     = storage->vertex_array().bind();
+
+    glapi::multidraw_elements_basevertex(
+        bound_vao,
+        bound_program,
+        bound_fbo,
+        storage->primitive_type(),
+        storage->element_type(),
+        md.offsets,
+        md.counts,
+        md.baseverts
+    );
+
+}
+
+
 // Requires that each entity in `entities` has MTransform, Mesh and MaterialDiffuse.
 // Also, it most likely has to be tagged AlphaTested.
 //
@@ -586,42 +652,56 @@ void CascadedShadowMapping::draw_with_culling_per_cascade(
     glapi::enable(Capability::DepthTesting);
 
     for (GLuint cascade_id{ 0 }; cascade_id < num_cascades(); ++cascade_id) {
-        const CascadeView& cascade_info = cascades_->views[cascade_id];
+        const Layer  cascade_layer = GLint(cascade_id);
+        CascadeView& cascade_info  = cascades_->views[cascade_id];
+        const auto&  draw_lists    = cascade_info.draw_lists;
 
         auto set_common_uniforms = [&](RawProgram<> sp) {
             sp.uniform("projection", cascade_info.proj_mat);
             sp.uniform("view",       cascade_info.view_mat);
         };
 
+
         cascade_layer_target_.reset_depth_attachment(
-            cascades_->maps.share_depth_attachment_layer(Layer(GLsizei(cascade_id))));
+            cascades_->maps.share_depth_attachment_layer(cascade_layer));
 
         BindGuard bound_fbo = cascade_layer_target_.bind_draw();
 
-        const auto& draw_lists = cascade_info.draw_lists;
 
 
-        {
+
+        // Draw opaque.
+        if (enable_face_culling) {
+            glapi::enable(Capability::FaceCulling);
+            glapi::set_face_culling_target(enum_cast<Faces>(faces_to_cull));
+        } else {
+            glapi::disable(Capability::FaceCulling);
+        }
+
+        if (multidraw_opaque) {
+            // FIXME: Somehow, we are getting some odd glitches here that are
+            // not even reproduced in renderdoc. Meaning glitchy frame
+            // does not have the same glitches after capture. Driver bug?
+            //
+            // They also magically disappear when specifically *front* face
+            // culling is enabled...
+            const RawProgram<> sp = sp_per_cascade_opaque_multidraw_.get();
+            set_common_uniforms(sp);
+            auto& world_mats_buffer = cascade_info.world_mats;
+            multidraw_opaque_meshes(sp, bound_fbo, engine.meshes(), registry, draw_lists.visible_noat, world_mats_buffer);
+        } else {
             const RawProgram<> sp = sp_per_cascade_no_alpha_.get();
-
-            if (enable_face_culling) {
-                glapi::enable(Capability::FaceCulling);
-                glapi::set_face_culling_target(enum_cast<Faces>(faces_to_cull));
-            } else {
-                glapi::disable(Capability::FaceCulling);
-            }
-
             set_common_uniforms(sp);
             draw_meshes_no_alpha(sp, bound_fbo, registry, draw_lists.visible_noat);
         }
 
 
+        // Draw alpha-tested.
+        glapi::set_face_culling_target(Faces::Back);
+        glapi::disable(Capability::FaceCulling);
+
         {
             const RawProgram<> sp = sp_per_cascade_with_alpha_.get();
-
-            glapi::set_face_culling_target(Faces::Back);
-            glapi::disable(Capability::FaceCulling);
-
             set_common_uniforms(sp);
             draw_meshes_with_alpha(sp, bound_fbo, registry, draw_lists.visible_at);
         }

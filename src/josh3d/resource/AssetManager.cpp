@@ -8,6 +8,7 @@
 #include "GLObjectHelpers.hpp"
 #include "GLObjects.hpp"
 #include "GLPixelPackTraits.hpp"
+#include "AttributeTraits.hpp"
 #include "GLTextures.hpp"
 #include "ImageData.hpp"
 #include "MeshRegistry.hpp"
@@ -52,7 +53,12 @@ AssetManager::AssetManager(
 
 
 
-void AssetManager::update() {}
+void AssetManager::update() {
+    while (std::optional local_task = local_context_.tasks_.try_pop()) {
+        (*local_task)();
+    }
+}
+
 
 
 
@@ -641,13 +647,33 @@ auto AssetManager::load_model(AssetPath path)
             .aabb     = mesh_info.aabb,
             .vertices = MOVE(verts_buf),
             .indices  = MOVE(indices_buf),
-            .diffuse  = {}, // NOTE: Needs to be set later.
-            .specular = {}, // NOTE: Needs to be set later.
-            .normal   = {}, // NOTE: Needs to be set later.
+            .mesh_id  = {}, // NOTE: Set later in local context.
+            .diffuse  = {}, // NOTE: Set later after texture job completion.
+            .specular = {}, // NOTE: Set later after texture job completion.
+            .normal   = {}, // NOTE: Set later after texture job completion.
         };
 
         mesh_assets.emplace_back(MOVE(mesh_asset));
         discard(MOVE(mesh_info.data)); // TODO: Is this really that necessary? Maybe use monotonic buffer?
+    }
+
+
+    // We go to local context to emplace the mesh data from buffers and obtain the MeshID.
+    //
+    // TODO: This might be scheduled better, for example, at the very end of the job.
+    // Otherwise, right now, at least 1 frame needs to pass before anything can
+    // appear on the screen, even if the load could complete faster.
+    {
+        co_await reschedule_to(local_context_);
+    }
+
+
+    MeshStorage<VertexPNUTB>& storage =
+        mesh_registry_.ensure_storage_for<VertexPNUTB>();
+
+    for (auto& mesh_asset : mesh_assets) {
+        // These are server-side copies, so hopefully, they will return immediately.
+        mesh_asset.mesh_id = storage.insert_buffer(mesh_asset.vertices, mesh_asset.indices);
     }
 
 
@@ -661,8 +687,6 @@ auto AssetManager::load_model(AssetPath path)
     //   that sweeps through requests like these.
     //   There, we *just somehow wait* until all of the subtasks
     //   are complete, and *only then* reschedule back to the thread pool.
-
-
     {
         co_await completion_context_.until_all_ready(texture_jobs);
         co_await reschedule_to(thread_pool_);

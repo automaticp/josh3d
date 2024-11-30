@@ -7,7 +7,11 @@
 #include "OffscreenContext.hpp"
 #include "MeshRegistry.hpp"
 #include "TaskCounterGuard.hpp"
-#include <cassert>
+#include "ThreadsafeQueue.hpp"
+#include "UniqueFunction.hpp"
+#include <chrono>
+#include <thread>
+#include <type_traits>
 
 
 namespace josh {
@@ -40,14 +44,58 @@ public:
     // key in AssetCache, as the resulting resources cannot be reused
     // across intents.
 
+    // A poor workaround for the fact that waiting for models is impossible
+    // on the main thread, since the main thread should call update()
+    // in order to complete a mesh upload to the MeshStorage.
+    //
+    // This periodically calls update() while checking completeness of the job.
+    //
+    // FIXME: Something better should be done. This is awful.
+    void wait_until_ready(
+        readyable auto&&         readyable,
+        std::chrono::nanoseconds sleep_budget = std::chrono::milliseconds(1));
+
 private:
+    /*
+    Local executor context that will execute new tasks in update().
+
+    You can reschedule tasks here back from other threads to complete
+    them inside the main gl context. This, for example, allows
+    you to access the MeshRegistry.
+    */
+    class LocalContext {
+    public:
+        void emplace(auto&& task) { tasks_.emplace(FORWARD(task)); }
+    private:
+        ThreadsafeQueue<UniqueFunction<void()>> tasks_;
+        friend class AssetManager;
+    };
+
     AssetCache         cache_;
     ThreadPool&        thread_pool_;
     OffscreenContext&  offscreen_context_;
     CompletionContext& completion_context_;
+    LocalContext       local_context_;
     MeshRegistry&      mesh_registry_; // TODO: Not supported right now. Need to have a local context for that.
     TaskCounterGuard   task_counter_; // Must be last so that it block all other memvars from destruction.
 };
+
+
+
+
+void AssetManager::wait_until_ready(
+    readyable auto&&         readyable,
+    std::chrono::nanoseconds sleep_budget)
+{
+    using rt = readyable_traits<std::remove_cvref_t<decltype(readyable)>>;
+    while (!rt::is_ready(readyable)) {
+        auto wake_up_point = std::chrono::steady_clock::now() + sleep_budget;
+        update();
+        std::this_thread::sleep_until(wake_up_point);
+    }
+}
+
+
 
 
 } // namespace josh
