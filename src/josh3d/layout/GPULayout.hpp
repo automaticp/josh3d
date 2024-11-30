@@ -1,8 +1,6 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
-#include <glm/glm.hpp>
-#include <glm/gtc/type_ptr.hpp>
 
 
 /*

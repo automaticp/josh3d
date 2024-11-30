@@ -13,7 +13,7 @@
 #include "Camera.hpp"
 #include "RenderEngine.hpp"
 #include "SceneImporter.hpp"
-#include "Size.hpp"
+#include "Region.hpp"
 #include "Transform.hpp"
 #include "VPath.hpp"
 #include "VirtualFilesystem.hpp"

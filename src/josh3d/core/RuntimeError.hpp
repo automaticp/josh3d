@@ -5,6 +5,7 @@
 
 namespace josh::error {
 
+
 /*
 Library-level runtime error class that exists for the sake of
 isolation from other subclasses of std::runtime_error.

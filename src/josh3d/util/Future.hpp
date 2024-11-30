@@ -1,9 +1,8 @@
 #pragma once
-#include "RuntimeError.hpp"
 #include <atomic>
 #include <concepts>
 #include <exception>
-#include <type_traits>
+#include <stdexcept>
 #include <variant>
 #include <memory>
 #include <utility>
@@ -43,16 +42,12 @@ void set_exception(Promise<T> promise, std::exception_ptr exception);
 
 
 
-namespace error {
 
-// Not a logic_error, valid outcome?
-class BrokenPromise : public RuntimeError {
+class broken_promise : public std::logic_error {
 public:
-    static constexpr auto prefix = "Broken Promise";
-    BrokenPromise() : RuntimeError{ prefix, "" } {}
+    using std::logic_error::logic_error;
 };
 
-} // namespace error
 
 
 
@@ -197,7 +192,7 @@ Promise<T>::~Promise() noexcept {
     if (!is_moved_from() &&
         !state_->ready.test(std::memory_order_acquire))
     {
-        state_->value_or_exception = std::make_exception_ptr(error::BrokenPromise());
+        state_->value_or_exception = std::make_exception_ptr(broken_promise("broken_promise"));
         state_->ready.test_and_set(std::memory_order_release);
         state_->ready.notify_one();
     }

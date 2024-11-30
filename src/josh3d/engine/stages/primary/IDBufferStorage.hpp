@@ -4,7 +4,7 @@
 #include "RenderEngine.hpp"
 #include "RenderTarget.hpp"
 #include "SharedStorage.hpp"
-#include "Size.hpp"
+#include "Region.hpp"
 
 
 namespace josh {

@@ -8,7 +8,7 @@
 #include "GLTextures.hpp"
 #include "GLObjects.hpp"
 #include "Attachments.hpp"
-#include "Size.hpp"
+#include "Region.hpp"
 #include <array>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>

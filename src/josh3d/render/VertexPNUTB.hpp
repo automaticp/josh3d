@@ -1,12 +1,20 @@
 #pragma once
-// IWYU pragma: always_keep
+#include "Math.hpp"
 #include "GLAttributeTraits.hpp"
-#include "VertexPNUTB.hpp"
 #include <tuple>
 #include <cstddef>
 
 
 namespace josh {
+
+
+struct VertexPNUTB {
+    vec3 position;
+    vec3 normal;
+    vec2 uv;
+    vec3 tangent;
+    vec3 bitangent;
+};
 
 
 template<> struct attribute_traits<VertexPNUTB> {
@@ -26,8 +34,6 @@ template<> struct attribute_traits<VertexPNUTB> {
         AttributeSpecF{ AttributeTypeF::Float, AttributeComponents::RGB, OffsetBytes{ offsetof(VertexPNUTB, bitangent) } },
     };
 };
-
-
 
 
 } // namespace josh

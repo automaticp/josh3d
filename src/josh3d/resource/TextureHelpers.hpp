@@ -11,7 +11,7 @@
 #include "MallocSupport.hpp"
 #include "Pixels.hpp"
 #include "RuntimeError.hpp"
-#include "Size.hpp"
+#include "Region.hpp"
 #include "PixelPackTraits.hpp"
 #include "CubemapData.hpp"
 #include <glbinding/gl/enum.h>

@@ -6,7 +6,7 @@
 #include "GLObjects.hpp"
 #include "GLTextures.hpp"
 #include "DecayToRaw.hpp" // IWYU pragma: export
-#include "Size.hpp"
+#include "Region.hpp"
 #include <glbinding/gl/types.h>
 #include <algorithm>
 #include <bit>

@@ -8,7 +8,6 @@
 #include "GLObjectHelpers.hpp"
 #include "GLObjects.hpp"
 #include "GLPixelPackTraits.hpp"
-#include "AttributeTraits.hpp"
 #include "GLTextures.hpp"
 #include "ImageData.hpp"
 #include "MeshRegistry.hpp"

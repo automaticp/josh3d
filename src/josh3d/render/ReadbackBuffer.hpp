@@ -1,10 +1,10 @@
 #pragma once
 #include "CommonConcepts.hpp"
+#include "GLAPICore.hpp"
 #include "GLBuffers.hpp"
 #include "GLFenceSync.hpp"
 #include "GLObjectHelpers.hpp"
 #include "GLObjects.hpp"
-#include "Mesh.hpp"
 #include <algorithm>
 
 

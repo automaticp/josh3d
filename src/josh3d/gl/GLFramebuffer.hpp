@@ -8,15 +8,14 @@
 #include "GLScalars.hpp"
 #include "GLMutability.hpp"
 #include "EnumUtils.hpp"
-#include "Index.hpp"
-#include "Size.hpp"
+#include "Region.hpp"
 #include "detail/MagicConstructorsMacro.hpp"
 #include "detail/RawGLHandle.hpp"
 #include "GLTextures.hpp"
 #include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
-#include <concepts> // IWYU pragma: keep
+#include <concepts>
 #include <span>
 
 

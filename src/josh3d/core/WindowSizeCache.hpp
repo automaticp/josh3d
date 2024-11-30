@@ -1,11 +1,12 @@
 #pragma once
-#include "Size.hpp"
+#include "Region.hpp"
 #include <glfwpp/window.h>
 #include <cassert>
 #include <tuple>
 
 
 namespace josh {
+
 
 // This exists because the normal glfw::Window::getSize() call
 // involves an expensive syscall. And even though you'd be tempted
@@ -14,6 +15,9 @@ namespace josh {
 // updated only on resize callbacks.
 //
 // TODO: extend to framebuffer size maybe
+//
+// TODO: UPD: This is very old and likely can be deprecated in favor of
+// something less insane.
 
 
 class WindowSizeCache {

@@ -9,7 +9,7 @@
 #include "SharedStorage.hpp"
 #include "StaticRing.hpp"
 #include "VPath.hpp"
-#include "Size.hpp"
+#include "Region.hpp"
 #include "UniformTraits.hpp"
 #include <entt/entt.hpp>
 #include <glbinding/gl/bitfield.h>

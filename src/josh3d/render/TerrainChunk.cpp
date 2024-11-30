@@ -6,6 +6,7 @@
 #include "PixelData.hpp"
 #include "Pixels.hpp"
 #include "PixelPackTraits.hpp" // IWYU pragma: keep
+#include "VertexPNUTB.hpp"
 #include <random>
 #include <utility>
 

@@ -12,7 +12,7 @@
 #include "SwapChain.hpp"
 #include "UniformTraits.hpp"
 #include "RenderEngine.hpp"
-#include "Size.hpp"
+#include "Region.hpp"
 #include "VPath.hpp"
 #include <glbinding/gl/enum.h>
 #include <glm/glm.hpp>

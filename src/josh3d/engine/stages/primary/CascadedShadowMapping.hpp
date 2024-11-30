@@ -1,7 +1,7 @@
 #pragma once
 #include "Attachments.hpp"
 #include "Camera.hpp"
-#include "Layout.hpp"
+#include "GPULayout.hpp"
 #include "RenderEngine.hpp"
 #include "RenderTarget.hpp"
 #include "ShaderPool.hpp"

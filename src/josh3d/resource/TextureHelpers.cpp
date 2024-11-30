@@ -3,7 +3,7 @@
 #include "Filesystem.hpp"
 #include "MallocSupport.hpp"
 #include "ReadFile.hpp"
-#include "Size.hpp"
+#include "Region.hpp"
 #include <algorithm>
 #include <stb_image.h>
 #include <nlohmann/json.hpp>

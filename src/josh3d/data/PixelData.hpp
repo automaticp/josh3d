@@ -1,8 +1,8 @@
 #pragma once
+#include "CommonConcepts.hpp"
 #include "MallocSupport.hpp"
 #include "Pixels.hpp"
-#include "Size.hpp"
-#include "Index.hpp"
+#include "Region.hpp"
 #include <span>
 
 
