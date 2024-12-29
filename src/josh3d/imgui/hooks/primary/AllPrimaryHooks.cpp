@@ -89,7 +89,8 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, CascadedShadowMapping) {
 
     ImGui::BeginDisabled(!stage_.view_output().draw_lists_active);
     if (ImGui::TreeNode("Draw Call Stats")) {
-        const auto& views = stage_.view_output().views;
+        const auto& views      = stage_.view_output().views;
+        const auto& drawstates = stage_.view_output().drawstates;
 
         const ImGuiTableFlags flags =
             ImGuiTableFlags_Borders        |
@@ -103,17 +104,17 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, CascadedShadowMapping) {
         size_t total_draws_noat{ 0 };
         size_t total_draws_at  { 0 };
         for (const auto i : std::views::iota(size_t{}, views.size())) {
-            const size_t draws_at   = views[i].draw_lists.visible_at  .size();
-            const size_t draws_noat = views[i].draw_lists.visible_noat.size();
+            const size_t draws_at     = drawstates[i].draw_list_at    .size();
+            const size_t draws_opaque = drawstates[i].draw_list_opaque.size();
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("%d", int(i));
             ImGui::TableSetColumnIndex(1);
-            ImGui::Text("%d", int(draws_noat));
+            ImGui::Text("%d", int(draws_opaque));
             ImGui::TableSetColumnIndex(2);
             ImGui::Text("%d", int(draws_at));
             total_draws_at   += draws_at;
-            total_draws_noat += draws_noat;
+            total_draws_noat += draws_opaque;
         }
         ImGui::TableNextRow(ImGuiTableRowFlags_Headers);
         ImGui::TableSetColumnIndex(0);

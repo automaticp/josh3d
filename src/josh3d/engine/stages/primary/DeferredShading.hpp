@@ -21,10 +21,7 @@ namespace josh::stages::primary {
 
 class DeferredShading {
 public:
-    using Cascades       = CascadedShadowMapping::Cascades;
-    using CascadeView    = CascadedShadowMapping::CascadeView;
-    using CascadeViewGPU = CascadedShadowMapping::CascadeViewGPU;
-    using PointShadows   = PointShadowMapping::PointShadows;
+    using PointShadows = PointShadowMapping::PointShadows;
 
     enum class Mode {
         SinglePass,

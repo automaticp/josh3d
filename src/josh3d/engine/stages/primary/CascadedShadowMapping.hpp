@@ -1,6 +1,7 @@
 #pragma once
 #include "Attachments.hpp"
 #include "Camera.hpp"
+#include "ECS.hpp"
 #include "GPULayout.hpp"
 #include "RenderEngine.hpp"
 #include "RenderTarget.hpp"
@@ -9,7 +10,6 @@
 #include "UploadBuffer.hpp"
 #include "VPath.hpp"
 #include "ViewFrustum.hpp"
-#include <entt/entity/fwd.hpp>
 #include <glbinding/gl/enum.h>
 #include <glm/glm.hpp>
 #include <cassert>
@@ -17,6 +17,69 @@
 
 
 namespace josh::stages::primary {
+
+
+struct CascadeView {
+    OrthographicCamera::Params params;        // Orthographic frustum width, height, z near/far.
+    vec2                       tx_scale;      // Shadowmap texel scale in shadow space.
+    ViewFrustumAsPlanes        frustum_world;
+    ViewFrustumAsPlanes        frustum_padded_world; // Padded frustum for blending. Used for culling if blending is enabled.
+    mat4                       view_mat;
+    mat4                       proj_mat;
+};
+
+
+// TODO: Used mainly in deferred shading and debug.
+struct CascadeViewGPU {
+    alignas(std430::align_vec4) mat4 projview{};
+    alignas(std430::align_vec3) vec3 scale   {};
+
+    // Convinience. Static c-tor to keep this as aggregate type.
+    static auto create_from(const CascadeView& cascade) noexcept
+        -> CascadeViewGPU
+    {
+        const auto [w, h, zn, zf] = cascade.params;
+        return {
+            .projview = cascade.proj_mat * cascade.view_mat,
+            .scale    = { w, h, zf - zn },
+        };
+    }
+};
+
+
+/*
+Draw lists and other draw state kept per cascade.
+
+NOTE: It's convinient to keep this accessible as output for others to look at.
+*/
+struct CascadeDrawState {
+    std::vector<Entity>     draw_list_at;      // Alpha-tested.
+    std::vector<Entity>     draw_list_opaque;
+    UploadBuffer<glm::mat4> world_mats_opaque; // Filled out if multidraw is enabled.
+};
+
+
+/*
+Primary output type. Collection of useful info about the cascades.
+*/
+struct Cascades {
+    using Target = RenderTarget<ShareableAttachment<Renderable::Texture2DArray>>;
+    Target                        maps;
+    std::vector<CascadeView>      views;
+    std::vector<CascadeDrawState> drawstates;
+
+    // If false, draw lists were not used. They contain garbage.
+    bool  draw_lists_active{ false };
+    // If true, blending is supported. This does not blend anything by itself,
+    // only adjusts the culling to cull correctly in the blend region.
+    bool  blend_possible   { false };
+    // Size of the blended region. Technically, is a *max* blend size.
+    // In texels of the inner cascade when blending any inner-outer pair.
+    // TODO: World-space representation of this might be more useful.
+    float blend_max_size_inner_tx{ 0.f };
+};
+
+
 
 
 class CascadedShadowMapping {
@@ -59,63 +122,6 @@ public:
     float blend_size_inner_tx      = 50.f;
 
 
-    struct CascadeView {
-        OrthographicCamera::Params params;        // Orthographic frustum width, height, z near/far.
-        glm::vec2                  tx_scale;      // Shadowmap texel scale in shadow space.
-        ViewFrustumAsPlanes        frustum_world;
-        ViewFrustumAsPlanes        frustum_padded_world; // Padded frustum for blending. Used for culling if blending is enabled.
-        glm::mat4                  view_mat;
-        glm::mat4                  proj_mat;
-
-        // TODO: Probably have a separate place for this.
-        // NOTE: It's convinient to keep this accessible as output for others to look at.
-        struct CSMDrawLists {
-            std::vector<entt::entity> visible_at;
-            std::vector<entt::entity> visible_noat;
-        };
-        CSMDrawLists            draw_lists;
-        UploadBuffer<glm::mat4> world_mats; // For multidraw of noat/opaque.
-    };
-
-
-    // TODO: Used mainly in deferred shading and debug.
-    struct CascadeViewGPU {
-        alignas(std430::align_vec4) glm::mat4 projview{};
-        alignas(std430::align_vec3) glm::vec3 scale   {};
-
-        // Convinience. Static c-tor to keep this as aggregate type.
-        static auto create_from(const CascadeView& cascade) noexcept
-            -> CascadeViewGPU
-        {
-            const auto [w, h, zn, zf] = cascade.params;
-            return {
-                .projview = cascade.proj_mat * cascade.view_mat,
-                .scale    = { w, h, zf - zn },
-            };
-        }
-    };
-
-
-    /*
-    Primary output type. Collection of useful info about the cascades.
-    */
-    struct Cascades {
-        using Target = RenderTarget<ShareableAttachment<Renderable::Texture2DArray>>;
-        Target                   maps;
-        std::vector<CascadeView> views;
-
-        // If false, draw lists were not used. They contain garbage.
-        bool  draw_lists_active{ false };
-        // If true, blending is supported. This does not blend anything by itself,
-        // only adjusts the culling to cull correctly in the blend region.
-        bool  blend_possible   { false };
-        // Size of the blended region. Technically, is a *max* blend size.
-        // In texels of the inner cascade when blending any inner-outer pair.
-        // TODO: World-space representation of this might be more useful.
-        float blend_max_size_inner_tx{ 0.f };
-    };
-
-
     auto share_output_view() const noexcept -> SharedView<Cascades> { return cascades_.share_view(); }
     auto view_output()       const noexcept -> const Cascades&      { return *cascades_;             }
 
@@ -126,10 +132,9 @@ public:
 
 
 private:
-    auto allowed_num_cascades(size_t desired_num) const noexcept -> size_t;
-    size_t num_cascades_;
-
+    size_t                  num_cascades_;
     SharedStorage<Cascades> cascades_;
+    auto allowed_num_cascades(size_t desired_num) const noexcept -> size_t;
 
 
     void draw_all_cascades_with_geometry_shader(RenderEnginePrimaryInterface& engine);

@@ -14,9 +14,9 @@ namespace josh::stages::overlay {
 
 class CSMDebug {
 public:
-    using Cascades       = primary::CascadedShadowMapping::Cascades;
-    using CascadeView    = primary::CascadedShadowMapping::CascadeView;
-    using CascadeViewGPU = primary::CascadedShadowMapping::CascadeViewGPU;
+    using Cascades       = primary::Cascades;
+    using CascadeView    = primary::CascadeView;
+    using CascadeViewGPU = primary::CascadeViewGPU;
 
     enum class OverlayMode : GLint {
         None  = 0,
