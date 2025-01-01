@@ -12,6 +12,7 @@
 #include "Materials.hpp"
 #include "Name.hpp"
 #include "SceneGraph.hpp"
+#include "SkinnedMesh.hpp"
 #include "Skybox.hpp"
 #include "Tags.hpp"
 #include "Filesystem.hpp"
@@ -43,6 +44,7 @@ inline auto GetGenericHeaderInfo(entt::const_handle handle)
 {
     const char* type_name = [&]() {
         if (has_component<Mesh>            (handle)) { return "Mesh";             }
+        if (has_component<SkinnedMesh>     (handle)) { return "SkinnedMesh";      }
         if (has_component<TerrainChunk>    (handle)) { return "TerrainChunk";     }
         if (has_component<AmbientLight>    (handle)) { return "AmbientLight";     }
         if (has_component<DirectionalLight>(handle)) { return "DirectionalLight"; }

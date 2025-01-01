@@ -11,26 +11,30 @@
 #include "GLTextures.hpp"
 #include "ImageData.hpp"
 #include "MeshRegistry.hpp"
-#include "MeshData.hpp"
 #include "OffscreenContext.hpp"
+#include "Skeleton.hpp"
 #include "TextureHelpers.hpp"
 #include "CategoryCasts.hpp"
 #include "ThreadPool.hpp"
 #include "VertexPNUTB.hpp"
 #include "Coroutines.hpp"
+#include "VertexSkinned.hpp"
 #include <assimp/BaseImporter.h>
 #include <assimp/Importer.hpp>
 #include <assimp/material.h>
+#include <assimp/mesh.h>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 #include <boost/scope/defer.hpp>
 #include <boost/scope/scope_fail.hpp>
 #include <exception>
+#include <glm/geometric.hpp>
 #include <range/v3/view/enumerate.hpp>
 #include <cassert>
 #include <cstdint>
 #include <optional>
 #include <range/v3/view/transform.hpp>
+#include <unordered_map>
 #include <utility>
 
 
@@ -379,16 +383,52 @@ auto get_ai_texture_type(const AssetPath& path, ImageIntent intent) -> aiTexture
 
 
 auto v2v(const aiVector3D& v) noexcept
-    -> glm::vec3
+    -> vec3
 {
     return { v.x, v.y, v.z };
 }
 
 
+auto m2m(const aiMatrix4x4& m) noexcept
+    -> mat4
+{
+    // From assimp docs:
+    //
+    // "The transposition has nothing to do with a left-handed or right-handed
+    // coordinate system  but 'converts' between row-major and column-major storage formats."
+    auto msrc = m;
+    msrc.Transpose();
+
+    mat4 mdst;
+    for (size_t i{ 0 }; i < 4; ++i) {
+        for (size_t j{ 0 }; j < 4; ++j) {
+            mdst[int(i)][int(j)] = msrc[i][j];
+        }
+    }
+
+    return mdst;
+}
 
 
-auto get_mesh_data(const aiMesh& mesh)
-    -> MeshData<VertexPNUTB>
+
+
+struct StaticMeshData {
+    std::vector<VertexPNUTB> verts;
+    std::vector<uint32_t>    indices;
+};
+
+
+struct SkinnedMeshData {
+    std::vector<VertexSkinned> verts;
+    std::vector<uint32_t>      indices;
+    Skeleton                   skeleton;
+};
+
+
+
+
+auto get_static_mesh_data(const aiMesh& mesh)
+    -> StaticMeshData
 {
     auto verts      = std::span(mesh.mVertices,         mesh.mNumVertices);
     auto uvs        = std::span(mesh.mTextureCoords[0], mesh.mNumVertices);
@@ -396,10 +436,10 @@ auto get_mesh_data(const aiMesh& mesh)
     auto tangents   = std::span(mesh.mTangents,         mesh.mNumVertices);
     auto bitangents = std::span(mesh.mBitangents,       mesh.mNumVertices);
 
-    if (!normals.data())    { throw error::AssetContentsParsingError("Mesh data does not contain Normals");             }
-    if (!uvs.data())        { throw error::AssetContentsParsingError("Mesh data does not contain Texture Coordinates"); }
-    if (!tangents.data())   { throw error::AssetContentsParsingError("Mesh data does not contain Tangents");            }
-    if (!bitangents.data()) { throw error::AssetContentsParsingError("Mesh data does not contain Bitangents");          }
+    if (!normals.data())    { throw error::AssetContentsParsingError("Mesh data does not contain Normals.");    }
+    if (!uvs.data())        { throw error::AssetContentsParsingError("Mesh data does not contain UVs.");        }
+    if (!tangents.data())   { throw error::AssetContentsParsingError("Mesh data does not contain Tangents.");   }
+    if (!bitangents.data()) { throw error::AssetContentsParsingError("Mesh data does not contain Bitangents."); }
 
     std::vector<VertexPNUTB> vertex_data;
     vertex_data.reserve(verts.size());
@@ -417,7 +457,7 @@ auto get_mesh_data(const aiMesh& mesh)
 
     auto faces = std::span(mesh.mFaces, mesh.mNumFaces);
 
-    std::vector<unsigned int> indices;
+    std::vector<uint32_t> indices;
     indices.reserve(faces.size() * 3);
 
     for (const auto& face : faces) {
@@ -427,6 +467,149 @@ auto get_mesh_data(const aiMesh& mesh)
     }
 
     return { MOVE(vertex_data), MOVE(indices) };
+}
+
+
+
+
+void populate_joints_preorder(
+    std::vector<Joint>&                                     joints,
+    std::unordered_map<const aiNode*, size_t>&              node2id,
+    const std::unordered_map<const aiNode*, const aiBone*>& node2bone,
+    const aiNode*                                           node,
+    bool                                                    is_root)
+{
+    if (!node) return;
+
+    const aiBone* bone = node2bone.at(node);
+
+    // If the node is root, then the parent index is "incorrectly" set to 255.
+    // Otherwise, lookup from the table. The parent should already be there
+    // because of the traversal order.
+    //
+    // The root node of the skeleton *still* has a scene-graph parent,
+    // in the form of the armature itself, so the is_root flag is needed,
+    // can't just check the node->mParent.
+    const size_t parent_id     = is_root ? Joint::no_parent : node2id.at(node->mParent);
+    const size_t this_joint_id = joints.size();
+    assert(this_joint_id < 255); // Safety of conversion must be guaranteed by prior importer checks.
+
+    const Joint joint{
+        .parent_id = uint8_t(parent_id),
+        .inv_bind  = m2m(bone->mOffsetMatrix),
+    };
+
+    joints.emplace_back(joint);
+    node2id.emplace(node, this_joint_id);
+
+    for (const aiNode* child : std::span(node->mChildren, node->mNumChildren)) {
+        const bool is_root = false;
+        populate_joints_preorder(joints, node2id, node2bone, child, is_root);
+    }
+}
+
+
+auto get_skinned_mesh_data(const aiMesh& mesh)
+    -> SkinnedMeshData
+{
+    auto positions  = std::span(mesh.mVertices,         mesh.mNumVertices);
+    auto uvs        = std::span(mesh.mTextureCoords[0], mesh.mNumVertices);
+    auto normals    = std::span(mesh.mNormals,          mesh.mNumVertices);
+    auto tangents   = std::span(mesh.mTangents,         mesh.mNumVertices);
+    auto bitangents = std::span(mesh.mBitangents,       mesh.mNumVertices);
+    auto bones      = std::span(mesh.mBones,            mesh.mNumBones   );
+
+    if (!normals.data())    { throw error::AssetContentsParsingError("Mesh data does not contain Normals.");    }
+    if (!uvs.data())        { throw error::AssetContentsParsingError("Mesh data does not contain UVs.");        }
+    if (!tangents.data())   { throw error::AssetContentsParsingError("Mesh data does not contain Tangents.");   }
+    if (!bitangents.data()) { throw error::AssetContentsParsingError("Mesh data does not contain Bitangents."); }
+    if (!bones.data())      { throw error::AssetContentsParsingError("Mesh data does not contain Bones.");      }
+    if (bones.size() > 255) { throw error::AssetContentsParsingError("Armature has too many Bones (>255).");    }
+
+
+    std::vector<Joint> joints;
+    joints.reserve(bones.size());
+
+    // bone.mOffsetMatrix - [Mesh]->[Joint] CoB (aka. inverse bind)
+    // node.mTransform    - [Joint]->[Parent Joint] CoB (similar to scene graph L2P)
+
+    // Prepopulate lookup table to get inv_bind from bones.
+    std::unordered_map<const aiNode*, const aiBone*> node2bone;
+    for (const aiBone* bone : bones) {
+        auto [_, was_emplaced] =
+            node2bone.try_emplace(bone->mNode, bone);
+        assert(was_emplaced);
+    }
+
+    // Get the armature from any bone.
+    assert(bones.size());
+    const aiNode* armature = bones[0]->mArmature;
+    // For some reason, the Armature is not just a root node of the skeleton,
+    // but is a separate node itself. I have no idea why.
+    assert(armature->mNumChildren == 1);
+    const aiNode* root    = armature->mChildren[0];
+    const bool    is_root = true;
+
+    // Populate the joints of the skeleton in pre-order.
+    std::unordered_map<const aiNode*, size_t> node2id;
+    populate_joints_preorder(joints, node2id, node2bone, root, is_root);
+
+
+    using glm::u8vec4;
+    // Info about weights as pulled from assimp,
+    // before convertion to a more "strict" packed internal format.
+    struct VertJointInfo {
+        vec4   ws {}; // Uncompressed weights.
+        u8vec4 ids{}; // Refer to root node by default.
+        int8_t n  {}; // Variable number of weights+ids. Because 4 is only an upper limit.
+
+        auto packed_w123() const noexcept -> vec3 { return { ws[1], ws[2], ws[3] }; }
+    };
+
+    std::vector<VertJointInfo> vert_joint_infos;
+    vert_joint_infos.resize(positions.size()); // Resize, not reserve.
+
+    // Now fill out the ids and weights for each vertex.
+    for (const aiBone* bone : bones) {
+        for (const aiVertexWeight& w : std::span(bone->mWeights, bone->mNumWeights)) {
+            auto& info = vert_joint_infos[w.mVertexId];
+            info.ws [info.n] = w.mWeight;
+            info.ids[info.n] = node2id.at(bone->mNode);
+            ++info.n;
+            assert(info.n <= 4);
+        }
+    }
+
+
+    std::vector<VertexSkinned> verts;
+    verts.reserve(positions.size());
+
+    for (size_t i{ 0 }; i < positions.size(); ++i) {
+        const auto& joint_info = vert_joint_infos[i];
+        const VertexSkinned vert{
+            .position      = v2v(positions [i]),
+            .uv            = v2v(uvs       [i]),
+            .normal        = v2v(normals   [i]),
+            .tangent       = v2v(tangents  [i]),
+            .bitangent     = v2v(bitangents[i]),
+            .joint_ids     = joint_info.ids,
+            .joint_weights = joint_info.packed_w123(),
+        };
+        verts.emplace_back(vert);
+    }
+
+    auto faces = std::span(mesh.mFaces, mesh.mNumFaces);
+
+    std::vector<uint32_t> indices;
+    indices.reserve(faces.size() * 3);
+
+    for (const auto& face : faces) {
+        for (const auto& index : std::span(face.mIndices, face.mNumIndices)) {
+            indices.emplace_back(index);
+        }
+    }
+
+    return { MOVE(verts), MOVE(indices), Skeleton{ MOVE(joints) } };
 }
 
 
@@ -475,8 +658,10 @@ auto AssetManager::load_model(AssetPath path)
     };
 
     struct MeshInfo {
+        using MeshData = std::variant<StaticMeshData, SkinnedMeshData>;
+
         AssetPath             path;
-        MeshData<VertexPNUTB> data;
+        MeshData              data;
         LocalAABB             aabb;
         MaterialRefs          material;
         MaterialIndex         material_id;
@@ -495,7 +680,8 @@ auto AssetManager::load_model(AssetPath path)
     std::vector<SharedTextureAsset>            texture_assets; // Order: Texture Jobs.
 
     // This is the primary result of this job.
-    std::vector<SharedMeshAsset>               mesh_assets;    // Order: Meshes.
+    using AnySharedMeshAsset = SharedModelAsset::mesh_type;
+    std::vector<AnySharedMeshAsset>            mesh_assets;    // Order: Meshes.
 
     // NOTE: reserve()/resize() are done as-needed, if we get that far.
 
@@ -547,6 +733,8 @@ auto AssetManager::load_model(AssetPath path)
         thread_local Assimp::Importer importer;
         BOOST_SCOPE_DEFER [&] { importer.FreeScene(); };
 
+        // The flags are hardcoded, the following processing
+        // relies on most of these flags being always set.
         constexpr auto flags =
             aiProcess_Triangulate              |
             aiProcess_GenUVCoords              | // Uhh, how?
@@ -556,7 +744,9 @@ auto AssetManager::load_model(AssetPath path)
             aiProcess_ImproveCacheLocality     |
             aiProcess_OptimizeGraph            |
         //  aiProcess_OptimizeMeshes           |
-            aiProcess_RemoveRedundantMaterials;
+            aiProcess_RemoveRedundantMaterials |
+            aiProcess_LimitBoneWeights         | // Up to 4 weights with most effect.
+            aiProcess_PopulateArmatureData;      // Figures out which skeletons are referenced by which mesh.
 
         const aiScene* scene = importer.ReadFile(path.entry(), flags);
 
@@ -606,11 +796,18 @@ auto AssetManager::load_model(AssetPath path)
 
         for (const auto* ai_mesh : ai_meshes) {
             auto apath = AssetPath{ path.entry(), ai_mesh->mName.C_Str() };
-            auto data  = get_mesh_data(*ai_mesh);
             auto aabb  = LocalAABB{ v2v(ai_mesh->mAABB.mMin), v2v(ai_mesh->mAABB.mMax) };
 
             const auto  material_id  = size_t(ai_mesh->mMaterialIndex);
             const auto& material_ref = material_refs[material_id];
+
+            auto data = [&]() -> MeshInfo::MeshData {
+                if (ai_mesh->HasBones()) {
+                    return get_skinned_mesh_data(*ai_mesh);
+                } else {
+                    return get_static_mesh_data(*ai_mesh);
+                }
+            }();
 
             mesh_infos.push_back({
                 .path        = MOVE(apath),
@@ -633,26 +830,59 @@ auto AssetManager::load_model(AssetPath path)
     }
 
 
+
     for (auto& mesh_info : mesh_infos) {
 
-        const std::span<const VertexPNUTB> verts   = mesh_info.data.vertices;
-        const std::span<const GLuint>      indices = mesh_info.data.elements;
+        const overloaded data_to_asset{
+            [&](StaticMeshData& data) -> StoredMeshAsset {
+                const std::span<const VertexPNUTB> verts   = data.verts;
+                const std::span<const GLuint>      indices = data.indices;
 
-        SharedBuffer<VertexPNUTB> verts_buf   = specify_buffer(verts,   { .mode = StorageMode::StaticServer });
-        SharedBuffer<GLuint>      indices_buf = specify_buffer(indices, { .mode = StorageMode::StaticServer });
+                SharedBuffer<VertexPNUTB> verts_buf   = specify_buffer(verts,   { .mode = StorageMode::StaticServer });
+                SharedBuffer<GLuint>      indices_buf = specify_buffer(indices, { .mode = StorageMode::StaticServer });
 
-        StoredMeshAsset mesh_asset{
-            .path     = MOVE(mesh_info.path),
-            .aabb     = mesh_info.aabb,
-            .vertices = MOVE(verts_buf),
-            .indices  = MOVE(indices_buf),
-            .mesh_id  = {}, // NOTE: Set later in local context.
-            .diffuse  = {}, // NOTE: Set later after texture job completion.
-            .specular = {}, // NOTE: Set later after texture job completion.
-            .normal   = {}, // NOTE: Set later after texture job completion.
+                StoredMeshAsset mesh_asset{
+                    .path     = MOVE(mesh_info.path),
+                    .aabb     = mesh_info.aabb,
+                    .vertices = MOVE(verts_buf),
+                    .indices  = MOVE(indices_buf),
+                    .mesh_id  = {}, // NOTE: Set later in local context.
+                    .diffuse  = {}, // NOTE: Set later after texture job completion.
+                    .specular = {}, // NOTE: Set later after texture job completion.
+                    .normal   = {}, // NOTE: Set later after texture job completion.
+                };
+
+                return mesh_asset;
+            },
+            [&](SkinnedMeshData& data) -> StoredSkinnedMeshAsset {
+                const std::span<const VertexSkinned> verts   = data.verts;
+                const std::span<const GLuint>        indices = data.indices;
+
+                SharedBuffer<VertexSkinned> verts_buf   = specify_buffer(verts,   { .mode = StorageMode::StaticServer });
+                SharedBuffer<GLuint>        indices_buf = specify_buffer(indices, { .mode = StorageMode::StaticServer });
+
+                StoredSkeletonAsset skeleton_asset{
+                    .skeleton = std::make_shared<Skeleton>(MOVE(data.skeleton)),
+                };
+
+                StoredSkinnedMeshAsset mesh_asset{
+                    .path           = MOVE(mesh_info.path),
+                    .aabb           = mesh_info.aabb,
+                    .vertices       = MOVE(verts_buf),
+                    .indices        = MOVE(indices_buf),
+                    .mesh_id        = {}, // NOTE: Set later in local context.
+                    .skeleton_asset = MOVE(skeleton_asset),
+                    .diffuse        = {}, // NOTE: Set later after texture job completion.
+                    .specular       = {}, // NOTE: Set later after texture job completion.
+                    .normal         = {}, // NOTE: Set later after texture job completion.
+                };
+
+                return mesh_asset;
+            },
         };
 
-        mesh_assets.emplace_back(MOVE(mesh_asset));
+
+        mesh_assets.emplace_back(visit<AnySharedMeshAsset>(data_to_asset, mesh_info.data));
         discard(MOVE(mesh_info.data)); // TODO: Is this really that necessary? Maybe use monotonic buffer?
     }
 
@@ -667,12 +897,19 @@ auto AssetManager::load_model(AssetPath path)
     }
 
 
-    MeshStorage<VertexPNUTB>& storage =
-        mesh_registry_.ensure_storage_for<VertexPNUTB>();
-
+    // These are server-side copies, so hopefully, they will return immediately.
     for (auto& mesh_asset : mesh_assets) {
-        // These are server-side copies, so hopefully, they will return immediately.
-        mesh_asset.mesh_id = storage.insert_buffer(mesh_asset.vertices, mesh_asset.indices);
+        const overloaded insert_data_and_assign_mesh_id{
+            [&](SharedMeshAsset& asset) {
+                MeshStorage<VertexPNUTB>& storage = mesh_registry_.ensure_storage_for<VertexPNUTB>();
+                asset.mesh_id = storage.insert_buffer(asset.vertices, asset.indices);
+            },
+            [&](SharedSkinnedMeshAsset& asset) {
+                MeshStorage<VertexSkinned>& storage = mesh_registry_.ensure_storage_for<VertexSkinned>();
+                asset.mesh_id = storage.insert_buffer(asset.vertices, asset.indices);
+            },
+        };
+        visit(insert_data_and_assign_mesh_id, mesh_asset);
     }
 
 
@@ -704,9 +941,11 @@ auto AssetManager::load_model(AssetPath path)
     // Finally, we pass over all of the meshes and resolve the textures.
     for (auto [i, mesh_asset] : enumerate(mesh_assets)) {
         const auto& refs = mesh_infos[i].material;
-        mesh_asset.diffuse  = get_texture_asset_by_id(refs.diffuse_id );
-        mesh_asset.specular = get_texture_asset_by_id(refs.specular_id);
-        mesh_asset.normal   = get_texture_asset_by_id(refs.normal_id  );
+        visit([&](auto& asset) {
+            asset.diffuse  = get_texture_asset_by_id(refs.diffuse_id );
+            asset.specular = get_texture_asset_by_id(refs.specular_id);
+            asset.normal   = get_texture_asset_by_id(refs.normal_id  );
+        }, mesh_asset);
     }
 
 

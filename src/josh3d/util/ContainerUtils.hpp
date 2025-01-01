@@ -190,4 +190,10 @@ auto pop_front(T& container)
 
 
 
+template<typename ...Ts>
+struct overloaded : Ts... {
+    using Ts::operator()...;
+};
+
+
 } // namespace josh

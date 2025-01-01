@@ -7,11 +7,15 @@
 #include "CategoryCasts.hpp"
 #include "MapMacro.hpp"
 #include "MeshStorage.hpp"
+#include "Skeleton.hpp"
 #include "VertexPNUTB.hpp"
+#include "VertexSkinned.hpp"
 #include <compare>
 #include <functional>
 #include <string>
 #include <string_view>
+#include <type_traits>
+#include <variant>
 
 
 namespace josh {
@@ -20,6 +24,9 @@ namespace josh {
 enum class AssetKind {
     Model,
     Mesh,
+    SkinnedMesh,
+    Skeleton,
+    Animation,
     Texture,
     Cubemap,
 };
@@ -113,19 +120,29 @@ template<> struct hash<josh::AssetPath> {
 namespace josh {
 
 
+// FIXME: GLMutable and GLConst are an accidental reuse, that does
+// not make any sense for, say, skeletons or animations.
+// This should just take bool as a second template param,
+// and remap to mutability_tag via some kind of trait.
 template<AssetKind KindV, mutability_tag MutT> struct Asset;
 template<AssetKind KindV> using StoredAsset = Asset<KindV, GLMutable>;
 template<AssetKind KindV> using SharedAsset = Asset<KindV, GLConst>;
 
-using StoredTextureAsset = StoredAsset<AssetKind::Texture>;
-using StoredMeshAsset    = StoredAsset<AssetKind::Mesh>;
-using StoredModelAsset   = StoredAsset<AssetKind::Model>;
-using StoredCubemapAsset = StoredAsset<AssetKind::Cubemap>;
+using StoredTextureAsset     = StoredAsset<AssetKind::Texture>;
+using StoredMeshAsset        = StoredAsset<AssetKind::Mesh>;
+using StoredSkinnedMeshAsset = StoredAsset<AssetKind::SkinnedMesh>;
+using StoredSkeletonAsset    = StoredAsset<AssetKind::Skeleton>;
+using StoredAnimationAsset   = StoredAsset<AssetKind::Animation>;
+using StoredModelAsset       = StoredAsset<AssetKind::Model>;
+using StoredCubemapAsset     = StoredAsset<AssetKind::Cubemap>;
 
-using SharedTextureAsset = SharedAsset<AssetKind::Texture>;
-using SharedMeshAsset    = SharedAsset<AssetKind::Mesh>;
-using SharedModelAsset   = SharedAsset<AssetKind::Model>;
-using SharedCubemapAsset = SharedAsset<AssetKind::Cubemap>;
+using SharedTextureAsset     = SharedAsset<AssetKind::Texture>;
+using SharedMeshAsset        = SharedAsset<AssetKind::Mesh>;
+using SharedSkinnedMeshAsset = SharedAsset<AssetKind::SkinnedMesh>;
+using SharedSkeletonAsset    = SharedAsset<AssetKind::Skeleton>;
+using SharedAnimationAsset   = SharedAsset<AssetKind::Animation>;
+using SharedModelAsset       = SharedAsset<AssetKind::Model>;
+using SharedCubemapAsset     = SharedAsset<AssetKind::Cubemap>;
 
 
 #define JOSH3D_ASSET_CONVERSION_OP(KindV, ...) \
@@ -135,6 +152,8 @@ using SharedCubemapAsset = SharedAsset<AssetKind::Cubemap>;
 
 template<mutability_tag MutT>
 struct Asset<AssetKind::Texture, MutT> {
+    static constexpr AssetKind asset_kind = AssetKind::Texture;
+
     using mutability   = MutT;
     using texture_type = GLShared<RawTexture2D<MutT>>;
 
@@ -143,15 +162,16 @@ struct Asset<AssetKind::Texture, MutT> {
     texture_type texture;
 
     JOSH3D_ASSET_CONVERSION_OP(AssetKind::Texture, path, intent, texture)
-    static constexpr AssetKind asset_kind = AssetKind::Texture;
 };
 
 
 template<mutability_tag MutT>
 struct Asset<AssetKind::Mesh, MutT> {
-    using mutability  = MutT;
-    using vertex_type = VertexPNUTB;
-    using index_type  = GLuint;
+    static constexpr AssetKind asset_kind = AssetKind::Mesh;
+
+    using mutability         = MutT;
+    using vertex_type        = VertexPNUTB;
+    using index_type         = GLuint;
     using vertex_buffer_type = GLShared<RawBuffer<vertex_type, MutT>>;
     using index_buffer_type  = GLShared<RawBuffer<index_type,  MutT>>;
 
@@ -165,24 +185,80 @@ struct Asset<AssetKind::Mesh, MutT> {
     std::optional<SharedTextureAsset> normal;
 
     JOSH3D_ASSET_CONVERSION_OP(AssetKind::Mesh, path, aabb, vertices, indices, mesh_id, diffuse, specular, normal)
-    static constexpr AssetKind asset_kind = AssetKind::Mesh;
+};
+
+
+template<mutability_tag MutT>
+struct Asset<AssetKind::Skeleton, MutT> {
+    static constexpr AssetKind asset_kind = AssetKind::Skeleton;
+
+    using mutability    = MutT;
+    using skeleton_type = std::conditional_t<gl_const<MutT>, const Skeleton, Skeleton>;
+
+    std::shared_ptr<skeleton_type> skeleton;
+
+    JOSH3D_ASSET_CONVERSION_OP(AssetKind::Skeleton, skeleton)
+};
+
+
+template<mutability_tag MutT>
+struct Asset<AssetKind::SkinnedMesh, MutT> {
+    static constexpr AssetKind asset_kind = AssetKind::SkinnedMesh;
+
+    using mutability         = MutT;
+    using vertex_type        = VertexSkinned;
+    using index_type         = GLuint;
+    using vertex_buffer_type = GLShared<RawBuffer<vertex_type, MutT>>;
+    using index_buffer_type  = GLShared<RawBuffer<index_type,  MutT>>;
+
+
+    AssetPath                         path;
+    LocalAABB                         aabb;
+    vertex_buffer_type                vertices;
+    index_buffer_type                 indices;
+    MeshID<vertex_type>               mesh_id;
+    SharedSkeletonAsset               skeleton_asset;
+    std::optional<SharedTextureAsset> diffuse;
+    std::optional<SharedTextureAsset> specular;
+    std::optional<SharedTextureAsset> normal;
+
+    JOSH3D_ASSET_CONVERSION_OP(AssetKind::SkinnedMesh, path, aabb, vertices, indices, mesh_id, skeleton_asset, diffuse, specular, normal)
 };
 
 
 template<mutability_tag MutT>
 struct Asset<AssetKind::Model, MutT> {
-    using mutability = MutT;
+    static constexpr AssetKind asset_kind = AssetKind::Model;
 
-    AssetPath                    path;
-    std::vector<SharedMeshAsset> meshes;
+    using mutability = MutT;
+    using mesh_type  = std::variant<SharedMeshAsset, SharedSkinnedMeshAsset>;
+
+    AssetPath              path;
+    std::vector<mesh_type> meshes;
 
     JOSH3D_ASSET_CONVERSION_OP(AssetKind::Model, path, meshes)
-    static constexpr AssetKind asset_kind = AssetKind::Model;
+};
+
+
+template<mutability_tag MutT>
+struct Asset<AssetKind::Animation, MutT> {
+    static constexpr AssetKind asset_kind = AssetKind::Animation;
+
+    using mutability = MutT;
+
+    // TODO:
+
+    // AssetPath path;
+    SharedSkeletonAsset skeleton_asset;
+
+    // JOSH3D_ASSET_CONVERSION_OP(AssetKind::Model, path, meshes)
 };
 
 
 template<mutability_tag MutT>
 struct Asset<AssetKind::Cubemap, MutT> {
+    static constexpr AssetKind asset_kind = AssetKind::Cubemap;
+
     using mutability   = MutT;
     using cubemap_type = GLShared<RawCubemap<MutT>>;
 
@@ -191,8 +267,9 @@ struct Asset<AssetKind::Cubemap, MutT> {
     cubemap_type  cubemap;
 
     JOSH3D_ASSET_CONVERSION_OP(AssetKind::Cubemap, path, intent, cubemap)
-    static constexpr AssetKind asset_kind = AssetKind::Cubemap;
 };
+
+
 
 
 #undef JOSH3D_ASSET_CONVERSION_OP

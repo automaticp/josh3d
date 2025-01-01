@@ -114,7 +114,7 @@ endfunction()
 
 subtarget_link_internal(imgui      PUBLIC engine filesystem input util core PRIVATE data gl scene resource)
 subtarget_link_internal(engine     PUBLIC data filesystem gl render resource scene util core)
-subtarget_link_internal(render     PUBLIC data gl util core layout)
+subtarget_link_internal(render     PUBLIC data scene gl util core layout)
 subtarget_link_internal(resource   PUBLIC data filesystem gl scene core util layout PRIVATE render)
 subtarget_link_internal(data       PUBLIC util core layout)
 subtarget_link_internal(input      PUBLIC util scene)

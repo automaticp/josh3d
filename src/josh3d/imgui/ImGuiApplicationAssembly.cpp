@@ -367,11 +367,13 @@ void ImGuiApplicationAssembly::draw_widgets() {
                     try {
                         model_asset = move_out(last_model_job).get_result();
                         for (auto& mesh : model_asset->meshes) {
-                            if (auto* asset = try_get(mesh.diffuse )) { make_available<Binding::Texture2D>(asset->texture->id()); }
-                            if (auto* asset = try_get(mesh.specular)) { make_available<Binding::Texture2D>(asset->texture->id()); }
-                            if (auto* asset = try_get(mesh.normal  )) { make_available<Binding::Texture2D>(asset->texture->id()); }
-                            make_available<Binding::ArrayBuffer>       (mesh.vertices->id());
-                            make_available<Binding::ElementArrayBuffer>(mesh.indices->id() );
+                            visit([&]<typename T>(T& mesh_asset) {
+                                if (auto* asset = try_get(mesh_asset.diffuse )) { make_available<Binding::Texture2D>(asset->texture->id()); }
+                                if (auto* asset = try_get(mesh_asset.specular)) { make_available<Binding::Texture2D>(asset->texture->id()); }
+                                if (auto* asset = try_get(mesh_asset.normal  )) { make_available<Binding::Texture2D>(asset->texture->id()); }
+                                make_available<Binding::ArrayBuffer>       (mesh_asset.vertices->id());
+                                make_available<Binding::ElementArrayBuffer>(mesh_asset.indices->id() );
+                            }, mesh);
                         }
                     } catch (const std::exception& e) {
                         last_error = e.what();
@@ -386,12 +388,14 @@ void ImGuiApplicationAssembly::draw_widgets() {
                 if (model_asset) {
                     ImGui::TextUnformatted(model_asset->path.entry().c_str());
                     for (auto& mesh : model_asset->meshes) {
-                        ImGui::TextUnformatted(mesh.path.subpath().begin());
                         size_t next_id{ 0 };
                         GLuint ids[3];
-                        if (auto* asset = try_get(mesh.diffuse )) { ids[next_id++] = asset->texture->id(); }
-                        if (auto* asset = try_get(mesh.specular)) { ids[next_id++] = asset->texture->id(); }
-                        if (auto* asset = try_get(mesh.normal  )) { ids[next_id++] = asset->texture->id(); }
+                        visit([&]<typename T>(T& mesh) {
+                            ImGui::TextUnformatted(mesh.path.subpath().begin());
+                            if (auto* asset = try_get(mesh.diffuse )) { ids[next_id++] = asset->texture->id(); }
+                            if (auto* asset = try_get(mesh.specular)) { ids[next_id++] = asset->texture->id(); }
+                            if (auto* asset = try_get(mesh.normal  )) { ids[next_id++] = asset->texture->id(); }
+                        }, mesh);
                         const auto visible_ids = std::span(ids, next_id);
                         using ranges::views::enumerate;
                         for (auto [i, id] : enumerate(visible_ids)) {

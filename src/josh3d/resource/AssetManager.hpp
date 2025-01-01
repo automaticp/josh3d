@@ -76,7 +76,7 @@ private:
     OffscreenContext&  offscreen_context_;
     CompletionContext& completion_context_;
     LocalContext       local_context_;
-    MeshRegistry&      mesh_registry_; // TODO: Not supported right now. Need to have a local context for that.
+    MeshRegistry&      mesh_registry_;
     TaskCounterGuard   task_counter_; // Must be last so that it block all other memvars from destruction.
 };
 

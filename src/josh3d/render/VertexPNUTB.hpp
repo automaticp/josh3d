@@ -19,11 +19,11 @@ struct VertexPNUTB {
 
 template<> struct attribute_traits<VertexPNUTB> {
     using specs_type = std::tuple<
-        AttributeSpecF,
-        AttributeSpecF,
-        AttributeSpecF,
-        AttributeSpecF,
-        AttributeSpecF
+        AttributeSpecF, // position
+        AttributeSpecF, // normal
+        AttributeSpecF, // uv
+        AttributeSpecF, // tangent
+        AttributeSpecF  // bitangent
     >;
 
     static constexpr specs_type specs{

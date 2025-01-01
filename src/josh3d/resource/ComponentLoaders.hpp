@@ -1,5 +1,6 @@
 #pragma once
 #include "Asset.hpp"
+#include "ContainerUtils.hpp"
 #include "CubemapData.hpp"
 #include "ECS.hpp"
 #include "Filesystem.hpp"
@@ -7,12 +8,14 @@
 #include "GLObjects.hpp"
 #include "Pixels.hpp"
 #include "SceneGraph.hpp"
+#include "SkinnedMesh.hpp"
 #include "TextureHelpers.hpp"
 #include "Transform.hpp"
 #include "Materials.hpp"
 #include "Mesh.hpp"
 #include "Name.hpp"
 #include "Skybox.hpp"
+#include "detail/StaticAssertFalseMacro.hpp"
 #include "tags/AlphaTested.hpp"
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
@@ -42,68 +45,73 @@ inline Skybox& load_skybox_into(
 
 inline void emplace_model_asset_into(
     Handle           model_handle,
-    SharedModelAsset asset)
+    SharedModelAsset model_asset)
 {
     auto& registry = *model_handle.registry();
 
     thread_local std::vector<entt::entity> children;
-    children.resize(asset.meshes.size());
+    children.resize(model_asset.meshes.size());
     registry.create(children.begin(), children.end());
 
     try {
 
         for (size_t i{ 0 }; i < children.size(); ++i) {
 
-            SharedMeshAsset& mesh = asset.meshes[i];
             const Handle mesh_handle{ registry, children[i] };
 
-            // Bind to make assets available in this thread.
-            make_available<Binding::ArrayBuffer>       (mesh.vertices->id());
-            make_available<Binding::ElementArrayBuffer>(mesh.indices->id() );
+            const auto emplace_mesh_from_asset = [&]<typename T>(T& mesh_asset) {
+                using vertex_type = T::vertex_type;
 
-            mesh_handle.emplace<Mesh>(
-                Mesh::from_buffers<VertexPNUTB>(
-                    std::move(mesh.vertices),
-                    std::move(mesh.indices)
-                )
-            );
-
-            mesh_handle.emplace<MeshID<VertexPNUTB>>(mesh.mesh_id);
-
-            // Emplace bounding geometry.
-            //
-            // TODO: We should consider importing the scene-graph and
-            // full Transform information from the assets.
-            mesh_handle.emplace<LocalAABB>(mesh.aabb);
-            mesh_handle.emplace<Transform>();
+                // Bind to make assets available in this thread.
+                make_available<Binding::ArrayBuffer>       (mesh_asset.vertices->id());
+                make_available<Binding::ElementArrayBuffer>(mesh_asset.indices->id() );
 
 
-            if (mesh.diffuse.has_value()) {
-                make_available<Binding::Texture2D>(mesh.diffuse->texture->id());
-                auto& diffuse = mesh_handle.emplace<MaterialDiffuse>(mesh.diffuse->texture);
+                if constexpr (std::same_as<T, SharedMeshAsset>) {
+                    mesh_handle.emplace<Mesh>(
+                        Mesh::from_buffers<vertex_type>(MOVE(mesh_asset.vertices), MOVE(mesh_asset.indices)));
+                    mesh_handle.emplace<MeshID<vertex_type>>(mesh_asset.mesh_id);
+                } else if constexpr (std::same_as<T, SharedSkinnedMeshAsset>) {
+                    const auto& skeleton_asset = mesh_asset.skeleton_asset;
+                    mesh_handle.emplace<SkinnedMesh>(mesh_asset.mesh_id, skeleton_asset.skeleton);
+                } else { JOSH3D_STATIC_ASSERT_FALSE(T); }
 
-                // We check if the alpha channel even exitsts in the texture,
-                // to decide on whether alpha testing should be enabled.
-                PixelComponentType alpha_component =
-                    diffuse.texture->get_component_type<PixelComponent::Alpha>();
+                // Emplace bounding geometry.
+                //
+                // TODO: We should consider importing the scene-graph and
+                // full Transform information from the assets.
+                mesh_handle.emplace<LocalAABB>(mesh_asset.aabb);
+                mesh_handle.emplace<Transform>();
 
-                if (alpha_component != PixelComponentType::None) {
-                    mesh_handle.emplace<AlphaTested>();
+                if (auto* mat_diffuse = try_get(mesh_asset.diffuse)) {
+                    make_available<Binding::Texture2D>(mat_diffuse->texture->id());
+                    mesh_handle.emplace<MaterialDiffuse>(mat_diffuse->texture);
+
+                    // We check if the alpha channel even exitsts in the texture,
+                    // to decide on whether alpha testing should be enabled.
+                    PixelComponentType alpha_component =
+                        mat_diffuse->texture->template get_component_type<PixelComponent::Alpha>();
+
+                    if (alpha_component != PixelComponentType::None) {
+                        mesh_handle.emplace<AlphaTested>();
+                    }
                 }
-            }
 
-            if (mesh.specular.has_value()) {
-                make_available<Binding::Texture2D>(mesh.specular->texture->id());
-                mesh_handle.emplace<MaterialSpecular>(mesh.specular->texture, 128.f);
-            }
+                if (auto* mat_specular = try_get(mesh_asset.specular)) {
+                    make_available<Binding::Texture2D>(mat_specular->texture->id());
+                    mesh_handle.emplace<MaterialSpecular>(mat_specular->texture, 128.f);
+                }
 
-            if (mesh.normal.has_value()) {
-                make_available<Binding::Texture2D>(mesh.normal->texture->id());
-                mesh_handle.emplace<MaterialNormal>(mesh.normal->texture);
-            }
+                if (auto* mat_normal = try_get(mesh_asset.normal)) {
+                    make_available<Binding::Texture2D>(mat_normal->texture->id());
+                    mesh_handle.emplace<MaterialNormal>(mat_normal->texture);
+                }
+
+                mesh_handle.emplace<Name>(std::string(mesh_asset.path.subpath()));
+            };
 
 
-            mesh_handle.emplace<Name>(std::string(mesh.path.subpath()));
+            visit(emplace_mesh_from_asset, model_asset.meshes[i]);
         }
 
     } catch (...) {
