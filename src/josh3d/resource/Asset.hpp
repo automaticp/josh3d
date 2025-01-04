@@ -7,11 +7,13 @@
 #include "CategoryCasts.hpp"
 #include "MapMacro.hpp"
 #include "MeshStorage.hpp"
+#include "SkeletalAnimation.hpp"
 #include "Skeleton.hpp"
 #include "VertexPNUTB.hpp"
 #include "VertexSkinned.hpp"
 #include <compare>
 #include <functional>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -202,6 +204,20 @@ struct Asset<AssetKind::Skeleton, MutT> {
 
 
 template<mutability_tag MutT>
+struct Asset<AssetKind::Animation, MutT> {
+    static constexpr AssetKind asset_kind = AssetKind::Animation;
+
+    using mutability     = MutT;
+    using animation_type = std::conditional_t<gl_const<MutT>, const SkeletalAnimation, SkeletalAnimation>;
+
+    // AssetPath path;
+    std::shared_ptr<animation_type> animation;
+
+    JOSH3D_ASSET_CONVERSION_OP(AssetKind::Animation, animation)
+};
+
+
+template<mutability_tag MutT>
 struct Asset<AssetKind::SkinnedMesh, MutT> {
     static constexpr AssetKind asset_kind = AssetKind::SkinnedMesh;
 
@@ -218,11 +234,12 @@ struct Asset<AssetKind::SkinnedMesh, MutT> {
     index_buffer_type                 indices;
     MeshID<vertex_type>               mesh_id;
     SharedSkeletonAsset               skeleton_asset;
+    std::vector<SharedAnimationAsset> animation_assets; // FIXME: Eventually, should be external.
     std::optional<SharedTextureAsset> diffuse;
     std::optional<SharedTextureAsset> specular;
     std::optional<SharedTextureAsset> normal;
 
-    JOSH3D_ASSET_CONVERSION_OP(AssetKind::SkinnedMesh, path, aabb, vertices, indices, mesh_id, skeleton_asset, diffuse, specular, normal)
+    JOSH3D_ASSET_CONVERSION_OP(AssetKind::SkinnedMesh, path, aabb, vertices, indices, mesh_id, skeleton_asset, animation_assets, diffuse, specular, normal)
 };
 
 
@@ -237,21 +254,6 @@ struct Asset<AssetKind::Model, MutT> {
     std::vector<mesh_type> meshes;
 
     JOSH3D_ASSET_CONVERSION_OP(AssetKind::Model, path, meshes)
-};
-
-
-template<mutability_tag MutT>
-struct Asset<AssetKind::Animation, MutT> {
-    static constexpr AssetKind asset_kind = AssetKind::Animation;
-
-    using mutability = MutT;
-
-    // TODO:
-
-    // AssetPath path;
-    SharedSkeletonAsset skeleton_asset;
-
-    // JOSH3D_ASSET_CONVERSION_OP(AssetKind::Model, path, meshes)
 };
 
 

@@ -12,6 +12,7 @@
 #include "ImageData.hpp"
 #include "MeshRegistry.hpp"
 #include "OffscreenContext.hpp"
+#include "SkeletalAnimation.hpp"
 #include "Skeleton.hpp"
 #include "TextureHelpers.hpp"
 #include "CategoryCasts.hpp"
@@ -21,14 +22,20 @@
 #include "VertexSkinned.hpp"
 #include <assimp/BaseImporter.h>
 #include <assimp/Importer.hpp>
+#include <assimp/anim.h>
 #include <assimp/material.h>
 #include <assimp/mesh.h>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
+#include <bits/ranges_algo.h>
 #include <boost/scope/defer.hpp>
 #include <boost/scope/scope_fail.hpp>
 #include <exception>
+#include <glm/ext.hpp>
 #include <glm/geometric.hpp>
+#include <glm/gtc/packing.hpp>
+#include <glm/packing.hpp>
+#include <memory>
 #include <range/v3/view/enumerate.hpp>
 #include <cassert>
 #include <cstdint>
@@ -389,6 +396,13 @@ auto v2v(const aiVector3D& v) noexcept
 }
 
 
+auto q2q(const aiQuaternion& q) noexcept
+    -> quat
+{
+    return { q.w, q.x, q.y, q.z };
+}
+
+
 auto m2m(const aiMatrix4x4& m) noexcept
     -> mat4
 {
@@ -419,9 +433,10 @@ struct StaticMeshData {
 
 
 struct SkinnedMeshData {
-    std::vector<VertexSkinned> verts;
-    std::vector<uint32_t>      indices;
-    Skeleton                   skeleton;
+    std::vector<VertexSkinned>        verts;
+    std::vector<uint32_t>             indices;
+    SharedSkeletonAsset               skeleton_asset;
+    std::vector<SharedAnimationAsset> animation_assets; // Uh-oh.
 };
 
 
@@ -494,6 +509,9 @@ void populate_joints_preorder(
     const size_t this_joint_id = joints.size();
     assert(this_joint_id < 255); // Safety of conversion must be guaranteed by prior importer checks.
 
+    // bone.mOffsetMatrix - [Mesh]->[Joint] CoB (aka. inverse bind)
+    // node.mTransform    - [Joint]->[Parent Joint] CoB (similar to scene graph L2P)
+
     const Joint joint{
         .parent_id = uint8_t(parent_id),
         .inv_bind  = m2m(bone->mOffsetMatrix),
@@ -509,61 +527,35 @@ void populate_joints_preorder(
 }
 
 
-auto get_skinned_mesh_data(const aiMesh& mesh)
-    -> SkinnedMeshData
+
+
+auto get_skinned_mesh_data(
+    const aiMesh&                                    mesh,
+    const std::unordered_map<const aiNode*, size_t>& node2id,
+    SharedSkeletonAsset                              skeleton_asset,
+    std::vector<SharedAnimationAsset>                animation_assets)
+        -> SkinnedMeshData
 {
     auto positions  = std::span(mesh.mVertices,         mesh.mNumVertices);
     auto uvs        = std::span(mesh.mTextureCoords[0], mesh.mNumVertices);
     auto normals    = std::span(mesh.mNormals,          mesh.mNumVertices);
     auto tangents   = std::span(mesh.mTangents,         mesh.mNumVertices);
-    auto bitangents = std::span(mesh.mBitangents,       mesh.mNumVertices);
     auto bones      = std::span(mesh.mBones,            mesh.mNumBones   );
 
     if (!normals.data())    { throw error::AssetContentsParsingError("Mesh data does not contain Normals.");    }
     if (!uvs.data())        { throw error::AssetContentsParsingError("Mesh data does not contain UVs.");        }
     if (!tangents.data())   { throw error::AssetContentsParsingError("Mesh data does not contain Tangents.");   }
-    if (!bitangents.data()) { throw error::AssetContentsParsingError("Mesh data does not contain Bitangents."); }
     if (!bones.data())      { throw error::AssetContentsParsingError("Mesh data does not contain Bones.");      }
     if (bones.size() > 255) { throw error::AssetContentsParsingError("Armature has too many Bones (>255).");    }
 
 
-    std::vector<Joint> joints;
-    joints.reserve(bones.size());
-
-    // bone.mOffsetMatrix - [Mesh]->[Joint] CoB (aka. inverse bind)
-    // node.mTransform    - [Joint]->[Parent Joint] CoB (similar to scene graph L2P)
-
-    // Prepopulate lookup table to get inv_bind from bones.
-    std::unordered_map<const aiNode*, const aiBone*> node2bone;
-    for (const aiBone* bone : bones) {
-        auto [_, was_emplaced] =
-            node2bone.try_emplace(bone->mNode, bone);
-        assert(was_emplaced);
-    }
-
-    // Get the armature from any bone.
-    assert(bones.size());
-    const aiNode* armature = bones[0]->mArmature;
-    // For some reason, the Armature is not just a root node of the skeleton,
-    // but is a separate node itself. I have no idea why.
-    assert(armature->mNumChildren == 1);
-    const aiNode* root    = armature->mChildren[0];
-    const bool    is_root = true;
-
-    // Populate the joints of the skeleton in pre-order.
-    std::unordered_map<const aiNode*, size_t> node2id;
-    populate_joints_preorder(joints, node2id, node2bone, root, is_root);
-
-
-    using glm::u8vec4;
+    using glm::uvec4;
     // Info about weights as pulled from assimp,
     // before convertion to a more "strict" packed internal format.
     struct VertJointInfo {
         vec4   ws {}; // Uncompressed weights.
-        u8vec4 ids{}; // Refer to root node by default.
+        uvec4  ids{}; // Refer to root node by default.
         int8_t n  {}; // Variable number of weights+ids. Because 4 is only an upper limit.
-
-        auto packed_w123() const noexcept -> vec3 { return { ws[1], ws[2], ws[3] }; }
     };
 
     std::vector<VertJointInfo> vert_joint_infos;
@@ -586,15 +578,14 @@ auto get_skinned_mesh_data(const aiMesh& mesh)
 
     for (size_t i{ 0 }; i < positions.size(); ++i) {
         const auto& joint_info = vert_joint_infos[i];
-        const VertexSkinned vert{
-            .position      = v2v(positions [i]),
-            .uv            = v2v(uvs       [i]),
-            .normal        = v2v(normals   [i]),
-            .tangent       = v2v(tangents  [i]),
-            .bitangent     = v2v(bitangents[i]),
-            .joint_ids     = joint_info.ids,
-            .joint_weights = joint_info.packed_w123(),
-        };
+        const VertexSkinned vert = VertexSkinned::pack(
+            v2v(positions[i]),
+            v2v(uvs      [i]),
+            v2v(normals  [i]),
+            v2v(tangents [i]),
+            joint_info.ids,
+            joint_info.ws
+        );
         verts.emplace_back(vert);
     }
 
@@ -609,7 +600,7 @@ auto get_skinned_mesh_data(const aiMesh& mesh)
         }
     }
 
-    return { MOVE(verts), MOVE(indices), Skeleton{ MOVE(joints) } };
+    return { MOVE(verts), MOVE(indices), MOVE(skeleton_asset), MOVE(animation_assets) };
 }
 
 
@@ -741,6 +732,7 @@ auto AssetManager::load_model(AssetPath path)
             aiProcess_GenSmoothNormals         |
             aiProcess_CalcTangentSpace         |
             aiProcess_GenBoundingBoxes         |
+            aiProcess_GlobalScale              | // FBX or something.
             aiProcess_ImproveCacheLocality     |
             aiProcess_OptimizeGraph            |
         //  aiProcess_OptimizeMeshes           |
@@ -748,16 +740,16 @@ auto AssetManager::load_model(AssetPath path)
             aiProcess_LimitBoneWeights         | // Up to 4 weights with most effect.
             aiProcess_PopulateArmatureData;      // Figures out which skeletons are referenced by which mesh.
 
-        const aiScene* scene = importer.ReadFile(path.entry(), flags);
+        const aiScene* ai_scene = importer.ReadFile(path.entry(), flags);
 
-        if (!scene) { throw error::AssetFileImportFailure(path.entry(), importer.GetErrorString()); }
+        if (!ai_scene) { throw error::AssetFileImportFailure(path.entry(), importer.GetErrorString()); }
 
-        const size_t num_meshes    = scene->mNumMeshes;
-        const size_t num_materials = scene->mNumMaterials;
+        const size_t num_meshes    = ai_scene->mNumMeshes;
+        const size_t num_materials = ai_scene->mNumMaterials;
 
-        const auto ai_meshes    = std::span(scene->mMeshes,    scene->mNumMeshes   );
-        const auto ai_materials = std::span(scene->mMaterials, scene->mNumMaterials);
-
+        const auto ai_meshes    = std::span(ai_scene->mMeshes,     ai_scene->mNumMeshes   );
+        const auto ai_materials = std::span(ai_scene->mMaterials,  ai_scene->mNumMaterials);
+        const auto ai_anims     = std::span(ai_scene->mAnimations, ai_scene->mNumAnimations);
 
         material_refs.reserve(num_materials);
 
@@ -792,6 +784,165 @@ auto AssetManager::load_model(AssetPath path)
         // keeps the offscreen context less busy.
 
 
+        // Prepopulate some extra information about animated meshes.
+
+        std::unordered_map<const aiNode*, const aiBone*>                   node2bone;
+        std::unordered_map<const aiMesh*, const aiNode*>                   mesh2armature;
+        std::unordered_map<const aiNode*, std::vector<const aiAnimation*>> armature2anims;
+        std::unordered_map<const aiAnimation*, const aiNode*>              anim2armature;
+
+        for (const aiMesh* ai_mesh : ai_meshes) {
+            if (ai_mesh->HasBones()) {
+                const auto bones = std::span(ai_mesh->mBones, ai_mesh->mNumBones);
+
+                // Populate node2bone for all bones of this mesh.
+                for (const aiBone* bone : bones) {
+                    node2bone.try_emplace(bone->mNode, bone);
+                }
+
+                // Populate associated armatures for each skinned mesh.
+                // Armature is not the root, but a parent of it. No idea why.
+                assert(bones.size());
+                const aiNode* armature = bones[0]->mArmature;
+                mesh2armature.emplace(ai_mesh, armature);
+
+                // Figure out which animation belongs to which skeleton.
+                //
+                // This is not going to work if the animation manipulates both
+                // the skeleton joints and scene-graph nodes. For that, we'd
+                // need to build a set of keyed nodes and do a set-on-set intersection tests.
+                // We don't bother currently, since we can't even represent such "mixed" animation.
+                for (const aiAnimation* ai_anim : ai_anims) {
+                    const auto channels = std::span(ai_anim->mChannels, ai_anim->mNumChannels);
+                    assert(channels.size()); // Animation with 0 keyframes? Is that even possible?
+                    const aiNode* affected_node = armature->FindNode(channels[0]->mNodeName);
+                    if (affected_node) {
+                        armature2anims[armature].emplace_back(ai_anim);
+                        anim2armature.emplace(ai_anim, armature);
+                    }
+                }
+            }
+        }
+
+
+        // Before we can convert all animations and meshes to our format,
+        // we'll need all skeletons to be created as SharedSkeletonAssets,
+        // since each animation and each mesh must reference a common skeleton.
+        // This also build a set of skeletons.
+        std::unordered_map<const aiNode*, SharedSkeletonAsset> armature2skeleton_asset;
+        // Map: Bone Node -> Joint ID for the relevant skeleton.
+        // Shared by all skeletons, since each node can only belong to
+        // one skeleton at a time (surely).
+        // Populated inside populate_joints_preorder() as the order is established.
+        std::unordered_map<const aiNode*, size_t>              node2id;
+
+        for (const auto [ai_mesh, armature] : mesh2armature) {
+            if (!armature2skeleton_asset.contains(armature)) {
+
+                std::vector<Joint> joints;
+                assert(armature->mNumChildren == 1);
+                const aiNode* root    = armature->mChildren[0];
+                const bool    is_root = true;
+                populate_joints_preorder(joints, node2id, node2bone, root, is_root);
+
+                StoredSkeletonAsset asset{
+                    .skeleton = std::make_shared<Skeleton>(MOVE(joints)),
+                };
+
+                auto [it, was_emplaced] =
+                    armature2skeleton_asset.try_emplace(armature, MOVE(asset));
+                assert(was_emplaced);
+            }
+        }
+
+
+        // Now we can get all the animation data for each skeleton.
+        std::unordered_map<const aiAnimation*, SharedAnimationAsset> anim2animation_asset;
+
+        for (const aiAnimation* ai_anim : ai_anims) {
+            const double tps      = (ai_anim->mTicksPerSecond != 0) ? ai_anim->mTicksPerSecond : 30.0;
+            const double duration = ai_anim->mDuration / tps;
+            const double delta    = 1.0 / 30.0; // Use fixed delta that corresponds to 1/30 sec.
+            const AnimationClock clock{ duration, delta };
+
+            const auto    channels       = std::span(ai_anim->mChannels, ai_anim->mNumChannels);
+            const aiNode* armature       = anim2armature.at(ai_anim);
+            const auto&   skeleton_asset = armature2skeleton_asset.at(armature);
+            const size_t  num_joints     = skeleton_asset.skeleton->joints.size();
+
+            // Prepare storage for samples.
+            std::vector<SkeletalAnimation::Sample> samples;
+            samples.reserve(clock.num_samples());
+            for (size_t s{ 0 }; s < clock.num_samples(); ++s) {
+                samples.emplace_back(std::make_unique<Transform[]>(num_joints));
+            }
+
+            for (const aiNodeAnim* channel : channels) {
+                // WHY DO I HAVE TO LOOK IT UP BY NAME JESUS.
+                const aiNode* node     = armature->FindNode(channel->mNodeName);
+                assert(node);
+
+                if (node == armature) continue; // Ignore Armature itself, FBX has keyframes for it for some reason.
+
+                const size_t  joint_id = node2id.at(node);
+
+                // It is guaranteed by assimp that keys are monotonically *increasing* in time.
+                const auto pos_keys = std::span(channel->mPositionKeys, channel->mNumPositionKeys);
+                const auto rot_keys = std::span(channel->mRotationKeys, channel->mNumRotationKeys);
+                const auto sca_keys = std::span(channel->mScalingKeys,  channel->mNumScalingKeys );
+
+                // If we were to store each channel (pos, rot, scale) separately, then we could avoid
+                // using binary search here to resample the animation data. But alas...
+
+                using std::views::transform;
+                const auto lerp_pos = [&](double time) -> vec3 {
+                    const auto [prev_idx, next_idx, s] = binary_search(pos_keys | transform(&aiVectorKey::mTime), time * tps);
+                    const vec3 prev = v2v(pos_keys[prev_idx].mValue);
+                    const vec3 next = v2v(pos_keys[next_idx].mValue);
+                    return glm::lerp(prev, next, s);
+                };
+
+                const auto slerp_rot = [&](double time) -> quat {
+                    const auto [prev_idx, next_idx, s] = binary_search(rot_keys | transform(&aiQuatKey::mTime), time * tps);
+                    const quat prev = q2q(rot_keys[prev_idx].mValue);
+                    const quat next = q2q(rot_keys[next_idx].mValue);
+                    return glm::slerp(prev, next, s);
+                };
+
+                const auto logerp_sca = [&](double time) -> vec3 {
+                    const auto [prev_idx, next_idx, s] = binary_search(sca_keys | transform(&aiVectorKey::mTime), time * tps);
+                    const vec3 prev = v2v(sca_keys[prev_idx].mValue);
+                    const vec3 next = v2v(sca_keys[next_idx].mValue);
+                    return glm::exp(glm::lerp(glm::log(prev), glm::log(next), s));
+                };
+
+
+                for (size_t s{ 0 }; s < clock.num_samples(); ++s) {
+                    const double time     = clock.time_of_sample(s);
+                    const vec3   position = lerp_pos  (time);
+                    const quat   rotation = slerp_rot (time);
+                    const vec3   scale    = logerp_sca(time);
+                    samples[s].joint_poses[joint_id] = Transform{ position, rotation, scale };
+                }
+            }
+
+            SkeletalAnimation animation_data{
+                .clock    = clock,
+                .samples  = MOVE(samples),
+                .skeleton = skeleton_asset.skeleton,
+            };
+
+            StoredAnimationAsset animation_asset{
+                .animation = std::make_shared<SkeletalAnimation>(MOVE(animation_data)),
+            };
+
+            anim2animation_asset.emplace(ai_anim, MOVE(animation_asset));
+        }
+
+
+
+
+        // Get CPU mesh data and other aux info from assimp.
         mesh_infos.reserve(num_meshes);
 
         for (const auto* ai_mesh : ai_meshes) {
@@ -803,7 +954,16 @@ auto AssetManager::load_model(AssetPath path)
 
             auto data = [&]() -> MeshInfo::MeshData {
                 if (ai_mesh->HasBones()) {
-                    return get_skinned_mesh_data(*ai_mesh);
+                    // NOTE: We're going to do something dirty here and reference
+                    // each animation that a mesh can play directly in the mesh asset.
+                    // Ideally, a separate animation system has to handle who's playing what,
+                    // but right now we just want a very basic animation to appear on the screen.
+                    auto skeleton = armature2skeleton_asset.at(mesh2armature.at(ai_mesh));
+                    std::vector<SharedAnimationAsset> animation_assets;
+                    for (const aiAnimation* ai_anim : armature2anims.at(mesh2armature.at(ai_mesh))) {
+                        animation_assets.emplace_back(anim2animation_asset.at(ai_anim));
+                    }
+                    return get_skinned_mesh_data(*ai_mesh, node2id, MOVE(skeleton), MOVE(animation_assets));
                 } else {
                     return get_static_mesh_data(*ai_mesh);
                 }
@@ -861,20 +1021,17 @@ auto AssetManager::load_model(AssetPath path)
                 SharedBuffer<VertexSkinned> verts_buf   = specify_buffer(verts,   { .mode = StorageMode::StaticServer });
                 SharedBuffer<GLuint>        indices_buf = specify_buffer(indices, { .mode = StorageMode::StaticServer });
 
-                StoredSkeletonAsset skeleton_asset{
-                    .skeleton = std::make_shared<Skeleton>(MOVE(data.skeleton)),
-                };
-
                 StoredSkinnedMeshAsset mesh_asset{
-                    .path           = MOVE(mesh_info.path),
-                    .aabb           = mesh_info.aabb,
-                    .vertices       = MOVE(verts_buf),
-                    .indices        = MOVE(indices_buf),
-                    .mesh_id        = {}, // NOTE: Set later in local context.
-                    .skeleton_asset = MOVE(skeleton_asset),
-                    .diffuse        = {}, // NOTE: Set later after texture job completion.
-                    .specular       = {}, // NOTE: Set later after texture job completion.
-                    .normal         = {}, // NOTE: Set later after texture job completion.
+                    .path             = MOVE(mesh_info.path),
+                    .aabb             = mesh_info.aabb,
+                    .vertices         = MOVE(verts_buf),
+                    .indices          = MOVE(indices_buf),
+                    .mesh_id          = {}, // NOTE: Set later in local context.
+                    .skeleton_asset   = MOVE(data.skeleton_asset),
+                    .animation_assets = MOVE(data.animation_assets),
+                    .diffuse          = {}, // NOTE: Set later after texture job completion.
+                    .specular         = {}, // NOTE: Set later after texture job completion.
+                    .normal           = {}, // NOTE: Set later after texture job completion.
                 };
 
                 return mesh_asset;

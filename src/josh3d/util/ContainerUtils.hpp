@@ -196,4 +196,64 @@ struct overloaded : Ts... {
 };
 
 
+
+
+
+struct BSearchResult {
+    size_t prev_idx{};
+    size_t next_idx{};
+    float  s       {}; // Interpolation coefficient.
+};
+
+
+// Searches a *sorted* random-access sequence `range` for a `value`.
+//
+// If `(value <= grid[0])`        returns `prev = next = 0`        and `s = 0.0`;
+// If `(value >  grid[size - 1])` returns `prev = next = size - 1` and `s = 1.0`;
+//
+// Otherwise returns prev and next indices of two neighboring values and
+// a linear interpolation coefficient `s` such that `value == (1 - s) * range[prev] + s * range[next]`.
+template<typename T>
+auto binary_search(
+    std::ranges::random_access_range auto&& range,
+    const T&                                value) noexcept
+        -> BSearchResult
+{
+    const auto size  = size_t(std::ranges::distance(range));
+    const auto first = range.begin();
+    const auto last  = range.end();
+    // This returns an iterator pointing to the first element in the range [first, last)
+    // such that (element < value) is false, or last if no such element is found.
+    const auto next  = std::ranges::lower_bound(range, value, {}, {});
+
+    // NOTE: Order of checks here matters. Handle "first" first, as otherwise
+    // an empty range will have you return `size - 1`, which is meaningless.
+    if (next == first) {
+        return {
+            .prev_idx = 0,
+            .next_idx = 0,
+            .s        = 0.0
+        };
+    } else if (next == last) {
+        return {
+            .prev_idx = size - 1,
+            .next_idx = size - 1,
+            .s        = 1.0
+        };
+    } else [[likely]] {
+        const auto prev = next - 1;
+        const T& prev_value = *prev;
+        const T& next_value = *next;
+        const T  diff = next_value - prev_value;
+
+        return {
+            .prev_idx = size_t(prev - first),
+            .next_idx = size_t(next - first),
+            .s        = (value - prev_value) / diff
+        };
+    }
+}
+
+
+
 } // namespace josh

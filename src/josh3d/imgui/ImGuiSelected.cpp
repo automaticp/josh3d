@@ -4,6 +4,7 @@
 #include "ImGuiComponentWidgets.hpp"
 #include "LightCasters.hpp"
 #include "Mesh.hpp"
+#include "SkinnedMesh.hpp"
 #include "Transform.hpp"
 #include "tags/Selected.hpp"
 #include <entt/entity/entity.hpp>
@@ -36,6 +37,11 @@ void ImGuiSelected::display() {
 
         if (has_component<Mesh>(handle)) {
             imgui::MaterialsWidget(handle);
+        }
+
+        if (has_component<SkinnedMesh>(handle)) {
+            imgui::MaterialsWidget(handle);
+            imgui::AnimationsWidget(handle);
         }
 
         if (has_component<PointLight>(handle)) {

@@ -8,6 +8,7 @@
 #include "GLObjects.hpp"
 #include "Pixels.hpp"
 #include "SceneGraph.hpp"
+#include "SkeletalAnimation.hpp"
 #include "SkinnedMesh.hpp"
 #include "TextureHelpers.hpp"
 #include "Transform.hpp"
@@ -19,6 +20,8 @@
 #include "tags/AlphaTested.hpp"
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
+#include <glm/ext/matrix_transform.hpp>
+#include <range/v3/range/conversion.hpp>
 
 
 namespace josh {
@@ -68,12 +71,27 @@ inline void emplace_model_asset_into(
 
 
                 if constexpr (std::same_as<T, SharedMeshAsset>) {
+
                     mesh_handle.emplace<Mesh>(
                         Mesh::from_buffers<vertex_type>(MOVE(mesh_asset.vertices), MOVE(mesh_asset.indices)));
                     mesh_handle.emplace<MeshID<vertex_type>>(mesh_asset.mesh_id);
+
                 } else if constexpr (std::same_as<T, SharedSkinnedMeshAsset>) {
+
                     const auto& skeleton_asset = mesh_asset.skeleton_asset;
-                    mesh_handle.emplace<SkinnedMesh>(mesh_asset.mesh_id, skeleton_asset.skeleton);
+                    // Default skinning matrices are I.
+                    std::vector<mat4> skinning_mats(skeleton_asset.skeleton->joints.size(), glm::identity<mat4>());
+                    mesh_handle.emplace<SkinnedMesh>(mesh_asset.mesh_id, skeleton_asset.skeleton, MOVE(skinning_mats));
+
+                    // HACK: Directly emplacing animations into a mesh entity.
+                    using ranges::to, std::views::transform;
+                    auto anims =
+                        mesh_asset.animation_assets |
+                        transform(&SharedAnimationAsset::animation) |
+                        to<std::vector<std::shared_ptr<const SkeletalAnimation>>>();
+
+                    mesh_handle.emplace<MeshAnimations>(MOVE(anims));
+
                 } else { JOSH3D_STATIC_ASSERT_FALSE(T); }
 
                 // Emplace bounding geometry.

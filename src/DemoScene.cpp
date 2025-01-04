@@ -24,6 +24,8 @@
 #include "VPath.hpp"
 #include "VirtualFilesystem.hpp"
 #include "stages/overlay/SceneOverlays.hpp"
+#include "stages/precompute/AnimationSystem.hpp"
+#include "stages/primary/SkinnedGeometry.hpp"
 #include "tags/Selected.hpp"
 #include "tags/ShadowCasting.hpp"
 #include "Filesystem.hpp"
@@ -179,6 +181,7 @@ DemoScene::DemoScene(glfw::Window& window)
     auto tfresolution  = stages::precompute::TransformResolution();
     auto bvresolution  = stages::precompute::BoundingVolumeResolution();
     auto frustumculler = stages::precompute::FrustumCulling();
+    auto skinning      = stages::precompute::AnimationSystem();
 
 
     auto psmapping   = stages::primary::PointShadowMapping();
@@ -194,6 +197,7 @@ DemoScene::DemoScene(glfw::Window& window)
             idbuffer.share_write_view()
         );
     auto defgeom     = stages::primary::DeferredGeometry(gbuffer.share_write_view());
+    auto skingeom    = stages::primary::SkinnedGeometry(gbuffer.share_write_view());
     auto terraingeom = stages::primary::TerrainGeometry(gbuffer.share_write_view());
     auto ssao        = stages::primary::SSAO(gbuffer.share_read_view());
     auto defshad     =
@@ -256,12 +260,14 @@ DemoScene::DemoScene(glfw::Window& window)
     rengine_.add_next_precompute_stage("Transfrom Resolution", std::move(tfresolution));  // NOLINT(performance-move-const-arg)
     rengine_.add_next_precompute_stage("BV Resolution",        std::move(bvresolution));  // NOLINT(performance-move-const-arg)
     rengine_.add_next_precompute_stage("Frustum Culling",      std::move(frustumculler)); // NOLINT(performance-move-const-arg)
+    rengine_.add_next_precompute_stage("Skinning",             std::move(skinning));      // NOLINT(performance-move-const-arg)
 
     rengine_.add_next_primary_stage("Point Shadow Mapping",      std::move(psmapping));
     rengine_.add_next_primary_stage("Cascaded Shadow Mapping",   std::move(csmapping));
     rengine_.add_next_primary_stage("IDBuffer",                  std::move(idbuffer));
     rengine_.add_next_primary_stage("GBuffer",                   std::move(gbuffer));
     rengine_.add_next_primary_stage("Deferred Mesh Geometry",    std::move(defgeom));
+    rengine_.add_next_primary_stage("Deferred Skinned Geometry", std::move(skingeom));
     rengine_.add_next_primary_stage("Deferred Terrain Geometry", std::move(terraingeom));
     rengine_.add_next_primary_stage("SSAO",                      std::move(ssao));
     rengine_.add_next_primary_stage("Deferred Shading",          std::move(defshad));

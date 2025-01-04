@@ -3,6 +3,7 @@
 #include "VertexSkinned.hpp"
 #include "Skeleton.hpp"
 #include <memory>
+#include <vector>
 
 
 namespace josh {
@@ -18,7 +19,7 @@ TODO: Encapsulate better.
 struct SkinnedMesh {
     MeshID<VertexSkinned>           mesh_id;
     std::shared_ptr<const Skeleton> skeleton;
-    // TODO: Pose?
+    std::vector<mat4>               skinning_mats; // Per-joint B2J-equivalent active transformations in mesh space.
 };
 
 

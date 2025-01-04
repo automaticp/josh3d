@@ -5,6 +5,7 @@
 #include "Camera.hpp"
 #include "Components.hpp"
 #include "DefaultTextures.hpp"
+#include "ECS.hpp"
 #include "GLObjects.hpp"
 #include "ImGuiHelpers.hpp"
 #include "LightCasters.hpp"
@@ -12,6 +13,7 @@
 #include "Materials.hpp"
 #include "Name.hpp"
 #include "SceneGraph.hpp"
+#include "SkeletalAnimation.hpp"
 #include "SkinnedMesh.hpp"
 #include "Skybox.hpp"
 #include "Tags.hpp"
@@ -373,6 +375,49 @@ inline void MaterialsWidget(entt::handle mesh) noexcept {
         }
     }
 }
+
+
+inline void AnimationsWidget(Handle handle) {
+    if (auto* anims = handle.try_get<MeshAnimations>()) {
+        if (ImGui::TreeNode("Animations")) {
+
+            for (size_t i{ 0 }; i < anims->anims.size(); ++i) {
+                const auto& anim       = anims->anims[i];
+                const float duration_s = float(anim->clock.duration());
+                ImGui::Text("%zu | %.2f s",  i, duration_s);
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Play")) {
+                    PlayingAnimation playing{
+                        .current_time = 0.0,
+                        .current_anim = anim,
+                        .paused       = false,
+                    };
+                    handle.emplace_or_replace<PlayingAnimation>(MOVE(playing));
+                }
+                if (auto* playing = handle.try_get<PlayingAnimation>()) {
+                    if (playing->current_anim == anim) {
+                        ImGui::SameLine();
+                        if (!playing->paused && ImGui::SmallButton("Pause ")) { playing->paused = true;  }
+                        if (playing->paused  && ImGui::SmallButton("Resume")) { playing->paused = false; }
+                        ImGui::SameLine();
+                        ImGui::Text("Playing [%.2f s]", playing->current_time);
+                    }
+                }
+            }
+
+            ImGui::TreePop();
+        }
+    }
+    if (auto* skinned_mesh = handle.try_get<SkinnedMesh>()) {
+        if (ImGui::TreeNode("Skin Mat4s (B2Js)")) {
+            for (const mat4& skin_mat : skinned_mesh->skinning_mats) {
+                Matrix4x4DisplayWidget(skin_mat);
+            }
+            ImGui::TreePop();
+        }
+    }
+}
+
 
 
 inline bool AmbientLightWidget(AmbientLight& alight) {

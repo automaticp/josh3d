@@ -359,8 +359,8 @@ void MeshStorage<VertexT>::query(
 
     using ranges::views::enumerate;
     for (const auto [i, mesh_id] : enumerate(ids)) {
-        assert(size_t(mesh_id) < table_.size());
-        const MeshPlacement& placement = table_[size_t(mesh_id)];
+        assert(size_t(mesh_id.value) < table_.size());
+        const MeshPlacement& placement = table_[size_t(mesh_id.value)];
 
         out_offsets_bytes[i] = placement.offset_bytes;
         out_counts       [i] = placement.count;
