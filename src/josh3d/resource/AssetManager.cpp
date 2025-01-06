@@ -32,6 +32,7 @@
 #include <boost/scope/scope_fail.hpp>
 #include <exception>
 #include <glm/ext.hpp>
+#include <glm/ext/matrix_transform.hpp>
 #include <glm/geometric.hpp>
 #include <glm/gtc/packing.hpp>
 #include <glm/packing.hpp>
@@ -41,6 +42,7 @@
 #include <cstdint>
 #include <optional>
 #include <range/v3/view/transform.hpp>
+#include <ranges>
 #include <unordered_map>
 #include <utility>
 
@@ -496,29 +498,42 @@ void populate_joints_preorder(
 {
     if (!node) return;
 
-    const aiBone* bone = node2bone.at(node);
+    // The root node of the skeleton can *still* have a scene-graph parent,
+    // so the is_root flag is needed, can't just check the node->mParent for null.
+    if (is_root) {
+        assert(joints.empty());
 
-    // If the node is root, then the parent index is "incorrectly" set to 255.
-    // Otherwise, lookup from the table. The parent should already be there
-    // because of the traversal order.
-    //
-    // The root node of the skeleton *still* has a scene-graph parent,
-    // in the form of the armature itself, so the is_root flag is needed,
-    // can't just check the node->mParent.
-    const size_t parent_id     = is_root ? Joint::no_parent : node2id.at(node->mParent);
-    const size_t this_joint_id = joints.size();
-    assert(this_joint_id < 255); // Safety of conversion must be guaranteed by prior importer checks.
+        const Joint root_joint = {
+            // If the node is root, then the parent index is "incorrectly" set to 255.
+            .parent_id = Joint::no_parent,
+            .inv_bind  = glm::identity<mat4>(),
+        };
 
-    // bone.mOffsetMatrix - [Mesh]->[Joint] CoB (aka. inverse bind)
-    // node.mTransform    - [Joint]->[Parent Joint] CoB (similar to scene graph L2P)
+        const size_t root_joint_id = 0;
 
-    const Joint joint{
-        .parent_id = uint8_t(parent_id),
-        .inv_bind  = m2m(bone->mOffsetMatrix),
-    };
+        joints.emplace_back(root_joint);
+        node2id.emplace(node, root_joint_id);
 
-    joints.emplace_back(joint);
-    node2id.emplace(node, this_joint_id);
+    } else /* not root */ {
+
+        // "Bones" only exist for non-root nodes.
+        const aiBone* bone = node2bone.at(node);
+
+        // If non-root, lookup parent id from the table.
+        // The parent node should already be there because of the traversal order.
+        const size_t parent_id = node2id.at(node->mParent);
+        const size_t joint_id  = joints.size();
+
+        assert(joint_id < 255); // Safety of the conversion must be guaranteed by prior importer checks.
+
+        const Joint joint{
+            .parent_id = uint8_t(parent_id),
+            .inv_bind  = m2m(bone->mOffsetMatrix),
+        };
+
+        joints.emplace_back(joint);
+        node2id.emplace(node, joint_id);
+    }
 
     for (const aiNode* child : std::span(node->mChildren, node->mNumChildren)) {
         const bool is_root = false;
@@ -732,13 +747,13 @@ auto AssetManager::load_model(AssetPath path)
             aiProcess_GenSmoothNormals         |
             aiProcess_CalcTangentSpace         |
             aiProcess_GenBoundingBoxes         |
-            aiProcess_GlobalScale              | // FBX or something.
-            aiProcess_ImproveCacheLocality     |
+            aiProcess_GlobalScale              | // TODO: What does this do exactly?
             aiProcess_OptimizeGraph            |
         //  aiProcess_OptimizeMeshes           |
             aiProcess_RemoveRedundantMaterials |
             aiProcess_LimitBoneWeights         | // Up to 4 weights with most effect.
-            aiProcess_PopulateArmatureData;      // Figures out which skeletons are referenced by which mesh.
+            aiProcess_PopulateArmatureData     | // Figures out which skeletons are referenced by which mesh.
+            aiProcess_ImproveCacheLocality;
 
         const aiScene* ai_scene = importer.ReadFile(path.entry(), flags);
 
@@ -801,7 +816,6 @@ auto AssetManager::load_model(AssetPath path)
                 }
 
                 // Populate associated armatures for each skinned mesh.
-                // Armature is not the root, but a parent of it. No idea why.
                 assert(bones.size());
                 const aiNode* armature = bones[0]->mArmature;
                 mesh2armature.emplace(ai_mesh, armature);
@@ -839,9 +853,12 @@ auto AssetManager::load_model(AssetPath path)
         for (const auto [ai_mesh, armature] : mesh2armature) {
             if (!armature2skeleton_asset.contains(armature)) {
 
+                // TODO: I'm still not sure whether or not the Armature itself
+                // should be considered as the root joint. Doing so allows us
+                // to support multi-root skeletons, I think, but does that actually
+                // make sense? Armatures commonly do not have keyframes, AFAIK.
                 std::vector<Joint> joints;
-                assert(armature->mNumChildren == 1);
-                const aiNode* root    = armature->mChildren[0];
+                const aiNode* root    = armature;
                 const bool    is_root = true;
                 populate_joints_preorder(joints, node2id, node2bone, root, is_root);
 
@@ -879,12 +896,10 @@ auto AssetManager::load_model(AssetPath path)
 
             for (const aiNodeAnim* channel : channels) {
                 // WHY DO I HAVE TO LOOK IT UP BY NAME JESUS.
-                const aiNode* node     = armature->FindNode(channel->mNodeName);
+                const aiNode* node = armature->FindNode(channel->mNodeName);
                 assert(node);
 
-                if (node == armature) continue; // Ignore Armature itself, FBX has keyframes for it for some reason.
-
-                const size_t  joint_id = node2id.at(node);
+                const size_t joint_id = node2id.at(node);
 
                 // It is guaranteed by assimp that keys are monotonically *increasing* in time.
                 const auto pos_keys = std::span(channel->mPositionKeys, channel->mNumPositionKeys);
