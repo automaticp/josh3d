@@ -879,76 +879,48 @@ auto AssetManager::load_model(AssetPath path)
         for (const aiAnimation* ai_anim : ai_anims) {
             const double tps      = (ai_anim->mTicksPerSecond != 0) ? ai_anim->mTicksPerSecond : 30.0;
             const double duration = ai_anim->mDuration / tps;
-            const double delta    = 1.0 / 30.0; // Use fixed delta that corresponds to 1/30 sec.
-            const AnimationClock clock{ duration, delta };
 
-            const auto    channels       = std::span(ai_anim->mChannels, ai_anim->mNumChannels);
-            const aiNode* armature       = anim2armature.at(ai_anim);
-            const auto&   skeleton_asset = armature2skeleton_asset.at(armature);
-            const size_t  num_joints     = skeleton_asset.skeleton->joints.size();
+            const auto    ai_channel_groups = std::span(ai_anim->mChannels, ai_anim->mNumChannels);
+            const aiNode* armature          = anim2armature.at(ai_anim);
+            const auto&   skeleton_asset    = armature2skeleton_asset.at(armature);
+            const size_t  num_joints        = skeleton_asset.skeleton->joints.size();
 
             // Prepare storage for samples.
-            std::vector<SkeletalAnimation::Sample> samples;
-            samples.reserve(clock.num_samples());
-            for (size_t s{ 0 }; s < clock.num_samples(); ++s) {
-                samples.emplace_back(std::make_unique<Transform[]>(num_joints));
-            }
+            std::vector<AnimationClip::JointKeyframes> joint_keyframes(num_joints);
 
-            for (const aiNodeAnim* channel : channels) {
+            for (const aiNodeAnim* ai_channel_group : ai_channel_groups) {
+
                 // WHY DO I HAVE TO LOOK IT UP BY NAME JESUS.
-                const aiNode* node = armature->FindNode(channel->mNodeName);
+                const aiNode* node = armature->FindNode(ai_channel_group->mNodeName);
                 assert(node);
-
                 const size_t joint_id = node2id.at(node);
 
-                // It is guaranteed by assimp that keys are monotonically *increasing* in time.
-                const auto pos_keys = std::span(channel->mPositionKeys, channel->mNumPositionKeys);
-                const auto rot_keys = std::span(channel->mRotationKeys, channel->mNumRotationKeys);
-                const auto sca_keys = std::span(channel->mScalingKeys,  channel->mNumScalingKeys );
+                // It is guaranteed by assimp that times are monotonically *increasing*.
+                const auto ai_pos_keys = std::span(ai_channel_group->mPositionKeys, ai_channel_group->mNumPositionKeys);
+                const auto ai_rot_keys = std::span(ai_channel_group->mRotationKeys, ai_channel_group->mNumRotationKeys);
+                const auto ai_sca_keys = std::span(ai_channel_group->mScalingKeys,  ai_channel_group->mNumScalingKeys );
 
-                // If we were to store each channel (pos, rot, scale) separately, then we could avoid
-                // using binary search here to resample the animation data. But alas...
+                const auto to_vec3_key = [&tps](const aiVectorKey& vk) -> AnimationClip::Key<vec3> { return { vk.mTime / tps, v2v(vk.mValue) }; };
+                const auto to_quat_key = [&tps](const aiQuatKey&   qk) -> AnimationClip::Key<quat> { return { qk.mTime / tps, q2q(qk.mValue) }; };
 
                 using std::views::transform;
-                const auto lerp_pos = [&](double time) -> vec3 {
-                    const auto [prev_idx, next_idx, s] = binary_search(pos_keys | transform(&aiVectorKey::mTime), time * tps);
-                    const vec3 prev = v2v(pos_keys[prev_idx].mValue);
-                    const vec3 next = v2v(pos_keys[next_idx].mValue);
-                    return glm::lerp(prev, next, s);
-                };
+                using ranges::to;
 
-                const auto slerp_rot = [&](double time) -> quat {
-                    const auto [prev_idx, next_idx, s] = binary_search(rot_keys | transform(&aiQuatKey::mTime), time * tps);
-                    const quat prev = q2q(rot_keys[prev_idx].mValue);
-                    const quat next = q2q(rot_keys[next_idx].mValue);
-                    return glm::slerp(prev, next, s);
-                };
+                auto& channels = joint_keyframes[joint_id];
 
-                const auto logerp_sca = [&](double time) -> vec3 {
-                    const auto [prev_idx, next_idx, s] = binary_search(sca_keys | transform(&aiVectorKey::mTime), time * tps);
-                    const vec3 prev = v2v(sca_keys[prev_idx].mValue);
-                    const vec3 next = v2v(sca_keys[next_idx].mValue);
-                    return glm::exp(glm::lerp(glm::log(prev), glm::log(next), s));
-                };
-
-
-                for (size_t s{ 0 }; s < clock.num_samples(); ++s) {
-                    const double time     = clock.time_of_sample(s);
-                    const vec3   position = lerp_pos  (time);
-                    const quat   rotation = slerp_rot (time);
-                    const vec3   scale    = logerp_sca(time);
-                    samples[s].joint_poses[joint_id] = Transform{ position, rotation, scale };
-                }
+                channels.t = ai_pos_keys | transform(to_vec3_key) | to<std::vector>();
+                channels.r = ai_rot_keys | transform(to_quat_key) | to<std::vector>();
+                channels.s = ai_sca_keys | transform(to_vec3_key) | to<std::vector>();
             }
 
-            SkeletalAnimation animation_data{
-                .clock    = clock,
-                .samples  = MOVE(samples),
-                .skeleton = skeleton_asset.skeleton,
+            AnimationClip animation_clip{
+                .duration  = duration,
+                .keyframes = MOVE(joint_keyframes),
+                .skeleton  = skeleton_asset.skeleton,
             };
 
             StoredAnimationAsset animation_asset{
-                .animation = std::make_shared<SkeletalAnimation>(MOVE(animation_data)),
+                .animation = std::make_shared<AnimationClip>(MOVE(animation_clip)),
             };
 
             anim2animation_asset.emplace(ai_anim, MOVE(animation_asset));

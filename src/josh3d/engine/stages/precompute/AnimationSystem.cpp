@@ -20,7 +20,7 @@ void AnimationSystem::operator()(
         assert(playing.current_anim->skeleton.get() == skinned_mesh.skeleton.get());
         const auto& anim     = *playing.current_anim;
         const auto  time     = playing.current_time;
-        const auto  duration = anim.clock.duration();
+        const auto  duration = anim.duration;
         const auto  dt       = engine.frame_timer().delta();
 
         /*
@@ -56,8 +56,8 @@ void AnimationSystem::operator()(
         This would represent covariant vecs from Bind space in Joint space.
 
         However, if we treat this as an *active* transformation,
-        this would transform *contravariant* vecs as if they are "attached"
-        to the changing basis *in Bind space*.
+        this would transform *contravariant* vecs *in Bind space*
+        as if they are "attached" to the changing basis.
 
         An active transformation (here annotated with the space it belongs to as B2J[@B], B2J[@M], etc.)
         can be transformed from Bind space to Mesh space according to the CoB of a linear map:

@@ -219,7 +219,7 @@ auto binary_search(
     const T&                                value) noexcept
         -> BSearchResult
 {
-    const auto size  = size_t(std::ranges::distance(range));
+    const auto size  = std::ranges::size(range);
     const auto first = range.begin();
     const auto last  = range.end();
     // This returns an iterator pointing to the first element in the range [first, last)
@@ -232,13 +232,13 @@ auto binary_search(
         return {
             .prev_idx = 0,
             .next_idx = 0,
-            .s        = 0.0
+            .s        = 0.0f
         };
     } else if (next == last) {
         return {
             .prev_idx = size - 1,
             .next_idx = size - 1,
-            .s        = 1.0
+            .s        = 1.0f
         };
     } else [[likely]] {
         const auto prev = next - 1;
@@ -249,7 +249,7 @@ auto binary_search(
         return {
             .prev_idx = size_t(prev - first),
             .next_idx = size_t(next - first),
-            .s        = (value - prev_value) / diff
+            .s        = float((value - prev_value) / diff)
         };
     }
 }

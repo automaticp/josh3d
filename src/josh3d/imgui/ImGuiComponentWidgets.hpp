@@ -383,7 +383,7 @@ inline void AnimationsWidget(Handle handle) {
 
             for (size_t i{ 0 }; i < anims->anims.size(); ++i) {
                 const auto& anim       = anims->anims[i];
-                const float duration_s = float(anim->clock.duration());
+                const float duration_s = float(anim->duration);
                 ImGui::Text("%zu | %.2f s",  i, duration_s);
                 ImGui::SameLine();
                 if (ImGui::SmallButton("Play")) {

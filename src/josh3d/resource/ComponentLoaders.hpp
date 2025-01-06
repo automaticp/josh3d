@@ -88,7 +88,7 @@ inline void emplace_model_asset_into(
                     auto anims =
                         mesh_asset.animation_assets |
                         transform(&SharedAnimationAsset::animation) |
-                        to<std::vector<std::shared_ptr<const SkeletalAnimation>>>();
+                        to<std::vector<std::shared_ptr<const AnimationClip>>>();
 
                     mesh_handle.emplace<MeshAnimations>(MOVE(anims));
 

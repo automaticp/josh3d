@@ -208,7 +208,7 @@ struct Asset<AssetKind::Animation, MutT> {
     static constexpr AssetKind asset_kind = AssetKind::Animation;
 
     using mutability     = MutT;
-    using animation_type = std::conditional_t<gl_const<MutT>, const SkeletalAnimation, SkeletalAnimation>;
+    using animation_type = std::conditional_t<gl_const<MutT>, const AnimationClip, AnimationClip>;
 
     // AssetPath path;
     std::shared_ptr<animation_type> animation;
