@@ -313,7 +313,7 @@ void cull_per_cascade(
     */
 
     for (const Entity entity : registry.view<MTransform, Mesh, AABB>()) {
-        const ConstHandle handle{ registry, entity };
+        const CHandle handle{ registry, entity };
         const auto& aabb = handle.get<AABB>();
 
         // We can discard draws for meshes, whose extents are too small

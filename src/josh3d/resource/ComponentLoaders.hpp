@@ -79,9 +79,8 @@ inline void emplace_model_asset_into(
                 } else if constexpr (std::same_as<T, SharedSkinnedMeshAsset>) {
 
                     const auto& skeleton_asset = mesh_asset.skeleton_asset;
-                    // Default skinning matrices are I.
-                    std::vector<mat4> skinning_mats(skeleton_asset.skeleton->joints.size(), glm::identity<mat4>());
-                    mesh_handle.emplace<SkinnedMesh>(mesh_asset.mesh_id, skeleton_asset.skeleton, MOVE(skinning_mats));
+
+                    mesh_handle.emplace<SkinnedMesh>(mesh_asset.mesh_id, skeleton_asset.skeleton);
 
                     // HACK: Directly emplacing animations into a mesh entity.
                     using ranges::to, std::views::transform;

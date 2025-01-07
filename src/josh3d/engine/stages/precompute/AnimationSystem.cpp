@@ -17,7 +17,7 @@ void AnimationSystem::operator()(
         : registry.view<SkinnedMesh, PlayingAnimation>().each())
     {
         if (playing.paused) continue; // Ugly hack.
-        assert(playing.current_anim->skeleton.get() == skinned_mesh.skeleton.get());
+        assert(playing.current_anim->skeleton.get() == skinned_mesh.pose.skeleton.get());
         const auto& anim     = *playing.current_anim;
         const auto  time     = playing.current_time;
         const auto  duration = anim.duration;
@@ -91,8 +91,7 @@ void AnimationSystem::operator()(
         // all of it's ancestors have already been visited before.
         // This is useful, as it allows us to compute the M2J "top-down" from the root.
         const std::span joints = playing.current_anim->skeleton->joints;
-
-        thread_local std::vector<mat4> M2Js; M2Js.resize(joints.size());
+        std::vector<mat4>& M2Js = skinned_mesh.pose.M2Js;
 
         // Joint with index 0 is always root, we compute it separately, since it has no parent.
         const Transform root_tf = anim.sample_at(0, time);
@@ -106,13 +105,13 @@ void AnimationSystem::operator()(
         }
 
         // Fill out the skinning matrices. That's our job.
-        skinned_mesh.skinning_mats.clear();
+        std::vector<mat4>& skinning_mats = skinned_mesh.pose.skinning_mats;
         for (size_t j{ 0 }; j < joints.size(); ++j) {
             const mat4 B2M = joints[j].inv_bind;
             const mat4 M2J = M2Js[j];
 
             const mat4 skinning_mtf = M2J * B2M; // See notes above for why this looks like this.
-            skinned_mesh.skinning_mats.emplace_back(skinning_mtf);
+            skinning_mats[j] = skinning_mtf;
         }
 
         // Advance the clock forward, and possibly, destroy the PlayingAnimation if it's over.

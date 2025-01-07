@@ -82,7 +82,7 @@ using FileID          = entt::entity; // Any file, primary or secondary.
 using ProgramOrFileID = entt::entity;
 using Registry        = entt::registry;
 using Handle          = entt::handle;
-using ConstHandle     = entt::const_handle;
+using CHandle     = entt::const_handle;
 
 
 struct MarkedForReload {};
@@ -172,7 +172,7 @@ private:
 
 
 static void start_watching(Registry& registry, FileID entity) {
-    const ConstHandle handle{ registry, entity };
+    const CHandle handle{ registry, entity };
     assert(has_component<File>(handle));
     const File& file = handle.get<File>();
     handle.get<WatchedFile>().watcher->watch(to_integral(entity), file);
@@ -180,7 +180,7 @@ static void start_watching(Registry& registry, FileID entity) {
 
 
 static void stop_watching(Registry& registry, FileID entity) {
-    const ConstHandle handle{ registry, entity };
+    const CHandle handle{ registry, entity };
     handle.get<WatchedFile>().watcher->stop_watching(to_integral(entity));
 }
 

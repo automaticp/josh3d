@@ -156,8 +156,28 @@ inline void multidraw_elements(
 }
 
 
-inline void _draw_elements_basevertex() noexcept {
-    // gl::glDrawElementsBaseVertex()
+inline void draw_elements_basevertex(
+    BindToken<Binding::VertexArray>     bound_vertex_array     [[maybe_unused]],
+    BindToken<Binding::Program>         bound_program          [[maybe_unused]],
+    BindToken<Binding::DrawFramebuffer> bound_draw_framebuffer [[maybe_unused]],
+    Primitive                           primitive,
+    ElementType                         type,
+    // TODO: Arguments are easily confused.
+    GLsizeiptr                          element_offset_bytes,
+    GLsizei                             element_count,
+    GLint                               element_basevert) noexcept
+{
+    assert(bound_program.id()          == queries::bound_id(Binding::Program));
+    assert(bound_draw_framebuffer.id() == queries::bound_id(Binding::DrawFramebuffer));
+    assert(bound_vertex_array.id()     == queries::bound_id(Binding::VertexArray));
+    using offset_t = const void*;
+    gl::glDrawElementsBaseVertex(
+        enum_cast<GLenum>(primitive),
+        element_count,
+        enum_cast<GLenum>(type),
+        reinterpret_cast<offset_t>(element_offset_bytes), // NOLINT
+        element_basevert
+    );
 }
 
 
@@ -668,7 +688,7 @@ enum class Faces : GLuint {
 "[14.6.4] Polygon antialiasing applies only to the FILL state of PolygonMode. For
 POINT or LINE, point antialiasing or line segment antialiasing, respectively, apply."
 */
-enum class PolygonRaserization : GLuint {
+enum class PolygonRasterization : GLuint {
     Point = GLuint(gl::GL_POINT),
     Line  = GLuint(gl::GL_LINE),
     Fill  = GLuint(gl::GL_FILL),
@@ -697,14 +717,14 @@ inline auto get_face_culling_target() noexcept
     return detail::get_enum<Faces>(gl::GL_CULL_FACE_MODE);
 }
 
-inline void set_polygon_rasterization_mode(PolygonRaserization mode) noexcept {
+inline void set_polygon_rasterization_mode(PolygonRasterization mode) noexcept {
     gl::glPolygonMode(gl::GL_FRONT_AND_BACK, enum_cast<GLenum>(mode));
 }
 
 inline auto get_polygon_rasterization_mode() noexcept
-    -> PolygonRaserization
+    -> PolygonRasterization
 {
-    return detail::get_enum<PolygonRaserization>(gl::GL_POLYGON_MODE);
+    return detail::get_enum<PolygonRasterization>(gl::GL_POLYGON_MODE);
 }
 
 inline auto set_polygon_offset_clamped(

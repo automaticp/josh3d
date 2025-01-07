@@ -128,10 +128,25 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(overlay, SceneOverlays) {
         ImGui::Checkbox("Selected Only##RL", &params.selected_only); // TODO
         ImGui::EndDisabled();
         ImGui::Checkbox("Use AABB Midpoints", &params.use_aabb_midpoints);
-        ImGui::SliderFloat("Dash Size", &params.dash_size, 0.f, 1.f, "%.3f", ImGuiSliderFlags_Logarithmic);
+        ImGui::SliderFloat("Dash Size##RL", &params.dash_size, 0.f, 1.f, "%.3f", ImGuiSliderFlags_Logarithmic);
         ImGui::ColorEdit4("Color##RL", value_ptr(params.line_color), ImGuiColorEditFlags_DisplayHSV);
         auto [min, max] = glapi::limits::aliased_line_width_range();
         ImGui::SliderFloat("Line Width##RL", &params.line_width, min, max, "%.0f", ImGuiSliderFlags_Logarithmic);
+    }
+
+    ImGui::SeparatorText("Skeletons");
+
+    {
+        auto& params = stage_.skeleton_params;
+
+        ImGui::Checkbox("Show Skeleton##SK", &params.show_skeleton);
+        ImGui::Checkbox("Selected Only##SK", &params.selected_only);
+        ImGui::SliderFloat("Joint Scale", &params.joint_scale, 0.f, 1.f, "%.2f", ImGuiSliderFlags_Logarithmic);
+        ImGui::ColorEdit3("Joint Color", value_ptr(params.joint_color), ImGuiColorEditFlags_DisplayHSV);
+        ImGui::SliderFloat("Bone Dash Size##RL", &params.bone_dash_size, 0.f, 1.f, "%.3f", ImGuiSliderFlags_Logarithmic);
+        auto [min, max] = glapi::limits::aliased_line_width_range();
+        ImGui::SliderFloat("Bone Width##SK", &params.bone_width, min, max, "%.0f", ImGuiSliderFlags_Logarithmic);
+        ImGui::ColorEdit4("Bone Color##SK", value_ptr(params.bone_color), ImGuiColorEditFlags_DisplayHSV);
     }
 
 }

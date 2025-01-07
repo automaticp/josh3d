@@ -72,24 +72,13 @@ void SkinnedGeometry::operator()(
 
             apply_materials(entity, sp, shininess_loc);
 
-            skinning_mats_.restage(skinned_mesh.skinning_mats);
+            skinning_mats_.restage(skinned_mesh.pose.skinning_mats);
             BindGuard bound_skin_mats = skinning_mats_.bind_to_ssbo_index(0);
 
-            // TODO: MeshStorage should have a query_one interface.
+            // TODO: Could batch if had SkinStorage.
+            auto [offset_bytes, count, basevert] = mesh_storage.query_one(skinned_mesh.mesh_id);
 
-            GLsizeiptr offset_bytes[1];
-            GLsizei    count       [1];
-            GLint      basevert    [1];
-            mesh_storage.query(
-                { &skinned_mesh.mesh_id, 1 },
-                offset_bytes,
-                count,
-                basevert
-            );
-
-            // TODO: glapi::draw_elements_basevertex() where?
-
-            glapi::multidraw_elements_basevertex(
+            glapi::draw_elements_basevertex(
                 bound_vao,
                 bound_program,
                 bound_fbo,

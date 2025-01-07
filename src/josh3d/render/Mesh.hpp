@@ -63,7 +63,7 @@ public:
         BindToken<Binding::Program>         bound_program,
         BindToken<Binding::DrawFramebuffer> bound_fbo) const
     {
-        auto bound_vao = vertex_array().bind();
+        BindGuard bound_vao = vertex_array().bind();
         if (is_indexed()) {
             glapi::draw_elements(
                 bound_vao, bound_program, bound_fbo,
@@ -75,7 +75,6 @@ public:
                 primitive_type(), vertex_offset(), num_vertices()
             );
         }
-        bound_vao.unbind();
     }
 
 };

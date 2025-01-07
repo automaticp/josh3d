@@ -15,10 +15,10 @@ Unfortunately, currently not used consistently.
 namespace josh {
 
 
-using Entity      = entt::entity;
-using Handle      = entt::handle;
-using ConstHandle = entt::const_handle;
-using Registry    = entt::registry;
+using Entity   = entt::entity;
+using Handle   = entt::handle;
+using CHandle  = entt::const_handle;
+using Registry = entt::registry;
 
 
 } // namespace josh

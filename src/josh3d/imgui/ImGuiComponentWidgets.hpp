@@ -409,8 +409,8 @@ inline void AnimationsWidget(Handle handle) {
         }
     }
     if (auto* skinned_mesh = handle.try_get<SkinnedMesh>()) {
-        if (ImGui::TreeNode("Skin Mat4s (B2Js)")) {
-            for (const mat4& skin_mat : skinned_mesh->skinning_mats) {
+        if (ImGui::TreeNode("Skin Mat4s (B2J[@M])")) {
+            for (const mat4& skin_mat : skinned_mesh->pose.skinning_mats) {
                 Matrix4x4DisplayWidget(skin_mat);
             }
             ImGui::TreePop();

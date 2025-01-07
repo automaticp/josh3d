@@ -27,6 +27,13 @@ struct MeshID {
 };
 
 
+struct MeshPlacement {
+    GLsizeiptr offset_bytes;
+    GLsizei    count;
+    GLint      basevert;
+};
+
+
 template<specializes_attribute_traits VertexT>
 class MeshStorage {
 public:
@@ -44,6 +51,10 @@ public:
         std::span<GLsizeiptr>    out_byte_offsets,
         std::span<GLsizei>       out_counts,
         std::span<GLint>         out_baseverts) const;
+
+    [[nodiscard]]
+    auto query_one(id_type id) const
+        -> MeshPlacement;
 
     // TODO:
     void query_indirect(
@@ -121,14 +132,7 @@ private:
     void reattach_vbo();
     void reattach_ebo();
 
-    struct MeshPlacement {
-        GLsizeiptr offset_bytes;
-        GLsizei    count;
-        GLint      basevert;
-    };
-
     std::vector<MeshPlacement> table_;
-
 };
 
 
@@ -366,6 +370,15 @@ void MeshStorage<VertexT>::query(
         out_counts       [i] = placement.count;
         out_baseverts    [i] = placement.basevert;
     }
+}
+
+
+template<specializes_attribute_traits VertexT>
+auto MeshStorage<VertexT>::query_one(id_type id) const
+    -> MeshPlacement
+{
+    assert(size_t(id.value) < table_.size());
+    return table_[size_t(id.value)];
 }
 
 
