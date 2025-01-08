@@ -9,6 +9,7 @@
 #include "GLScalars.hpp"
 #include "GLVertexArray.hpp"
 #include "detail/StrongScalar.hpp"
+#include <glbinding/gl/types.h>
 #include <range/v3/view/enumerate.hpp>
 #include <algorithm>
 #include <cassert>
@@ -21,10 +22,27 @@
 namespace josh {
 
 
+template<specializes_attribute_traits VertexT>
+class MeshStorage;
+
+
 template<typename VertexT>
 struct MeshID {
     uint64_t value{};
 };
+
+
+// Convinience for batched draws.
+//
+// Prepares draw parameters for a multidraw call and
+// executes it for each MeshID in the specified range.
+template<typename VertexT>
+void multidraw_from_storage(
+    const MeshStorage<VertexT>&         storage,
+    BindToken<Binding::Program>         bound_program,
+    BindToken<Binding::DrawFramebuffer> bound_fbo,
+    std::ranges::input_range auto&&     mesh_ids);
+
 
 
 struct MeshPlacement {
@@ -399,6 +417,59 @@ void MeshStorage<VertexT>::query_range(
     }
 }
 
+
+
+
+namespace detail {
+
+
+struct MDScratch {
+    std::vector<GLsizeiptr> offsets_bytes;
+    std::vector<GLsizei>    counts;
+    std::vector<GLint>      baseverts;
+};
+
+
+inline auto get_thread_local_multidraw_scratch()
+    -> MDScratch&
+{
+    thread_local MDScratch md;
+    md.offsets_bytes.clear();
+    md.counts       .clear();
+    md.baseverts    .clear();
+    return md;
+}
+
+
+} // namespace detail
+
+
+template<typename VertexT>
+void multidraw_from_storage(
+    const MeshStorage<VertexT>&         storage,
+    BindToken<Binding::Program>         bound_program,
+    BindToken<Binding::DrawFramebuffer> bound_fbo,
+    std::ranges::input_range auto&&     mesh_ids)
+{
+    detail::MDScratch& md = detail::get_thread_local_multidraw_scratch();
+    storage.query_range(
+        mesh_ids,
+        std::back_inserter(md.offsets_bytes),
+        std::back_inserter(md.counts),
+        std::back_inserter(md.baseverts)
+    );
+    BindGuard bound_vao = storage.vertex_array().bind();
+    glapi::multidraw_elements_basevertex(
+        bound_vao,
+        bound_program,
+        bound_fbo,
+        storage.primitive_type(),
+        storage.element_type(),
+        md.offsets_bytes,
+        md.counts,
+        md.baseverts
+    );
+}
 
 
 

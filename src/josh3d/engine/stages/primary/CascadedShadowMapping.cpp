@@ -10,6 +10,7 @@
 #include "GeometryCollision.hpp"
 #include "LightCasters.hpp"
 #include "MeshRegistry.hpp"
+#include "MeshStorage.hpp"
 #include "RenderEngine.hpp"
 #include "VertexPNUTB.hpp"
 #include "ViewFrustum.hpp"
@@ -24,7 +25,6 @@
 #include <glbinding-aux/Meta.h>
 #include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/functions.h>
-#include <iterator>
 #include <ranges>
 #include <span>
 
@@ -490,42 +490,14 @@ void multidraw_opaque_meshes(
 
     if (const auto* storage = mesh_registry.storage_for<VertexPNUTB>()) {
 
+        BindGuard bound_program = sp.use();
+
         // Prepare world matrices for all drawable objects.
         world_mats.restage(entities | transform(get_world_mat));
         world_mats.bind_to_ssbo_index(0);
 
-        // Prepare multidraw call parameters.
-        thread_local struct MDParams {
-            std::vector<GLsizeiptr> offsets;
-            std::vector<GLsizei>    counts;
-            std::vector<GLint>      baseverts;
-        } md;
-
-        md.offsets  .clear();
-        md.counts   .clear();
-        md.baseverts.clear();
-
-        storage->query_range(
-            entities | transform(get_mesh_id),
-            std::back_inserter(md.offsets),
-            std::back_inserter(md.counts),
-            std::back_inserter(md.baseverts)
-        );
-
         // Draw all at once.
-        BindGuard bound_program = sp.use();
-        BindGuard bound_vao     = storage->vertex_array().bind();
-
-        glapi::multidraw_elements_basevertex(
-            bound_vao,
-            bound_program,
-            bound_fbo,
-            storage->primitive_type(),
-            storage->element_type(),
-            md.offsets,
-            md.counts,
-            md.baseverts
-        );
+        multidraw_from_storage(*storage, bound_program, bound_fbo, entities | transform(get_mesh_id));
     }
 }
 
