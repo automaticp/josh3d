@@ -42,12 +42,13 @@ Your UI entrypoint.
 */
 class ImGuiApplicationAssembly {
 public:
-    bool show_engine_hooks  = true;
-    bool show_scene_list    = true;
-    bool show_selected      = true;
-    bool show_asset_browser = false;
-    bool show_demo_window   = false; // For debugging.
-    bool show_asset_manager = false; // For debugging.
+    bool show_engine_hooks   = true;
+    bool show_scene_list     = true;
+    bool show_selected       = true;
+    bool show_asset_browser  = false;
+    bool show_demo_window    = false; // For debugging.
+    bool show_asset_manager  = false; // For debugging.
+    bool show_resource_files = false; // For debugging.
 
     float background_alpha{ 0.8f };
 

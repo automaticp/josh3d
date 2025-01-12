@@ -135,6 +135,8 @@ set(common_external_deps
     Boost::scope
     Boost::outcome
     Boost::any
+    Boost::interprocess
+    Boost::uuid
     cppcoro::cppcoro
     glm::glm
     fmt::fmt

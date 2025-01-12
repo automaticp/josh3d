@@ -157,8 +157,9 @@ public:
     const auto&             main_color_attachment()       const noexcept { return main_swapchain_.back_target().color_attachment();           }
     auto                    share_main_color_attachment()       noexcept { return main_swapchain_.back_target().share_color_attachment();     }
 
-    const Primitives& primitives() const noexcept { return primitives_; }
-    const FrameTimer& frame_timer() const noexcept { return frame_timer_; }
+    auto mesh_registry() const noexcept -> const MeshRegistry& { return mesh_registry_; }
+    auto primitives()    const noexcept -> const Primitives&   { return primitives_;    }
+    auto frame_timer()   const noexcept -> const FrameTimer&   { return frame_timer_;   }
 
 
 private:

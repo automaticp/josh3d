@@ -6,16 +6,22 @@
 #include "ContainerUtils.hpp"
 #include "FrameTimer.hpp"
 #include "GLAPIBinding.hpp"
+#include "GLBuffers.hpp"
+#include "ImGuiComponentWidgets.hpp"
 #include "ImGuiHelpers.hpp"
 #include "ImGuiSceneList.hpp"
 #include "ImGuiSelected.hpp"
 #include "ImGuizmoGizmos.hpp"
 #include "Camera.hpp"
+#include "MeshRegistry.hpp"
 #include "RenderEngine.hpp"
+#include "ResourceFiles.hpp"
 #include "SceneImporter.hpp"
 #include "Region.hpp"
+#include "SkinnedMesh.hpp"
 #include "Transform.hpp"
 #include "VPath.hpp"
+#include "VertexPNUTB.hpp"
 #include "VirtualFilesystem.hpp"
 #include <exception>
 #include <imgui.h>
@@ -116,6 +122,280 @@ void ImGuiApplicationAssembly::new_frame() {
 }
 
 
+
+namespace {
+
+
+void display_asset_manager_debug(AssetManager& asset_manager) {
+    thread_local std::optional<SharedTextureAsset>            texture_asset;
+    thread_local std::optional<SharedJob<SharedTextureAsset>> last_texture_job;
+    thread_local std::string                                  texture_vpath;
+
+    thread_local std::optional<SharedModelAsset>            model_asset;
+    thread_local std::optional<SharedJob<SharedModelAsset>> last_model_job;
+    thread_local std::string                                model_vpath;
+
+    thread_local std::string last_error;
+
+
+    if (last_texture_job && !last_texture_job->is_ready()) {
+        ImGui::TextUnformatted("Loading Texture...");
+    }
+    if (last_model_job && !last_model_job->is_ready()) {
+        ImGui::TextUnformatted("Loading Model...");
+    }
+
+
+    if (last_texture_job && last_texture_job->is_ready()) {
+        try {
+            texture_asset = move_out(last_texture_job).get_result();
+            make_available<Binding::Texture2D>(texture_asset->texture->id());
+            last_error = {};
+        } catch (const std::exception& e) {
+            last_error = e.what();
+        }
+    }
+    if (last_model_job && last_model_job->is_ready()) {
+        try {
+            model_asset = move_out(last_model_job).get_result();
+            for (auto& mesh : model_asset->meshes) {
+                visit([&]<typename T>(T& mesh_asset) {
+                    if (auto* asset = try_get(mesh_asset.diffuse )) { make_available<Binding::Texture2D>(asset->texture->id()); }
+                    if (auto* asset = try_get(mesh_asset.specular)) { make_available<Binding::Texture2D>(asset->texture->id()); }
+                    if (auto* asset = try_get(mesh_asset.normal  )) { make_available<Binding::Texture2D>(asset->texture->id()); }
+                    make_available<Binding::ArrayBuffer>       (mesh_asset.vertices->id());
+                    make_available<Binding::ElementArrayBuffer>(mesh_asset.indices->id() );
+                }, mesh);
+            }
+        } catch (const std::exception& e) {
+            last_error = e.what();
+        }
+    }
+
+
+    if (texture_asset) {
+        ImGui::TextUnformatted(texture_asset->path.entry().c_str());
+        imgui::ImageGL(texture_asset->texture->id(), { 480, 480 });
+    }
+    if (model_asset) {
+        ImGui::TextUnformatted(model_asset->path.entry().c_str());
+        for (auto& mesh : model_asset->meshes) {
+            size_t next_id{ 0 };
+            GLuint ids[3];
+            visit([&]<typename T>(T& mesh) {
+                ImGui::TextUnformatted(mesh.path.subpath().begin());
+                if (auto* asset = try_get(mesh.diffuse )) { ids[next_id++] = asset->texture->id(); }
+                if (auto* asset = try_get(mesh.specular)) { ids[next_id++] = asset->texture->id(); }
+                if (auto* asset = try_get(mesh.normal  )) { ids[next_id++] = asset->texture->id(); }
+            }, mesh);
+            const auto visible_ids = std::span(ids, next_id);
+            using ranges::views::enumerate;
+            for (auto [i, id] : enumerate(visible_ids)) {
+                imgui::ImageGL(id, { 64, 64 });
+                if (i < visible_ids.size() - 1) { ImGui::SameLine(); }
+            }
+        }
+    }
+
+
+    auto load_texture_later = on_signal([&] {
+        try {
+            Path path = vfs().resolve_path(VPath(texture_vpath));
+            last_texture_job = asset_manager.load_texture({ MOVE(path) }, ImageIntent::Unknown);
+        } catch (const std::exception& e) {
+            last_error = e.what();
+        }
+    });
+    auto load_model_later = on_signal([&] {
+        try {
+            Path path = vfs().resolve_path(VPath(model_vpath));
+            last_model_job = asset_manager.load_model({ MOVE(path) });
+        } catch (const std::exception& e) {
+            last_error = e.what();
+        }
+    });
+
+
+    if (ImGui::InputText("VPath##Texture", &texture_vpath, ImGuiInputTextFlags_EnterReturnsTrue)) {
+        load_texture_later.set(true);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Load Texture")) {
+        load_texture_later.set(true);
+    }
+
+    if (ImGui::InputText("VPath##Model", &model_vpath, ImGuiInputTextFlags_EnterReturnsTrue)) {
+        load_model_later.set(true);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Load Model")) {
+        load_model_later.set(true);
+    }
+
+
+
+    if (!last_error.empty()) {
+        ImGui::TextUnformatted(last_error.c_str());
+    }
+}
+
+
+void display_resource_file_debug(
+    const Registry&     registry,
+    const MeshRegistry& mesh_registry)
+{
+    thread_local std::string path;
+    thread_local std::string last_error;
+    thread_local size_t      selected_id{};
+    thread_local std::vector<Entity> id2entity;
+    thread_local std::optional<SkeletonFile> opened_file;
+
+    ImGui::InputText("Path", &path);
+
+
+    ImGui::SeparatorText("SkeletonFile");
+    ImGui::PushID("SkeletonFile");
+
+
+    if (ImGui::TreeNode("Save")) {
+
+        if (ImGui::BeginListBox("Entities")) {
+            id2entity.clear();
+            size_t id{};
+            char name[16]{ '\0' };
+            for (const auto [e, mesh] : registry.view<SkinnedMesh>().each()) {
+                std::snprintf(name, std::size(name), "%d", to_entity(e));
+                if (ImGui::Selectable(name, id == selected_id)) {
+                    selected_id = id;
+                }
+                id2entity.emplace_back(e);
+                ++id;
+            }
+            ImGui::EndListBox();
+        }
+
+        if (ImGui::Button("Save")) {
+            try {
+                const Entity entity = id2entity.at(selected_id);
+                const Skeleton& skeleton = *registry.get<SkinnedMesh>(entity).pose.skeleton;
+                auto file = SkeletonFile::create(path, skeleton.joints.size());
+                std::span<Joint> file_joints = file.joints();
+                assert(file_joints.size() == skeleton.joints.size());
+                std::ranges::copy(skeleton.joints, file_joints.begin());
+                last_error = {};
+            } catch (const std::exception& e) {
+                last_error = e.what();
+            }
+        }
+
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("Open")) {
+
+        if (ImGui::Button("Open")) {
+            try {
+                opened_file = SkeletonFile::open(path);
+                last_error = {};
+            } catch (const std::exception& e) {
+                last_error = e.what();
+            }
+        }
+
+        if (auto* f = try_get(opened_file)) {
+            ImGui::Text("Num Joints: %d", f->num_joints());
+            using ranges::views::enumerate;
+            for (const auto [j, joint] : enumerate(f->joints())) {
+                ImGui::Text("Joint ID: %d, Parent ID: %d", int(j), joint.parent_id);
+                imgui::Matrix4x4DisplayWidget(joint.inv_bind);
+            }
+        }
+
+
+        ImGui::TreePop();
+    }
+
+
+    ImGui::PopID();
+
+
+    ImGui::SeparatorText("MeshFile");
+    ImGui::PushID("MeshFile");
+
+
+    if (ImGui::TreeNode("Save")) {
+
+        if (ImGui::BeginListBox("Entities")) {
+            id2entity.clear();
+            size_t id{};
+            char name[16]{};
+            auto iterate_view = [&id, &name](auto&& view, const char* type) {
+                for (const Entity e : view) {
+                    std::snprintf(name, std::size(name), "%s %d", type, to_entity(e));
+                    if (ImGui::Selectable(name, id == selected_id)) {
+                        selected_id = id;
+                    }
+                    id2entity.emplace_back(e);
+                    ++id;
+                }
+            };
+            iterate_view(registry.view<MeshID<VertexPNUTB>>(), "Static" );
+            iterate_view(registry.view<SkinnedMesh>(),         "Skinned");
+            ImGui::EndListBox();
+        }
+
+        if (ImGui::Button("Save")) {
+            try {
+                const Entity entity  = id2entity.at(selected_id);
+                using VertexT = VertexPNUTB;
+                auto download_from_storage = [&]<typename VertexT>(MeshID<VertexT> mesh_id) {
+                    const auto&  storage = *mesh_registry.storage_for<VertexT>();
+                    auto [vert_range, elem_range] = storage.buffer_ranges(mesh_id);
+                    using LODSpec = MeshFile::LODSpec;
+                    constexpr auto layout = MeshFile::vertex_traits<VertexT>::layout;
+                    LODSpec specs[1]{
+                        LODSpec{
+                            .num_verts = uint32_t(vert_range.count),
+                            .num_elems = uint32_t(elem_range.count)
+                        },
+                    };
+                    auto file = MeshFile::create(path, layout, specs);
+                    auto dst_verts = file.template lod_verts<layout>(0);
+                    auto dst_elems = file.lod_elems(0);
+                    storage.vertex_buffer().download_data_into(dst_verts, vert_range.offset);
+                    storage.index_buffer() .download_data_into(dst_elems, elem_range.offset);
+                };
+
+                if (const auto* static_mesh = registry.try_get<MeshID<VertexT>>(entity)) {
+                    download_from_storage(*static_mesh);
+                } else if (const auto* skinned_mesh = registry.try_get<SkinnedMesh>(entity)) {
+                    download_from_storage(skinned_mesh->mesh_id);
+                } else { assert(false); }
+
+                last_error = {};
+            } catch (const std::exception& e) {
+                last_error = e.what();
+            }
+        }
+
+
+        ImGui::TreePop();
+    }
+
+
+    ImGui::PopID();
+
+
+    ImGui::TextUnformatted(last_error.c_str());
+}
+
+
+} // namespace
+
+
+
+
+
 void ImGuiApplicationAssembly::draw_widgets() {
 
     // TODO: Keep active windows within docknodes across "hides".
@@ -170,12 +450,13 @@ void ImGuiApplicationAssembly::draw_widgets() {
 
 
             if (ImGui::BeginMenu("ImGui")) {
-                ImGui::Checkbox("Render Engine", &show_engine_hooks );
-                ImGui::Checkbox("Scene",         &show_scene_list   );
-                ImGui::Checkbox("Selected",      &show_selected     );
-                ImGui::Checkbox("Assets",        &show_asset_browser);
-                ImGui::Checkbox("Demo Window",   &show_demo_window  );
-                ImGui::Checkbox("Asset Manager", &show_asset_manager);
+                ImGui::Checkbox("Render Engine",  &show_engine_hooks  );
+                ImGui::Checkbox("Scene",          &show_scene_list    );
+                ImGui::Checkbox("Selected",       &show_selected      );
+                ImGui::Checkbox("Assets",         &show_asset_browser );
+                ImGui::Checkbox("Demo Window",    &show_demo_window   );
+                ImGui::Checkbox("Asset Manager",  &show_asset_manager );
+                ImGui::Checkbox("Resource Files", &show_resource_files);
 
                 ImGui::Separator();
 
@@ -335,119 +616,13 @@ void ImGuiApplicationAssembly::draw_widgets() {
 
         if (show_asset_manager) {
             if (ImGui::Begin("Asset Manager")) {
-                thread_local std::optional<SharedTextureAsset>            texture_asset;
-                thread_local std::optional<SharedJob<SharedTextureAsset>> last_texture_job;
-                thread_local std::string                                  texture_vpath;
+                display_asset_manager_debug(asset_manager_);
+            } ImGui::End();
+        }
 
-                thread_local std::optional<SharedModelAsset>            model_asset;
-                thread_local std::optional<SharedJob<SharedModelAsset>> last_model_job;
-                thread_local std::string                                model_vpath;
-
-                thread_local std::string last_error;
-
-
-                if (last_texture_job && !last_texture_job->is_ready()) {
-                    ImGui::TextUnformatted("Loading Texture...");
-                }
-                if (last_model_job && !last_model_job->is_ready()) {
-                    ImGui::TextUnformatted("Loading Model...");
-                }
-
-
-                if (last_texture_job && last_texture_job->is_ready()) {
-                    try {
-                        texture_asset = move_out(last_texture_job).get_result();
-                        make_available<Binding::Texture2D>(texture_asset->texture->id());
-                        last_error = {};
-                    } catch (const std::exception& e) {
-                        last_error = e.what();
-                    }
-                }
-                if (last_model_job && last_model_job->is_ready()) {
-                    try {
-                        model_asset = move_out(last_model_job).get_result();
-                        for (auto& mesh : model_asset->meshes) {
-                            visit([&]<typename T>(T& mesh_asset) {
-                                if (auto* asset = try_get(mesh_asset.diffuse )) { make_available<Binding::Texture2D>(asset->texture->id()); }
-                                if (auto* asset = try_get(mesh_asset.specular)) { make_available<Binding::Texture2D>(asset->texture->id()); }
-                                if (auto* asset = try_get(mesh_asset.normal  )) { make_available<Binding::Texture2D>(asset->texture->id()); }
-                                make_available<Binding::ArrayBuffer>       (mesh_asset.vertices->id());
-                                make_available<Binding::ElementArrayBuffer>(mesh_asset.indices->id() );
-                            }, mesh);
-                        }
-                    } catch (const std::exception& e) {
-                        last_error = e.what();
-                    }
-                }
-
-
-                if (texture_asset) {
-                    ImGui::TextUnformatted(texture_asset->path.entry().c_str());
-                    imgui::ImageGL(texture_asset->texture->id(), { 480, 480 });
-                }
-                if (model_asset) {
-                    ImGui::TextUnformatted(model_asset->path.entry().c_str());
-                    for (auto& mesh : model_asset->meshes) {
-                        size_t next_id{ 0 };
-                        GLuint ids[3];
-                        visit([&]<typename T>(T& mesh) {
-                            ImGui::TextUnformatted(mesh.path.subpath().begin());
-                            if (auto* asset = try_get(mesh.diffuse )) { ids[next_id++] = asset->texture->id(); }
-                            if (auto* asset = try_get(mesh.specular)) { ids[next_id++] = asset->texture->id(); }
-                            if (auto* asset = try_get(mesh.normal  )) { ids[next_id++] = asset->texture->id(); }
-                        }, mesh);
-                        const auto visible_ids = std::span(ids, next_id);
-                        using ranges::views::enumerate;
-                        for (auto [i, id] : enumerate(visible_ids)) {
-                            imgui::ImageGL(id, { 64, 64 });
-                            if (i < visible_ids.size() - 1) { ImGui::SameLine(); }
-                        }
-                    }
-                }
-
-
-                auto load_texture_later = on_signal([&, this] {
-                    try {
-                        Path path = vfs().resolve_path(VPath(texture_vpath));
-                        last_texture_job = asset_manager_.load_texture({ MOVE(path) }, ImageIntent::Unknown);
-                    } catch (const std::exception& e) {
-                        last_error = e.what();
-                    }
-                });
-                auto load_model_later = on_signal([&, this] {
-                    try {
-                        Path path = vfs().resolve_path(VPath(model_vpath));
-                        last_model_job = asset_manager_.load_model({ MOVE(path) });
-                    } catch (const std::exception& e) {
-                        last_error = e.what();
-                    }
-                });
-
-
-                if (ImGui::InputText("VPath##Texture", &texture_vpath, ImGuiInputTextFlags_EnterReturnsTrue)) {
-                    load_texture_later.set(true);
-                }
-                ImGui::SameLine();
-                if (ImGui::Button("Load Texture")) {
-                    load_texture_later.set(true);
-                }
-
-                if (ImGui::InputText("VPath##Model", &model_vpath, ImGuiInputTextFlags_EnterReturnsTrue)) {
-                    load_model_later.set(true);
-                }
-                ImGui::SameLine();
-                if (ImGui::Button("Load Model")) {
-                    load_model_later.set(true);
-                }
-
-
-
-
-
-
-                if (!last_error.empty()) {
-                    ImGui::TextUnformatted(last_error.c_str());
-                }
+        if (show_resource_files) {
+            if (ImGui::Begin("Resource Files")) {
+                display_resource_file_debug(registry_, engine_.mesh_registry());
             } ImGui::End();
         }
 

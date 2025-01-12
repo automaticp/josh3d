@@ -505,8 +505,8 @@ void populate_joints_preorder(
 
         const Joint root_joint = {
             // If the node is root, then the parent index is "incorrectly" set to 255.
-            .parent_id = Joint::no_parent,
             .inv_bind  = glm::identity<mat4>(),
+            .parent_id = Joint::no_parent,
         };
 
         const size_t root_joint_id = 0;
@@ -527,8 +527,8 @@ void populate_joints_preorder(
         assert(joint_id < 255); // Safety of the conversion must be guaranteed by prior importer checks.
 
         const Joint joint{
-            .parent_id = uint8_t(parent_id),
             .inv_bind  = m2m(bone->mOffsetMatrix),
+            .parent_id = uint8_t(parent_id),
         };
 
         joints.emplace_back(joint);

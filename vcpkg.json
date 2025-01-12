@@ -9,6 +9,8 @@
         "boost-scope",
         "boost-outcome",
         "boost-any",
+        "boost-interprocess",
+        "boost-uuid",
         "fmt",
         "doctest",
         "cxxopts",

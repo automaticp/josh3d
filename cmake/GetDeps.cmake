@@ -4,7 +4,9 @@
 # Boost::container
 # Boost::outcome
 # Boost::any
-find_package(Boost REQUIRED COMPONENTS iostreams container scope outcome any)
+# Boost::interprocess
+# Boost::uuid
+find_package(Boost REQUIRED COMPONENTS iostreams container scope outcome any interprocess uuid)
 
 
 # === fmt ===

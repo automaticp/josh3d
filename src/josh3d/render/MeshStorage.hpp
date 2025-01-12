@@ -28,6 +28,7 @@ class MeshStorage;
 
 template<typename VertexT>
 struct MeshID {
+    using vertex_type = VertexT;
     uint64_t value{};
 };
 
@@ -49,6 +50,16 @@ struct MeshPlacement {
     GLsizeiptr offset_bytes;
     GLsizei    count;
     GLint      basevert;
+};
+
+
+/*
+BufferRanges describing spans of vertex and element data
+in the MeshStorage's VBO and EBO for a given MeshID.
+*/
+struct MeshBufferRanges {
+    BufferRange verts;
+    BufferRange elems;
 };
 
 
@@ -108,6 +119,12 @@ public:
         RawBuffer<index_type,  GLConst> indices)
             -> id_type;
 
+    // Query BufferRanges of the given mesh_id inside
+    // the vertex_buffer() and index_buffer().
+    [[nodiscard]]
+    auto buffer_ranges(id_type id) const noexcept
+        -> MeshBufferRanges;
+
     // Access the VAO that is bound to all of the mesh data.
     auto vertex_array() const noexcept
         -> RawVertexArray<GLConst>
@@ -150,7 +167,17 @@ private:
     void reattach_vbo();
     void reattach_ebo();
 
-    std::vector<MeshPlacement> table_;
+    struct MeshInfo {
+        MeshBufferRanges ranges;
+        MeshPlacement    placement;
+    };
+
+    std::vector<MeshInfo> table_;
+
+    auto lookup_mesh(id_type id) const noexcept -> const MeshInfo& {
+        assert(size_t(id.value) < table_.size());
+        return table_[size_t(id.value)];
+    }
 };
 
 
@@ -264,7 +291,10 @@ auto MeshStorage<VertexT>::insert(
     };
 
     const auto new_id = MeshID<vertex_type>(table_.size());
-    table_.push_back(mesh_placement);
+    table_.push_back({
+        .ranges    = { vbo_range, ebo_range },
+        .placement = mesh_placement,
+    });
 
     return new_id;
 }
@@ -360,7 +390,10 @@ auto MeshStorage<VertexT>::insert_buffer(
     };
 
     const auto new_id = MeshID<vertex_type>(table_.size());
-    table_.push_back(mesh_placement);
+    table_.push_back({
+        .ranges    = { vbo_range, ebo_range },
+        .placement = mesh_placement,
+    });
 
     return new_id;
 }
@@ -381,8 +414,7 @@ void MeshStorage<VertexT>::query(
 
     using ranges::views::enumerate;
     for (const auto [i, mesh_id] : enumerate(ids)) {
-        assert(size_t(mesh_id.value) < table_.size());
-        const MeshPlacement& placement = table_[size_t(mesh_id.value)];
+        const MeshPlacement& placement = lookup_mesh(mesh_id).placement;
 
         out_offsets_bytes[i] = placement.offset_bytes;
         out_counts       [i] = placement.count;
@@ -395,8 +427,7 @@ template<specializes_attribute_traits VertexT>
 auto MeshStorage<VertexT>::query_one(id_type id) const
     -> MeshPlacement
 {
-    assert(size_t(id.value) < table_.size());
-    return table_[size_t(id.value)];
+    return lookup_mesh(id).placement;
 }
 
 
@@ -408,13 +439,20 @@ void MeshStorage<VertexT>::query_range(
     std::output_iterator<GLint>      auto&& out_baseverts) const
 {
     for (const id_type mesh_id : ids) {
-        assert(size_t(mesh_id.value) < table_.size());
-        const MeshPlacement& placement = table_[size_t(mesh_id.value)];
+        const MeshPlacement placement = lookup_mesh(mesh_id).placement;
 
         *out_offsets_bytes++ = placement.offset_bytes;
         *out_counts++        = placement.count;
         *out_baseverts++     = placement.basevert;
     }
+}
+
+
+template<specializes_attribute_traits VertexT>
+auto MeshStorage<VertexT>::buffer_ranges(id_type id) const noexcept
+    -> MeshBufferRanges
+{
+    return lookup_mesh(id).ranges;
 }
 
 
