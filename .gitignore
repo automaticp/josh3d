@@ -3,5 +3,6 @@
 .cache/
 .vscode/
 .local/
+.josh3d/
 out/
 CMakeUserPresets.json

@@ -1,12 +1,12 @@
 #include "ImGuiApplicationAssembly.hpp"
 #include "Active.hpp"
 #include "Asset.hpp"
+#include "AssetImporter.hpp"
 #include "AssetManager.hpp"
 #include "CategoryCasts.hpp"
 #include "ContainerUtils.hpp"
 #include "FrameTimer.hpp"
 #include "GLAPIBinding.hpp"
-#include "GLBuffers.hpp"
 #include "ImGuiComponentWidgets.hpp"
 #include "ImGuiHelpers.hpp"
 #include "ImGuiSceneList.hpp"
@@ -15,6 +15,7 @@
 #include "Camera.hpp"
 #include "MeshRegistry.hpp"
 #include "RenderEngine.hpp"
+#include "ResourceDatabase.hpp"
 #include "ResourceFiles.hpp"
 #include "SceneImporter.hpp"
 #include "Region.hpp"
@@ -45,6 +46,8 @@ ImGuiApplicationAssembly::ImGuiApplicationAssembly(
     AssetManager&      asset_manager,
     AssetUnpacker&     asset_unpacker,
     SceneImporter&     scene_importer,
+    ResourceDatabase&  resource_database,
+    AssetImporter&     asset_importer,
     VirtualFilesystem& vfs
 )
     : window_         { window             }
@@ -52,6 +55,8 @@ ImGuiApplicationAssembly::ImGuiApplicationAssembly(
     , registry_       { registry           }
     , asset_manager_  { asset_manager      }
     , asset_unpacker_ { asset_unpacker     }
+    , resource_database_{ resource_database }
+    , asset_importer_ { asset_importer     }
     , vfs_            { vfs                }
     , context_        { window             }
     , window_settings_{ window             }
@@ -241,6 +246,8 @@ void display_asset_manager_debug(AssetManager& asset_manager) {
 
 
 void display_resource_file_debug(
+    ResourceDatabase&   resource_database,
+    AssetImporter&      asset_importer,
     const Registry&     registry,
     const MeshRegistry& mesh_registry)
 {
@@ -250,7 +257,102 @@ void display_resource_file_debug(
     thread_local std::vector<Entity> id2entity;
     thread_local std::optional<SkeletonFile> opened_file;
 
+    thread_local std::optional<Job<UUID>> importing_texture;
+    thread_local std::optional<Job<UUID>> importing_model;
+    thread_local std::optional<UUID>      last_imported;
+
+
     ImGui::InputText("Path", &path);
+
+
+    if (ImGui::TreeNode("Resource Database")) {
+
+        ImGui::Text("Root: %s", resource_database.root().c_str());
+
+
+        if (ImGui::Button("Import Texture")) {
+            try {
+                importing_texture = asset_importer.import_texture(path);
+                last_error = {};
+            } catch (const std::exception& e) {
+                last_error = e.what();
+            }
+        }
+
+        if (ImGui::Button("Import Model")) {
+            try {
+                importing_model = asset_importer.import_model(path);
+                last_error = {};
+            } catch (const std::exception& e) {
+                last_error = e.what();
+            }
+        }
+
+        if (ImGui::TreeNode("Entries")) {
+            using ranges::views::enumerate;
+            const auto entries = resource_database.entries();
+
+            const auto table_flags =
+                ImGuiTableFlags_Borders     |
+                ImGuiTableFlags_Resizable   |
+                ImGuiTableFlags_Reorderable |
+                ImGuiTableFlags_Hideable    |
+                ImGuiTableFlags_HighlightHoveredColumn;
+
+            if (ImGui::BeginTable("Resources", 4, table_flags)) {
+                ImGui::TableSetupColumn("UUID");
+                ImGui::TableSetupColumn("File");
+                ImGui::TableSetupColumn("Offset");
+                ImGui::TableSetupColumn("Size");
+                ImGui::TableHeadersRow();
+                for (const auto [i, uuid] : enumerate(entries)) {
+                    ImGui::TableNextRow();
+                    char uuid_str[36]{};
+                    to_chars(uuid, std::begin(uuid_str), std::end(uuid_str));
+                    const ResourceLocation loc = resource_database.locate(uuid);
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted(std::begin(uuid_str), std::end(uuid_str));
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted(loc.file.begin(), loc.file.end());
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%zu", loc.offset_bytes);
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%zu", loc.size_bytes);
+                }
+                ImGui::EndTable();
+            }
+            ImGui::TreePop();
+        }
+
+        ImGui::TreePop();
+    }
+
+    if (importing_texture) {
+        if (importing_texture->is_ready()) {
+            try {
+                last_imported = move_out(importing_texture).get_result();
+            } catch (const std::exception& e) {
+                last_error = e.what();
+            }
+        }
+    }
+
+    if (importing_model) {
+        if (importing_model->is_ready()) {
+            try {
+                last_imported = move_out(importing_model).get_result();
+            } catch (const std::exception& e) {
+                last_error = e.what();
+            }
+        }
+    }
+
+    if (last_imported) {
+        thread_local char uuid_string[37]{};
+        serialize_uuid_to(uuid_string, *last_imported);
+        ImGui::Text("Last UUID: %s", uuid_string);
+    }
+
 
 
     ImGui::SeparatorText("SkeletonFile");
@@ -278,10 +380,10 @@ void display_resource_file_debug(
             try {
                 const Entity entity = id2entity.at(selected_id);
                 const Skeleton& skeleton = *registry.get<SkinnedMesh>(entity).pose.skeleton;
-                auto file = SkeletonFile::create(path, skeleton.joints.size());
-                std::span<Joint> file_joints = file.joints();
-                assert(file_joints.size() == skeleton.joints.size());
-                std::ranges::copy(skeleton.joints, file_joints.begin());
+                // auto file = SkeletonFile::create(path, skeleton.joints.size());
+                // std::span<Joint> file_joints = file.joints();
+                // assert(file_joints.size() == skeleton.joints.size());
+                // std::ranges::copy(skeleton.joints, file_joints.begin());
                 last_error = {};
             } catch (const std::exception& e) {
                 last_error = e.what();
@@ -295,7 +397,7 @@ void display_resource_file_debug(
 
         if (ImGui::Button("Open")) {
             try {
-                opened_file = SkeletonFile::open(path);
+                // opened_file = SkeletonFile::open(path);
                 last_error = {};
             } catch (const std::exception& e) {
                 last_error = e.what();
@@ -359,11 +461,11 @@ void display_resource_file_debug(
                             .num_elems = uint32_t(elem_range.count)
                         },
                     };
-                    auto file = MeshFile::create(path, layout, specs);
-                    auto dst_verts = file.template lod_verts<layout>(0);
-                    auto dst_elems = file.lod_elems(0);
-                    storage.vertex_buffer().download_data_into(dst_verts, vert_range.offset);
-                    storage.index_buffer() .download_data_into(dst_elems, elem_range.offset);
+                    // auto file = MeshFile::create(path, layout, specs);
+                    // auto dst_verts = file.template lod_verts<layout>(0);
+                    // auto dst_elems = file.lod_elems(0);
+                    // storage.vertex_buffer().download_data_into(dst_verts, vert_range.offset);
+                    // storage.index_buffer() .download_data_into(dst_elems, elem_range.offset);
                 };
 
                 if (const auto* static_mesh = registry.try_get<MeshID<VertexT>>(entity)) {
@@ -622,7 +724,7 @@ void ImGuiApplicationAssembly::draw_widgets() {
 
         if (show_resource_files) {
             if (ImGui::Begin("Resource Files")) {
-                display_resource_file_debug(registry_, engine_.mesh_registry());
+                display_resource_file_debug(resource_database_, asset_importer_, registry_, engine_.mesh_registry());
             } ImGui::End();
         }
 

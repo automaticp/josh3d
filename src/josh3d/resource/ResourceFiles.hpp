@@ -1,9 +1,10 @@
 #pragma once
 #include "CategoryCasts.hpp"
-#include "Filesystem.hpp"
+#include "RuntimeError.hpp"
 #include "Region.hpp"
 #include "Skeleton.hpp"
 #include "Math.hpp"
+#include "UUID.hpp"
 #include "VertexPNUTB.hpp"
 #include "VertexSkinned.hpp"
 #include <boost/interprocess/file_mapping.hpp>
@@ -18,11 +19,6 @@ This file provides memory-mapped interfaces to binary resource files.
 It also, implicitly, defines the layout of the binary resource files.
 */
 namespace josh {
-
-
-struct alignas(8) UUID {
-    uint8_t bytes[16];
-};
 
 
 struct ResourceName {
@@ -48,6 +44,9 @@ protected:
 } // namespace error
 
 
+using boost::interprocess::mapped_region;
+
+
 
 
 class SkeletonFile {
@@ -59,16 +58,29 @@ public:
         uint32_t _padding0;  // Explicit alignment padding.
     };
 
-    auto num_joints() const noexcept -> uint16_t;
+    struct Args {
+        uint16_t num_joints;
+    };
 
+    // Calculate the number of bytes required for creation of
+    // the file with the specified arguments.
+    static auto required_size(const Args& args) noexcept
+        -> size_t;
+
+    [[nodiscard]]
+    static auto create_in(mapped_region mapped_region, const Args& args)
+        -> SkeletonFile;
+
+    [[nodiscard]]
+    static auto open(mapped_region mapped_region)
+        -> SkeletonFile;
+
+    auto size_bytes() const noexcept -> size_t { return mapping_.get_size(); }
+    auto num_joints() const noexcept -> uint16_t;
     auto joints()       noexcept -> std::span<Joint>;
     auto joints() const noexcept -> std::span<const Joint>;
-
     auto joint_names()       noexcept -> std::span<ResourceName>;
     auto joint_names() const noexcept -> std::span<const ResourceName>;
-
-    [[nodiscard]] static auto open(const Path& path) -> SkeletonFile;
-    [[nodiscard]] static auto create(const Path& path, uint16_t num_joints) -> SkeletonFile;
 
 private:
     SkeletonFile(boost::interprocess::mapped_region mapping);
@@ -82,54 +94,109 @@ private:
 
 
 
+/*
+struct JointSpan {
+    uint32_t offset_bytes;
+    uint32_t size_bytes;
+};
 
+struct Keyframes {
+    uint32_t _reserved0;
+    uint32_t num_pos_keys;
+    uint32_t num_rot_keys;
+    uint32_t num_sca_keys;
+    KeyVec3  pos_keys[num_pos_keys];
+    KeyQuat  rot_keys[num_rot_keys];
+    KeyVec3  sca_keys[num_sca_keys];
+};
+
+struct AnimationFile {
+    uint64_t  _reserved0;
+    UUID      skeleton;
+    float     duration_s;
+    uint16_t  _reserved1;
+    uint16_t  num_joints;
+    JointSpan joints[num_joints];
+    Keyframes keyframes[num_joints]; // Variable length each.
+};
+
+NOTE: This file layout requires double indirection to parse
+the keyframes, reading the header alone is not enough.
+*/
 class AnimationFile {
 public:
-    struct KeySpan {
-        uint32_t byte_offset;
-        uint32_t num_keys;
+    struct JointSpan {
+        uint32_t offset_bytes; // Offset at which keyframes of a particular joint are located.
+        uint32_t size_bytes;   // Size for sanity.
+    };
+
+    struct KeyframesHeader {
+        uint32_t _reserved0;
+        uint32_t num_pos_keys;
+        uint32_t num_rot_keys;
+        uint32_t num_sca_keys;
     };
 
     struct KeyVec3 {
-        double   time;
-        vec3     value;
-        uint32_t _padding0;
+        float time_s;
+        vec3  value;
     };
 
     struct KeyQuat {
-        double time;
-        quat   value;
+        float time_s;
+        quat  value;
     };
 
     struct Header {
-        uint64_t _reserved0;
-        UUID     skeleton;
-        KeySpan  pos_keys_span;
-        KeySpan  rot_keys_span;
-        KeySpan  sca_keys_span;
+        uint64_t  _reserved0;
+        UUID      skeleton;
+        float     duration_s;
+        uint16_t  _reserved1;
+        uint16_t  num_joints;
     };
+
+    struct KeySpec {
+        uint32_t num_pos_keys;
+        uint32_t num_rot_keys;
+        uint32_t num_sca_keys;
+    };
+
+    struct Args {
+        std::span<const KeySpec> key_specs; // Per-joint.
+    };
+
+    static auto required_size(const Args& args) noexcept
+        -> size_t;
+
+    [[nodiscard]]
+    static auto create_in(mapped_region mapped_region, const Args& args)
+        -> AnimationFile;
+
+    [[nodiscard]]
+    static auto open(mapped_region mapped_region)
+        -> AnimationFile;
+
+    auto size_bytes() const noexcept -> size_t { return mapping_.get_size(); }
 
     auto skeleton_uuid()       noexcept -> UUID&;
     auto skeleton_uuid() const noexcept -> const UUID&;
 
-    auto num_pos_keys() const noexcept -> uint32_t;
-    auto num_rot_keys() const noexcept -> uint32_t;
-    auto num_sca_keys() const noexcept -> uint32_t;
+    auto duration_s()       noexcept -> float&;
+    auto duration_s() const noexcept -> const float&;
 
-    auto pos_keys()       noexcept -> std::span<KeyVec3>;
-    auto pos_keys() const noexcept -> std::span<const KeyVec3>;
-    auto rot_keys()       noexcept -> std::span<KeyQuat>;
-    auto rot_keys() const noexcept -> std::span<const KeyQuat>;
-    auto sca_keys()       noexcept -> std::span<KeyVec3>;
-    auto sca_keys() const noexcept -> std::span<const KeyVec3>;
+    auto num_joints() const noexcept -> uint16_t;
 
-    [[nodiscard]] static auto open(const Path& path) -> AnimationFile;
-    [[nodiscard]] static auto create(
-        const Path& path,
-        uint32_t    num_pos_keys,
-        uint32_t    num_rot_keys,
-        uint32_t    num_sca_keys)
-            -> AnimationFile;
+    auto num_pos_keys(size_t joint_id) const noexcept -> uint32_t;
+    auto num_rot_keys(size_t joint_id) const noexcept -> uint32_t;
+    auto num_sca_keys(size_t joint_id) const noexcept -> uint32_t;
+
+    auto pos_keys(size_t joint_id)       noexcept -> std::span<KeyVec3>;
+    auto pos_keys(size_t joint_id) const noexcept -> std::span<const KeyVec3>;
+    auto rot_keys(size_t joint_id)       noexcept -> std::span<KeyQuat>;
+    auto rot_keys(size_t joint_id) const noexcept -> std::span<const KeyQuat>;
+    auto sca_keys(size_t joint_id)       noexcept -> std::span<KeyVec3>;
+    auto sca_keys(size_t joint_id) const noexcept -> std::span<const KeyVec3>;
+
 
 private:
     AnimationFile(boost::interprocess::mapped_region mapping);
@@ -137,9 +204,16 @@ private:
 
     auto header_ptr() const noexcept -> Header*;
 
-    auto pos_keys_ptr() const noexcept -> KeyVec3*;
-    auto rot_keys_ptr() const noexcept -> KeyQuat*;
-    auto sca_keys_ptr() const noexcept -> KeyVec3*;
+    auto joint_span_ptr(size_t joint_id) const noexcept -> JointSpan*;
+
+    // Total size of KeyframesHeader + all Keys for a joint with `spec`.
+    static auto keyframes_size(const KeySpec& spec) noexcept -> size_t;
+    auto keyframes_ptr(size_t joint_id) const noexcept -> KeyframesHeader*;
+
+    auto pos_keys_ptr(size_t joint_id) const noexcept -> KeyVec3*;
+    auto rot_keys_ptr(size_t joint_id) const noexcept -> KeyQuat*;
+    auto sca_keys_ptr(size_t joint_id) const noexcept -> KeyVec3*;
+
 };
 
 
@@ -184,6 +258,28 @@ public:
         uint32_t num_elems;
     };
 
+    struct Args {
+        VertexLayout             layout;
+        std::span<const LODSpec> lod_specs; // Up-to max_lods.
+    };
+
+    static auto required_size(const Args& args) noexcept
+        -> size_t;
+
+    [[nodiscard]]
+    static auto create_in(mapped_region mapped_region, const Args& args)
+        -> MeshFile;
+
+    [[nodiscard]]
+    static auto open(mapped_region mapped_region)
+        -> MeshFile;
+
+    auto size_bytes() const noexcept
+        -> size_t
+    {
+        return mapping_.get_size();
+    }
+
     // TODO: set/get to check if the layout is correct?
     auto skeleton_uuid() noexcept
         -> UUID&;
@@ -213,18 +309,6 @@ public:
 
     auto lod_elems(size_t lod_id) const noexcept
         -> std::span<const uint32_t>;
-
-
-    [[nodiscard]]
-    static auto open(const Path& path)
-        -> MeshFile;
-
-    [[nodiscard]]
-    static auto create(
-        const Path&              path,
-        VertexLayout             layout,
-        std::span<const LODSpec> lod_specs) // Up-to max_lods.
-            -> MeshFile;
 
 private:
     MeshFile(boost::interprocess::mapped_region mapping);
@@ -287,6 +371,28 @@ public:
         uint16_t height_pixels;
     };
 
+    struct Args {
+        StorageFormat            format;
+        std::span<const MIPSpec> mip_specs; // Up-to max_mips.
+    };
+
+    static auto required_size(const Args& args) noexcept
+        -> size_t;
+
+    [[nodiscard]]
+    static auto create_in(mapped_region mapped_region, const Args& args)
+        -> TextureFile;
+
+    [[nodiscard]]
+    static auto open(mapped_region mapped_region)
+        -> TextureFile;
+
+    auto size_bytes() const noexcept
+        -> size_t
+    {
+        return mapping_.get_size();
+    }
+
     auto format() const noexcept
         -> StorageFormat;
 
@@ -308,16 +414,6 @@ public:
     auto mip_bytes(size_t mip_id) const noexcept
         -> std::span<const std::byte>;
 
-    [[nodiscard]]
-    static auto open(const Path& path)
-        -> TextureFile;
-
-    [[nodiscard]]
-    static auto create(
-        const Path&              path,
-        StorageFormat            format,
-        std::span<const MIPSpec> mip_specs) // Up-to max_mips.
-            -> TextureFile;
 
 private:
     TextureFile(boost::interprocess::mapped_region mapping);

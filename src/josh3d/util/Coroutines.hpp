@@ -577,6 +577,7 @@ private:
 
 // Suspend current coroutine and resume it on the specified executor.
 template<typename ExecutorT>
+[[nodiscard]]
 auto reschedule_to(ExecutorT& executor)
     -> awaiter auto
 {
@@ -617,6 +618,7 @@ concept readyable = requires(T r) {
 
 // Suspend if the readyable is not ready.
 template<readyable T>
+[[nodiscard]]
 auto when_ready(T&& readyable)
     -> awaiter<void> auto
 {
@@ -644,6 +646,7 @@ auto when_ready(T&& readyable)
 //   while (!co_await if_not_ready(thing, &suspended_self));
 //
 template<readyable T, typename PromiseT = void>
+[[nodiscard]]
 auto if_not_ready(T&& readyable, std::coroutine_handle<PromiseT>* out_suspended = nullptr)
     -> awaiter<bool> auto
 {

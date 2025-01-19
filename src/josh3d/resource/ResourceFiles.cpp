@@ -3,6 +3,7 @@
 #include "Filesystem.hpp"
 #include "CategoryCasts.hpp"
 #include "ReadFile.hpp"
+#include "UUID.hpp"
 #include <boost/interprocess/detail/os_file_functions.hpp>
 #include <boost/interprocess/file_mapping.hpp>
 #include <boost/interprocess/mapped_region.hpp>
@@ -21,6 +22,7 @@ namespace josh {
 
 
 namespace bip = boost::interprocess;
+using byte = std::byte;
 
 
 namespace {
@@ -67,18 +69,16 @@ auto mapping_bytes(const bip::mapped_region& mapping) noexcept
 
 
 template<typename HeaderT>
-void throw_if_too_small_for_header(size_t file_size, const Path& path) noexcept(false) {
+void throw_if_too_small_for_header(size_t file_size) noexcept(false) {
     if (file_size < sizeof(HeaderT)) {
-        throw error::InvalidResourceFile(fmt::format(
-            "Resource file \"{}\" is too small to contain header information.", path));
+        throw error::InvalidResourceFile("Resource file is too small to contain header information.");
     }
 }
 
 
-void throw_on_unexpected_size(size_t expected, size_t real, const Path& path) noexcept(false) {
+void throw_on_unexpected_size(size_t expected, size_t real) noexcept(false) {
     if (real != expected) {
-        throw error::InvalidResourceFile(fmt::format(
-            "Resource file \"{}\" has unexpected size. Expected {}, got {}.",  path, expected, real));
+        throw error::InvalidResourceFile(fmt::format("Resource file unexpected size. Expected {}, got {}.", expected, real));
     }
 }
 
@@ -206,35 +206,25 @@ auto SkeletonFile::joint_names() const noexcept
 }
 
 
-auto SkeletonFile::open(const Path& path)
-    -> SkeletonFile
+auto SkeletonFile::required_size(const Args& args) noexcept
+    -> size_t
 {
-    SkeletonFile file{ open_file_mapping<Header>(path) };
-
-    const size_t file_size =
-        file.mapping_.get_size();
-
-    const size_t expected_size =
-        sizeof(Header) +
-        sizeof(Joint) * file.num_joints() +
-        sizeof(ResourceName) * file.num_joints();
-
-    throw_on_unexpected_size(expected_size, file_size, path);
-
-    return file;
-}
-
-
-auto SkeletonFile::create(const Path& path, uint16_t num_joints)
-    -> SkeletonFile
-{
-    assert(num_joints <= Skeleton::max_joints);
+    const size_t num_joints  = args.num_joints;
     const size_t size_header = sizeof(Header);
     const size_t size_joints = sizeof(Joint) * num_joints;
     const size_t size_names  = sizeof(ResourceName) * num_joints;
     const size_t total_size  = size_header + size_joints + size_names;
+    return total_size;
+}
 
-    SkeletonFile file = { create_file_mapping(path, total_size) };
+
+auto SkeletonFile::create_in(mapped_region mapped_region, const Args& args)
+    -> SkeletonFile
+{
+    assert(required_size(args) == mapped_region.get_size());
+    const auto num_joints = args.num_joints;
+    assert(num_joints <= Skeleton::max_joints);
+    SkeletonFile file{ MOVE(mapped_region) };
 
     const Header header{
         ._reserved0 = {},
@@ -249,6 +239,16 @@ auto SkeletonFile::create(const Path& path, uint16_t num_joints)
 }
 
 
+auto SkeletonFile::open(mapped_region mapped_region)
+    -> SkeletonFile
+{
+    SkeletonFile file{ MOVE(mapped_region) };
+    const size_t file_size     = file.size_bytes();
+    const size_t expected_size = required_size({ .num_joints = file.num_joints() });
+    throw_if_too_small_for_header<Header>(file_size);
+    throw_on_unexpected_size(expected_size, file_size);
+    return file;
+}
 
 
 
@@ -269,32 +269,64 @@ auto AnimationFile::header_ptr() const noexcept
 }
 
 
-auto AnimationFile::pos_keys_ptr() const noexcept
-    -> KeyVec3*
+auto AnimationFile::joint_span_ptr(size_t joint_id) const noexcept
+    -> JointSpan*
 {
-    const size_t offset = sizeof(Header);
-    return please_type_pun<KeyVec3>(mapping_bytes(mapping_) + offset);
+    assert(joint_id < num_joints());
+    const size_t initial_offset = sizeof(Header);
+    JointSpan* first = please_type_pun<JointSpan>(initial_offset + mapping_bytes(mapping_));
+    return first + joint_id;
 }
 
 
-auto AnimationFile::rot_keys_ptr() const noexcept
+auto AnimationFile::keyframes_size(const KeySpec& spec) noexcept
+    -> size_t
+{
+    return
+        sizeof(KeyframesHeader) +
+        spec.num_pos_keys * sizeof(KeyVec3) +
+        spec.num_rot_keys * sizeof(KeyQuat) +
+        spec.num_sca_keys * sizeof(KeyVec3);
+}
+
+
+auto AnimationFile::keyframes_ptr(size_t joint_id) const noexcept
+    -> KeyframesHeader*
+{
+    const uint32_t offset_bytes = joint_span_ptr(joint_id)->offset_bytes;
+    return please_type_pun<KeyframesHeader>(mapping_bytes(mapping_) + offset_bytes);
+}
+
+
+auto AnimationFile::pos_keys_ptr(size_t joint_id) const noexcept
+    -> KeyVec3*
+{
+    auto* kfs = keyframes_ptr(joint_id);
+    const size_t offset_bytes = sizeof(KeyframesHeader);
+    return please_type_pun<KeyVec3>((byte*)kfs + offset_bytes);
+}
+
+
+auto AnimationFile::rot_keys_ptr(size_t joint_id) const noexcept
     -> KeyQuat*
 {
-    const size_t offset =
-        sizeof(Header)  +
-        sizeof(KeyVec3) * num_pos_keys();
-    return please_type_pun<KeyQuat>(mapping_bytes(mapping_) + offset);
+    auto* kfs = keyframes_ptr(joint_id);
+    const size_t offset_bytes =
+        sizeof(KeyframesHeader) +
+        sizeof(KeyVec3) * kfs->num_pos_keys;
+    return please_type_pun<KeyQuat>((byte*)kfs + offset_bytes);
 }
 
 
-auto AnimationFile::sca_keys_ptr() const noexcept
+auto AnimationFile::sca_keys_ptr(size_t joint_id) const noexcept
     -> KeyVec3*
 {
-    const size_t offset =
-        sizeof(Header)  +
-        sizeof(KeyVec3) * num_pos_keys() +
-        sizeof(KeyQuat) * num_rot_keys();
-    return please_type_pun<KeyVec3>(mapping_bytes(mapping_) + offset);
+    auto* kfs = keyframes_ptr(joint_id);
+    const size_t offset_bytes =
+        sizeof(KeyframesHeader) +
+        sizeof(KeyVec3) * kfs->num_pos_keys +
+        sizeof(KeyQuat) * kfs->num_rot_keys;
+    return please_type_pun<KeyVec3>((byte*)kfs + offset_bytes);
 }
 
 
@@ -312,127 +344,176 @@ auto AnimationFile::skeleton_uuid() const noexcept
 }
 
 
-auto AnimationFile::num_pos_keys() const noexcept
-    -> uint32_t
+auto AnimationFile::duration_s() noexcept
+    -> float&
 {
-    return header_ptr()->pos_keys_span.num_keys;
+    return header_ptr()->duration_s;
 }
 
 
-auto AnimationFile::num_rot_keys() const noexcept
-    -> uint32_t
+auto AnimationFile::duration_s() const noexcept
+    -> const float&
 {
-    return header_ptr()->rot_keys_span.num_keys;
+    return header_ptr()->duration_s;
 }
 
 
-auto AnimationFile::num_sca_keys() const noexcept
-    -> uint32_t
+auto AnimationFile::num_joints() const noexcept
+    -> uint16_t
 {
-    return header_ptr()->sca_keys_span.num_keys;
+    return header_ptr()->num_joints;
 }
 
 
-auto AnimationFile::pos_keys() noexcept
+auto AnimationFile::num_pos_keys(size_t joint_id) const noexcept
+    -> uint32_t
+{
+    return keyframes_ptr(joint_id)->num_pos_keys;
+}
+
+
+auto AnimationFile::num_rot_keys(size_t joint_id) const noexcept
+    -> uint32_t
+{
+    return keyframes_ptr(joint_id)->num_rot_keys;
+}
+
+
+auto AnimationFile::num_sca_keys(size_t joint_id) const noexcept
+    -> uint32_t
+{
+    return keyframes_ptr(joint_id)->num_sca_keys;
+}
+
+
+auto AnimationFile::pos_keys(size_t joint_id) noexcept
     -> std::span<KeyVec3>
 {
-    return { pos_keys_ptr(), num_pos_keys() };
+    return { pos_keys_ptr(joint_id), num_pos_keys(joint_id) };
 }
 
 
-auto AnimationFile::pos_keys() const noexcept
+auto AnimationFile::pos_keys(size_t joint_id) const noexcept
     -> std::span<const KeyVec3>
 {
-    return { pos_keys_ptr(), num_pos_keys() };
+    return { pos_keys_ptr(joint_id), num_pos_keys(joint_id) };
 }
 
 
-auto AnimationFile::rot_keys() noexcept
+auto AnimationFile::rot_keys(size_t joint_id) noexcept
     -> std::span<KeyQuat>
 {
-    return { rot_keys_ptr(), num_rot_keys() };
+    return { rot_keys_ptr(joint_id), num_rot_keys(joint_id) };
 }
 
 
-auto AnimationFile::rot_keys() const noexcept
+auto AnimationFile::rot_keys(size_t joint_id) const noexcept
     -> std::span<const KeyQuat>
 {
-    return { rot_keys_ptr(), num_rot_keys() };
+    return { rot_keys_ptr(joint_id), num_rot_keys(joint_id) };
 }
 
 
-auto AnimationFile::sca_keys() noexcept
+auto AnimationFile::sca_keys(size_t joint_id) noexcept
     -> std::span<KeyVec3>
 {
-    return { sca_keys_ptr(), num_sca_keys() };
+    return { sca_keys_ptr(joint_id), num_sca_keys(joint_id) };
 }
 
 
-auto AnimationFile::sca_keys() const noexcept
+auto AnimationFile::sca_keys(size_t joint_id) const noexcept
     -> std::span<const KeyVec3>
 {
-    return { sca_keys_ptr(), num_sca_keys() };
+    return { sca_keys_ptr(joint_id), num_sca_keys(joint_id) };
 }
 
 
-auto AnimationFile::open(const Path& path)
+auto AnimationFile::required_size(const Args& args) noexcept
+    -> size_t
+{
+    const uint16_t num_joints       = args.key_specs.size();
+    const size_t   header_size      = sizeof(Header);
+    const size_t   joint_spans_size = num_joints * sizeof(JointSpan);
+
+    size_t all_keyframes_size = 0;
+    for (const KeySpec& spec : args.key_specs) {
+        all_keyframes_size += keyframes_size(spec);
+    }
+
+    return header_size + joint_spans_size + all_keyframes_size;
+}
+
+
+auto AnimationFile::create_in(mapped_region mapped_region, const Args& args)
     -> AnimationFile
 {
-    AnimationFile file      = { open_file_mapping<Header>(path) };
-    const size_t  file_size = file.mapping_.get_size();
-    Header&       header    = *file.header_ptr();
+    assert(required_size(args) == mapped_region.get_size());
+    AnimationFile file{ MOVE(mapped_region) };
 
-    const size_t expected_size =
-        sizeof(Header) +
-        header.pos_keys_span.num_keys * sizeof(KeyVec3) +
-        header.rot_keys_span.num_keys * sizeof(KeyQuat) +
-        header.sca_keys_span.num_keys * sizeof(KeyVec3);
+    const uint16_t num_joints = args.key_specs.size();
 
-    throw_on_unexpected_size(expected_size, file_size, path);
+    // Write the header first, so that we could use num_joints().
+    const Header header{
+        ._reserved0 = {},
+        .skeleton   = {},
+        .duration_s = {},
+        ._reserved1 = {},
+        .num_joints = num_joints,
+    };
+
+    write_header_to(file.mapping_, header);
+
+    // Joint spans and Keyframes are still undefined, we will go one-by-one.
+
+    size_t current_offset = sizeof(Header) + num_joints * sizeof(JointSpan);
+
+    for (size_t joint_id{ 0 }; joint_id < num_joints; ++joint_id) {
+        const KeySpec& spec = args.key_specs[joint_id];
+
+        // Populate joint span first, else we won't be able to find the keyframes_ptr() correctly.
+        JointSpan& span = *file.joint_span_ptr(joint_id);
+        span = {
+            .offset_bytes = uint32_t(current_offset),
+            .size_bytes   = uint32_t(keyframes_size(spec)),
+        };
+
+        // Now get keyframes.
+        KeyframesHeader& kfs = *file.keyframes_ptr(joint_id);
+        kfs = {
+            ._reserved0 = {},
+            .num_pos_keys = spec.num_pos_keys,
+            .num_rot_keys = spec.num_rot_keys,
+            .num_sca_keys = spec.num_sca_keys,
+        };
+
+        current_offset += span.size_bytes;
+    }
 
     return file;
 }
 
 
-auto AnimationFile::create(
-    const Path& path,
-    uint32_t    num_pos_keys,
-    uint32_t    num_rot_keys,
-    uint32_t    num_sca_keys)
-        -> AnimationFile
+auto AnimationFile::open(mapped_region mapped_region)
+    -> AnimationFile
 {
-    const size_t size_header   = sizeof(Header);
-    const size_t size_pos_keys = sizeof(KeyVec3) * num_pos_keys;
-    const size_t size_rot_keys = sizeof(KeyQuat) * num_rot_keys;
-    const size_t size_sca_keys = sizeof(KeyVec3) * num_sca_keys;
-    const size_t total_size    = size_header + size_pos_keys + size_rot_keys + size_sca_keys;
+    AnimationFile file{ MOVE(mapped_region) };
+    const size_t file_size = file.size_bytes();
 
-    AnimationFile file = { create_file_mapping(path, total_size) };
+    throw_if_too_small_for_header<Header>(file_size);
 
-    const KeySpan pos_keys_span{
-        .byte_offset = uint32_t(size_header),
-        .num_keys    = num_pos_keys,
-    };
+    // Check if at least preamble is contained fully.
+    const size_t preamble_size = sizeof(Header) + file.num_joints() * sizeof(JointSpan);
+    if (file_size < preamble_size) {
+        throw error::InvalidResourceFile("Animation file too small.");
+    }
 
-    const KeySpan rot_keys_span{
-        .byte_offset = uint32_t(pos_keys_span.byte_offset + size_pos_keys),
-        .num_keys    = num_rot_keys,
-    };
+    // Check that the last joint info is contained. We only need the preamble for this.
+    // This is assuming that each span is placed in incrementing order...
+    JointSpan& last_span = *file.joint_span_ptr(file.num_joints() - 1);
+    const size_t expected_size = last_span.offset_bytes + last_span.size_bytes;
+    throw_on_unexpected_size(expected_size, file_size);
 
-    const KeySpan sca_keys_span{
-        .byte_offset = uint32_t(rot_keys_span.byte_offset + size_rot_keys),
-        .num_keys    = num_sca_keys
-    };
-
-    const Header header{
-        ._reserved0    = {},
-        .skeleton      = {},
-        .pos_keys_span = pos_keys_span,
-        .rot_keys_span = rot_keys_span,
-        .sca_keys_span = sca_keys_span,
-    };
-
-    write_header_to(file.mapping_, header);
+    // We don't check each individual Keyframes structure for now.
 
     return file;
 }
@@ -611,24 +692,84 @@ auto MeshFile::lod_elems(size_t lod_id) const noexcept
 }
 
 
-auto MeshFile::open(const Path& path)
+auto MeshFile::required_size(const Args& args) noexcept
+    -> size_t
+{
+    const size_t vert_size = MeshFile::vert_size(args.layout);
+    const size_t elem_size = sizeof(uint32_t);
+
+    size_t total_size = sizeof(Header);
+    for (const LODSpec& spec : args.lod_specs) {
+        total_size += spec.num_verts * vert_size;
+        total_size += spec.num_elems * elem_size;
+    }
+
+    return total_size;
+}
+
+
+auto MeshFile::create_in(mapped_region mapped_region, const Args& args)
     -> MeshFile
 {
-    MeshFile     file      = { open_file_mapping<Header>(path) };
-    const size_t file_size = file.mapping_.get_size();
-    Header&      header    = *file.header_ptr();
+    assert(required_size(args) == mapped_region.get_size());
+
+    const size_t num_lods = args.lod_specs.size();
+    assert(num_lods <= max_lods);
+    assert(num_lods > 0);
+
+    const size_t vert_size = MeshFile::vert_size(args.layout);
+    const size_t elem_size = sizeof(uint32_t);
+
+    MeshFile file{ MOVE(mapped_region) };
+
+    Header header{
+        ._reserved0 = {},
+        .skeleton   = {},
+        .layout     = args.layout,
+        .num_lods   = uint16_t(num_lods),
+        .lods       = {}, // NOTE: Zero-init here. Fill later.
+    };
+
+    // Populate spans. From lowres LODs to hires.
+    // NOTE: Uh, sorry for the "goes-to operator", it actually works here...
+    size_t current_offset = sizeof(Header);
+    for (size_t lod_id{ num_lods }; lod_id --> 0;) {
+        LODSpan&       span = header.lods   [lod_id];
+        const LODSpec& spec = args.lod_specs[lod_id];
+
+        span.offset_bytes = current_offset;
+        span.verts_bytes  = spec.num_verts * vert_size;
+        span.elems_bytes  = spec.num_elems * elem_size;
+
+        current_offset += span.verts_bytes + span.elems_bytes;
+    }
+
+    write_header_to(file.mapping_, header);
+
+    return file;
+}
+
+
+auto MeshFile::open(mapped_region mapped_region)
+    -> MeshFile
+{
+    MeshFile file{ MOVE(mapped_region) };
+    const size_t file_size = file.size_bytes();
+    throw_if_too_small_for_header<Header>(file_size);
+
+    const Header& header = *file.header_ptr();
 
     // Check layout type.
     const bool valid_layout =
-        to_underlying(header.layout) < to_underlying(VertexLayout::_count);
+        to_underlying(file.layout()) < to_underlying(VertexLayout::_count);
 
     if (!valid_layout) {
-        throw error::InvalidResourceFile(fmt::format("Mesh file \"{}\" has invalid layout.", path));
+        throw error::InvalidResourceFile("Mesh file has invalid layout.");
     }
 
     // Check lod limit.
     if (header.num_lods > max_lods || header.num_lods == 0) {
-        throw error::InvalidResourceFile(fmt::format("Mesh file \"{}\" specifies invalid number of LODs.", path));
+        throw error::InvalidResourceFile("Mesh file specifies invalid number of LODs.");
     }
 
     // Check size.
@@ -638,58 +779,13 @@ auto MeshFile::open(const Path& path)
         const size_t verts_bytes = header.lods[lod_id].verts_bytes;
         const size_t elems_bytes = header.lods[lod_id].elems_bytes;
         if (verts_bytes % vert_size(header.layout)) {
-            throw error::InvalidResourceFile("Mesh file \"{}\" contains invalid vertex data.");
+            throw error::InvalidResourceFile("Mesh file contains invalid vertex data.");
         }
         expected_size += verts_bytes;
         expected_size += elems_bytes;
     }
 
-    throw_on_unexpected_size(expected_size, file_size, path);
-
-    return file;
-}
-
-
-auto MeshFile::create(
-    const Path&              path,
-    VertexLayout             layout,
-    std::span<const LODSpec> lod_specs)
-        -> MeshFile
-{
-    const size_t num_lods = lod_specs.size();
-    assert(num_lods <= max_lods);
-    assert(num_lods > 0);
-
-    const size_t vert_size = MeshFile::vert_size(layout);
-    const size_t elem_size = sizeof(uint32_t);
-
-    Header header{
-        ._reserved0 = {},
-        .skeleton   = {},
-        .layout     = layout,
-        .num_lods   = uint16_t(num_lods),
-        .lods       = {}, // NOTE: Zero-init here. Fill later.
-    };
-
-    // Populate spans. From lowres LODs to hires.
-    // NOTE: Uh, sorry for the "goes-to operator", it actually works here...
-    size_t current_offset{ sizeof(Header) };
-    for (size_t lod_id{ num_lods }; lod_id --> 0;) {
-        LODSpan&       span = header.lods[lod_id];
-        const LODSpec& spec = lod_specs  [lod_id];
-
-        span.offset_bytes = current_offset;
-        span.verts_bytes  = spec.num_verts * vert_size;
-        span.elems_bytes  = spec.num_elems * elem_size;
-
-        current_offset += span.verts_bytes + span.elems_bytes;
-    }
-
-    const size_t total_size = current_offset;
-
-    MeshFile file = { create_file_mapping(path, total_size) };
-
-    write_header_to(file.mapping_, header);
+    throw_on_unexpected_size(expected_size, file_size);
 
     return file;
 }
@@ -788,52 +884,31 @@ auto TextureFile::mip_bytes(size_t mip_id) const noexcept
 }
 
 
-auto TextureFile::open(const Path& path)
-    -> TextureFile
+auto TextureFile::required_size(const Args& args) noexcept
+    -> size_t
 {
-    TextureFile  file      = { open_file_mapping<Header>(path) };
-    const size_t file_size = file.mapping_.get_size();
-    Header&      header    = *file.header_ptr();
-
-    // Check storage format.
-    const bool valid_format =
-        to_underlying(header.format) < to_underlying(StorageFormat::_count);
-
-    if (!valid_format) {
-        throw error::InvalidResourceFile(fmt::format("Texture file \"{}\" has invalid format.", path));
+    size_t total_size = sizeof(Header);
+    for (const MIPSpec& spec : args.mip_specs) {
+        total_size += spec.size_bytes;
     }
-
-    // Check mip limit.
-    if (header.num_mips > max_mips || header.num_mips == 0) {
-        throw error::InvalidResourceFile(fmt::format("Texture file \"{}\" specifies invalid number of MIPs.", path));
-    }
-
-    // Check size.
-    size_t expected_size = sizeof(Header);
-    for (size_t mip_id{ 0 }; mip_id < header.num_mips; ++mip_id) {
-        const size_t size_bytes = header.mips[mip_id].size_bytes;
-        expected_size += size_bytes;
-    }
-
-    throw_on_unexpected_size(expected_size, file_size, path);
-
-    return file;
+    return total_size;
 }
 
 
-auto TextureFile::create(
-    const Path&              path,
-    StorageFormat            format,
-    std::span<const MIPSpec> mip_specs)
-        -> TextureFile
+auto TextureFile::create_in(mapped_region mapped_region, const Args& args)
+    -> TextureFile
 {
-    const size_t num_mips = mip_specs.size();
+    assert(required_size(args) == mapped_region.get_size());
+
+    const size_t num_mips = args.mip_specs.size();
     assert(num_mips <= max_mips);
     assert(num_mips > 0);
 
+    TextureFile file{ MOVE(mapped_region) };
+
     Header header{
         ._reserved0 = {},
-        .format     = format,
+        .format     = args.format,
         .num_mips   = uint16_t(num_mips),
         .mips       = {}, // NOTE: Zero-init here. Fill later.
     };
@@ -841,8 +916,8 @@ auto TextureFile::create(
     // Populate spans. From lowres MIPs to hires.
     size_t current_offset{ sizeof(Header) };
     for (size_t mip_id{ num_mips }; mip_id --> 0;) {
-        MIPSpan&       span = header.mips[mip_id];
-        const MIPSpec& spec = mip_specs  [mip_id];
+        MIPSpan&       span = header.mips   [mip_id];
+        const MIPSpec& spec = args.mip_specs[mip_id];
 
         span.offset_bytes  = current_offset;
         span.size_bytes    = spec.size_bytes;
@@ -852,11 +927,43 @@ auto TextureFile::create(
         current_offset += span.size_bytes;
     }
 
-    const size_t total_size = current_offset;
-
-    TextureFile file = { create_file_mapping(path, total_size) };
-
     write_header_to(file.mapping_, header);
+
+    return file;
+}
+
+
+auto TextureFile::open(mapped_region mapped_region)
+    -> TextureFile
+{
+    TextureFile file{ MOVE(mapped_region) };
+
+    const size_t file_size = file.size_bytes();
+    throw_if_too_small_for_header<Header>(file_size);
+
+    Header& header = *file.header_ptr();
+
+    // Check storage format.
+    const bool valid_format =
+        to_underlying(header.format) < to_underlying(StorageFormat::_count);
+
+    if (!valid_format) {
+        throw error::InvalidResourceFile("Texture file has invalid format.");
+    }
+
+    // Check mip limit.
+    if (header.num_mips > max_mips || header.num_mips == 0) {
+        throw error::InvalidResourceFile("Texture file specifies invalid number of MIPs.");
+    }
+
+    // Check size.
+    size_t expected_size = sizeof(Header);
+    for (size_t mip_id{ 0 }; mip_id < header.num_mips; ++mip_id) {
+        const size_t size_bytes = header.mips[mip_id].size_bytes;
+        expected_size += size_bytes;
+    }
+
+    throw_on_unexpected_size(expected_size, file_size);
 
     return file;
 }

@@ -50,6 +50,34 @@ auto try_find(const T& map, KeyT&& key)
 }
 
 
+template<typename T, typename KeyT>
+    requires has_map_find_interface<T, std::remove_cvref_t<KeyT>>
+auto try_find_value(T& map, KeyT&& key)
+    -> T::mapped_type*
+{
+    if (auto it = map.find(key); it != map.end()) {
+        return &(it->second);
+    } else {
+        return decltype(&(it->second))(nullptr);
+    }
+}
+
+
+template<typename T, typename KeyT>
+    requires has_map_find_interface<T, std::remove_cvref_t<KeyT>>
+auto try_find_value(const T& map, KeyT&& key)
+    -> const T::mapped_type*
+{
+    if (auto it = map.find(key); it != map.end()) {
+        return &(it->second);
+    } else {
+        return decltype(&(it->second))(nullptr);
+    }
+}
+
+
+
+
 // NOTE: It's important to `delete` this overload, *not*
 // reject it a'la SFINAE. If this is SFINAE'd out instead,
 // then the other overloads will be picked.
@@ -59,6 +87,12 @@ auto try_find(const T& map, KeyT&& key)
 template<typename T, typename KeyT>
     requires has_map_find_interface<std::remove_cvref_t<T>, std::remove_cvref_t<KeyT>>
 auto try_find(T&& rvalue, KeyT&& key) = delete;
+
+
+template<typename T, typename KeyT>
+    requires has_map_find_interface<std::remove_cvref_t<T>, std::remove_cvref_t<KeyT>>
+auto try_find_value(T&& rvalue, KeyT&& key) = delete;
+
 
 
 
@@ -164,6 +198,13 @@ concept has_pop_front_interface = requires(T container) {
 };
 
 
+template<typename T>
+concept has_pop_queue_interface = requires(T queue_like) {
+    { queue_like.front() } -> std::same_as<typename T::reference>;
+    ( queue_like.pop()   );
+};
+
+
 // `pop_back()` that actually returns a value.
 template<has_pop_back_interface T>
 auto pop_back(T& container)
@@ -184,6 +225,18 @@ auto pop_front(T& container)
     using value_type = std::remove_cvref_t<T>::value_type;
     value_type value = std::move(container.front());
     container.pop_front();
+    return value;
+}
+
+
+// `pop()` that actually returns a value.
+template<has_pop_queue_interface T>
+auto pop(T& queue_like)
+    -> std::remove_cvref_t<T>::value_type
+{
+    using value_type = std::remove_cvref_t<T>::value_type;
+    value_type value = std::move(queue_like.front());
+    queue_like.pop();
     return value;
 }
 

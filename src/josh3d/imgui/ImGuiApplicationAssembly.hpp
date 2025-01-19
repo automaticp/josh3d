@@ -1,6 +1,8 @@
 #pragma once
+#include "AssetImporter.hpp"
 #include "AssetUnpacker.hpp"
 #include "AssetManager.hpp"
+#include "ECS.hpp"
 #include "ImGuiAssetBrowser.hpp"
 #include "ImGuiContextWrapper.hpp"
 #include "ImGuiSceneList.hpp"
@@ -11,6 +13,7 @@
 #include "ImGuiSelected.hpp"
 #include "AvgFrameTimeCounter.hpp"
 #include "ImGuizmoGizmos.hpp"
+#include "ResourceDatabase.hpp"
 #include <sstream>
 #include <string>
 #include <entt/fwd.hpp>
@@ -59,6 +62,8 @@ public:
         AssetManager&      asset_manager,
         AssetUnpacker&     asset_2npacker_,
         SceneImporter&     scene_importer,
+        ResourceDatabase&  resource_database,
+        AssetImporter&     asset_importer,
         VirtualFilesystem& vfs);
 
 
@@ -87,9 +92,11 @@ private:
 
     glfw::Window&      window_;
     RenderEngine&      engine_;
-    entt::registry&    registry_;
+    Registry&          registry_;
     AssetManager&      asset_manager_;
     AssetUnpacker&     asset_unpacker_;
+    ResourceDatabase&  resource_database_;
+    AssetImporter&     asset_importer_;
     VirtualFilesystem& vfs_;
 
     ImGuiContextWrapper context_;

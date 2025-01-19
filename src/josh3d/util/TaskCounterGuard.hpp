@@ -27,6 +27,14 @@ public:
         count_.notify_one();
     }
 
+    // Returns true if at the time of query any tasks are still in flight.
+    // Useful if you know that no new tasks can be started and want to spin until all are complete.
+    auto any_tasks_in_flight() const noexcept
+        -> bool
+    {
+        return count_.load(std::memory_order_acquire) != 0;
+    }
+
     // Returns an RAII enabled guard that automatically increments/decrements the task counter.
     // Must be obtained on the same thread that would destroy the TaskCounterGuard,
     // before the operation is scheduled on another thread.

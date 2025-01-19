@@ -11,6 +11,7 @@ Checks: 'boost-*,
     -misc-const-correctness,
     -misc-unused-using-decls,
     -misc-use-anonymous-namespace,
+    -misc-use-internal-linkage,
     modernize-*,
     -modernize-use-trailing-return-type,
     -modernize-use-nodiscard,
@@ -19,7 +20,9 @@ Checks: 'boost-*,
     -modernize-concat-nested-namespaces,
     -modernize-use-auto,
     -modernize-raw-string-literal,
+    -modernize-use-designated-initializers,
     performance-*,
+    -performance-enum-size,
     portability-*'
 CheckOptions:
     performance-unnecessary-value-param.AllowedTypes:

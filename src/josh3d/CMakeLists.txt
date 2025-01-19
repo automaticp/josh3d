@@ -131,12 +131,14 @@ subtarget_link_internal(util)
 # Common external dependencies.
 set(common_external_deps
     Boost::container
+    Boost::unordered
     Boost::iostreams
     Boost::scope
     Boost::outcome
     Boost::any
     Boost::interprocess
     Boost::uuid
+    jsoncons::jsoncons
     cppcoro::cppcoro
     glm::glm
     fmt::fmt

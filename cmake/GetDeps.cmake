@@ -2,11 +2,12 @@
 # Boost::iostreams
 # Boost::scope
 # Boost::container
+# Boost::unordered
 # Boost::outcome
 # Boost::any
 # Boost::interprocess
 # Boost::uuid
-find_package(Boost REQUIRED COMPONENTS iostreams container scope outcome any interprocess uuid)
+find_package(Boost REQUIRED COMPONENTS iostreams container unordered scope outcome any interprocess uuid)
 
 
 # === fmt ===
@@ -132,6 +133,10 @@ target_link_libraries(stb::stb INTERFACE stb_implementation)
 find_package(nlohmann_json CONFIG REQUIRED)
 
 
+# === jsoncons ===
+# jsoncons::jsoncons
+find_package(jsoncons CONFIG REQUIRED)
+add_library(jsoncons::jsoncons ALIAS jsoncons)
 
 
 # Precompile external headers

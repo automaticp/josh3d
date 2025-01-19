@@ -1,4 +1,5 @@
 #pragma once
+#include "AssetImporter.hpp"
 #include "AssetUnpacker.hpp"
 #include "AssetManager.hpp"
 #include "CompletionContext.hpp"
@@ -7,6 +8,7 @@
 #include "InputFreeCamera.hpp"
 #include "MeshRegistry.hpp"
 #include "Primitives.hpp"
+#include "ResourceDatabase.hpp"
 #include "SceneImporter.hpp"
 #include "SharedStorage.hpp"
 #include "RenderEngine.hpp"
@@ -43,6 +45,8 @@ private:
     josh::AssetManager      asset_manager_;
     josh::AssetUnpacker     asset_unpacker_;
     josh::SceneImporter     scene_importer_;
+    josh::ResourceDatabase  resource_database_;
+    josh::AssetImporter     asset_importer_;
     josh::Primitives        primitives_;
     josh::RenderEngine      rengine_;
 
