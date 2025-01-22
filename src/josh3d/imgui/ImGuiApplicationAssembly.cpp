@@ -13,7 +13,9 @@
 #include "ImGuiSelected.hpp"
 #include "ImGuizmoGizmos.hpp"
 #include "Camera.hpp"
+#include "Logging.hpp"
 #include "MeshRegistry.hpp"
+#include "Ranges.hpp"
 #include "RenderEngine.hpp"
 #include "ResourceDatabase.hpp"
 #include "ResourceFiles.hpp"
@@ -25,6 +27,7 @@
 #include "VertexPNUTB.hpp"
 #include "VirtualFilesystem.hpp"
 #include <exception>
+#include <fmt/core.h>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <range/v3/view/enumerate.hpp>
@@ -261,6 +264,8 @@ void display_resource_file_debug(
     thread_local std::optional<Job<UUID>> importing_model;
     thread_local std::optional<UUID>      last_imported;
 
+    thread_local ImportModelParams import_model_params = {};
+
 
     ImGui::InputText("Path", &path);
 
@@ -279,9 +284,36 @@ void display_resource_file_debug(
             }
         }
 
+        using StorageFormat = TextureFile::StorageFormat;
+        const StorageFormat formats[2]{
+            StorageFormat::RAW,
+            StorageFormat::PNG,
+        };
+
+        const char* format_names[2]{
+            "Raw",
+            "PNG",
+        };
+
+        size_t current_idx = 0;
+        for (const StorageFormat format : formats) {
+            if (format == import_model_params.texture_storage_format) { break; }
+            ++current_idx;
+        }
+
+        if (ImGui::BeginCombo("Texture Format", format_names[current_idx])) {
+            for (const size_t i : irange(std::size(formats))) {
+                if (ImGui::Selectable(format_names[i], current_idx == i)) {
+                    import_model_params.texture_storage_format = formats[i];
+                }
+            }
+            ImGui::EndCombo();
+        }
+
+
         if (ImGui::Button("Import Model")) {
             try {
-                importing_model = asset_importer.import_model(path);
+                importing_model = asset_importer.import_model(path, import_model_params);
                 last_error = {};
             } catch (const std::exception& e) {
                 last_error = e.what();
@@ -341,6 +373,7 @@ void display_resource_file_debug(
         if (importing_model->is_ready()) {
             try {
                 last_imported = move_out(importing_model).get_result();
+                logstream() << fmt::format("[IMPORTED]: {}.\n", to_string(*last_imported));
             } catch (const std::exception& e) {
                 last_error = e.what();
             }

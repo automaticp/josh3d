@@ -2,6 +2,7 @@
 #include "MallocSupport.hpp"
 #include "Region.hpp"
 #include <span>
+#include <utility>
 
 
 namespace josh {
@@ -66,6 +67,16 @@ public:
         -> std::span<channel_type>
     {
         return { data(), size() };
+    }
+
+    // Release ownership of the underlying buffer.
+    [[nodiscard]]
+    auto release() noexcept
+        -> unique_malloc_ptr<channel_type[]>
+    {
+        resolution_   = { 0, 0 };
+        num_channels_ = { 0 };
+        return std::move(data_);
     }
 
 

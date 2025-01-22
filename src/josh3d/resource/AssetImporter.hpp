@@ -15,6 +15,7 @@ namespace josh {
 
 
 struct ImportModelParams {
+    TextureFile::StorageFormat texture_storage_format = TextureFile::StorageFormat::PNG;
     // bool skip_meshes     = false;
     // bool skip_textures   = false;
     // bool skip_skeletons  = false;

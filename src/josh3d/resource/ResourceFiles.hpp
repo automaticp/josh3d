@@ -343,10 +343,9 @@ public:
 
     // TODO: This is not really supported yet.
     enum class StorageFormat : uint16_t {
-        BC7_RGB,  // Low compression. Directly streamable.
-        BC7_RGBA, // Low compression. Directly streamable.
-        PNG,      // High compression. Needs decoding.
-        RAW,      // No compression. Directly streamable.
+        RAW, // No compression. Directly streamable.
+        PNG, // High compression. Needs decoding.
+        BC7, // Low compression. Directly streamable.
 
         _count,
     };

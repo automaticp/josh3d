@@ -18,6 +18,7 @@
         "nlohmann-json",
         "jsoncons",
         "glm",
+        "libspng",
         "stb",
         "assimp",
         "range-v3",

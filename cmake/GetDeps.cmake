@@ -106,6 +106,11 @@ find_package(range-v3 CONFIG REQUIRED)
 find_package(ctre CONFIG REQUIRED)
 
 
+# === libspng ===
+# spng::spng
+find_package(SPNG CONFIG REQUIRED)
+
+
 # === stb ===
 # stb::stb
 
