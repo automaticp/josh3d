@@ -5,7 +5,7 @@
 #include "Skeleton.hpp"
 #include "Math.hpp"
 #include "UUID.hpp"
-#include "VertexPNUTB.hpp"
+#include "VertexStatic.hpp"
 #include "VertexSkinned.hpp"
 #include <boost/interprocess/file_mapping.hpp>
 #include <boost/interprocess/mapped_region.hpp>
@@ -324,9 +324,9 @@ private:
 };
 
 
-template<> struct MeshFile::layout_traits<MeshFile::VertexLayout::Static>  { using type = VertexPNUTB;   };
+template<> struct MeshFile::layout_traits<MeshFile::VertexLayout::Static>  { using type = VertexStatic;   };
 template<> struct MeshFile::layout_traits<MeshFile::VertexLayout::Skinned> { using type = VertexSkinned; };
-template<> struct MeshFile::vertex_traits<VertexPNUTB>   { static constexpr VertexLayout layout = VertexLayout::Static;  };
+template<> struct MeshFile::vertex_traits<VertexStatic>  { static constexpr VertexLayout layout = VertexLayout::Static;  };
 template<> struct MeshFile::vertex_traits<VertexSkinned> { static constexpr VertexLayout layout = VertexLayout::Skinned; };
 
 

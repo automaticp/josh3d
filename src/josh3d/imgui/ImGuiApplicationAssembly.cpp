@@ -24,7 +24,7 @@
 #include "SkinnedMesh.hpp"
 #include "Transform.hpp"
 #include "VPath.hpp"
-#include "VertexPNUTB.hpp"
+#include "VertexStatic.hpp"
 #include "VirtualFilesystem.hpp"
 #include <exception>
 #include <fmt/core.h>
@@ -474,15 +474,15 @@ void display_resource_file_debug(
                     ++id;
                 }
             };
-            iterate_view(registry.view<MeshID<VertexPNUTB>>(), "Static" );
-            iterate_view(registry.view<SkinnedMesh>(),         "Skinned");
+            iterate_view(registry.view<MeshID<VertexStatic>>(), "Static" );
+            iterate_view(registry.view<SkinnedMesh>(),          "Skinned");
             ImGui::EndListBox();
         }
 
         if (ImGui::Button("Save")) {
             try {
                 const Entity entity  = id2entity.at(selected_id);
-                using VertexT = VertexPNUTB;
+                using VertexT = VertexStatic;
                 auto download_from_storage = [&]<typename VertexT>(MeshID<VertexT> mesh_id) {
                     const auto&  storage = *mesh_registry.storage_for<VertexT>();
                     auto [vert_range, elem_range] = storage.buffer_ranges(mesh_id);

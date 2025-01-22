@@ -17,7 +17,7 @@
 #include "TextureHelpers.hpp"
 #include "CategoryCasts.hpp"
 #include "ThreadPool.hpp"
-#include "VertexPNUTB.hpp"
+#include "VertexStatic.hpp"
 #include "Coroutines.hpp"
 #include "VertexSkinned.hpp"
 #include <assimp/BaseImporter.h>
@@ -429,8 +429,8 @@ auto m2m(const aiMatrix4x4& m) noexcept
 
 
 struct StaticMeshData {
-    std::vector<VertexPNUTB> verts;
-    std::vector<uint32_t>    indices;
+    std::vector<VertexStatic> verts;
+    std::vector<uint32_t>     indices;
 };
 
 
@@ -458,17 +458,16 @@ auto get_static_mesh_data(const aiMesh& mesh)
     if (!tangents.data())   { throw error::AssetContentsParsingError("Mesh data does not contain Tangents.");   }
     if (!bitangents.data()) { throw error::AssetContentsParsingError("Mesh data does not contain Bitangents."); }
 
-    std::vector<VertexPNUTB> vertex_data;
+    std::vector<VertexStatic> vertex_data;
     vertex_data.reserve(verts.size());
 
     for (size_t i{ 0 }; i < verts.size(); ++i) {
-        const VertexPNUTB vert{
-            .position  = v2v(verts     [i]),
-            .normal    = v2v(normals   [i]),
-            .uv        = v2v(uvs       [i]),
-            .tangent   = v2v(tangents  [i]),
-            .bitangent = v2v(bitangents[i]),
-        };
+        const VertexStatic vert = VertexStatic::pack(
+            v2v(verts     [i]),
+            v2v(uvs       [i]),
+            v2v(normals   [i]),
+            v2v(tangents  [i])
+        );
         vertex_data.emplace_back(vert);
     }
 
@@ -982,11 +981,11 @@ auto AssetManager::load_model(AssetPath path)
 
         const overloaded data_to_asset{
             [&](StaticMeshData& data) -> StoredMeshAsset {
-                const std::span<const VertexPNUTB> verts   = data.verts;
+                const std::span<const VertexStatic> verts   = data.verts;
                 const std::span<const GLuint>      indices = data.indices;
 
-                SharedBuffer<VertexPNUTB> verts_buf   = specify_buffer(verts,   { .mode = StorageMode::StaticServer });
-                SharedBuffer<GLuint>      indices_buf = specify_buffer(indices, { .mode = StorageMode::StaticServer });
+                SharedBuffer<VertexStatic> verts_buf   = specify_buffer(verts,   { .mode = StorageMode::StaticServer });
+                SharedBuffer<GLuint>       indices_buf = specify_buffer(indices, { .mode = StorageMode::StaticServer });
 
                 StoredMeshAsset mesh_asset{
                     .path     = MOVE(mesh_info.path),
@@ -1045,7 +1044,7 @@ auto AssetManager::load_model(AssetPath path)
     for (auto& mesh_asset : mesh_assets) {
         const overloaded insert_data_and_assign_mesh_id{
             [&](SharedMeshAsset& asset) {
-                MeshStorage<VertexPNUTB>& storage = mesh_registry_.ensure_storage_for<VertexPNUTB>();
+                MeshStorage<VertexStatic>& storage = mesh_registry_.ensure_storage_for<VertexStatic>();
                 asset.mesh_id = storage.insert_buffer(asset.vertices, asset.indices);
             },
             [&](SharedSkinnedMeshAsset& asset) {

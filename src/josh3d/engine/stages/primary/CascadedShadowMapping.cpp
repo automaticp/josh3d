@@ -12,7 +12,7 @@
 #include "MeshRegistry.hpp"
 #include "MeshStorage.hpp"
 #include "RenderEngine.hpp"
-#include "VertexPNUTB.hpp"
+#include "VertexStatic.hpp"
 #include "ViewFrustum.hpp"
 #include "tags/AlphaTested.hpp"
 #include "Materials.hpp"
@@ -485,10 +485,10 @@ void multidraw_opaque_meshes(
     UploadBuffer<mat4>&                 world_mats)
 {
     using std::views::transform;
-    auto get_mesh_id   = [&](Entity e) -> decltype(auto) { return registry.get<MeshID<VertexPNUTB>>(e); };
+    auto get_mesh_id   = [&](Entity e) -> decltype(auto) { return registry.get<MeshID<VertexStatic>>(e); };
     auto get_world_mat = [&](Entity e) -> decltype(auto) { return registry.get<MTransform>(e).model();  };
 
-    if (const auto* storage = mesh_registry.storage_for<VertexPNUTB>()) {
+    if (const auto* storage = mesh_registry.storage_for<VertexStatic>()) {
 
         BindGuard bound_program = sp.use();
 

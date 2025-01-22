@@ -6,7 +6,6 @@ layout (location = 0) in vec3 in_pos;
 layout (location = 1) in vec3 in_normal;
 layout (location = 2) in vec2 in_tex_coords;
 layout (location = 3) in vec3 in_tangent;
-layout (location = 4) in vec3 in_bitangent;
 
 uniform mat4 model;
 uniform mat3 normal_model;
@@ -33,12 +32,4 @@ void main() {
     vec3 B = cross(N, T);
 
     TBN = mat3(T, B, N);
-
-    // Is this snake oil?
-
-    // TBN = mat3(
-    //     normalize(vec3(normal_model * in_tangent)),
-    //     normalize(vec3(normal_model * in_bitangent)),
-    //     normalize(vec3(normal_model * in_normal))
-    // );
 }

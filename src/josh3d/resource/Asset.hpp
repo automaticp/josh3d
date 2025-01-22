@@ -9,7 +9,7 @@
 #include "MeshStorage.hpp"
 #include "SkeletalAnimation.hpp"
 #include "Skeleton.hpp"
-#include "VertexPNUTB.hpp"
+#include "VertexStatic.hpp"
 #include "VertexSkinned.hpp"
 #include <compare>
 #include <functional>
@@ -172,7 +172,7 @@ struct Asset<AssetKind::Mesh, MutT> {
     static constexpr AssetKind asset_kind = AssetKind::Mesh;
 
     using mutability         = MutT;
-    using vertex_type        = VertexPNUTB;
+    using vertex_type        = VertexStatic;
     using index_type         = GLuint;
     using vertex_buffer_type = GLShared<RawBuffer<vertex_type, MutT>>;
     using index_buffer_type  = GLShared<RawBuffer<index_type,  MutT>>;

@@ -13,7 +13,7 @@
 #include "TextureHelpers.hpp"
 #include "Transform.hpp"
 #include "UUID.hpp"
-#include "VertexPNUTB.hpp"
+#include "VertexStatic.hpp"
 #include <assimp/BaseImporter.h>
 #include <assimp/Importer.hpp>
 #include <assimp/anim.h>
@@ -23,6 +23,7 @@
 #include <assimp/quaternion.h>
 #include <assimp/scene.h>
 #include <assimp/vector3.h>
+#include <exception>
 #include <filesystem>
 #include <fmt/core.h>
 #include <jsoncons/basic_json.hpp>
@@ -32,6 +33,7 @@
 #include <jsoncons/json.hpp>
 #include <spng.h>
 #include <ranges>
+#include <string_view>
 #include <unordered_map>
 
 
@@ -263,7 +265,7 @@ auto encode_texture_async_bc7(
     ImageData<chan::UByte> image)
         -> Job<EncodedImage>
 {
-    assert(false);
+    std::terminate();
     // TODO
 }
 
@@ -530,30 +532,27 @@ void extract_skinned_mesh_verts_to(
 
 
 void extract_static_mesh_verts_to(
-    std::span<VertexPNUTB> out_verts,
-    const aiMesh*          ai_mesh)
+    std::span<VertexStatic> out_verts,
+    const aiMesh*           ai_mesh)
 {
     auto positions  = std::span(ai_mesh->mVertices,         ai_mesh->mNumVertices);
     auto uvs        = std::span(ai_mesh->mTextureCoords[0], ai_mesh->mNumVertices);
     auto normals    = std::span(ai_mesh->mNormals,          ai_mesh->mNumVertices);
     auto tangents   = std::span(ai_mesh->mTangents,         ai_mesh->mNumVertices);
-    auto bitangents = std::span(ai_mesh->mBitangents,       ai_mesh->mNumVertices);
 
     if (!normals.data())    { throw error::AssetContentsParsingError("Mesh data does not contain Normals.");    }
     if (!uvs.data())        { throw error::AssetContentsParsingError("Mesh data does not contain UVs.");        }
     if (!tangents.data())   { throw error::AssetContentsParsingError("Mesh data does not contain Tangents.");   }
-    if (!bitangents.data()) { throw error::AssetContentsParsingError("Mesh data does not contain Bitangents."); }
 
     assert(out_verts.size() == positions.size());
 
     for (size_t i{ 0 }; i < out_verts.size(); ++i) {
-        out_verts[i] = VertexPNUTB{
-            .position  = v2v(positions [i]),
-            .normal    = v2v(normals   [i]),
-            .uv        = v2v(uvs       [i]),
-            .tangent   = v2v(tangents  [i]),
-            .bitangent = v2v(bitangents[i]),
-        };
+        out_verts[i] = VertexStatic::pack(
+            v2v(positions[i]),
+            v2v(uvs      [i]),
+            v2v(normals  [i]),
+            v2v(tangents [i])
+        );
     }
 }
 
@@ -635,7 +634,7 @@ auto import_mesh_async(
         assert(node2jointid);
         extract_skinned_mesh_verts_to(dst_verts, ai_mesh, *node2jointid);
     } else if (layout == VertexLayout::Static) {
-        std::span<VertexPNUTB> dst_verts = file.lod_verts<VertexLayout::Static>(0);
+        std::span<VertexStatic> dst_verts = file.lod_verts<VertexLayout::Static>(0);
         extract_static_mesh_verts_to(dst_verts, ai_mesh);
     }
 
@@ -832,9 +831,10 @@ auto get_ai_texture_type(const Path& path, ImageIntent intent)
 
 void populate_scene_nodes_preorder(
     jsoncons::json&                                         array,
+    const aiScene*                                          ai_scene,
     const aiNode*                                           node,
     std::unordered_map<const aiNode*, size_t>&              node2sceneid,
-    std::unordered_map<size_t, std::vector<const aiNode*>>& meshid2nodes,
+    std::unordered_multimap<size_t, size_t>&                meshid2sceneids,
     const std::unordered_map<const aiNode*, const aiBone*>& node2bone)
 {
     if (!node) return;
@@ -854,36 +854,18 @@ void populate_scene_nodes_preorder(
     //  - Populate a map from each mesh to a set of nodes that reference it.
     //
 
-    const size_t scene_id = array.size();
-
-    // If bone, stop traversal here. Skeletons aren't part of the scene graph in our model.
+    // If bone, stop traversal here. Skeleton joints aren't part of the scene graph in our model.
     // NOTE: We miss out on the information about nodes attached to joints, but since
     // we have no way of representing that either, it's no big deal so far.
     if (node2bone.contains(node)) return;
 
-    auto [it, was_emplaced] = node2sceneid.emplace(node, scene_id);
-    assert(was_emplaced);
-
-    if (node->mNumMeshes) {
-        if (node->mNumMeshes > 1) {
-            // TODO: This insane. Why is this even possible? Best we could do is to create a common parent.
-            // The issue is that then our graph and assimp graph will not be isomorphic.
-            throw error::AssetContentsParsingError("Single nodes with multiple meshes are not supported.");
-        }
-
-        const auto ai_mesh_id = node->mMeshes[0];
-        meshid2nodes[ai_mesh_id].push_back(node);
-    }
-
 
     assert(array.is_array());
-    jsoncons::json j;
+    const size_t primary_scene_id = array.size(); // Not accounting for multimesh leaves.
+    array.emplace_back();
 
-    if (node->mName.length) {
-        j["name"] = s2sv(node->mName);
-    }
-
-    const Transform tf = m2tf(node->mTransformation);
+    auto [it, was_emplaced] = node2sceneid.emplace(node, primary_scene_id);
+    assert(was_emplaced);
 
     auto transform_as_json = [](const Transform& tf) {
         jsoncons::json j;
@@ -896,20 +878,60 @@ void populate_scene_nodes_preorder(
         return j;
     };
 
-    j["transform"] = transform_as_json(tf);
+    auto populate_array_entry = [&](
+        jsoncons::json&  j,
+        const Transform& tf,
+        std::string_view name,
+        const size_t*    parent_id)
+    {
+        j["transform"] = transform_as_json(tf);
+        if (name.size()) {
+            j["name"] = name;
+        }
+        if (parent_id) {
+            j["parent"] = *parent_id;
+        }
+    };
 
-    if (node->mParent) {
-        const auto* parent_id = try_find_value(node2sceneid, node->mParent);
+    // Populate the primary scene node.
+    populate_array_entry(
+        array[primary_scene_id],
+        m2tf(node->mTransformation),
+        s2sv(node->mName),
         // `node2sceneid` is populated in pre-order, so we should always find our parent there.
-        assert(parent_id);
-        j["parent"] = *parent_id;
-    }
+        try_find_value(node2sceneid, node->mParent)
+    );
 
-    array.push_back(MOVE(j));
+    if (node->mNumMeshes) {
+        if (node->mNumMeshes == 1) {
+
+            // If a node contains only a single mesh then it is directly associated with it.
+            const auto mesh_id = node->mMeshes[0];
+            meshid2sceneids.emplace(mesh_id, primary_scene_id);
+
+        } else /* num_meshes > 1 */ {
+
+            // If there are more than one mesh per node, then we create additional
+            // child leaf nodes in our representation of the scene to accomodate that.
+            for (const auto [i, mesh_id] : enumerate(std::span(node->mMeshes, node->mNumMeshes))) {
+                const size_t leaf_scene_id = array.size();
+                array.emplace_back();
+                meshid2sceneids.emplace(mesh_id, leaf_scene_id);
+
+                populate_array_entry(
+                    array[leaf_scene_id],
+                    Transform(),                             // Identity transform.
+                    s2sv(ai_scene->mMeshes[mesh_id]->mName), // Get name from the mesh.
+                    &primary_scene_id                        // Always has a parent node.
+                );
+            }
+
+        }
+    }
 
 
     for (const aiNode* child : std::span(node->mChildren, node->mNumChildren)) {
-        populate_scene_nodes_preorder(array, child, node2sceneid, meshid2nodes, node2bone);
+        populate_scene_nodes_preorder(array, ai_scene, child, node2sceneid, meshid2sceneids, node2bone);
     }
 }
 
@@ -1218,14 +1240,24 @@ auto import_model_async(
     // map children to parents in-place. We also emplace transforms and names.
     using jsoncons::json;
     json entities_array = json(jsoncons::json_array_arg);
-    std::unordered_map<const aiNode*, size_t>              node2sceneid;
-    std::unordered_map<size_t, std::vector<const aiNode*>> meshid2nodes; // Index in ai_meshes -> aiNodes
+
+    // Each assimp node can contain *multiple* meshes and we cannot represent that,
+    // so we instead make the "multimesh" node a parent of N leaf nodes with identity
+    // transformation and attach meshes to those leaves.
+    // If a node only contains one mesh, no additional leaves are created.
+    std::unordered_multimap<size_t, size_t> meshid2sceneids;
+
+    // Some scene nodes, like multimesh leaves are not going to have
+    // an association with a particular aiNode. This is only helpful
+    // for lookup of camera and light nodes, not meshes.
+    std::unordered_map<const aiNode*, size_t> node2sceneid;
 
     populate_scene_nodes_preorder(
         entities_array,
+        ai_scene,
         ai_scene->mRootNode,
         node2sceneid,
-        meshid2nodes,
+        meshid2sceneids,
         node2bone
     );
 
@@ -1236,15 +1268,15 @@ auto import_model_async(
     // That would be completely unhinged and break many assumptions we have.
     // Assimp, please, be sane for once.
 
+    // NOTE: Assimp was not sane for once.
+
     // NOTE: Meshes are found by references in the graph, since more than one
     // node can reference the same mesh (instancing).
     // Meshes *cannot* be found by name and their names are not even required to exist.
-    for (const size_t i : irange(ai_meshes.size())) {
-        const UUID&   mdesc_uuid = mdesc_uuids[i];
-        const auto    nodes      = std::span(meshid2nodes.at(i));
-        for (const aiNode* node : nodes) {
+    for (const auto [i, mdesc_uuid] : enumerate(mdesc_uuids)) {
+        const auto [beg, end] = meshid2sceneids.equal_range(i);
+        for (const size_t scene_id : std::ranges::subrange(beg, end) | std::views::values) {
             // Lookup the array entry in the scene array and add the mesh component info.
-            const size_t scene_id = node2sceneid.at(node);
             auto& e = entities_array[scene_id];
             e["type"]       = "Mesh";
             e["mdesc_uuid"] = serialize_uuid(mdesc_uuid);
@@ -1252,6 +1284,8 @@ auto import_model_async(
     }
 
     // NOTE: Lights are found by name lookup.
+    // TODO: Care should be taken to handle cases where a node is both a Light *and* a Mesh.
+    // We could separate those nodes as leafs similar to how we split meshes.
     for (const aiLight* ai_light : std::span(ai_scene->mLights, ai_scene->mNumLights)) {
         const aiNode* node = ai_scene->mRootNode->FindNode(ai_light->mName);
         const size_t scene_id = node2sceneid.at(node);
