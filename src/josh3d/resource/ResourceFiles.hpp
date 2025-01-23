@@ -1,5 +1,6 @@
 #pragma once
 #include "CategoryCasts.hpp"
+#include "ResourceType.hpp"
 #include "RuntimeError.hpp"
 #include "Region.hpp"
 #include "Skeleton.hpp"
@@ -12,6 +13,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <string_view>
 
 
 /*
@@ -21,8 +23,39 @@ It also, implicitly, defines the layout of the binary resource files.
 namespace josh {
 
 
+/*
+First 24 bytes of each binary resource file.
+*/
+struct alignas(8) ResourcePreamble {
+    uint32_t     _magic;        // "josh".
+    ResourceType resource_type; // Type of this resource.
+    UUID         self_uuid;     // UUID of this resource.
+
+    static auto create(ResourceType type, const UUID& self_uuid) noexcept
+        -> ResourcePreamble;
+};
+
+
+
+
 struct ResourceName {
-    char name[64];
+    static constexpr size_t max_length = 63;
+
+    uint8_t length;
+    char    name[max_length];
+
+    // Construct from a string view.
+    // Truncates if the string is longer than `max_length`.
+    static auto from_view(std::string_view sv) noexcept
+        -> ResourceName;
+
+    // Construct from a null-terminated string.
+    // Truncates if the string is longer than `max_length`.
+    static auto from_cstr(const char* cstr) noexcept
+        -> ResourceName;
+
+    auto view() const noexcept -> std::string_view;
+    operator std::string_view() const noexcept { return view(); }
 };
 
 
@@ -48,14 +81,46 @@ using boost::interprocess::mapped_region;
 
 
 
+/*
+Pattern (ImHex):
 
+struct Preamble {
+    char magic[4];
+    u32  resource_type;
+    u8   self_uuid[16];
+};
+
+struct Joint {
+    float inv_bind[16];
+    u32   parent_id;
+};
+
+struct ResourceName {
+    u8     len;
+    char   name[len];
+    padding[63 - len];
+};
+
+struct SkeletonFile {
+    Preamble     preamble;
+    u16          _reserved0;
+    u16          num_joints;
+    padding      [4];
+    Joint        joints[num_joints];
+    ResourceName joint_names[num_joints];
+};
+
+SkeletonFile skeleton_file @ 0x0;
+*/
 class SkeletonFile {
 public:
+    static constexpr auto resource_type = ResourceType::Skeleton;
+
     struct Header {
-        uint64_t _reserved0; // Reserved space. Maybe version or magic info.
-        uint16_t _reserved1; // Reserved space. Maybe format or type?
-        uint16_t num_joints; // Number of joints.
-        uint32_t _padding0;  // Explicit alignment padding.
+        ResourcePreamble preamble;
+        uint16_t         _reserved0; // Reserved space. Maybe format or type?
+        uint16_t         num_joints; // Number of joints.
+        uint32_t         _padding0;  // Explicit alignment padding.
     };
 
     struct Args {
@@ -68,7 +133,7 @@ public:
         -> size_t;
 
     [[nodiscard]]
-    static auto create_in(mapped_region mapped_region, const Args& args)
+    static auto create_in(mapped_region mapped_region, UUID self_uuid, const Args& args)
         -> SkeletonFile;
 
     [[nodiscard]]
@@ -95,36 +160,70 @@ private:
 
 
 /*
+NOTE: This file layout requires double indirection to parse
+the keyframes, reading the header alone is not enough.
+
+Pattern (ImHex):
+
+struct Preamble {
+    char magic[4];
+    u32  resource_type;
+    u8   self_uuid[16];
+};
+
 struct JointSpan {
-    uint32_t offset_bytes;
-    uint32_t size_bytes;
+    u32 offset_bytes;
+    u32 size_bytes;
+};
+
+struct KeyframesHeader {
+    u32 _reserved0;
+    u32 num_pos_keys;
+    u32 num_rot_keys;
+    u32 num_sca_keys;
+};
+
+struct vec3 {
+    float x, y, z;
+};
+
+struct quat {
+    float w, x, y, z;
+};
+
+struct KeyVec3 {
+    float time_s;
+    vec3  value;
+};
+
+struct KeyQuat {
+    float time_s;
+    quat  value;
 };
 
 struct Keyframes {
-    uint32_t _reserved0;
-    uint32_t num_pos_keys;
-    uint32_t num_rot_keys;
-    uint32_t num_sca_keys;
-    KeyVec3  pos_keys[num_pos_keys];
-    KeyQuat  rot_keys[num_rot_keys];
-    KeyVec3  sca_keys[num_sca_keys];
+    KeyframesHeader header;
+    KeyVec3         pos_keys[header.num_pos_keys];
+    KeyQuat         rot_keys[header.num_rot_keys];
+    KeyVec3         sca_keys[header.num_sca_keys];
 };
 
 struct AnimationFile {
-    uint64_t  _reserved0;
-    UUID      skeleton;
+    Preamble  preamble;
+    u8        skeleton_uuid[16];
     float     duration_s;
-    uint16_t  _reserved1;
-    uint16_t  num_joints;
+    u16       _reserved0;
+    u16       num_joints;
     JointSpan joints[num_joints];
-    Keyframes keyframes[num_joints]; // Variable length each.
+    Keyframes keyframes[num_joints];
 };
 
-NOTE: This file layout requires double indirection to parse
-the keyframes, reading the header alone is not enough.
+AnimationFile anim_file @ 0x0;
 */
 class AnimationFile {
 public:
+    static constexpr auto resource_type = ResourceType::Animation;
+
     struct JointSpan {
         uint32_t offset_bytes; // Offset at which keyframes of a particular joint are located.
         uint32_t size_bytes;   // Size for sanity.
@@ -148,11 +247,11 @@ public:
     };
 
     struct Header {
-        uint64_t  _reserved0;
-        UUID      skeleton;
-        float     duration_s;
-        uint16_t  _reserved1;
-        uint16_t  num_joints;
+        ResourcePreamble preamble;
+        UUID             skeleton_uuid;
+        float            duration_s;
+        uint16_t         _reserved1;
+        uint16_t         num_joints;
     };
 
     struct KeySpec {
@@ -169,7 +268,7 @@ public:
         -> size_t;
 
     [[nodiscard]]
-    static auto create_in(mapped_region mapped_region, const Args& args)
+    static auto create_in(mapped_region mapped_region, UUID self_uuid, const Args& args)
         -> AnimationFile;
 
     [[nodiscard]]
@@ -227,10 +326,11 @@ This is useful for incremental streaming.
 */
 class MeshFile {
 public:
+    static constexpr auto resource_type = ResourceType::Mesh;
     static constexpr size_t max_lods = 8;
 
     enum class VertexLayout : uint16_t {
-        Static  = 0, // VertexPNUTB
+        Static  = 0, // VertexStatic
         Skinned = 1, // VertexSkinned
 
         _count,
@@ -246,11 +346,11 @@ public:
     };
 
     struct Header {
-        uint64_t     _reserved0;     // Reserved space. Maybe version or magic info.
-        UUID         skeleton;       // UUID of the associated skeleton, if the layout is Skinned.
-        VertexLayout layout;         // An enum identifying a specific vertex layout.
-        uint16_t     num_lods;       // Number of LODs stored for this mesh (up-to 8).
-        LODSpan      lods[max_lods]; // LOD descriptors that point to data in file.
+        ResourcePreamble preamble;
+        UUID             skeleton;       // UUID of the associated skeleton, if the layout is Skinned.
+        VertexLayout     layout;         // An enum identifying a specific vertex layout.
+        uint16_t         num_lods;       // Number of LODs stored for this mesh (up-to 8).
+        LODSpan          lods[max_lods]; // LOD descriptors that point to data in file.
     };
 
     struct LODSpec {
@@ -267,7 +367,7 @@ public:
         -> size_t;
 
     [[nodiscard]]
-    static auto create_in(mapped_region mapped_region, const Args& args)
+    static auto create_in(mapped_region mapped_region, UUID self_uuid, const Args& args)
         -> MeshFile;
 
     [[nodiscard]]
@@ -324,7 +424,7 @@ private:
 };
 
 
-template<> struct MeshFile::layout_traits<MeshFile::VertexLayout::Static>  { using type = VertexStatic;   };
+template<> struct MeshFile::layout_traits<MeshFile::VertexLayout::Static>  { using type = VertexStatic;  };
 template<> struct MeshFile::layout_traits<MeshFile::VertexLayout::Skinned> { using type = VertexSkinned; };
 template<> struct MeshFile::vertex_traits<VertexStatic>  { static constexpr VertexLayout layout = VertexLayout::Static;  };
 template<> struct MeshFile::vertex_traits<VertexSkinned> { static constexpr VertexLayout layout = VertexLayout::Skinned; };
@@ -339,6 +439,7 @@ will cache the entire page, making access to the low-resolution MIPs "free".
 */
 class TextureFile {
 public:
+    static constexpr auto resource_type = ResourceType::Texture;
     static constexpr size_t max_mips = 16;
 
     // TODO: This is not really supported yet.
@@ -350,6 +451,7 @@ public:
         _count,
     };
 
+    // TODO: Store format per-MIP. This would benefit incremental streaming.
     struct MIPSpan {
         uint32_t offset_bytes;
         uint32_t size_bytes;
@@ -358,10 +460,10 @@ public:
     };
 
     struct Header {
-        uint64_t      _reserved0;
-        StorageFormat format;
-        uint16_t      num_mips;
-        MIPSpan       mips[max_mips];
+        ResourcePreamble preamble;
+        StorageFormat    format;
+        uint16_t         num_mips;
+        MIPSpan          mips[max_mips];
     };
 
     struct MIPSpec {
@@ -379,7 +481,7 @@ public:
         -> size_t;
 
     [[nodiscard]]
-    static auto create_in(mapped_region mapped_region, const Args& args)
+    static auto create_in(mapped_region mapped_region, UUID self_uuid, const Args& args)
         -> TextureFile;
 
     [[nodiscard]]

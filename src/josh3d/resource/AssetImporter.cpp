@@ -3,11 +3,13 @@
 #include "CategoryCasts.hpp"
 #include "Channels.hpp"
 #include "Coroutines.hpp"
+#include "EnumUtils.hpp"
 #include "MallocSupport.hpp"
 #include "Ranges.hpp"
 #include "Region.hpp"
 #include "ResourceDatabase.hpp"
 #include "ResourceFiles.hpp"
+#include "ResourceType.hpp"
 #include "Skeleton.hpp"
 #include "TaskCounterGuard.hpp"
 #include "TextureHelpers.hpp"
@@ -344,15 +346,16 @@ auto import_texture_async(
         .mip_specs = mip_specs,
     };
 
-    const size_t file_size = TextureFile::required_size(args);
+    const size_t       file_size     = TextureFile::required_size(args);
+    const ResourceType resource_type = TextureFile::resource_type;
 
 
     co_await reschedule_to(importer.local_context());
-    auto [uuid, mapped_region] = importer.resource_database().generate_resource(path_hint, file_size);
+    auto [uuid, mregion] = importer.resource_database().generate_resource(resource_type, path_hint, file_size);
     co_await reschedule_to(importer.thread_pool());
 
 
-    TextureFile file = TextureFile::create_in(MOVE(mapped_region), args);
+    TextureFile file = TextureFile::create_in(MOVE(mregion), uuid, args);
 
     for (auto [mip_id, encoded] : enumerate(encoded_mips)) {
         const std::span dst_bytes = file.mip_bytes(mip_id);
@@ -366,6 +369,7 @@ auto import_texture_async(
 
 void populate_joints_preorder(
     std::vector<Joint>&                                     joints,
+    std::vector<ResourceName>&                              joint_names,
     std::unordered_map<const aiNode*, size_t>&              node2id,
     const std::unordered_map<const aiNode*, const aiBone*>& node2bone,
     const aiNode*                                           node,
@@ -385,7 +389,9 @@ void populate_joints_preorder(
 
         const size_t root_joint_id = 0;
 
+        const ResourceName joint_name = ResourceName::from_view(s2sv(node->mName));
         joints.emplace_back(root_joint);
+        joint_names.emplace_back(joint_name);
         node2id.emplace(node, root_joint_id);
 
     } else /* not root */ {
@@ -406,7 +412,9 @@ void populate_joints_preorder(
                 .parent_id = uint8_t(parent_id),
             };
 
+            const ResourceName joint_name = ResourceName::from_view(s2sv(bone->mName));
             joints.emplace_back(joint);
+            joint_names.emplace_back(joint_name);
             node2id.emplace(node, joint_id);
 
         } else /* no bone in this node */ {
@@ -419,7 +427,7 @@ void populate_joints_preorder(
 
     for (const aiNode* child : std::span(node->mChildren, node->mNumChildren)) {
         const bool is_root = false;
-        populate_joints_preorder(joints, node2id, node2bone, child, is_root);
+        populate_joints_preorder(joints, joint_names, node2id, node2bone, child, is_root);
     }
 }
 
@@ -436,10 +444,11 @@ auto import_skeleton_async(
     const auto task_guard = importer.task_counter().obtain_task_guard();
     co_await reschedule_to(importer.thread_pool());
 
-    std::vector<Joint> joints;
+    std::vector<Joint>        joints;
+    std::vector<ResourceName> joint_names;
     const aiNode* root    = armature;
     const bool    is_root = true;
-    populate_joints_preorder(joints, node2jointid, node2bone, root, is_root);
+    populate_joints_preorder(joints, joint_names, node2jointid, node2bone, root, is_root);
 
     const ResourcePathHint path_hint{
         .directory = "skeletons",
@@ -451,21 +460,24 @@ auto import_skeleton_async(
         .num_joints = uint16_t(joints.size()),
     };
 
-    const size_t file_size = SkeletonFile::required_size(args);
+    const size_t       file_size     = SkeletonFile::required_size(args);
+    const ResourceType resource_type = SkeletonFile::resource_type;
 
 
     co_await reschedule_to(importer.local_context());
-    auto [uuid, mregion] = importer.resource_database().generate_resource(path_hint, file_size);
+    auto [uuid, mregion] = importer.resource_database().generate_resource(resource_type, path_hint, file_size);
     co_await reschedule_to(importer.thread_pool());
 
 
-    SkeletonFile file = SkeletonFile::create_in(MOVE(mregion), args);
+    SkeletonFile file = SkeletonFile::create_in(MOVE(mregion), uuid, args);
 
-    // TODO: Joint names.
     assert(file.num_joints() == joints.size());
-    const std::span<Joint> dst_joints = file.joints();
+    assert(file.num_joints() == joint_names.size());
+    const std::span dst_joints      = file.joints();
+    const std::span dst_joint_names = file.joint_names();
 
-    std::ranges::copy(joints, dst_joints.begin());
+    std::ranges::copy(joints,      dst_joints     .begin());
+    std::ranges::copy(joint_names, dst_joint_names.begin());
 
     co_return uuid;
 }
@@ -616,16 +628,17 @@ auto import_mesh_async(
         .lod_specs = spec,
     };
 
-    const size_t file_size = MeshFile::required_size(args);
+    const size_t       file_size     = MeshFile::required_size(args);
+    const ResourceType resource_type = MeshFile::resource_type;
 
 
     co_await reschedule_to(importer.local_context());
-    auto [uuid, mregion] = importer.resource_database().generate_resource(path_hint, file_size);
+    auto [uuid, mregion] = importer.resource_database().generate_resource(resource_type, path_hint, file_size);
     co_await reschedule_to(importer.thread_pool());
 
 
 
-    MeshFile file = MeshFile::create_in(MOVE(mregion), args);
+    MeshFile file = MeshFile::create_in(MOVE(mregion), uuid, args);
 
     file.skeleton_uuid() = skeleton_uuid;
 
@@ -676,8 +689,6 @@ auto import_mesh_desc_async(
     j["normal"]    = serialize_uuid(mat_uuids.normal_uuid);
     j["specular"]  = serialize_uuid(mat_uuids.specular_uuid);
     j["specpower"] = 128.f;
-    std::string json_string;
-    j.dump(json_string, jsoncons::indenting::indent);
 
     const ResourcePathHint path_hint{
         .directory = "meshes",
@@ -685,12 +696,27 @@ auto import_mesh_desc_async(
         .extension = "jmdesc",
     };
 
+    const ResourceType resource_type = ResourceType::MeshDesc;
+
+    j["resource_type"] = to_underlying(resource_type);
+    j["self_uuid"]     = serialize_uuid(UUID{}); // "Reserve space".
+
+    std::string json_string;
+    j.dump(json_string, jsoncons::indenting::indent);
+    const size_t file_size = json_string.size();
 
     // After writing json to string (and learning the required size),
     // we go back to the resource database to generate actual files.
     co_await reschedule_to(importer.local_context());
-    auto [uuid, mregion] = importer.resource_database().generate_resource(path_hint, json_string.size());
+    auto [uuid, mregion] = importer.resource_database().generate_resource(resource_type, path_hint, file_size);
     co_await reschedule_to(importer.thread_pool());
+
+
+    // FIXME: Dumb.
+    j["self_uuid"] = serialize_uuid(uuid);
+    json_string.clear();
+    j.dump(json_string, jsoncons::indenting::indent);
+    assert(file_size == json_string.size());
 
 
     // Finally, we can write the contents of the files through the mapped region.
@@ -752,15 +778,16 @@ auto import_anim_async(
         .extension = "janim",
     };
 
-    const size_t file_size = AnimationFile::required_size(args);
+    const size_t       file_size     = AnimationFile::required_size(args);
+    const ResourceType resource_type = AnimationFile::resource_type;
 
 
     co_await reschedule_to(importer.local_context());
-    auto [uuid, mregion] = importer.resource_database().generate_resource(path_hint, file_size);
+    auto [uuid, mregion] = importer.resource_database().generate_resource(resource_type, path_hint, file_size);
     co_await reschedule_to(importer.thread_pool());
 
 
-    AnimationFile file = AnimationFile::create_in(MOVE(mregion), args);
+    AnimationFile file = AnimationFile::create_in(MOVE(mregion), uuid, args);
 
     file.skeleton_uuid() = skeleton_uuid;
     file.duration_s()    = float(duration_s);
@@ -1306,8 +1333,6 @@ auto import_model_async(
 
     json scene_json;
     scene_json["entities"] = MOVE(entities_array);
-    std::string scene_json_string;
-    scene_json.dump(scene_json_string, jsoncons::indenting::indent);
 
     const ResourcePathHint path_hint{
         .directory = "scenes",
@@ -1315,10 +1340,27 @@ auto import_model_async(
         .extension = "jscene",
     };
 
+    const ResourceType resource_type = ResourceType::Scene;
+
+    scene_json["resource_type"] = to_underlying(resource_type);
+    scene_json["self_uuid"]     = serialize_uuid(UUID{}); // Write null uuid to create space.
+
+    std::string scene_json_string;
+    scene_json.dump(scene_json_string, jsoncons::indenting::indent);
+    const size_t file_size = scene_json_string.size();
+
 
     co_await reschedule_to(importer.local_context());
-    auto [uuid, mregion] = importer.resource_database().generate_resource(path_hint, scene_json_string.size());
+    auto [uuid, mregion] = importer.resource_database().generate_resource(resource_type, path_hint, file_size);
     co_await reschedule_to(importer.thread_pool());
+
+
+    // FIXME: This is very dumb, but I have no idea of a better way of doing this.
+    // We re-dump the json into the string, just to replace the nil UUID with the real one.
+    scene_json["self_uuid"] = serialize_uuid(uuid);
+    scene_json_string.clear();
+    scene_json.dump(scene_json_string, jsoncons::indenting::indent);
+    assert(file_size == scene_json_string.size());
 
 
     // Write the scene info to the file.

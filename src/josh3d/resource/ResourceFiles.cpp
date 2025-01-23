@@ -4,6 +4,8 @@
 #include "CategoryCasts.hpp"
 #include "ReadFile.hpp"
 #include "UUID.hpp"
+#include <algorithm>
+#include <bit>
 #include <boost/interprocess/detail/os_file_functions.hpp>
 #include <boost/interprocess/file_mapping.hpp>
 #include <boost/interprocess/mapped_region.hpp>
@@ -131,10 +133,57 @@ void write_header_to(bip::mapped_region& mapping, const HeaderT& src) noexcept {
 } // namespace
 
 
+auto ResourcePreamble::create(
+    ResourceType resource_type,
+    const UUID&  self_uuid) noexcept
+        -> ResourcePreamble
+{
+    const char magic[4] = { 'j', 'o', 's', 'h' };
+    return {
+        ._magic        = std::bit_cast<uint32_t>(magic),
+        .resource_type = resource_type,
+        .self_uuid     = self_uuid,
+    };
+}
 
 
+auto ResourceName::from_view(std::string_view sv) noexcept
+    -> ResourceName
+{
+    const size_t length = std::min(max_length, sv.length());
+    ResourceName result{
+        .length = uint8_t(length),
+        .name   = {},
+    };
+    std::ranges::copy(sv.substr(0, length), result.name);
+    return result;
+}
 
 
+auto ResourceName::from_cstr(const char* cstr) noexcept
+    -> ResourceName
+{
+    size_t      space  = max_length;
+    const char* cur    = cstr;
+    while (space && *cur != '\0') {
+        --space;
+        ++cur;
+    }
+    const size_t length = cur - cstr;
+    ResourceName result{
+        .length = uint8_t(length),
+        .name   = {},
+    };
+    std::ranges::copy(std::ranges::subrange(cstr, cur), result.name);
+    return result;
+}
+
+
+auto ResourceName::view() const noexcept
+    -> std::string_view
+{
+    return { name, length };
+}
 
 
 
@@ -218,7 +267,7 @@ auto SkeletonFile::required_size(const Args& args) noexcept
 }
 
 
-auto SkeletonFile::create_in(mapped_region mapped_region, const Args& args)
+auto SkeletonFile::create_in(mapped_region mapped_region, UUID self_uuid, const Args& args)
     -> SkeletonFile
 {
     assert(required_size(args) == mapped_region.get_size());
@@ -227,8 +276,8 @@ auto SkeletonFile::create_in(mapped_region mapped_region, const Args& args)
     SkeletonFile file{ MOVE(mapped_region) };
 
     const Header header{
+        .preamble   = ResourcePreamble::create(resource_type, self_uuid),
         ._reserved0 = {},
-        ._reserved1 = {},
         .num_joints = num_joints,
         ._padding0  = {},
     };
@@ -333,14 +382,14 @@ auto AnimationFile::sca_keys_ptr(size_t joint_id) const noexcept
 auto AnimationFile::skeleton_uuid() noexcept
     -> UUID&
 {
-    return header_ptr()->skeleton;
+    return header_ptr()->skeleton_uuid;
 }
 
 
 auto AnimationFile::skeleton_uuid() const noexcept
     -> const UUID&
 {
-    return header_ptr()->skeleton;
+    return header_ptr()->skeleton_uuid;
 }
 
 
@@ -444,7 +493,7 @@ auto AnimationFile::required_size(const Args& args) noexcept
 }
 
 
-auto AnimationFile::create_in(mapped_region mapped_region, const Args& args)
+auto AnimationFile::create_in(mapped_region mapped_region, UUID self_uuid, const Args& args)
     -> AnimationFile
 {
     assert(required_size(args) == mapped_region.get_size());
@@ -454,11 +503,11 @@ auto AnimationFile::create_in(mapped_region mapped_region, const Args& args)
 
     // Write the header first, so that we could use num_joints().
     const Header header{
-        ._reserved0 = {},
-        .skeleton   = {},
-        .duration_s = {},
-        ._reserved1 = {},
-        .num_joints = num_joints,
+        .preamble      = ResourcePreamble::create(resource_type, self_uuid),
+        .skeleton_uuid = {},
+        .duration_s    = {},
+        ._reserved1    = {},
+        .num_joints    = num_joints,
     };
 
     write_header_to(file.mapping_, header);
@@ -708,7 +757,7 @@ auto MeshFile::required_size(const Args& args) noexcept
 }
 
 
-auto MeshFile::create_in(mapped_region mapped_region, const Args& args)
+auto MeshFile::create_in(mapped_region mapped_region, UUID self_uuid, const Args& args)
     -> MeshFile
 {
     assert(required_size(args) == mapped_region.get_size());
@@ -723,11 +772,11 @@ auto MeshFile::create_in(mapped_region mapped_region, const Args& args)
     MeshFile file{ MOVE(mapped_region) };
 
     Header header{
-        ._reserved0 = {},
-        .skeleton   = {},
-        .layout     = args.layout,
-        .num_lods   = uint16_t(num_lods),
-        .lods       = {}, // NOTE: Zero-init here. Fill later.
+        .preamble = ResourcePreamble::create(resource_type, self_uuid),
+        .skeleton = {},
+        .layout   = args.layout,
+        .num_lods = uint16_t(num_lods),
+        .lods     = {}, // NOTE: Zero-init here. Fill later.
     };
 
     // Populate spans. From lowres LODs to hires.
@@ -895,7 +944,7 @@ auto TextureFile::required_size(const Args& args) noexcept
 }
 
 
-auto TextureFile::create_in(mapped_region mapped_region, const Args& args)
+auto TextureFile::create_in(mapped_region mapped_region, UUID self_uuid, const Args& args)
     -> TextureFile
 {
     assert(required_size(args) == mapped_region.get_size());
@@ -907,10 +956,10 @@ auto TextureFile::create_in(mapped_region mapped_region, const Args& args)
     TextureFile file{ MOVE(mapped_region) };
 
     Header header{
-        ._reserved0 = {},
-        .format     = args.format,
-        .num_mips   = uint16_t(num_mips),
-        .mips       = {}, // NOTE: Zero-init here. Fill later.
+        .preamble = ResourcePreamble::create(resource_type, self_uuid),
+        .format   = args.format,
+        .num_mips = uint16_t(num_mips),
+        .mips     = {}, // NOTE: Zero-init here. Fill later.
     };
 
     // Populate spans. From lowres MIPs to hires.

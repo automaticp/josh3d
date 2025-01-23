@@ -1,6 +1,7 @@
 #pragma once
 #include "Filesystem.hpp"
 #include "ResourceFiles.hpp"
+#include "ResourceType.hpp"
 #include "StringHash.hpp"
 #include "ThreadsafeQueue.hpp"
 #include "UUID.hpp"
@@ -28,7 +29,7 @@ struct ResourceLocation {
 
 
 struct ResourcePath {
-    static constexpr size_t max_length = 95;
+    static constexpr size_t max_length = 91;
 
     uint8_t length;
     char    filepath[max_length];
@@ -57,6 +58,23 @@ The table is a binary file with fixed-width rows describing
 a relationship between an asset's UUID and the location on
 the filesystem. The paths are always relative to the
 directory where the table file is contained.
+
+
+Pattern of the .jdb table (ImHex):
+
+const u64 max_filepath_size = 91;
+
+struct Row {
+    u8      uuid[16];                // UUID of the resource.
+    u32     resource_type;           // Resource type.
+    u8      filepath_size;           // Byte size of the string in the `filepath` field.
+    char    filepath[filepath_size]; // Path to the resource relative to the database root.
+    padding [max_filepath_size - filepath_size];
+    u64     offset_bytes;            // Offset of the resource data in the file.
+    u64     size_bytes;              // Size of the resource data in the file.
+};
+
+Row rows[sizeof($)/128] @ 0x0;
 */
 class ResourceDatabase {
 public:
@@ -87,12 +105,13 @@ public:
     //
     // Path hint has the following requirements:
     //
-    //   - `directory` must be 70 bytes long at max and should be specified relative to the database root.
+    //   - `directory` must be 64 bytes long at max and should be specified relative to the database root.
     //   - `extension` must be 8 bytes long at max and should not include the period ".".
     //   - `name` will be truncated if too long, and a version suffix will be appended if not unique.
     //
     [[nodiscard]]
     auto generate_resource(
+        ResourceType            type,
         const ResourcePathHint& path_hint,
         size_t                  size_bytes)
             -> GeneratedResource;
@@ -162,6 +181,7 @@ private:
     */
     struct Row {
         UUID         uuid;         // UUID of the resource.
+        ResourceType type;         // Type of the resource.
         ResourcePath filepath;     // Path to the resource relative to the database root.
         uint64_t     offset_bytes; // Offset of the resource data in the file.
         uint64_t     size_bytes;   // Size of the resource data in the file.
@@ -174,7 +194,7 @@ private:
     void bump_version() noexcept;
 
     // Create a new entry, possibly resizing the table. No checks are made. Version is not updated.
-    void new_entry(const UUID& uuid, const ResourcePath& path, uint64_t offset_bytes, uint64_t size_bytes);
+    void new_entry(const UUID& uuid, ResourceType type, const ResourcePath& path, uint64_t offset_bytes, uint64_t size_bytes);
 
     struct UnlinkResult {
         bool   success;             // True if unliked, false if no such UUID.

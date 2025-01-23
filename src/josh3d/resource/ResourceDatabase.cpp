@@ -2,6 +2,7 @@
 #include "ContainerUtils.hpp"
 #include "Filesystem.hpp"
 #include "Logging.hpp"
+#include "ResourceType.hpp"
 #include "RuntimeError.hpp"
 #include "ThreadsafeQueue.hpp"
 #include "UUID.hpp"
@@ -148,6 +149,7 @@ void ResourceDatabase::bump_version() noexcept {
 
 void ResourceDatabase::new_entry(
     const UUID&         uuid,
+    ResourceType        type,
     const ResourcePath& path,
     uint64_t            offset_bytes,
     uint64_t            size_bytes)
@@ -168,6 +170,7 @@ void ResourceDatabase::new_entry(
 
     *row_ptr(target_row_id) = {
         .uuid          = uuid,
+        .type          = type,
         .filepath      = path,
         .offset_bytes  = offset_bytes,
         .size_bytes    = size_bytes,
@@ -225,7 +228,7 @@ auto path_from_hint(const ResourcePathHint& path_hint, size_t version) noexcept
     auto name      = path_hint.name;
     auto extension = path_hint.extension;
 
-    assert(directory.length() <= 70);
+    assert(directory.length() <= 64);
     assert(extension.length() <= 8);
 
     const bool   append_version = version != 0;
@@ -272,6 +275,7 @@ auto path_from_hint(const ResourcePathHint& path_hint, size_t version) noexcept
 
 
 auto ResourceDatabase::generate_resource(
+    ResourceType            type,
     const ResourcePathHint& path_hint,
     size_t                  size_bytes)
         -> GeneratedResource
@@ -392,7 +396,7 @@ auto ResourceDatabase::generate_resource(
         ));
     }
 
-    new_entry(uuid, path, 0, size_bytes);
+    new_entry(uuid, type, path, 0, size_bytes);
     bump_version();
 
     return {
