@@ -707,6 +707,22 @@ auto MeshFile::lod_compression(size_t lod_id) const noexcept
 }
 
 
+auto MeshFile::lod_verts_size_bytes(size_t lod_id) const noexcept
+    -> uint32_t
+{
+    assert(lod_id < num_lods());
+    return header_ptr()->lods[lod_id].verts_bytes;
+}
+
+
+auto MeshFile::lod_elems_size_bytes(size_t lod_id) const noexcept
+    -> uint32_t
+{
+    assert(lod_id < num_lods());
+    return header_ptr()->lods[lod_id].elems_bytes;
+}
+
+
 auto MeshFile::lod_verts_bytes(size_t lod_id) noexcept
     -> std::span<std::byte>
 {
