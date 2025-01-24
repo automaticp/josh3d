@@ -1,4 +1,5 @@
 #include "AssetImporter.hpp"
+#include "AABB.hpp"
 #include "Asset.hpp"
 #include "CategoryCasts.hpp"
 #include "Channels.hpp"
@@ -25,12 +26,14 @@
 #include <assimp/quaternion.h>
 #include <assimp/scene.h>
 #include <assimp/vector3.h>
+#include <cstdint>
 #include <exception>
 #include <filesystem>
 #include <fmt/core.h>
 #include <jsoncons/basic_json.hpp>
 #include <jsoncons/json_options.hpp>
 #include <jsoncons/tag_type.hpp>
+#include <new>
 #include <range/v3/iterator/operations.hpp>
 #include <jsoncons/json.hpp>
 #include <spng.h>
@@ -60,21 +63,6 @@ void AssetImporter::update() {
         (*task)();
     }
 }
-
-
-class AssetImporter::Access {
-public:
-    auto& resource_database()  noexcept { return self_.resource_database_;  }
-    auto& thread_pool()        noexcept { return self_.thread_pool_;        }
-    auto& offscreen_context()  noexcept { return self_.offscreen_context_;  }
-    auto& completion_context() noexcept { return self_.completion_context_; }
-    auto& task_counter()       noexcept { return self_.task_counter_;       }
-    auto& local_context()      noexcept { return self_.local_context_;      }
-private:
-    friend AssetImporter;
-    Access(AssetImporter& self) : self_{ self } {}
-    AssetImporter& self_;
-};
 
 
 namespace {
@@ -158,6 +146,21 @@ auto s2sv(const aiString& s) noexcept
 }
 
 
+auto aabb2aabb(const aiAABB& aabb) noexcept
+    -> LocalAABB
+{
+    return { v2v(aabb.mMin), v2v(aabb.mMax) };
+}
+
+
+template<typename DstT, typename SrcT>
+auto pun_span(std::span<SrcT> src) noexcept
+    -> std::span<DstT>
+{
+    assert((src.size_bytes()      % sizeof(DstT))  == 0);
+    assert((uintptr_t(src.data()) % alignof(DstT)) == 0);
+    return { std::launder(reinterpret_cast<DstT*>(src.data())), src.size_bytes() / sizeof(DstT) };
+}
 
 
 struct SPNGContextDeleter {
@@ -181,6 +184,7 @@ struct EncodedImage {
     Size2I                           resolution;
     size_t                           num_channels;
     size_t                           size_bytes;
+    TextureFile::StorageFormat       format;
 };
 
 
@@ -196,6 +200,7 @@ auto encode_texture_async_raw(
         .resolution   = Size2I(image.resolution()),
         .num_channels = image.num_channels(),
         .size_bytes   = image.size_bytes(),
+        .format       = TextureFile::StorageFormat::RAW,
     };
     result.data = image.release();
     co_return result;
@@ -256,6 +261,7 @@ auto encode_texture_async_png(
         .resolution   = Size2I(image.resolution()),
         .num_channels = image.num_channels(),
         .size_bytes   = size_bytes,
+        .format       = TextureFile::StorageFormat::PNG,
     };
 
 }
@@ -295,6 +301,7 @@ auto import_texture_async(
 
     // First we load the data with stb. This allows us to load all kinds of formats.
     auto image = load_image_data_from_file<chan::UByte>(File(src_filepath), 3, 4);
+    const size_t num_channels = image.num_channels();
 
     // Job per MIP level.
     // TODO: Currently, no mipmapping is supported, so only one job :(
@@ -326,7 +333,8 @@ auto import_texture_async(
         return {
             .size_bytes    = uint32_t(im.size_bytes),
             .width_pixels  = uint16_t(im.resolution.width),
-            .height_pixels = uint16_t(im.resolution.height)
+            .height_pixels = uint16_t(im.resolution.height),
+            .format        = im.format,
         };
     };
 
@@ -342,8 +350,8 @@ auto import_texture_async(
 
 
     const TextureFile::Args args{
-        .format    = params.storage_format,
-        .mip_specs = mip_specs,
+        .num_channels = uint16_t(num_channels),
+        .mip_specs    = mip_specs,
     };
 
     const size_t       file_size     = TextureFile::required_size(args);
@@ -607,13 +615,7 @@ auto import_mesh_async(
 
     using VertexLayout = MeshFile::VertexLayout;
     using LODSpec      = MeshFile::LODSpec;
-
-    LODSpec spec[1]{
-        LODSpec{
-            .num_verts = ai_mesh->mNumVertices,
-            .num_elems = ai_mesh->mNumFaces * 3,
-        },
-    };
+    using Compression  = MeshFile::Compression;
 
     const VertexLayout layout = [&]{
         if (ai_mesh->HasBones()) {
@@ -622,6 +624,30 @@ auto import_mesh_async(
             return VertexLayout::Static;
         }
     }();
+
+    auto vertex_size = [](VertexLayout layout) -> size_t {
+        switch (layout) {
+            case VertexLayout::Skinned: return sizeof(VertexSkinned);
+            case VertexLayout::Static:  return sizeof(VertexStatic);
+            default:                    return 0;
+        }
+    };
+
+    const uint32_t num_verts   = ai_mesh->mNumVertices;
+    const uint32_t num_elems   = 3 * ai_mesh->mNumFaces;
+    const uint32_t elems_bytes = num_elems * sizeof(uint32_t);
+    const uint32_t verts_bytes = num_verts * vertex_size(layout);
+
+    LODSpec spec[1]{
+        LODSpec{
+            .num_verts   = num_verts,
+            .num_elems   = num_elems,
+            .verts_bytes = verts_bytes,
+            .elems_bytes = elems_bytes,
+            .compression = Compression::None,
+            ._reserved0  = {},
+        },
+    };
 
     const MeshFile::Args args{
         .layout    = layout,
@@ -641,17 +667,20 @@ auto import_mesh_async(
     MeshFile file = MeshFile::create_in(MOVE(mregion), uuid, args);
 
     file.skeleton_uuid() = skeleton_uuid;
+    file.aabb()          = aabb2aabb(ai_mesh->mAABB);
+
+    // NOTE: Ignoring compression for now. We have no compression options anyway.
 
     if (layout == VertexLayout::Skinned) {
-        std::span<VertexSkinned> dst_verts = file.lod_verts<VertexLayout::Skinned>(0);
+        std::span<VertexSkinned> dst_verts = pun_span<VertexSkinned>(file.lod_verts_bytes(0));
         assert(node2jointid);
         extract_skinned_mesh_verts_to(dst_verts, ai_mesh, *node2jointid);
     } else if (layout == VertexLayout::Static) {
-        std::span<VertexStatic> dst_verts = file.lod_verts<VertexLayout::Static>(0);
+        std::span<VertexStatic> dst_verts = pun_span<VertexStatic>(file.lod_verts_bytes(0));
         extract_static_mesh_verts_to(dst_verts, ai_mesh);
     }
 
-    std::span<uint32_t> dst_elems = file.lod_elems(0);
+    std::span<uint32_t> dst_elems = pun_span<uint32_t>(file.lod_elems_bytes(0));
     extract_mesh_elems_to(dst_elems, ai_mesh);
 
 
@@ -667,6 +696,8 @@ auto import_mesh_desc_async(
     MaterialUUIDs         mat_uuids)
         -> Job<UUID>
 {
+    const auto task_guard = importer.task_counter().obtain_task_guard();
+    co_await reschedule_to(importer.thread_pool());
     /*
     Simple json spec for the time being:
 

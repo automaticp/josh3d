@@ -1,7 +1,9 @@
 #include "ResourceFiles.hpp"
+#include "AABB.hpp"
 #include "EnumUtils.hpp"
 #include "Filesystem.hpp"
 #include "CategoryCasts.hpp"
+#include "Ranges.hpp"
 #include "ReadFile.hpp"
 #include "UUID.hpp"
 #include <algorithm>
@@ -591,27 +593,23 @@ auto MeshFile::header_ptr() const noexcept
 using VertexLayout = MeshFile::VertexLayout;
 
 
-template<VertexLayout V>
 auto MeshFile::lod_verts_ptr(size_t lod_id) const noexcept
-    -> typename layout_traits<V>::type*
+    -> std::byte*
 {
     assert(lod_id < num_lods());
-    assert(layout() == V);
     const LODSpan& span = header_ptr()->lods[lod_id];
     const size_t offset = span.offset_bytes;
-    using vertex_type = layout_traits<V>::type;
-    return please_type_pun<vertex_type>(mapping_bytes(mapping_) + offset);
+    return mapping_bytes(mapping_) + offset;
 }
 
 
 auto MeshFile::lod_elems_ptr(size_t lod_id) const noexcept
-    -> uint32_t*
+    -> std::byte*
 {
     assert(lod_id < num_lods());
     const LODSpan& span = header_ptr()->lods[lod_id];
-    // TODO: Any alignment issues here?
     const size_t offset = span.offset_bytes + span.verts_bytes;
-    return please_type_pun<uint32_t>(mapping_bytes(mapping_) + offset);
+    return mapping_bytes(mapping_) + offset;
 }
 
 
@@ -641,6 +639,20 @@ auto MeshFile::skeleton_uuid() const noexcept
 }
 
 
+auto MeshFile::aabb() noexcept
+    -> LocalAABB&
+{
+    return header_ptr()->aabb;
+}
+
+
+auto MeshFile::aabb() const noexcept
+    -> const LocalAABB&
+{
+    return header_ptr()->aabb;
+}
+
+
 auto MeshFile::layout() const noexcept
     -> VertexLayout
 {
@@ -659,8 +671,7 @@ auto MeshFile::num_verts(size_t lod_id) const noexcept
     -> uint32_t
 {
     assert(lod_id < num_lods());
-    const uint32_t vert_size_ = vert_size(header_ptr()->layout);
-    return header_ptr()->lods[lod_id].verts_bytes / vert_size_;
+    return header_ptr()->lods[lod_id].num_verts;
 }
 
 
@@ -668,8 +679,7 @@ auto MeshFile::num_elems(size_t lod_id) const noexcept
     -> uint32_t
 {
     assert(lod_id < num_lods());
-    const uint32_t elem_size = sizeof(uint32_t);
-    return header_ptr()->lods[lod_id].elems_bytes / elem_size;
+    return header_ptr()->lods[lod_id].num_elems;
 }
 
 
@@ -678,79 +688,60 @@ auto MeshFile::lod_spec(size_t lod_id) const noexcept
 {
     assert(lod_id < num_lods());
     const LODSpan& span = header_ptr()->lods[lod_id];
-    const uint32_t vert_size = [&]{
-        switch (header_ptr()->layout) {
-            using enum VertexLayout;
-            case Static:  return sizeof(layout_traits<Static>::type);
-            case Skinned: return sizeof(layout_traits<Skinned>::type);
-            default: std::terminate();
-        }
-    }();
-    const uint32_t elem_size = sizeof(uint32_t);
-
     return {
-        .num_verts = span.verts_bytes / vert_size,
-        .num_elems = span.elems_bytes / elem_size,
+        .num_verts   = span.num_verts,
+        .num_elems   = span.num_elems,
+        .verts_bytes = span.verts_bytes,
+        .elems_bytes = span.elems_bytes,
+        .compression = span.compression,
+        ._reserved0  = {},
     };
 }
 
 
-template<VertexLayout V>
-auto MeshFile::lod_verts(size_t lod_id) noexcept
-    -> std::span<typename layout_traits<V>::type>
+auto MeshFile::lod_compression(size_t lod_id) const noexcept
+    -> Compression
 {
-    return { lod_verts_ptr<V>(lod_id), num_verts(lod_id) };
+    assert(lod_id < num_lods());
+    return header_ptr()->lods[lod_id].compression;
 }
 
 
-template<VertexLayout V>
-auto MeshFile::lod_verts(size_t lod_id) const noexcept
-    -> std::span<const typename layout_traits<V>::type>
+auto MeshFile::lod_verts_bytes(size_t lod_id) noexcept
+    -> std::span<std::byte>
 {
-    return { lod_verts_ptr<V>(lod_id), num_verts(lod_id) };
+    return { lod_verts_ptr(lod_id), lod_verts_size_bytes(lod_id) };
 }
 
 
-template auto MeshFile::lod_verts<VertexLayout::Static>(size_t lod_id) noexcept
-    -> std::span<typename layout_traits<VertexLayout::Static>::type>;
-
-
-template auto MeshFile::lod_verts<VertexLayout::Skinned>(size_t lod_id) noexcept
-    -> std::span<typename layout_traits<VertexLayout::Skinned>::type>;
-
-
-template auto MeshFile::lod_verts<VertexLayout::Static>(size_t lod_id) const noexcept
-    -> std::span<const typename layout_traits<VertexLayout::Static>::type>;
-
-
-template auto MeshFile::lod_verts<VertexLayout::Skinned>(size_t lod_id) const noexcept
-    -> std::span<const typename layout_traits<VertexLayout::Skinned>::type>;
-
-
-auto MeshFile::lod_elems(size_t lod_id) noexcept
-    -> std::span<uint32_t>
+auto MeshFile::lod_verts_bytes(size_t lod_id) const noexcept
+    -> std::span<const std::byte>
 {
-    return { lod_elems_ptr(lod_id), num_elems(lod_id) };
+    return { lod_verts_ptr(lod_id), lod_verts_size_bytes(lod_id) };
 }
 
 
-auto MeshFile::lod_elems(size_t lod_id) const noexcept
-    -> std::span<const uint32_t>
+auto MeshFile::lod_elems_bytes(size_t lod_id) noexcept
+    -> std::span<std::byte>
 {
-    return { lod_elems_ptr(lod_id), num_elems(lod_id) };
+    return { lod_elems_ptr(lod_id), lod_elems_size_bytes(lod_id) };
+}
+
+
+auto MeshFile::lod_elems_bytes(size_t lod_id) const noexcept
+    -> std::span<const std::byte>
+{
+    return { lod_elems_ptr(lod_id), lod_elems_size_bytes(lod_id) };
 }
 
 
 auto MeshFile::required_size(const Args& args) noexcept
     -> size_t
 {
-    const size_t vert_size = MeshFile::vert_size(args.layout);
-    const size_t elem_size = sizeof(uint32_t);
-
     size_t total_size = sizeof(Header);
     for (const LODSpec& spec : args.lod_specs) {
-        total_size += spec.num_verts * vert_size;
-        total_size += spec.num_elems * elem_size;
+        total_size += spec.verts_bytes;
+        total_size += spec.elems_bytes;
     }
 
     return total_size;
@@ -766,9 +757,6 @@ auto MeshFile::create_in(mapped_region mapped_region, UUID self_uuid, const Args
     assert(num_lods <= max_lods);
     assert(num_lods > 0);
 
-    const size_t vert_size = MeshFile::vert_size(args.layout);
-    const size_t elem_size = sizeof(uint32_t);
-
     MeshFile file{ MOVE(mapped_region) };
 
     Header header{
@@ -776,8 +764,13 @@ auto MeshFile::create_in(mapped_region mapped_region, UUID self_uuid, const Args
         .skeleton = {},
         .layout   = args.layout,
         .num_lods = uint16_t(num_lods),
+        .aabb     = {},
         .lods     = {}, // NOTE: Zero-init here. Fill later.
     };
+
+    // FIXME: We need to guarantee that uncompressed vertex data
+    // is properly ALIGNED in the file! It should be possible to type pun.
+    // If some LODs are compressed and some aren't, this might not be the case.
 
     // Populate spans. From lowres LODs to hires.
     // NOTE: Uh, sorry for the "goes-to operator", it actually works here...
@@ -787,8 +780,9 @@ auto MeshFile::create_in(mapped_region mapped_region, UUID self_uuid, const Args
         const LODSpec& spec = args.lod_specs[lod_id];
 
         span.offset_bytes = current_offset;
-        span.verts_bytes  = spec.num_verts * vert_size;
-        span.elems_bytes  = spec.num_elems * elem_size;
+        span.verts_bytes  = spec.verts_bytes;
+        span.elems_bytes  = spec.elems_bytes;
+        span.compression  = spec.compression;
 
         current_offset += span.verts_bytes + span.elems_bytes;
     }
@@ -875,10 +869,11 @@ auto TextureFile::mip_bytes_ptr(size_t mip_id) const noexcept
 }
 
 
-auto TextureFile::format() const noexcept
+auto TextureFile::format(size_t mip_id) const noexcept
     -> StorageFormat
 {
-    return header_ptr()->format;
+    assert(mip_id < num_mips());
+    return header_ptr()->mips[mip_id].format;
 }
 
 
@@ -886,6 +881,13 @@ auto TextureFile::num_mips() const noexcept
     -> uint16_t
 {
     return header_ptr()->num_mips;
+}
+
+
+auto TextureFile::num_channels() const noexcept
+    -> uint16_t
+{
+    return header_ptr()->num_channels;
 }
 
 
@@ -898,6 +900,7 @@ auto TextureFile::mip_spec(size_t mip_id) const noexcept
         .size_bytes    = span.size_bytes,
         .width_pixels  = span.width_pixels,
         .height_pixels = span.height_pixels,
+        .format        = span.format,
     };
 }
 
@@ -952,14 +955,15 @@ auto TextureFile::create_in(mapped_region mapped_region, UUID self_uuid, const A
     const size_t num_mips = args.mip_specs.size();
     assert(num_mips <= max_mips);
     assert(num_mips > 0);
+    assert(args.num_channels <= 4);
 
     TextureFile file{ MOVE(mapped_region) };
 
     Header header{
-        .preamble = ResourcePreamble::create(resource_type, self_uuid),
-        .format   = args.format,
-        .num_mips = uint16_t(num_mips),
-        .mips     = {}, // NOTE: Zero-init here. Fill later.
+        .preamble     = ResourcePreamble::create(resource_type, self_uuid),
+        .num_channels = args.num_channels,
+        .num_mips     = uint16_t(num_mips),
+        .mips         = {}, // NOTE: Zero-init here. Fill later.
     };
 
     // Populate spans. From lowres MIPs to hires.
@@ -992,17 +996,21 @@ auto TextureFile::open(mapped_region mapped_region)
 
     Header& header = *file.header_ptr();
 
-    // Check storage format.
-    const bool valid_format =
-        to_underlying(header.format) < to_underlying(StorageFormat::_count);
-
-    if (!valid_format) {
-        throw error::InvalidResourceFile("Texture file has invalid format.");
-    }
-
     // Check mip limit.
     if (header.num_mips > max_mips || header.num_mips == 0) {
         throw error::InvalidResourceFile("Texture file specifies invalid number of MIPs.");
+    }
+
+    // Check channel limit.
+    if (header.num_channels > 4 || header.num_channels == 0) {
+        throw error::InvalidResourceFile("Texture file specifies invalid number of channels.");
+    }
+
+    // Check storage formats.
+    for (const size_t mip_id : irange(header.num_mips)) {
+        if (to_underlying(file.format(mip_id)) >= to_underlying(StorageFormat::_count)) {
+            throw error::InvalidResourceFile("Texture file has invalid format.");
+        }
     }
 
     // Check size.

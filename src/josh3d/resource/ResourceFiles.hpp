@@ -1,4 +1,5 @@
 #pragma once
+#include "AABB.hpp"
 #include "CategoryCasts.hpp"
 #include "ResourceType.hpp"
 #include "RuntimeError.hpp"
@@ -336,13 +337,24 @@ public:
         _count,
     };
 
+    enum class Compression : uint16_t {
+        None = 0,
+
+        _count,
+    };
+
     template<VertexLayout V>   struct layout_traits;
     template<typename VertexT> struct vertex_traits;
 
     struct LODSpan {
-        uint32_t offset_bytes; // Offset into the file, where the vertex data starts.
-        uint32_t verts_bytes;  // Size of the vertex data in bytes. Always comes first.
-        uint32_t elems_bytes;  // Size of the element data in bytes. Always comes after vertex data.
+        // FIXME: The vertex and element data must be aligned if uncompressed.
+        uint32_t    offset_bytes; // Offset into the file, where the vertex data starts.
+        uint32_t    num_verts;    // Number of vertices encoded in the data.
+        uint32_t    num_elems;    // Number of elements in the data.
+        uint32_t    verts_bytes;  // Size of the vertex data in bytes. Always comes first.
+        uint32_t    elems_bytes;  // Size of the element data in bytes. Always comes after vertex data.
+        Compression compression;  // Vertex compression type. Per LOD.
+        uint16_t    _reserved0;   // Layout per-LOD?
     };
 
     struct Header {
@@ -350,12 +362,17 @@ public:
         UUID             skeleton;       // UUID of the associated skeleton, if the layout is Skinned.
         VertexLayout     layout;         // An enum identifying a specific vertex layout.
         uint16_t         num_lods;       // Number of LODs stored for this mesh (up-to 8).
+        LocalAABB        aabb;           // AABB in mesh space. Largest of all LODs.
         LODSpan          lods[max_lods]; // LOD descriptors that point to data in file.
     };
 
     struct LODSpec {
-        uint32_t num_verts;
-        uint32_t num_elems;
+        uint32_t    num_verts;
+        uint32_t    num_elems;
+        uint32_t    verts_bytes;
+        uint32_t    elems_bytes;
+        Compression compression;
+        uint16_t    _reserved0;
     };
 
     struct Args {
@@ -374,41 +391,29 @@ public:
     static auto open(mapped_region mapped_region)
         -> MeshFile;
 
-    auto size_bytes() const noexcept
-        -> size_t
-    {
-        return mapping_.get_size();
-    }
+    auto size_bytes() const noexcept -> size_t { return mapping_.get_size(); }
 
-    // TODO: set/get to check if the layout is correct?
-    auto skeleton_uuid() noexcept
-        -> UUID&;
+    auto skeleton_uuid()       noexcept -> UUID&;
+    auto skeleton_uuid() const noexcept -> const UUID&;
 
-    auto skeleton_uuid() const noexcept
-        -> const UUID&;
+    auto aabb()       noexcept -> LocalAABB&;
+    auto aabb() const noexcept -> const LocalAABB&;
 
-    auto layout() const noexcept
-        -> VertexLayout;
-
+    auto layout()   const noexcept -> VertexLayout;
     auto num_lods() const noexcept -> uint16_t;
 
-    auto lod_spec (size_t lod_id) const noexcept -> LODSpec;
-    auto num_verts(size_t lod_id) const noexcept -> uint32_t;
-    auto num_elems(size_t lod_id) const noexcept -> uint32_t;
+    auto lod_spec       (size_t lod_id) const noexcept -> LODSpec;
+    auto num_verts      (size_t lod_id) const noexcept -> uint32_t;
+    auto num_elems      (size_t lod_id) const noexcept -> uint32_t;
+    auto lod_compression(size_t lod_id) const noexcept -> Compression;
 
-    template<VertexLayout V>
-    auto lod_verts(size_t lod_id) noexcept
-         -> std::span<typename layout_traits<V>::type>;
+    auto lod_verts_size_bytes(size_t lod_id) const noexcept -> uint32_t;
+    auto lod_elems_size_bytes(size_t lod_id) const noexcept -> uint32_t;
 
-    template<VertexLayout V>
-    auto lod_verts(size_t lod_id) const noexcept
-        -> std::span<const typename layout_traits<V>::type>;
-
-    auto lod_elems(size_t lod_id) noexcept
-        -> std::span<uint32_t>;
-
-    auto lod_elems(size_t lod_id) const noexcept
-        -> std::span<const uint32_t>;
+    auto lod_verts_bytes(size_t lod_id)       noexcept -> std::span<std::byte>;
+    auto lod_verts_bytes(size_t lod_id) const noexcept -> std::span<const std::byte>;
+    auto lod_elems_bytes(size_t lod_id)       noexcept -> std::span<std::byte>;
+    auto lod_elems_bytes(size_t lod_id) const noexcept -> std::span<const std::byte>;
 
 private:
     MeshFile(boost::interprocess::mapped_region mapping);
@@ -416,9 +421,8 @@ private:
 
     auto header_ptr() const noexcept -> Header*;
 
-    template<VertexLayout V>
-    auto lod_verts_ptr(size_t lod_id) const noexcept -> typename layout_traits<V>::type*;
-    auto lod_elems_ptr(size_t lod_id) const noexcept -> uint32_t*;
+    auto lod_verts_ptr(size_t lod_id) const noexcept -> std::byte*;
+    auto lod_elems_ptr(size_t lod_id) const noexcept -> std::byte*;
 
     static auto vert_size(VertexLayout layout) noexcept -> size_t;
 };
@@ -442,7 +446,7 @@ public:
     static constexpr auto resource_type = ResourceType::Texture;
     static constexpr size_t max_mips = 16;
 
-    // TODO: This is not really supported yet.
+    // TODO: This is not fully supported yet.
     enum class StorageFormat : uint16_t {
         RAW, // No compression. Directly streamable.
         PNG, // High compression. Needs decoding.
@@ -451,29 +455,31 @@ public:
         _count,
     };
 
-    // TODO: Store format per-MIP. This would benefit incremental streaming.
     struct MIPSpan {
-        uint32_t offset_bytes;
-        uint32_t size_bytes;
-        uint16_t width_pixels;
-        uint16_t height_pixels;
+        uint32_t      offset_bytes;
+        uint32_t      size_bytes;
+        uint16_t      width_pixels;
+        uint16_t      height_pixels;
+        StorageFormat format;
+        uint16_t      _reserved0;
     };
 
     struct Header {
         ResourcePreamble preamble;
-        StorageFormat    format;
+        uint16_t         num_channels;
         uint16_t         num_mips;
         MIPSpan          mips[max_mips];
     };
 
     struct MIPSpec {
-        uint32_t size_bytes;
-        uint16_t width_pixels;
-        uint16_t height_pixels;
+        uint32_t      size_bytes;
+        uint16_t      width_pixels;
+        uint16_t      height_pixels;
+        StorageFormat format;
     };
 
     struct Args {
-        StorageFormat            format;
+        uint16_t                 num_channels;
         std::span<const MIPSpec> mip_specs; // Up-to max_mips.
     };
 
@@ -488,32 +494,19 @@ public:
     static auto open(mapped_region mapped_region)
         -> TextureFile;
 
-    auto size_bytes() const noexcept
-        -> size_t
-    {
-        return mapping_.get_size();
-    }
+    auto size_bytes() const noexcept -> size_t { return mapping_.get_size(); }
 
-    auto format() const noexcept
-        -> StorageFormat;
+    auto num_mips()     const noexcept -> uint16_t;
+    auto num_channels() const noexcept -> uint16_t;
 
-    auto num_mips() const noexcept
-        -> uint16_t;
+    auto mip_spec  (size_t mip_id) const noexcept -> MIPSpec;
+    auto format    (size_t mip_id) const noexcept -> StorageFormat;
+    auto resolution(size_t mip_id) const noexcept -> Size2I;
 
-    auto mip_spec(size_t mip_id) const noexcept
-        -> MIPSpec;
+    auto mip_size_bytes(size_t mip_id) const noexcept -> uint32_t;
 
-    auto resolution(size_t mip_id) const noexcept
-        -> Size2I;
-
-    auto mip_size_bytes(size_t mip_id) const noexcept
-        -> uint32_t;
-
-    auto mip_bytes(size_t mip_id) noexcept
-        -> std::span<std::byte>;
-
-    auto mip_bytes(size_t mip_id) const noexcept
-        -> std::span<const std::byte>;
+    auto mip_bytes(size_t mip_id)       noexcept -> std::span<std::byte>;
+    auto mip_bytes(size_t mip_id) const noexcept -> std::span<const std::byte>;
 
 
 private:

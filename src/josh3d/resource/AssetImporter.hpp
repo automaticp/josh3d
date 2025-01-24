@@ -75,4 +75,19 @@ private:
 };
 
 
+class AssetImporter::Access {
+public:
+    auto& resource_database()  noexcept { return self_.resource_database_;  }
+    auto& thread_pool()        noexcept { return self_.thread_pool_;        }
+    auto& offscreen_context()  noexcept { return self_.offscreen_context_;  }
+    auto& completion_context() noexcept { return self_.completion_context_; }
+    auto& task_counter()       noexcept { return self_.task_counter_;       }
+    auto& local_context()      noexcept { return self_.local_context_;      }
+private:
+    friend AssetImporter;
+    Access(AssetImporter& self) : self_{ self } {}
+    AssetImporter& self_;
+};
+
+
 } // namespace josh
