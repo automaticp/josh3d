@@ -1,7 +1,10 @@
 #pragma once
+#include "LODPack.hpp"
 #include "MeshStorage.hpp"
+#include "Resource.hpp"
 #include "VertexSkinned.hpp"
 #include "Skeleton.hpp"
+#include <cstdint>
 #include <memory>
 #include <ranges>
 #include <vector>
@@ -40,6 +43,16 @@ TODO: Encapsulate better.
 struct SkinnedMesh {
     MeshID<VertexSkinned> mesh_id;
     PosedSkeleton         pose;
+};
+
+
+struct SkinnedMe2h {
+    LODPack<MeshID<VertexSkinned>, 8> lods;
+    ResourceUsage                     usage;
+    // TODO: Shouldn't PublicResource be a vocabulary type?
+    std::shared_ptr<const Skeleton>   skeleton;
+    ResourceUsage                     skeleton_usage;
+    uintptr_t                         aba_tag{};
 };
 
 

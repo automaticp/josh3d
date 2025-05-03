@@ -25,9 +25,14 @@
         "ctre",
         {
             "name": "imgui",
-            "features": [ "glfw-binding", "opengl3-binding", "docking-experimental" ]
+            "features": [
+                "glfw-binding",
+                "opengl3-binding",
+                "docking-experimental"
+            ]
         },
         "imguizmo",
         "entt"
-    ]
+    ],
+    "builtin-baseline": "cacf5994341f27e9a14a7b8724b0634b138ecb30"
 }

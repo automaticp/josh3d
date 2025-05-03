@@ -13,6 +13,7 @@ namespace josh {
 using ranges::views::enumerate;
 using ranges::views::zip;
 using std::views::transform;
+using std::views::reverse;
 
 
 // Similar to `views::iota()`, but actually compiles the first time around.

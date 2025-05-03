@@ -1,7 +1,7 @@
 #pragma once
 #include "AABB.hpp"
 #include "CategoryCasts.hpp"
-#include "ResourceType.hpp"
+#include "DefaultResources.hpp"
 #include "RuntimeError.hpp"
 #include "Region.hpp"
 #include "Skeleton.hpp"
@@ -115,7 +115,7 @@ SkeletonFile skeleton_file @ 0x0;
 */
 class SkeletonFile {
 public:
-    static constexpr auto resource_type = ResourceType::Skeleton;
+    static constexpr auto resource_type = RT::Skeleton;
 
     struct Header {
         ResourcePreamble preamble;
@@ -223,7 +223,7 @@ AnimationFile anim_file @ 0x0;
 */
 class AnimationFile {
 public:
-    static constexpr auto resource_type = ResourceType::Animation;
+    static constexpr auto resource_type = RT::Animation;
 
     struct JointSpan {
         uint32_t offset_bytes; // Offset at which keyframes of a particular joint are located.
@@ -327,7 +327,7 @@ This is useful for incremental streaming.
 */
 class MeshFile {
 public:
-    static constexpr auto resource_type = ResourceType::Mesh;
+    static constexpr auto resource_type = RT::Mesh;
     static constexpr size_t max_lods = 8;
 
     enum class VertexLayout : uint16_t {
@@ -443,7 +443,7 @@ will cache the entire page, making access to the low-resolution MIPs "free".
 */
 class TextureFile {
 public:
-    static constexpr auto resource_type = ResourceType::Texture;
+    static constexpr auto resource_type = RT::Texture;
     static constexpr size_t max_mips = 16;
 
     // TODO: This is not fully supported yet.

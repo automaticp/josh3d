@@ -1,10 +1,12 @@
 #pragma once
+#include "CategoryCasts.hpp"
 #include "Tags.hpp"
 #include <entt/entity/fwd.hpp>
 #include <entt/entity/handle.hpp>
 #include <entt/entity/registry.hpp>
 #include <concepts>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 
 
@@ -28,6 +30,16 @@ template<typename T>
 template<typename ...Ts>
 [[nodiscard]] bool has_components(entt::const_handle handle) noexcept {
     return handle.all_of<Ts...>();
+}
+
+
+// Nicer flow for when you want to use designated initializers.
+template<typename T>
+auto insert_component(entt::handle handle, T&& component)
+    -> decltype(auto)
+{
+    using component_type = std::remove_cvref_t<T>;
+    return handle.emplace<component_type>(FORWARD(component));
 }
 
 

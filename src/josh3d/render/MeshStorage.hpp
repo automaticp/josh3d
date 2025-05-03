@@ -26,11 +26,33 @@ template<specializes_attribute_traits VertexT>
 class MeshStorage;
 
 
+template<typename VertexT = void>
+struct MeshID;
+
+
 template<typename VertexT>
 struct MeshID {
     using vertex_type = VertexT;
     uint64_t value{};
+
+    operator MeshID<void>() const noexcept;
 };
+
+
+template<>
+struct MeshID<void> {
+    using vertex_type = void;
+    uint64_t value{};
+
+    template<typename VertexT>
+    auto as() const noexcept -> MeshID<VertexT> { return { value }; }
+};
+
+
+template<typename VertexT>
+MeshID<VertexT>::operator MeshID<void>() const noexcept {
+    return { value };
+}
 
 
 // Convinience for batched draws.

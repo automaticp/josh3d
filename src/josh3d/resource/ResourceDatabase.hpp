@@ -1,7 +1,6 @@
 #pragma once
 #include "Filesystem.hpp"
-#include "ResourceFiles.hpp"
-#include "ResourceType.hpp"
+#include "Resource.hpp"
 #include "StringHash.hpp"
 #include "ThreadsafeQueue.hpp"
 #include "UUID.hpp"
@@ -10,9 +9,10 @@
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <boost/unordered/unordered_flat_map_fwd.hpp>
 #include <cstdint>
-#include <fstream>
 #include <functional>
+#include <fstream>
 #include <ranges>
+#include <shared_mutex>
 #include <streambuf>
 #include <string_view>
 
@@ -21,9 +21,9 @@ namespace josh {
 
 
 struct ResourceLocation {
-    std::string_view file;
-    size_t           offset_bytes;
-    size_t           size_bytes;
+    Path   file;
+    size_t offset_bytes;
+    size_t size_bytes;
     explicit operator bool() const noexcept { return !file.empty(); }
 };
 
@@ -80,14 +80,23 @@ class ResourceDatabase {
 public:
     ResourceDatabase(const Path& database_root_dir);
 
+    using mapped_region = boost::interprocess::mapped_region;
+
     // Must be periodically called from the main thread.
     void update();
 
-    // TODO: If `file` *is* a view, then what about relocating the entries under the hood?
-    auto locate(const UUID& uuid) const noexcept -> ResourceLocation;
+    auto locate(const UUID& uuid) const
+        -> ResourceLocation;
 
     // Returns a view of all UUIDs currently in the database.
+    [[deprecated("Needs a lock.")]]
     auto entries() const noexcept;
+
+    // Opens a mapping to the resource with the specified uuid.
+    // Will return an empty mapping if the specified resource does not exist.
+    [[nodiscard]]
+    auto map_resource(const UUID& uuid)
+        -> mapped_region;
 
     struct GeneratedResource {
         UUID          uuid;
@@ -156,25 +165,42 @@ public:
     //
     // Note that this only tracks state changes of the resource table,
     // not the contents of the resource files.
-    auto state_version() const noexcept -> uint64_t { return state_version_; }
+    [[deprecated("TOCTOU vulnerable without a lock. And completely useless.")]]
+    auto state_version() const noexcept -> uint64_t;
 
 
 private:
     Path                               database_root_;
     Path                               table_filepath_;
+
     std::filebuf                       table_filebuf_;  // Keep open to be able to resize the file.
     boost::interprocess::file_mapping  file_mapping_;   // To quickly remap the file.
     boost::interprocess::mapped_region mapped_file_;    // Read/write to file through this.
 
     using row_id = size_t;
 
-    boost::unordered_flat_map<UUID, row_id> table_;      // TODO: bimap?
-    std::set<row_id>                        empty_rows_; // Intentionally ordered. TODO: There's a more efficient way to store this.
+    // Primary map of the database that helps locate all relevant info by a UUID.
+    // TODO: bimap?
+    boost::unordered_flat_map<UUID, row_id> table_;
+
+    // Intentionally ordered. TODO: There's a more efficient way to store this.
+    std::set<row_id>                        empty_rows_;
+
+    // Map: Path -> Use Count. To only delete a file when there are no more users of it.
+    // Use strings as keys, not views, so that reallocation and reordering would not invalidate this.
     boost::unordered_flat_map<std::string, size_t, string_hash, std::equal_to<>>
-                                            path_uses_;  // Path -> Use Count. Use strings, not views, so that reallocation and reordering would not invalidate this.
+                                            path_uses_;
+
+    // Integer that represents database state. Every update increments the state version.
     uint64_t                                state_version_{};
 
-    ThreadsafeQueue<UUID>                   remove_queue_;  // To let other threads "cancel" failed resource imports.
+    // Mutex of the whole database state above. Most operations are reads, contention is low.
+    // Private functions (beginning with an "_") never lock the mutex.
+    std::shared_mutex                       state_mutex_;
+
+    // To let multiple threads "cancel" failed resource imports, without contending for the main state mutex.
+    ThreadsafeQueue<UUID>                   remove_queue_;
+    std::vector<UUID>                       remove_list_; // Local remove list to not stall the remove queue.
 
     /*
     A single row in the table.
@@ -187,14 +213,14 @@ private:
         uint64_t     size_bytes;   // Size of the resource data in the file.
     };
 
-    auto row_ptr(row_id row_id) const noexcept -> Row*;
-    auto num_rows() const noexcept -> size_t;
-    void grow_file(size_t desired_num_rows) noexcept;
-    void flush_row(row_id row_id);
-    void bump_version() noexcept;
+    auto _row_ptr(row_id row_id) const noexcept -> Row*;
+    auto _num_rows() const noexcept -> size_t;
+    void _grow_file(size_t desired_num_rows) noexcept;
+    void _flush_row(row_id row_id);
+    void _bump_version() noexcept;
 
     // Create a new entry, possibly resizing the table. No checks are made. Version is not updated.
-    void new_entry(const UUID& uuid, ResourceType type, const ResourcePath& path, uint64_t offset_bytes, uint64_t size_bytes);
+    void _new_entry(const UUID& uuid, ResourceType type, const ResourcePath& path, uint64_t offset_bytes, uint64_t size_bytes);
 
     struct UnlinkResult {
         bool   success;             // True if unliked, false if no such UUID.
@@ -203,8 +229,10 @@ private:
     };
 
     // Remove a record from the database table.
-    auto try_unlink_record_(const UUID& uuid)
-        -> UnlinkResult;
+    auto _try_unlink_record(const UUID& uuid) -> UnlinkResult;
+
+    // Remove a record and the asociated file if last user.
+    auto _try_remove_resource(const UUID& uuid) -> RemoveResourceOutcome;
 
 };
 

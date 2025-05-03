@@ -539,9 +539,9 @@ auto import_model_async(
         .extension = "jscene",
     };
 
-    const ResourceType resource_type = ResourceType::Scene;
+    const ResourceType resource_type = RT::Scene;
 
-    scene_json["resource_type"] = to_underlying(resource_type);
+    scene_json["resource_type"] = resource_type;
     scene_json["self_uuid"]     = serialize_uuid(UUID{}); // Write null uuid to create space.
 
     std::string scene_json_string;

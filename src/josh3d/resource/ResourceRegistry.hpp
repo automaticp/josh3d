@@ -1,0 +1,854 @@
+#pragma once
+#include "AnyRef.hpp"
+#include "CategoryCasts.hpp"
+#include "CommonConcepts.hpp"
+#include "CompletionContext.hpp"
+#include "LocalContext.hpp"
+#include "OffscreenContext.hpp"
+#include "Resource.hpp"
+#include "ContainerUtils.hpp"
+#include "Coroutines.hpp"
+#include "HashedString.hpp"
+#include "MutexPool.hpp"
+#include "ResourceDatabase.hpp"
+#include "Semantics.hpp"
+#include "TaskCounterGuard.hpp"
+#include "ThreadPool.hpp"
+#include "UUID.hpp"
+#include "UniqueFunction.hpp"
+#include <boost/any/unique_any.hpp>
+#include <boost/any/basic_any.hpp>
+#include <boost/unordered/unordered_flat_map.hpp>
+#include <boost/container/small_vector.hpp>
+#include <entt/core/fwd.hpp>
+#include <entt/entity/fwd.hpp>
+#include <coroutine>
+#include <any>
+#include <atomic>
+#include <exception>
+#include <memory>
+#include <mutex>
+#include <shared_mutex>
+#include <utility>
+
+
+/*
+Resource types are "intermediate" representations of each resource.
+
+These are used for caching (retaining) the resource in its loaded
+state separate from either its representation on-disk or in-scene.
+
+TODO: Do we need this or could we just have a prefab registry?
+
+TODO: List all use-cases and possible actions.
+
+Stuff that needs to be supported:
+
+    - Incremental streaming per-resource
+        - Only data-intensive or all?
+    - Fast query of resource availability:
+        - Cold, Pending or Hot.
+        - try_get_resource() API?
+    - Reloading of referenced scene objects from changed resources.
+        - Backreferencing from scene.
+    - Reloading of resources from changed files, triggering above.
+      (aka. hot-reloading).
+    - Serializing the resource state back to files.
+        - Overwriting or creating new.
+    - Ability to "copy" a resource
+        - For overriding or creating a modification
+    - Incremental loading of scene information
+    - Eviction system
+        - Tracking of use-counts and load-times and other stats
+        - Periodical clean-up of resources that are no longer in use
+        - Eviction hints: "Evict asap", "Keep longer", "Never evict", etc...
+
+
+Ordered by performance and latency requirement:
+
+    - Availability queries (instant)
+    - Lookup of resources  (instant when no writers)
+
+    - Loading of scene info (minimum-blocking)
+        - This is where central registry has a major disadvantage.
+          Registry needs a mutex for *every* operation, whereas
+          an independent table needs only to lock the table, not
+          the resource.
+    - Incremental streaming per-resource (can block on scene registry)
+
+    - Eviction system (occasional runs on parts of the storage)
+        - Shitty GC
+
+    - Serializing the resource back to files.
+    - Ability to copy the resource.
+    - Reimporting of resoures from changed files.
+        - Resource invalidation
+
+
+*/
+namespace josh {
+
+
+enum class ResourceProgress : bool {
+    Incomplete, // Resource has only been loaded partially. Come back for more.
+    Complete,   // Resource has been loaded to its full (all LODs, MIPs, etc.).
+};
+
+
+template<ResourceType TypeV> struct resource_traits;
+
+
+/*
+Used for SBO size probing of internal datastructures.
+And as a primitive example. Cannot be used otherwise.
+*/
+struct DummyResource {};
+constexpr auto DummyResource = "DummyResource"_hs;
+
+
+template<> struct resource_traits<DummyResource> {
+    using resource_type = struct DummyResource;
+};
+
+
+template<ResourceType TypeV>
+struct PublicResource {
+    // This should be a "const" resource reference.
+    using resource_type = resource_traits<TypeV>::resource_type;
+    resource_type resource;
+    ResourceUsage usage;
+};
+
+
+// TODO: This should have different semantics.
+template<ResourceType TypeV>
+using PrivateResource = PublicResource<TypeV>;
+
+
+class ResourceRegistry {
+public:
+    template<typename KeyT, typename ValueT>
+    using hash_map = boost::unordered::unordered_flat_map<KeyT, ValueT>;
+    using any_map  = boost::anys::basic_any<sizeof(hash_map<UUID, void*>)>; // Any value type will do.
+
+    ResourceRegistry(
+        ResourceDatabase&  resource_database,
+        ThreadPool&        thread_pool,
+        OffscreenContext&  offscreen_context,
+        CompletionContext& completion_context
+    )
+        : resource_database_ { resource_database  }
+        , thread_pool_       { thread_pool        }
+        , offscreen_context_ { offscreen_context  }
+        , completion_context_{ completion_context }
+    {}
+
+    class LoaderInterface;
+
+    template<ResourceType TypeV>
+    using loader_sig = Job<void>(LoaderInterface, UUID); // FIXME: arg_type.
+
+    template<ResourceType TypeV, of_signature<loader_sig<TypeV>> F>
+    void register_resource(F&& loader);
+
+    template<ResourceType TypeV>
+    [[nodiscard]]
+    auto get_resource(const UUID& uuid, ResourceProgress* out_progress = nullptr)
+        -> awaiter<PublicResource<TypeV>> auto;
+
+
+    /*
+    enum GetOutcome {
+        WasCached,    // Got the result directly from cache.
+        WasPending,   // Got the result by resuming after another job finished loading. Better reschedule if there's any extra work.
+        NeedsLoading, // No result in cache. You are the loading job now. Must report completion/failure later.
+    };
+
+    template<ResourceType TypeV>
+    [[nodiscard]]
+    auto get_if_cached_or_join_pending(const UUID& uuid, GetOutcome& out_outcome)
+        -> awaiter<std::optional<PublicResource<TypeV>>> auto;
+
+    template<ResourceType TypeV>
+    [[nodiscard]]
+    auto cache_and_resolve_pending(const UUID& uuid, resource_traits<TypeV>::resource_type resource)
+        -> PublicResource<TypeV>;
+
+    // Requires that exception handling is currently in progress, and `std::current_exception()` is not null.
+    // This can be done by calling this in the scope destructor or in a catch-fail-rethrow block.
+    // That is the only way to guarantee that the resumed pending jobs get the exception.
+    template<ResourceType TypeV>
+    void fail_and_resolve_pending(const UUID& uuid);
+    */
+
+
+private:
+    template<ResourceType TypeV>
+    struct Storage;
+
+    template<ResourceType TypeV>
+    class Entry {
+    public:
+        using resource_type = resource_traits<TypeV>::resource_type;
+        using refcount_type = std::atomic<size_t>;
+        using mutex_type    = std::shared_mutex;
+
+        auto mutex_ptr() const noexcept -> mutex_type*      { return mutex_ptr_;  }
+        auto mutex()     const noexcept -> mutex_type&      { return *mutex_ptr_; }
+        auto progress()  const noexcept -> ResourceProgress { return progress_;   }
+
+    private:
+        // NOTE: Can be easily packed into the mutex pointer.
+        ResourceProgress               progress_ = ResourceProgress::Incomplete;
+        // Needs stable address. The hash table doesn't give you that.
+        std::unique_ptr<refcount_type> refcount_ = std::make_unique<refcount_type>(0);
+        mutex_type*                    mutex_ptr_;
+        resource_type                  resource_;
+
+        friend Storage<TypeV>;
+
+        // Must be called by Storage to guarantee that mutex is from the right pool.
+        Entry(resource_type resource, ResourceProgress progress, mutex_type& entry_mutex)
+            : progress_ { progress       }
+            , mutex_ptr_{ &entry_mutex   }
+            , resource_ { MOVE(resource) }
+        {}
+
+        // Must be called by Storage since we don't know our own UUID.
+        // TODO: Isn't this kinda dumb?
+        auto obtain_public(const UUID& uuid) const noexcept
+            -> PublicResource<TypeV>
+        {
+            return {
+                .usage    = obtain_usage(uuid),
+                .resource = resource_, // Copy
+            };
+        }
+
+        // Must be called by Storage since we don't know our own UUID.
+        auto obtain_usage(const UUID& uuid) const noexcept
+            -> ResourceUsage
+        {
+            const ResourceItem item{ .type = TypeV, .uuid = uuid };
+            return { item, *refcount_ };
+        }
+
+    };
+
+    template<ResourceType TypeV>
+    struct Storage {
+        using resource_type  = resource_traits<TypeV>::resource_type;
+        using entry_type     = Entry<TypeV>;
+        using map_type       = hash_map<UUID, entry_type>;
+        using kv_type        = map_type::value_type; // I'm running out of words.
+
+        mutable std::shared_mutex    map_mutex;        // For operations that modify the map itself (insert/remove).
+        MutexPool<std::shared_mutex> entry_mutex_pool; // For operations that modify each entry in the map.
+        hash_map<UUID, entry_type>   map;
+
+        // Map must be locked under "write" lock.
+        //
+        // Returns a pointer to the key-value of the new entry,
+        // or a nullptr if the entry already exists.
+        [[nodiscard]]
+        auto new_entry(
+            const UUID&                                uuid,
+            resource_type                              resource,
+            ResourceProgress                           progress,
+            const std::unique_lock<std::shared_mutex>& active_map_lock [[maybe_unused]])
+                -> kv_type*
+        {
+            assert(active_map_lock.owns_lock());
+            assert(active_map_lock.mutex() == &map_mutex);
+            auto [it, was_emplaced] =
+                map.try_emplace(uuid, entry_type(MOVE(resource), progress, *entry_mutex_pool.new_mutex()));
+            return was_emplaced ? &(*it) : nullptr;
+        }
+
+        // Entry must be locked under "read" entry lock or stronger.
+        template<template<typename...> typename LockT>
+        [[nodiscard]]
+        static auto obtain_public(
+            const kv_type&                  kv_pair,
+            const LockT<std::shared_mutex>& active_entry_lock [[maybe_unused]])
+                -> PublicResource<TypeV>
+        {
+            assert(active_entry_lock.owns_lock());
+            assert(active_entry_lock.mutex() == kv_pair.second.mutex_ptr());
+            return kv_pair.second.obtain_public(kv_pair.first);
+        }
+
+        // Entry must be locked under "read" entry lock or stronger.
+        template<template<typename...> typename LockT>
+        [[nodiscard]]
+        static auto obtain_usage(
+            const kv_type&                  kv_pair,
+            const LockT<std::shared_mutex>& active_entry_lock [[maybe_unused]])
+                -> PublicResource<TypeV>
+        {
+            assert(active_entry_lock.owns_lock());
+            assert(active_entry_lock.mutex() == kv_pair.second.mutex_ptr());
+            return kv_pair.second.obtain_usage(kv_pair.first);
+        }
+
+        static auto access_resource(
+            entry_type&                                entry,
+            const std::unique_lock<std::shared_mutex>& active_entry_lock [[maybe_unused]]) noexcept
+                -> resource_type&
+        {
+            assert(active_entry_lock.owns_lock());
+            assert(active_entry_lock.mutex() == entry.mutex_ptr());
+            return entry.resource_;
+        }
+
+        static void mark_complete(
+            entry_type&                                entry,
+            const std::unique_lock<std::shared_mutex>& active_entry_lock [[maybe_unused]]) noexcept
+        {
+            assert(active_entry_lock.owns_lock());
+            assert(active_entry_lock.mutex() == entry.mutex_ptr());
+            entry.progress_ = ResourceProgress::Complete;
+        }
+
+        using pending_list = boost::container::small_vector<std::coroutine_handle<>, 4>;
+
+        mutable std::mutex           pending_mutex;
+        hash_map<UUID, pending_list> pending; // TODO: Do we need this per-resource?
+    };
+
+    using registry_type =
+        hash_map<ResourceType, boost::anys::basic_any<sizeof(Storage<DummyResource>)>>;
+
+    registry_type registry_;
+
+    template<ResourceType TypeV>
+    auto get_storage()
+        -> Storage<TypeV>&
+    {
+        auto it = registry_.find(TypeV);
+        assert(it != registry_.end());
+        return boost::any_cast<Storage<TypeV>&>(it->second);
+    }
+
+    template<ResourceType TypeV>
+    using loader_type     = UniqueFunction<loader_sig<TypeV>>; // FIXME: SBO function of some kind.
+    using any_loader_type = boost::anys::basic_any<sizeof(loader_type<DummyResource>)>;
+    using loaders_type    = hash_map<ResourceType, any_loader_type>;
+
+    loaders_type loaders_;
+
+    template<ResourceType TypeV>
+    auto get_loader()
+        -> loader_type<TypeV>&
+    {
+        auto it = loaders_.find(TypeV);
+        assert(it != loaders_.end());
+        return boost::any_cast<loader_type<TypeV>&>(it->second);
+    }
+
+    template<ResourceType TypeV>
+    void start_loading(const UUID& uuid);
+
+
+    ResourceDatabase&  resource_database_;
+    ThreadPool&        thread_pool_;
+    OffscreenContext&  offscreen_context_;
+    CompletionContext& completion_context_;
+    TaskCounterGuard   task_counter_;
+    LocalContext       local_context_{ task_counter_ };
+};
+
+
+class ResourceRegistry::LoaderInterface {
+public:
+    // Basic helpers.
+    auto& resource_database()  noexcept { return self_.resource_database_;  }
+    auto& thread_pool()        noexcept { return self_.thread_pool_;        }
+    auto& offscreen_context()  noexcept { return self_.offscreen_context_;  }
+    auto& completion_context() noexcept { return self_.completion_context_; }
+    auto& task_counter()       noexcept { return self_.task_counter_;       }
+    auto& local_context()      noexcept { return self_.local_context_;      }
+
+    // Resource progress.
+
+    // Maybe take return value of the advance_fun as the new completeness state
+    // instead of having another function.
+
+    // We need some way to communicate the "progress" to the unpacker.
+    // Maybe store it in the resource_type?
+
+    // Synchronizing shared resources is a mess. How to sync MIP levels of a texture?
+    // HINT: Try using texture views.
+
+    // If `progress` is Incomplete, then `update_resource()` must be called until
+    // its update funciton returns Complete.
+    template<ResourceType TypeV>
+    [[nodiscard]]
+    auto create_resource(
+        const UUID&                           uuid,
+        ResourceProgress                      progress,
+        resource_traits<TypeV>::resource_type resource)
+            -> ResourceUsage;
+
+    template<ResourceType TypeV, typename UpdateF>
+        requires of_signature<UpdateF, ResourceProgress(typename resource_traits<TypeV>::resource_type&)>
+    void update_resource(const UUID& uuid, UpdateF&& update_fun);
+
+    // Exception handling must be in-progress, `std::current_exception()` must be not null.
+    // Right now, this can only be called *before* `create_resource()`.
+    //
+    // TODO: Think about cancellation for partial loads. Do we need it at all?
+    template<ResourceType TypeV>
+    void fail_resource(const UUID& uuid);
+
+    // Similar to calling get_resource<TypeV>() on the resource registry,
+    // but returns a *private* resource for internal retention instead.
+    template<ResourceType TypeV>
+    [[nodiscard]]
+    auto get_resource_dependency(
+        const UUID&       uuid,
+        ResourceProgress* out_progress = nullptr)
+            -> awaiter<PrivateResource<TypeV>> auto;
+
+private:
+    friend ResourceRegistry;
+    LoaderInterface(ResourceRegistry& self) : self_{ self } {}
+    ResourceRegistry& self_;
+
+    template<ResourceType TypeV>
+    static void resolve_pending(
+        Storage<TypeV>&  storage,
+        const UUID&      uuid,
+        bool             final_resolve);
+
+};
+
+
+template<ResourceType TypeV>
+void ResourceRegistry::LoaderInterface::resolve_pending(
+    Storage<TypeV>&  storage,
+    const UUID&      uuid,
+    bool             final_resolve)
+{
+    typename Storage<TypeV>::pending_list pending_list;
+    {
+        const auto pending_lock = std::scoped_lock(storage.pending_mutex);
+        const auto it = storage.pending.find(uuid);
+        assert(it != storage.pending.end() && "Attempted to notify about a new resource, but it is not pending.");
+
+        // We remove the entries from pending, they have to come back to pending
+        // by calling get_resource() again later.
+        pending_list = MOVE(it->second);
+
+        // If this completes or fails the progress, then no one can be pending anymore.
+        // Subsequent calls to get_resource() will instead return Complete cached entry,
+        // or kick-off another load if this one failed.
+        if (final_resolve) {
+            storage.pending.erase(it);
+        }
+    }
+
+    // Manually resume each coroutine that was pending to "notify" it.
+    // The caller is encouraged to reschedule somewhere else asap.
+    for (std::coroutine_handle<>& handle : pending_list) {
+        handle.resume();
+    }
+}
+
+
+template<ResourceType TypeV>
+[[nodiscard]]
+auto ResourceRegistry::LoaderInterface::create_resource(
+    const UUID&                           uuid,
+    ResourceProgress                      progress,
+    resource_traits<TypeV>::resource_type resource)
+        -> ResourceUsage
+{
+    using storage_type = Storage<TypeV>;
+    using kv_type      = storage_type::kv_type;
+
+    storage_type& storage = self_.get_storage<TypeV>();
+
+    ResourceUsage usage = [&]{
+        const auto map_lock = std::unique_lock(storage.map_mutex);
+        // EWW: This allocates a new entry under a lock.
+        // In particular, the heap allocation of refcount
+        // would be nice to avoid, but that would mean
+        // we'd have to do things more manually.
+        kv_type* kv = storage.new_entry(uuid, MOVE(resource), map_lock);
+        assert(kv && "Attempted to create a new resource, but it was already cached.");
+
+        // Obtain "usage" before releasing the lock. This is important to guarantee
+        // that the resource is still alive at least until we resolve all pending.
+        const auto entry_lock = std::shared_lock(kv->second.mutex());
+        return storage_type::obtain_usage(*kv, entry_lock);
+    }();
+
+    // We hold the "usage" but no longer hold the locks.
+    // Go grab the pending jobs and resume them one-by-one
+    // so that they could obtain their own usage/resource copy.
+    const bool final_resolve = (progress == ResourceProgress::Complete);
+    resolve_pending(storage, uuid, final_resolve);
+
+    // The loader needs to hold onto the usage to keep the resource alive.
+    return usage;
+}
+
+
+template<ResourceType TypeV, typename UpdateF>
+    requires of_signature<UpdateF, ResourceProgress(typename resource_traits<TypeV>::resource_type&)>
+void ResourceRegistry::LoaderInterface::update_resource(
+    const UUID& uuid,
+    UpdateF&&   update_fun)
+{
+    using storage_type = Storage<TypeV>;
+    using kv_type      = storage_type::kv_type;
+    using entry_type   = Entry<TypeV>;
+
+    storage_type& storage = self_.get_storage<TypeV>();
+
+    const ResourceProgress progress = [&]{
+        // Note that the locks are inverse of the create_resource().
+        // Map is locked for read, since we don't create a new entry,
+        // the entry is locked for write, since we update it.
+        const auto map_lock = std::shared_lock(storage.map_mutex);
+        const entry_type* entry = try_find_value(storage.map, uuid);
+        assert(entry && "Attempted to update a resource, but it did not exist.");
+
+        const auto entry_lock = std::unique_lock(entry->mutex());
+        assert(entry->progress() != ResourceProgress::Complete && "Attempted to update a resource, but it was already Complete.");
+
+        const ResourceProgress new_progress =
+            update_fun(storage_type::access_resource(*entry, entry_lock));
+
+        if (new_progress == ResourceProgress::Complete) {
+            storage_type::mark_complete(*entry, entry_lock);
+        }
+
+        return new_progress;
+    }();
+
+    const bool final_resolve = (progress == ResourceProgress::Complete);
+    resolve_pending(storage, uuid, final_resolve);
+}
+
+
+template<ResourceType TypeV>
+void ResourceRegistry::LoaderInterface::fail_resource(
+    const UUID& uuid)
+{
+    assert(std::current_exception() && "Attempted to fail a load, but no exception is currently handled.");
+
+    using storage_type = Storage<TypeV>;
+    storage_type& storage = self_.get_storage<TypeV>();
+
+    const auto has_entry [[maybe_unused]] = [&]{
+        const auto  map_lock = std::shared_lock(storage.map);
+        const auto* kv       = try_find(storage.map, uuid);
+        return bool(kv);
+    };
+    assert(!has_entry() && "Attempted to fail a load, but the entry was already created.");
+
+    const bool final_resolve = true;
+    resolve_pending(storage, uuid, final_resolve);
+}
+
+
+template<ResourceType TypeV>
+[[nodiscard]]
+auto ResourceRegistry::LoaderInterface::get_resource_dependency(
+    const UUID&       uuid,
+    ResourceProgress* out_progress)
+        -> awaiter<PrivateResource<TypeV>> auto
+{
+    return self_.get_resource<TypeV>(uuid, out_progress);
+}
+
+
+template<ResourceType TypeV, of_signature<ResourceRegistry::loader_sig<TypeV>> F>
+void ResourceRegistry::register_resource(F&& loader) {
+    {
+        auto [it, was_emplaced] = registry_.try_emplace(TypeV);
+        assert(was_emplaced);
+    }
+    {
+        auto [it, was_emplaced] = loaders_.try_emplace(TypeV, FORWARD(loader));
+        assert(was_emplaced);
+    }
+}
+
+
+template<ResourceType TypeV>
+void ResourceRegistry::start_loading(const UUID& uuid) {
+    loader_type<TypeV>& loader = get_loader<TypeV>();
+    // Do we care to keep this job?
+    // Or task counter is enough?
+    loader(LoaderInterface{ *this }, uuid);
+}
+
+
+template<ResourceType TypeV>
+[[nodiscard]]
+auto ResourceRegistry::get_resource(const UUID& uuid, ResourceProgress* out_progress)
+    -> awaiter<PublicResource<TypeV>> auto
+{
+    using storage_type = Storage<TypeV>;
+    using entry_type   = Entry<TypeV>;
+    using kv_type      = storage_type::kv_type;
+
+    struct Awaiter {
+        ResourceRegistry& self;
+        Storage<TypeV>&   storage;
+        UUID              uuid;
+        ResourceProgress* out_progress;
+
+        std::optional<PublicResource<TypeV>> result = std::nullopt;
+
+        bool await_ready() {
+            const auto map_lock = std::shared_lock(storage.map_mutex);
+            if (const kv_type* kv = try_find(storage.map, uuid)) {
+                const entry_type& entry = kv->second;
+                const auto entry_lock = std::shared_lock(entry.mutex());
+                if (out_progress) *out_progress = entry.progress();
+                result = storage_type::obtain_public(kv, entry_lock);
+                return true;
+            }
+            return false;
+        }
+
+        bool await_suspend(std::coroutine_handle<> h) {
+            const auto map_lock = std::shared_lock(storage.map_mutex);
+            if (const kv_type* kv = try_find(storage.map, uuid)) {
+                const entry_type& entry = kv->second;
+                const auto entry_lock = std::shared_lock(entry.mutex());
+                if (out_progress) *out_progress = entry.progress();
+                result = storage_type::obtain_public(kv, entry_lock);
+                return false;
+            }
+
+            const auto pending_lock = std::scoped_lock(storage.pending_mutex);
+            auto [it, was_emplaced] = storage.pending.try_emplace(uuid);
+            it->second.emplace_back(h);
+
+            if (was_emplaced) {
+                self.start_loading<TypeV>(uuid);
+            }
+
+            return true;
+        }
+
+        [[nodiscard]]
+        auto await_resume()
+            -> PublicResource<TypeV>
+        {
+            if (std::uncaught_exceptions()) {
+                std::rethrow_exception(std::current_exception());
+            }
+            if (!result) {
+                const auto map_lock = std::shared_lock(storage.map_mutex);
+                const kv_type* kv = try_find(storage.map, uuid);
+                assert(kv);
+                const entry_type& entry = kv->second;
+                const auto entry_lock = std::shared_lock(entry.mutex());
+                if (out_progress) *out_progress = entry.progress();
+                result = storage_type::obtain_public(kv, entry_lock);
+            }
+            return move_out(result);
+        }
+    };
+
+    return Awaiter{ *this, this->get_storage<TypeV>(), uuid, out_progress };
+}
+
+/*
+template<ResourceType TypeV>
+auto ResourceRegistry::get_if_cached_or_join_pending(const UUID& uuid, GetOutcome& out_outcome)
+    -> awaiter<std::optional<PublicResource<TypeV>>> auto
+{
+    using storage_type  = Storage<TypeV>;
+    using kv_type       = storage_type::kv_type;
+
+    struct Awaiter {
+        storage_type& storage;
+        UUID          uuid;
+        GetOutcome&   out_outcome;
+
+        std::optional<PublicResource<TypeV>> cached_result  = std::nullopt;
+        bool                                 became_pending = false;
+
+        bool await_ready() {
+            // It is quite unlikely that we actually end up here during pending state,
+            // so first do a quick check on the entry map, without consulting the
+            // pending map at all. If the entry is there, return it.
+            const auto map_lock = std::shared_lock(storage.map_mutex);
+            if (const kv_type* kv = try_find(storage.map, uuid)) {
+                // Even though the entry cannot be removed, it's contents
+                // could be modified by other threads.
+                // TODO: Is this true? Does eviction information ever
+                // access the same fields? What else does?
+                const auto entry_lock = std::shared_lock(kv->second.mutex());
+                cached_result = storage_type::obtain_public(kv, entry_lock);
+                return true;
+            }
+            return false;
+        }
+
+        bool await_suspend(std::coroutine_handle<> h) {
+            // Do a locked lookup again, this is unlikely to have become true
+            // right after await_ready(), but we'll need both locks now to
+            // preserve invariant state.
+            //
+            // NOTE: The resource cannot become complete without a writer lock
+            // on this mutex.
+            const auto map_lock = std::shared_lock(storage.map_mutex);
+            if (const kv_type* kv = try_find(storage.map, uuid)) {
+                const auto entry_lock = std::shared_lock(kv->second.mutex());
+                cached_result = storage_type::obtain_public(kv, entry_lock);
+                return false;
+            }
+
+            // Now we are on a "sad" path. The resource is not yet ready, but
+            // we still don't know if someone else is already doing the work
+            // (aka. if the resource is pending). Let's find out!
+            const auto pending_lock = std::scoped_lock(storage.pending_mutex);
+            auto [it, was_emplaced] = storage.pending.try_emplace(uuid);
+
+            // If we just emplaced a new entry, then don't actually add ourselves to pending,
+            // we'll be the ones resolving this request. Don't suspend, resume with a nullopt.
+            if (was_emplaced) {
+                return false;
+            }
+
+            // Lastly, if there is already a pending list for this asset, then we just add
+            // ourselves to it and suspend. Our result will be resolved by the first job
+            // that emplaced an entry into the pending list.
+            it->second.emplace_back(h);
+            became_pending = true;
+            return true;
+        }
+
+        [[nodiscard]]
+        auto await_resume()
+            -> std::optional<PublicResource<TypeV>>
+        {
+            if (cached_result) {
+                // Either we found the result in the cache and can resume early.
+                out_outcome = GetOutcome::WasCached;
+                return MOVE(cached_result);
+            }
+
+            if (became_pending) {
+                // Or another, "loading" job resumed us from pending state.
+                out_outcome = GetOutcome::WasPending;
+
+                // If the load failed, the exception handling is currently in progress.
+                // We can detect that and rethrow the current exception for our job.
+                // It will be "caught" by uhandled_exception() and propagated to the
+                // coroutine owner instead of the result.
+                //
+                // NOTE: Even though this can be resumed/rethrown in the destructor
+                // of the scope_fail guard of the loading job, this never escapes
+                // the destructor, so it won't terminate the thread.
+                if (std::uncaught_exceptions()) {
+                    std::rethrow_exception(std::current_exception());
+                }
+
+                // If the load succeeded, then the loading job holds the "usage"
+                // of the resource, but not the lock on the map or the entry.
+                // Meaning the resource is guaranteed to now be found in the map.
+                const auto map_lock = std::shared_lock(storage.map_mutex);
+                const kv_type* kv = try_find(storage.map, uuid);
+                assert(kv && "Loaded resource was expected to be found in the map after resuming from pending state.");
+                const auto entry_lock = std::shared_lock(kv->second.mutex());
+                return storage_type::obtain_public(kv, entry_lock);
+            }
+
+            // Otherwise, we never found the result, and must resume to load it ourselves.
+            out_outcome = GetOutcome::NeedsLoading;
+            return std::nullopt;
+        }
+    };
+
+    return Awaiter{ get_storage<TypeV>(), uuid, out_outcome };
+}
+*/
+
+/*
+template<ResourceType TypeV>
+auto ResourceRegistry::cache_and_resolve_pending(const UUID& uuid, resource_traits<TypeV>::resource_type resource)
+    -> PublicResource<TypeV>
+{
+    using storage_type  = Storage<TypeV>;
+    using kv_type       = storage_type::kv_type;
+    storage_type& storage = get_storage<TypeV>();
+
+    // This is where a new Entry is created.
+    PublicResource<TypeV> result = [&]{
+        const auto map_lock = std::unique_lock(storage.map_mutex);
+        // EWW: This allocates a new entry under a lock.
+        // In particular, the heap allocation of refcount
+        // would be nice to avoid, but that would mean
+        // we'd have to do things more manually.
+        kv_type* kv = storage.new_entry(uuid, MOVE(resource), map_lock);
+        assert(kv && "Attempted to resolve a request by caching a resource, but it was already cached.");
+
+        // Obtain "usage" before releasing the lock. This is important to guarantee
+        // that the resource is still alive at least until we resolve all pending.
+        const auto entry_lock = std::shared_lock(kv->second.mutex());
+        return storage_type::obtain_public(*kv, entry_lock);
+    }();
+
+    // We hold the "usage" in the `result` but no longer hold the locks.
+    // Go grab the pending jobs and resume them one-by-one so that they
+    // could obtain their own usage.
+    typename storage_type::pending_list pending_list;
+    {
+        const auto pending_lock = std::scoped_lock(storage.pending_mutex);
+        const auto it = storage.pending.find(uuid);
+        assert(it != storage.pending.end() && "Attempted to resolve a pending request, but it was not marked as such before.");
+
+        pending_list = MOVE(it->second); // Move-out under lock, then release.
+        storage.pending.erase(it);
+    }
+
+
+    // Manually resume each coroutine.
+    // The caller is encouraged to reschedule somewhere else asap.
+    for (auto& handle : pending_list) {
+        handle->resume();
+    }
+
+    return result;
+}
+
+
+template<ResourceType TypeV>
+void ResourceRegistry::fail_and_resolve_pending(const UUID& uuid) {
+    assert(std::current_exception() &&
+        "Attempted to resolve a pending request with an exception, but exception handling is currently not active.");
+
+    using storage_type  = Storage<TypeV>;
+    storage_type& storage = get_storage<TypeV>();
+
+    typename storage_type::pending_list pending_list;
+    {
+        // Only lock the pending, since we are not caching this result.
+        const auto pending_lock = std::scoped_lock(storage.pending_mutex);
+        const auto it = storage.pending.find(uuid);
+        assert(it != storage.pending.end() && "Attempted to resolve a pending request, but it was not marked as such before.");
+
+        pending_list = MOVE(it->second); // Move-out under lock, then release.
+        storage.pending.erase(it);
+    }
+
+    // Manually resume each coroutine.
+    // The await_resume() from pending state will check the current
+    // exception, and if it's not null, rethrow it.
+    for (auto& handle : pending_list) {
+        handle->resume();
+    }
+}
+*/
+
+
+} // namespace josh

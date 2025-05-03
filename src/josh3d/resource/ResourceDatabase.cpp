@@ -1,8 +1,9 @@
 #include "ResourceDatabase.hpp"
+#include "CategoryCasts.hpp"
 #include "ContainerUtils.hpp"
 #include "Filesystem.hpp"
 #include "Logging.hpp"
-#include "ResourceType.hpp"
+#include "Resource.hpp"
 #include "RuntimeError.hpp"
 #include "ThreadsafeQueue.hpp"
 #include "UUID.hpp"
@@ -18,8 +19,8 @@
 #include <fmt/core.h>
 #include <fmt/std.h>
 #include <memory>
-#include <stack>
-#include <streambuf>
+#include <mutex>
+#include <shared_mutex>
 
 
 namespace josh {
@@ -76,8 +77,8 @@ ResourceDatabase::ResourceDatabase(const Path& database_root)
         mapped_file_  = bip::mapped_region(file_mapping_, bip::read_write);
         mapped_file_.advise(bip::mapped_region::advice_sequential);
 
-        for (size_t row_id{ 0 }; row_id < num_rows(); ++row_id) {
-            const Row&          row  = *row_ptr(row_id);
+        for (size_t row_id{ 0 }; row_id < _num_rows(); ++row_id) {
+            const Row&          row  = *_row_ptr(row_id);
             const UUID&         uuid = row.uuid;
             const ResourcePath& path = row.filepath;
             if (uuid.is_nil()) {
@@ -96,26 +97,26 @@ ResourceDatabase::ResourceDatabase(const Path& database_root)
 }
 
 
-auto ResourceDatabase::num_rows() const noexcept
+auto ResourceDatabase::_num_rows() const noexcept
     -> size_t
 {
     return mapped_file_.get_size() / sizeof(Row);
 }
 
 
-auto ResourceDatabase::row_ptr(row_id row_id) const noexcept
+auto ResourceDatabase::_row_ptr(row_id row_id) const noexcept
     -> Row*
 {
-    assert(row_id < num_rows());
+    assert(row_id < _num_rows());
     std::byte* byte_ptr = (std::byte*)mapped_file_.get_address() + row_id * sizeof(Row);
     return std::launder(reinterpret_cast<Row*>(byte_ptr));
 }
 
 
-void ResourceDatabase::grow_file(size_t desired_num_rows) noexcept {
-    if (desired_num_rows <= num_rows()) return;
+void ResourceDatabase::_grow_file(size_t desired_num_rows) noexcept {
+    if (desired_num_rows <= _num_rows()) return;
 
-    const size_t old_num_rows = num_rows();
+    const size_t old_num_rows = _num_rows();
     const size_t new_num_rows = desired_num_rows;
 
     // Resize the filebuf.
@@ -135,19 +136,19 @@ void ResourceDatabase::grow_file(size_t desired_num_rows) noexcept {
 }
 
 
-void ResourceDatabase::flush_row(row_id row_id) {
+void ResourceDatabase::_flush_row(row_id row_id) {
     const size_t offset_bytes = row_id * sizeof(Row);
     const size_t size_bytes   = sizeof(Row);
     mapped_file_.flush(offset_bytes, size_bytes);
 }
 
 
-void ResourceDatabase::bump_version() noexcept {
+void ResourceDatabase::_bump_version() noexcept {
     ++state_version_;
 }
 
 
-void ResourceDatabase::new_entry(
+void ResourceDatabase::_new_entry(
     const UUID&         uuid,
     ResourceType        type,
     const ResourcePath& path,
@@ -159,8 +160,8 @@ void ResourceDatabase::new_entry(
     if (empty_rows_.empty()) {
         const double growth_factor = 1.3;
         // NOTE: Adding one so that if num_rows() is 0 we are not screwed.
-        const size_t desired_num_rows = 1 + size_t(double(num_rows()) * growth_factor);
-        grow_file(desired_num_rows);
+        const size_t desired_num_rows = 1 + size_t(double(_num_rows()) * growth_factor);
+        _grow_file(desired_num_rows);
     }
     assert(!empty_rows_.empty());
 
@@ -168,7 +169,7 @@ void ResourceDatabase::new_entry(
     const auto   it            = empty_rows_.begin();
     const row_id target_row_id = *it;
 
-    *row_ptr(target_row_id) = {
+    *_row_ptr(target_row_id) = {
         .uuid          = uuid,
         .type          = type,
         .filepath      = path,
@@ -180,18 +181,19 @@ void ResourceDatabase::new_entry(
     table_.emplace(uuid, target_row_id);
     ++(path_uses_[path.view()]);
 
-    flush_row(target_row_id);
+    _flush_row(target_row_id);
 }
 
 
-auto ResourceDatabase::locate(const UUID& uuid) const noexcept
+auto ResourceDatabase::locate(const UUID& uuid) const
     -> ResourceLocation
 {
+    const auto rlock = std::shared_lock(state_mutex_);
     if (const auto* entry = try_find(table_, uuid)) {
         const row_id row_id = entry->second;
-        const Row&   row    = *row_ptr(row_id);
+        const Row&   row    = *_row_ptr(row_id);
         return {
-            .file         = row.filepath.view(),
+            .file         = database_root_ / row.filepath.view(),
             .offset_bytes = row.offset_bytes,
             .size_bytes   = row.size_bytes,
         };
@@ -201,19 +203,43 @@ auto ResourceDatabase::locate(const UUID& uuid) const noexcept
 }
 
 
-void ResourceDatabase::update() {
-    thread_local std::vector<UUID> remove_list; remove_list.clear();
-    remove_queue_.lock_and([&](std::queue<UUID>& queue) {
-        while (!queue.empty()) {
-            // Move the data into a local list first.
-            // try_remove_resource() could take a while,
-            // don't want to hold the lock during that.
-            remove_list.emplace_back(pop(queue));
-        }
-    });
-    for (const UUID& uuid : remove_list) {
-        try_remove_resource(uuid);
+auto ResourceDatabase::map_resource(const UUID& uuid)
+    -> mapped_region
+{
+    const auto rlock = std::shared_lock(state_mutex_);
+    if (const auto* kv = try_find(table_, uuid)) {
+        const row_id row_id = kv->second;
+        const Row&   row    = *_row_ptr(row_id);
+        Path filepath = database_root_ / row.filepath.view();
+        auto fmapping = bip::file_mapping(filepath.c_str(), bip::read_write);
+        return mapped_region{ fmapping, bip::read_write, ptrdiff_t(row.offset_bytes), row.size_bytes };
+    } else {
+        return {};
     }
+}
+
+
+void ResourceDatabase::update() {
+
+    while (std::optional uuid = remove_queue_.try_lock_and_try_pop()) {
+        // Move the data into a local list first.
+        // _try_remove_resource() could take a while,
+        // with enough time for new requests to come in.
+        // Don't want to keep sitting here pulling one
+        // thing after another.
+        remove_list_.emplace_back(move_out(uuid));
+    }
+
+    if (!remove_list_.empty()) {
+        const auto wlock = std::unique_lock(state_mutex_, std::try_to_lock);
+        if (wlock.owns_lock()) {
+            for (const UUID& uuid : remove_list_) {
+                _try_remove_resource(uuid);
+            }
+            remove_list_.clear();
+        }
+    }
+
 }
 
 
@@ -281,6 +307,8 @@ auto ResourceDatabase::generate_resource(
         -> GeneratedResource
 {
     assert(size_bytes > 0);
+
+    const auto wlock = std::unique_lock(state_mutex_);
 
     // 1. Generate a unique UUID.
     UUID uuid;
@@ -396,8 +424,8 @@ auto ResourceDatabase::generate_resource(
         ));
     }
 
-    new_entry(uuid, type, path, 0, size_bytes);
-    bump_version();
+    _new_entry(uuid, type, path, 0, size_bytes);
+    _bump_version();
 
     return {
         .uuid    = uuid,
@@ -406,7 +434,7 @@ auto ResourceDatabase::generate_resource(
 }
 
 
-auto ResourceDatabase::try_unlink_record_(const UUID& uuid)
+auto ResourceDatabase::_try_unlink_record(const UUID& uuid)
     -> UnlinkResult
 {
     UnlinkResult result{
@@ -420,7 +448,7 @@ auto ResourceDatabase::try_unlink_record_(const UUID& uuid)
     if (it == table_.end()) return result;
 
     const row_id row_id = it->second;
-    const Row*   row    = row_ptr(row_id);
+    const Row*   row    = _row_ptr(row_id);
     table_.erase(it);
     {
         auto db_path = row->filepath.view();
@@ -437,25 +465,18 @@ auto ResourceDatabase::try_unlink_record_(const UUID& uuid)
     }
     empty_rows_.emplace(row_id);
 
-    std::memset(row_ptr(row_id), 0, sizeof(Row));
-    flush_row(row_id);
-    bump_version();
+    std::memset(_row_ptr(row_id), 0, sizeof(Row));
+    _flush_row(row_id);
+    _bump_version();
 
     return result;
 }
 
 
-auto ResourceDatabase::try_unlink_record(const UUID& uuid)
-    -> bool
-{
-    return try_unlink_record_(uuid).success;
-}
-
-
-auto ResourceDatabase::try_remove_resource(const UUID& uuid)
+auto ResourceDatabase::_try_remove_resource(const UUID& uuid)
     -> RemoveResourceOutcome
 {
-    UnlinkResult unlink_result = try_unlink_record_(uuid);
+    UnlinkResult unlink_result = _try_unlink_record(uuid);
     if (!unlink_result.success) {
         return RemoveResourceOutcome::UUIDNotFound;
     }
@@ -470,6 +491,22 @@ auto ResourceDatabase::try_remove_resource(const UUID& uuid)
     } else {
         return RemoveResourceOutcome::FileNotFound;
     }
+}
+
+
+auto ResourceDatabase::try_unlink_record(const UUID& uuid)
+    -> bool
+{
+    const auto wlock = std::unique_lock(state_mutex_);
+    return _try_unlink_record(uuid).success;
+}
+
+
+auto ResourceDatabase::try_remove_resource(const UUID& uuid)
+    -> RemoveResourceOutcome
+{
+    const auto wlock = std::unique_lock(state_mutex_);
+    return _try_remove_resource(uuid);
 }
 
 

@@ -30,8 +30,7 @@ public:
         -> awaiter auto;
 
 private:
-    // TODO: This should just be void, but the Job<void> specialization is not ready.
-    using await_job_type = Job<size_t>;
+    using await_job_type = Job<void>;
 
     struct NotReady {
         std::coroutine_handle<> awaiting_coroutine;     // We suspended from this. Will be resumed, once await_ready_job is done.
@@ -72,8 +71,7 @@ inline auto CompletionContext::await_all_ready(
             is_ready = co_await if_not_ready(readyable, &out_self);
         } while (!is_ready);
     }
-    // Return any number for now, who cares.
-    co_return size_t{};
+    co_return;
 }
 
 
@@ -83,7 +81,7 @@ inline auto CompletionContext::await_ready(
         -> await_job_type
 {
     while (!co_await if_not_ready(readyable, &out_self));
-    co_return size_t{};
+    co_return;
 }
 
 
