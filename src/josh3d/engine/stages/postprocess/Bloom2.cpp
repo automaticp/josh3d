@@ -88,8 +88,8 @@ void Bloom2::operator()(
             const Size2I   dst_resolution = bloom_texture_->get_resolution(dst_lod);
 
             // Sample from:
-            bloom_texture_->set_base_lod(src_lod);
-            bloom_texture_->set_max_lod (src_lod);
+            bloom_texture_->set_base_level(src_lod);
+            bloom_texture_->set_max_level (src_lod);
             // NOTE: It is not enough to sample only from a single level
             // in the shader using textureLod(), as this results in UB still
             // (At least on my hardware/driver configuration).
@@ -131,8 +131,8 @@ void Bloom2::operator()(
             const Size2I   dst_resolution = bloom_texture_->get_resolution(dst_lod);
 
             // Sample from:
-            bloom_texture_->set_base_lod(src_lod);
-            bloom_texture_->set_max_lod (src_lod);
+            bloom_texture_->set_base_level(src_lod);
+            bloom_texture_->set_max_level (src_lod);
 
             // Draw to:
             fbo_->attach_texture_to_color_buffer(bloom_texture_, 0, dst_lod);
@@ -160,8 +160,8 @@ void Bloom2::operator()(
 
         engine.screen_color().bind_to_texture_unit(0);
         bloom_texture_      ->bind_to_texture_unit(1);
-        bloom_texture_->set_base_lod(0);
-        bloom_texture_->set_max_lod (0);
+        bloom_texture_->set_base_level(0);
+        bloom_texture_->set_max_level (0);
 
         sp.uniform("screen_color", 0);
         sp.uniform("bloom_color",  1);

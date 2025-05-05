@@ -95,6 +95,12 @@ public:
     // Opens a mapping to the resource with the specified uuid.
     // Will return an empty mapping if the specified resource does not exist.
     [[nodiscard]]
+    auto try_map_resource(const UUID& uuid)
+        -> mapped_region;
+
+    // Opens a mapping to the resource with the specified uuid.
+    // Will throw RuntimeError if the specified resource does not exist.
+    [[nodiscard]]
     auto map_resource(const UUID& uuid)
         -> mapped_region;
 
@@ -196,7 +202,7 @@ private:
 
     // Mutex of the whole database state above. Most operations are reads, contention is low.
     // Private functions (beginning with an "_") never lock the mutex.
-    std::shared_mutex                       state_mutex_;
+    mutable std::shared_mutex               state_mutex_;
 
     // To let multiple threads "cancel" failed resource imports, without contending for the main state mutex.
     ThreadsafeQueue<UUID>                   remove_queue_;

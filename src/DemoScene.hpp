@@ -9,6 +9,7 @@
 #include "MeshRegistry.hpp"
 #include "Primitives.hpp"
 #include "ResourceDatabase.hpp"
+#include "ResourceUnpacker.hpp"
 #include "SceneImporter.hpp"
 #include "SharedStorage.hpp"
 #include "RenderEngine.hpp"
@@ -42,11 +43,16 @@ private:
     josh::OffscreenContext  offscreen_context_;
     josh::CompletionContext completion_context_;
     josh::MeshRegistry      mesh_registry_;
+
     josh::AssetManager      asset_manager_;
     josh::AssetUnpacker     asset_unpacker_;
     josh::SceneImporter     scene_importer_;
+
     josh::ResourceDatabase  resource_database_;
     josh::AssetImporter     asset_importer_;
+    josh::ResourceRegistry  resource_registry_;
+    josh::ResourceUnpacker  resource_unpacker_;
+
     josh::Primitives        primitives_;
     josh::RenderEngine      rengine_;
 

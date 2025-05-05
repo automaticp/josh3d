@@ -3,6 +3,7 @@
 #include "Components.hpp"
 #include "ImGuiComponentWidgets.hpp"
 #include "LightCasters.hpp"
+#include "Materials.hpp"
 #include "Mesh.hpp"
 #include "SkinnedMesh.hpp"
 #include "Transform.hpp"
@@ -35,12 +36,14 @@ void ImGuiSelected::display() {
             }
         }
 
-        if (has_component<Mesh>(handle)) {
+        if (has_component<Mesh>(handle) or
+            has_component<SkinnedMesh>(handle) or
+            handle.any_of<MaterialDiffuse, MaterialNormal, MaterialSpecular>())
+        {
             imgui::MaterialsWidget(handle);
         }
 
         if (has_component<SkinnedMesh>(handle)) {
-            imgui::MaterialsWidget(handle);
             imgui::AnimationsWidget(handle);
         }
 
@@ -60,8 +63,15 @@ void ImGuiSelected::display() {
             imgui::CameraHandleWidget(handle);
         }
 
-
         ImGui::Separator();
+
+        if (display_all_components) {
+            for (auto&& [index, storage] : handle.storage()) {
+                const auto name = storage.type().name();
+                ImGui::Text("%.*s", int(name.size()), name.data());
+            }
+            ImGui::Separator();
+        }
 
         ImGui::PopID();
     }

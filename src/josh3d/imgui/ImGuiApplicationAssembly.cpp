@@ -5,6 +5,7 @@
 #include "AssetManager.hpp"
 #include "CategoryCasts.hpp"
 #include "ContainerUtils.hpp"
+#include "DefaultResources.hpp"
 #include "FrameTimer.hpp"
 #include "GLAPIBinding.hpp"
 #include "ImGuiComponentWidgets.hpp"
@@ -15,14 +16,17 @@
 #include "Camera.hpp"
 #include "Logging.hpp"
 #include "MeshRegistry.hpp"
+#include "ObjectLifecycle.hpp"
 #include "Ranges.hpp"
 #include "RenderEngine.hpp"
 #include "ResourceDatabase.hpp"
 #include "ResourceFiles.hpp"
+#include "ResourceUnpacker.hpp"
 #include "SceneImporter.hpp"
 #include "Region.hpp"
 #include "SkinnedMesh.hpp"
 #include "Transform.hpp"
+#include "UUID.hpp"
 #include "VPath.hpp"
 #include "VertexStatic.hpp"
 #include "VirtualFilesystem.hpp"
@@ -51,6 +55,7 @@ ImGuiApplicationAssembly::ImGuiApplicationAssembly(
     SceneImporter&     scene_importer,
     ResourceDatabase&  resource_database,
     AssetImporter&     asset_importer,
+    ResourceUnpacker&  resource_unpacker,
     VirtualFilesystem& vfs
 )
     : window_         { window             }
@@ -60,6 +65,7 @@ ImGuiApplicationAssembly::ImGuiApplicationAssembly(
     , asset_unpacker_ { asset_unpacker     }
     , resource_database_{ resource_database }
     , asset_importer_ { asset_importer     }
+    , resource_unpacker_(resource_unpacker)
     , vfs_            { vfs                }
     , context_        { window             }
     , window_settings_{ window             }
@@ -251,7 +257,8 @@ void display_asset_manager_debug(AssetManager& asset_manager) {
 void display_resource_file_debug(
     ResourceDatabase&   resource_database,
     AssetImporter&      asset_importer,
-    const Registry&     registry,
+    ResourceUnpacker&   resource_unpacker,
+    Registry&           registry,
     const MeshRegistry& mesh_registry)
 {
     thread_local std::string path;
@@ -266,6 +273,22 @@ void display_resource_file_debug(
 
     thread_local ImportModelParams import_model_params = {};
 
+    thread_local std::optional<Job<>> unpacking_mdesc;
+    thread_local std::optional<Job<>> unpacking_mesh;
+
+    auto unpack_mdesc_signal = on_value_change_from<UUID>({}, [&](UUID uuid) {
+        auto handle = create_handle(registry);
+        handle.emplace<Transform>();
+        unpacking_mdesc = resource_unpacker.unpack_to<RT::MeshDesc>(uuid, handle);
+        last_error = {};
+    });
+
+    auto unpack_mesh_signal = on_value_change_from<UUID>({}, [&](UUID uuid) {
+        auto handle = create_handle(registry);
+        handle.emplace<Transform>();
+        unpacking_mesh = resource_unpacker.unpack_to<RT::Mesh>(uuid, handle);
+        last_error = {};
+    });
 
     ImGui::InputText("Path", &path);
 
@@ -338,6 +361,7 @@ void display_resource_file_debug(
                 ImGui::TableSetupColumn("Size");
                 ImGui::TableHeadersRow();
                 for (const auto [i, uuid] : enumerate(entries)) {
+                    ImGui::PushID(void_id(i));
                     ImGui::TableNextRow();
                     char uuid_str[36]{};
                     to_chars(uuid, std::begin(uuid_str), std::end(uuid_str));
@@ -345,11 +369,23 @@ void display_resource_file_debug(
                     ImGui::TableNextColumn();
                     ImGui::TextUnformatted(std::begin(uuid_str), std::end(uuid_str));
                     ImGui::TableNextColumn();
-                    ImGui::TextUnformatted(loc.file.begin(), loc.file.end());
+                    ImGui::TextUnformatted(loc.file.c_str());
                     ImGui::TableNextColumn();
                     ImGui::Text("%zu", loc.offset_bytes);
                     ImGui::TableNextColumn();
                     ImGui::Text("%zu", loc.size_bytes);
+                    ImGui::SameLine();
+                    ImGui::SmallButton("...");
+                    if (ImGui::BeginPopupContextItem()) {
+                        if (ImGui::Button("Unpack as MeshDesc")) {
+                            unpack_mdesc_signal.set(uuid);
+                        }
+                        if (ImGui::Button("Unpack as Mesh")) {
+                            unpack_mesh_signal.set(uuid);
+                        }
+                        ImGui::EndPopup();
+                    }
+                    ImGui::PopID();
                 }
                 ImGui::EndTable();
             }
@@ -520,6 +556,23 @@ void display_resource_file_debug(
 
     ImGui::PopID();
 
+    if (unpacking_mdesc and unpacking_mdesc->is_ready()) {
+        try {
+            move_out(unpacking_mdesc).get_result();
+        } catch (const std::exception& e) {
+            last_error = e.what();
+        }
+    }
+
+    if (unpacking_mesh and unpacking_mesh->is_ready()) {
+        try {
+            move_out(unpacking_mesh).get_result();
+        } catch (const std::exception& e) {
+            last_error = e.what();
+        }
+    }
+
+
 
     ImGui::TextUnformatted(last_error.c_str());
 }
@@ -619,6 +672,7 @@ void ImGuiApplicationAssembly::draw_widgets() {
                 }
 
                 ImGui::Checkbox("Show Model Matrix in Selected", &selected_menu_.display_model_matrix);
+                ImGui::Checkbox("Show All Components in Selected", &selected_menu_.display_all_components);
 
                 ImGui::EndMenu();
             }
@@ -757,7 +811,8 @@ void ImGuiApplicationAssembly::draw_widgets() {
 
         if (show_resource_files) {
             if (ImGui::Begin("Resource Files")) {
-                display_resource_file_debug(resource_database_, asset_importer_, registry_, engine_.mesh_registry());
+                display_resource_file_debug(resource_database_, asset_importer_,
+                    resource_unpacker_, registry_, engine_.mesh_registry());
             } ImGui::End();
         }
 

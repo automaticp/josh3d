@@ -2,6 +2,7 @@
 #include "CategoryCasts.hpp"
 #include "CommonConcepts.hpp"
 #include "ContainerUtils.hpp"
+#include "Logging.hpp"
 #include "Semantics.hpp"
 #include <atomic>
 #include <boost/scope/scope_exit.hpp>
@@ -351,9 +352,9 @@ public:
 
     void became_ready() noexcept {
         const uintptr_t flag_mask = 1;
-        packed.fetch_or(flag_mask, std::memory_order_release);
-        // Should we assert that it wasn't set previously?
-        // Or is that not something we need to require?
+        const auto previous [[maybe_unused]] =
+            packed.fetch_or(flag_mask, std::memory_order_release);
+        assert(not (previous & flag_mask) && "Became ready twice.");
         packed.notify_all();
     }
 
@@ -383,7 +384,7 @@ private:
         const uintptr_t address_value = uintptr_t(handle.address());
         const uintptr_t flag_value    = uintptr_t(flag & lowest_1);
         assert(!(address_value & lowest_1) && "Lowest bit already occupied. Cannot do magic packing.");
-        return address_value & flag_value;
+        return address_value | flag_value;
     }
 
 };
@@ -401,7 +402,7 @@ public:
     auto get_return_object()
         -> coroutine_type
     {
-        return coroutine_type(handle_type::from_promise(*this));
+        return coroutine_type(handle_type::from_promise(self()));
     }
 
     auto initial_suspend() const noexcept
@@ -462,7 +463,9 @@ public:
 
     bool is_ready() const noexcept {
         const bool ready = packed_state_.is_ready();
-        if (ready) { assert(self().has_result_value()); }
+        if constexpr (not std::same_as<result_type, void>) {
+            if (ready) { assert(self().has_result_value()); }
+        }
         return ready;
     }
 
@@ -541,6 +544,7 @@ public:
     auto extract_result()
         -> result_type
     {
+        // FIXME: This will make any following is_ready() call terminate because we assert that we have a value.
         if      (is<result_type>       (result_value())) { return move_out<result_type>(result_value()); }
         else if (is<std::exception_ptr>(result_value())) { std::rethrow_exception(move_out<std::exception_ptr>(result_value())); }
         else { std::terminate(); /* Invalid state */ }

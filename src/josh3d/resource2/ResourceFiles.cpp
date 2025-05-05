@@ -26,7 +26,6 @@ namespace josh {
 
 
 namespace bip = boost::interprocess;
-using byte = std::byte;
 
 
 namespace {
@@ -796,6 +795,8 @@ auto MeshFile::create_in(mapped_region mapped_region, UUID self_uuid, const Args
         const LODSpec& spec = args.lod_specs[lod_id];
 
         span.offset_bytes = current_offset;
+        span.num_verts    = spec.num_verts;
+        span.num_elems    = spec.num_elems;
         span.verts_bytes  = spec.verts_bytes;
         span.elems_bytes  = spec.elems_bytes;
         span.compression  = spec.compression;
@@ -992,6 +993,7 @@ auto TextureFile::create_in(mapped_region mapped_region, UUID self_uuid, const A
         span.size_bytes    = spec.size_bytes;
         span.width_pixels  = spec.width_pixels;
         span.height_pixels = spec.height_pixels;
+        span.format        = spec.format;
 
         current_offset += span.size_bytes;
     }

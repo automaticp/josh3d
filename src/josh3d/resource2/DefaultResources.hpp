@@ -48,7 +48,7 @@ struct SceneResource {
         int32_t   parent_index;
 
         // TODO: That UUID alignment is not nice.
-        using any_type = boost::anys::basic_any<sizeof(ResourceItem) + 4>;
+        using any_type = UniqueAny;
         HashedID object_type;
         any_type object_data;
     };

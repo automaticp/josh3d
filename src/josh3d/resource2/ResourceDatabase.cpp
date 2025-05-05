@@ -203,7 +203,7 @@ auto ResourceDatabase::locate(const UUID& uuid) const
 }
 
 
-auto ResourceDatabase::map_resource(const UUID& uuid)
+auto ResourceDatabase::try_map_resource(const UUID& uuid)
     -> mapped_region
 {
     const auto rlock = std::shared_lock(state_mutex_);
@@ -216,6 +216,17 @@ auto ResourceDatabase::map_resource(const UUID& uuid)
     } else {
         return {};
     }
+}
+
+
+auto ResourceDatabase::map_resource(const UUID& uuid)
+    -> mapped_region
+{
+    auto mregion = try_map_resource(uuid);
+    if (!mregion.get_address()) {
+        throw error::RuntimeError(fmt::format("Failed to map resource {}.", serialize_uuid(uuid)));
+    }
+    return mregion;
 }
 
 

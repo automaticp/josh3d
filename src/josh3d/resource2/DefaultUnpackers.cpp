@@ -1,3 +1,4 @@
+#include "Common.hpp"
 #include "Components.hpp"
 #include "Coroutines.hpp"
 #include "DefaultResources.hpp"
@@ -18,10 +19,10 @@ namespace josh {
 
 
 auto unpack_mesh(
-    ResourceUnpacker::Context context,
-    UUID                      uuid,
-    Handle                    handle)
-        -> Job<void>
+    ResourceUnpackerContext context,
+    UUID                    uuid,
+    Handle                  handle)
+        -> Job<>
 {
     const auto task_guard = context.task_counter().obtain_task_guard();
 
@@ -124,10 +125,10 @@ auto unpack_mesh(
 
 
 auto unpack_material_diffuse(
-    ResourceUnpacker::Context context,
-    UUID                      uuid,
-    Handle                    handle)
-        -> Job<void>
+    ResourceUnpackerContext context,
+    UUID                    uuid,
+    Handle                  handle)
+        -> Job<>
 {
     const auto task_guard = context.task_counter().obtain_task_guard();
 
@@ -178,10 +179,10 @@ auto unpack_material_diffuse(
 
 
 auto unpack_material_normal(
-    ResourceUnpacker::Context context,
-    UUID                      uuid,
-    Handle                    handle)
-        -> Job<void>
+    ResourceUnpackerContext context,
+    UUID                    uuid,
+    Handle                  handle)
+        -> Job<>
 {
     const auto task_guard = context.task_counter().obtain_task_guard();
 
@@ -226,16 +227,19 @@ auto unpack_material_normal(
 
 
 auto unpack_material_specular(
-    ResourceUnpacker::Context context,
-    UUID                      uuid,
-    Handle                    handle,
-    float                     specpower) // This parameter is weird in many ways. Why?
-        -> Job<void>
+    ResourceUnpackerContext context,
+    UUID                    uuid,
+    Handle                  handle)
+        -> Job<>
 {
     const auto task_guard = context.task_counter().obtain_task_guard();
 
     const auto aba_tag = uintptr_t(co_await peek_coroutine_address());
     const auto bail = [](){};
+
+    // FIXME: We have to way to get this if all we are loading is a Texture.
+    // We should likely be loading a material instead.
+    const float specpower = 128.f;
 
     ResourceProgress progress;
     {
@@ -276,30 +280,38 @@ auto unpack_material_specular(
 
 
 auto unpack_mdesc(
-    ResourceUnpacker::Context context,
-    UUID                      uuid,
-    Handle                    dst_handle)
-        -> Job<void>
+    ResourceUnpackerContext context,
+    UUID                    uuid,
+    Handle                  handle)
+        -> Job<>
 {
     const auto task_guard = context.task_counter().obtain_task_guard();
 
-    auto pubres = co_await context.resource_registry().get_resource<RT::MeshDesc>(uuid);
-    auto& [mdesc, usage] = pubres;
+    auto [mdesc, usage] = co_await context.resource_registry().get_resource<RT::MeshDesc>(uuid);
 
-    boost::container::static_vector<Job<void>, 4> jobs;
+    StaticVector<Job<>, 4> jobs;
 
-    jobs.emplace_back(unpack_mesh(context, mdesc.mesh_uuid, dst_handle));
+    // FIXME: We should not unpack directly, and instead go through the unpack dispatch table.
+    // There should be an interface similar to get_resource<>(), but unpack_resource<>().
+
+    jobs.emplace_back(unpack_mesh(context, mdesc.mesh_uuid, handle));
 
     if (!mdesc.diffuse_uuid.is_nil()) {
-        jobs.emplace_back(unpack_material_diffuse(context, mdesc.diffuse_uuid, dst_handle));
+        jobs.emplace_back(unpack_material_diffuse(context, mdesc.diffuse_uuid, handle));
     }
 
     if (!mdesc.normal_uuid.is_nil()) {
-        jobs.emplace_back(unpack_material_diffuse(context, mdesc.normal_uuid, dst_handle));
+        jobs.emplace_back(unpack_material_normal(context, mdesc.normal_uuid, handle));
     }
 
     if (!mdesc.specular_uuid.is_nil()) {
-        jobs.emplace_back(unpack_material_specular(context, mdesc.specular_uuid, dst_handle, mdesc.specpower));
+        jobs.emplace_back(
+            // FIXME: Dirty hack to compensate for inability to load specpower.
+            [&]() -> Job<> {
+                co_await unpack_material_specular(context, mdesc.specular_uuid, handle);
+                handle.get<MaterialSpecular>().shininess = mdesc.specpower;
+            }()
+        );
     }
 
     co_await context.completion_context().until_all_ready(jobs);

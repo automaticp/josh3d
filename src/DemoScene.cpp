@@ -3,6 +3,8 @@
 #include "AssetImporter.hpp"
 #include "AssetManager.hpp"
 #include "AssetUnpacker.hpp"
+#include "DefaultLoaders.hpp"
+#include "DefaultUnpackers.hpp"
 #include "GLPixelPackTraits.hpp"
 #include "GLTextures.hpp"
 #include "ImGuiApplicationAssembly.hpp"
@@ -15,6 +17,7 @@
 #include "OffscreenContext.hpp"
 #include "Primitives.hpp"
 #include "ResourceDatabase.hpp"
+#include "ResourceUnpacker.hpp"
 #include "SceneGraph.hpp"
 #include "SceneImporter.hpp"
 #include "ShaderPool.hpp"
@@ -108,6 +111,8 @@ void DemoScene::update() {
     update_input_blocker_from_imgui_io_state();
 
     resource_database_.update();
+    resource_registry_.update();
+    resource_unpacker_.update();
     asset_manager_.update();
     asset_importer_.update();
 
@@ -161,6 +166,8 @@ DemoScene::DemoScene(glfw::Window& window)
     , scene_importer_   { asset_manager_, asset_unpacker_, registry_ }
     , resource_database_{ ".josh3d/" } // TODO: Un-hardcode.
     , asset_importer_   { resource_database_, loading_pool_, offscreen_context_, completion_context_ }
+    , resource_registry_(resource_database_, mesh_registry_, loading_pool_, offscreen_context_, completion_context_)
+    , resource_unpacker_(resource_registry_, loading_pool_, offscreen_context_, completion_context_)
     , primitives_       { asset_manager_ }
     , rengine_          {
         registry_,
@@ -180,6 +187,7 @@ DemoScene::DemoScene(glfw::Window& window)
         scene_importer_,
         resource_database_,
         asset_importer_,
+        resource_unpacker_,
         vfs()
     }
 {
@@ -294,6 +302,8 @@ DemoScene::DemoScene(glfw::Window& window)
 
 
     configure_input(gbuffer_read_view);
+    register_default_loaders(resource_registry_);
+    register_default_unpackers(resource_unpacker_);
     init_registry();
 }
 

@@ -102,7 +102,7 @@ inline void emplace_model_asset_into(
 
                 if (auto* mat_diffuse = try_get(mesh_asset.diffuse)) {
                     make_available<Binding::Texture2D>(mat_diffuse->texture->id());
-                    mesh_handle.emplace<MaterialDiffuse>(mat_diffuse->texture);
+                    mesh_handle.emplace<MaterialDiffuse>(mat_diffuse->texture, ResourceUsage());
 
                     // We check if the alpha channel even exitsts in the texture,
                     // to decide on whether alpha testing should be enabled.
@@ -116,12 +116,12 @@ inline void emplace_model_asset_into(
 
                 if (auto* mat_specular = try_get(mesh_asset.specular)) {
                     make_available<Binding::Texture2D>(mat_specular->texture->id());
-                    mesh_handle.emplace<MaterialSpecular>(mat_specular->texture, 128.f);
+                    mesh_handle.emplace<MaterialSpecular>(mat_specular->texture, ResourceUsage(), 128.f);
                 }
 
                 if (auto* mat_normal = try_get(mesh_asset.normal)) {
                     make_available<Binding::Texture2D>(mat_normal->texture->id());
-                    mesh_handle.emplace<MaterialNormal>(mat_normal->texture);
+                    mesh_handle.emplace<MaterialNormal>(mat_normal->texture, ResourceUsage());
                 }
 
                 mesh_handle.emplace<Name>(std::string(mesh_asset.path.subpath()));

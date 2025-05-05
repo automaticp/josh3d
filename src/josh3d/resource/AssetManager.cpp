@@ -228,7 +228,7 @@ auto AssetManager::load_texture(AssetPath path, ImageIntent intent)
     // TODO: Might be worth resolving pending from a different executor,
     // since the offscreen context is a single thread and can get pretty busy.
     cache_.cache_and_resolve_pending(asset.path, asset);
-    co_return MOVE(asset);
+    co_return SharedTextureAsset(MOVE(asset));
 }
 
 

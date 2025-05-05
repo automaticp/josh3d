@@ -14,6 +14,7 @@
 #include "AvgFrameTimeCounter.hpp"
 #include "ImGuizmoGizmos.hpp"
 #include "ResourceDatabase.hpp"
+#include "ResourceUnpacker.hpp"
 #include <sstream>
 #include <string>
 #include <entt/fwd.hpp>
@@ -64,6 +65,7 @@ public:
         SceneImporter&     scene_importer,
         ResourceDatabase&  resource_database,
         AssetImporter&     asset_importer,
+        ResourceUnpacker&  resource_unpacker,
         VirtualFilesystem& vfs);
 
 
@@ -97,6 +99,7 @@ private:
     AssetUnpacker&     asset_unpacker_;
     ResourceDatabase&  resource_database_;
     AssetImporter&     asset_importer_;
+    ResourceUnpacker&  resource_unpacker_;
     VirtualFilesystem& vfs_;
 
     ImGuiContextWrapper context_;

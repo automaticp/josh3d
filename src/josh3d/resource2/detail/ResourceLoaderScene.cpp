@@ -1,19 +1,19 @@
 #include "Camera.hpp"
 #include "ContainerUtils.hpp"
 #include "Coroutines.hpp"
+#include "DefaultResources.hpp"
 #include "ECS.hpp"
 #include "LightCasters.hpp"
 #include "Ranges.hpp"
+#include "ResourceDatabase.hpp"
 #include "ResourceLoader.hpp"
-#include "ResourceType.hpp"
-#include "Resources.hpp"
+#include "ResourceRegistry.hpp"
+#include "Resource.hpp"
 #include "RuntimeError.hpp"
 #include "SceneGraph.hpp"
 #include "UUID.hpp"
-#include <atomic>
 #include <cstdint>
 #include <jsoncons/basic_json.hpp>
-#include <mutex>
 
 
 namespace josh::detail {
@@ -22,7 +22,7 @@ namespace {
 
 using jsoncons::json;
 using Node = SceneResource::Node;
-using GetOutcome = ResourceRegistry::GetOutcome;
+using mapped_region = ResourceDatabase::mapped_region;
 
 
 auto emplace_scene_into_handle(
@@ -34,7 +34,7 @@ auto emplace_scene_into_handle(
     co_await reschedule_to(loader.local_context());
 
     /*
-
+    TODO
     */
 
 }
@@ -86,7 +86,7 @@ auto read_transform(const json& j)
 
 
 auto read_object(const json& j)
-    -> Node::object_type
+    -> Node::any_type
 {
     const auto& type = j.at_or_null("type");
 
@@ -99,7 +99,7 @@ auto read_object(const json& j)
     // TODO: A lookup table, lol.
     if (type_sv == "Mesh") { // FIXME: This is not a mesh, but mdesc. Fix the serializer.
         UUID mdesc_uuid = deserialize_uuid(j.at("mdesc_uuid").as_string_view());
-        return ResourceItem{ .type = ResourceType::MeshDesc, .uuid = mdesc_uuid };
+        return ResourceItem{ .type = RT::MeshDesc, .uuid = mdesc_uuid };
     } else if (type_sv == "OrthographicCamera") { // TODO: Not exported currently
         const auto params = OrthographicCamera::Params{
             .width  = j.at("width").as<float>(),
@@ -144,7 +144,8 @@ void populate_nodes_preorder(
     dst_nodes.emplace_back(Node{
         .transform    = read_transform(entity),
         .parent_index = dst_parent_idx,
-        .object       = read_object(entity)
+        .object_type  = {}, // FIXME: Uhh, where is it?
+        .object_data  = read_object(entity),
     });
 
     // Then iterate children.
@@ -168,7 +169,7 @@ auto load_scene_from_disc(
         -> SceneResource
 {
     // TODO: Mapping can fail. Sad.
-    mapped_region mregion = loader.resource_database().map_resource(uuid);
+    mapped_region mregion = loader.resource_database().try_map_resource(uuid);
 
     using Node = SceneResource::Node;
     const jsoncons::json j = jsoncons::json::parse((char*)mregion.get_address(), (char*)mregion.get_address() + mregion.get_size());
@@ -219,7 +220,7 @@ auto load_scene_from_disc(
             Node::no_parent,
             root_idx,
             infos,
-            entities_array
+            entities
         );
     }
 
@@ -235,17 +236,9 @@ auto load_and_emplace_mdesc(
 {
     co_await reschedule_to(loader.thread_pool());
 
-    GetOutcome outcome;
-    std::optional<PublicResource<ResourceType::Scene>> scene_opt =
-        co_await loader.resource_registry().get_if_cached_or_join_pending<ResourceType::Scene>(uuid, outcome);
+    auto [mdesc, usage] =
+        co_await loader.resource_registry().get_resource<RT::MeshDesc>(uuid);
 
-    if (outcome == GetOutcome::WasPending) {
-        // Each pending job will be resumed on the same thread. So get out of the way asap.
-        co_await reschedule_to(loader.thread_pool());
-    } else if (outcome == GetOutcome::NeedsLoading) {
-        auto scene_resource = load_scene_from_disc(loader, uuid);
-        scene_opt = loader.resource_registry().cache_and_resolve_pending<ResourceType::Scene>(uuid, MOVE(scene_resource));
-    }
 
 
 }
@@ -257,8 +250,11 @@ auto load_and_emplace_resource_async(
     Handle                 dst_handle)
         -> Job<void>
 {
+    const auto task_guard = loader.task_counter().obtain_task_guard();
+
+    // FIXME: Should go through a dispatch table.
     switch (item.type) {
-        case ResourceType::MeshDesc:
+        case RT::MeshDesc:
             return load_and_emplace_mdesc(loader, item.uuid, dst_handle);
         default:
             // FIXME: This is a logic error, technically.
@@ -269,7 +265,7 @@ auto load_and_emplace_resource_async(
 
 } // namespace
 
-
+#if 0
 auto load_scene_async(
     ResourceLoader::Access loader,
     UUID                   uuid,
@@ -404,7 +400,7 @@ auto load_scene_async(
     co_await loader.completion_context().until_all_ready(all_jobs);
     co_return;
 }
-
+#endif
 
 
 

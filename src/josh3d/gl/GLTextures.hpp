@@ -1657,16 +1657,16 @@ struct TextureDSAInterface_TextureParameters_Swizzle {
 
 
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_TextureParameters_BaseAndMaxLODs {
+struct TextureDSAInterface_TextureParameters_BaseAndMaxLevels {
     JOSH3D_TEXTURE_MIXIN_HEADER
 
-    void set_base_lod(MipLevel level) const noexcept
+    void set_base_level(MipLevel level) const noexcept
         requires mt::is_mutable
     {
         gl::glTextureParameteri(self_id(), gl::GL_TEXTURE_BASE_LEVEL, level);
     }
 
-    auto get_base_lod() const noexcept
+    auto get_base_level() const noexcept
         -> MipLevel
     {
         GLint level;
@@ -1675,17 +1675,17 @@ struct TextureDSAInterface_TextureParameters_BaseAndMaxLODs {
     }
 
 
-    void set_max_lod(MipLevel max_level) const noexcept
+    void set_max_level(MipLevel max_level) const noexcept
         requires mt::is_mutable
     {
         gl::glTextureParameteri(self_id(), gl::GL_TEXTURE_MAX_LEVEL, max_level);
     }
 
-    auto get_max_lod() const noexcept
+    auto get_max_level() const noexcept
         -> MipLevel
     {
         GLint max_level;
-        gl::glGetTextureParameteriv(self_id(), gl::GL_TEXTURE_MAX_LOD, max_level);
+        gl::glGetTextureParameteriv(self_id(), gl::GL_TEXTURE_MAX_LEVEL, max_level);
         return MipLevel{ max_level };
     }
 
@@ -1733,7 +1733,7 @@ struct TextureDSAInterface_TextureParameters
     : TextureDSAInterface_TextureParameters_Swizzle<CRTP, TargetV>
     , conditional_mixin_t<
         texture_target_traits<TargetV>::has_lod,
-        TextureDSAInterface_TextureParameters_BaseAndMaxLODs<CRTP, TargetV>
+        TextureDSAInterface_TextureParameters_BaseAndMaxLevels<CRTP, TargetV>
     >
     , conditional_mixin_t<
         TargetV != TextureTarget::TextureBuffer,

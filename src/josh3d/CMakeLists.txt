@@ -49,6 +49,7 @@ set(SUBTARGETS
     layout
     render
     resource
+    resource2
     scene
     util
 )
@@ -112,10 +113,11 @@ function(subtarget_link_internal SUBTARGET)
 endfunction()
 
 
-subtarget_link_internal(imgui      PUBLIC engine filesystem input util core PRIVATE data gl scene resource)
-subtarget_link_internal(engine     PUBLIC data filesystem gl render resource scene util core)
+subtarget_link_internal(imgui      PUBLIC engine filesystem input util core data gl scene resource resource2)
+subtarget_link_internal(engine     PUBLIC data filesystem gl render resource resource2 scene util core)
 subtarget_link_internal(render     PUBLIC data scene gl util core layout)
 subtarget_link_internal(resource   PUBLIC data filesystem gl scene core util layout PRIVATE render)
+subtarget_link_internal(resource2  PUBLIC resource data filesystem gl scene core util layout PRIVATE render)
 subtarget_link_internal(data       PUBLIC util core layout)
 subtarget_link_internal(input      PUBLIC util scene)
 subtarget_link_internal(gl         PUBLIC util layout)
@@ -171,6 +173,7 @@ target_link_libraries(josh3d-engine   PUBLIC    glfwpp::glfwpp EnTT::EnTT)
 target_link_libraries(josh3d-gl       PUBLIC    glbinding::glbinding glbinding::glbinding-aux)
 target_link_libraries(josh3d-imgui    PUBLIC    imgui::imgui unofficial::imguizmo::imguizmo PRIVATE glfwpp::glfwpp)
 target_link_libraries(josh3d-resource PUBLIC    assimp::assimp #[[ should be private ]] PRIVATE spng::spng_static stb::stb nlohmann_json::nlohmann_json)
+target_link_libraries(josh3d-resource2 PRIVATE  assimp::assimp spng::spng_static stb::stb nlohmann_json::nlohmann_json)
 # target_link_libraries(josh3d-render)
 # target_link_libraries(josh3d-layout)
 target_link_libraries(josh3d-scene    PUBLIC    EnTT::EnTT)

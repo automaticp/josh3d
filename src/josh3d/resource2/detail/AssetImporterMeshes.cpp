@@ -245,9 +245,9 @@ auto import_mesh_desc_async(
         .extension = "jmdesc",
     };
 
-    const ResourceType resource_type = ResourceType::MeshDesc;
+    const auto resource_type = RT::MeshDesc;
 
-    j["resource_type"] = to_underlying(resource_type);
+    j["resource_type"] = resource_type.value();
     j["self_uuid"]     = serialize_uuid(UUID{}); // "Reserve space".
 
     std::string json_string;
