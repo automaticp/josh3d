@@ -7,6 +7,10 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <ranges>
+#include <span>
+#include <string>
+#include <type_traits>
 #include <vector>
 
 
@@ -25,7 +29,6 @@ using byte = unsigned char;
 // TODO: as_bytes(span);
 
 
-// TODO: Enable transparent lookup?
 template<
     typename KeyT,
     typename ValueT,
@@ -62,19 +65,19 @@ using StaticVector = boost::container::static_vector<T, CapacityV, OptionsT>;
 
 template<
     typename T,
-    size_t   NumElemsInlineV,
+    size_t   SBOElemCountV,
     typename AllocatorT = void,
     typename OptionsT = void
 >
-using SmallVector = boost::container::small_vector<T, NumElemsInlineV, AllocatorT, OptionsT>;
+using SmallVector = boost::container::small_vector<T, SBOElemCountV, AllocatorT, OptionsT>;
 
 
 // NOTE: Alignment is suggestive. If alignment of a type is stricter, it will be lifted to heap.
 template<
-    size_t InlineSizeV = 3 * sizeof(void*),
-    size_t InlineAlignV = alignof(void*)
+    size_t SBOSizeV = 3 * sizeof(void*),
+    size_t SBOAlignV = alignof(void*)
 >
-using Any = boost::anys::basic_any<InlineSizeV, InlineAlignV>;
+using Any = boost::anys::basic_any<SBOSizeV, SBOAlignV>;
 
 
 // NOTE: This always heap-allocates. This is to ensure that immovable types can be stored too.
@@ -85,6 +88,35 @@ using UniqueAny = boost::anys::unique_any;
 template<typename T>
 using Optional = std::optional<T>;
 using std::nullopt;
+
+
+template<typename T>
+using Span = std::span<T>;
+
+template<typename T>
+auto as_bytes(const Span<T>& span) noexcept
+    -> Span<byte>
+{ return { (byte*)span.data(), span.size_bytes() }; }
+
+template<typename T> requires std::is_const_v<T>
+auto as_bytes(const Span<T>& span) noexcept
+    -> Span<const byte>
+{ return { (const byte*)span.data(), span.size_bytes() }; }
+
+template<std::ranges::contiguous_range R>
+auto to_span(R&& r) noexcept
+    -> Span<std::ranges::range_value_t<R>>
+{
+    return { r.data(), r.size() };
+}
+
+
+// TODO: That horrible operator==() is giving me nightmares.
+using StrView = std::string_view;
+using namespace std::string_view_literals;
+
+
+using String = std::string;
 
 
 } // namespace josh

@@ -1,6 +1,8 @@
+#include "Common.hpp"
 #include "ResourceDatabase.hpp"
 #include "CategoryCasts.hpp"
 #include "ContainerUtils.hpp"
+#include "FileMapping.hpp"
 #include "Filesystem.hpp"
 #include "Logging.hpp"
 #include "Resource.hpp"
@@ -8,7 +10,6 @@
 #include "ThreadsafeQueue.hpp"
 #include "UUID.hpp"
 #include <algorithm>
-#include <boost/interprocess/detail/os_file_functions.hpp>
 #include <boost/interprocess/exceptions.hpp>
 #include <boost/interprocess/file_mapping.hpp>
 #include <boost/interprocess/mapped_region.hpp>
@@ -71,11 +72,11 @@ ResourceDatabase::ResourceDatabase(const Path& database_root)
     const auto filesize = ptrdiff_t(pos_end - pos_beg);
     assert(filesize >= 0);
 
-    file_mapping_ = bip::file_mapping(table_filepath_.c_str(), bip::read_write);
+    file_mapping_ = FileMapping(table_filepath_.c_str(), bip::read_write);
 
     if (filesize != 0) {
-        mapped_file_  = bip::mapped_region(file_mapping_, bip::read_write);
-        mapped_file_.advise(bip::mapped_region::advice_sequential);
+        mapped_file_  = MappedRegion(file_mapping_, bip::read_write);
+        mapped_file_.advise(MappedRegion::advice_sequential);
 
         for (size_t row_id{ 0 }; row_id < _num_rows(); ++row_id) {
             const Row&          row  = *_row_ptr(row_id);
@@ -108,7 +109,7 @@ auto ResourceDatabase::_row_ptr(row_id row_id) const noexcept
     -> Row*
 {
     assert(row_id < _num_rows());
-    std::byte* byte_ptr = (std::byte*)mapped_file_.get_address() + row_id * sizeof(Row);
+    byte* byte_ptr = (byte*)mapped_file_.get_address() + row_id * sizeof(Row);
     return std::launder(reinterpret_cast<Row*>(byte_ptr));
 }
 
@@ -126,8 +127,8 @@ void ResourceDatabase::_grow_file(size_t desired_num_rows) noexcept {
     table_filebuf_.pubsync(); // Sync in case file_mapping does not see this immediatelly.
 
     // Remap the file.
-    mapped_file_ = bip::mapped_region(file_mapping_, bip::read_write);
-    mapped_file_.advise(bip::mapped_region::advice_sequential);
+    mapped_file_ = MappedRegion(file_mapping_, bip::read_write);
+    mapped_file_.advise(MappedRegion::advice_sequential);
 
     // Populate the empty rows. This is eww.
     for (size_t row_id{ old_num_rows }; row_id < new_num_rows; ++row_id) {
@@ -189,30 +190,44 @@ auto ResourceDatabase::locate(const UUID& uuid) const
     -> ResourceLocation
 {
     const auto rlock = std::shared_lock(state_mutex_);
-    if (const auto* entry = try_find(table_, uuid)) {
+    if (const auto* entry = try_find(table_, uuid))
+    {
         const row_id row_id = entry->second;
         const Row&   row    = *_row_ptr(row_id);
         return {
-            .file         = database_root_ / row.filepath.view(),
+            .file         = row.filepath,
             .offset_bytes = row.offset_bytes,
             .size_bytes   = row.size_bytes,
         };
-    } else {
-        return {};
     }
+    return {};
+}
+
+
+auto ResourceDatabase::type_of(const UUID& uuid) const
+    -> ResourceType
+{
+    if (uuid.is_nil()) return NullResource;
+    const auto rlock = std::shared_lock(state_mutex_);
+    if (const auto* entry = try_find(table_, uuid)) {
+        const row_id row_id = entry->second;
+        const Row&   row    = *_row_ptr(row_id);
+        return row.type;
+    }
+    return NullResource;
 }
 
 
 auto ResourceDatabase::try_map_resource(const UUID& uuid)
-    -> mapped_region
+    -> MappedRegion
 {
     const auto rlock = std::shared_lock(state_mutex_);
     if (const auto* kv = try_find(table_, uuid)) {
         const row_id row_id = kv->second;
         const Row&   row    = *_row_ptr(row_id);
         Path filepath = database_root_ / row.filepath.view();
-        auto fmapping = bip::file_mapping(filepath.c_str(), bip::read_write);
-        return mapped_region{ fmapping, bip::read_write, ptrdiff_t(row.offset_bytes), row.size_bytes };
+        auto fmapping = FileMapping(filepath.c_str(), bip::read_write);
+        return MappedRegion{ fmapping, bip::read_write, ptrdiff_t(row.offset_bytes), row.size_bytes };
     } else {
         return {};
     }
@@ -220,7 +235,7 @@ auto ResourceDatabase::try_map_resource(const UUID& uuid)
 
 
 auto ResourceDatabase::map_resource(const UUID& uuid)
-    -> mapped_region
+    -> MappedRegion
 {
     auto mregion = try_map_resource(uuid);
     if (!mregion.get_address()) {
@@ -262,7 +277,7 @@ auto path_from_hint(const ResourcePathHint& path_hint, size_t version) noexcept
     -> ResourcePath
 {
     auto directory = path_hint.directory;
-    auto name      = path_hint.name;
+    auto name      = not path_hint.name.empty() ? path_hint.name : "Unnamed"sv;
     auto extension = path_hint.extension;
 
     assert(directory.length() <= 64);
@@ -276,7 +291,7 @@ auto path_from_hint(const ResourcePathHint& path_hint, size_t version) noexcept
     const size_t allowed_name_length = ResourcePath::max_length - taken_length;
 
     ResourcePath result;
-    char* ptr = result.filepath;
+    char* ptr = result.path;
 
     // Write directory.
     ptr = std::ranges::copy(directory, ptr).out;
@@ -291,7 +306,7 @@ auto path_from_hint(const ResourcePathHint& path_hint, size_t version) noexcept
         auto truncated_name = name.substr(0, allowed_name_length);
         ptr = std::ranges::copy(truncated_name, ptr).out;
     }
-    const size_t remaining_length = ResourcePath::max_length - (ptr - result.filepath);
+    const size_t remaining_length = ResourcePath::max_length - (ptr - result.path);
     assert(remaining_length >= extension.length() + version_length);
 
     // Write version (if needed).
@@ -303,7 +318,7 @@ auto path_from_hint(const ResourcePathHint& path_hint, size_t version) noexcept
     *(ptr++) = '.';
     ptr = std::ranges::copy(extension, ptr).out;
 
-    result.length = ptr - result.filepath;
+    result.length = ptr - result.path;
     return result;
 }
 
@@ -331,14 +346,13 @@ auto ResourceDatabase::generate_resource(
     // 3. Create and map a resource file of the required size.
     struct FILECloser { void operator()(std::FILE* f) const noexcept { std::fclose(f); } };
     using file_ptr = std::unique_ptr<std::FILE, FILECloser>;
-    using bip::file_mapping, bip::mapped_region;
 
-    ResourcePath  path;
-    file_ptr      file;
-    file_mapping  fmapping;
-    mapped_region mregion;
-    size_t        version       = 0;
-    const size_t  version_limit = 1000; // We'll try a fixed number of times, then give up and throw.
+    ResourcePath path;
+    file_ptr     file;
+    FileMapping  fmapping;
+    MappedRegion mregion;
+    size_t       version       = 0;
+    const size_t version_limit = 1000; // We'll try a fixed number of times, then give up and throw.
 
     // NOTE: We are trying to be very gentle when it comes to creation
     // of a file here. No truncation is allowed, no existing files
@@ -398,7 +412,7 @@ auto ResourceDatabase::generate_resource(
         }
 
         try {
-            fmapping = file_mapping(full_path.c_str(), bip::read_write);
+            fmapping = FileMapping(full_path.c_str(), bip::read_write);
         } catch (const bip::interprocess_exception& e) {
             logstream() << fmt::format("[INFO]: Could not reopen file mapping for file \"{}\". Reason: \"{}\". Retrying.\n", full_path, e.what());
             file.reset();
@@ -406,7 +420,7 @@ auto ResourceDatabase::generate_resource(
         }
 
         try {
-            mregion = mapped_region(fmapping, bip::read_write);
+            mregion = MappedRegion(fmapping, bip::read_write);
         } catch (const bip::interprocess_exception& e) {
             logstream() << fmt::format("[INFO]: Could not map file \"{}\". Reason: \"{}\". Retrying.\n", full_path, e.what());
             file.reset();

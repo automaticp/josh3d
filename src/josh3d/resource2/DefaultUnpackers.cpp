@@ -4,14 +4,15 @@
 #include "DefaultResources.hpp"
 #include "GLTextures.hpp"
 #include "Materials.hpp"
+#include "Ranges.hpp"
 #include "ResourceRegistry.hpp"
 #include "ResourceUnpacker.hpp"
 #include "ECS.hpp"
+#include "SceneGraph.hpp"
 #include "SkinnedMesh.hpp"
 #include "StaticMesh.hpp"
 #include "Tags.hpp"
 #include "tags/AlphaTested.hpp"
-#include <boost/container/static_vector.hpp>
 #include <cstdint>
 
 
@@ -315,6 +316,61 @@ auto unpack_mdesc(
     }
 
     co_await context.completion_context().until_all_ready(jobs);
+}
+
+
+auto unpack_scene(
+    ResourceUnpackerContext context,
+    UUID                    uuid,
+    Handle                  handle)
+        -> Job<>
+{
+    const auto task_guard = context.task_counter().obtain_task_guard();
+
+    auto [scene, usage] = co_await context.resource_registry().get_resource<RT::Scene>(uuid);
+
+    // We are going to start loading resources from the scene,
+    // as well as emplacing them into the registry.
+    auto  nodes    = to_span(*scene.nodes);
+    auto& registry = *handle.registry();
+
+    // NOTE: Not thread_local because we are jumping threads here.
+    Vector<Entity> new_entities; new_entities.resize(nodes.size());
+    Vector<Job<>>  entity_jobs;  entity_jobs.reserve(nodes.size());
+
+    // TODO: The fact that the scene is loaded before any resources are is a bit
+    // of an issue. Could we not do that somehow? Else there's at least 1 frame
+    // lag between loading the scene, and its completion in the registry.
+    //
+    // Maybe have the entities array store some awaitable flag that each
+    // per-object job can wait upon until the entity is actually emplaced
+    // with from another job.
+    //
+    // Essentially, we want the "registry.create()" job to arrive first
+    // to the queue, but not block until its done, and instead push more
+    // per-object jobs to the queue right after, so that when the per-frame
+    // "update" is called, we are likely to just resolve it all one-by-one.
+
+    co_await reschedule_to(context.local_context());
+
+    registry.create(new_entities.begin(), new_entities.end());
+
+    for (const auto [node, entity] : zip(nodes, new_entities)) {
+        const Handle handle = { registry, entity };
+        handle.emplace<Transform>(node.transform);
+        if (node.parent_index != SceneResource::Node::no_parent) {
+            attach_to_parent(handle, new_entities[node.parent_index]);
+        }
+    }
+
+    for (const auto [node, entity] : zip(nodes, new_entities)) {
+        const Handle handle = { registry, entity };
+        if (not node.uuid.is_nil()) {
+            entity_jobs.emplace_back(context.unpacker().unpack_any(node.uuid, handle));
+        }
+    }
+
+    co_await context.completion_context().until_all_ready(entity_jobs);
 }
 
 

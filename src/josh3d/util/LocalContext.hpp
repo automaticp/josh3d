@@ -34,6 +34,20 @@ public:
     // Executor interface. Can be rescheduled to from a coroutine.
     void emplace(auto&& fun) { tasks.emplace(FORWARD(fun)); }
 
+    // Execute the tasks in the queue until empty.
+    void drain_strong() {
+        while (auto task = tasks.try_pop()) {
+            (*task)();
+        }
+    }
+
+    // Execute the tasks in the queue until empty or the lock is contended.
+    void drain_weak() {
+        while (auto task = tasks.try_lock_and_try_pop()) {
+            (*task)();
+        }
+    }
+
     ~LocalContext() noexcept /* dare throwing in your tasks */ {
         if (task_counter_) {
             const auto sleep_budget = std::chrono::milliseconds(10);
@@ -42,9 +56,7 @@ public:
                 const auto wake_up_point =
                     std::chrono::steady_clock::now() + sleep_budget;
 
-                while (std::optional task = tasks.try_pop()) {
-                    (*task)();
-                }
+                drain_strong();
 
                 std::this_thread::sleep_until(wake_up_point);
             }

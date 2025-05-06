@@ -1,4 +1,6 @@
 #pragma once
+#include "Common.hpp"
+#include "FileMapping.hpp"
 #include "Filesystem.hpp"
 #include "Resource.hpp"
 #include "StringHash.hpp"
@@ -14,35 +16,34 @@
 #include <ranges>
 #include <shared_mutex>
 #include <streambuf>
-#include <string_view>
 
 
 namespace josh {
-
-
-struct ResourceLocation {
-    Path   file;
-    size_t offset_bytes;
-    size_t size_bytes;
-    explicit operator bool() const noexcept { return !file.empty(); }
-};
 
 
 struct ResourcePath {
     static constexpr size_t max_length = 91;
 
     uint8_t length;
-    char    filepath[max_length];
+    char    path[max_length];
 
-    auto view() const noexcept -> std::string_view { assert(length <= max_length); return { filepath, length }; }
-    operator std::string_view() const noexcept { return view(); }
+    auto view() const noexcept -> StrView { assert(length <= max_length); return { path, length }; }
+    operator StrView() const noexcept { return view(); }
 };
 
 
 struct ResourcePathHint {
-    std::string_view directory;
-    std::string_view name;
-    std::string_view extension;
+    StrView directory;
+    StrView name;
+    StrView extension;
+};
+
+
+struct ResourceLocation {
+    ResourcePath file; // Filepath relative to the database root.
+    size_t       offset_bytes;
+    size_t       size_bytes;
+    explicit operator bool() const noexcept { return file.length; }
 };
 
 
@@ -80,13 +81,14 @@ class ResourceDatabase {
 public:
     ResourceDatabase(const Path& database_root_dir);
 
-    using mapped_region = boost::interprocess::mapped_region;
-
     // Must be periodically called from the main thread.
     void update();
 
     auto locate(const UUID& uuid) const
         -> ResourceLocation;
+
+    auto type_of(const UUID& uuid) const
+        -> ResourceType;
 
     // Returns a view of all UUIDs currently in the database.
     [[deprecated("Needs a lock.")]]
@@ -96,17 +98,17 @@ public:
     // Will return an empty mapping if the specified resource does not exist.
     [[nodiscard]]
     auto try_map_resource(const UUID& uuid)
-        -> mapped_region;
+        -> MappedRegion;
 
     // Opens a mapping to the resource with the specified uuid.
     // Will throw RuntimeError if the specified resource does not exist.
     [[nodiscard]]
     auto map_resource(const UUID& uuid)
-        -> mapped_region;
+        -> MappedRegion;
 
     struct GeneratedResource {
-        UUID          uuid;
-        mapped_region mregion;
+        UUID         uuid;
+        MappedRegion mregion;
     };
 
     // Creates a new resource in the database, in particular:
@@ -116,7 +118,7 @@ public:
     //   - Creates and maps a resource file of the required size;
     //   - Records an entry in the database table.
     //
-    // Returns the generated UUID and a mapped_region of the newly created file.
+    // Returns the generated UUID and a MappedRegion of the newly created file.
     //
     // Path hint has the following requirements:
     //
@@ -180,21 +182,21 @@ private:
     Path                               table_filepath_;
 
     std::filebuf                       table_filebuf_;  // Keep open to be able to resize the file.
-    boost::interprocess::file_mapping  file_mapping_;   // To quickly remap the file.
-    boost::interprocess::mapped_region mapped_file_;    // Read/write to file through this.
+    FileMapping                        file_mapping_;   // To quickly remap the file.
+    MappedRegion                       mapped_file_;    // Read/write to file through this.
 
     using row_id = size_t;
 
     // Primary map of the database that helps locate all relevant info by a UUID.
     // TODO: bimap?
-    boost::unordered_flat_map<UUID, row_id> table_;
+    HashMap<UUID, row_id>                   table_;
 
     // Intentionally ordered. TODO: There's a more efficient way to store this.
     std::set<row_id>                        empty_rows_;
 
     // Map: Path -> Use Count. To only delete a file when there are no more users of it.
     // Use strings as keys, not views, so that reallocation and reordering would not invalidate this.
-    boost::unordered_flat_map<std::string, size_t, string_hash, std::equal_to<>>
+    HashMap<std::string, size_t, string_hash, std::equal_to<>>
                                             path_uses_;
 
     // Integer that represents database state. Every update increments the state version.

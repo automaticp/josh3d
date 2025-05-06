@@ -44,6 +44,13 @@ auto unpack_mdesc(
         -> Job<>;
 
 
+auto unpack_scene(
+    ResourceUnpackerContext context,
+    UUID                    uuid,
+    Handle                  handle)
+        -> Job<>;
+
+
 /*
 Convenience to automatically register all unpackers listed in this file. Optional.
 */
@@ -53,6 +60,7 @@ inline void register_default_unpackers(
     u.register_unpacker<RT::Mesh, Handle>(&unpack_mesh);
     // FIXME: Once again we have a problem since we do not describe materials consistently.
     u.register_unpacker<RT::MeshDesc, Handle>(&unpack_mdesc);
+    u.register_unpacker<RT::Scene, Handle>(&unpack_scene);
 }
 
 

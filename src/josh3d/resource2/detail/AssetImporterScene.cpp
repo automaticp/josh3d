@@ -504,8 +504,8 @@ auto import_model_async(
         for (const size_t scene_id : std::ranges::subrange(beg, end) | std::views::values) {
             // Lookup the array entry in the scene array and add the mesh component info.
             auto& e = entities_array[scene_id];
-            e["type"]       = "Mesh";
-            e["mdesc_uuid"] = serialize_uuid(mdesc_uuid);
+            e["type"] = "Mesh";
+            e["uuid"] = serialize_uuid(mdesc_uuid);
         }
     }
 
@@ -564,8 +564,8 @@ auto import_model_async(
 
     // Write the scene info to the file.
     {
-        auto dst_bytes = std::span((std::byte*)mregion.get_address(), mregion.get_size());
-        auto src_bytes = std::as_bytes(std::span(scene_json_string));
+        auto dst_bytes = to_span<byte>(mregion);
+        auto src_bytes = as_bytes(Span<char>(scene_json_string));
         assert(src_bytes.size() == dst_bytes.size());
         std::ranges::copy(src_bytes, dst_bytes.begin());
     }

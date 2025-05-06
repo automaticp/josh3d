@@ -23,26 +23,23 @@
 #include "VertexStatic.hpp"
 #include "detail/AssetImporter.hpp"
 #include <boost/container/static_vector.hpp>
-#include <boost/scope/scope_fail.hpp>
+#include <fmt/format.h>
+#include <jsoncons/basic_json.hpp>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <fmt/format.h>
-#include <jsoncons/basic_json.hpp>
+#include <memory>
 
 
 namespace josh {
 namespace {
 
-
 using jsoncons::json;
-
 
 struct LODRange {
     uint8_t beg_lod;
     uint8_t end_lod;
 };
-
 
 auto next_lod_range(uint8_t cur_lod, uint8_t num_lods)
     -> LODRange
@@ -54,12 +51,10 @@ auto next_lod_range(uint8_t cur_lod, uint8_t num_lods)
     return { lod, end };
 }
 
-
 struct StagingBuffers {
     UniqueUntypedBuffer    verts;
     UniqueBuffer<uint32_t> elems;
 };
-
 
 auto stage_lod(const MeshFile& file, uint8_t lod)
     -> StagingBuffers
@@ -84,13 +79,12 @@ auto stage_lod(const MeshFile& file, uint8_t lod)
     return { MOVE(dst_verts), MOVE(dst_elems) };
 };
 
-
 template<typename VertexT>
 auto upload_lods(
-    MeshStorage<VertexT>&           storage,
-    LODPack<MeshID<VertexT>, 8>&    lod_pack,
-    std::ranges::range auto&&       lod_ids,
-    std::span<const StagingBuffers> staged_lods)
+    MeshStorage<VertexT>&        storage,
+    LODPack<MeshID<VertexT>, 8>& lod_pack,
+    std::ranges::range auto&&    lod_ids,
+    Span<const StagingBuffers>   staged_lods)
 {
     for (const auto [i, staged] : zip(lod_ids, staged_lods)) {
         make_available<Binding::ArrayBuffer>       (staged.verts->id());
@@ -98,7 +92,6 @@ auto upload_lods(
         lod_pack.lods[i] = storage.insert_buffer(staged.verts->template as_typed<VertexT>(), staged.elems);
     }
 };
-
 
 auto load_static_mesh(
     ResourceLoaderContext context,
@@ -178,7 +171,6 @@ auto load_static_mesh(
     } while (cur_lod != 0);
 
 }
-
 
 auto load_skinned_mesh(
     ResourceLoaderContext context,
@@ -270,7 +262,6 @@ auto load_skinned_mesh(
 
 }
 
-
 } // namespace
 
 
@@ -304,7 +295,6 @@ try {
         default: assert(false);
     }
 
-    auto i = 0;
 } catch(...) {
     context.fail_resource<RT::Mesh>(uuid);
 }
@@ -320,7 +310,8 @@ try {
     co_await reschedule_to(context.thread_pool());
 
     auto mregion = context.resource_database().map_resource(uuid);
-    const json j = json::parse((char*)mregion.get_address(), (char*)mregion.get_address() + mregion.get_size());
+    auto text    = to_span<char>(mregion);
+    const json j = json::parse(text.begin(), text.end());
 
     // NOTE: We are not loading the dependencies here. This is a bit odd.
     auto _ = context.create_resource<RT::MeshDesc>(uuid, ResourceProgress::Complete, MeshDescResource{
@@ -336,6 +327,7 @@ try {
 
 
 namespace {
+
 auto pick_internal_format(ImageIntent intent, size_t num_channels) noexcept
     -> InternalFormat
 {
@@ -347,6 +339,7 @@ auto pick_internal_format(ImageIntent intent, size_t num_channels) noexcept
     // TODO: other
     assert(false);
 }
+
 auto pick_pixel_data_format(TextureFile::StorageFormat format, size_t num_channels) noexcept
     -> PixelDataFormat
 {
@@ -360,6 +353,7 @@ auto pick_pixel_data_format(TextureFile::StorageFormat format, size_t num_channe
     }
     assert(false);
 }
+
 } // namespace
 
 
@@ -449,6 +443,179 @@ try {
 
 } catch(...) {
     context.fail_resource<RT::Texture>(uuid);
+}
+
+
+namespace {
+
+using Node = SceneResource::Node;
+constexpr int32_t no_parent  = Node::no_parent;
+constexpr int32_t no_node    = -1;
+
+struct NodeInfo {
+    int32_t num_children = 0;
+    int32_t last_child   = no_node; // Last and prev instead of frist and next
+    int32_t prev_sibling = no_node; // so that the storage order would be preserved for siblings.
+};
+
+
+
+auto read_vec3(const json& j)
+    -> vec3
+{
+    vec3 v{};
+    if (j.size() != 3) { throw RuntimeError("Vector argument must be a three element array."); }
+    v[0] = j[0].as<float>();
+    v[1] = j[1].as<float>();
+    v[2] = j[2].as<float>();
+    return v;
+}
+
+auto read_quat(const json& j)
+    -> quat
+{
+    quat q{};
+    if (j.size() != 4) { throw RuntimeError("Quaternion argument must be a four element array."); }
+    q[0] = j[0].as<float>();
+    q[1] = j[1].as<float>();
+    q[2] = j[2].as<float>();
+    q[3] = j[3].as<float>();
+    return q;
+}
+
+auto read_transform(const json& j)
+    -> Transform
+{
+    Transform new_tf{};
+    if (const auto& j_tf = j.at_or_null("transform");
+        not j_tf.is_null())
+    {
+        if (const auto& j_pos = j_tf.at_or_null("position"); !j_pos.is_null()) { new_tf.position()    = read_vec3(j_pos); }
+        if (const auto& j_rot = j_tf.at_or_null("rotation"); !j_rot.is_null()) { new_tf.orientation() = read_quat(j_rot); }
+        if (const auto& j_sca = j_tf.at_or_null("scaling");  !j_sca.is_null()) { new_tf.scaling()     = read_vec3(j_sca); }
+    }
+    return new_tf;
+}
+
+auto read_uuid(const json& j)
+    -> UUID
+{
+    UUID uuid{};
+    if (const auto& j_uuid = j.at_or_null("uuid");
+        not j_uuid.is_null())
+    {
+        uuid = deserialize_uuid(j_uuid.as_string_view());
+    }
+    return uuid;
+}
+
+auto read_parent_idx(const json& j)
+    -> int32_t
+{
+    return j.get_value_or<int32_t>("parent", no_parent);
+}
+
+void populate_nodes_preorder(
+    Vector<Node>&        dst_nodes,
+    int32_t              dst_parent_idx,
+    int32_t              src_current_idx,
+    Span<const NodeInfo> infos,
+    const json&          entities_array)
+{
+    const int32_t dst_current_idx = int32_t(dst_nodes.size());
+    const auto& entity = entities_array[src_current_idx];
+
+    dst_nodes.emplace_back(Node{
+        .transform    = read_transform(entity),
+        .parent_index = dst_parent_idx,
+        .uuid         = read_uuid(entity),
+    });
+
+    // Then iterate children.
+    int32_t src_child_idx = infos[src_current_idx].last_child;
+    while (src_child_idx != no_node) {
+        populate_nodes_preorder(
+            dst_nodes,
+            dst_current_idx,
+            src_child_idx,
+            infos,
+            entities_array
+        );
+        src_child_idx = infos[src_child_idx].prev_sibling;
+    }
+}
+
+} // namespace
+
+
+auto load_scene(
+    ResourceLoaderContext context,
+    UUID                  uuid)
+        -> Job<>
+try {
+    const auto task_guard = context.task_counter().obtain_task_guard();
+
+    co_await reschedule_to(context.thread_pool());
+
+    auto mregion = context.resource_database().map_resource(uuid);
+    auto text    = to_span<char>(mregion);
+    const json j = json::parse(text.begin(), text.end());
+
+    const auto& entities = j.at("entities");
+
+    auto entities_array = entities.array_range();
+
+    // Reconstruct pre-order.
+    //
+    // NOTE: IDK if I should even bother with this, but this is to guarantee
+    // that the array is indeed stored in pre-order, which we might rely on.
+    //
+    // For emplacing into the scene this does not matter, but might come up
+    // in other usecases.
+    //
+    // It is likely that we want this to be a guarantee of the internal scene
+    // storage format, and not have to do this every time on load.
+
+    // TODO: Check parent ids for being in-range.
+
+    thread_local Vector<NodeInfo> infos; infos.resize(entities.size(), {});
+    thread_local Vector<int32_t>  roots; roots.clear();
+
+    for (const auto [i, entity] : enumerate(entities_array)) {
+        // Parent index in the json *source* array.
+        const int32_t parent_idx = read_parent_idx(entity);
+        if (parent_idx == no_parent) {
+            roots.emplace_back(i);
+        } else {
+            NodeInfo& parent = infos[parent_idx];
+            NodeInfo& node   = infos[i];
+            // NOTE: Not sure if this is correct.
+            if (parent.last_child != no_node) {
+                node.prev_sibling = parent.last_child;
+            }
+            ++parent.num_children;
+            parent.last_child = int32_t(i);
+        }
+    }
+
+    Vector<Node> nodes; nodes.reserve(entities.size());
+
+    for (const int32_t root_idx : roots) {
+        populate_nodes_preorder(
+            nodes,
+            no_parent,
+            root_idx,
+            infos,
+            entities
+        );
+    }
+
+    auto _ = context.create_resource<RT::Scene>(uuid, ResourceProgress::Complete, SceneResource{
+        .nodes = std::make_shared<Vector<Node>>(MOVE(nodes)),
+    });
+
+} catch(...) {
+    context.fail_resource<RT::Scene>(uuid);
 }
 
 

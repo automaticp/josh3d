@@ -26,12 +26,19 @@ auto load_texture(
         -> Job<>;
 
 
+auto load_scene(
+    ResourceLoaderContext context,
+    UUID                  uuid)
+        -> Job<>;
+
+
 inline void register_default_loaders(
     ResourceRegistry& r)
 {
     r.register_resource<RT::Mesh>(&load_mesh);
     r.register_resource<RT::Texture>(&load_texture);
     r.register_resource<RT::MeshDesc>(&load_mdesc);
+    r.register_resource<RT::Scene>(&load_scene);
 }
 
 } // namespace josh

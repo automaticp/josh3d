@@ -5,6 +5,7 @@
 #include "LocalContext.hpp"
 #include "OffscreenContext.hpp"
 #include "Resource.hpp"
+#include "ResourceDatabase.hpp"
 #include "ResourceRegistry.hpp"
 #include "RuntimeError.hpp"
 #include "TaskCounterGuard.hpp"
@@ -53,29 +54,36 @@ loading, caching and evicting actual resource data.
 class ResourceUnpacker {
 public:
     ResourceUnpacker(
+        ResourceDatabase&  resource_database,
         ResourceRegistry&  resource_registry,
         ThreadPool&        thread_pool,
         OffscreenContext&  offscreen_context,
         CompletionContext& completion_context
     )
-        : resource_registry_ { resource_registry  }
-        , thread_pool_       { thread_pool        }
-        , offscreen_context_ { offscreen_context  }
-        , completion_context_{ completion_context }
+        : resource_database_ (resource_database )
+        , resource_registry_ (resource_registry )
+        , thread_pool_       (thread_pool       )
+        , offscreen_context_ (offscreen_context )
+        , completion_context_(completion_context)
     {}
 
-    void update();
+    void update() { local_context_.drain_weak(); }
 
     template<ResourceType TypeV, typename DestinationT,
         of_signature<Job<>(ResourceUnpackerContext, UUID, DestinationT)> UnpackerF>
     void register_unpacker(UnpackerF&& f);
 
     template<ResourceType TypeV, typename DestinationT>
-    auto unpack_to(UUID uuid, DestinationT destination)
+    auto unpack(UUID uuid, DestinationT destination)
+        -> Job<>;
+
+    template<typename DestinationT>
+    auto unpack_any(UUID uuid, DestinationT destination)
         -> Job<>;
 
 private:
     friend ResourceUnpackerContext;
+    ResourceDatabase&  resource_database_;
     ResourceRegistry&  resource_registry_;
     ThreadPool&        thread_pool_;
     OffscreenContext&  offscreen_context_;
@@ -88,6 +96,9 @@ private:
     using dtable_type   = HashMap<key_type, unpacker_func>;
 
     dtable_type dispatch_table_;
+
+    auto _unpack(const key_type& key, UUID uuid, AnyRef destination)
+        -> Job<>;
 };
 
 
@@ -99,6 +110,8 @@ public:
     auto& completion_context() noexcept { return self_.completion_context_; }
     auto& task_counter()       noexcept { return self_.task_counter_;       }
     auto& local_context()      noexcept { return self_.local_context_;      }
+    // TODO: Should we instead expose only the relevant unpack_*_to() functions?
+    auto& unpacker()           noexcept { return self_;                     }
 private:
     friend ResourceUnpacker;
     ResourceUnpackerContext(ResourceUnpacker& self) : self_{ self } {}
@@ -129,23 +142,33 @@ void ResourceUnpacker::register_unpacker(UnpackerF&& f) {
 
 
 template<ResourceType TypeV, typename DestinationT>
-auto ResourceUnpacker::unpack_to(UUID uuid, DestinationT destination)
+auto ResourceUnpacker::unpack(UUID uuid, DestinationT destination)
     -> Job<>
 {
     const key_type key{ .resource_type=TypeV, .destination_type=typeid(DestinationT) };
-    if (auto* kv = try_find(dispatch_table_, key)) {
-        // FIXME: Something about const-correctness is amiss here. Likely because of UniqueFunction.
-        auto& unpacker = kv->second;
-        return unpacker(ResourceUnpackerContext(*this), uuid, AnyRef(destination));
-    } else {
-        throw error::RuntimeError(fmt::format("No unpacker found for ResourceType {} and DestinationType {}.", TypeV, key.destination_type.name()));
-    }
+    return _unpack(key, uuid, AnyRef(destination));
 }
 
 
-inline void ResourceUnpacker::update() {
-    while (Optional task = local_context_.tasks.try_lock_and_try_pop()) {
-        (*task)();
+template<typename DestinationT>
+auto ResourceUnpacker::unpack_any(UUID uuid, DestinationT destination)
+    -> Job<>
+{
+    const auto type = resource_database_.type_of(uuid);
+    const key_type key{ .resource_type=type, .destination_type=typeid(DestinationT) };
+    return _unpack(key, uuid, AnyRef(destination));
+}
+
+
+inline auto ResourceUnpacker::_unpack(const key_type& key, UUID uuid, AnyRef destination)
+    -> Job<>
+{
+    if (auto* kv = try_find(dispatch_table_, key)) {
+        // FIXME: Something about const-correctness is amiss here. Likely because of UniqueFunction.
+        auto& unpacker = kv->second;
+        return unpacker(ResourceUnpackerContext(*this), uuid, destination);
+    } else {
+        throw RuntimeError(fmt::format("No unpacker found for ResourceType {} and DestinationType {}.", key.resource_type, key.destination_type.name()));
     }
 }
 

@@ -3,7 +3,8 @@
 #include <stdexcept>
 
 
-namespace josh::error {
+namespace josh {
+namespace error {
 
 
 /*
@@ -31,4 +32,11 @@ protected:
 };
 
 
-} // namespace josh::error
+} // namespace error
+
+
+// TODO: Remove the cursed error:: namespace already.
+using error::RuntimeError;
+
+
+} // namespace josh

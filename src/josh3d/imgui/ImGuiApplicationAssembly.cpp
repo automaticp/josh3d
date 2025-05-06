@@ -273,22 +273,19 @@ void display_resource_file_debug(
 
     thread_local ImportModelParams import_model_params = {};
 
-    thread_local std::optional<Job<>> unpacking_mdesc;
-    thread_local std::optional<Job<>> unpacking_mesh;
+    thread_local Optional<Job<>> unpacking_job;
 
-    auto unpack_mdesc_signal = on_value_change_from<UUID>({}, [&](UUID uuid) {
+    auto unpack_signal = on_value_change_from<UUID>({}, [&](UUID uuid) {
         auto handle = create_handle(registry);
         handle.emplace<Transform>();
-        unpacking_mdesc = resource_unpacker.unpack_to<RT::MeshDesc>(uuid, handle);
-        last_error = {};
+        try {
+            unpacking_job = resource_unpacker.unpack_any(uuid, handle);
+            last_error = {};
+        } catch (const std::exception& e) {
+            last_error = e.what();
+        }
     });
 
-    auto unpack_mesh_signal = on_value_change_from<UUID>({}, [&](UUID uuid) {
-        auto handle = create_handle(registry);
-        handle.emplace<Transform>();
-        unpacking_mesh = resource_unpacker.unpack_to<RT::Mesh>(uuid, handle);
-        last_error = {};
-    });
 
     ImGui::InputText("Path", &path);
 
@@ -366,25 +363,23 @@ void display_resource_file_debug(
                     char uuid_str[36]{};
                     to_chars(uuid, std::begin(uuid_str), std::end(uuid_str));
                     const ResourceLocation loc = resource_database.locate(uuid);
+                    const StrView file = loc.file.view();
                     ImGui::TableNextColumn();
                     ImGui::TextUnformatted(std::begin(uuid_str), std::end(uuid_str));
                     ImGui::TableNextColumn();
-                    ImGui::TextUnformatted(loc.file.c_str());
+                    ImGui::SmallButton("...");
+                    ImGui::SameLine();
+                    if (ImGui::BeginPopupContextItem()) {
+                        if (ImGui::Button("Unpack")) {
+                            unpack_signal.set(uuid);
+                        }
+                        ImGui::EndPopup();
+                    }
+                    ImGui::TextUnformatted(file.begin(), file.end());
                     ImGui::TableNextColumn();
                     ImGui::Text("%zu", loc.offset_bytes);
                     ImGui::TableNextColumn();
                     ImGui::Text("%zu", loc.size_bytes);
-                    ImGui::SameLine();
-                    ImGui::SmallButton("...");
-                    if (ImGui::BeginPopupContextItem()) {
-                        if (ImGui::Button("Unpack as MeshDesc")) {
-                            unpack_mdesc_signal.set(uuid);
-                        }
-                        if (ImGui::Button("Unpack as Mesh")) {
-                            unpack_mesh_signal.set(uuid);
-                        }
-                        ImGui::EndPopup();
-                    }
                     ImGui::PopID();
                 }
                 ImGui::EndTable();
@@ -556,22 +551,13 @@ void display_resource_file_debug(
 
     ImGui::PopID();
 
-    if (unpacking_mdesc and unpacking_mdesc->is_ready()) {
+    if (unpacking_job and unpacking_job->is_ready()) {
         try {
-            move_out(unpacking_mdesc).get_result();
+            move_out(unpacking_job).get_result();
         } catch (const std::exception& e) {
             last_error = e.what();
         }
     }
-
-    if (unpacking_mesh and unpacking_mesh->is_ready()) {
-        try {
-            move_out(unpacking_mesh).get_result();
-        } catch (const std::exception& e) {
-            last_error = e.what();
-        }
-    }
-
 
 
     ImGui::TextUnformatted(last_error.c_str());

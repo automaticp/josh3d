@@ -26,6 +26,20 @@ without any kind of heavy data in them.
 namespace josh {
 
 
+/*
+What a given "resource" should maybe be able to do:
+
+    Asset -> ResourceFile                 : Be imported from an asset to file
+    UUID -> ResourceFile -> Resource      : Be loaded from disk
+    Resource -> (Component...)            : Be emplaced into registry as components
+    (Resource, Handle) -> (Component...)  : Be used to update components
+    (Component...) -> Resource            : Be recreated from components (with a provoking component)
+    Resource -> ResourceFile              : Be serialized back to a file
+    ResourceFile -> Asset (+Metadata)     : Be optionally re-exported back to an asset
+
+*/
+
+
 // "Fake enum" namespace.
 namespace ResourceType_ {
 constexpr ResourceTypeHS Scene     = "Scene"_hs;
@@ -46,14 +60,11 @@ struct SceneResource {
         static constexpr int32_t no_parent = -1;
         Transform transform;
         int32_t   parent_index;
-
-        // TODO: That UUID alignment is not nice.
-        using any_type = UniqueAny;
-        HashedID object_type;
-        any_type object_data;
+        UUID      uuid;
     };
 
-    std::shared_ptr<std::vector<Node>> nodes; // Pre-order.
+    using node_list_type = Vector<Node>;
+    std::shared_ptr<node_list_type> nodes; // Pre-order.
 };
 
 template<> struct resource_traits<ResourceType_::Scene> {

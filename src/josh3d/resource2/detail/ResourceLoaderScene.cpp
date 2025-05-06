@@ -3,6 +3,7 @@
 #include "Coroutines.hpp"
 #include "DefaultResources.hpp"
 #include "ECS.hpp"
+#include "FileMapping.hpp"
 #include "LightCasters.hpp"
 #include "Ranges.hpp"
 #include "ResourceDatabase.hpp"
@@ -22,7 +23,6 @@ namespace {
 
 using jsoncons::json;
 using Node = SceneResource::Node;
-using mapped_region = ResourceDatabase::mapped_region;
 
 
 auto emplace_scene_into_handle(
@@ -84,7 +84,7 @@ auto read_transform(const json& j)
     return new_tf;
 }
 
-
+#if 0
 auto read_object(const json& j)
     -> Node::any_type
 {
@@ -129,7 +129,7 @@ auto read_object(const json& j)
     }
     throw error::RuntimeError("Unrecognized scene node type.");
 }
-
+#endif
 
 void populate_nodes_preorder(
     std::vector<Node>&        dst_nodes,
@@ -144,8 +144,7 @@ void populate_nodes_preorder(
     dst_nodes.emplace_back(Node{
         .transform    = read_transform(entity),
         .parent_index = dst_parent_idx,
-        .object_type  = {}, // FIXME: Uhh, where is it?
-        .object_data  = read_object(entity),
+        .uuid = {} //
     });
 
     // Then iterate children.
@@ -169,7 +168,7 @@ auto load_scene_from_disc(
         -> SceneResource
 {
     // TODO: Mapping can fail. Sad.
-    mapped_region mregion = loader.resource_database().try_map_resource(uuid);
+    MappedRegion mregion = loader.resource_database().try_map_resource(uuid);
 
     using Node = SceneResource::Node;
     const jsoncons::json j = jsoncons::json::parse((char*)mregion.get_address(), (char*)mregion.get_address() + mregion.get_size());

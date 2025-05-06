@@ -167,7 +167,7 @@ DemoScene::DemoScene(glfw::Window& window)
     , resource_database_{ ".josh3d/" } // TODO: Un-hardcode.
     , asset_importer_   { resource_database_, loading_pool_, offscreen_context_, completion_context_ }
     , resource_registry_(resource_database_, mesh_registry_, loading_pool_, offscreen_context_, completion_context_)
-    , resource_unpacker_(resource_registry_, loading_pool_, offscreen_context_, completion_context_)
+    , resource_unpacker_(resource_database_, resource_registry_, loading_pool_, offscreen_context_, completion_context_)
     , primitives_       { asset_manager_ }
     , rengine_          {
         registry_,
