@@ -11,7 +11,7 @@
 
 /*
 TODO: This should just be ResourceLoader and ResourceLoaderContext, but
-the former is currently baked into the ResourceRegistry.
+the former is currently glued to the ResourceRegistry a little bit too hard.
 */
 namespace josh {
 

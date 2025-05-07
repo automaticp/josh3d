@@ -20,7 +20,6 @@
 #include "UUID.hpp"
 #include "VertexSkinned.hpp"
 #include "VertexStatic.hpp"
-#include "detail/AssetImporter.hpp"
 #include <boost/container/static_vector.hpp>
 #include <fmt/format.h>
 #include <jsoncons/basic_json.hpp>

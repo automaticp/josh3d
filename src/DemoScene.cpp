@@ -4,6 +4,7 @@
 #include "AssetManager.hpp"
 #include "AssetUnpacker.hpp"
 #include "AsyncCradle.hpp"
+#include "DefaultImporters.hpp"
 #include "DefaultLoaders.hpp"
 #include "DefaultUnpackers.hpp"
 #include "GLPixelPackTraits.hpp"
@@ -324,6 +325,7 @@ DemoScene::DemoScene(glfw::Window& window)
 
 
     configure_input(gbuffer_read_view);
+    register_default_importers(asset_importer_);
     register_default_loaders(resource_registry_);
     register_default_unpackers(resource_unpacker_);
     init_registry();

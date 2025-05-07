@@ -1,21 +1,25 @@
 #pragma once
 #include "../AssetImporter.hpp"
+#include "Common.hpp"
 #include "AABB.hpp"
-#include "Math.hpp"
 #include "Asset.hpp"
+#include "DefaultImporters.hpp"
 #include "Transform.hpp"
 #include "UUID.hpp"
-#include <assimp/quaternion.h>
-#include <assimp/matrix4x4.h>
-#include <assimp/vector3.h>
 #include <assimp/aabb.h>
-#include <assimp/types.h>
+#include <assimp/matrix4x4.h>
+#include <assimp/quaternion.h>
 #include <assimp/scene.h>
-#include <string_view>
-#include <unordered_map>
-#include <span>
+#include <assimp/types.h>
+#include <assimp/vector3.h>
 
 
+/*
+All of the Assimp-specific implementation details.
+
+Because the whole implementation of scene importing is huge
+we break it apart into multiple cpp files.
+*/
 namespace josh::detail {
 
 
@@ -91,7 +95,7 @@ inline auto m2tf(const aiMatrix4x4& m) noexcept
 
 
 inline auto s2sv(const aiString& s) noexcept
-    -> std::string_view
+    -> StrView
 {
     return { s.data, s.length };
 }
@@ -104,15 +108,6 @@ inline auto aabb2aabb(const aiAABB& aabb) noexcept
 }
 
 
-[[nodiscard]]
-auto import_texture_async(
-    AssetImporterContext context,
-    Path                 src_filepath,
-    ImportTextureParams  params)
-        -> Job<UUID>;
-
-
-[[nodiscard]]
 auto import_skeleton_async(
     AssetImporterContext                                    context,
     const aiNode*                                           armature,
@@ -121,7 +116,6 @@ auto import_skeleton_async(
         -> Job<UUID>;
 
 
-[[nodiscard]]
 auto import_anim_async(
     AssetImporterContext                             context,
     const aiAnimation*                               ai_anim,
@@ -131,7 +125,6 @@ auto import_anim_async(
         -> Job<UUID>;
 
 
-[[nodiscard]]
 auto import_mesh_async(
     AssetImporterContext                             context,
     const aiMesh*                                    ai_mesh,
@@ -140,7 +133,6 @@ auto import_mesh_async(
         -> Job<UUID>;
 
 
-[[nodiscard]]
 auto import_mesh_desc_async(
     AssetImporterContext context,
     UUID                 mesh_uuid,
@@ -149,11 +141,10 @@ auto import_mesh_desc_async(
         -> Job<UUID>;
 
 
-[[nodiscard]]
-auto import_model_async(
+auto import_scene_async(
     AssetImporterContext context,
     Path                 path,
-    ImportModelParams    params)
+    ImportSceneParams    params)
         -> Job<UUID>;
 
 

@@ -1,3 +1,5 @@
+#include "AssimpCommon.hpp"
+#include "Asset.hpp"
 #include "AssetImporter.hpp"
 #include "Filesystem.hpp"
 #include "Ranges.hpp"
@@ -24,7 +26,7 @@ auto get_path_to_ai_texture(
     aiString filename;
     material->GetTexture(type, 0, &filename);
     return parent_dir / filename.C_Str();
-};
+}
 
 
 auto get_ai_texture_type(const Path& path, ImageIntent intent)
@@ -52,7 +54,7 @@ auto get_ai_texture_type(const Path& path, ImageIntent intent)
             assert(false); // ???
             return aiTextureType_UNKNOWN;
     }
-};
+}
 
 
 void populate_scene_nodes_preorder(
@@ -162,11 +164,10 @@ void populate_scene_nodes_preorder(
 }
 
 
-[[nodiscard]]
-auto import_model_async(
+auto import_scene_async(
     AssetImporterContext context,
     Path                 path,
-    ImportModelParams    params)
+    ImportSceneParams    params)
         -> Job<UUID>
 {
     co_await reschedule_to(context.thread_pool());
@@ -271,7 +272,8 @@ auto import_model_async(
             .storage_format = params.texture_storage_format,
         };
 
-        texture_jobs.emplace_back(import_texture_async(context.child_context(), path, tex_params));
+        // TODO: Should this use the dispatch table instead?
+        texture_jobs.emplace_back(import_texture(context.child_context(), path, tex_params));
     }
 
 

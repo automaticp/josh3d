@@ -5,6 +5,7 @@
 #include "AssetManager.hpp"
 #include "CategoryCasts.hpp"
 #include "ContainerUtils.hpp"
+#include "DefaultImporters.hpp"
 #include "DefaultResources.hpp"
 #include "FrameTimer.hpp"
 #include "GLAPIBinding.hpp"
@@ -267,11 +268,11 @@ void display_resource_file_debug(
     thread_local Vector<Entity>         id2entity;
     thread_local Optional<SkeletonFile> opened_file;
 
-    thread_local Optional<Job<UUID>> importing_texture;
-    thread_local Optional<Job<UUID>> importing_model;
+    thread_local Optional<Job<UUID>> importing_job;
     thread_local Optional<UUID>      last_imported;
 
-    thread_local ImportModelParams import_model_params = {};
+    thread_local ImportSceneParams   import_scene_params = {};
+    thread_local ImportTextureParams import_texture_params = {};
 
     thread_local Optional<Job<>> unpacking_job;
 
@@ -293,19 +294,19 @@ void display_resource_file_debug(
 
     ImGui::InputText("Path", &path);
 
-    if (ImGui::Button("Import Texture")) {
+    auto try_import_thing = [&](auto params) {
         try {
-            importing_texture = asset_importer.import_texture(path);
+            importing_job = asset_importer.import_asset(path, params);
             last_error = {};
         } catch (const std::exception& e) {
             last_error = e.what();
         }
-    }
+    };
 
-    using StorageFormat = TextureFile::StorageFormat;
-    const StorageFormat formats[2]{
-        StorageFormat::RAW,
-        StorageFormat::PNG,
+    using TextureFormat = TextureFile::StorageFormat;
+    const TextureFormat formats[2]{
+        TextureFormat::RAW,
+        TextureFormat::PNG,
     };
 
     const char* format_names[2]{
@@ -313,30 +314,37 @@ void display_resource_file_debug(
         "PNG",
     };
 
-    size_t current_idx = 0;
-    for (const StorageFormat format : formats) {
-        if (format == import_model_params.texture_storage_format) { break; }
-        ++current_idx;
-    }
+    auto texture_format_combo = [&](TextureFormat& current_format) {
+        size_t current_idx = 0;
+        for (const TextureFormat format : formats) {
+            if (format == current_format) break;
+            ++current_idx;
+        }
 
-    if (ImGui::BeginCombo("Texture Format", format_names[current_idx])) {
-        for (const size_t i : irange(std::size(formats))) {
-            if (ImGui::Selectable(format_names[i], current_idx == i)) {
-                import_model_params.texture_storage_format = formats[i];
+        if (ImGui::BeginCombo("Texture Format", format_names[current_idx])) {
+            for (const size_t i : irange(std::size(formats))) {
+                if (ImGui::Selectable(format_names[i], current_idx == i)) {
+                    current_format = formats[i];
+                }
             }
+            ImGui::EndCombo();
         }
-        ImGui::EndCombo();
+    };
+
+    if (ImGui::TreeNode("Import Texture")) {
+        texture_format_combo(import_texture_params.storage_format);
+        if (ImGui::Button("Import")) try_import_thing(import_texture_params);
+        ImGui::TreePop();
+    }
+    if (ImGui::TreeNode("Import Scene")) {
+        texture_format_combo(import_scene_params.texture_storage_format);
+        ImGui::Checkbox("Collapse Graph", &import_scene_params.collapse_graph);
+        ImGui::SameLine();
+        ImGui::Checkbox("Merge Meshes", &import_scene_params.merge_meshes);
+        if (ImGui::Button("Import")) try_import_thing(import_scene_params);
+        ImGui::TreePop();
     }
 
-
-    if (ImGui::Button("Import Model")) {
-        try {
-            importing_model = asset_importer.import_model(path, import_model_params);
-            last_error = {};
-        } catch (const std::exception& e) {
-            last_error = e.what();
-        }
-    }
 
     if (ImGui::TreeNode("Entries")) {
         using ranges::views::enumerate;
@@ -392,25 +400,13 @@ void display_resource_file_debug(
     }
 
 
-    if (importing_texture) {
-        if (importing_texture->is_ready()) {
-            try {
-                last_imported = move_out(importing_texture).get_result();
-            } catch (const std::exception& e) {
-                last_error = e.what();
-            }
+    if (importing_job and importing_job->is_ready()) {
+        try {
+            last_imported = move_out(importing_job).get_result();
+        } catch (const std::exception& e) {
+            last_error = e.what();
         }
-    }
 
-    if (importing_model) {
-        if (importing_model->is_ready()) {
-            try {
-                last_imported = move_out(importing_model).get_result();
-                logstream() << fmt::format("[IMPORTED]: {}.\n", to_string(*last_imported));
-            } catch (const std::exception& e) {
-                last_error = e.what();
-            }
-        }
     }
 
     if (last_imported) {

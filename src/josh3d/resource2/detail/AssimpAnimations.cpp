@@ -1,3 +1,4 @@
+#include "AssimpCommon.hpp"
 #include "AssetImporter.hpp"
 #include "Ranges.hpp"
 #include <assimp/scene.h>
@@ -5,6 +6,7 @@
 
 
 namespace josh::detail {
+namespace {
 
 
 void populate_joints_preorder(
@@ -72,8 +74,9 @@ void populate_joints_preorder(
 }
 
 
+} // namespace
 
-[[nodiscard]]
+
 auto import_skeleton_async(
     AssetImporterContext                                    context,
     const aiNode*                                           armature,
@@ -122,7 +125,6 @@ auto import_skeleton_async(
 }
 
 
-[[nodiscard]]
 auto import_anim_async(
     AssetImporterContext                             context,
     const aiAnimation*                               ai_anim,

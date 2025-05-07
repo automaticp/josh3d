@@ -1,3 +1,5 @@
+#include "AssimpCommon.hpp"
+#include "Asset.hpp"
 #include "AssetImporter.hpp"
 #include "VertexStatic.hpp"
 #include "VertexSkinned.hpp"
@@ -7,6 +9,7 @@
 
 
 namespace josh::detail {
+namespace {
 
 
 void extract_skinned_mesh_verts_to(
@@ -114,7 +117,9 @@ void extract_mesh_elems_to(
 }
 
 
-[[nodiscard]]
+} // namespace
+
+
 auto import_mesh_async(
     AssetImporterContext                             context,
     const aiMesh*                                    ai_mesh,
@@ -205,7 +210,6 @@ auto import_mesh_async(
 }
 
 
-[[nodiscard]]
 auto import_mesh_desc_async(
     AssetImporterContext  context,
     UUID                  mesh_uuid,

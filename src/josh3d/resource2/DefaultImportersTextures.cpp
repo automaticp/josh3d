@@ -1,3 +1,4 @@
+#include "DefaultImporters.hpp"
 #include "AssetImporter.hpp"
 #include "Channels.hpp"
 #include "Ranges.hpp"
@@ -9,8 +10,11 @@
 #include <spng.h>
 
 
-namespace josh::detail {
+namespace josh {
+namespace {
 
+
+using Format = TextureFile::StorageFormat;
 
 
 struct SPNGContextDeleter {
@@ -22,7 +26,7 @@ using spng_ctx_ptr = std::unique_ptr<spng_ctx, SPNGContextDeleter>;
 
 
 // For some bizzare reason, each encode should allocate a new context.
-auto make_spng_encoding_context() noexcept
+auto make_spng_encoding_context()
     -> spng_ctx_ptr
 {
     return spng_ctx_ptr{ spng_ctx_new(SPNG_CTX_ENCODER) };
@@ -34,7 +38,7 @@ struct EncodedImage {
     Size2I                           resolution;
     size_t                           num_channels;
     size_t                           size_bytes;
-    TextureFile::StorageFormat       format;
+    Format                           format;
 };
 
 
@@ -50,7 +54,7 @@ auto encode_texture_async_raw(
         .resolution   = Size2I(image.resolution()),
         .num_channels = image.num_channels(),
         .size_bytes   = image.size_bytes(),
-        .format       = TextureFile::StorageFormat::RAW,
+        .format       = Format::RAW,
     };
     result.data = image.release();
     co_return result;
@@ -95,7 +99,7 @@ auto encode_texture_async_png(
     int encode_err = spng_encode_image(ctx, image.data(), image.size_bytes(), format, SPNG_ENCODE_FINALIZE);
 
     if (encode_err) {
-        throw error::RuntimeError(fmt::format("Failed encoding PNG: {}.", spng_strerror(encode_err)));
+        throw RuntimeError(fmt::format("Failed encoding PNG: {}.", spng_strerror(encode_err)));
     }
 
     size_t size_bytes;
@@ -103,7 +107,7 @@ auto encode_texture_async_png(
     auto   data = unique_malloc_ptr<chan::UByte[]>((chan::UByte*)spng_get_png_buffer(ctx, &size_bytes, &buffer_err));
 
     if (!data) {
-        throw error::RuntimeError(fmt::format("Failed retrieving PNG buffer: {}.", spng_strerror(buffer_err)));
+        throw RuntimeError(fmt::format("Failed retrieving PNG buffer: {}.", spng_strerror(buffer_err)));
     }
 
     co_return EncodedImage{
@@ -111,7 +115,7 @@ auto encode_texture_async_png(
         .resolution   = Size2I(image.resolution()),
         .num_channels = image.num_channels(),
         .size_bytes   = size_bytes,
-        .format       = TextureFile::StorageFormat::PNG,
+        .format       = Format::PNG,
     };
 
 }
@@ -128,45 +132,42 @@ auto encode_texture_async_bc7(
 }
 
 
-[[nodiscard]]
-auto import_texture_async(
+} // namespace
+
+
+auto import_texture(
     AssetImporterContext context,
-    Path                 src_filepath,
+    Path                 path,
     ImportTextureParams  params)
         -> Job<UUID>
 {
     co_await reschedule_to(context.thread_pool());
 
-
-    using StorageFormat = TextureFile::StorageFormat;
-    using MIPSpec       = TextureFile::MIPSpec;
+    using MIPSpec = TextureFile::MIPSpec;
 
     // TODO: More formats must be supported.
     assert(
-        params.storage_format == StorageFormat::RAW ||
-        params.storage_format == StorageFormat::PNG
+        params.storage_format == Format::RAW ||
+        params.storage_format == Format::PNG
         && "Only RAW or PNG formats are supported for now. Sad."
     );
 
     // First we load the data with stb. This allows us to load all kinds of formats.
-    auto image = load_image_data_from_file<chan::UByte>(File(src_filepath), 3, 4);
+    auto image = load_image_data_from_file<chan::UByte>(File(path), 3, 4);
     const size_t num_channels = image.num_channels();
 
     // Job per MIP level.
     // TODO: Currently, no mipmapping is supported, so only one job :(
     std::vector<Job<EncodedImage>> encode_jobs;
 
-    if (params.storage_format == StorageFormat::RAW) {
-        encode_jobs.emplace_back(encode_texture_async_raw(context, MOVE(image)));
-    } else
-    if (params.storage_format == StorageFormat::PNG) {
-        encode_jobs.emplace_back(encode_texture_async_png(context, MOVE(image)));
-    } else
-    if (params.storage_format == StorageFormat::BC7) {
+    switch (params.storage_format) {
+        using enum Format;
+        case RAW: encode_jobs.emplace_back(encode_texture_async_raw(context, MOVE(image))); break;
+        case PNG: encode_jobs.emplace_back(encode_texture_async_png(context, MOVE(image))); break;
         // TODO: Not supported.
-        encode_jobs.emplace_back(encode_texture_async_bc7(context, MOVE(image)));
+        case BC7: encode_jobs.emplace_back(encode_texture_async_bc7(context, MOVE(image))); break;
+        default: assert(false);
     }
-
 
     co_await context.completion_context().until_all_ready(encode_jobs);
     co_await reschedule_to(context.thread_pool());
@@ -175,9 +176,11 @@ auto import_texture_async(
     const auto get_job_result = [](auto& job) { return MOVE(job.get_result()); };
 
     std::vector<EncodedImage> encoded_mips =
-        encode_jobs | transform(get_job_result) | ranges::to<std::vector>();
+        encode_jobs | transform(get_job_result) | ranges::to<Vector>();
 
-    const auto get_mip_spec = [](const EncodedImage& im) -> MIPSpec {
+    const auto get_mip_spec = [](const EncodedImage& im)
+        -> MIPSpec
+    {
         return {
             .size_bytes    = uint32_t(im.size_bytes),
             .width_pixels  = uint16_t(im.resolution.width),
@@ -189,7 +192,7 @@ auto import_texture_async(
     std::vector<MIPSpec> mip_specs =
         encoded_mips | transform(get_mip_spec) | ranges::to<std::vector>();
 
-    const Path name = src_filepath.stem();
+    const Path name = path.stem();
     const ResourcePathHint path_hint{
         .directory = "textures",
         .name      = name.c_str(),
@@ -223,5 +226,4 @@ auto import_texture_async(
 }
 
 
-
-} // namespace josh::detail
+} // namespace josh

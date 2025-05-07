@@ -1,31 +1,16 @@
 #pragma once
 #include "AsyncCradle.hpp"
+#include "Common.hpp"
+#include "CommonConcepts.hpp"
 #include "Coroutines.hpp"
 #include "Filesystem.hpp"
 #include "ResourceDatabase.hpp"
-#include "ResourceFiles.hpp"
 #include "TaskCounterGuard.hpp"
 #include "UUID.hpp"
+#include <fmt/core.h>
 
 
 namespace josh {
-
-
-struct ImportModelParams {
-    TextureFile::StorageFormat texture_storage_format = TextureFile::StorageFormat::PNG;
-    // bool skip_meshes     = false;
-    // bool skip_textures   = false;
-    // bool skip_skeletons  = false;
-    // bool skip_animations = false;
-    bool collapse_graph   = false; // Equivalent to aiProcess_OptimizeGraph
-    bool merge_meshes     = false; // Equivalent to aiProcess_OptimizeMeshes
-};
-
-
-struct ImportTextureParams {
-    TextureFile::StorageFormat storage_format; // TODO: Only RAW is supported for now. Ohwell...
-    // bool generate_mips = false; // TODO: Not supported yet.
-};
 
 
 class AssetImporterContext;
@@ -47,20 +32,36 @@ class AssetImporter {
 public:
     AssetImporter(
         ResourceDatabase& resource_database,
-        AsyncCradleRef    async_cradle);
+        AsyncCradleRef    async_cradle
+    )
+        : resource_database_(resource_database)
+        , cradle_           (async_cradle)
+    {}
 
-    [[nodiscard]]
-    auto import_model(Path file, ImportModelParams params = {})
+    template<typename ParamsT,
+        of_signature<Job<UUID>(AssetImporterContext, Path, ParamsT)> ImporterF>
+    void register_importer(ImporterF&& f);
+
+    template<typename ParamsT>
+    auto import_asset(Path path, ParamsT params)
         -> Job<UUID>;
 
-    [[nodiscard]]
-    auto import_texture(Path file, ImportTextureParams params = {})
-        -> Job<UUID>;
+    // TODO: Cannot make import_any() unitil I make a custom Any type
+    // that converts to AnyRef. Dreaded encapsulation makes life ass again.
 
 private:
     friend AssetImporterContext;
     ResourceDatabase&  resource_database_;
     AsyncCradleRef     cradle_;
+
+    using key_type      = std::type_index;
+    using unpacker_func = UniqueFunction<Job<UUID>(AssetImporterContext, Path, AnyRef)>;
+    using dtable_type   = HashMap<key_type, unpacker_func>;
+
+    dtable_type dispatch_table_;
+
+    auto _import_asset(const key_type& key, Path path, AnyRef params)
+        -> Job<UUID>;
 };
 
 
@@ -84,6 +85,49 @@ private:
     AssetImporter&  self_;
     SingleTaskGuard task_guard_;
 };
+
+
+
+
+template<typename ParamsT,
+    of_signature<Job<UUID>(AssetImporterContext, Path, ParamsT)> ImporterF>
+void AssetImporter::register_importer(ImporterF&& f) {
+    const key_type key = typeid(ParamsT);
+    auto [it, was_emplaced] = dispatch_table_.try_emplace(
+        key,
+        [f=FORWARD(f)](AssetImporterContext context, Path path, AnyRef params)
+            -> Job<UUID>
+        {
+            // NOTE: We move the params here because we expect the calling side to
+            // pass the reference to a moveable copy of the destination object.
+            // Most of the time, the params is some kind of a struct so this move
+            // is superfluous at best.
+            return f(MOVE(context), MOVE(path), MOVE(params.target_unchecked<ParamsT>()));
+        }
+    );
+    assert(was_emplaced);
+}
+
+
+template<typename ParamsT>
+auto AssetImporter::import_asset(Path path, ParamsT params)
+    -> Job<UUID>
+{
+    const key_type key = typeid(ParamsT);
+    return _import_asset(key, MOVE(path), AnyRef(params));
+}
+
+
+inline auto AssetImporter::_import_asset(const key_type& key, Path path, AnyRef params)
+    -> Job<UUID>
+{
+    if (auto* kv = try_find(dispatch_table_, key)) {
+        auto& importer = kv->second;
+        return importer(AssetImporterContext(*this), MOVE(path), params);
+    } else {
+        throw RuntimeError(fmt::format("No importer found for ParamType {}", key.name()));
+    }
+}
 
 
 } // namespace josh
