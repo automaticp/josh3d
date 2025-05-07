@@ -144,10 +144,3 @@ find_package(jsoncons CONFIG REQUIRED)
 add_library(jsoncons::jsoncons ALIAS jsoncons)
 
 
-# Precompile external headers
-if (JOSH3D_USE_PCH)
-    target_precompile_headers(glbinding::glbinding INTERFACE <glbinding/gl/gl.h>)
-    target_precompile_headers(imgui::imgui INTERFACE <imgui.h> <imgui_stdlib.h>)
-    target_precompile_headers(glm::glm INTERFACE <glm/glm.hpp> <glm/ext.hpp>)
-    target_precompile_headers(EnTT::EnTT INTERFACE <entt/entt.hpp>)
-endif()

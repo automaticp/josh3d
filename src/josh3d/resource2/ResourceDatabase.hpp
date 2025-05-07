@@ -6,10 +6,6 @@
 #include "StringHash.hpp"
 #include "ThreadsafeQueue.hpp"
 #include "UUID.hpp"
-#include <boost/interprocess/file_mapping.hpp>
-#include <boost/interprocess/mapped_region.hpp>
-#include <boost/unordered/unordered_flat_map.hpp>
-#include <boost/unordered/unordered_flat_map_fwd.hpp>
 #include <cstdint>
 #include <functional>
 #include <fstream>
@@ -81,6 +77,17 @@ class ResourceDatabase {
 public:
     ResourceDatabase(const Path& database_root_dir);
 
+    /*
+    A single row in the table.
+    */
+    struct Row {
+        UUID         uuid;         // UUID of the resource.
+        ResourceType type;         // Type of the resource.
+        ResourcePath filepath;     // Path to the resource relative to the database root.
+        uint64_t     offset_bytes; // Offset of the resource data in the file.
+        uint64_t     size_bytes;   // Size of the resource data in the file.
+    };
+
     // Must be periodically called from the main thread.
     void update();
 
@@ -90,9 +97,16 @@ public:
     auto type_of(const UUID& uuid) const
         -> ResourceType;
 
-    // Returns a view of all UUIDs currently in the database.
-    [[deprecated("Needs a lock.")]]
-    auto entries() const noexcept;
+    // Iterates all rows of the database table under a read lock.
+    // No guarantees are given w.r.t. to the order of iteration.
+    //
+    // Calling any of the pulic interface functions of the database
+    // inside `f` will deadlock the mutex. Don't do it.
+    //
+    // FIXME: This is a problematic way to expose this. There are
+    // alternative interfaces, all with their respective tradeoffs.
+    // Think about this a bit later.
+    void for_each_row(std::invocable<const Row&> auto&& f) const;
 
     // Opens a mapping to the resource with the specified uuid.
     // Will return an empty mapping if the specified resource does not exist.
@@ -192,7 +206,7 @@ private:
     HashMap<UUID, row_id>                   table_;
 
     // Intentionally ordered. TODO: There's a more efficient way to store this.
-    std::set<row_id>                        empty_rows_;
+    OrderedSet<row_id>                      empty_rows_;
 
     // Map: Path -> Use Count. To only delete a file when there are no more users of it.
     // Use strings as keys, not views, so that reallocation and reordering would not invalidate this.
@@ -208,18 +222,7 @@ private:
 
     // To let multiple threads "cancel" failed resource imports, without contending for the main state mutex.
     ThreadsafeQueue<UUID>                   remove_queue_;
-    std::vector<UUID>                       remove_list_; // Local remove list to not stall the remove queue.
-
-    /*
-    A single row in the table.
-    */
-    struct Row {
-        UUID         uuid;         // UUID of the resource.
-        ResourceType type;         // Type of the resource.
-        ResourcePath filepath;     // Path to the resource relative to the database root.
-        uint64_t     offset_bytes; // Offset of the resource data in the file.
-        uint64_t     size_bytes;   // Size of the resource data in the file.
-    };
+    Vector<UUID>                            remove_list_; // Local remove list to not stall the remove queue.
 
     auto _row_ptr(row_id row_id) const noexcept -> Row*;
     auto _num_rows() const noexcept -> size_t;
@@ -245,8 +248,15 @@ private:
 };
 
 
-inline auto ResourceDatabase::entries() const noexcept {
-    return table_ | std::views::keys;
+
+
+inline void ResourceDatabase::for_each_row(
+    std::invocable<const Row &> auto&& f) const
+{
+    const auto rlock = std::shared_lock(state_mutex_);
+    for (const row_id row_id : table_ | std::views::values) {
+        f(std::as_const(*_row_ptr(row_id)));
+    }
 }
 
 

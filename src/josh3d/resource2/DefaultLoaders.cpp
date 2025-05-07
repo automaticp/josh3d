@@ -20,7 +20,6 @@
 #include "UUID.hpp"
 #include "VertexSkinned.hpp"
 #include "VertexStatic.hpp"
-#include <boost/container/static_vector.hpp>
 #include <fmt/format.h>
 #include <jsoncons/basic_json.hpp>
 #include <cassert>
@@ -309,13 +308,32 @@ try {
     // NOTE: We are not loading the dependencies here. This is a bit odd.
     auto _ = context.create_resource<RT::MeshDesc>(uuid, ResourceProgress::Complete, MeshDescResource{
         .mesh_uuid     = deserialize_uuid(j.at("mesh")    .as_string_view()),
-        .diffuse_uuid  = deserialize_uuid(j.at("diffuse") .as_string_view()),
-        .normal_uuid   = deserialize_uuid(j.at("normal")  .as_string_view()),
-        .specular_uuid = deserialize_uuid(j.at("specular").as_string_view()),
-        .specpower     = j.at("specpower").as<float>(),
+        .material_uuid = deserialize_uuid(j.at("material").as_string_view()),
     });
 } catch(...) {
     context.fail_resource<RT::MeshDesc>(uuid);
+}
+
+
+auto load_material(
+    ResourceLoaderContext context,
+    UUID                  uuid)
+        -> Job<>
+try {
+    co_await reschedule_to(context.thread_pool());
+
+    auto mregion = context.resource_database().map_resource(uuid);
+    auto text    = to_span<char>(mregion);
+    const json j = json::parse(text.begin(), text.end());
+
+    auto _ = context.create_resource<RT::Material>(uuid, ResourceProgress::Complete, MaterialResource{
+        .diffuse_uuid  = deserialize_uuid(j.at("diffuse").as_string_view()),
+        .normal_uuid   = deserialize_uuid(j.at("normal").as_string_view()),
+        .specular_uuid = deserialize_uuid(j.at("specular").as_string_view()),
+        .specpower     = j.at("specpower").as<float>(),
+    });
+} catch (...) {
+    context.fail_resource<RT::Material>(uuid);
 }
 
 

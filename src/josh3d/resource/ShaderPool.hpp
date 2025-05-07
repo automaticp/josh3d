@@ -2,8 +2,10 @@
 #include "Filesystem.hpp"
 #include "GLMutability.hpp"
 #include "GLProgram.hpp"
+#include <entt/entity/fwd.hpp>
 #include <memory>
 #include <optional>
+#include <unordered_set>
 
 
 namespace josh {

@@ -51,7 +51,7 @@ auto import_scene(
 inline void register_default_importers(
     AssetImporter& i)
 {
-    i.register_importer<ImportSceneParams>(&import_scene);
+    i.register_importer<ImportSceneParams>  (&import_scene);
     i.register_importer<ImportTextureParams>(&import_texture);
 }
 

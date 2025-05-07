@@ -7,6 +7,7 @@
 #include "VertexSkinned.hpp"
 #include "tags/AlphaTested.hpp"
 #include "tags/Visible.hpp"
+#include "ECS.hpp"
 
 
 namespace josh::stages::primary {

@@ -3,6 +3,7 @@
 #include "SkeletalAnimation.hpp"
 #include "SkinnedMesh.hpp"
 #include "Transform.hpp"
+#include "ECS.hpp"
 
 
 namespace josh::stages::precompute {

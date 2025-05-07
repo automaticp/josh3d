@@ -7,6 +7,7 @@
 #include "detail/RawGLHandle.hpp"
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
+#include <cassert>
 #include <string>
 #include <string_view>
 #include <span>

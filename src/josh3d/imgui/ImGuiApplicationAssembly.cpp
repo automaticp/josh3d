@@ -35,6 +35,7 @@
 #include <fmt/core.h>
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <imgui_stdlib.h>
 #include <range/v3/view/enumerate.hpp>
 #include <cmath>
 #include <cstdio>
@@ -348,7 +349,6 @@ void display_resource_file_debug(
 
     if (ImGui::TreeNode("Entries")) {
         using ranges::views::enumerate;
-        const auto entries = resource_database.entries();
 
         const auto table_flags =
             ImGuiTableFlags_Borders     |
@@ -364,21 +364,23 @@ void display_resource_file_debug(
             ImGui::TableSetupColumn("Offset");
             ImGui::TableSetupColumn("Size");
             ImGui::TableHeadersRow();
-            for (const auto [i, uuid] : enumerate(entries)) {
+            size_t i = 0;
+            resource_database.for_each_row([&i, &unpack_signal](
+                const ResourceDatabase::Row& row)
+            {
                 ImGui::PushID(void_id(i));
                 ImGui::TableNextRow();
 
                 char uuid_str[37]{};
-                serialize_uuid_to(uuid_str, uuid);
-                const ResourceLocation loc = resource_database.locate(uuid);
-                const StrView file = loc.file.view();
+                serialize_uuid_to(uuid_str, row.uuid);
+                const StrView file = row.filepath.view();
 
                 ImGui::TableNextColumn();
                 // NOTE: No ability to select it yet. Just a visual hover hint.
                 ImGui::Selectable(uuid_str, false, ImGuiSelectableFlags_SpanAllColumns);
                 if (ImGui::BeginPopupContextItem()) {
                     if (ImGui::MenuItem("Unpack")) {
-                        unpack_signal.set(uuid);
+                        unpack_signal.set(row.uuid);
                     }
                     ImGui::EndPopup();
                 }
@@ -387,13 +389,15 @@ void display_resource_file_debug(
                 ImGui::TextUnformatted(file);
 
                 ImGui::TableNextColumn();
-                ImGui::Text("%zu", loc.offset_bytes);
+                ImGui::Text("%zu", row.offset_bytes);
 
                 ImGui::TableNextColumn();
-                ImGui::Text("%zu", loc.size_bytes);
+                ImGui::Text("%zu", row.size_bytes);
 
+                ++i;
                 ImGui::PopID();
-            }
+            });
+
             ImGui::EndTable();
         }
         ImGui::TreePop();

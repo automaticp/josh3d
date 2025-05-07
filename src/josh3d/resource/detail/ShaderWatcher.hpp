@@ -3,6 +3,7 @@
 #include "Semantics.hpp"
 #include "ThreadsafeQueue.hpp"
 #include "UniqueFunction.hpp"
+#include <unordered_map>
 #include <cstdint>
 #include <stop_token>
 #include <latch>

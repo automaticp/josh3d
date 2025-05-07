@@ -4,8 +4,10 @@
 #include <boost/container/small_vector.hpp>
 #include <boost/container/static_vector.hpp>
 #include <boost/unordered/unordered_flat_map.hpp>
+#include <boost/unordered/unordered_flat_set.hpp>
 #include <functional>
 #include <map>
+#include <set>
 #include <memory>
 #include <ranges>
 #include <span>
@@ -41,11 +43,28 @@ using HashMap = boost::unordered::unordered_flat_map<KeyT, ValueT, HashF, KeyEqu
 
 template<
     typename KeyT,
+    typename HashF = boost::hash<KeyT>,
+    typename KeyEqualF = std::equal_to<KeyT>,
+    typename AllocatorT = std::allocator<KeyT>
+>
+using HashSet = boost::unordered::unordered_flat_set<KeyT, HashF, KeyEqualF, AllocatorT>;
+
+
+template<
+    typename KeyT,
     typename ValueT,
     typename CompareF = std::less<KeyT>,
     typename AllocatorT = std::allocator<std::pair<const KeyT, ValueT>>
 >
 using OrderedMap = std::map<KeyT, ValueT, CompareF, AllocatorT>;
+
+
+template<
+    typename KeyT,
+    typename CompareF = std::less<KeyT>,
+    typename AllocatorT = std::allocator<KeyT>
+>
+using OrderedSet = std::set<KeyT, CompareF, AllocatorT>;
 
 
 template<

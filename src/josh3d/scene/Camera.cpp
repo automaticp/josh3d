@@ -1,4 +1,6 @@
 #include "Camera.hpp"
+#include <glm/glm.hpp>
+#include <glm/ext.hpp>
 
 
 namespace josh {

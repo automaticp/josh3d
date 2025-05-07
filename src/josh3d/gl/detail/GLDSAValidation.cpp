@@ -15,8 +15,8 @@
 #include "GLUnique.hpp"
 #include "GLAPICore.hpp"
 #include "GLObjectHelpers.hpp"
+#include <glm/glm.hpp>
 #include <array>
-
 
 
 namespace josh {

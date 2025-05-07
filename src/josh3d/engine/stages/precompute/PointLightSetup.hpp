@@ -1,5 +1,6 @@
 #pragma once
 #include "RenderEngine.hpp"
+#include "ECS.hpp"
 #include "LightCasters.hpp"
 #include "BoundingSphere.hpp"
 #include <glm/common.hpp>

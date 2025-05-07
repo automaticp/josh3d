@@ -133,11 +133,19 @@ auto import_mesh_async(
         -> Job<UUID>;
 
 
-auto import_mesh_desc_async(
+auto import_material_async(
+    AssetImporterContext context,
+    String               name,
+    MaterialUUIDs        texture_uuids,
+    float                specpower)
+        -> Job<UUID>;
+
+
+auto import_mesh_entity_async(
     AssetImporterContext context,
     UUID                 mesh_uuid,
-    std::string_view     name,
-    MaterialUUIDs        mat_uuids)
+    UUID                 material_uuid,
+    StrView              name)
         -> Job<UUID>;
 
 

@@ -123,10 +123,14 @@ auto unpack_mesh(
 }
 
 
+namespace {
+
+
+// TODO: Can we make the code less repetetive?
 auto unpack_material_diffuse(
-    ResourceUnpackerContext context,
-    UUID                    uuid,
-    Handle                  handle)
+    ResourceUnpackerContext& context,
+    UUID                     uuid,
+    Handle                   handle)
         -> Job<>
 {
     const auto aba_tag = uintptr_t(co_await peek_coroutine_address());
@@ -176,9 +180,9 @@ auto unpack_material_diffuse(
 
 
 auto unpack_material_normal(
-    ResourceUnpackerContext context,
-    UUID                    uuid,
-    Handle                  handle)
+    ResourceUnpackerContext& context,
+    UUID                     uuid,
+    Handle                   handle)
         -> Job<>
 {
     const auto aba_tag = uintptr_t(co_await peek_coroutine_address());
@@ -222,17 +226,14 @@ auto unpack_material_normal(
 
 
 auto unpack_material_specular(
-    ResourceUnpackerContext context,
-    UUID                    uuid,
-    Handle                  handle)
+    ResourceUnpackerContext& context,
+    UUID                     uuid,
+    Handle                   handle,
+    float                    specpower)
         -> Job<>
 {
     const auto aba_tag = uintptr_t(co_await peek_coroutine_address());
     const auto bail = [](){};
-
-    // FIXME: We have to way to get this if all we are loading is a Texture.
-    // We should likely be loading a material instead.
-    const float specpower = 128.f;
 
     ResourceProgress progress;
     {
@@ -272,6 +273,35 @@ auto unpack_material_specular(
 }
 
 
+} // namespace
+
+
+auto unpack_material(
+    ResourceUnpackerContext context,
+    UUID                    uuid,
+    Handle                  handle)
+        -> Job<>
+{
+    auto [material, usage] = co_await context.resource_registry().get_resource<RT::Material>(uuid);
+
+    StaticVector<Job<>, 3> jobs;
+
+    if (not material.diffuse_uuid.is_nil()) {
+        jobs.emplace_back(unpack_material_diffuse(context, material.diffuse_uuid, handle));
+    }
+
+    if (not material.normal_uuid.is_nil()) {
+        jobs.emplace_back(unpack_material_normal(context, material.normal_uuid, handle));
+    }
+
+    if (not material.specular_uuid.is_nil()) {
+        jobs.emplace_back(unpack_material_specular(context, material.specular_uuid, handle, material.specpower));
+    }
+
+    co_await context.completion_context().until_all_ready(jobs);
+}
+
+
 auto unpack_mdesc(
     ResourceUnpackerContext context,
     UUID                    uuid,
@@ -280,30 +310,10 @@ auto unpack_mdesc(
 {
     auto [mdesc, usage] = co_await context.resource_registry().get_resource<RT::MeshDesc>(uuid);
 
-    StaticVector<Job<>, 4> jobs;
+    StaticVector<Job<>, 2> jobs;
 
-    // FIXME: We should not unpack directly, and instead go through the unpack dispatch table.
-    // There should be an interface similar to get_resource<>(), but unpack_resource<>().
-
-    jobs.emplace_back(context.unpacker().unpack<RT::Mesh>(mdesc.mesh_uuid, handle));
-
-    if (!mdesc.diffuse_uuid.is_nil()) {
-        jobs.emplace_back(unpack_material_diffuse(context.child_context(), mdesc.diffuse_uuid, handle));
-    }
-
-    if (!mdesc.normal_uuid.is_nil()) {
-        jobs.emplace_back(unpack_material_normal(context.child_context(), mdesc.normal_uuid, handle));
-    }
-
-    if (!mdesc.specular_uuid.is_nil()) {
-        jobs.emplace_back(
-            // FIXME: Dirty hack to compensate for inability to load specpower.
-            [&]() -> Job<> {
-                co_await unpack_material_specular(context.child_context(), mdesc.specular_uuid, handle);
-                handle.get<MaterialSpecular>().shininess = mdesc.specpower;
-            }()
-        );
-    }
+    jobs.emplace_back(context.unpacker().unpack<RT::Mesh>    (mdesc.mesh_uuid,     handle));
+    jobs.emplace_back(context.unpacker().unpack<RT::Material>(mdesc.material_uuid, handle));
 
     co_await context.completion_context().until_all_ready(jobs);
 }

@@ -15,6 +15,7 @@
 
 
 namespace josh::detail {
+namespace {
 
 
 auto get_path_to_ai_texture(
@@ -164,6 +165,9 @@ void populate_scene_nodes_preorder(
 }
 
 
+} // namespace
+
+
 auto import_scene_async(
     AssetImporterContext context,
     Path                 path,
@@ -201,7 +205,7 @@ auto import_scene_async(
     if (!ai_scene) { throw error::AssetFileImportFailure(path, ai_importer.GetErrorString()); }
 
     const auto ai_meshes    = std::span(ai_scene->mMeshes,     ai_scene->mNumMeshes   ); // Order: Meshes.
-    const auto ai_materials = std::span(ai_scene->mMaterials,  ai_scene->mNumMaterials);
+    const auto ai_materials = std::span(ai_scene->mMaterials,  ai_scene->mNumMaterials); // Order: Materials.
     const auto ai_anims     = std::span(ai_scene->mAnimations, ai_scene->mNumAnimations);
 
 
@@ -400,41 +404,68 @@ auto import_scene_async(
     }
 
 
-    // Wait for completion of mesh data and texture jobs, so that
-    // we could assemble the mesh description files.
+    // Wait for completion of texture jobs, so that we could assemble the Material files.
 
-    co_await context.completion_context().until_all_ready(mesh_jobs);
+
     co_await context.completion_context().until_all_ready(texture_jobs);
     co_await reschedule_to(context.thread_pool());
 
 
     std::vector<UUID> texture_uuids = texture_jobs | transform(get_job_result) | ranges::to<std::vector>();
-    std::vector<UUID> mesh_uuids    = mesh_jobs    | transform(get_job_result) | ranges::to<std::vector>(); // Order: Meshes.
 
 
-    // "Mesh Description" is a file that just references a Mesh+Material.
-    // TODO: We should probably have a "Material" file too.
+    // Material files just bundle together multiple textures plus
+    // some other surface display parameters. We do these pretty late
+    // because materials depend on textures and those usually take
+    // the longest time to import.
+
+    std::vector<Job<UUID>> material_jobs; // Order: Materials
+    material_jobs.reserve(ai_materials.size());
+
+
+    for (const aiMaterial* ai_material : ai_materials) {
+
+        const auto get_uuid_from_texid = [&](TextureIndex id) -> UUID {
+            return id >= 0 ? texture_uuids[texid2jobid.at(id)] : UUID{};
+        };
+
+        const MaterialIDs mat = material2matids.at(ai_material);
+
+        const MaterialUUIDs texture_uuids{
+            .diffuse_uuid  = get_uuid_from_texid(mat.diffuse_id),
+            .specular_uuid = get_uuid_from_texid(mat.specular_id),
+            .normal_uuid   = get_uuid_from_texid(mat.normal_id),
+        };
+
+        const float specpower = 128.f; // Still using a dummy value. Ohwell.
+
+        // Have to pass the name by-value since in this case it is a copy
+        // and not a reference to a member field. Do not fret, my friend,
+        // I'll just copy this 1KB string real quick and it'll be over.
+        material_jobs.emplace_back(import_material_async(context.child_context(), String(ai_material->GetName().C_Str()), texture_uuids, specpower));
+    }
+
+
+    co_await context.completion_context().until_all_ready(mesh_jobs);
+    co_await context.completion_context().until_all_ready(material_jobs);
+    co_await reschedule_to(context.thread_pool());
+
+    std::vector<UUID> mesh_uuids = mesh_jobs | transform(get_job_result) | ranges::to<std::vector>(); // Order: Meshes.
+    std::vector<UUID> material_uuids = material_jobs | transform(get_job_result) | ranges::to<std::vector>(); // Order: Materials.
+
+    // Mesh Description is a file that just references a Mesh+Material.
+    // Sometimes this is referred to as a "Mesh Entity".
 
     std::vector<Job<UUID>> mdesc_jobs; // Order: Meshes.
 
     mdesc_jobs.reserve(mesh_uuids.size());
 
     for (auto [ai_mesh, mesh_uuid] : zip(ai_meshes, mesh_uuids)) {
+        const UUID material_uuid = material_uuids.at(ai_mesh->mMaterialIndex);
 
-        const auto get_uuid_from_texid = [&](TextureIndex id) -> UUID {
-            return id >= 0 ? texture_uuids[texid2jobid.at(id)] : UUID{};
-        };
-
-        const MaterialIDs&   mat = material2matids.at(ai_materials[ai_mesh->mMaterialIndex]);
-        const MaterialUUIDs& mat_uuids{
-            .diffuse_uuid  = get_uuid_from_texid(mat.diffuse_id),
-            .specular_uuid = get_uuid_from_texid(mat.specular_id),
-            .normal_uuid   = get_uuid_from_texid(mat.normal_id),
-        };
-
-        mdesc_jobs.emplace_back(import_mesh_desc_async(context.child_context(), mesh_uuid, s2sv(ai_mesh->mName), mat_uuids));
+        // NOTE: Can pass aiString as string view here because consistency and assimp...
+        mdesc_jobs.emplace_back(import_mesh_entity_async(context.child_context(), mesh_uuid, material_uuid, s2sv(ai_mesh->mName)));
     }
-
 
 
     co_await context.completion_context().until_all_ready(anim_jobs);
@@ -550,9 +581,7 @@ auto import_scene_async(
     const size_t file_size = scene_json_string.size();
 
 
-    co_await reschedule_to(context.local_context());
     auto [uuid, mregion] = context.resource_database().generate_resource(resource_type, path_hint, file_size);
-    co_await reschedule_to(context.thread_pool());
 
 
     // FIXME: This is very dumb, but I have no idea of a better way of doing this.
@@ -565,8 +594,8 @@ auto import_scene_async(
 
     // Write the scene info to the file.
     {
-        auto dst_bytes = to_span<byte>(mregion);
-        auto src_bytes = as_bytes(Span<char>(scene_json_string));
+        const auto dst_bytes = to_span(mregion);
+        const auto src_bytes = as_bytes(to_span(scene_json_string));
         assert(src_bytes.size() == dst_bytes.size());
         std::ranges::copy(src_bytes, dst_bytes.begin());
     }

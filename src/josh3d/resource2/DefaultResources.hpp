@@ -7,7 +7,6 @@
 #include "SkeletalAnimation.hpp"
 #include "Skeleton.hpp"
 #include "Transform.hpp"
-#include "HashedString.hpp"
 #include "UUID.hpp"
 #include "VertexSkinned.hpp"
 #include "VertexStatic.hpp"
@@ -45,7 +44,7 @@ constexpr ResourceTypeHS Texture   = "Texture"_hs;
 constexpr ResourceTypeHS Animation = "Animation"_hs;
 constexpr ResourceTypeHS Skeleton  = "Skeleton"_hs;
 constexpr ResourceTypeHS Material  = "Material"_hs;
-constexpr ResourceTypeHS MeshDesc  = "MeshDesc"_hs;
+constexpr ResourceTypeHS MeshDesc  = "MeshDesc"_hs; // TODO: This name is shaky.
 } // namespace ResourceType
 
 
@@ -63,20 +62,8 @@ struct SceneResource {
     using node_list_type = Vector<Node>;
     std::shared_ptr<node_list_type> nodes; // Pre-order.
 };
-
-template<> struct resource_traits<ResourceType_::Scene> {
+template<> struct resource_traits<RT::Scene> {
     using resource_type = SceneResource;
-};
-
-
-
-
-struct TextureResource {
-    SharedTexture2D texture;
-};
-
-template<> struct resource_traits<ResourceType_::Texture> {
-    using resource_type = TextureResource;
 };
 
 
@@ -85,9 +72,19 @@ template<> struct resource_traits<ResourceType_::Texture> {
 struct SkeletonResource {
     std::shared_ptr<Skeleton> skeleton;
 };
-
-template<> struct resource_traits<ResourceType_::Skeleton> {
+template<> struct resource_traits<RT::Skeleton> {
     using resource_type = SkeletonResource;
+};
+
+
+
+
+struct AnimationResource {
+    std::shared_ptr<AnimationClip> animation;
+    UUID                           skeleton_uuid;
+};
+template<> struct resource_traits<RT::Animation> {
+    using resource_type = AnimationResource;
 };
 
 
@@ -106,40 +103,51 @@ struct MeshResource {
     using variant_type = std::variant<Static, Skinned>;
     variant_type mesh;
 };
-
-template<>
-struct resource_traits<ResourceType_::Mesh> {
+template<> struct resource_traits<RT::Mesh> {
     using resource_type = MeshResource;
 };
 
 
 
 
-struct MeshDescResource {
-    UUID  mesh_uuid;
-    UUID  diffuse_uuid;
+struct TextureResource {
+    SharedTexture2D texture;
+};
+template<> struct resource_traits<RT::Texture> {
+    using resource_type = TextureResource;
+};
+
+
+
+
+struct MaterialResource {
+    UUID  diffuse_uuid; // Textures
     UUID  normal_uuid;
     UUID  specular_uuid;
     float specpower;
 };
+template<> struct resource_traits<RT::Material> {
+    using resource_type = MaterialResource;
+};
 
-template<>
-struct resource_traits<ResourceType_::MeshDesc> {
+
+
+
+/*
+TODO: Ultimately, this is a crappy stand-in for a more general "entity"
+that can contain an arbitrary number of components by means of referencing
+multiple UUIDs, possibly based on a prefab of some kind.
+*/
+struct MeshDescResource {
+    UUID mesh_uuid;
+    UUID material_uuid;
+};
+template<> struct resource_traits<RT::MeshDesc> {
     using resource_type = MeshDescResource;
 };
 
 
 
-
-struct AnimationResource {
-    std::shared_ptr<AnimationClip> animation;
-    UUID                           skeleton_uuid;
-};
-
-template<>
-struct resource_traits<ResourceType_::Animation> {
-    using resource_type = AnimationResource;
-};
 
 
 

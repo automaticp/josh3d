@@ -14,13 +14,13 @@
 #include "VirtualFilesystem.hpp"
 #include "tags/ShadowCasting.hpp"
 #include <entt/entity/fwd.hpp>
-#include <fstream>
 #include <glm/trigonometric.hpp>
 #include <nlohmann/json.hpp>
 #include <fmt/core.h>
 #include <fmt/format.h>
 #include <range/v3/view/enumerate.hpp>
 #include <boost/scope/defer.hpp>
+#include <fstream>
 #include <cstdint>
 #include <stdexcept>
 #include <string_view>

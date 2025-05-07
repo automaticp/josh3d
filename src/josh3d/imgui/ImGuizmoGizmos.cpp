@@ -21,6 +21,7 @@
 #include <glm/trigonometric.hpp>
 #include <imgui.h>
 #include <cassert>
+#include <unordered_set>
 
 
 namespace josh {

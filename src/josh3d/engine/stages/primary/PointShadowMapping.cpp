@@ -11,6 +11,7 @@
 #include "LightCasters.hpp"
 #include "Mesh.hpp"
 #include "tags/Visible.hpp"
+#include "ECS.hpp"
 #include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/functions.h>
 #include <glm/fwd.hpp>

@@ -16,21 +16,7 @@ auto unpack_mesh(
         -> Job<>;
 
 
-auto unpack_material_diffuse(
-    ResourceUnpackerContext context,
-    UUID                    uuid,
-    Handle                  handle)
-        -> Job<>;
-
-
-auto unpack_material_normal(
-    ResourceUnpackerContext context,
-    UUID                    uuid,
-    Handle                  handle)
-        -> Job<>;
-
-
-auto unpack_material_specular(
+auto unpack_material(
     ResourceUnpackerContext context,
     UUID                    uuid,
     Handle                  handle)
@@ -57,10 +43,10 @@ Convenience to automatically register all unpackers listed in this file. Optiona
 inline void register_default_unpackers(
     ResourceUnpacker& u)
 {
-    u.register_unpacker<RT::Mesh, Handle>(&unpack_mesh);
-    // FIXME: Once again we have a problem since we do not describe materials consistently.
+    u.register_unpacker<RT::Mesh,     Handle>(&unpack_mesh);
+    u.register_unpacker<RT::Material, Handle>(&unpack_material);
     u.register_unpacker<RT::MeshDesc, Handle>(&unpack_mdesc);
-    u.register_unpacker<RT::Scene, Handle>(&unpack_scene);
+    u.register_unpacker<RT::Scene,    Handle>(&unpack_scene);
 }
 
 

@@ -3,6 +3,7 @@
 #include "Transform.hpp"
 #include "BoundingSphere.hpp"
 #include "AABB.hpp"
+#include "ECS.hpp"
 
 
 namespace josh::stages::precompute {

@@ -1,6 +1,8 @@
 #pragma once
 #include "Math.hpp"
 #include "GLAttributeTraits.hpp"
+#include <glm/ext.hpp>
+#include <glm/glm.hpp>
 #include <tuple>
 #include <cstddef>
 

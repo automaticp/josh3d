@@ -3,13 +3,11 @@
 #include "MallocSupport.hpp"
 #include "Pixels.hpp"
 #include "Region.hpp"
+#include <cstring>
 #include <span>
 
 
-
-
 namespace josh {
-
 
 
 template<typename PixelT>
@@ -190,12 +188,11 @@ template<
 >
 auto remap_pixel_data(
     const PixelData<InPixelT>& image, MappingF&& mapping_function)
-    -> PixelData<ResPixelT>
+        -> PixelData<ResPixelT>
 {
     PixelData<ResPixelT> result{ image.size() };
     for (size_t i{ 0 }; i < image.num_pixels(); ++i) {
-        result.data()[i] =
-            std::invoke(std::forward<MappingF>(mapping_function), image.data()[i]);
+        result.data()[i] = mapping_function(image.data()[i]);
     }
     return result;
 }

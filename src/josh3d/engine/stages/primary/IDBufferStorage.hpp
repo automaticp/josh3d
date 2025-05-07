@@ -5,6 +5,7 @@
 #include "RenderTarget.hpp"
 #include "SharedStorage.hpp"
 #include "Region.hpp"
+#include "ECS.hpp"
 
 
 namespace josh {

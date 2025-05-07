@@ -80,6 +80,11 @@ function(make_subtarget SUBTARGET)
         target_link_libraries(${TARGET} ${VISIBILITY} josh3d-tsan)
     endif()
 
+    if (JOSH3D_USE_PCH)
+        # target_precompile_headers(${TARGET} REUSE_FROM $<BUILD_INTERFACE:pch>)
+        target_link_libraries(${TARGET} INTERFACE $<BUILD_INTERFACE:pch>)
+    endif()
+
 endfunction()
 
 
