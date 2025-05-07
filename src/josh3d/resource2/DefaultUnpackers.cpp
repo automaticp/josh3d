@@ -25,8 +25,6 @@ auto unpack_mesh(
     Handle                  handle)
         -> Job<>
 {
-    const auto task_guard = context.task_counter().obtain_task_guard();
-
     /*
     On the first step we expect:
         - Handle is valid;
@@ -131,8 +129,6 @@ auto unpack_material_diffuse(
     Handle                  handle)
         -> Job<>
 {
-    const auto task_guard = context.task_counter().obtain_task_guard();
-
     const auto aba_tag = uintptr_t(co_await peek_coroutine_address());
     const auto bail = [](){};
 
@@ -185,8 +181,6 @@ auto unpack_material_normal(
     Handle                  handle)
         -> Job<>
 {
-    const auto task_guard = context.task_counter().obtain_task_guard();
-
     const auto aba_tag = uintptr_t(co_await peek_coroutine_address());
     const auto bail = [](){};
 
@@ -233,8 +227,6 @@ auto unpack_material_specular(
     Handle                  handle)
         -> Job<>
 {
-    const auto task_guard = context.task_counter().obtain_task_guard();
-
     const auto aba_tag = uintptr_t(co_await peek_coroutine_address());
     const auto bail = [](){};
 
@@ -286,8 +278,6 @@ auto unpack_mdesc(
     Handle                  handle)
         -> Job<>
 {
-    const auto task_guard = context.task_counter().obtain_task_guard();
-
     auto [mdesc, usage] = co_await context.resource_registry().get_resource<RT::MeshDesc>(uuid);
 
     StaticVector<Job<>, 4> jobs;
@@ -295,21 +285,21 @@ auto unpack_mdesc(
     // FIXME: We should not unpack directly, and instead go through the unpack dispatch table.
     // There should be an interface similar to get_resource<>(), but unpack_resource<>().
 
-    jobs.emplace_back(unpack_mesh(context, mdesc.mesh_uuid, handle));
+    jobs.emplace_back(context.unpacker().unpack<RT::Mesh>(mdesc.mesh_uuid, handle));
 
     if (!mdesc.diffuse_uuid.is_nil()) {
-        jobs.emplace_back(unpack_material_diffuse(context, mdesc.diffuse_uuid, handle));
+        jobs.emplace_back(unpack_material_diffuse(context.child_context(), mdesc.diffuse_uuid, handle));
     }
 
     if (!mdesc.normal_uuid.is_nil()) {
-        jobs.emplace_back(unpack_material_normal(context, mdesc.normal_uuid, handle));
+        jobs.emplace_back(unpack_material_normal(context.child_context(), mdesc.normal_uuid, handle));
     }
 
     if (!mdesc.specular_uuid.is_nil()) {
         jobs.emplace_back(
             // FIXME: Dirty hack to compensate for inability to load specpower.
             [&]() -> Job<> {
-                co_await unpack_material_specular(context, mdesc.specular_uuid, handle);
+                co_await unpack_material_specular(context.child_context(), mdesc.specular_uuid, handle);
                 handle.get<MaterialSpecular>().shininess = mdesc.specpower;
             }()
         );
@@ -325,8 +315,6 @@ auto unpack_scene(
     Handle                  handle)
         -> Job<>
 {
-    const auto task_guard = context.task_counter().obtain_task_guard();
-
     auto [scene, usage] = co_await context.resource_registry().get_resource<RT::Scene>(uuid);
 
     // We are going to start loading resources from the scene,
@@ -356,10 +344,14 @@ auto unpack_scene(
     registry.create(new_entities.begin(), new_entities.end());
 
     for (const auto [node, entity] : zip(nodes, new_entities)) {
-        const Handle handle = { registry, entity };
-        handle.emplace<Transform>(node.transform);
+        const Handle node_handle = { registry, entity };
+        node_handle.emplace<Transform>(node.transform);
         if (node.parent_index != SceneResource::Node::no_parent) {
-            attach_to_parent(handle, new_entities[node.parent_index]);
+            attach_to_parent(node_handle, new_entities[node.parent_index]);
+        } else /* root */ {
+            // NOTE: All root nodes are attached to the scene handle.
+            // I might revise this or make it configurable.
+            attach_to_parent(node_handle, handle);
         }
     }
 

@@ -1,15 +1,12 @@
 #pragma once
 #include "AnyRef.hpp"
+#include "AsyncCradle.hpp"
 #include "CommonConcepts.hpp"
-#include "CompletionContext.hpp"
-#include "LocalContext.hpp"
-#include "OffscreenContext.hpp"
 #include "Resource.hpp"
 #include "ResourceDatabase.hpp"
 #include "ResourceRegistry.hpp"
 #include "RuntimeError.hpp"
 #include "TaskCounterGuard.hpp"
-#include "ThreadPool.hpp"
 #include <boost/container_hash/hash.hpp>
 #include <fmt/core.h>
 #include <utility>
@@ -54,20 +51,14 @@ loading, caching and evicting actual resource data.
 class ResourceUnpacker {
 public:
     ResourceUnpacker(
-        ResourceDatabase&  resource_database,
-        ResourceRegistry&  resource_registry,
-        ThreadPool&        thread_pool,
-        OffscreenContext&  offscreen_context,
-        CompletionContext& completion_context
+        ResourceDatabase& resource_database,
+        ResourceRegistry& resource_registry,
+        AsyncCradleRef    async_cradle
     )
-        : resource_database_ (resource_database )
-        , resource_registry_ (resource_registry )
-        , thread_pool_       (thread_pool       )
-        , offscreen_context_ (offscreen_context )
-        , completion_context_(completion_context)
+        : resource_database_(resource_database)
+        , resource_registry_(resource_registry)
+        , cradle_           (async_cradle)
     {}
-
-    void update() { local_context_.drain_weak(); }
 
     template<ResourceType TypeV, typename DestinationT,
         of_signature<Job<>(ResourceUnpackerContext, UUID, DestinationT)> UnpackerF>
@@ -85,11 +76,7 @@ private:
     friend ResourceUnpackerContext;
     ResourceDatabase&  resource_database_;
     ResourceRegistry&  resource_registry_;
-    ThreadPool&        thread_pool_;
-    OffscreenContext&  offscreen_context_;
-    CompletionContext& completion_context_;
-    TaskCounterGuard   task_counter_;
-    LocalContext       local_context_{ task_counter_ };
+    AsyncCradleRef     cradle_;
 
     using key_type      = detail::UnpackerKey;
     using unpacker_func = UniqueFunction<Job<>(ResourceUnpackerContext, UUID, AnyRef)>;
@@ -104,18 +91,33 @@ private:
 
 class ResourceUnpackerContext {
 public:
-    auto& resource_registry()  noexcept { return self_.resource_registry_;  }
-    auto& thread_pool()        noexcept { return self_.thread_pool_;        }
-    auto& offscreen_context()  noexcept { return self_.offscreen_context_;  }
-    auto& completion_context() noexcept { return self_.completion_context_; }
-    auto& task_counter()       noexcept { return self_.task_counter_;       }
-    auto& local_context()      noexcept { return self_.local_context_;      }
+    auto& resource_registry()  noexcept { return self_.resource_registry_;         }
+    auto& thread_pool()        noexcept { return self_.cradle_.loading_pool;       }
+    auto& offscreen_context()  noexcept { return self_.cradle_.offscreen_context;  }
+    auto& completion_context() noexcept { return self_.cradle_.completion_context; }
+    auto& task_counter()       noexcept { return self_.cradle_.task_counter;       }
+    auto& local_context()      noexcept { return self_.cradle_.local_context;      }
     // TODO: Should we instead expose only the relevant unpack_*_to() functions?
-    auto& unpacker()           noexcept { return self_;                     }
+    auto& unpacker()           noexcept { return self_;                            }
+
+    // FIXME: This should not exists, but it has to for now because some unpackers
+    // spawn child unpacking tasks directly instead of going through the interface.
+    // This is because they do not have respective unpackers defined for their subtasks
+    // and would simply fail otherwise.
+    [[nodiscard]]
+    auto child_context() const noexcept
+        -> ResourceUnpackerContext
+    {
+        return { self_ };
+    }
 private:
     friend ResourceUnpacker;
-    ResourceUnpackerContext(ResourceUnpacker& self) : self_{ self } {}
+    ResourceUnpackerContext(ResourceUnpacker& self)
+        : self_(self)
+        , task_guard_(self_.cradle_.task_counter)
+    {}
     ResourceUnpacker& self_;
+    SingleTaskGuard   task_guard_;
 };
 
 
@@ -134,7 +136,7 @@ void ResourceUnpacker::register_unpacker(UnpackerF&& f) {
             // pass the reference to a moveable copy of the destination object.
             // Most of the time, the destination is some kind of a handle or a pointer
             // and so this move is superfluous at best.
-            return f(context, uuid, MOVE(destination.target_unchecked<DestinationT>()));
+            return f(MOVE(context), uuid, MOVE(destination.target_unchecked<DestinationT>()));
         }
     );
     assert(was_emplaced);

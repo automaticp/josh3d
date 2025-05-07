@@ -1,4 +1,5 @@
 #include "AssetImporter.hpp"
+#include "AsyncCradle.hpp"
 #include "detail/AssetImporter.hpp"
 #include "CategoryCasts.hpp"
 #include "Coroutines.hpp"
@@ -17,22 +18,11 @@ namespace josh {
 
 AssetImporter::AssetImporter(
     ResourceDatabase&  resource_database,
-    ThreadPool&        loading_pool,
-    OffscreenContext&  offscreen_context,
-    CompletionContext& completion_context
+    AsyncCradleRef     async_cradle
 )
-    : resource_database_ { resource_database  }
-    , thread_pool_       { loading_pool       }
-    , offscreen_context_ { offscreen_context  }
-    , completion_context_{ completion_context }
+    : resource_database_(resource_database)
+    , cradle_           (async_cradle)
 {}
-
-
-void AssetImporter::update() {
-    while (std::optional task = local_context_.tasks.try_pop()) {
-        (*task)();
-    }
-}
 
 
 auto AssetImporter::import_texture(Path src_filepath, ImportTextureParams params)

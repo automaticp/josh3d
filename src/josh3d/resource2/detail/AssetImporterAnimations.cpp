@@ -75,14 +75,13 @@ void populate_joints_preorder(
 
 [[nodiscard]]
 auto import_skeleton_async(
-    AssetImporter::Access                                   importer,
+    AssetImporterContext                                    context,
     const aiNode*                                           armature,
     std::unordered_map<const aiNode*, size_t>&              node2jointid,
     const std::unordered_map<const aiNode*, const aiBone*>& node2bone)
         -> Job<UUID>
 {
-    const auto task_guard = importer.task_counter().obtain_task_guard();
-    co_await reschedule_to(importer.thread_pool());
+    co_await reschedule_to(context.thread_pool());
 
     std::vector<Joint>        joints;
     std::vector<ResourceName> joint_names;
@@ -104,9 +103,9 @@ auto import_skeleton_async(
     const ResourceType resource_type = SkeletonFile::resource_type;
 
 
-    co_await reschedule_to(importer.local_context());
-    auto [uuid, mregion] = importer.resource_database().generate_resource(resource_type, path_hint, file_size);
-    co_await reschedule_to(importer.thread_pool());
+    co_await reschedule_to(context.local_context());
+    auto [uuid, mregion] = context.resource_database().generate_resource(resource_type, path_hint, file_size);
+    co_await reschedule_to(context.thread_pool());
 
 
     SkeletonFile file = SkeletonFile::create_in(MOVE(mregion), uuid, args);
@@ -125,15 +124,14 @@ auto import_skeleton_async(
 
 [[nodiscard]]
 auto import_anim_async(
-    AssetImporter::Access                            importer,
+    AssetImporterContext                             context,
     const aiAnimation*                               ai_anim,
     const aiNode*                                    armature,
     const UUID&                                      skeleton_uuid,
     const std::unordered_map<const aiNode*, size_t>& node2jointid)
         -> Job<UUID>
 {
-    const auto task_guard = importer.task_counter().obtain_task_guard();
-    co_await reschedule_to(importer.thread_pool());
+    co_await reschedule_to(context.thread_pool());
 
 
     const double tps        = (ai_anim->mTicksPerSecond != 0) ? ai_anim->mTicksPerSecond : 30.0;
@@ -177,9 +175,9 @@ auto import_anim_async(
     const ResourceType resource_type = AnimationFile::resource_type;
 
 
-    co_await reschedule_to(importer.local_context());
-    auto [uuid, mregion] = importer.resource_database().generate_resource(resource_type, path_hint, file_size);
-    co_await reschedule_to(importer.thread_pool());
+    co_await reschedule_to(context.local_context());
+    auto [uuid, mregion] = context.resource_database().generate_resource(resource_type, path_hint, file_size);
+    co_await reschedule_to(context.thread_pool());
 
 
     AnimationFile file = AnimationFile::create_in(MOVE(mregion), uuid, args);

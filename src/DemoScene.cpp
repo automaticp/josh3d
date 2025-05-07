@@ -3,6 +3,7 @@
 #include "AssetImporter.hpp"
 #include "AssetManager.hpp"
 #include "AssetUnpacker.hpp"
+#include "AsyncCradle.hpp"
 #include "DefaultLoaders.hpp"
 #include "DefaultUnpackers.hpp"
 #include "GLPixelPackTraits.hpp"
@@ -13,6 +14,7 @@
 #include "Input.hpp"
 #include "InputFreeCamera.hpp"
 #include "LightCasters.hpp"
+#include "MeshRegistry.hpp"
 #include "ObjectLifecycle.hpp"
 #include "OffscreenContext.hpp"
 #include "Primitives.hpp"
@@ -110,11 +112,12 @@ void DemoScene::process_input() {
 void DemoScene::update() {
     update_input_blocker_from_imgui_io_state();
 
+    async_cradle_.local_context.flush_nonblocking();
+
+    // TODO: Can this be removed too?
     resource_database_.update();
-    resource_registry_.update();
-    resource_unpacker_.update();
+    // TODO: Remove.
     asset_manager_.update();
-    asset_importer_.update();
 
     asset_unpacker_.retire_completed_requests();
     while (asset_unpacker_.can_unpack_more()) {
@@ -158,27 +161,46 @@ void DemoScene::render() {
 
 
 DemoScene::DemoScene(glfw::Window& window)
-    : window_           { window }
-    , loading_pool_     { 6      }
-    , offscreen_context_{ window }
-    , asset_manager_    { loading_pool_, offscreen_context_, completion_context_, mesh_registry_ }
-    , asset_unpacker_   { registry_ }
-    , scene_importer_   { asset_manager_, asset_unpacker_, registry_ }
-    , resource_database_{ ".josh3d/" } // TODO: Un-hardcode.
-    , asset_importer_   { resource_database_, loading_pool_, offscreen_context_, completion_context_ }
-    , resource_registry_(resource_database_, mesh_registry_, loading_pool_, offscreen_context_, completion_context_)
-    , resource_unpacker_(resource_database_, resource_registry_, loading_pool_, offscreen_context_, completion_context_)
-    , primitives_       { asset_manager_ }
-    , rengine_          {
+    : window_(window)
+    , async_cradle_(6, 6, window_)
+    , mesh_registry_()
+    , asset_manager_(
+        async_cradle_.loading_pool,
+        async_cradle_.offscreen_context,
+        async_cradle_.completion_context,
+        mesh_registry_
+    )
+    , asset_unpacker_(registry_)
+    , scene_importer_(asset_manager_, asset_unpacker_, registry_)
+    , resource_database_(".josh3d/") // TODO: Un-hardcode.
+    , asset_importer_(
+        resource_database_,
+        async_cradle_
+    )
+    , resource_registry_(
+        resource_database_,
+        mesh_registry_,
+        async_cradle_
+    )
+    , resource_unpacker_(
+        resource_database_,
+        resource_registry_,
+        async_cradle_
+    )
+    , primitives_(asset_manager_)
+    , rengine_(
         registry_,
         mesh_registry_,
         primitives_,
         globals::window_size.size_ref(),
         RenderEngine::HDRFormat::R11F_G11F_B10F,
         globals::frame_timer
-    }
-    , input_        { window_, input_blocker_ }
-    , imgui_        {
+    )
+    , input_(
+        window_,
+        input_blocker_
+    )
+    , imgui_(
         window_,
         rengine_,
         registry_,
@@ -189,7 +211,7 @@ DemoScene::DemoScene(glfw::Window& window)
         asset_importer_,
         resource_unpacker_,
         vfs()
-    }
+    )
 {
 
 
@@ -308,6 +330,21 @@ DemoScene::DemoScene(glfw::Window& window)
 }
 
 
+DemoScene::~DemoScene() noexcept {
+    // NOTE: We have to drain tasks manually before destruction
+    // of any of the class members, since some of the tasks might
+    // depend on those members being alive.
+    size_t tasks_drained = -1;
+    do {
+        try {
+            tasks_drained = async_cradle_.local_context.drain_all_tasks();
+        } catch (const std::exception& e) {
+            logstream() << "[ERROR]:" << e.what() << '\n';
+        } catch (...) {
+            logstream() << "[UNKNOWN ERROR]\n";
+        }
+    } while (tasks_drained != 0);
+}
 
 
 void DemoScene::configure_input(SharedStorageView<GBuffer> gbuffer) {

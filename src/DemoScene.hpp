@@ -2,7 +2,9 @@
 #include "AssetImporter.hpp"
 #include "AssetUnpacker.hpp"
 #include "AssetManager.hpp"
+#include "AsyncCradle.hpp"
 #include "CompletionContext.hpp"
+#include "ECS.hpp"
 #include "ImGuiApplicationAssembly.hpp"
 #include "Input.hpp"
 #include "InputFreeCamera.hpp"
@@ -11,6 +13,7 @@
 #include "ResourceDatabase.hpp"
 #include "ResourceUnpacker.hpp"
 #include "SceneImporter.hpp"
+#include "Semantics.hpp"
 #include "SharedStorage.hpp"
 #include "RenderEngine.hpp"
 #include <boost/iostreams/tee.hpp>
@@ -24,7 +27,9 @@
 namespace josh { class GBuffer; }
 
 
-class DemoScene {
+class DemoScene
+    : private josh::Immovable<DemoScene>
+{
 public:
     DemoScene(glfw::Window& window);
     void execute_frame();
@@ -36,12 +41,13 @@ public:
 
     auto get_log_sink() -> std::ostream& { return imgui_.get_log_sink(); }
 
+    ~DemoScene() noexcept;
+
 private:
     glfw::Window&           window_;
-    entt::registry          registry_;
-    josh::ThreadPool        loading_pool_;
-    josh::OffscreenContext  offscreen_context_;
-    josh::CompletionContext completion_context_;
+
+    josh::AsyncCradle       async_cradle_;
+
     josh::MeshRegistry      mesh_registry_;
 
     josh::AssetManager      asset_manager_;
@@ -54,6 +60,7 @@ private:
     josh::ResourceUnpacker  resource_unpacker_;
 
     josh::Primitives        primitives_;
+    josh::Registry          registry_;
     josh::RenderEngine      rengine_;
 
     josh::SimpleInputBlocker   input_blocker_;

@@ -35,32 +35,80 @@ public:
     void emplace(auto&& fun) { tasks.emplace(FORWARD(fun)); }
 
     // Execute the tasks in the queue until empty.
-    void drain_strong() {
+    // Returns the number of tasks executed.
+    // Exceptions thrown by the underlying tasks are propagated.
+    auto flush_strong()
+        -> size_t
+    {
+        size_t n = 0;
         while (auto task = tasks.try_pop()) {
             (*task)();
+            ++n;
         }
+        return n;
     }
 
     // Execute the tasks in the queue until empty or the lock is contended.
-    void drain_weak() {
+    // Returns the number of tasks executed.
+    // Exceptions thrown by the underlying tasks are propagated.
+    auto flush_nonblocking()
+        -> size_t
+    {
+        size_t n = 0;
         while (auto task = tasks.try_lock_and_try_pop()) {
             (*task)();
+            ++n;
         }
+        return n;
     }
 
-    ~LocalContext() noexcept /* dare throwing in your tasks */ {
+    // Spin until the task queue is flushed *and* no more tasks are in flight.
+    // Will simply do `flush_strong()` if no task counter is tracked.
+    //
+    // Returns the total number of tasks executed.
+    //
+    // Exceptions thrown by the underlying tasks are propagated.
+    // The context is not guaranteed to be fully drained until the function
+    // returns without throwing.
+    auto drain_all_tasks(
+        std::chrono::milliseconds sleep_budget = std::chrono::milliseconds(10))
+            -> size_t
+    {
+        size_t n = 0;
+        n += flush_strong();
         if (task_counter_) {
-            const auto sleep_budget = std::chrono::milliseconds(10);
-            while (task_counter_->any_tasks_in_flight() || !tasks.empty()) {
-
+            size_t tasks_flushed = 0;
+            // Here, new tasks can indeed be started from existing tasks, but
+            // we make sure that we increment the count of child tasks before
+            // decrementing the count of the parent tasks.
+            while (task_counter_->any_tasks_in_flight() || tasks_flushed) {
                 const auto wake_up_point =
                     std::chrono::steady_clock::now() + sleep_budget;
 
-                drain_strong();
+                n += flush_strong();
 
                 std::this_thread::sleep_until(wake_up_point);
             }
         }
+        return n;
+    }
+
+    // The destructor executes `drain_all_tasks()` but will swallow all
+    // exceptions. Manually call `drain_all_tasks()` at the end of execution
+    // if exception handling is desired.
+    //
+    // NOTE: You *very likely* want to drain the tasks yourself manually, because
+    // while the tasks here are indeed drained forcefully, the objects those tasks
+    // were referencing might already be destroyed at this point.
+    ~LocalContext() noexcept {
+        size_t tasks_drained = 0;
+        do {
+            try {
+                tasks_drained = drain_all_tasks();
+            } catch (...) { // NOLINT(bugprone-empty-catch)
+                // TODO: Could we at least log instead of simply swallowing?
+            }
+        } while (tasks_drained != 0);
     }
 
 private:

@@ -116,14 +116,13 @@ void extract_mesh_elems_to(
 
 [[nodiscard]]
 auto import_mesh_async(
-    AssetImporter::Access                            importer,
+    AssetImporterContext                             context,
     const aiMesh*                                    ai_mesh,
     UUID                                             skeleton_uuid,
     const std::unordered_map<const aiNode*, size_t>* node2jointid) // Optional, if Skinned.
         -> Job<UUID>
 {
-    const auto task_guard = importer.task_counter().obtain_task_guard();
-    co_await reschedule_to(importer.thread_pool());
+    co_await reschedule_to(context.thread_pool());
 
     const ResourcePathHint path_hint{
         .directory = "meshes",
@@ -176,9 +175,9 @@ auto import_mesh_async(
     const ResourceType resource_type = MeshFile::resource_type;
 
 
-    co_await reschedule_to(importer.local_context());
-    auto [uuid, mregion] = importer.resource_database().generate_resource(resource_type, path_hint, file_size);
-    co_await reschedule_to(importer.thread_pool());
+    co_await reschedule_to(context.local_context());
+    auto [uuid, mregion] = context.resource_database().generate_resource(resource_type, path_hint, file_size);
+    co_await reschedule_to(context.thread_pool());
 
 
 
@@ -208,14 +207,13 @@ auto import_mesh_async(
 
 [[nodiscard]]
 auto import_mesh_desc_async(
-    AssetImporter::Access importer,
+    AssetImporterContext  context,
     UUID                  mesh_uuid,
     std::string_view      name,
     MaterialUUIDs         mat_uuids)
         -> Job<UUID>
 {
-    const auto task_guard = importer.task_counter().obtain_task_guard();
-    co_await reschedule_to(importer.thread_pool());
+    co_await reschedule_to(context.thread_pool());
     /*
     Simple json spec for the time being:
 
@@ -256,9 +254,9 @@ auto import_mesh_desc_async(
 
     // After writing json to string (and learning the required size),
     // we go back to the resource database to generate actual files.
-    co_await reschedule_to(importer.local_context());
-    auto [uuid, mregion] = importer.resource_database().generate_resource(resource_type, path_hint, file_size);
-    co_await reschedule_to(importer.thread_pool());
+    co_await reschedule_to(context.local_context());
+    auto [uuid, mregion] = context.resource_database().generate_resource(resource_type, path_hint, file_size);
+    co_await reschedule_to(context.thread_pool());
 
 
     // FIXME: Dumb.

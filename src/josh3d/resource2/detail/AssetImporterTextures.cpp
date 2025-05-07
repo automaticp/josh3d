@@ -40,7 +40,7 @@ struct EncodedImage {
 
 [[nodiscard]]
 auto encode_texture_async_raw(
-    AssetImporter::Access  importer [[maybe_unused]],
+    AssetImporterContext&  context [[maybe_unused]],
     ImageData<chan::UByte> image)
         -> Job<EncodedImage>
 {
@@ -59,11 +59,11 @@ auto encode_texture_async_raw(
 
 [[nodiscard]]
 auto encode_texture_async_png(
-    AssetImporter::Access  importer,
+    AssetImporterContext&  context,
     ImageData<chan::UByte> image)
         -> Job<EncodedImage>
 {
-    co_await reschedule_to(importer.thread_pool());
+    co_await reschedule_to(context.thread_pool());
 
 
     auto      ctx_owner = make_spng_encoding_context();
@@ -119,7 +119,7 @@ auto encode_texture_async_png(
 
 [[nodiscard]]
 auto encode_texture_async_bc7(
-    AssetImporter::Access  importer,
+    AssetImporterContext&  context,
     ImageData<chan::UByte> image)
         -> Job<EncodedImage>
 {
@@ -130,13 +130,12 @@ auto encode_texture_async_bc7(
 
 [[nodiscard]]
 auto import_texture_async(
-    AssetImporter::Access importer,
-    Path                  src_filepath,
-    ImportTextureParams   params)
+    AssetImporterContext context,
+    Path                 src_filepath,
+    ImportTextureParams  params)
         -> Job<UUID>
 {
-    const auto task_guard = importer.task_counter().obtain_task_guard();
-    co_await reschedule_to(importer.thread_pool());
+    co_await reschedule_to(context.thread_pool());
 
 
     using StorageFormat = TextureFile::StorageFormat;
@@ -158,19 +157,19 @@ auto import_texture_async(
     std::vector<Job<EncodedImage>> encode_jobs;
 
     if (params.storage_format == StorageFormat::RAW) {
-        encode_jobs.emplace_back(encode_texture_async_raw(importer, MOVE(image)));
+        encode_jobs.emplace_back(encode_texture_async_raw(context, MOVE(image)));
     } else
     if (params.storage_format == StorageFormat::PNG) {
-        encode_jobs.emplace_back(encode_texture_async_png(importer, MOVE(image)));
+        encode_jobs.emplace_back(encode_texture_async_png(context, MOVE(image)));
     } else
     if (params.storage_format == StorageFormat::BC7) {
         // TODO: Not supported.
-        encode_jobs.emplace_back(encode_texture_async_bc7(importer, MOVE(image)));
+        encode_jobs.emplace_back(encode_texture_async_bc7(context, MOVE(image)));
     }
 
 
-    co_await importer.completion_context().until_all_ready(encode_jobs);
-    co_await reschedule_to(importer.thread_pool());
+    co_await context.completion_context().until_all_ready(encode_jobs);
+    co_await reschedule_to(context.thread_pool());
 
 
     const auto get_job_result = [](auto& job) { return MOVE(job.get_result()); };
@@ -207,16 +206,16 @@ auto import_texture_async(
     const ResourceType resource_type = TextureFile::resource_type;
 
 
-    co_await reschedule_to(importer.local_context());
-    auto [uuid, mregion] = importer.resource_database().generate_resource(resource_type, path_hint, file_size);
-    co_await reschedule_to(importer.thread_pool());
+    co_await reschedule_to(context.local_context());
+    auto [uuid, mregion] = context.resource_database().generate_resource(resource_type, path_hint, file_size);
+    co_await reschedule_to(context.thread_pool());
 
 
     TextureFile file = TextureFile::create_in(MOVE(mregion), uuid, args);
 
     for (auto [mip_id, encoded] : enumerate(encoded_mips)) {
-        const std::span dst_bytes = file.mip_bytes(mip_id);
-        const std::span src_bytes = std::span((std::byte*)encoded.data.get(), encoded.size_bytes);
+        const auto dst_bytes = file.mip_bytes(mip_id);
+        const auto src_bytes = Span<std::byte>((std::byte*)encoded.data.get(), encoded.size_bytes);
         std::ranges::copy(src_bytes, dst_bytes.begin());
     }
 

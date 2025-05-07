@@ -6,7 +6,6 @@
 #include "GLAPIBinding.hpp"
 #include "GLAPICore.hpp"
 #include "GLBuffers.hpp"
-#include "GLObjectHelpers.hpp"
 #include "GLObjects.hpp"
 #include "GLPixelPackTraits.hpp"
 #include "GLTextures.hpp"
@@ -73,7 +72,7 @@ auto stage_lod(const MeshFile& file, uint8_t lod)
     UniqueBuffer<uint32_t> dst_elems;
     UniqueUntypedBuffer    dst_verts;
 
-    dst_elems->specify_storage(detail::pun_span<const uint32_t>(src_elems), policies);
+    dst_elems->specify_storage(pun_span<const uint32_t>(src_elems), policies);
     dst_verts->as_typed<std::byte>().specify_storage(src_verts, policies);
 
     return { MOVE(dst_verts), MOVE(dst_elems) };
@@ -94,10 +93,10 @@ auto upload_lods(
 };
 
 auto load_static_mesh(
-    ResourceLoaderContext context,
-    const MeshFile&       file,
-    UUID                  uuid,
-    MeshRegistry&         mesh_registry)
+    ResourceLoaderContext& context,
+    const MeshFile&        file,
+    UUID                   uuid,
+    MeshRegistry&          mesh_registry)
         -> Job<>
 {
     using VertexT = VertexStatic;
@@ -173,10 +172,10 @@ auto load_static_mesh(
 }
 
 auto load_skinned_mesh(
-    ResourceLoaderContext context,
-    const MeshFile&       file,
-    UUID                  uuid,
-    MeshRegistry&         mesh_registry)
+    ResourceLoaderContext& context,
+    const MeshFile&        file,
+    UUID                   uuid,
+    MeshRegistry&          mesh_registry)
         -> Job<>
 {
     using VertexT = VertexSkinned;
@@ -270,8 +269,6 @@ auto load_mesh(
     UUID                  uuid)
         -> Job<>
 try {
-    const auto task_guard = context.task_counter().obtain_task_guard();
-
     co_await reschedule_to(context.thread_pool());
 
     auto file = MeshFile::open(context.resource_database().map_resource(uuid));
@@ -285,8 +282,7 @@ try {
     switch (file.layout()) {
         using enum MeshFile::VertexLayout;
         case Static: {
-            auto job = load_static_mesh(context, file, uuid, mesh_registry);
-            co_await job;
+            co_await load_static_mesh(context, file, uuid, mesh_registry);
             break;
         }
         case Skinned:
@@ -305,8 +301,6 @@ auto load_mdesc(
     UUID                  uuid)
         -> Job<>
 try {
-    const auto task_guard = context.task_counter().obtain_task_guard();
-
     co_await reschedule_to(context.thread_pool());
 
     auto mregion = context.resource_database().map_resource(uuid);
@@ -362,8 +356,6 @@ auto load_texture(
     UUID                  uuid)
         -> Job<>
 try {
-    const auto task_guard = context.task_counter().obtain_task_guard();
-
     co_await reschedule_to(context.thread_pool());
 
     auto file = TextureFile::open(context.resource_database().map_resource(uuid));
@@ -553,8 +545,6 @@ auto load_scene(
     UUID                  uuid)
         -> Job<>
 try {
-    const auto task_guard = context.task_counter().obtain_task_guard();
-
     co_await reschedule_to(context.thread_pool());
 
     auto mregion = context.resource_database().map_resource(uuid);

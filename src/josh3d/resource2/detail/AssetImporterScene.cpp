@@ -164,13 +164,12 @@ void populate_scene_nodes_preorder(
 
 [[nodiscard]]
 auto import_model_async(
-    AssetImporter::Access importer,
-    Path                  path,
-    ImportModelParams     params)
+    AssetImporterContext context,
+    Path                 path,
+    ImportModelParams    params)
         -> Job<UUID>
 {
-    const auto task_guard = importer.task_counter().obtain_task_guard();
-    co_await reschedule_to(importer.thread_pool());
+    co_await reschedule_to(context.thread_pool());
 
     const Path parent_dir = path.parent_path(); // Reused in a few places.
 
@@ -272,7 +271,7 @@ auto import_model_async(
             .storage_format = params.texture_storage_format,
         };
 
-        texture_jobs.emplace_back(import_texture_async(importer, path, tex_params));
+        texture_jobs.emplace_back(import_texture_async(context.child_context(), path, tex_params));
     }
 
 
@@ -345,11 +344,11 @@ auto import_model_async(
         auto [it, was_emplaced] = armature2_node2jointid.try_emplace(armature);
         assert(was_emplaced);
         Node2JointID& node2jointid = it->second;
-        skeleton_jobs.emplace_back(import_skeleton_async(importer, armature, node2jointid, node2bone));
+        skeleton_jobs.emplace_back(import_skeleton_async(context.child_context(), armature, node2jointid, node2bone));
     }
 
-    co_await importer.completion_context().until_all_ready(skeleton_jobs);
-    co_await reschedule_to(importer.thread_pool());
+    co_await context.completion_context().until_all_ready(skeleton_jobs);
+    co_await reschedule_to(context.thread_pool());
 
 
     // Now unpack the relationship betweed each armature and associated UUID.
@@ -388,23 +387,23 @@ auto import_model_async(
             node2jointid  = &armature2_node2jointid.at(armature);
         }
 
-        mesh_jobs.emplace_back(import_mesh_async(importer, ai_mesh, skeleton_uuid, node2jointid));
+        mesh_jobs.emplace_back(import_mesh_async(context.child_context(), ai_mesh, skeleton_uuid, node2jointid));
     }
 
     for (const aiAnimation* ai_anim : ai_anims) {
         const aiNode* armature           = anim2armature.at(ai_anim);
         const UUID skeleton_uuid         = armature2uuid.at(armature);
         const Node2JointID& node2jointid = armature2_node2jointid.at(armature);
-        anim_jobs.emplace_back(import_anim_async(importer, ai_anim, armature, skeleton_uuid, node2jointid));
+        anim_jobs.emplace_back(import_anim_async(context.child_context(), ai_anim, armature, skeleton_uuid, node2jointid));
     }
 
 
     // Wait for completion of mesh data and texture jobs, so that
     // we could assemble the mesh description files.
 
-    co_await importer.completion_context().until_all_ready(mesh_jobs);
-    co_await importer.completion_context().until_all_ready(texture_jobs);
-    co_await reschedule_to(importer.thread_pool());
+    co_await context.completion_context().until_all_ready(mesh_jobs);
+    co_await context.completion_context().until_all_ready(texture_jobs);
+    co_await reschedule_to(context.thread_pool());
 
 
     std::vector<UUID> texture_uuids = texture_jobs | transform(get_job_result) | ranges::to<std::vector>();
@@ -431,14 +430,14 @@ auto import_model_async(
             .normal_uuid   = get_uuid_from_texid(mat.normal_id),
         };
 
-        mdesc_jobs.emplace_back(import_mesh_desc_async(importer, mesh_uuid, s2sv(ai_mesh->mName), mat_uuids));
+        mdesc_jobs.emplace_back(import_mesh_desc_async(context.child_context(), mesh_uuid, s2sv(ai_mesh->mName), mat_uuids));
     }
 
 
 
-    co_await importer.completion_context().until_all_ready(anim_jobs);
-    co_await importer.completion_context().until_all_ready(mdesc_jobs);
-    co_await reschedule_to(importer.thread_pool());
+    co_await context.completion_context().until_all_ready(anim_jobs);
+    co_await context.completion_context().until_all_ready(mdesc_jobs);
+    co_await reschedule_to(context.thread_pool());
 
 
     std::vector<UUID> mdesc_uuids = mdesc_jobs | transform(get_job_result) | ranges::to<std::vector>(); // Order: Meshes.
@@ -549,9 +548,9 @@ auto import_model_async(
     const size_t file_size = scene_json_string.size();
 
 
-    co_await reschedule_to(importer.local_context());
-    auto [uuid, mregion] = importer.resource_database().generate_resource(resource_type, path_hint, file_size);
-    co_await reschedule_to(importer.thread_pool());
+    co_await reschedule_to(context.local_context());
+    auto [uuid, mregion] = context.resource_database().generate_resource(resource_type, path_hint, file_size);
+    co_await reschedule_to(context.thread_pool());
 
 
     // FIXME: This is very dumb, but I have no idea of a better way of doing this.

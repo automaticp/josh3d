@@ -16,27 +16,6 @@
 #include <span>
 
 
-namespace josh {
-
-
-class AssetImporter::Access {
-public:
-    auto& resource_database()  noexcept { return self_.resource_database_;  }
-    auto& thread_pool()        noexcept { return self_.thread_pool_;        }
-    auto& offscreen_context()  noexcept { return self_.offscreen_context_;  }
-    auto& completion_context() noexcept { return self_.completion_context_; }
-    auto& task_counter()       noexcept { return self_.task_counter_;       }
-    auto& local_context()      noexcept { return self_.local_context_;      }
-private:
-    friend AssetImporter;
-    Access(AssetImporter& self) : self_{ self } {}
-    AssetImporter& self_;
-};
-
-
-} // namespace josh
-
-
 namespace josh::detail {
 
 
@@ -125,27 +104,17 @@ inline auto aabb2aabb(const aiAABB& aabb) noexcept
 }
 
 
-template<typename DstT, typename SrcT>
-auto pun_span(std::span<SrcT> src) noexcept
-    -> std::span<DstT>
-{
-    assert((src.size_bytes()      % sizeof(DstT))  == 0);
-    assert((uintptr_t(src.data()) % alignof(DstT)) == 0);
-    return { std::launder(reinterpret_cast<DstT*>(src.data())), src.size_bytes() / sizeof(DstT) };
-}
-
-
 [[nodiscard]]
 auto import_texture_async(
-    AssetImporter::Access importer,
-    Path                  src_filepath,
-    ImportTextureParams   params)
+    AssetImporterContext context,
+    Path                 src_filepath,
+    ImportTextureParams  params)
         -> Job<UUID>;
 
 
 [[nodiscard]]
 auto import_skeleton_async(
-    AssetImporter::Access                                   importer,
+    AssetImporterContext                                    context,
     const aiNode*                                           armature,
     std::unordered_map<const aiNode*, size_t>&              node2jointid,
     const std::unordered_map<const aiNode*, const aiBone*>& node2bone)
@@ -154,7 +123,7 @@ auto import_skeleton_async(
 
 [[nodiscard]]
 auto import_anim_async(
-    AssetImporter::Access                            importer,
+    AssetImporterContext                             context,
     const aiAnimation*                               ai_anim,
     const aiNode*                                    armature,
     const UUID&                                      skeleton_uuid,
@@ -164,7 +133,7 @@ auto import_anim_async(
 
 [[nodiscard]]
 auto import_mesh_async(
-    AssetImporter::Access                            importer,
+    AssetImporterContext                             context,
     const aiMesh*                                    ai_mesh,
     UUID                                             skeleton_uuid,
     const std::unordered_map<const aiNode*, size_t>* node2jointid) // Optional, if Skinned.
@@ -173,18 +142,18 @@ auto import_mesh_async(
 
 [[nodiscard]]
 auto import_mesh_desc_async(
-    AssetImporter::Access importer,
-    UUID                  mesh_uuid,
-    std::string_view      name,
-    MaterialUUIDs         mat_uuids)
+    AssetImporterContext context,
+    UUID                 mesh_uuid,
+    std::string_view     name,
+    MaterialUUIDs        mat_uuids)
         -> Job<UUID>;
 
 
 [[nodiscard]]
 auto import_model_async(
-    AssetImporter::Access importer,
-    Path                  path,
-    ImportModelParams     params)
+    AssetImporterContext context,
+    Path                 path,
+    ImportModelParams    params)
         -> Job<UUID>;
 
 

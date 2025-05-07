@@ -1,14 +1,11 @@
 #pragma once
-#include "CompletionContext.hpp"
+#include "AsyncCradle.hpp"
 #include "Coroutines.hpp"
 #include "Filesystem.hpp"
-#include "LocalContext.hpp"
-#include "OffscreenContext.hpp"
 #include "ResourceDatabase.hpp"
 #include "ResourceFiles.hpp"
-#include "UUID.hpp"
 #include "TaskCounterGuard.hpp"
-#include "ThreadPool.hpp"
+#include "UUID.hpp"
 
 
 namespace josh {
@@ -31,6 +28,9 @@ struct ImportTextureParams {
 };
 
 
+class AssetImporterContext;
+
+
 /*
 AssetImporter is a relatively independent tool that takes
 external assets of different kinds (models, meshes, textures, etc.),
@@ -46,13 +46,8 @@ we currently use it internally to import mesh and model data.
 class AssetImporter {
 public:
     AssetImporter(
-        ResourceDatabase&  resource_database,
-        ThreadPool&        loading_pool, // Best to use a separate pool for this.
-        OffscreenContext&  offscreen_context,
-        CompletionContext& completion_context);
-
-    // Must be called periodically from the main thread.
-    void update();
+        ResourceDatabase& resource_database,
+        AsyncCradleRef    async_cradle);
 
     [[nodiscard]]
     auto import_model(Path file, ImportModelParams params = {})
@@ -62,16 +57,32 @@ public:
     auto import_texture(Path file, ImportTextureParams params = {})
         -> Job<UUID>;
 
-    class Access; // Trying not to leak impl details, but still use importer state.
-
 private:
+    friend AssetImporterContext;
     ResourceDatabase&  resource_database_;
-    ThreadPool&        thread_pool_;
-    OffscreenContext&  offscreen_context_;
-    CompletionContext& completion_context_;
-    TaskCounterGuard   task_counter_;
-    LocalContext       local_context_{ task_counter_ };
+    AsyncCradleRef     cradle_;
+};
 
+
+class AssetImporterContext {
+public:
+    auto& resource_database()  noexcept { return self_.resource_database_;  }
+    auto& thread_pool()        noexcept { return self_.cradle_.loading_pool;       }
+    auto& offscreen_context()  noexcept { return self_.cradle_.offscreen_context;  }
+    auto& completion_context() noexcept { return self_.cradle_.completion_context; }
+    auto& local_context()      noexcept { return self_.cradle_.local_context;      }
+
+    // TODO: Remove.
+    auto child_context() const noexcept
+        -> AssetImporterContext
+    {
+        return { self_ };
+    }
+private:
+    friend AssetImporter;
+    AssetImporterContext(AssetImporter& self) : self_(self), task_guard_(self.cradle_.task_counter) {}
+    AssetImporter&  self_;
+    SingleTaskGuard task_guard_;
 };
 
 

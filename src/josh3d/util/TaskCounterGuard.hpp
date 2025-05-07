@@ -2,9 +2,13 @@
 #include "Semantics.hpp"
 #include <atomic>
 #include <cstddef>
+#include <utility>
 
 
 namespace josh {
+
+
+class SingleTaskGuard;
 
 
 /*
@@ -16,7 +20,9 @@ Useful when the tasks could potentially access resources
 that have the same or wider lifetime than the object containing
 the counter guard.
 */
-class TaskCounterGuard : private Immovable<TaskCounterGuard> {
+class TaskCounterGuard
+    : private Immovable<TaskCounterGuard>
+{
 public:
     void report_task_started() {
         count_.fetch_add(1, std::memory_order_release); // Could be relaxed, I think.
@@ -40,23 +46,9 @@ public:
     // before the operation is scheduled on another thread.
     //
     // Either use manual reporting, or this guard, not both.
-    //
-    // TODO: Only works for coroutines, since only they can switch context and
-    // keep an immovable guard around.
-    [[nodiscard]] auto obtain_task_guard() {
-        class SingleTaskGuard : private Immovable<SingleTaskGuard> {
-        public:
-            SingleTaskGuard(TaskCounterGuard& self) : self_{ self } {
-                self_.report_task_started();
-            }
-            ~SingleTaskGuard() noexcept {
-                self_.report_task_ended();
-            }
-        private:
-            TaskCounterGuard& self_;
-        };
-        return SingleTaskGuard{ *this };
-    }
+    [[nodiscard]]
+    auto obtain_task_guard()
+        -> SingleTaskGuard;
 
     ~TaskCounterGuard() noexcept {
         ptrdiff_t value = count_.load(std::memory_order_acquire);
@@ -74,6 +66,40 @@ public:
 private:
     std::atomic<ptrdiff_t> count_{ 0 };
 };
+
+
+class SingleTaskGuard
+    : private MoveOnly<SingleTaskGuard>
+{
+public:
+    SingleTaskGuard(TaskCounterGuard& guard)
+        : guard_(&guard)
+    {
+        guard_->report_task_started();
+    }
+    SingleTaskGuard(SingleTaskGuard&& other) noexcept
+        : guard_(std::exchange(other.guard_, nullptr))
+    {}
+    SingleTaskGuard& operator=(SingleTaskGuard&& other) noexcept {
+        if (guard_) guard_->report_task_ended();
+        guard_ = std::exchange(other.guard_, nullptr);
+        return *this;
+    }
+    ~SingleTaskGuard() noexcept {
+        if (guard_) guard_->report_task_ended();
+    }
+private:
+    TaskCounterGuard* guard_;
+};
+
+
+[[nodiscard]]
+inline auto TaskCounterGuard::obtain_task_guard()
+    -> SingleTaskGuard
+{
+    return { *this };
+}
+
 
 
 } // namespace josh

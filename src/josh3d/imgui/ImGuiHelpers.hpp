@@ -177,3 +177,17 @@ inline void ImageGL(
 
 } // namespace imgui
 } // namespace josh
+
+
+/*
+Extensions to ImGui namespace.
+*/
+namespace ImGui {
+
+
+inline auto TextUnformatted(std::string_view str) {
+    TextUnformatted(str.begin(), str.end());
+}
+
+
+} // namespace ImGui

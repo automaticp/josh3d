@@ -110,6 +110,16 @@ auto to_span(R&& r) noexcept
     return { r.data(), r.size() };
 }
 
+template<typename DstT, typename SrcT>
+auto pun_span(Span<SrcT> src) noexcept
+    -> Span<DstT>
+{
+    static_assert(alignof(DstT) >= alignof(SrcT));
+    assert((src.size_bytes()      % sizeof(DstT))  == 0);
+    assert((uintptr_t(src.data()) % alignof(DstT)) == 0);
+    return { std::launder(reinterpret_cast<DstT*>(src.data())), src.size_bytes() / sizeof(DstT) };
+}
+
 
 // TODO: That horrible operator==() is giving me nightmares.
 using StrView = std::string_view;

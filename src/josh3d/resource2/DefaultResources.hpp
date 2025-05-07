@@ -1,8 +1,6 @@
 #pragma once
-#include "Camera.hpp"
 #include "GLObjects.hpp"
 #include "LODPack.hpp"
-#include "LightCasters.hpp"
 #include "MeshStorage.hpp"
 #include "Resource.hpp"
 #include "ResourceRegistry.hpp"
@@ -16,7 +14,6 @@
 #include <cstdint>
 #include <memory>
 #include <variant>
-#include <vector>
 
 
 /*

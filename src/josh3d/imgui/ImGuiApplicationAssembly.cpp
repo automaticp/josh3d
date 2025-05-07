@@ -261,15 +261,15 @@ void display_resource_file_debug(
     Registry&           registry,
     const MeshRegistry& mesh_registry)
 {
-    thread_local std::string path;
-    thread_local std::string last_error;
-    thread_local size_t      selected_id{};
-    thread_local std::vector<Entity> id2entity;
-    thread_local std::optional<SkeletonFile> opened_file;
+    thread_local String                 path;
+    thread_local String                 last_error;
+    thread_local size_t                 selected_id{};
+    thread_local Vector<Entity>         id2entity;
+    thread_local Optional<SkeletonFile> opened_file;
 
-    thread_local std::optional<Job<UUID>> importing_texture;
-    thread_local std::optional<Job<UUID>> importing_model;
-    thread_local std::optional<UUID>      last_imported;
+    thread_local Optional<Job<UUID>> importing_texture;
+    thread_local Optional<Job<UUID>> importing_model;
+    thread_local Optional<UUID>      last_imported;
 
     thread_local ImportModelParams import_model_params = {};
 
@@ -287,108 +287,110 @@ void display_resource_file_debug(
     });
 
 
+
+
+    ImGui::Text("Root: %s", resource_database.root().c_str());
+
     ImGui::InputText("Path", &path);
 
+    if (ImGui::Button("Import Texture")) {
+        try {
+            importing_texture = asset_importer.import_texture(path);
+            last_error = {};
+        } catch (const std::exception& e) {
+            last_error = e.what();
+        }
+    }
 
-    if (ImGui::TreeNode("Resource Database")) {
+    using StorageFormat = TextureFile::StorageFormat;
+    const StorageFormat formats[2]{
+        StorageFormat::RAW,
+        StorageFormat::PNG,
+    };
 
-        ImGui::Text("Root: %s", resource_database.root().c_str());
+    const char* format_names[2]{
+        "Raw",
+        "PNG",
+    };
 
+    size_t current_idx = 0;
+    for (const StorageFormat format : formats) {
+        if (format == import_model_params.texture_storage_format) { break; }
+        ++current_idx;
+    }
 
-        if (ImGui::Button("Import Texture")) {
-            try {
-                importing_texture = asset_importer.import_texture(path);
-                last_error = {};
-            } catch (const std::exception& e) {
-                last_error = e.what();
+    if (ImGui::BeginCombo("Texture Format", format_names[current_idx])) {
+        for (const size_t i : irange(std::size(formats))) {
+            if (ImGui::Selectable(format_names[i], current_idx == i)) {
+                import_model_params.texture_storage_format = formats[i];
             }
         }
+        ImGui::EndCombo();
+    }
 
-        using StorageFormat = TextureFile::StorageFormat;
-        const StorageFormat formats[2]{
-            StorageFormat::RAW,
-            StorageFormat::PNG,
-        };
 
-        const char* format_names[2]{
-            "Raw",
-            "PNG",
-        };
-
-        size_t current_idx = 0;
-        for (const StorageFormat format : formats) {
-            if (format == import_model_params.texture_storage_format) { break; }
-            ++current_idx;
+    if (ImGui::Button("Import Model")) {
+        try {
+            importing_model = asset_importer.import_model(path, import_model_params);
+            last_error = {};
+        } catch (const std::exception& e) {
+            last_error = e.what();
         }
+    }
 
-        if (ImGui::BeginCombo("Texture Format", format_names[current_idx])) {
-            for (const size_t i : irange(std::size(formats))) {
-                if (ImGui::Selectable(format_names[i], current_idx == i)) {
-                    import_model_params.texture_storage_format = formats[i];
-                }
-            }
-            ImGui::EndCombo();
-        }
+    if (ImGui::TreeNode("Entries")) {
+        using ranges::views::enumerate;
+        const auto entries = resource_database.entries();
 
+        const auto table_flags =
+            ImGuiTableFlags_Borders     |
+            ImGuiTableFlags_Resizable   |
+            ImGuiTableFlags_Reorderable |
+            ImGuiTableFlags_Hideable    |
+            ImGuiTableFlags_SizingStretchProp |
+            ImGuiTableFlags_HighlightHoveredColumn;
 
-        if (ImGui::Button("Import Model")) {
-            try {
-                importing_model = asset_importer.import_model(path, import_model_params);
-                last_error = {};
-            } catch (const std::exception& e) {
-                last_error = e.what();
-            }
-        }
+        if (ImGui::BeginTable("Resources", 4, table_flags)) {
+            ImGui::TableSetupColumn("UUID");
+            ImGui::TableSetupColumn("File");
+            ImGui::TableSetupColumn("Offset");
+            ImGui::TableSetupColumn("Size");
+            ImGui::TableHeadersRow();
+            for (const auto [i, uuid] : enumerate(entries)) {
+                ImGui::PushID(void_id(i));
+                ImGui::TableNextRow();
 
-        if (ImGui::TreeNode("Entries")) {
-            using ranges::views::enumerate;
-            const auto entries = resource_database.entries();
+                char uuid_str[37]{};
+                serialize_uuid_to(uuid_str, uuid);
+                const ResourceLocation loc = resource_database.locate(uuid);
+                const StrView file = loc.file.view();
 
-            const auto table_flags =
-                ImGuiTableFlags_Borders     |
-                ImGuiTableFlags_Resizable   |
-                ImGuiTableFlags_Reorderable |
-                ImGuiTableFlags_Hideable    |
-                ImGuiTableFlags_HighlightHoveredColumn;
-
-            if (ImGui::BeginTable("Resources", 4, table_flags)) {
-                ImGui::TableSetupColumn("UUID");
-                ImGui::TableSetupColumn("File");
-                ImGui::TableSetupColumn("Offset");
-                ImGui::TableSetupColumn("Size");
-                ImGui::TableHeadersRow();
-                for (const auto [i, uuid] : enumerate(entries)) {
-                    ImGui::PushID(void_id(i));
-                    ImGui::TableNextRow();
-                    char uuid_str[36]{};
-                    to_chars(uuid, std::begin(uuid_str), std::end(uuid_str));
-                    const ResourceLocation loc = resource_database.locate(uuid);
-                    const StrView file = loc.file.view();
-                    ImGui::TableNextColumn();
-                    ImGui::TextUnformatted(std::begin(uuid_str), std::end(uuid_str));
-                    ImGui::TableNextColumn();
-                    ImGui::SmallButton("...");
-                    ImGui::SameLine();
-                    if (ImGui::BeginPopupContextItem()) {
-                        if (ImGui::Button("Unpack")) {
-                            unpack_signal.set(uuid);
-                        }
-                        ImGui::EndPopup();
+                ImGui::TableNextColumn();
+                // NOTE: No ability to select it yet. Just a visual hover hint.
+                ImGui::Selectable(uuid_str, false, ImGuiSelectableFlags_SpanAllColumns);
+                if (ImGui::BeginPopupContextItem()) {
+                    if (ImGui::MenuItem("Unpack")) {
+                        unpack_signal.set(uuid);
                     }
-                    ImGui::TextUnformatted(file.begin(), file.end());
-                    ImGui::TableNextColumn();
-                    ImGui::Text("%zu", loc.offset_bytes);
-                    ImGui::TableNextColumn();
-                    ImGui::Text("%zu", loc.size_bytes);
-                    ImGui::PopID();
+                    ImGui::EndPopup();
                 }
-                ImGui::EndTable();
-            }
-            ImGui::TreePop();
-        }
 
+                ImGui::TableNextColumn();
+                ImGui::TextUnformatted(file);
+
+                ImGui::TableNextColumn();
+                ImGui::Text("%zu", loc.offset_bytes);
+
+                ImGui::TableNextColumn();
+                ImGui::Text("%zu", loc.size_bytes);
+
+                ImGui::PopID();
+            }
+            ImGui::EndTable();
+        }
         ImGui::TreePop();
     }
+
 
     if (importing_texture) {
         if (importing_texture->is_ready()) {
