@@ -1,6 +1,7 @@
 #pragma once
 #include "CommonConcepts.hpp"
 #include <concepts>
+#include <stdexcept>
 #include <type_traits>
 #include <utility>
 #include <algorithm>
@@ -306,6 +307,13 @@ auto binary_search(
             .s        = float((value - prev_value) / diff)
         };
     }
+}
+
+
+// Panics by throwing a logic_error. Does not cause UB.
+[[noreturn]]
+inline void safe_unreachable() noexcept(false) {
+    throw std::logic_error("Reached unreachable.");
 }
 
 

@@ -1,3 +1,4 @@
+#include "detail/SPNG.hpp"
 #include "DefaultImporters.hpp"
 #include "AssetImporter.hpp"
 #include "Channels.hpp"
@@ -15,22 +16,6 @@ namespace {
 
 
 using Format = TextureFile::StorageFormat;
-
-
-struct SPNGContextDeleter {
-    void operator()(spng_ctx* p) const noexcept { spng_ctx_free(p); }
-};
-
-
-using spng_ctx_ptr = std::unique_ptr<spng_ctx, SPNGContextDeleter>;
-
-
-// For some bizzare reason, each encode should allocate a new context.
-auto make_spng_encoding_context()
-    -> spng_ctx_ptr
-{
-    return spng_ctx_ptr{ spng_ctx_new(SPNG_CTX_ENCODER) };
-}
 
 
 struct EncodedImage {
@@ -70,10 +55,12 @@ auto encode_texture_async_png(
     co_await reschedule_to(context.thread_pool());
 
 
-    auto      ctx_owner = make_spng_encoding_context();
+    auto      ctx_owner = detail::make_spng_encoding_context();
     spng_ctx* ctx       = ctx_owner.get();
+    int       err       = 0;
 
-    spng_set_option(ctx, SPNG_ENCODE_TO_BUFFER, 1);
+    err = spng_set_option(ctx, SPNG_ENCODE_TO_BUFFER, 1);
+    if (err) throw RuntimeError(fmt::format("SPNG context option error: {}.", spng_strerror(err)));
 
     const uint8_t color_type = [&]{
         switch (image.num_channels()) {
@@ -92,23 +79,18 @@ auto encode_texture_async_png(
         .filter_method      = {}, // Default.
         .interlace_method   = {}, // Default.
     };
-    spng_set_ihdr(ctx, &header);
+    err = spng_set_ihdr(ctx, &header);
+    if (err) throw RuntimeError(fmt::format("SPNG context header error: {}.", spng_strerror(err)));
 
     const spng_format format = SPNG_FMT_PNG; // Match format in `header`.
 
-    int encode_err = spng_encode_image(ctx, image.data(), image.size_bytes(), format, SPNG_ENCODE_FINALIZE);
+    err = spng_encode_image(ctx, image.data(), image.size_bytes(), format, SPNG_ENCODE_FINALIZE);
+    if (err) throw RuntimeError(fmt::format("Failed encoding PNG: {}.", spng_strerror(err)));
 
-    if (encode_err) {
-        throw RuntimeError(fmt::format("Failed encoding PNG: {}.", spng_strerror(encode_err)));
-    }
 
     size_t size_bytes;
-    int    buffer_err;
-    auto   data = unique_malloc_ptr<chan::UByte[]>((chan::UByte*)spng_get_png_buffer(ctx, &size_bytes, &buffer_err));
-
-    if (!data) {
-        throw RuntimeError(fmt::format("Failed retrieving PNG buffer: {}.", spng_strerror(buffer_err)));
-    }
+    auto   data = unique_malloc_ptr<chan::UByte[]>((chan::UByte*)spng_get_png_buffer(ctx, &size_bytes, &err));
+    if (not data or err) throw RuntimeError(fmt::format("Failed retrieving PNG buffer: {}.", spng_strerror(err)));
 
     co_return EncodedImage{
         .data         = MOVE(data),

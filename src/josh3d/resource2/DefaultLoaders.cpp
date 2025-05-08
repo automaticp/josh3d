@@ -1,6 +1,8 @@
 #include "Asset.hpp"
 #include "Common.hpp"
 #include "CategoryCasts.hpp"
+#include "ContainerUtils.hpp"
+#include "CoroCore.hpp"
 #include "Coroutines.hpp"
 #include "DefaultResources.hpp"
 #include "GLAPIBinding.hpp"
@@ -10,6 +12,7 @@
 #include "GLPixelPackTraits.hpp"
 #include "GLTextures.hpp"
 #include "LODPack.hpp"
+#include "MallocSupport.hpp"
 #include "MeshRegistry.hpp"
 #include "MeshStorage.hpp"
 #include "Ranges.hpp"
@@ -20,12 +23,14 @@
 #include "UUID.hpp"
 #include "VertexSkinned.hpp"
 #include "VertexStatic.hpp"
+#include "detail/SPNG.hpp"
 #include <fmt/format.h>
 #include <jsoncons/basic_json.hpp>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <spng.h>
 
 
 namespace josh {
@@ -348,22 +353,175 @@ auto pick_internal_format(ImageIntent intent, size_t num_channels) noexcept
         return InternalFormat::SRGBA8;
     }
     // TODO: other
-    assert(false);
+    safe_unreachable();
 }
 
 auto pick_pixel_data_format(TextureFile::StorageFormat format, size_t num_channels) noexcept
     -> PixelDataFormat
 {
     using enum TextureFile::StorageFormat;
-    // TODO: Will potentially need to before here. Uh-uh.
-    assert(format == RAW && "TODO: Support other image formats.");
     if (num_channels == 3) {
         return PixelDataFormat::RGB;
     } else if (num_channels == 4) {
         return PixelDataFormat::RGBA;
     }
-    assert(false);
+    safe_unreachable();
 }
+
+auto needs_decoding(TextureFile::StorageFormat format)
+    -> bool
+{
+    switch (format) {
+        using enum TextureFile::StorageFormat;
+        case PNG:
+            return true;
+        case RAW:
+        case BC7:
+        case _count:
+        default:
+            return false;
+    }
+}
+
+// TODO: Maybe we could aready write these helpers once and not torture ourselves
+// recreating this every time this information is needed in 300 different places.
+auto expected_size(Extent2I resolution, size_t num_channels, PixelDataType type)
+    -> size_t
+{
+    const size_t num_pixels = size_t(resolution.width) * size_t(resolution.height);
+    const size_t channel_size = [&]{
+        switch (type) {
+            using PDT = PixelDataType;
+            case PDT::UByte:
+            case PDT::Byte:
+                return 1;
+            case PDT::Short:
+            case PDT::UShort:
+            case PDT::HalfFloat:
+                return 2;
+            case PDT::Int:
+            case PDT::UInt:
+            case PDT::Float:
+                return 4;
+            default:
+                throw RuntimeError("PixelDataType not supported.");
+        }
+    }();
+    return num_pixels * num_channels * channel_size;
+}
+
+struct DecodedImage {
+    unique_malloc_ptr<byte[]> bytes;
+    size_t                    size_bytes;
+    auto span() const noexcept -> Span<byte> { return { bytes.get(), size_bytes }; }
+};
+
+auto decode_texture_async_png(
+    ResourceLoaderContext& context,
+    Span<const byte>       bytes,
+    size_t                 num_channels)
+        -> Job<DecodedImage>
+{
+    co_await reschedule_to(context.thread_pool());
+
+    auto      ctx_owner = detail::make_spng_decoding_context();
+    spng_ctx* ctx       = ctx_owner.get();
+    int       err       = 0;
+
+    err = spng_set_png_buffer(ctx, bytes.data(), bytes.size_bytes());
+    if (err) throw RuntimeError(fmt::format("Failed setting PNG buffer: {}.", spng_strerror(err)));
+
+    const auto format = [&]{
+        switch (num_channels) {
+            case 3: return SPNG_FMT_RGB8;
+            case 4: return SPNG_FMT_RGBA8;
+            default: std::terminate();
+        }
+    }();
+
+    size_t decoded_size;
+    err = spng_decoded_image_size(ctx, format, &decoded_size);
+    if (err) throw RuntimeError(fmt::format("Failed querying PNG image size: {}.", spng_strerror(err)));
+
+    auto decoded_bytes = malloc_unique<byte[]>(decoded_size);
+    err = spng_decode_image(ctx, decoded_bytes.get(), decoded_size, format, 0);
+    if (err) throw RuntimeError(fmt::format("Failed decoding PNG image: {}.", spng_strerror(err)));
+
+    co_return DecodedImage{
+        .bytes      = MOVE(decoded_bytes),
+        .size_bytes = decoded_size,
+    };
+}
+
+auto decode_and_upload_mip(
+    ResourceLoaderContext& context,
+    const TextureFile&     file,
+    RawTexture2D<>         texture,
+    uint8_t                mip_id)
+        -> Job<>
+{
+    using StorageFormat = TextureFile::StorageFormat;
+    const size_t          num_channels = file.num_channels();
+    const PixelDataType   type         = PixelDataType::UByte;
+
+    const StorageFormat    src_format   = file.format(mip_id);
+    const PixelDataFormat  format       = pick_pixel_data_format(src_format, num_channels);
+    const MipLevel         level        = int(mip_id);
+    const Extent2I         resolution   = file.resolution(mip_id);
+    const Span<const byte> src_bytes    = as_bytes(file.mip_bytes(mip_id));
+
+    assert(needs_decoding(src_format));
+
+    DecodedImage decoded_image =
+        co_await decode_texture_async_png(context, src_bytes, num_channels);
+
+    if (expected_size(resolution, num_channels, type) != decoded_image.size_bytes) throw RuntimeError("Size does not match resolution.");
+
+    co_await reschedule_to(context.offscreen_context());
+
+    texture.upload_image_region(
+        { {}, resolution },
+        format,
+        type,
+        decoded_image.bytes.get(),
+        level
+    );
+}
+
+auto upload_mip(
+    ResourceLoaderContext& context,
+    const TextureFile&     file,
+    RawTexture2D<>         texture,
+    uint8_t                mip_id)
+        -> Job<>
+{
+    using StorageFormat = TextureFile::StorageFormat;
+    const size_t          num_channels = file.num_channels();
+    const PixelDataType   type         = PixelDataType::UByte;
+
+    // TODO: Handle BC7 properly.
+
+    const StorageFormat    src_format   = file.format(mip_id);
+    const PixelDataFormat  format       = pick_pixel_data_format(src_format, num_channels);
+    const MipLevel         level        = int(mip_id);
+    const Extent2I         resolution   = file.resolution(mip_id);
+    const Span<const byte> src_bytes    = as_bytes(file.mip_bytes(mip_id));
+
+    assert(not needs_decoding(src_format));
+
+    if (expected_size(resolution, num_channels, type) != src_bytes.size()) throw RuntimeError("Size does not match resolution.");
+
+    co_await reschedule_to(context.offscreen_context());
+
+    texture.upload_image_region(
+        { {}, resolution },
+        format,
+        type,
+        src_bytes.data(),
+        level
+    );
+};
+
 
 } // namespace
 
@@ -391,42 +549,37 @@ try {
     // - Clamp MIPs
     // - Update (ask the user to not touch the other lods?)
 
+    SmallVector<Job<>, 3> upload_jobs;
+
     auto    usage      = ResourceUsage();
     auto    progress   = ResourceProgress::Incomplete;
     uint8_t cur_mip    = num_mips;
     bool    first_time = true;
     do {
-        co_await reschedule_to(context.offscreen_context());
-
         // FIXME: next_lod_range() is really dumb, and unsuitable for textures.
         const auto [beg_mip, end_mip] = next_lod_range(cur_mip, num_mips);
         const auto mip_ids            = reverse(irange(beg_mip, end_mip));
         cur_mip = beg_mip;
 
         // Upload data for new mips.
+        upload_jobs.clear();
         for (const auto mip_id : mip_ids) {
-            using enum TextureFile::StorageFormat;
-            const auto            src_format = file.format(mip_id);
-            const PixelDataType   type       = PixelDataType::UByte;
-            const PixelDataFormat format     = pick_pixel_data_format(src_format, num_channels);
-            const MipLevel        level      = int(mip_id);
-            const Extent2I        resolution = file.resolution(mip_id);
-            const auto            bytes      = file.mip_bytes(mip_id);
-            texture->upload_image_region(
-                { {}, resolution },
-                format,
-                type,
-                bytes.data(),
-                level
-            );
+            const auto format = file.format(mip_id);
+            if (needs_decoding(format)) {
+                upload_jobs.emplace_back(decode_and_upload_mip(context, file, texture, mip_id));
+            } else {
+                upload_jobs.emplace_back(upload_mip(context, file, texture, mip_id));
+            }
         }
 
-        // FIXME: Fence.
-        glapi::finish();
+        // NOTE: All uploading jobs are finishing in the offscreen
+        // context, so the last one will resume there too.
+        // TODO: Ready or succeed? Do we care? How can it fail anyway?
+        co_await until_all_succeed(upload_jobs);
 
-        // TODO: What context do we upload this from?
-        // This is potentially blocking, but it has to be a valid GL context.
-        // co_await reschedule_to(context.local_context());
+        // FIXME: Fence.
+        // NOTE: Only fencing after uploading multiple MIPs in a batch.
+        glapi::finish();
 
         if (cur_mip == 0) progress = ResourceProgress::Complete;
 

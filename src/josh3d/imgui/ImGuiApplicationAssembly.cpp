@@ -421,141 +421,146 @@ void display_resource_file_debug(
 
 
 
-    ImGui::SeparatorText("SkeletonFile");
-    ImGui::PushID("SkeletonFile");
+    if (ImGui::TreeNode("Debug")) {
+
+        ImGui::SeparatorText("SkeletonFile");
+        ImGui::PushID("SkeletonFile");
 
 
-    if (ImGui::TreeNode("Save")) {
+        if (ImGui::TreeNode("Save")) {
 
-        if (ImGui::BeginListBox("Entities")) {
-            id2entity.clear();
-            size_t id{};
-            char name[16]{ '\0' };
-            for (const auto [e, mesh] : registry.view<SkinnedMesh>().each()) {
-                std::snprintf(name, std::size(name), "%d", to_entity(e));
-                if (ImGui::Selectable(name, id == selected_id)) {
-                    selected_id = id;
-                }
-                id2entity.emplace_back(e);
-                ++id;
-            }
-            ImGui::EndListBox();
-        }
-
-        if (ImGui::Button("Save")) {
-            try {
-                const Entity entity = id2entity.at(selected_id);
-                const Skeleton& skeleton = *registry.get<SkinnedMesh>(entity).pose.skeleton;
-                // auto file = SkeletonFile::create(path, skeleton.joints.size());
-                // std::span<Joint> file_joints = file.joints();
-                // assert(file_joints.size() == skeleton.joints.size());
-                // std::ranges::copy(skeleton.joints, file_joints.begin());
-                last_error = {};
-            } catch (const std::exception& e) {
-                last_error = e.what();
-            }
-        }
-
-        ImGui::TreePop();
-    }
-
-    if (ImGui::TreeNode("Open")) {
-
-        if (ImGui::Button("Open")) {
-            try {
-                // opened_file = SkeletonFile::open(path);
-                last_error = {};
-            } catch (const std::exception& e) {
-                last_error = e.what();
-            }
-        }
-
-        if (auto* f = try_get(opened_file)) {
-            ImGui::Text("Num Joints: %d", f->num_joints());
-            using ranges::views::enumerate;
-            for (const auto [j, joint] : enumerate(f->joints())) {
-                ImGui::Text("Joint ID: %d, Parent ID: %d", int(j), joint.parent_id);
-                imgui::Matrix4x4DisplayWidget(joint.inv_bind);
-            }
-        }
-
-
-        ImGui::TreePop();
-    }
-
-
-    ImGui::PopID();
-
-
-    ImGui::SeparatorText("MeshFile");
-    ImGui::PushID("MeshFile");
-
-
-    if (ImGui::TreeNode("Save")) {
-
-        if (ImGui::BeginListBox("Entities")) {
-            id2entity.clear();
-            size_t id{};
-            char name[16]{};
-            auto iterate_view = [&id, &name](auto&& view, const char* type) {
-                for (const Entity e : view) {
-                    std::snprintf(name, std::size(name), "%s %d", type, to_entity(e));
+            if (ImGui::BeginListBox("Entities")) {
+                id2entity.clear();
+                size_t id{};
+                char name[16]{ '\0' };
+                for (const auto [e, mesh] : registry.view<SkinnedMesh>().each()) {
+                    std::snprintf(name, std::size(name), "%d", to_entity(e));
                     if (ImGui::Selectable(name, id == selected_id)) {
                         selected_id = id;
                     }
                     id2entity.emplace_back(e);
                     ++id;
                 }
-            };
-            iterate_view(registry.view<MeshID<VertexStatic>>(), "Static" );
-            iterate_view(registry.view<SkinnedMesh>(),          "Skinned");
-            ImGui::EndListBox();
-        }
-
-        if (ImGui::Button("Save")) {
-            try {
-                const Entity entity  = id2entity.at(selected_id);
-                using VertexT = VertexStatic;
-                auto download_from_storage = [&]<typename VertexT>(MeshID<VertexT> mesh_id) {
-                    const auto&  storage = *mesh_registry.storage_for<VertexT>();
-                    auto [vert_range, elem_range] = storage.buffer_ranges(mesh_id);
-                    using LODSpec = MeshFile::LODSpec;
-                    constexpr auto layout = MeshFile::vertex_traits<VertexT>::layout;
-                    LODSpec specs[1]{
-                        LODSpec{
-                            .num_verts = uint32_t(vert_range.count),
-                            .num_elems = uint32_t(elem_range.count)
-                        },
-                    };
-                    // auto file = MeshFile::create(path, layout, specs);
-                    // auto dst_verts = file.template lod_verts<layout>(0);
-                    // auto dst_elems = file.lod_elems(0);
-                    // storage.vertex_buffer().download_data_into(dst_verts, vert_range.offset);
-                    // storage.index_buffer() .download_data_into(dst_elems, elem_range.offset);
-                };
-
-                if (const auto* static_mesh = registry.try_get<MeshID<VertexT>>(entity)) {
-                    download_from_storage(*static_mesh);
-                } else if (const auto* skinned_mesh = registry.try_get<SkinnedMesh>(entity)) {
-                    download_from_storage(skinned_mesh->mesh_id);
-                } else { assert(false); }
-
-                last_error = {};
-            } catch (const std::exception& e) {
-                last_error = e.what();
+                ImGui::EndListBox();
             }
+
+            if (ImGui::Button("Save")) {
+                try {
+                    const Entity entity = id2entity.at(selected_id);
+                    const Skeleton& skeleton = *registry.get<SkinnedMesh>(entity).pose.skeleton;
+                    // auto file = SkeletonFile::create(path, skeleton.joints.size());
+                    // std::span<Joint> file_joints = file.joints();
+                    // assert(file_joints.size() == skeleton.joints.size());
+                    // std::ranges::copy(skeleton.joints, file_joints.begin());
+                    last_error = {};
+                } catch (const std::exception& e) {
+                    last_error = e.what();
+                }
+            }
+
+            ImGui::TreePop();
         }
 
+        if (ImGui::TreeNode("Open")) {
+
+            if (ImGui::Button("Open")) {
+                try {
+                    // opened_file = SkeletonFile::open(path);
+                    last_error = {};
+                } catch (const std::exception& e) {
+                    last_error = e.what();
+                }
+            }
+
+            if (auto* f = try_get(opened_file)) {
+                ImGui::Text("Num Joints: %d", f->num_joints());
+                using ranges::views::enumerate;
+                for (const auto [j, joint] : enumerate(f->joints())) {
+                    ImGui::Text("Joint ID: %d, Parent ID: %d", int(j), joint.parent_id);
+                    imgui::Matrix4x4DisplayWidget(joint.inv_bind);
+                }
+            }
+
+
+            ImGui::TreePop();
+        }
+
+
+        ImGui::PopID();
+
+
+        ImGui::SeparatorText("MeshFile");
+        ImGui::PushID("MeshFile");
+
+
+        if (ImGui::TreeNode("Save")) {
+
+            if (ImGui::BeginListBox("Entities")) {
+                id2entity.clear();
+                size_t id{};
+                char name[16]{};
+                auto iterate_view = [&id, &name](auto&& view, const char* type) {
+                    for (const Entity e : view) {
+                        std::snprintf(name, std::size(name), "%s %d", type, to_entity(e));
+                        if (ImGui::Selectable(name, id == selected_id)) {
+                            selected_id = id;
+                        }
+                        id2entity.emplace_back(e);
+                        ++id;
+                    }
+                };
+                iterate_view(registry.view<MeshID<VertexStatic>>(), "Static" );
+                iterate_view(registry.view<SkinnedMesh>(),          "Skinned");
+                ImGui::EndListBox();
+            }
+
+            if (ImGui::Button("Save")) {
+                try {
+                    const Entity entity  = id2entity.at(selected_id);
+                    using VertexT = VertexStatic;
+                    auto download_from_storage = [&]<typename VertexT>(MeshID<VertexT> mesh_id) {
+                        const auto&  storage = *mesh_registry.storage_for<VertexT>();
+                        auto [vert_range, elem_range] = storage.buffer_ranges(mesh_id);
+                        using LODSpec = MeshFile::LODSpec;
+                        constexpr auto layout = MeshFile::vertex_traits<VertexT>::layout;
+                        LODSpec specs[1]{
+                            LODSpec{
+                                .num_verts = uint32_t(vert_range.count),
+                                .num_elems = uint32_t(elem_range.count)
+                            },
+                        };
+                        // auto file = MeshFile::create(path, layout, specs);
+                        // auto dst_verts = file.template lod_verts<layout>(0);
+                        // auto dst_elems = file.lod_elems(0);
+                        // storage.vertex_buffer().download_data_into(dst_verts, vert_range.offset);
+                        // storage.index_buffer() .download_data_into(dst_elems, elem_range.offset);
+                    };
+
+                    if (const auto* static_mesh = registry.try_get<MeshID<VertexT>>(entity)) {
+                        download_from_storage(*static_mesh);
+                    } else if (const auto* skinned_mesh = registry.try_get<SkinnedMesh>(entity)) {
+                        download_from_storage(skinned_mesh->mesh_id);
+                    } else { assert(false); }
+
+                    last_error = {};
+                } catch (const std::exception& e) {
+                    last_error = e.what();
+                }
+            }
+
+
+            ImGui::TreePop();
+        }
+
+        ImGui::PopID();
 
         ImGui::TreePop();
     }
 
-
-    ImGui::PopID();
-
     if (unpacking_job and unpacking_job->is_ready()) {
         try {
             move_out(unpacking_job).get_result();
+            last_error = "Successfully unpacked... something.";
         } catch (const std::exception& e) {
             last_error = e.what();
         }

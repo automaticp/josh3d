@@ -1,6 +1,8 @@
 #pragma once
 #include "CategoryCasts.hpp"
 #include "CommonConcepts.hpp"
+#include "ContainerUtils.hpp"
+#include "Ranges.hpp"
 #include <boost/scope/scope_exit.hpp>
 #include <atomic>
 #include <cassert>
@@ -8,6 +10,8 @@
 #include <coroutine>
 #include <cstddef>
 #include <exception>
+#include <range/v3/view/drop_last.hpp>
+#include <range/v3/view/take_last.hpp>
 #include <ranges>
 #include <utility>
 
@@ -186,8 +190,8 @@ namespace detail {
 struct WhenAllState {
     std::coroutine_handle<> parent_coroutine;
     std::atomic<size_t>     num_remaining;
-    std::exception_ptr      exception;
-    std::atomic_flag        exception_is_set;
+    std::exception_ptr      exception = nullptr;
+    std::atomic_flag        exception_is_set = false;
 };
 
 struct CompletionNotifier {
@@ -285,9 +289,14 @@ auto until_all_ready(R&& awaitables)
             struct Awaiter {
                 WhenAllReadyAwaitable& self;
                 // NOTE: Need to suspend to set the parent coroutine first.
-                auto await_ready() noexcept -> bool { return false; }
-                auto await_suspend(std::coroutine_handle<> parent_coroutine) noexcept
+                // Can only resume early if the range is empty.
+                auto await_ready() noexcept
                     -> bool
+                {
+                    return std::ranges::size(self.awaitables) == 0;
+                }
+                auto await_suspend(std::coroutine_handle<> parent_coroutine) noexcept
+                    -> std::coroutine_handle<>
                 {
                     self.state.parent_coroutine = parent_coroutine;
 
@@ -297,16 +306,20 @@ auto until_all_ready(R&& awaitables)
                         co_await awaitable;
                     };
 
-                    for (auto& awaitable : self.awaitables) {
+                    // Loop over all but last. The last will have control transferred to it instead.
+                    const size_t last = std::ranges::size(self.awaitables) - 1;
+                    for (auto [i, awaitable] : enumerate(self.awaitables)) {
                         CompletionNotifier continuation = attach_continuation(awaitable);
                         // We have to sneak-in the state pointer into the promise.
                         // This is why the CompletionNotifier suspends initially.
                         continuation.handle.promise().state = &self.state;
-                        continuation.handle.resume();
+                        if (i != last) {
+                            continuation.handle.resume();
+                        } else /* last */ {
+                            return continuation.handle;
+                        }
                     }
-
-                    const bool do_suspend = self.state.num_remaining.load(std::memory_order_acquire) > 0;
-                    return do_suspend;
+                    safe_unreachable();
                 }
                 void await_resume() const noexcept {}
             };
@@ -351,7 +364,7 @@ auto until_all_succeed(R&& awaitables)
                 WhenAllSucceedAwaitable& self;
                 auto await_ready() noexcept -> bool { return false; }
                 auto await_suspend(std::coroutine_handle<> parent_coroutine) noexcept
-                    -> bool
+                    -> std::coroutine_handle<>
                 {
                     self.state.parent_coroutine = parent_coroutine;
 
@@ -361,14 +374,19 @@ auto until_all_succeed(R&& awaitables)
                         co_await awaitable;
                     };
 
-                    for (auto& awaitable : self.awaitables) {
+                    const size_t last = std::ranges::size(self.awaitables) - 1;
+                    for (auto [i, awaitable] : enumerate(self.awaitables)) {
                         CompletionNotifier continuation = attach_continuation(awaitable);
+                        // We have to sneak-in the state pointer into the promise.
+                        // This is why the CompletionNotifier suspends initially.
                         continuation.handle.promise().state = &self.state;
-                        continuation.handle.resume();
+                        if (i != last) {
+                            continuation.handle.resume();
+                        } else /* last */ {
+                            return continuation.handle;
+                        }
                     }
-
-                    const bool do_suspend = self.state.num_remaining.load(std::memory_order_acquire) > 0;
-                    return do_suspend;
+                    safe_unreachable();
                 }
                 void await_resume() const {
                     // NOTE: This is the main difference between until_all_ready() and until_all_succeed().
