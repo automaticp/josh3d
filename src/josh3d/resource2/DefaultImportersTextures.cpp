@@ -169,7 +169,7 @@ auto import_texture(
         default: assert(false);
     }
 
-    co_await context.completion_context().until_all_ready(encode_jobs);
+    co_await until_all_ready(encode_jobs);
     co_await reschedule_to(context.thread_pool());
 
 

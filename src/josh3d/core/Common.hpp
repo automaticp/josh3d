@@ -28,9 +28,6 @@ I have a 2-hour long lecture about why std::byte was a mistake.
 using byte = unsigned char;
 
 
-// TODO: as_bytes(span);
-
-
 template<
     typename KeyT,
     typename ValueT,

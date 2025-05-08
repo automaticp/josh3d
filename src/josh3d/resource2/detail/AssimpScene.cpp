@@ -353,7 +353,7 @@ auto import_scene_async(
         skeleton_jobs.emplace_back(import_skeleton_async(context.child_context(), armature, node2jointid, node2bone));
     }
 
-    co_await context.completion_context().until_all_ready(skeleton_jobs);
+    co_await until_all_ready(skeleton_jobs);
     co_await reschedule_to(context.thread_pool());
 
 
@@ -407,7 +407,7 @@ auto import_scene_async(
     // Wait for completion of texture jobs, so that we could assemble the Material files.
 
 
-    co_await context.completion_context().until_all_ready(texture_jobs);
+    co_await until_all_ready(texture_jobs);
     co_await reschedule_to(context.thread_pool());
 
 
@@ -446,8 +446,8 @@ auto import_scene_async(
     }
 
 
-    co_await context.completion_context().until_all_ready(mesh_jobs);
-    co_await context.completion_context().until_all_ready(material_jobs);
+    co_await until_all_ready(mesh_jobs);
+    co_await until_all_ready(material_jobs);
     co_await reschedule_to(context.thread_pool());
 
     std::vector<UUID> mesh_uuids = mesh_jobs | transform(get_job_result) | ranges::to<std::vector>(); // Order: Meshes.
@@ -468,8 +468,8 @@ auto import_scene_async(
     }
 
 
-    co_await context.completion_context().until_all_ready(anim_jobs);
-    co_await context.completion_context().until_all_ready(mdesc_jobs);
+    co_await until_all_ready(anim_jobs);
+    co_await until_all_ready(mdesc_jobs);
     co_await reschedule_to(context.thread_pool());
 
 

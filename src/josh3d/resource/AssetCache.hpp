@@ -58,7 +58,7 @@ private:
     struct Storage {
         static constexpr AssetKind asset_kind = KindV;
         using key_type      = AssetPath;
-        using shared_handle = Job<SharedAsset<KindV>>::shared_handle;
+        using shared_handle = Job<SharedAsset<KindV>>::shared_handle_type;
         using CacheMap      = std::unordered_map<key_type, StoredAsset<KindV>>;
         using PendingList   = std::vector<shared_handle>;
         using PendingMap    = std::unordered_map<key_type, PendingList>;

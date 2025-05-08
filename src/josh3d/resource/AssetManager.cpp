@@ -296,7 +296,7 @@ auto AssetManager::load_cubemap(AssetPath path, CubemapIntent intent)
 
 
     {
-        co_await completion_context_.until_all_ready(jobs);
+        co_await until_all_ready(jobs);
         co_await reschedule_to(offscreen_context_);
     }
 
@@ -681,7 +681,7 @@ auto AssetManager::load_model(AssetPath path)
     // Need this to get the Job from TextureIndex, since Jobs are unordered.
     std::vector<TextureJobIndex>               texid2jobid;    // Order: Textures.
     std::unordered_map<AssetPath, TextureInfo> path2texinfo;   // Order: Texture Jobs.
-    std::vector<SharedJob<SharedTextureAsset>> texture_jobs;   // Order: Texture Jobs.
+    std::vector<Job<SharedTextureAsset>>       texture_jobs;   // Order: Texture Jobs.
     std::vector<SharedTextureAsset>            texture_assets; // Order: Texture Jobs.
 
     // This is the primary result of this job.
@@ -1067,7 +1067,7 @@ auto AssetManager::load_model(AssetPath path)
     //   There, we *just somehow wait* until all of the subtasks
     //   are complete, and *only then* reschedule back to the thread pool.
     {
-        co_await completion_context_.until_all_ready(texture_jobs);
+        co_await until_all_ready(texture_jobs);
         co_await reschedule_to(thread_pool_);
     }
 

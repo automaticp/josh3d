@@ -1,5 +1,6 @@
 #include "Common.hpp"
 #include "Components.hpp"
+#include "CoroCore.hpp"
 #include "Coroutines.hpp"
 #include "DefaultResources.hpp"
 #include "GLTextures.hpp"
@@ -298,7 +299,7 @@ auto unpack_material(
         jobs.emplace_back(unpack_material_specular(context, material.specular_uuid, handle, material.specpower));
     }
 
-    co_await context.completion_context().until_all_ready(jobs);
+    co_await until_all_succeed(jobs);
 }
 
 
@@ -315,7 +316,7 @@ auto unpack_mdesc(
     jobs.emplace_back(context.unpacker().unpack<RT::Mesh>    (mdesc.mesh_uuid,     handle));
     jobs.emplace_back(context.unpacker().unpack<RT::Material>(mdesc.material_uuid, handle));
 
-    co_await context.completion_context().until_all_ready(jobs);
+    co_await until_all_succeed(jobs);
 }
 
 
@@ -372,7 +373,7 @@ auto unpack_scene(
         }
     }
 
-    co_await context.completion_context().until_all_ready(entity_jobs);
+    co_await until_all_succeed(entity_jobs);
 }
 
 
