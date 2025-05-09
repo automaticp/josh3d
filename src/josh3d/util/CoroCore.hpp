@@ -10,9 +10,8 @@
 #include <coroutine>
 #include <cstddef>
 #include <exception>
-#include <range/v3/view/drop_last.hpp>
-#include <range/v3/view/take_last.hpp>
 #include <ranges>
+#include <type_traits>
 #include <utility>
 
 
@@ -40,18 +39,29 @@ concept awaitable =
     requires(T awaitable) { { operator co_await(awaitable)  } -> awaiter<ResultT, PromiseT>; };
 
 
+/*
+FIXME: emplace() is not the greatest default name to standardize as
+the executor discriminator. We only have it here because ThreadPool
+originally had emplace in its interface.
+
+TODO: The emplace()-like function should be indirected through a trait.
+*/
+template<typename T>
+concept executor = requires(T executor) {
+    { executor.emplace([](){}) };
+};
 
 
 /*
 Suspend the current coroutine and resume it on the specified executor.
 */
-template<typename ExecutorT>
+template<executor E>
 [[nodiscard]]
-auto reschedule_to(ExecutorT& executor)
+auto reschedule_to(E& executor)
     -> awaiter<void> auto
 {
     struct Awaiter {
-        ExecutorT& executor;
+        E& executor;
         auto await_ready() const noexcept -> bool { return false; }
         void await_suspend(std::coroutine_handle<> h) {
             auto resumer = [h] { h.resume(); };
@@ -72,35 +82,58 @@ auto reschedule_to(ExecutorT& executor)
 
 
 
-
 template<typename T>
-struct readyable_traits {
-    // ADL overload.
-    static auto is_ready(const T& readyable)
-        -> bool
-    {
-        return bool(is_ready(readyable));
-    }
+struct readyable_traits;
 
-    // More constrained member function overload.
-    static auto is_ready(const T& readyable)
-        -> bool
-            requires requires { { readyable.is_ready() } -> std::convertible_to<bool>; }
-    {
-        return bool(readyable.is_ready());
-    }
+
+namespace detail {
+template<typename T>
+concept has_member_is_ready = requires(T v) {
+    { v.is_ready() } -> std::convertible_to<bool>;
 };
+template<typename T>
+concept has_adl_is_ready = requires(T v) {
+    { is_ready(v) } -> std::convertible_to<bool>;
+};
+template<typename T>
+concept specializes_readyable_traits = requires(T v) {
+    { readyable_traits<T>::is_ready(v) } -> std::convertible_to<bool>;
+};
+} // namespace detail
 
 
 /*
 Anything that the "ready" status can be queried on.
 
-NOTE: The name is awful.
+NOTE: The name is awful but it will probably stay.
 */
 template<typename T>
-concept readyable = requires(T r) {
-    { readyable_traits<T>::is_ready(r) } -> std::convertible_to<bool>;
-};
+concept readyable =
+    detail::has_member_is_ready<T> or
+    detail::has_adl_is_ready<T> or
+    detail::specializes_readyable_traits<T>;
+
+
+namespace cpo {
+/*
+Niebloid cpo thing for `is_ready(r)`.
+*/
+constexpr struct is_ready_fn {
+    template<readyable R>
+    auto operator()(R&& readyable) const
+        -> bool
+    {
+        using R_ = std::decay_t<R>;
+        if constexpr (detail::has_member_is_ready<R_>)
+            return bool(readyable.is_ready());
+        else if constexpr (detail::has_adl_is_ready<R_>)
+            return bool(is_ready(readyable));
+        else if constexpr (detail::specializes_readyable_traits<R_>)
+            return bool(readyable_traits<R>::is_ready(readyable));
+        else static_assert(false_v<R>);
+    }
+} is_ready;
+} // namespace cpo
 
 
 /*
@@ -137,21 +170,21 @@ template<readyable T, typename PromiseT = void>
 auto if_not_ready(T&& readyable, std::coroutine_handle<PromiseT>* out_suspended = nullptr)
     -> awaiter<bool> auto
 {
-    using rt = readyable_traits<std::decay_t<T>>;
+    using cpo::is_ready;
     struct Awaiter {
         T                                readyable;
         std::coroutine_handle<PromiseT>* out_suspended;
-        auto await_ready() const noexcept -> bool { return rt::is_ready(readyable); }
+        auto await_ready() const noexcept -> bool { return is_ready(readyable); }
         auto await_suspend(std::coroutine_handle<PromiseT> h) const noexcept
             -> bool
         {
-            const bool suspend = !rt::is_ready(readyable);
+            const bool suspend = not is_ready(readyable);
             if (suspend && out_suspended) {
                 *out_suspended = h;
             }
             return suspend;
         }
-        auto await_resume() const noexcept -> bool { return rt::is_ready(readyable); }
+        auto await_resume() const noexcept -> bool { return is_ready(readyable); }
     };
     return Awaiter{ readyable, out_suspended };
 }

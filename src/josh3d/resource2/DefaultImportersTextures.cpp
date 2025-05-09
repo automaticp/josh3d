@@ -1,5 +1,6 @@
 #include "Common.hpp"
 #include "GLAPICore.hpp"
+#include "GLObjects.hpp"
 #include "GLPixelPackTraits.hpp"
 #include "PixelPackTraits.hpp"
 #include "ContainerUtils.hpp"
@@ -179,7 +180,17 @@ auto generate_mips(
     );
     texture->generate_mipmaps();
 
-    // TODO: Could suspend on a fence here.
+    // NOTE: Suspending on a fence here.
+    //
+    // Not sure if the barrier is needed, since mipmap generation *can* be considered
+    // a rendering operation, although it is never explicitly specified as such.
+    //
+    // 7.13.2: "TEXTURE_UPDATE_BARRIER_BIT: Writes to a texture via Tex(Sub)Image*, ClearTex*Image,
+    // CopyTex*, or CompressedTex*, and reads via GetTexImage after the barrier will not
+    // execute until all shader writes initiated prior to the barrier complete."
+    glapi::memory_barrier(BarrierMask::TextureUpdateBit);
+    if (const auto fence = create_fence(); not is_ready(fence))
+        co_await context.completion_context().until_ready_on(context.offscreen_context(), fence);
 
     // NOTE: This is important to make sure we can read the image data
     // back into the arbitrary aligned buffers. Otherwise some reads

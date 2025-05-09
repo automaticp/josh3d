@@ -1,4 +1,5 @@
 #pragma once
+#include "ThreadName.hpp"
 #include "ThreadsafeQueue.hpp"
 #include "Future.hpp"
 #include "UniqueFunction.hpp"
@@ -182,6 +183,8 @@ inline void ThreadPool::execution_loop(
     std::stop_token stoken, // NOLINT: performance-*
     const size_t    thread_idx)
 {
+    const auto name = "pool worker " + std::to_string(thread_idx);
+    set_current_thread_name(name.c_str());
     startup_latch_.arrive_and_wait();
 
     while (true) {

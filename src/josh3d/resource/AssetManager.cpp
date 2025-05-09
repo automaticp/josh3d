@@ -204,18 +204,18 @@ auto AssetManager::load_texture(AssetPath path, ImageIntent intent)
 
 
     // Reschedule to the offscreen gl context.
-    {
-        co_await reschedule_to(offscreen_context_);
-    }
+    co_await reschedule_to(offscreen_context_);
 
 
     // Upload image from the offscreen context.
     SharedTexture2D texture = create_material_texture_from_image_data(data, format, type, iformat);
 
-    glapi::flush();      // Flush the texture upload (hopefully).
-    discard(MOVE(data)); // In the meantime, don't need the data anymore, destroy it.
-    glapi::finish();     // Wait until commands complete.
-    // TODO: Could await on a FenceSync instead, but it's a bother to implement.
+    {
+        // NOTE: The fence is scoped so that it is guaranteed to be destroyed in the gpu context.
+        const auto fence = create_fence(); // Fence the upload command.
+        discard(MOVE(data)); // In the meantime, don't need the data anymore, destroy it.
+        co_await completion_context_.until_ready_on(offscreen_context_, fence); // Wait until commands complete.
+    }
 
 
     // Resolve from the offscreen context.
@@ -332,10 +332,11 @@ auto AssetManager::load_cubemap(AssetPath path, CubemapIntent intent)
         std::terminate();
     }();
 
-    glapi::flush();
-    discard(MOVE(data));
-    glapi::finish();
-
+    {
+        const auto fence = create_fence();
+        discard(MOVE(data));
+        co_await completion_context_.until_ready_on(offscreen_context_, fence);
+    }
 
     StoredCubemapAsset asset{
         .path    = MOVE(path),

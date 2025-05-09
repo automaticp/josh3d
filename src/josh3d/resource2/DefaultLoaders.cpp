@@ -8,6 +8,7 @@
 #include "GLAPIBinding.hpp"
 #include "GLAPICore.hpp"
 #include "GLBuffers.hpp"
+#include "GLObjectHelpers.hpp"
 #include "GLObjects.hpp"
 #include "GLPixelPackTraits.hpp"
 #include "GLTextures.hpp"
@@ -136,18 +137,18 @@ auto load_static_mesh(
             staged_lods.emplace_back(stage_lod(file, i));
         }
 
-        // Ideally, we'd wait on a fence here.
-        //   co_await context.offscreen_context().await_fence(create_fence());
-        glapi::finish();
-
-
+        // Wait until this lod is staged then go to the main context.
+        co_await context.completion_context().until_ready_on(context.offscreen_context(), create_fence());
         co_await reschedule_to(context.local_context());
 
         upload_lods(mesh_registry.ensure_storage_for<VertexT>(), lod_pack, lod_ids, staged_lods);
 
-        // Another fence would not hurt here.
-        // (In the offscreen context, obviously).
+        // Fence the upload from the main context, await in the offscreen.
+        // TODO: Does this need to flush? What if it auto-flushes on fence creation?
+        // That would actually be even worse. We probably want to avoid that...
 
+        // FIXME: Do we need a fence here at all?
+        co_await context.completion_context().until_ready_on(context.offscreen_context(), create_fence());
         co_await reschedule_to(context.thread_pool());
 
         if (beg_lod == 0) progress = ResourceProgress::Complete;
@@ -225,18 +226,12 @@ auto load_skinned_mesh(
             staged_lods.emplace_back(stage_lod(file, i));
         }
 
-        // Ideally, we'd wait on a fence here.
-        //   co_await context.offscreen_context().await_fence(create_fence());
-        glapi::finish();
-
-
+        co_await context.completion_context().until_ready_on(context.offscreen_context(), create_fence());
         co_await reschedule_to(context.local_context());
 
         upload_lods(mesh_registry.ensure_storage_for<VertexT>(), lod_pack, lod_ids, staged_lods);
 
-        // Another fence would not hurt here.
-        // (In the offscreen context, obviously).
-
+        co_await context.completion_context().until_ready_on(context.offscreen_context(), create_fence());
         co_await reschedule_to(context.thread_pool());
 
         if (beg_lod == 0) progress = ResourceProgress::Complete;
@@ -577,9 +572,8 @@ try {
         // TODO: Ready or succeed? Do we care? How can it fail anyway?
         co_await until_all_succeed(upload_jobs);
 
-        // FIXME: Fence.
         // NOTE: Only fencing after uploading multiple MIPs in a batch.
-        glapi::finish();
+        co_await context.completion_context().until_ready_on(context.offscreen_context(), create_fence());
 
         if (cur_mip == 0) progress = ResourceProgress::Complete;
 

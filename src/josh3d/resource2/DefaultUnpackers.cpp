@@ -256,6 +256,16 @@ auto unpack_material_specular(
     }
 
     while (progress != ResourceProgress::Complete) {
+        // FIXME: This is the most delightful bug I've had in a while.
+        // Because get_resource() will happily return you the same 1x1
+        // texture after the initial resource is created, this effectively
+        // creates and infinite loop where we never suspend in the following line
+        // and then resubmit ourselves to the main thread queue, keeping the
+        // main thread *completely locked* for the duration of the load.
+        //
+        // TODO: It might make sense to limit the number of tasks executed
+        // in the local context per frame. Or not, else how would I find out
+        // about bugs like these?
         auto [resource, usage] = co_await context.resource_registry().get_resource<RT::Texture>(uuid, &progress);
         co_await reschedule_to(context.local_context());
 

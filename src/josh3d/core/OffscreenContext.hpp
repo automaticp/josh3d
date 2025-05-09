@@ -1,8 +1,11 @@
 #pragma once
 #include "CategoryCasts.hpp"
 #include "Future.hpp"
+#include "GLFenceSync.hpp"
+#include "GLMutability.hpp"
 #include "ThreadsafeQueue.hpp"
 #include "UniqueFunction.hpp"
+#include "CoroCore.hpp"
 #include <concepts>
 #include <latch>
 #include <stop_token>
@@ -52,6 +55,18 @@ auto OffscreenContext::emplace(FuncT&& func)
     } else {
         return emplace_request([func=FORWARD(func)](glfw::Window&) { FORWARD(func)(); });
     }
+}
+
+
+/*
+Support of the `readyable` concept for FenceSync.
+
+FIXME: Should I put this somewhere else?
+*/
+auto is_ready(std::convertible_to<RawFenceSync<GLConst>> auto&& fence)
+    -> bool
+{
+    return decay_to_raw(fence).has_signaled();
 }
 
 

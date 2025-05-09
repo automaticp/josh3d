@@ -13,6 +13,7 @@
 #include "GlobalContext.hpp"
 #include "Logging.hpp"
 #include "GLUtils.hpp"
+#include "ThreadName.hpp"
 #include "VirtualFilesystem.hpp"
 #include "WindowSizeCache.hpp"
 
@@ -67,6 +68,7 @@ static auto try_parse_cli_args(cxxopts::Options& options, int argc, const char* 
 
 
 int main(int argc, const char* argv[]) {
+    josh::set_current_thread_name("main");
 
     auto cli_options      = get_cli_options();
     auto cli_parse_result = try_parse_cli_args(cli_options, argc, argv);

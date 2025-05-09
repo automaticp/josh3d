@@ -238,7 +238,9 @@ inline constexpr NumLevels max_num_levels(const Size3I& resolution) noexcept {
 */
 
 
-
+// Inserts a fence in the command queue and returns a new managed FenceSync object.
+[[nodiscard]]
+inline auto create_fence() -> UniqueFenceSync { return {}; }
 
 
 } // namespace josh

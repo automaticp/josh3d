@@ -179,12 +179,7 @@ auto import_mesh_async(
     const size_t       file_size     = MeshFile::required_size(args);
     const ResourceType resource_type = MeshFile::resource_type;
 
-
-    co_await reschedule_to(context.local_context());
     auto [uuid, mregion] = context.resource_database().generate_resource(resource_type, path_hint, file_size);
-    co_await reschedule_to(context.thread_pool());
-
-
 
     MeshFile file = MeshFile::create_in(MOVE(mregion), uuid, args);
 

@@ -106,6 +106,10 @@ using Optional = std::optional<T>;
 using std::nullopt;
 
 
+template<typename ...Ts>
+using Variant = std::variant<Ts...>;
+
+
 template<typename T>
 using Span = std::span<T>;
 

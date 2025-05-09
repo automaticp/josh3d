@@ -128,7 +128,7 @@ subtarget_link_internal(input      PUBLIC util scene)
 subtarget_link_internal(gl         PUBLIC util layout)
 subtarget_link_internal(scene      PUBLIC util core)
 subtarget_link_internal(filesystem PUBLIC util core)
-subtarget_link_internal(core       PUBLIC util)
+subtarget_link_internal(core       PUBLIC util gl)
 subtarget_link_internal(layout)
 subtarget_link_internal(util)
 

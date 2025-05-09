@@ -1,5 +1,6 @@
 #include "ShaderWatcher.hpp"
 #include "RuntimeError.hpp"
+#include "ThreadName.hpp"
 #include <ranges>
 
 
@@ -48,6 +49,7 @@ ShaderWatcherLinux::ShaderWatcherLinux()
 
 
 void ShaderWatcherLinux::read_thread_loop(std::stop_token stoken) { // NOLINT(performance-*)
+    set_current_thread_name("shader watcher");
 
     // Stop SIGINT from actually interrupting the whole process,
     // if sent to this thread. We use it to cancel out of the read() call instead.
