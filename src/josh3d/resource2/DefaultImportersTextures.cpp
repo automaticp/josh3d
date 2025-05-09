@@ -1,3 +1,12 @@
+#include "Common.hpp"
+#include "GLAPICore.hpp"
+#include "GLPixelPackTraits.hpp"
+#include "PixelPackTraits.hpp"
+#include "ContainerUtils.hpp"
+#include "CoroCore.hpp"
+#include "GLObjectHelpers.hpp"
+#include "GLTextures.hpp"
+#include "RuntimeError.hpp"
 #include "detail/SPNG.hpp"
 #include "DefaultImporters.hpp"
 #include "AssetImporter.hpp"
@@ -24,6 +33,7 @@ struct EncodedImage {
     size_t                           num_channels;
     size_t                           size_bytes;
     Format                           format;
+    auto span() const noexcept -> Span<byte> { return { data.get(), size_bytes }; }
 };
 
 
@@ -84,6 +94,11 @@ auto encode_texture_async_png(
 
     const spng_format format = SPNG_FMT_PNG; // Match format in `header`.
 
+    // TODO: Make configurable [0-9]
+    const int compression_level = 9;
+    err = spng_set_option(ctx, SPNG_IMG_COMPRESSION_LEVEL, compression_level);
+    if (err) throw RuntimeError(fmt::format("Could not set compression level {}.", compression_level));
+
     err = spng_encode_image(ctx, image.data(), image.size_bytes(), format, SPNG_ENCODE_FINALIZE);
     if (err) throw RuntimeError(fmt::format("Failed encoding PNG: {}.", spng_strerror(err)));
 
@@ -109,10 +124,97 @@ auto encode_texture_async_bc7(
     ImageData<chan::UByte> image)
         -> Job<EncodedImage>
 {
-    std::terminate();
+    safe_unreachable("BC7 not implemented.");
     // TODO
 }
 
+auto pick_mip_internal_format(size_t num_channels)
+    -> InternalFormat
+{
+    switch (num_channels) {
+        case 3: return InternalFormat::RGB8;
+        case 4: return InternalFormat::RGBA8;
+        default: break;
+    }
+    safe_unreachable();
+}
+
+auto pick_mip_data_format(size_t num_channels)
+    -> PixelDataFormat
+{
+    switch (num_channels) {
+        case 3: return PixelDataFormat::RGB;
+        case 4: return PixelDataFormat::RGBA;
+        default: break;
+    }
+    safe_unreachable();
+}
+
+[[nodiscard]]
+auto generate_mips(
+    AssetImporterContext&            context,
+    SmallVector<ImageData<byte>, 1>& mips)
+        -> Job<>
+{
+    const auto resolution0  = Extent2I(mips[0].resolution());
+    const auto num_channels = mips[0].num_channels();
+    const auto num_mips     = max_num_levels(resolution0);
+    const auto iformat      = pick_mip_internal_format(num_channels);
+    const auto format       = pick_mip_data_format(num_channels);
+    const auto type         = PixelDataType::UByte;
+    mips.reserve(num_mips);
+
+    // We use the GPU context to generate the mips. We could also do it ourselves
+    // or use a custom shader or whatever. For now the glGenerateMipmap() will do.
+    co_await reschedule_to(context.offscreen_context());
+
+    UniqueTexture2D texture;
+    texture->allocate_storage(resolution0, iformat, num_mips);
+    texture->upload_image_region(
+        { {}, resolution0 },
+        format,
+        type,
+        mips[0].data(),
+        MipLevel(0)
+    );
+    texture->generate_mipmaps();
+
+    // TODO: Could suspend on a fence here.
+
+    // NOTE: This is important to make sure we can read the image data
+    // back into the arbitrary aligned buffers. Otherwise some reads
+    // could fail with INVALID_OPERATION as the buffer would be too small
+    // to fit the alignment padding.
+    //
+    // See "OpenGL 4.6, ch. 8.4.4.1, eq. (8.2)" for how the alignment
+    // affetcs the computed storage buffer extents.
+    //
+    // See "OpenGL 4.6, ch. 18.2.2, table 18.1" for a list of packing
+    // parameters and their defaults.
+    //
+    // I have no clue why alignment of 4 was chosen as the default,
+    // this is the kind of rotten idea that will trip everyone
+    // at least once.
+    glapi::set_pixel_pack_alignment(1);
+
+    for (const auto mip_id : irange(1, num_mips)) {
+        const auto mip_level  = MipLevel(int(mip_id));
+        const auto resolution = texture->get_resolution(mip_level);
+        // TODO: Could probably do the allocation *off* of the GPU context.
+        // But need to precompute the resoluton ahead of time that way.
+        // Too lazy right now.
+        ImageData<byte> image{ Extent2S(resolution), num_channels };
+
+        texture->download_image_region_into(
+            { {}, resolution },
+            format,
+            type,
+            image.span(),
+            mip_level
+        );
+        mips.emplace_back(MOVE(image));
+    }
+}
 
 } // namespace
 
@@ -134,22 +236,32 @@ auto import_texture(
         && "Only RAW or PNG formats are supported for now. Sad."
     );
 
+    SmallVector<ImageData<byte>, 1> mips;
+
     // First we load the data with stb. This allows us to load all kinds of formats.
-    auto image = load_image_data_from_file<chan::UByte>(File(path), 3, 4);
-    const size_t num_channels = image.num_channels();
+    mips.emplace_back(load_image_data_from_file<chan::UByte>(File(path), 3, 4));
+    const size_t num_channels = mips[0].num_channels();
+
+    if (params.generate_mips) {
+        co_await generate_mips(context, mips);
+        co_await reschedule_to(context.thread_pool());
+    }
 
     // Job per MIP level.
-    // TODO: Currently, no mipmapping is supported, so only one job :(
-    std::vector<Job<EncodedImage>> encode_jobs;
+    SmallVector<Job<EncodedImage>, 1> encode_jobs;
 
-    switch (params.storage_format) {
-        using enum Format;
-        case RAW: encode_jobs.emplace_back(encode_texture_async_raw(context, MOVE(image))); break;
-        case PNG: encode_jobs.emplace_back(encode_texture_async_png(context, MOVE(image))); break;
-        // TODO: Not supported.
-        case BC7: encode_jobs.emplace_back(encode_texture_async_bc7(context, MOVE(image))); break;
-        default: assert(false);
+    for (auto& mip : mips) {
+        // NOTE: Dropping mip data here by moving it out.
+        switch (params.storage_format) {
+            using enum Format;
+            case RAW: encode_jobs.emplace_back(encode_texture_async_raw(context, MOVE(mip))); break;
+            case PNG: encode_jobs.emplace_back(encode_texture_async_png(context, MOVE(mip))); break;
+            // TODO: Not supported.
+            case BC7: encode_jobs.emplace_back(encode_texture_async_bc7(context, MOVE(mip))); break;
+            default: assert(false);
+        }
     }
+    discard(MOVE(mips));
 
     co_await until_all_ready(encode_jobs);
     co_await reschedule_to(context.thread_pool());
@@ -157,7 +269,7 @@ auto import_texture(
 
     const auto get_job_result = [](auto& job) { return MOVE(job.get_result()); };
 
-    std::vector<EncodedImage> encoded_mips =
+    Vector<EncodedImage> encoded_mips =
         encode_jobs | transform(get_job_result) | ranges::to<Vector>();
 
     const auto get_mip_spec = [](const EncodedImage& im)
@@ -171,8 +283,8 @@ auto import_texture(
         };
     };
 
-    std::vector<MIPSpec> mip_specs =
-        encoded_mips | transform(get_mip_spec) | ranges::to<std::vector>();
+    Vector<MIPSpec> mip_specs =
+        encoded_mips | transform(get_mip_spec) | ranges::to<Vector>();
 
     const Path name = path.stem();
     const ResourcePathHint path_hint{
@@ -190,17 +302,14 @@ auto import_texture(
     const size_t       file_size     = TextureFile::required_size(args);
     const ResourceType resource_type = TextureFile::resource_type;
 
-
-    co_await reschedule_to(context.local_context());
     auto [uuid, mregion] = context.resource_database().generate_resource(resource_type, path_hint, file_size);
-    co_await reschedule_to(context.thread_pool());
-
 
     TextureFile file = TextureFile::create_in(MOVE(mregion), uuid, args);
 
-    for (auto [mip_id, encoded] : enumerate(encoded_mips)) {
-        const auto dst_bytes = file.mip_bytes(mip_id);
-        const auto src_bytes = Span<std::byte>((std::byte*)encoded.data.get(), encoded.size_bytes);
+    // NOTE: Iterating in reverse because that's an address increase order for the TextureFile.
+    for (auto [mip_id, encoded] : reverse(enumerate(encoded_mips))) {
+        const auto dst_bytes = as_bytes(file.mip_bytes(mip_id));
+        const auto src_bytes = encoded.span();
         std::ranges::copy(src_bytes, dst_bytes.begin());
     }
 

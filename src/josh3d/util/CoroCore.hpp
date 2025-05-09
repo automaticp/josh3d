@@ -185,7 +185,7 @@ namespace detail {
 
 // The implementation is surprisingly elaborate due to the need
 // to "weave" state and control flow through the already-complicated
-// coroutines API.
+// coroutines API. This is the true inversion of control horror.
 
 struct WhenAllState {
     std::coroutine_handle<> parent_coroutine;

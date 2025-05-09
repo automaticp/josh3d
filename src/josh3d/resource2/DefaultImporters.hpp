@@ -18,8 +18,11 @@ class AssetImporterContext;
 
 
 struct ImportTextureParams {
-    TextureFile::StorageFormat storage_format; // TODO: Only RAW is supported for now. Ohwell...
-    // bool generate_mips = false; // TODO: Not supported yet.
+    // TODO: Only RAW and PNG is supported for now.
+    // This should also specify Mixed mode at least.
+    // So it probably needs a new enum.
+    TextureFile::StorageFormat storage_format;
+    bool                       generate_mips = true;
 };
 
 
@@ -32,6 +35,7 @@ auto import_texture(
 
 struct ImportSceneParams {
     TextureFile::StorageFormat texture_storage_format = TextureFile::StorageFormat::PNG;
+    bool generate_mips    = true;
     // bool skip_meshes     = false;
     // bool skip_textures   = false;
     // bool skip_skeletons  = false;

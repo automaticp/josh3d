@@ -334,11 +334,14 @@ void display_resource_file_debug(
 
     if (ImGui::TreeNode("Import Texture")) {
         texture_format_combo(import_texture_params.storage_format);
+        ImGui::Checkbox("Generate Mipmaps", &import_texture_params.generate_mips);
         if (ImGui::Button("Import")) try_import_thing(import_texture_params);
         ImGui::TreePop();
     }
     if (ImGui::TreeNode("Import Scene")) {
         texture_format_combo(import_scene_params.texture_storage_format);
+        ImGui::Checkbox("Generate Mipmaps", &import_scene_params.generate_mips);
+        ImGui::SameLine();
         ImGui::Checkbox("Collapse Graph", &import_scene_params.collapse_graph);
         ImGui::SameLine();
         ImGui::Checkbox("Merge Meshes", &import_scene_params.merge_meshes);

@@ -316,6 +316,11 @@ inline void safe_unreachable() noexcept(false) {
     throw std::logic_error("Reached unreachable.");
 }
 
+// Panics by thowing a logic_error with a custom message. Does not cause UB.
+[[noreturn]]
+inline void safe_unreachable(const char* message) noexcept(false) {
+    throw std::logic_error(message);
+}
 
 
 } // namespace josh

@@ -274,6 +274,7 @@ auto import_scene_async(
 
         const ImportTextureParams tex_params{
             .storage_format = params.texture_storage_format,
+            .generate_mips  = params.generate_mips,
         };
 
         // TODO: Should this use the dispatch table instead?
