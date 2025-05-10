@@ -119,16 +119,16 @@ namespace cpo {
 Niebloid cpo thing for `is_ready(r)`.
 */
 constexpr struct is_ready_fn {
-    template<readyable R>
-    auto operator()(R&& readyable) const
+    template<readyable R_>
+    auto operator()(R_&& readyable) const
         -> bool
     {
-        using R_ = std::decay_t<R>;
-        if constexpr (detail::has_member_is_ready<R_>)
+        using R = std::decay_t<R_>;
+        if constexpr (detail::has_member_is_ready<R>)
             return bool(readyable.is_ready());
-        else if constexpr (detail::has_adl_is_ready<R_>)
+        else if constexpr (detail::has_adl_is_ready<R>)
             return bool(is_ready(readyable));
-        else if constexpr (detail::specializes_readyable_traits<R_>)
+        else if constexpr (detail::specializes_readyable_traits<R>)
             return bool(readyable_traits<R>::is_ready(readyable));
         else static_assert(false_v<R>);
     }

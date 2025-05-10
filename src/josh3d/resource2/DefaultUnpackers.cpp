@@ -52,11 +52,11 @@ auto unpack_mesh(
     */
     const auto bail = [](){};
 
-    ResourceProgress progress;
+    ResourceEpoch epoch = null_epoch;
 
     // Initial step.
     {
-        auto [resource, usage] = co_await context.resource_registry().get_resource<RT::Mesh>(uuid, &progress);
+        auto [resource, usage] = co_await context.resource_registry().get_resource<RT::Mesh>(uuid, &epoch);
         co_await reschedule_to(context.local_context());
 
         if (!handle.valid())
@@ -90,8 +90,8 @@ auto unpack_mesh(
     }
 
     // Incremental updates.
-    while (progress != ResourceProgress::Complete) {
-        auto [resource, usage] = co_await context.resource_registry().get_resource<RT::Mesh>(uuid, &progress);
+    while (epoch != final_epoch) {
+        auto [resource, usage] = co_await context.resource_registry().get_resource<RT::Mesh>(uuid, &epoch);
         co_await reschedule_to(context.local_context());
 
         if (!handle.valid())
@@ -137,9 +137,9 @@ auto unpack_material_diffuse(
     const auto aba_tag = uintptr_t(co_await peek_coroutine_address());
     const auto bail = [](){};
 
-    ResourceProgress progress;
+    ResourceEpoch epoch = null_epoch;
     {
-        auto [resource, usage] = co_await context.resource_registry().get_resource<RT::Texture>(uuid, &progress);
+        auto [resource, usage] = co_await context.resource_registry().get_resource<RT::Texture>(uuid, &epoch);
         co_await reschedule_to(context.local_context());
 
         if (!handle.valid())
@@ -161,8 +161,8 @@ auto unpack_material_diffuse(
         });
     }
 
-    while (progress != ResourceProgress::Complete) {
-        auto [resource, usage] = co_await context.resource_registry().get_resource<RT::Texture>(uuid, &progress);
+    while (epoch != final_epoch) {
+        auto [resource, usage] = co_await context.resource_registry().get_resource<RT::Texture>(uuid, &epoch);
         co_await reschedule_to(context.local_context());
 
         if (!handle.valid())
@@ -189,9 +189,9 @@ auto unpack_material_normal(
     const auto aba_tag = uintptr_t(co_await peek_coroutine_address());
     const auto bail = [](){};
 
-    ResourceProgress progress;
+    ResourceEpoch epoch = null_epoch;
     {
-        auto [resource, usage] = co_await context.resource_registry().get_resource<RT::Texture>(uuid, &progress);
+        auto [resource, usage] = co_await context.resource_registry().get_resource<RT::Texture>(uuid, &epoch);
         co_await reschedule_to(context.local_context());
 
         if (!handle.valid())
@@ -207,8 +207,8 @@ auto unpack_material_normal(
         });
     }
 
-    while (progress != ResourceProgress::Complete) {
-        auto [resource, usage] = co_await context.resource_registry().get_resource<RT::Texture>(uuid, &progress);
+    while (epoch != final_epoch) {
+        auto [resource, usage] = co_await context.resource_registry().get_resource<RT::Texture>(uuid, &epoch);
         co_await reschedule_to(context.local_context());
 
         if (!handle.valid())
@@ -236,9 +236,9 @@ auto unpack_material_specular(
     const auto aba_tag = uintptr_t(co_await peek_coroutine_address());
     const auto bail = [](){};
 
-    ResourceProgress progress;
+    ResourceEpoch epoch = null_epoch;
     {
-        auto [resource, usage] = co_await context.resource_registry().get_resource<RT::Texture>(uuid, &progress);
+        auto [resource, usage] = co_await context.resource_registry().get_resource<RT::Texture>(uuid, &epoch);
         co_await reschedule_to(context.local_context());
 
         if (!handle.valid())
@@ -255,18 +255,8 @@ auto unpack_material_specular(
         });
     }
 
-    while (progress != ResourceProgress::Complete) {
-        // FIXME: This is the most delightful bug I've had in a while.
-        // Because get_resource() will happily return you the same 1x1
-        // texture after the initial resource is created, this effectively
-        // creates and infinite loop where we never suspend in the following line
-        // and then resubmit ourselves to the main thread queue, keeping the
-        // main thread *completely locked* for the duration of the load.
-        //
-        // TODO: It might make sense to limit the number of tasks executed
-        // in the local context per frame. Or not, else how would I find out
-        // about bugs like these?
-        auto [resource, usage] = co_await context.resource_registry().get_resource<RT::Texture>(uuid, &progress);
+    while (epoch != final_epoch) {
+        auto [resource, usage] = co_await context.resource_registry().get_resource<RT::Texture>(uuid, &epoch);
         co_await reschedule_to(context.local_context());
 
         if (!handle.valid())

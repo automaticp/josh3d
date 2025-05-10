@@ -1,9 +1,9 @@
 #pragma once
+#include "Common.hpp"
 #include "GLObjects.hpp"
 #include "LODPack.hpp"
 #include "MeshStorage.hpp"
 #include "Resource.hpp"
-#include "ResourceRegistry.hpp"
 #include "SkeletalAnimation.hpp"
 #include "Skeleton.hpp"
 #include "Transform.hpp"

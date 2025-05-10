@@ -32,4 +32,21 @@ struct ResourceItem {
 using ResourceUsage = Usage<ResourceItem>;
 
 
+template<ResourceType TypeV> struct resource_traits;
+
+
+template<ResourceType TypeV>
+struct PublicResource {
+    // This should be a "semantically const" resource reference.
+    using resource_type = resource_traits<TypeV>::resource_type;
+    resource_type resource;
+    ResourceUsage usage;
+};
+
+
+// TODO: This should have different semantics.
+template<ResourceType TypeV>
+using PrivateResource = PublicResource<TypeV>;
+
+
 } // namespace josh
