@@ -3,7 +3,6 @@
 #include "AssetUnpacker.hpp"
 #include "AssetManager.hpp"
 #include "AsyncCradle.hpp"
-#include "CompletionContext.hpp"
 #include "ECS.hpp"
 #include "ImGuiApplicationAssembly.hpp"
 #include "Input.hpp"
@@ -11,6 +10,7 @@
 #include "MeshRegistry.hpp"
 #include "Primitives.hpp"
 #include "ResourceDatabase.hpp"
+#include "ResourceLoader.hpp"
 #include "ResourceUnpacker.hpp"
 #include "SceneImporter.hpp"
 #include "Semantics.hpp"
@@ -57,6 +57,7 @@ private:
     josh::ResourceDatabase  resource_database_;
     josh::AssetImporter     asset_importer_;
     josh::ResourceRegistry  resource_registry_;
+    josh::ResourceLoader    resource_loader_;
     josh::ResourceUnpacker  resource_unpacker_;
 
     josh::Primitives        primitives_;

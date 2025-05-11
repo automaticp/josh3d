@@ -56,7 +56,7 @@ auto unpack_mesh(
 
     // Initial step.
     {
-        auto [resource, usage] = co_await context.resource_registry().get_resource<RT::Mesh>(uuid, &epoch);
+        auto [resource, usage] = co_await context.resource_loader().get_resource<RT::Mesh>(uuid, &epoch);
         co_await reschedule_to(context.local_context());
 
         if (!handle.valid())
@@ -91,7 +91,7 @@ auto unpack_mesh(
 
     // Incremental updates.
     while (epoch != final_epoch) {
-        auto [resource, usage] = co_await context.resource_registry().get_resource<RT::Mesh>(uuid, &epoch);
+        auto [resource, usage] = co_await context.resource_loader().get_resource<RT::Mesh>(uuid, &epoch);
         co_await reschedule_to(context.local_context());
 
         if (!handle.valid())
@@ -139,7 +139,7 @@ auto unpack_material_diffuse(
 
     ResourceEpoch epoch = null_epoch;
     {
-        auto [resource, usage] = co_await context.resource_registry().get_resource<RT::Texture>(uuid, &epoch);
+        auto [resource, usage] = co_await context.resource_loader().get_resource<RT::Texture>(uuid, &epoch);
         co_await reschedule_to(context.local_context());
 
         if (!handle.valid())
@@ -162,7 +162,7 @@ auto unpack_material_diffuse(
     }
 
     while (epoch != final_epoch) {
-        auto [resource, usage] = co_await context.resource_registry().get_resource<RT::Texture>(uuid, &epoch);
+        auto [resource, usage] = co_await context.resource_loader().get_resource<RT::Texture>(uuid, &epoch);
         co_await reschedule_to(context.local_context());
 
         if (!handle.valid())
@@ -191,7 +191,7 @@ auto unpack_material_normal(
 
     ResourceEpoch epoch = null_epoch;
     {
-        auto [resource, usage] = co_await context.resource_registry().get_resource<RT::Texture>(uuid, &epoch);
+        auto [resource, usage] = co_await context.resource_loader().get_resource<RT::Texture>(uuid, &epoch);
         co_await reschedule_to(context.local_context());
 
         if (!handle.valid())
@@ -208,7 +208,7 @@ auto unpack_material_normal(
     }
 
     while (epoch != final_epoch) {
-        auto [resource, usage] = co_await context.resource_registry().get_resource<RT::Texture>(uuid, &epoch);
+        auto [resource, usage] = co_await context.resource_loader().get_resource<RT::Texture>(uuid, &epoch);
         co_await reschedule_to(context.local_context());
 
         if (!handle.valid())
@@ -238,7 +238,7 @@ auto unpack_material_specular(
 
     ResourceEpoch epoch = null_epoch;
     {
-        auto [resource, usage] = co_await context.resource_registry().get_resource<RT::Texture>(uuid, &epoch);
+        auto [resource, usage] = co_await context.resource_loader().get_resource<RT::Texture>(uuid, &epoch);
         co_await reschedule_to(context.local_context());
 
         if (!handle.valid())
@@ -256,7 +256,7 @@ auto unpack_material_specular(
     }
 
     while (epoch != final_epoch) {
-        auto [resource, usage] = co_await context.resource_registry().get_resource<RT::Texture>(uuid, &epoch);
+        auto [resource, usage] = co_await context.resource_loader().get_resource<RT::Texture>(uuid, &epoch);
         co_await reschedule_to(context.local_context());
 
         if (!handle.valid())
@@ -283,7 +283,7 @@ auto unpack_material(
     Handle                  handle)
         -> Job<>
 {
-    auto [material, usage] = co_await context.resource_registry().get_resource<RT::Material>(uuid);
+    auto [material, usage] = co_await context.resource_loader().get_resource<RT::Material>(uuid);
 
     StaticVector<Job<>, 3> jobs;
 
@@ -309,7 +309,7 @@ auto unpack_mdesc(
     Handle                  handle)
         -> Job<>
 {
-    auto [mdesc, usage] = co_await context.resource_registry().get_resource<RT::MeshDesc>(uuid);
+    auto [mdesc, usage] = co_await context.resource_loader().get_resource<RT::MeshDesc>(uuid);
 
     StaticVector<Job<>, 2> jobs;
 
@@ -326,7 +326,7 @@ auto unpack_scene(
     Handle                  handle)
         -> Job<>
 {
-    auto [scene, usage] = co_await context.resource_registry().get_resource<RT::Scene>(uuid);
+    auto [scene, usage] = co_await context.resource_loader().get_resource<RT::Scene>(uuid);
 
     // We are going to start loading resources from the scene,
     // as well as emplacing them into the registry.

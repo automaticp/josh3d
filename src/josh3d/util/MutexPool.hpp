@@ -1,4 +1,5 @@
 #pragma once
+#include "Semantics.hpp"
 #include <atomic>
 #include <cassert>
 #include <vector>
@@ -14,7 +15,9 @@ compared to central locking of the whole datastructure, but where
 the naive alternative of storing a mutex for each entry is too expensive.
 */
 template<typename MutexT>
-class MutexPool {
+class MutexPool
+    : public Immovable<MutexPool<MutexT>>
+{
 public:
     using mutex_type = MutexT;
 

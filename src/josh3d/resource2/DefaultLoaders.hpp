@@ -1,6 +1,6 @@
 #pragma once
 #include "Coroutines.hpp"
-#include "ResourceRegistry.hpp"
+#include "ResourceLoader.hpp"
 #include "DefaultResources.hpp"
 #include "UUID.hpp"
 
@@ -39,13 +39,13 @@ auto load_scene(
 
 
 inline void register_default_loaders(
-    ResourceRegistry& r)
+    ResourceLoader& l)
 {
-    r.register_resource<RT::Mesh>    (&load_mesh);
-    r.register_resource<RT::Texture> (&load_texture);
-    r.register_resource<RT::MeshDesc>(&load_mdesc);
-    r.register_resource<RT::Material>(&load_material);
-    r.register_resource<RT::Scene>   (&load_scene);
+    l.register_loader<RT::Mesh>    (&load_mesh);
+    l.register_loader<RT::Texture> (&load_texture);
+    l.register_loader<RT::MeshDesc>(&load_mdesc);
+    l.register_loader<RT::Material>(&load_material);
+    l.register_loader<RT::Scene>   (&load_scene);
 }
 
 

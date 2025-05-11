@@ -20,6 +20,7 @@
 #include "OffscreenContext.hpp"
 #include "Primitives.hpp"
 #include "ResourceDatabase.hpp"
+#include "ResourceLoader.hpp"
 #include "ResourceUnpacker.hpp"
 #include "SceneGraph.hpp"
 #include "SceneImporter.hpp"
@@ -178,14 +179,17 @@ DemoScene::DemoScene(glfw::Window& window)
         resource_database_,
         async_cradle_
     )
-    , resource_registry_(
+    , resource_registry_()
+    , resource_loader_(
         resource_database_,
+        resource_registry_,
         mesh_registry_,
         async_cradle_
     )
     , resource_unpacker_(
         resource_database_,
         resource_registry_,
+        resource_loader_,
         async_cradle_
     )
     , primitives_(asset_manager_)
@@ -326,7 +330,7 @@ DemoScene::DemoScene(glfw::Window& window)
 
     configure_input(gbuffer_read_view);
     register_default_importers(asset_importer_);
-    register_default_loaders(resource_registry_);
+    register_default_loaders  (resource_loader_);
     register_default_unpackers(resource_unpacker_);
     init_registry();
 }

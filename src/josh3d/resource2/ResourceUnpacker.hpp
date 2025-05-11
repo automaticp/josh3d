@@ -4,6 +4,7 @@
 #include "CommonConcepts.hpp"
 #include "Resource.hpp"
 #include "ResourceDatabase.hpp"
+#include "ResourceLoader.hpp"
 #include "ResourceRegistry.hpp"
 #include "RuntimeError.hpp"
 #include "TaskCounterGuard.hpp"
@@ -53,10 +54,12 @@ public:
     ResourceUnpacker(
         ResourceDatabase& resource_database,
         ResourceRegistry& resource_registry,
+        ResourceLoader&   resource_loader,
         AsyncCradleRef    async_cradle
     )
         : resource_database_(resource_database)
         , resource_registry_(resource_registry)
+        , resource_loader_  (resource_loader)
         , cradle_           (async_cradle)
     {}
 
@@ -76,6 +79,7 @@ private:
     friend ResourceUnpackerContext;
     ResourceDatabase&  resource_database_;
     ResourceRegistry&  resource_registry_;
+    ResourceLoader&    resource_loader_;
     AsyncCradleRef     cradle_;
 
     using key_type      = detail::UnpackerKey;
@@ -92,6 +96,7 @@ private:
 class ResourceUnpackerContext {
 public:
     auto& resource_registry()  noexcept { return self_.resource_registry_;         }
+    auto& resource_loader()    noexcept { return self_.resource_loader_;           }
     auto& thread_pool()        noexcept { return self_.cradle_.loading_pool;       }
     auto& offscreen_context()  noexcept { return self_.cradle_.offscreen_context;  }
     auto& completion_context() noexcept { return self_.cradle_.completion_context; }

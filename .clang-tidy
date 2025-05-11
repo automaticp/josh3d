@@ -26,6 +26,6 @@ Checks: 'boost-*,
     portability-*'
 CheckOptions:
     performance-unnecessary-value-param.AllowedTypes:
-        '^josh::Raw;^std::stop_token;^std::exception_ptr'
+        'josh::Raw;std::stop_token;exception_ptr'
 
 ...
