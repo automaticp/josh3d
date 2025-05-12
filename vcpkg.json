@@ -12,6 +12,7 @@
         "boost-any",
         "boost-interprocess",
         "boost-uuid",
+        "boost-type-index",
         "fmt",
         "doctest",
         "cxxopts",

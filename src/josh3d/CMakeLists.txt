@@ -145,6 +145,7 @@ set(common_external_deps
     Boost::any
     Boost::interprocess
     Boost::uuid
+    Boost::type_index
     jsoncons::jsoncons
     cppcoro::cppcoro
     glm::glm

@@ -10,6 +10,20 @@
 namespace josh {
 
 
+/*
+Indicates progress of a particular loading job with respect to completeness
+of the requested resource.
+
+This information only travels one way: from loading jobs to the loading context.
+This is similar to the ResourceEpoch in spirit, but the control over the exact
+value of the epoch is not given to loaders. Every update increments the epoch automatically.
+*/
+enum class ResourceProgress : bool {
+    Incomplete, // Resource has only been loaded partially. More will come.
+    Complete,   // Resource has been loaded to its full (all LODs, MIPs, etc.).
+};
+
+
 class ResourceLoaderContext;
 
 
@@ -298,7 +312,7 @@ inline auto ResourceLoader::_start_loading(const key_type& key, const UUID& uuid
         // aren't we missing out on something important here by discarding it?
         return loader(ResourceLoaderContext(*this), uuid);
     } else {
-        throw RuntimeError(fmt::format("No loader found for ResourceType {}.", key));
+        throw RuntimeError(fmt::format("No loader found for resource type {}.", resource_info().name_or_id(key)));
     }
 }
 

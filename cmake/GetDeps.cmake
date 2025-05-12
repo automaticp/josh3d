@@ -7,7 +7,7 @@
 # Boost::any
 # Boost::interprocess
 # Boost::uuid
-find_package(Boost REQUIRED COMPONENTS iostreams container unordered scope outcome any interprocess uuid)
+find_package(Boost REQUIRED COMPONENTS iostreams container unordered scope outcome any interprocess uuid type_index)
 
 
 # === fmt ===

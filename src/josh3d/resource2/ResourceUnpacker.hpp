@@ -8,6 +8,7 @@
 #include "ResourceRegistry.hpp"
 #include "RuntimeError.hpp"
 #include "TaskCounterGuard.hpp"
+#include "TypeInfo.hpp"
 #include <boost/container_hash/hash.hpp>
 #include <fmt/core.h>
 #include <utility>
@@ -18,9 +19,9 @@ namespace josh {
 
 namespace detail {
 struct UnpackerKey {
-    ResourceType    resource_type;
-    std::type_index destination_type;
-    bool operator==(const UnpackerKey&) const noexcept = default;
+    ResourceType resource_type;
+    TypeIndex    destination_type;
+    auto operator==(const UnpackerKey&) const noexcept -> bool = default;
 };
 inline auto hash_value(const UnpackerKey& u) noexcept
     -> size_t
@@ -152,7 +153,7 @@ template<ResourceType TypeV, typename DestinationT>
 auto ResourceUnpacker::unpack(UUID uuid, DestinationT destination)
     -> Job<>
 {
-    const key_type key{ .resource_type=TypeV, .destination_type=typeid(DestinationT) };
+    const key_type key{ .resource_type=TypeV, .destination_type=type_id<DestinationT>() };
     return _unpack(key, uuid, AnyRef(destination));
 }
 
@@ -162,7 +163,7 @@ auto ResourceUnpacker::unpack_any(UUID uuid, DestinationT destination)
     -> Job<>
 {
     const auto type = resource_database_.type_of(uuid);
-    const key_type key{ .resource_type=type, .destination_type=typeid(DestinationT) };
+    const key_type key{ .resource_type=type, .destination_type=type_id<DestinationT>() };
     return _unpack(key, uuid, AnyRef(destination));
 }
 
@@ -175,7 +176,7 @@ inline auto ResourceUnpacker::_unpack(const key_type& key, UUID uuid, AnyRef des
         auto& unpacker = kv->second;
         return unpacker(ResourceUnpackerContext(*this), uuid, destination);
     } else {
-        throw RuntimeError(fmt::format("No unpacker found for ResourceType {} and DestinationType {}.", key.resource_type, key.destination_type.name()));
+        throw RuntimeError(fmt::format("No unpacker found for resource type {} and destination type {}.", resource_info().name_or_id(key.resource_type), key.destination_type.pretty_name()));
     }
 }
 

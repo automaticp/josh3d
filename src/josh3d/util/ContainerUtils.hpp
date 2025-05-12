@@ -1,4 +1,5 @@
 #pragma once
+#include "CategoryCasts.hpp"
 #include "CommonConcepts.hpp"
 #include <concepts>
 #include <stdexcept>
@@ -184,6 +185,22 @@ void discard(T&& object) noexcept(std::is_nothrow_move_constructible_v<std::remo
 }
 
 
+namespace detail{
+template<typename From>
+struct DeferredExplicit {
+    From from;
+    template<typename To>
+    constexpr operator To() && { return To(FORWARD(from)); }
+};
+} // namespace detail
+
+
+// Create a wrapper for deferred explicit conversion of the argument
+// to the destination type. Useful for emplace-style functions.
+template<typename From>
+auto defer_explicit(From&& from) noexcept {
+    return detail::DeferredExplicit<From>{ FORWARD(from) };
+}
 
 
 template<typename T>

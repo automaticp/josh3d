@@ -4,6 +4,7 @@
 #include "Resource.hpp"
 #include "ContainerUtils.hpp"
 #include "MutexPool.hpp"
+#include "ResourceInfo.hpp"
 #include "RuntimeError.hpp"
 #include "UUID.hpp"
 #include <fmt/core.h>
@@ -122,20 +123,6 @@ constexpr ResourceEpoch final_epoch = -1;
 
 
 /*
-Indicates progress of a particular loading job with respect to completeness
-of the requested resource.
-
-This information only travels one way: from loading jobs to the loading context.
-This is similar to the ResourceEpoch in spirit, but the control over the exact
-value of the epoch is not given to loaders. Every update increments the epoch automatically.
-*/
-enum class ResourceProgress : bool {
-    Incomplete, // Resource has only been loaded partially. More will come.
-    Complete,   // Resource has been loaded to its full (all LODs, MIPs, etc.).
-};
-
-
-/*
 A collection of resource-associated storage types that map each resource UUID
 to a resource in its intermediate retained state.
 
@@ -151,8 +138,6 @@ public:
     struct Storage;
     template<ResourceType TypeV>
     struct Entry;
-
-    ResourceRegistry() = default;
 
     // Creates a storage for the specified resource type in the registry.
     // Returns true if the storage was initialized, false if it already exists.
@@ -174,7 +159,7 @@ public:
         if (auto* storage = try_get_storage<TypeV>()) {
             return *storage;
         } else {
-            throw RuntimeError(fmt::format("No storage found for ResourceType: {}.", TypeV));
+            throw RuntimeError(fmt::format("No storage found for resource type: {}.", resource_info().name_or_id(TypeV)));
         }
     }
 

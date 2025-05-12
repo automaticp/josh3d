@@ -10,8 +10,9 @@ Basic vocabulary for various resource types.
 namespace josh {
 
 
+template<size_t N>
+using ResourceTypeHS = FixedHashedString<N>;
 using ResourceType   = HashedID;
-using ResourceTypeHS = HashedString;
 
 
 /*
@@ -19,7 +20,7 @@ Null resource identifier to represent lack of a resource.
 
 NOTE: Default HashedString corresponds to a value of 0.
 */
-constexpr auto NullResource = HashedString();
+constexpr auto NullResource = ResourceTypeHS<0>();
 static_assert(NullResource.value() == ResourceType());
 
 
@@ -33,6 +34,12 @@ using ResourceUsage = Usage<ResourceItem>;
 
 
 template<ResourceType TypeV> struct resource_traits;
+
+
+template<ResourceType TypeV>
+concept specializes_resource_traits = requires {
+    typename resource_traits<TypeV>::resource_type;
+};
 
 
 template<ResourceType TypeV>

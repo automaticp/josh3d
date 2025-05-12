@@ -4,6 +4,7 @@
 #include "LODPack.hpp"
 #include "MeshStorage.hpp"
 #include "Resource.hpp"
+#include "ResourceInfo.hpp"
 #include "SkeletalAnimation.hpp"
 #include "Skeleton.hpp"
 #include "Transform.hpp"
@@ -149,6 +150,17 @@ template<> struct resource_traits<RT::MeshDesc> {
 
 
 
+inline void register_default_resource_info(
+    ResourceInfo& m)
+{
+    m.register_resource_type<RT::Scene>();
+    m.register_resource_type<RT::Mesh>();
+    m.register_resource_type<RT::Texture>();
+    m.register_resource_type<RT::Animation>();
+    m.register_resource_type<RT::Skeleton>();
+    m.register_resource_type<RT::Material>();
+    m.register_resource_type<RT::MeshDesc>();
+}
 
 
 } // namespace josh

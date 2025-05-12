@@ -11,6 +11,7 @@
 #include "Primitives.hpp"
 #include "ResourceDatabase.hpp"
 #include "ResourceLoader.hpp"
+#include "ResourceRegistry.hpp"
 #include "ResourceUnpacker.hpp"
 #include "SceneImporter.hpp"
 #include "Semantics.hpp"
@@ -55,8 +56,9 @@ private:
     josh::SceneImporter     scene_importer_;
 
     josh::ResourceDatabase  resource_database_;
-    josh::AssetImporter     asset_importer_;
     josh::ResourceRegistry  resource_registry_;
+
+    josh::AssetImporter     asset_importer_;
     josh::ResourceLoader    resource_loader_;
     josh::ResourceUnpacker  resource_unpacker_;
 

@@ -48,6 +48,8 @@ public:
 
     // TODO: Cannot make import_any() unitil I make a custom Any type
     // that converts to AnyRef. Dreaded encapsulation makes life ass again.
+    //
+    // TODO: Look at unsafe_any_cast(), maybe enough.
 
 private:
     friend AssetImporterContext;

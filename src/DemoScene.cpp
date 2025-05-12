@@ -6,6 +6,7 @@
 #include "AsyncCradle.hpp"
 #include "DefaultImporters.hpp"
 #include "DefaultLoaders.hpp"
+#include "DefaultResources.hpp"
 #include "DefaultUnpackers.hpp"
 #include "GLPixelPackTraits.hpp"
 #include "GLTextures.hpp"
@@ -175,11 +176,11 @@ DemoScene::DemoScene(glfw::Window& window)
     , asset_unpacker_(registry_)
     , scene_importer_(asset_manager_, asset_unpacker_, registry_)
     , resource_database_(".josh3d/") // TODO: Un-hardcode.
+    , resource_registry_()
     , asset_importer_(
         resource_database_,
         async_cradle_
     )
-    , resource_registry_()
     , resource_loader_(
         resource_database_,
         resource_registry_,
@@ -329,9 +330,10 @@ DemoScene::DemoScene(glfw::Window& window)
 
 
     configure_input(gbuffer_read_view);
-    register_default_importers(asset_importer_);
-    register_default_loaders  (resource_loader_);
-    register_default_unpackers(resource_unpacker_);
+    register_default_resource_info(resource_info());
+    register_default_importers    (asset_importer_);
+    register_default_loaders      (resource_loader_);
+    register_default_unpackers    (resource_unpacker_);
     init_registry();
 }
 
