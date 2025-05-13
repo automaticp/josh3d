@@ -2,6 +2,7 @@
 #include "AABB.hpp"
 #include "CategoryCasts.hpp"
 #include "DefaultResources.hpp"
+#include "EnumUtils.hpp"
 #include "RuntimeError.hpp"
 #include "Region.hpp"
 #include "Skeleton.hpp"
@@ -518,6 +519,8 @@ private:
     auto mip_bytes_ptr(size_t mip_id) const noexcept -> std::byte*;
 };
 
+
+JOSH3D_DEFINE_ENUM_STRING(TextureFile::StorageFormat, RAW, PNG, BC7)
 
 
 } // namespace josh

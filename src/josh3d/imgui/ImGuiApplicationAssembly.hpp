@@ -5,6 +5,7 @@
 #include "ECS.hpp"
 #include "ImGuiAssetBrowser.hpp"
 #include "ImGuiContextWrapper.hpp"
+#include "ImGuiResourceViewer.hpp"
 #include "ImGuiSceneList.hpp"
 #include "ImGuiSelected.hpp"
 #include "ImGuiWindowSettings.hpp"
@@ -46,20 +47,20 @@ Your UI entrypoint.
 */
 class ImGuiApplicationAssembly {
 public:
-    bool show_engine_hooks   = true;
-    bool show_scene_list     = true;
-    bool show_selected       = true;
-    bool show_asset_browser  = false;
-    bool show_demo_window    = false; // For debugging.
-    bool show_asset_manager  = false; // For debugging.
-    bool show_resource_files = false; // For debugging.
+    bool show_engine_hooks    = true;
+    bool show_scene_list      = true;
+    bool show_selected        = true;
+    bool show_asset_browser   = false;
+    bool show_demo_window     = false; // For debugging.
+    bool show_asset_manager   = false; // For debugging.
+    bool show_resource_viewer = false;
 
     float background_alpha{ 0.8f };
 
     ImGuiApplicationAssembly(
         glfw::Window&      window,
         RenderEngine&      engine,
-        entt::registry&    registry,
+        Registry&          registry,
         AssetManager&      asset_manager,
         AssetUnpacker&     asset_2npacker_,
         SceneImporter&     scene_importer,
@@ -71,6 +72,8 @@ public:
 
     auto stage_hooks()       noexcept ->       ImGuiEngineHooks::HooksContainer& { return stage_hooks_.hooks(); }
     auto stage_hooks() const noexcept -> const ImGuiEngineHooks::HooksContainer& { return stage_hooks_.hooks(); }
+
+    auto resource_viewer() noexcept -> ImGuiResourceViewer& { return resource_viewer_; }
 
     bool is_hidden() const noexcept { return hidden_; }
     void set_hidden(bool hidden) noexcept { hidden_ = hidden; }
@@ -108,6 +111,7 @@ private:
     ImGuiEngineHooks    stage_hooks_;
     ImGuiSceneList      scene_list_;
     ImGuiAssetBrowser   asset_browser_;
+    ImGuiResourceViewer resource_viewer_;
     ImGuiSelected       selected_menu_;
     ImGuizmoGizmos      gizmos_;
 

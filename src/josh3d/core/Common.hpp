@@ -7,6 +7,7 @@
 #include <boost/unordered/unordered_flat_set.hpp>
 #include <functional>
 #include <map>
+#include <optional>
 #include <set>
 #include <memory>
 #include <ranges>
@@ -103,7 +104,7 @@ using UniqueAny = boost::anys::unique_any;
 
 template<typename T>
 using Optional = std::optional<T>;
-using std::nullopt;
+constexpr auto nullopt = std::nullopt;
 
 
 template<typename ...Ts>

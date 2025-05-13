@@ -5,31 +5,22 @@
 #include "AssetManager.hpp"
 #include "CategoryCasts.hpp"
 #include "ContainerUtils.hpp"
-#include "DefaultImporters.hpp"
-#include "DefaultResources.hpp"
 #include "FrameTimer.hpp"
 #include "GLAPIBinding.hpp"
-#include "ImGuiComponentWidgets.hpp"
 #include "ImGuiHelpers.hpp"
+#include "ImGuiResourceViewer.hpp"
 #include "ImGuiSceneList.hpp"
 #include "ImGuiSelected.hpp"
 #include "ImGuizmoGizmos.hpp"
 #include "Camera.hpp"
-#include "Logging.hpp"
-#include "MeshRegistry.hpp"
-#include "ObjectLifecycle.hpp"
 #include "Ranges.hpp"
 #include "RenderEngine.hpp"
 #include "ResourceDatabase.hpp"
-#include "ResourceFiles.hpp"
 #include "ResourceUnpacker.hpp"
 #include "SceneImporter.hpp"
 #include "Region.hpp"
-#include "SkinnedMesh.hpp"
 #include "Transform.hpp"
-#include "UUID.hpp"
 #include "VPath.hpp"
-#include "VertexStatic.hpp"
 #include "VirtualFilesystem.hpp"
 #include <exception>
 #include <fmt/core.h>
@@ -75,6 +66,7 @@ ImGuiApplicationAssembly::ImGuiApplicationAssembly(
     , stage_hooks_    { engine             }
     , scene_list_     { registry, asset_manager, asset_unpacker, scene_importer }
     , asset_browser_  { asset_manager      }
+    , resource_viewer_(resource_database, asset_importer, resource_unpacker, registry, engine.mesh_registry())
     , selected_menu_  { registry           }
     , gizmos_         { registry           }
 {}
@@ -256,324 +248,6 @@ void display_asset_manager_debug(AssetManager& asset_manager) {
 }
 
 
-void display_resource_file_debug(
-    ResourceDatabase&   resource_database,
-    AssetImporter&      asset_importer,
-    ResourceUnpacker&   resource_unpacker,
-    Registry&           registry,
-    const MeshRegistry& mesh_registry)
-{
-    thread_local String                 path;
-    thread_local String                 last_error;
-    thread_local size_t                 selected_id{};
-    thread_local Vector<Entity>         id2entity;
-    thread_local Optional<SkeletonFile> opened_file;
-
-    thread_local Optional<Job<UUID>> importing_job;
-    thread_local Optional<UUID>      last_imported;
-
-    thread_local ImportSceneParams   import_scene_params = {};
-    thread_local ImportTextureParams import_texture_params = {};
-
-    thread_local Optional<Job<>> unpacking_job;
-
-    auto unpack_signal = on_value_change_from<UUID>({}, [&](UUID uuid) {
-        auto handle = create_handle(registry);
-        handle.emplace<Transform>();
-        try {
-            unpacking_job = resource_unpacker.unpack_any(uuid, handle);
-            last_error = {};
-        } catch (const std::exception& e) {
-            last_error = e.what();
-        }
-    });
-
-
-
-
-    ImGui::Text("Root: %s", resource_database.root().c_str());
-
-    ImGui::InputText("Path", &path);
-
-    auto try_import_thing = [&](auto params) {
-        try {
-            importing_job = asset_importer.import_asset(path, params);
-            last_error = {};
-        } catch (const std::exception& e) {
-            last_error = e.what();
-        }
-    };
-
-    using TextureFormat = TextureFile::StorageFormat;
-    const TextureFormat formats[2]{
-        TextureFormat::RAW,
-        TextureFormat::PNG,
-    };
-
-    const char* format_names[2]{
-        "Raw",
-        "PNG",
-    };
-
-    auto texture_format_combo = [&](TextureFormat& current_format) {
-        size_t current_idx = 0;
-        for (const TextureFormat format : formats) {
-            if (format == current_format) break;
-            ++current_idx;
-        }
-
-        if (ImGui::BeginCombo("Texture Format", format_names[current_idx])) {
-            for (const size_t i : irange(std::size(formats))) {
-                if (ImGui::Selectable(format_names[i], current_idx == i)) {
-                    current_format = formats[i];
-                }
-            }
-            ImGui::EndCombo();
-        }
-    };
-
-    if (ImGui::TreeNode("Import Texture")) {
-        texture_format_combo(import_texture_params.storage_format);
-        ImGui::Checkbox("Generate Mipmaps", &import_texture_params.generate_mips);
-        if (ImGui::Button("Import")) try_import_thing(import_texture_params);
-        ImGui::TreePop();
-    }
-    if (ImGui::TreeNode("Import Scene")) {
-        texture_format_combo(import_scene_params.texture_storage_format);
-        ImGui::Checkbox("Generate Mipmaps", &import_scene_params.generate_mips);
-        ImGui::SameLine();
-        ImGui::Checkbox("Collapse Graph", &import_scene_params.collapse_graph);
-        ImGui::SameLine();
-        ImGui::Checkbox("Merge Meshes", &import_scene_params.merge_meshes);
-        if (ImGui::Button("Import")) try_import_thing(import_scene_params);
-        ImGui::TreePop();
-    }
-
-
-    if (ImGui::TreeNode("Entries")) {
-        using ranges::views::enumerate;
-
-        const auto table_flags =
-            ImGuiTableFlags_Borders     |
-            ImGuiTableFlags_Resizable   |
-            ImGuiTableFlags_Reorderable |
-            ImGuiTableFlags_Hideable    |
-            ImGuiTableFlags_SizingStretchProp |
-            ImGuiTableFlags_HighlightHoveredColumn;
-
-        if (ImGui::BeginTable("Resources", 4, table_flags)) {
-            ImGui::TableSetupColumn("UUID");
-            ImGui::TableSetupColumn("File");
-            ImGui::TableSetupColumn("Offset");
-            ImGui::TableSetupColumn("Size");
-            ImGui::TableHeadersRow();
-            size_t i = 0;
-            resource_database.for_each_row([&i, &unpack_signal](
-                const ResourceDatabase::Row& row)
-            {
-                ImGui::PushID(void_id(i));
-                ImGui::TableNextRow();
-
-                char uuid_str[37]{};
-                serialize_uuid_to(uuid_str, row.uuid);
-                const StrView file = row.filepath.view();
-
-                ImGui::TableNextColumn();
-                // NOTE: No ability to select it yet. Just a visual hover hint.
-                ImGui::Selectable(uuid_str, false, ImGuiSelectableFlags_SpanAllColumns);
-                if (ImGui::BeginPopupContextItem()) {
-                    if (ImGui::MenuItem("Unpack")) {
-                        unpack_signal.set(row.uuid);
-                    }
-                    ImGui::EndPopup();
-                }
-
-                ImGui::TableNextColumn();
-                ImGui::TextUnformatted(file);
-
-                ImGui::TableNextColumn();
-                ImGui::Text("%zu", row.offset_bytes);
-
-                ImGui::TableNextColumn();
-                ImGui::Text("%zu", row.size_bytes);
-
-                ++i;
-                ImGui::PopID();
-            });
-
-            ImGui::EndTable();
-        }
-        ImGui::TreePop();
-    }
-
-
-    if (importing_job and importing_job->is_ready()) {
-        try {
-            last_imported = move_out(importing_job).get_result();
-        } catch (const std::exception& e) {
-            last_error = e.what();
-        }
-
-    }
-
-    if (last_imported) {
-        thread_local char uuid_string[37]{};
-        serialize_uuid_to(uuid_string, *last_imported);
-        ImGui::Text("Last UUID: %s", uuid_string);
-    }
-
-
-
-    if (ImGui::TreeNode("Debug")) {
-
-        ImGui::SeparatorText("SkeletonFile");
-        ImGui::PushID("SkeletonFile");
-
-
-        if (ImGui::TreeNode("Save")) {
-
-            if (ImGui::BeginListBox("Entities")) {
-                id2entity.clear();
-                size_t id{};
-                char name[16]{ '\0' };
-                for (const auto [e, mesh] : registry.view<SkinnedMesh>().each()) {
-                    std::snprintf(name, std::size(name), "%d", to_entity(e));
-                    if (ImGui::Selectable(name, id == selected_id)) {
-                        selected_id = id;
-                    }
-                    id2entity.emplace_back(e);
-                    ++id;
-                }
-                ImGui::EndListBox();
-            }
-
-            if (ImGui::Button("Save")) {
-                try {
-                    const Entity entity = id2entity.at(selected_id);
-                    const Skeleton& skeleton = *registry.get<SkinnedMesh>(entity).pose.skeleton;
-                    // auto file = SkeletonFile::create(path, skeleton.joints.size());
-                    // std::span<Joint> file_joints = file.joints();
-                    // assert(file_joints.size() == skeleton.joints.size());
-                    // std::ranges::copy(skeleton.joints, file_joints.begin());
-                    last_error = {};
-                } catch (const std::exception& e) {
-                    last_error = e.what();
-                }
-            }
-
-            ImGui::TreePop();
-        }
-
-        if (ImGui::TreeNode("Open")) {
-
-            if (ImGui::Button("Open")) {
-                try {
-                    // opened_file = SkeletonFile::open(path);
-                    last_error = {};
-                } catch (const std::exception& e) {
-                    last_error = e.what();
-                }
-            }
-
-            if (auto* f = try_get(opened_file)) {
-                ImGui::Text("Num Joints: %d", f->num_joints());
-                using ranges::views::enumerate;
-                for (const auto [j, joint] : enumerate(f->joints())) {
-                    ImGui::Text("Joint ID: %d, Parent ID: %d", int(j), joint.parent_id);
-                    imgui::Matrix4x4DisplayWidget(joint.inv_bind);
-                }
-            }
-
-
-            ImGui::TreePop();
-        }
-
-
-        ImGui::PopID();
-
-
-        ImGui::SeparatorText("MeshFile");
-        ImGui::PushID("MeshFile");
-
-
-        if (ImGui::TreeNode("Save")) {
-
-            if (ImGui::BeginListBox("Entities")) {
-                id2entity.clear();
-                size_t id{};
-                char name[16]{};
-                auto iterate_view = [&id, &name](auto&& view, const char* type) {
-                    for (const Entity e : view) {
-                        std::snprintf(name, std::size(name), "%s %d", type, to_entity(e));
-                        if (ImGui::Selectable(name, id == selected_id)) {
-                            selected_id = id;
-                        }
-                        id2entity.emplace_back(e);
-                        ++id;
-                    }
-                };
-                iterate_view(registry.view<MeshID<VertexStatic>>(), "Static" );
-                iterate_view(registry.view<SkinnedMesh>(),          "Skinned");
-                ImGui::EndListBox();
-            }
-
-            if (ImGui::Button("Save")) {
-                try {
-                    const Entity entity  = id2entity.at(selected_id);
-                    using VertexT = VertexStatic;
-                    auto download_from_storage = [&]<typename VertexT>(MeshID<VertexT> mesh_id) {
-                        const auto&  storage = *mesh_registry.storage_for<VertexT>();
-                        auto [vert_range, elem_range] = storage.buffer_ranges(mesh_id);
-                        using LODSpec = MeshFile::LODSpec;
-                        constexpr auto layout = MeshFile::vertex_traits<VertexT>::layout;
-                        LODSpec specs[1]{
-                            LODSpec{
-                                .num_verts = uint32_t(vert_range.count),
-                                .num_elems = uint32_t(elem_range.count)
-                            },
-                        };
-                        // auto file = MeshFile::create(path, layout, specs);
-                        // auto dst_verts = file.template lod_verts<layout>(0);
-                        // auto dst_elems = file.lod_elems(0);
-                        // storage.vertex_buffer().download_data_into(dst_verts, vert_range.offset);
-                        // storage.index_buffer() .download_data_into(dst_elems, elem_range.offset);
-                    };
-
-                    if (const auto* static_mesh = registry.try_get<MeshID<VertexT>>(entity)) {
-                        download_from_storage(*static_mesh);
-                    } else if (const auto* skinned_mesh = registry.try_get<SkinnedMesh>(entity)) {
-                        download_from_storage(skinned_mesh->mesh_id);
-                    } else { assert(false); }
-
-                    last_error = {};
-                } catch (const std::exception& e) {
-                    last_error = e.what();
-                }
-            }
-
-
-            ImGui::TreePop();
-        }
-
-        ImGui::PopID();
-
-        ImGui::TreePop();
-    }
-
-    if (unpacking_job and unpacking_job->is_ready()) {
-        try {
-            move_out(unpacking_job).get_result();
-            last_error = "Successfully unpacked... something.";
-        } catch (const std::exception& e) {
-            last_error = e.what();
-        }
-    }
-
-
-    ImGui::TextUnformatted(last_error.c_str());
-}
-
-
 } // namespace
 
 
@@ -640,7 +314,7 @@ void ImGuiApplicationAssembly::draw_widgets() {
                 ImGui::Checkbox("Assets",         &show_asset_browser );
                 ImGui::Checkbox("Demo Window",    &show_demo_window   );
                 ImGui::Checkbox("Asset Manager",  &show_asset_manager );
-                ImGui::Checkbox("Resource Files", &show_resource_files);
+                ImGui::Checkbox("Resource Files", &show_resource_viewer);
 
                 ImGui::Separator();
 
@@ -805,10 +479,9 @@ void ImGuiApplicationAssembly::draw_widgets() {
             } ImGui::End();
         }
 
-        if (show_resource_files) {
-            if (ImGui::Begin("Resource Files")) {
-                display_resource_file_debug(resource_database_, asset_importer_,
-                    resource_unpacker_, registry_, engine_.mesh_registry());
+        if (show_resource_viewer) {
+            if (ImGui::Begin("Resources")) {
+                resource_viewer_.display_viewer();
             } ImGui::End();
         }
 

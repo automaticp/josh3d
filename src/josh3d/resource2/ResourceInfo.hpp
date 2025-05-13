@@ -86,6 +86,16 @@ public:
         }
     }
 
+    auto name_or(ResourceType type, StrView default_) const noexcept
+        -> StrView
+    {
+        if (const auto name = name_of(type); name.size()) {
+            return name;
+        } else {
+            return default_;
+        }
+    }
+
     // Returns the name of the resource or a stringified version
     // of the `type` argument if no such resource is registered.
     // Possibly slow, but convenient.

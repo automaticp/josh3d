@@ -10,6 +10,7 @@
 #include "DefaultUnpackers.hpp"
 #include "GLPixelPackTraits.hpp"
 #include "GLTextures.hpp"
+#include "ImGuiDefaultResourceInspectors.hpp"
 #include "ImGuiApplicationAssembly.hpp"
 #include "Logging.hpp"
 #include "Camera.hpp"
@@ -335,6 +336,7 @@ DemoScene::DemoScene(glfw::Window& window)
     register_default_loaders      (resource_loader_);
     register_default_unpackers    (resource_unpacker_);
     init_registry();
+    register_default_resource_inspectors(imgui_.resource_viewer());
 }
 
 

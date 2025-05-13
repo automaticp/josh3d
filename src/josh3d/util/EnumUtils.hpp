@@ -1,4 +1,5 @@
 #pragma once
+#include "MapMacro.hpp"
 #include <concepts>
 #include <type_traits>
 
@@ -51,6 +52,32 @@ constexpr auto enum_cast(FromEnumT enum_value) noexcept
 {
     return static_cast<To>(to_underlying(enum_value));
 }
+
+// NOLINTNEXTLINE
+#define _JOSH3D_ENUM_NAME_CASE(Name) \
+    case Name: return #Name;
+// TODO: How do I "bind" arguments with macros?
+#define JOSH3D_DEFINE_ENUM_STRING(EnumType, ...)            \
+    constexpr auto enum_string(EnumType value) noexcept     \
+        -> std::string_view                                 \
+    {                                                       \
+        switch (value) {                                    \
+            using enum EnumType;                            \
+            JOSH3D_MAP(_JOSH3D_ENUM_NAME_CASE, __VA_ARGS__) \
+            default: return "";                             \
+        }                                                   \
+    }                                                       \
+                                                            \
+    constexpr auto enum_cstring(EnumType value) noexcept    \
+        -> const char*                                      \
+    {                                                       \
+        switch (value) {                                    \
+            using enum EnumType;                            \
+            JOSH3D_MAP(_JOSH3D_ENUM_NAME_CASE, __VA_ARGS__) \
+            default: return "";                             \
+        }                                                   \
+    }
+
 
 
 
