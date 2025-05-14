@@ -1,5 +1,6 @@
 #include "AssimpCommon.hpp"
 #include "AssetImporter.hpp"
+#include "Common.hpp"
 #include "Ranges.hpp"
 #include <assimp/scene.h>
 #include <assimp/mesh.h>
@@ -10,12 +11,12 @@ namespace {
 
 
 void populate_joints_preorder(
-    std::vector<Joint>&                                     joints,
-    std::vector<ResourceName>&                              joint_names,
-    std::unordered_map<const aiNode*, size_t>&              node2id,
-    const std::unordered_map<const aiNode*, const aiBone*>& node2bone,
-    const aiNode*                                           node,
-    bool                                                    is_root)
+    Vector<Joint>&                               joints,
+    Vector<ResourceName>&                        joint_names,
+    HashMap<const aiNode*, size_t>&              node2id,
+    const HashMap<const aiNode*, const aiBone*>& node2bone,
+    const aiNode*                                node,
+    bool                                         is_root)
 {
     if (!node) return;
 
@@ -67,7 +68,7 @@ void populate_joints_preorder(
         }
     }
 
-    for (const aiNode* child : std::span(node->mChildren, node->mNumChildren)) {
+    for (const aiNode* child : make_span(node->mChildren, node->mNumChildren)) {
         const bool is_root = false;
         populate_joints_preorder(joints, joint_names, node2id, node2bone, child, is_root);
     }
@@ -78,16 +79,16 @@ void populate_joints_preorder(
 
 
 auto import_skeleton_async(
-    AssetImporterContext                                    context,
-    const aiNode*                                           armature,
-    std::unordered_map<const aiNode*, size_t>&              node2jointid,
-    const std::unordered_map<const aiNode*, const aiBone*>& node2bone)
+    AssetImporterContext                         context,
+    const aiNode*                                armature,
+    HashMap<const aiNode*, size_t>&              node2jointid,
+    const HashMap<const aiNode*, const aiBone*>& node2bone)
         -> Job<UUID>
 {
     co_await reschedule_to(context.thread_pool());
 
-    std::vector<Joint>        joints;
-    std::vector<ResourceName> joint_names;
+    Vector<Joint>        joints;
+    Vector<ResourceName> joint_names;
     const aiNode* root    = armature;
     const bool    is_root = true;
     populate_joints_preorder(joints, joint_names, node2jointid, node2bone, root, is_root);
@@ -115,8 +116,8 @@ auto import_skeleton_async(
 
     assert(file.num_joints() == joints.size());
     assert(file.num_joints() == joint_names.size());
-    const std::span dst_joints      = file.joints();
-    const std::span dst_joint_names = file.joint_names();
+    const auto dst_joints      = file.joints();
+    const auto dst_joint_names = file.joint_names();
 
     std::ranges::copy(joints,      dst_joints     .begin());
     std::ranges::copy(joint_names, dst_joint_names.begin());
@@ -126,11 +127,11 @@ auto import_skeleton_async(
 
 
 auto import_anim_async(
-    AssetImporterContext                             context,
-    const aiAnimation*                               ai_anim,
-    const aiNode*                                    armature,
-    const UUID&                                      skeleton_uuid,
-    const std::unordered_map<const aiNode*, size_t>& node2jointid)
+    AssetImporterContext                  context,
+    const aiAnimation*                    ai_anim,
+    const aiNode*                         armature,
+    const UUID&                           skeleton_uuid,
+    const HashMap<const aiNode*, size_t>& node2jointid)
         -> Job<UUID>
 {
     co_await reschedule_to(context.thread_pool());
@@ -139,12 +140,12 @@ auto import_anim_async(
     const double tps        = (ai_anim->mTicksPerSecond != 0) ? ai_anim->mTicksPerSecond : 30.0;
     const double duration_s = ai_anim->mDuration / tps;
 
-    const auto    ai_joint_keyframes = std::span(ai_anim->mChannels, ai_anim->mNumChannels);
+    const auto    ai_joint_keyframes = make_span(ai_anim->mChannels, ai_anim->mNumChannels);
     const size_t  num_joints         = node2jointid.size();
 
     // Prepare the file spec first.
-    std::vector<AnimationFile::KeySpec> specs(num_joints); // Zero num keys by default.
-    std::vector<const aiNodeAnim*>      ai_jkfs_per_joint(num_joints, nullptr); // Joint keyframes in joint order. For later.
+    Vector<AnimationFile::KeySpec> specs(num_joints); // Zero num keys by default.
+    Vector<const aiNodeAnim*>      ai_jkfs_per_joint(num_joints, nullptr); // Joint keyframes in joint order. For later.
     for (const aiNodeAnim* ai_jkfs : ai_joint_keyframes) {
 
         // WHY DO I HAVE TO LOOK IT UP BY NAME JESUS.
@@ -192,9 +193,9 @@ auto import_anim_async(
         // Could be nullptr if no keyframes exist for this joint.
         if (ai_jkfs) {
             // It is guaranteed by assimp that times are monotonically *increasing*.
-            const auto ai_pos_keys = std::span(ai_jkfs->mPositionKeys, ai_jkfs->mNumPositionKeys);
-            const auto ai_rot_keys = std::span(ai_jkfs->mRotationKeys, ai_jkfs->mNumRotationKeys);
-            const auto ai_sca_keys = std::span(ai_jkfs->mScalingKeys,  ai_jkfs->mNumScalingKeys );
+            const auto ai_pos_keys = make_span(ai_jkfs->mPositionKeys, ai_jkfs->mNumPositionKeys);
+            const auto ai_rot_keys = make_span(ai_jkfs->mRotationKeys, ai_jkfs->mNumRotationKeys);
+            const auto ai_sca_keys = make_span(ai_jkfs->mScalingKeys,  ai_jkfs->mNumScalingKeys );
 
             const auto to_vec3_key = [&tps](const aiVectorKey& vk) -> AnimationFile::KeyVec3 { return { float(vk.mTime / tps), v2v(vk.mValue) }; };
             const auto to_quat_key = [&tps](const aiQuatKey&   qk) -> AnimationFile::KeyQuat { return { float(qk.mTime / tps), q2q(qk.mValue) }; };

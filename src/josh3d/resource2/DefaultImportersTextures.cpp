@@ -11,7 +11,6 @@
 #include "detail/SPNG.hpp"
 #include "DefaultImporters.hpp"
 #include "AssetImporter.hpp"
-#include "Channels.hpp"
 #include "Ranges.hpp"
 #include "MallocSupport.hpp"
 #include "ResourceFiles.hpp"
@@ -29,19 +28,19 @@ using Format = TextureFile::StorageFormat;
 
 
 struct EncodedImage {
-    unique_malloc_ptr<chan::UByte[]> data;
-    Size2I                           resolution;
-    size_t                           num_channels;
-    size_t                           size_bytes;
-    Format                           format;
-    auto span() const noexcept -> Span<byte> { return { data.get(), size_bytes }; }
+    unique_malloc_ptr<ubyte[]> data;
+    Size2I                     resolution;
+    size_t                     num_channels;
+    size_t                     size_bytes;
+    Format                     format;
+    auto span() const noexcept -> Span<ubyte> { return { data.get(), size_bytes }; }
 };
 
 
 [[nodiscard]]
 auto encode_texture_async_raw(
-    AssetImporterContext&  context [[maybe_unused]],
-    ImageData<chan::UByte> image)
+    AssetImporterContext& context [[maybe_unused]],
+    ImageData<ubyte>      image)
         -> Job<EncodedImage>
 {
     // Incredible implementation. Not even going to suspend.
@@ -59,12 +58,11 @@ auto encode_texture_async_raw(
 
 [[nodiscard]]
 auto encode_texture_async_png(
-    AssetImporterContext&  context,
-    ImageData<chan::UByte> image)
+    AssetImporterContext& context,
+    ImageData<ubyte>      image)
         -> Job<EncodedImage>
 {
     co_await reschedule_to(context.thread_pool());
-
 
     auto      ctx_owner = detail::make_spng_encoding_context();
     spng_ctx* ctx       = ctx_owner.get();
@@ -105,7 +103,7 @@ auto encode_texture_async_png(
 
 
     size_t size_bytes;
-    auto   data = unique_malloc_ptr<chan::UByte[]>((chan::UByte*)spng_get_png_buffer(ctx, &size_bytes, &err));
+    auto   data = unique_malloc_ptr<ubyte[]>((ubyte*)spng_get_png_buffer(ctx, &size_bytes, &err));
     if (not data or err) throw RuntimeError(fmt::format("Failed retrieving PNG buffer: {}.", spng_strerror(err)));
 
     co_return EncodedImage{
@@ -121,8 +119,8 @@ auto encode_texture_async_png(
 
 [[nodiscard]]
 auto encode_texture_async_bc7(
-    AssetImporterContext&  context,
-    ImageData<chan::UByte> image)
+    AssetImporterContext& context,
+    ImageData<ubyte>      image)
         -> Job<EncodedImage>
 {
     safe_unreachable("BC7 not implemented.");
@@ -153,8 +151,8 @@ auto pick_mip_data_format(size_t num_channels)
 
 [[nodiscard]]
 auto generate_mips(
-    AssetImporterContext&            context,
-    SmallVector<ImageData<byte>, 1>& mips)
+    AssetImporterContext&             context,
+    SmallVector<ImageData<ubyte>, 1>& mips)
         -> Job<>
 {
     const auto resolution0  = Extent2I(mips[0].resolution());
@@ -247,10 +245,10 @@ auto import_texture(
         && "Only RAW or PNG formats are supported for now. Sad."
     );
 
-    SmallVector<ImageData<byte>, 1> mips;
+    SmallVector<ImageData<ubyte>, 1> mips;
 
     // First we load the data with stb. This allows us to load all kinds of formats.
-    mips.emplace_back(load_image_data_from_file<chan::UByte>(File(path), 3, 4));
+    mips.emplace_back(load_image_data_from_file<ubyte>(File(path), 3, 4));
     const size_t num_channels = mips[0].num_channels();
 
     if (params.generate_mips) {

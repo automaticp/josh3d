@@ -1,4 +1,6 @@
 #include "ResourceFiles.hpp"
+#include "Common.hpp"
+#include "FileMapping.hpp"
 #include "AABB.hpp"
 #include "EnumUtils.hpp"
 #include "Filesystem.hpp"
@@ -6,8 +8,6 @@
 #include "Ranges.hpp"
 #include "ReadFile.hpp"
 #include "UUID.hpp"
-#include <boost/interprocess/file_mapping.hpp>
-#include <boost/interprocess/mapped_region.hpp>
 #include <fmt/core.h>
 #include <fmt/std.h>
 #include <algorithm>
@@ -63,10 +63,10 @@ auto please_type_pun(SrcT* from)
 }
 
 
-auto mapping_bytes(const bip::mapped_region& mapping) noexcept
-    -> std::byte*
+auto mapping_bytes(const MappedRegion& mapping) noexcept
+    -> ubyte*
 {
-    return (std::byte*)mapping.get_address();
+    return (ubyte*)mapping.get_address();
 }
 
 
@@ -87,14 +87,14 @@ void throw_on_unexpected_size(size_t expected, size_t real) noexcept(false) {
 
 template<typename HeaderT>
 [[nodiscard]] auto open_file_mapping(const Path& path)
-    -> bip::mapped_region
+    -> MappedRegion
 {
     // NOTE: Mapped regions persist even after the file_mapping was destroyed,
     // so we drop the file_mapping at the end of this scope.
 
-    bip::file_mapping  file{ path.c_str(), bip::read_write };
-    bip::mapped_region mapping{ file, bip::read_write };
-    mapping.advise(bip::mapped_region::advice_sequential); // TODO: Useful?
+    FileMapping  file{ path.c_str(), bip::read_write };
+    MappedRegion mapping{ file, bip::read_write };
+    mapping.advise(MappedRegion::advice_sequential); // TODO: Useful?
 
     const size_t file_size = mapping.get_size();
 
@@ -105,7 +105,7 @@ template<typename HeaderT>
 
 
 [[nodiscard]] auto create_file_mapping(const Path& path, size_t file_size)
-    -> bip::mapped_region
+    -> MappedRegion
 {
     std::filebuf file = create_file(path, file_size);
 
@@ -114,9 +114,9 @@ template<typename HeaderT>
     // open an "empty" file. Mapping it would fail.
     file.pubsync();
 
-    bip::file_mapping file_mapping{ path.c_str(), bip::read_write };
-    bip::mapped_region mapping{ file_mapping, bip::read_write };
-    mapping.advise(bip::mapped_region::advice_sequential);
+    FileMapping  file_mapping{ path.c_str(), bip::read_write };
+    MappedRegion mapping{ file_mapping, bip::read_write };
+    mapping.advise(MappedRegion::advice_sequential);
 
     return mapping;
 }
@@ -124,7 +124,7 @@ template<typename HeaderT>
 
 // Headers are always assumed to be at the very beginning of a mapping.
 template<typename HeaderT>
-void write_header_to(bip::mapped_region& mapping, const HeaderT& src) noexcept {
+void write_header_to(MappedRegion& mapping, const HeaderT& src) noexcept {
     std::memcpy(mapping_bytes(mapping), &src, sizeof(HeaderT));
     mapping.flush(0, sizeof(HeaderT));
 }
@@ -147,7 +147,7 @@ auto ResourcePreamble::create(
 }
 
 
-auto ResourceName::from_view(std::string_view sv) noexcept
+auto ResourceName::from_view(StrView sv) noexcept
     -> ResourceName
 {
     const size_t length = std::min(max_length, sv.length());
@@ -180,7 +180,7 @@ auto ResourceName::from_cstr(const char* cstr) noexcept
 
 
 auto ResourceName::view() const noexcept
-    -> std::string_view
+    -> StrView
 {
     return { name, length };
 }
@@ -190,7 +190,7 @@ auto ResourceName::view() const noexcept
 
 
 
-SkeletonFile::SkeletonFile(bip::mapped_region mapping)
+SkeletonFile::SkeletonFile(MappedRegion mapping)
     : mapping_{ MOVE(mapping) }
 {}
 
@@ -228,28 +228,28 @@ auto SkeletonFile::num_joints() const noexcept
 
 
 auto SkeletonFile::joints() noexcept
-    -> std::span<Joint>
+    -> Span<Joint>
 {
     return { joints_ptr(), num_joints() };
 }
 
 
 auto SkeletonFile::joints() const noexcept
-    -> std::span<const Joint>
+    -> Span<const Joint>
 {
     return { joints_ptr(), num_joints() };
 }
 
 
 auto SkeletonFile::joint_names() noexcept
-    -> std::span<ResourceName>
+    -> Span<ResourceName>
 {
     return { joint_names_ptr(), num_joints() };
 }
 
 
 auto SkeletonFile::joint_names() const noexcept
-    -> std::span<const ResourceName>
+    -> Span<const ResourceName>
 {
     return { joint_names_ptr(), num_joints() };
 }
@@ -267,7 +267,7 @@ auto SkeletonFile::required_size(const Args& args) noexcept
 }
 
 
-auto SkeletonFile::create_in(mapped_region mapped_region, UUID self_uuid, const Args& args)
+auto SkeletonFile::create_in(MappedRegion mapped_region, UUID self_uuid, const Args& args)
     -> SkeletonFile
 {
     assert(required_size(args) == mapped_region.get_size());
@@ -288,7 +288,7 @@ auto SkeletonFile::create_in(mapped_region mapped_region, UUID self_uuid, const 
 }
 
 
-auto SkeletonFile::open(mapped_region mapped_region)
+auto SkeletonFile::open(MappedRegion mapped_region)
     -> SkeletonFile
 {
     SkeletonFile file{ MOVE(mapped_region) };
@@ -306,7 +306,7 @@ auto SkeletonFile::open(mapped_region mapped_region)
 
 
 
-AnimationFile::AnimationFile(boost::interprocess::mapped_region mapping)
+AnimationFile::AnimationFile(MappedRegion mapping)
     : mapping_{ MOVE(mapping) }
 {}
 
@@ -352,7 +352,7 @@ auto AnimationFile::pos_keys_ptr(size_t joint_id) const noexcept
 {
     auto* kfs = keyframes_ptr(joint_id);
     const size_t offset_bytes = sizeof(KeyframesHeader);
-    return please_type_pun<KeyVec3>((byte*)kfs + offset_bytes);
+    return please_type_pun<KeyVec3>((ubyte*)kfs + offset_bytes);
 }
 
 
@@ -436,42 +436,42 @@ auto AnimationFile::num_sca_keys(size_t joint_id) const noexcept
 
 
 auto AnimationFile::pos_keys(size_t joint_id) noexcept
-    -> std::span<KeyVec3>
+    -> Span<KeyVec3>
 {
     return { pos_keys_ptr(joint_id), num_pos_keys(joint_id) };
 }
 
 
 auto AnimationFile::pos_keys(size_t joint_id) const noexcept
-    -> std::span<const KeyVec3>
+    -> Span<const KeyVec3>
 {
     return { pos_keys_ptr(joint_id), num_pos_keys(joint_id) };
 }
 
 
 auto AnimationFile::rot_keys(size_t joint_id) noexcept
-    -> std::span<KeyQuat>
+    -> Span<KeyQuat>
 {
     return { rot_keys_ptr(joint_id), num_rot_keys(joint_id) };
 }
 
 
 auto AnimationFile::rot_keys(size_t joint_id) const noexcept
-    -> std::span<const KeyQuat>
+    -> Span<const KeyQuat>
 {
     return { rot_keys_ptr(joint_id), num_rot_keys(joint_id) };
 }
 
 
 auto AnimationFile::sca_keys(size_t joint_id) noexcept
-    -> std::span<KeyVec3>
+    -> Span<KeyVec3>
 {
     return { sca_keys_ptr(joint_id), num_sca_keys(joint_id) };
 }
 
 
 auto AnimationFile::sca_keys(size_t joint_id) const noexcept
-    -> std::span<const KeyVec3>
+    -> Span<const KeyVec3>
 {
     return { sca_keys_ptr(joint_id), num_sca_keys(joint_id) };
 }
@@ -493,7 +493,7 @@ auto AnimationFile::required_size(const Args& args) noexcept
 }
 
 
-auto AnimationFile::create_in(mapped_region mapped_region, UUID self_uuid, const Args& args)
+auto AnimationFile::create_in(MappedRegion mapped_region, UUID self_uuid, const Args& args)
     -> AnimationFile
 {
     assert(required_size(args) == mapped_region.get_size());
@@ -542,7 +542,7 @@ auto AnimationFile::create_in(mapped_region mapped_region, UUID self_uuid, const
 }
 
 
-auto AnimationFile::open(mapped_region mapped_region)
+auto AnimationFile::open(MappedRegion mapped_region)
     -> AnimationFile
 {
     AnimationFile file{ MOVE(mapped_region) };
@@ -576,8 +576,8 @@ auto AnimationFile::open(mapped_region mapped_region)
 
 
 
-MeshFile::MeshFile(boost::interprocess::mapped_region mapping)
-    : mapping_{ MOVE(mapping) }
+MeshFile::MeshFile(MappedRegion mregion)
+    : mapping_{ MOVE(mregion) }
 {}
 
 
@@ -592,7 +592,7 @@ using VertexLayout = MeshFile::VertexLayout;
 
 
 auto MeshFile::lod_verts_ptr(size_t lod_id) const noexcept
-    -> std::byte*
+    -> ubyte*
 {
     assert(lod_id < num_lods());
     const LODSpan& span = header_ptr()->lods[lod_id];
@@ -602,7 +602,7 @@ auto MeshFile::lod_verts_ptr(size_t lod_id) const noexcept
 
 
 auto MeshFile::lod_elems_ptr(size_t lod_id) const noexcept
-    -> std::byte*
+    -> ubyte*
 {
     assert(lod_id < num_lods());
     const LODSpan& span = header_ptr()->lods[lod_id];
@@ -722,28 +722,28 @@ auto MeshFile::lod_elems_size_bytes(size_t lod_id) const noexcept
 
 
 auto MeshFile::lod_verts_bytes(size_t lod_id) noexcept
-    -> std::span<std::byte>
+    -> Span<ubyte>
 {
     return { lod_verts_ptr(lod_id), lod_verts_size_bytes(lod_id) };
 }
 
 
 auto MeshFile::lod_verts_bytes(size_t lod_id) const noexcept
-    -> std::span<const std::byte>
+    -> Span<const ubyte>
 {
     return { lod_verts_ptr(lod_id), lod_verts_size_bytes(lod_id) };
 }
 
 
 auto MeshFile::lod_elems_bytes(size_t lod_id) noexcept
-    -> std::span<std::byte>
+    -> Span<ubyte>
 {
     return { lod_elems_ptr(lod_id), lod_elems_size_bytes(lod_id) };
 }
 
 
 auto MeshFile::lod_elems_bytes(size_t lod_id) const noexcept
-    -> std::span<const std::byte>
+    -> Span<const ubyte>
 {
     return { lod_elems_ptr(lod_id), lod_elems_size_bytes(lod_id) };
 }
@@ -762,7 +762,7 @@ auto MeshFile::required_size(const Args& args) noexcept
 }
 
 
-auto MeshFile::create_in(mapped_region mapped_region, UUID self_uuid, const Args& args)
+auto MeshFile::create_in(MappedRegion mapped_region, UUID self_uuid, const Args& args)
     -> MeshFile
 {
     assert(required_size(args) == mapped_region.get_size());
@@ -809,7 +809,7 @@ auto MeshFile::create_in(mapped_region mapped_region, UUID self_uuid, const Args
 }
 
 
-auto MeshFile::open(mapped_region mapped_region)
+auto MeshFile::open(MappedRegion mapped_region)
     -> MeshFile
 {
     MeshFile file{ MOVE(mapped_region) };
@@ -860,8 +860,8 @@ auto MeshFile::open(mapped_region mapped_region)
 
 
 
-TextureFile::TextureFile(boost::interprocess::mapped_region mapping)
-    : mapping_{ MOVE(mapping) }
+TextureFile::TextureFile(MappedRegion mregion)
+    : mapping_{ MOVE(mregion) }
 {}
 
 
@@ -876,7 +876,7 @@ using StorageFormat = TextureFile::StorageFormat;
 
 
 auto TextureFile::mip_bytes_ptr(size_t mip_id) const noexcept
-    -> std::byte*
+    -> ubyte*
 {
     assert(mip_id < num_mips());
     const MIPSpan& span = header_ptr()->mips[mip_id];
@@ -939,14 +939,14 @@ auto TextureFile::mip_size_bytes(size_t mip_id) const noexcept
 
 
 auto TextureFile::mip_bytes(size_t mip_id) noexcept
-    -> std::span<std::byte>
+    -> Span<ubyte>
 {
     return { mip_bytes_ptr(mip_id), mip_size_bytes(mip_id) };
 }
 
 
 auto TextureFile::mip_bytes(size_t mip_id) const noexcept
-    -> std::span<const std::byte>
+    -> Span<const ubyte>
 {
     return { mip_bytes_ptr(mip_id), mip_size_bytes(mip_id) };
 }
@@ -963,7 +963,7 @@ auto TextureFile::required_size(const Args& args) noexcept
 }
 
 
-auto TextureFile::create_in(mapped_region mapped_region, UUID self_uuid, const Args& args)
+auto TextureFile::create_in(MappedRegion mapped_region, UUID self_uuid, const Args& args)
     -> TextureFile
 {
     assert(required_size(args) == mapped_region.get_size());
@@ -1003,7 +1003,7 @@ auto TextureFile::create_in(mapped_region mapped_region, UUID self_uuid, const A
 }
 
 
-auto TextureFile::open(mapped_region mapped_region)
+auto TextureFile::open(MappedRegion mapped_region)
     -> TextureFile
 {
     TextureFile file{ MOVE(mapped_region) };

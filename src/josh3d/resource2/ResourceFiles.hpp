@@ -1,8 +1,10 @@
 #pragma once
+#include "Common.hpp"
 #include "AABB.hpp"
 #include "CategoryCasts.hpp"
 #include "DefaultResources.hpp"
 #include "EnumUtils.hpp"
+#include "FileMapping.hpp"
 #include "RuntimeError.hpp"
 #include "Region.hpp"
 #include "Skeleton.hpp"
@@ -10,12 +12,8 @@
 #include "UUID.hpp"
 #include "VertexStatic.hpp"
 #include "VertexSkinned.hpp"
-#include <boost/interprocess/file_mapping.hpp>
-#include <boost/interprocess/mapped_region.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <span>
-#include <string_view>
 
 
 /*
@@ -48,7 +46,7 @@ struct ResourceName {
 
     // Construct from a string view.
     // Truncates if the string is longer than `max_length`.
-    static auto from_view(std::string_view sv) noexcept
+    static auto from_view(StrView sv) noexcept
         -> ResourceName;
 
     // Construct from a null-terminated string.
@@ -56,8 +54,8 @@ struct ResourceName {
     static auto from_cstr(const char* cstr) noexcept
         -> ResourceName;
 
-    auto view() const noexcept -> std::string_view;
-    operator std::string_view() const noexcept { return view(); }
+    auto view() const noexcept -> StrView;
+    operator StrView() const noexcept { return view(); }
 };
 
 
@@ -68,19 +66,15 @@ Contents of a resource file make no sense.
 class InvalidResourceFile : public RuntimeError {
 public:
     static constexpr auto prefix = "Invalid Resource File: ";
-    InvalidResourceFile(std::string msg)
+    InvalidResourceFile(String msg)
         : InvalidResourceFile(prefix, MOVE(msg))
     {}
 protected:
-    InvalidResourceFile(const char* prefix, std::string msg)
+    InvalidResourceFile(const char* prefix, String msg)
         : RuntimeError(prefix, MOVE(msg))
     {}
 };
 } // namespace error
-
-
-using boost::interprocess::mapped_region;
-
 
 
 /*
@@ -135,23 +129,23 @@ public:
         -> size_t;
 
     [[nodiscard]]
-    static auto create_in(mapped_region mapped_region, UUID self_uuid, const Args& args)
+    static auto create_in(MappedRegion mapped_region, UUID self_uuid, const Args& args)
         -> SkeletonFile;
 
     [[nodiscard]]
-    static auto open(mapped_region mapped_region)
+    static auto open(MappedRegion mapped_region)
         -> SkeletonFile;
 
     auto size_bytes() const noexcept -> size_t { return mapping_.get_size(); }
     auto num_joints() const noexcept -> uint16_t;
-    auto joints()       noexcept -> std::span<Joint>;
-    auto joints() const noexcept -> std::span<const Joint>;
-    auto joint_names()       noexcept -> std::span<ResourceName>;
-    auto joint_names() const noexcept -> std::span<const ResourceName>;
+    auto joints()       noexcept -> Span<Joint>;
+    auto joints() const noexcept -> Span<const Joint>;
+    auto joint_names()       noexcept -> Span<ResourceName>;
+    auto joint_names() const noexcept -> Span<const ResourceName>;
 
 private:
-    SkeletonFile(boost::interprocess::mapped_region mapping);
-    boost::interprocess::mapped_region mapping_;
+    SkeletonFile(MappedRegion mapping);
+    MappedRegion mapping_;
 
     auto header_ptr() const noexcept -> Header*;
 
@@ -263,18 +257,18 @@ public:
     };
 
     struct Args {
-        std::span<const KeySpec> key_specs; // Per-joint.
+        Span<const KeySpec> key_specs; // Per-joint.
     };
 
     static auto required_size(const Args& args) noexcept
         -> size_t;
 
     [[nodiscard]]
-    static auto create_in(mapped_region mapped_region, UUID self_uuid, const Args& args)
+    static auto create_in(MappedRegion mapped_region, UUID self_uuid, const Args& args)
         -> AnimationFile;
 
     [[nodiscard]]
-    static auto open(mapped_region mapped_region)
+    static auto open(MappedRegion mapped_region)
         -> AnimationFile;
 
     auto size_bytes() const noexcept -> size_t { return mapping_.get_size(); }
@@ -291,17 +285,17 @@ public:
     auto num_rot_keys(size_t joint_id) const noexcept -> uint32_t;
     auto num_sca_keys(size_t joint_id) const noexcept -> uint32_t;
 
-    auto pos_keys(size_t joint_id)       noexcept -> std::span<KeyVec3>;
-    auto pos_keys(size_t joint_id) const noexcept -> std::span<const KeyVec3>;
-    auto rot_keys(size_t joint_id)       noexcept -> std::span<KeyQuat>;
-    auto rot_keys(size_t joint_id) const noexcept -> std::span<const KeyQuat>;
-    auto sca_keys(size_t joint_id)       noexcept -> std::span<KeyVec3>;
-    auto sca_keys(size_t joint_id) const noexcept -> std::span<const KeyVec3>;
+    auto pos_keys(size_t joint_id)       noexcept -> Span<KeyVec3>;
+    auto pos_keys(size_t joint_id) const noexcept -> Span<const KeyVec3>;
+    auto rot_keys(size_t joint_id)       noexcept -> Span<KeyQuat>;
+    auto rot_keys(size_t joint_id) const noexcept -> Span<const KeyQuat>;
+    auto sca_keys(size_t joint_id)       noexcept -> Span<KeyVec3>;
+    auto sca_keys(size_t joint_id) const noexcept -> Span<const KeyVec3>;
 
 
 private:
-    AnimationFile(boost::interprocess::mapped_region mapping);
-    boost::interprocess::mapped_region mapping_;
+    AnimationFile(MappedRegion mapping);
+    MappedRegion mapping_;
 
     auto header_ptr() const noexcept -> Header*;
 
@@ -377,19 +371,19 @@ public:
     };
 
     struct Args {
-        VertexLayout             layout;
-        std::span<const LODSpec> lod_specs; // Up-to max_lods.
+        VertexLayout        layout;
+        Span<const LODSpec> lod_specs; // Up-to max_lods.
     };
 
     static auto required_size(const Args& args) noexcept
         -> size_t;
 
     [[nodiscard]]
-    static auto create_in(mapped_region mapped_region, UUID self_uuid, const Args& args)
+    static auto create_in(MappedRegion mapped_region, UUID self_uuid, const Args& args)
         -> MeshFile;
 
     [[nodiscard]]
-    static auto open(mapped_region mapped_region)
+    static auto open(MappedRegion mapped_region)
         -> MeshFile;
 
     auto size_bytes() const noexcept -> size_t { return mapping_.get_size(); }
@@ -411,19 +405,19 @@ public:
     auto lod_verts_size_bytes(size_t lod_id) const noexcept -> uint32_t;
     auto lod_elems_size_bytes(size_t lod_id) const noexcept -> uint32_t;
 
-    auto lod_verts_bytes(size_t lod_id)       noexcept -> std::span<std::byte>;
-    auto lod_verts_bytes(size_t lod_id) const noexcept -> std::span<const std::byte>;
-    auto lod_elems_bytes(size_t lod_id)       noexcept -> std::span<std::byte>;
-    auto lod_elems_bytes(size_t lod_id) const noexcept -> std::span<const std::byte>;
+    auto lod_verts_bytes(size_t lod_id)       noexcept -> Span<ubyte>;
+    auto lod_verts_bytes(size_t lod_id) const noexcept -> Span<const ubyte>;
+    auto lod_elems_bytes(size_t lod_id)       noexcept -> Span<ubyte>;
+    auto lod_elems_bytes(size_t lod_id) const noexcept -> Span<const ubyte>;
 
 private:
-    MeshFile(boost::interprocess::mapped_region mapping);
-    boost::interprocess::mapped_region mapping_;
+    MeshFile(MappedRegion mapping);
+    MappedRegion mapping_;
 
     auto header_ptr() const noexcept -> Header*;
 
-    auto lod_verts_ptr(size_t lod_id) const noexcept -> std::byte*;
-    auto lod_elems_ptr(size_t lod_id) const noexcept -> std::byte*;
+    auto lod_verts_ptr(size_t lod_id) const noexcept -> ubyte*;
+    auto lod_elems_ptr(size_t lod_id) const noexcept -> ubyte*;
 
     static auto vert_size(VertexLayout layout) noexcept -> size_t;
 };
@@ -480,19 +474,19 @@ public:
     };
 
     struct Args {
-        uint16_t                 num_channels;
-        std::span<const MIPSpec> mip_specs; // Up-to max_mips.
+        uint16_t            num_channels;
+        Span<const MIPSpec> mip_specs; // Up-to max_mips.
     };
 
     static auto required_size(const Args& args) noexcept
         -> size_t;
 
     [[nodiscard]]
-    static auto create_in(mapped_region mapped_region, UUID self_uuid, const Args& args)
+    static auto create_in(MappedRegion mapped_region, UUID self_uuid, const Args& args)
         -> TextureFile;
 
     [[nodiscard]]
-    static auto open(mapped_region mapped_region)
+    static auto open(MappedRegion mapped_region)
         -> TextureFile;
 
     auto size_bytes() const noexcept -> size_t { return mapping_.get_size(); }
@@ -506,17 +500,17 @@ public:
 
     auto mip_size_bytes(size_t mip_id) const noexcept -> uint32_t;
 
-    auto mip_bytes(size_t mip_id)       noexcept -> std::span<std::byte>;
-    auto mip_bytes(size_t mip_id) const noexcept -> std::span<const std::byte>;
+    auto mip_bytes(size_t mip_id)       noexcept -> Span<ubyte>;
+    auto mip_bytes(size_t mip_id) const noexcept -> Span<const ubyte>;
 
 
 private:
-    TextureFile(boost::interprocess::mapped_region mapping);
-    boost::interprocess::mapped_region mapping_;
+    TextureFile(MappedRegion mapping);
+    MappedRegion mapping_;
 
     auto header_ptr() const noexcept -> Header*;
 
-    auto mip_bytes_ptr(size_t mip_id) const noexcept -> std::byte*;
+    auto mip_bytes_ptr(size_t mip_id) const noexcept -> ubyte*;
 };
 
 

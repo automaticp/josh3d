@@ -18,7 +18,6 @@
 #include "Ranges.hpp"
 #include "Resource.hpp"
 #include "ResourceFiles.hpp"
-#include "ResourceRegistry.hpp"
 #include "ResourceLoader.hpp"
 #include "RuntimeError.hpp"
 #include "UUID.hpp"
@@ -77,7 +76,7 @@ auto stage_lod(const MeshFile& file, uint8_t lod)
     UniqueUntypedBuffer    dst_verts;
 
     dst_elems->specify_storage(pun_span<const uint32_t>(src_elems), policies);
-    dst_verts->as_typed<std::byte>().specify_storage(src_verts, policies);
+    dst_verts->as_typed<ubyte>().specify_storage(src_verts, policies);
 
     return { MOVE(dst_verts), MOVE(dst_elems) };
 };
@@ -463,7 +462,7 @@ auto decode_and_upload_mip(
     const PixelDataFormat  format       = pick_pixel_data_format(src_format, num_channels);
     const MipLevel         level        = int(mip_id);
     const Extent2I         resolution   = file.resolution(mip_id);
-    const Span<const byte> src_bytes    = as_bytes(file.mip_bytes(mip_id));
+    const Span<const byte> src_bytes    = file.mip_bytes(mip_id);
 
     assert(needs_decoding(src_format));
 
@@ -500,7 +499,7 @@ auto upload_mip(
     const PixelDataFormat  format       = pick_pixel_data_format(src_format, num_channels);
     const MipLevel         level        = int(mip_id);
     const Extent2I         resolution   = file.resolution(mip_id);
-    const Span<const byte> src_bytes    = as_bytes(file.mip_bytes(mip_id));
+    const Span<const byte> src_bytes    = file.mip_bytes(mip_id);
 
     assert(not needs_decoding(src_format));
 

@@ -1,11 +1,11 @@
 #include "AssimpCommon.hpp"
+#include "Common.hpp"
 #include "Asset.hpp"
 #include "AssetImporter.hpp"
 #include "VertexStatic.hpp"
 #include "VertexSkinned.hpp"
 #include <assimp/mesh.h>
 #include <jsoncons/json.hpp>
-#include <vector>
 
 
 namespace josh::detail {
@@ -13,15 +13,15 @@ namespace {
 
 
 void extract_skinned_mesh_verts_to(
-    std::span<VertexSkinned>                         out_verts,
-    const aiMesh*                                    ai_mesh,
-    const std::unordered_map<const aiNode*, size_t>& node2jointid)
+    Span<VertexSkinned>                   out_verts,
+    const aiMesh*                         ai_mesh,
+    const HashMap<const aiNode*, size_t>& node2jointid)
 {
-    auto positions  = std::span(ai_mesh->mVertices,         ai_mesh->mNumVertices);
-    auto uvs        = std::span(ai_mesh->mTextureCoords[0], ai_mesh->mNumVertices);
-    auto normals    = std::span(ai_mesh->mNormals,          ai_mesh->mNumVertices);
-    auto tangents   = std::span(ai_mesh->mTangents,         ai_mesh->mNumVertices);
-    auto bones      = std::span(ai_mesh->mBones,            ai_mesh->mNumBones   );
+    auto positions  = make_span(ai_mesh->mVertices,         ai_mesh->mNumVertices);
+    auto uvs        = make_span(ai_mesh->mTextureCoords[0], ai_mesh->mNumVertices);
+    auto normals    = make_span(ai_mesh->mNormals,          ai_mesh->mNumVertices);
+    auto tangents   = make_span(ai_mesh->mTangents,         ai_mesh->mNumVertices);
+    auto bones      = make_span(ai_mesh->mBones,            ai_mesh->mNumBones   );
 
     assert(out_verts.size() == positions.size());
 
@@ -43,12 +43,12 @@ void extract_skinned_mesh_verts_to(
         int8_t n  {}; // Variable number of weights+ids. Because 4 is only an upper limit.
     };
 
-    std::vector<VertJointInfo> vert_joint_infos;
+    Vector<VertJointInfo> vert_joint_infos;
     vert_joint_infos.resize(positions.size()); // Resize, not reserve.
 
     // Now fill out the ids and weights for each vertex.
     for (const aiBone* bone : bones) {
-        for (const aiVertexWeight& w : std::span(bone->mWeights, bone->mNumWeights)) {
+        for (const aiVertexWeight& w : Span(bone->mWeights, bone->mNumWeights)) {
             auto& info = vert_joint_infos[w.mVertexId];
             info.ws [info.n] = w.mWeight;
             info.ids[info.n] = node2jointid.at(bone->mNode);
@@ -73,13 +73,13 @@ void extract_skinned_mesh_verts_to(
 
 
 void extract_static_mesh_verts_to(
-    std::span<VertexStatic> out_verts,
-    const aiMesh*           ai_mesh)
+    Span<VertexStatic> out_verts,
+    const aiMesh*      ai_mesh)
 {
-    auto positions  = std::span(ai_mesh->mVertices,         ai_mesh->mNumVertices);
-    auto uvs        = std::span(ai_mesh->mTextureCoords[0], ai_mesh->mNumVertices);
-    auto normals    = std::span(ai_mesh->mNormals,          ai_mesh->mNumVertices);
-    auto tangents   = std::span(ai_mesh->mTangents,         ai_mesh->mNumVertices);
+    auto positions  = make_span(ai_mesh->mVertices,         ai_mesh->mNumVertices);
+    auto uvs        = make_span(ai_mesh->mTextureCoords[0], ai_mesh->mNumVertices);
+    auto normals    = make_span(ai_mesh->mNormals,          ai_mesh->mNumVertices);
+    auto tangents   = make_span(ai_mesh->mTangents,         ai_mesh->mNumVertices);
 
     if (!normals.data())    { throw error::AssetContentsParsingError("Mesh data does not contain Normals.");    }
     if (!uvs.data())        { throw error::AssetContentsParsingError("Mesh data does not contain UVs.");        }
@@ -99,10 +99,10 @@ void extract_static_mesh_verts_to(
 
 
 void extract_mesh_elems_to(
-    std::span<uint32_t> out_elems,
-    const aiMesh*       ai_mesh)
+    Span<uint32_t> out_elems,
+    const aiMesh*  ai_mesh)
 {
-    auto faces = std::span(ai_mesh->mFaces, ai_mesh->mNumFaces);
+    auto faces = make_span(ai_mesh->mFaces, ai_mesh->mNumFaces);
 
     assert(out_elems.size() == faces.size() * 3);
 
@@ -121,10 +121,10 @@ void extract_mesh_elems_to(
 
 
 auto import_mesh_async(
-    AssetImporterContext                             context,
-    const aiMesh*                                    ai_mesh,
-    UUID                                             skeleton_uuid,
-    const std::unordered_map<const aiNode*, size_t>* node2jointid) // Optional, if Skinned.
+    AssetImporterContext                  context,
+    const aiMesh*                         ai_mesh,
+    UUID                                  skeleton_uuid,
+    const HashMap<const aiNode*, size_t>* node2jointid) // Optional, if Skinned.
         -> Job<UUID>
 {
     co_await reschedule_to(context.thread_pool());
@@ -189,15 +189,15 @@ auto import_mesh_async(
     // NOTE: Ignoring compression for now. We have no compression options anyway.
 
     if (layout == VertexLayout::Skinned) {
-        std::span<VertexSkinned> dst_verts = pun_span<VertexSkinned>(file.lod_verts_bytes(0));
+        auto dst_verts = pun_span<VertexSkinned>(file.lod_verts_bytes(0));
         assert(node2jointid);
         extract_skinned_mesh_verts_to(dst_verts, ai_mesh, *node2jointid);
     } else if (layout == VertexLayout::Static) {
-        std::span<VertexStatic> dst_verts = pun_span<VertexStatic>(file.lod_verts_bytes(0));
+        auto dst_verts = pun_span<VertexStatic>(file.lod_verts_bytes(0));
         extract_static_mesh_verts_to(dst_verts, ai_mesh);
     }
 
-    std::span<uint32_t> dst_elems = pun_span<uint32_t>(file.lod_elems_bytes(0));
+    auto dst_elems = pun_span<uint32_t>(file.lod_elems_bytes(0));
     extract_mesh_elems_to(dst_elems, ai_mesh);
 
 

@@ -6,6 +6,7 @@
 #include "Filesystem.hpp"
 #include "ResourceDatabase.hpp"
 #include "TaskCounterGuard.hpp"
+#include "TypeInfo.hpp"
 #include "UUID.hpp"
 #include <fmt/core.h>
 
@@ -56,7 +57,7 @@ private:
     ResourceDatabase&  resource_database_;
     AsyncCradleRef     cradle_;
 
-    using key_type      = std::type_index;
+    using key_type      = TypeIndex;
     using unpacker_func = UniqueFunction<Job<UUID>(AssetImporterContext, Path, AnyRef)>;
     using dtable_type   = HashMap<key_type, unpacker_func>;
 
@@ -115,7 +116,7 @@ template<typename ParamsT>
 auto AssetImporter::import_asset(Path path, ParamsT params)
     -> Job<UUID>
 {
-    const key_type key = typeid(ParamsT);
+    const key_type key = type_id<ParamsT>();
     return _import_asset(key, MOVE(path), AnyRef(params));
 }
 
@@ -127,7 +128,7 @@ inline auto AssetImporter::_import_asset(const key_type& key, Path path, AnyRef 
         auto& importer = kv->second;
         return importer(AssetImporterContext(*this), MOVE(path), params);
     } else {
-        throw RuntimeError(fmt::format("No importer found for ParamType {}", key.name()));
+        throw RuntimeError(fmt::format("No importer found for ParamType {}", key.pretty_name()));
     }
 }
 

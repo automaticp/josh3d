@@ -27,6 +27,7 @@ namespace josh {
 I have a 2-hour long lecture about why std::byte was a mistake.
 */
 using byte = unsigned char;
+using ubyte = unsigned char;
 
 
 template<
@@ -113,6 +114,16 @@ using Variant = std::variant<Ts...>;
 
 template<typename T>
 using Span = std::span<T>;
+
+/*
+Completely broken CTAD for typedefs of std::span is not helping anyone.
+
+NOTE: I hope this is a bug in the GCC implementation.
+TODO: We should just write our own span type. It should be quick.
+*/
+constexpr auto make_span(auto&&... args) {
+    return std::span(static_cast<decltype(args)&&>(args)...);
+}
 
 template<typename T>
 auto as_bytes(const Span<T>& span) noexcept

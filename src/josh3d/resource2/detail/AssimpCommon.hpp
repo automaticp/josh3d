@@ -109,27 +109,27 @@ inline auto aabb2aabb(const aiAABB& aabb) noexcept
 
 
 auto import_skeleton_async(
-    AssetImporterContext                                    context,
-    const aiNode*                                           armature,
-    std::unordered_map<const aiNode*, size_t>&              node2jointid,
-    const std::unordered_map<const aiNode*, const aiBone*>& node2bone)
+    AssetImporterContext                         context,
+    const aiNode*                                armature,
+    HashMap<const aiNode*, size_t>&              node2jointid,
+    const HashMap<const aiNode*, const aiBone*>& node2bone)
         -> Job<UUID>;
 
 
 auto import_anim_async(
-    AssetImporterContext                             context,
-    const aiAnimation*                               ai_anim,
-    const aiNode*                                    armature,
-    const UUID&                                      skeleton_uuid,
-    const std::unordered_map<const aiNode*, size_t>& node2jointid)
+    AssetImporterContext                  context,
+    const aiAnimation*                    ai_anim,
+    const aiNode*                         armature,
+    const UUID&                           skeleton_uuid,
+    const HashMap<const aiNode*, size_t>& node2jointid)
         -> Job<UUID>;
 
 
 auto import_mesh_async(
-    AssetImporterContext                             context,
-    const aiMesh*                                    ai_mesh,
-    UUID                                             skeleton_uuid,
-    const std::unordered_map<const aiNode*, size_t>* node2jointid) // Optional, if Skinned.
+    AssetImporterContext                  context,
+    const aiMesh*                         ai_mesh,
+    UUID                                  skeleton_uuid,
+    const HashMap<const aiNode*, size_t>* node2jointid) // Optional, if Skinned.
         -> Job<UUID>;
 
 

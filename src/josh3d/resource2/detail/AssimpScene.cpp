@@ -1,6 +1,7 @@
 #include "AssimpCommon.hpp"
 #include "Asset.hpp"
 #include "AssetImporter.hpp"
+#include "Common.hpp"
 #include "Filesystem.hpp"
 #include "Ranges.hpp"
 #include <assimp/camera.h>
@@ -59,12 +60,12 @@ auto get_ai_texture_type(const Path& path, ImageIntent intent)
 
 
 void populate_scene_nodes_preorder(
-    jsoncons::json&                                         array,
-    const aiScene*                                          ai_scene,
-    const aiNode*                                           node,
-    std::unordered_map<const aiNode*, size_t>&              node2sceneid,
-    std::unordered_multimap<size_t, size_t>&                meshid2sceneids,
-    const std::unordered_map<const aiNode*, const aiBone*>& node2bone)
+    jsoncons::json&                              array,
+    const aiScene*                               ai_scene,
+    const aiNode*                                node,
+    HashMap<const aiNode*, size_t>&              node2sceneid,
+    std::unordered_multimap<size_t, size_t>&     meshid2sceneids,
+    const HashMap<const aiNode*, const aiBone*>& node2bone)
 {
     if (!node) return;
 
@@ -110,7 +111,7 @@ void populate_scene_nodes_preorder(
     auto populate_array_entry = [&](
         jsoncons::json&  j,
         const Transform& tf,
-        std::string_view name,
+        StrView          name,
         const size_t*    parent_id)
     {
         j["transform"] = transform_as_json(tf);
@@ -142,7 +143,7 @@ void populate_scene_nodes_preorder(
 
             // If there are more than one mesh per node, then we create additional
             // child leaf nodes in our representation of the scene to accomodate that.
-            for (const auto [i, mesh_id] : enumerate(std::span(node->mMeshes, node->mNumMeshes))) {
+            for (const auto [i, mesh_id] : enumerate(make_span(node->mMeshes, node->mNumMeshes))) {
                 const size_t leaf_scene_id = array.size();
                 array.emplace_back();
                 meshid2sceneids.emplace(mesh_id, leaf_scene_id);
@@ -159,7 +160,7 @@ void populate_scene_nodes_preorder(
     }
 
 
-    for (const aiNode* child : std::span(node->mChildren, node->mNumChildren)) {
+    for (const aiNode* child : make_span(node->mChildren, node->mNumChildren)) {
         populate_scene_nodes_preorder(array, ai_scene, child, node2sceneid, meshid2sceneids, node2bone);
     }
 }
@@ -204,9 +205,9 @@ auto import_scene_async(
 
     if (!ai_scene) { throw error::AssetFileImportFailure(path, ai_importer.GetErrorString()); }
 
-    const auto ai_meshes    = std::span(ai_scene->mMeshes,     ai_scene->mNumMeshes   ); // Order: Meshes.
-    const auto ai_materials = std::span(ai_scene->mMaterials,  ai_scene->mNumMaterials); // Order: Materials.
-    const auto ai_anims     = std::span(ai_scene->mAnimations, ai_scene->mNumAnimations);
+    const auto ai_meshes    = make_span(ai_scene->mMeshes,     ai_scene->mNumMeshes   ); // Order: Meshes.
+    const auto ai_materials = make_span(ai_scene->mMaterials,  ai_scene->mNumMaterials); // Order: Materials.
+    const auto ai_anims     = make_span(ai_scene->mAnimations, ai_scene->mNumAnimations);
 
 
     const auto get_job_result = [](auto&& job) { return job.get_result(); };
@@ -217,8 +218,8 @@ auto import_scene_async(
     // So we launch texture jobs as early as possible, anticipating
     // that loading them will take the longest anyway.
 
-    std::unordered_map<const aiMaterial*, MaterialIDs> material2matids;
-    std::unordered_map<Path, TextureInfo>              path2texinfo;
+    HashMap<const aiMaterial*, MaterialIDs> material2matids;
+    HashMap<Path, TextureInfo>              path2texinfo;
 
     {
         // Will be used to assign new indices for textures. These are global for all textures in all materials.
@@ -263,8 +264,8 @@ auto import_scene_async(
     // We'll submit jobs for them and then move on to loading other stuff.
     const size_t num_textures = path2texinfo.size();
 
-    std::vector<Job<UUID>>       texture_jobs;
-    std::vector<TextureJobIndex> texid2jobid;
+    Vector<Job<UUID>>       texture_jobs;
+    Vector<TextureJobIndex> texid2jobid;
     texid2jobid .resize (num_textures);
     texture_jobs.reserve(num_textures);
 
@@ -293,15 +294,15 @@ auto import_scene_async(
     // FIXME: The way we do this, we won't import skeletons if they have
     // no meshes referencing them in the file. This is not nice.
 
-    std::unordered_map<const aiNode*, const aiBone*>                   node2bone;
-    std::unordered_map<const aiMesh*, const aiNode*>                   mesh2armature;
-    std::unordered_map<const aiNode*, std::vector<const aiAnimation*>> armature2anims;
-    std::unordered_map<const aiAnimation*, const aiNode*>              anim2armature;
-    std::unordered_set<const aiNode*>                                  armatures; // Order: Skeleton.
+    HashMap<const aiNode*, const aiBone*>              node2bone;
+    HashMap<const aiMesh*, const aiNode*>              mesh2armature;
+    HashMap<const aiNode*, Vector<const aiAnimation*>> armature2anims;
+    HashMap<const aiAnimation*, const aiNode*>         anim2armature;
+    HashSet<const aiNode*>                             armatures; // Order: Skeleton.
 
     for (const aiMesh* ai_mesh : ai_meshes) {
         if (ai_mesh->HasBones()) {
-            const auto bones = std::span(ai_mesh->mBones, ai_mesh->mNumBones);
+            const auto bones = make_span(ai_mesh->mBones, ai_mesh->mNumBones);
 
             // Populate node2bone for all bones of this mesh.
             for (const aiBone* bone : bones) {
@@ -321,7 +322,7 @@ auto import_scene_async(
             // need to build a set of keyed nodes and do a set-on-set intersection tests.
             // We don't bother currently, since we can't even represent such "mixed" animation.
             for (const aiAnimation* ai_anim : ai_anims) {
-                const auto channels = std::span(ai_anim->mChannels, ai_anim->mNumChannels);
+                const auto channels = make_span(ai_anim->mChannels, ai_anim->mNumChannels);
                 assert(channels.size()); // Animation with 0 keyframes? Is that even possible?
                 const aiNode* affected_node = armature->FindNode(channels[0]->mNodeName);
                 if (affected_node) {
@@ -335,12 +336,12 @@ auto import_scene_async(
     // Before we can convert all animations and meshes to our format,
     // we'll need all skeletons to be created with their UUID established,
     // since each animation and each mesh must reference a common skeleton.
-    std::vector<Job<UUID>> skeleton_jobs; // Order: Skeletons.
+    Vector<Job<UUID>> skeleton_jobs; // Order: Skeletons.
 
-    using Node2JointID = std::unordered_map<const aiNode*, size_t>;
+    using Node2JointID = HashMap<const aiNode*, size_t>;
     // Maps: Bone Node -> Joint ID per armature. The name is ridiculous.
     // Populated inside populate_joints_preorder() as the order is established.
-    std::unordered_map<const aiNode*, Node2JointID> armature2_node2jointid;
+    HashMap<const aiNode*, Node2JointID> armature2_node2jointid;
 
     skeleton_jobs         .reserve(armatures.size());
     armature2_node2jointid.reserve(armatures.size());
@@ -359,13 +360,13 @@ auto import_scene_async(
 
 
     // Now unpack the relationship betweed each armature and associated UUID.
-    std::vector<UUID> skeleton_uuids = // Order: Skeletons.
-        skeleton_jobs | transform(get_job_result) | ranges::to<std::vector>();
+    Vector<UUID> skeleton_uuids = // Order: Skeletons.
+        skeleton_jobs | transform(get_job_result) | ranges::to<Vector>();
 
     skeleton_jobs.clear();
 
-    std::unordered_map<const aiNode*, UUID> armature2uuid =
-        zip(armatures, skeleton_uuids) | ranges::to<std::unordered_map>();
+    HashMap<const aiNode*, UUID> armature2uuid =
+        zip(armatures, skeleton_uuids) | ranges::to<HashMap<const aiNode*, UUID>>();
 
 
 
@@ -378,8 +379,8 @@ auto import_scene_async(
     // That would probably be better from task scheduling perspective
     // and performance, but the current way is just simpler.
 
-    std::vector<Job<UUID>> mesh_jobs; // Order: Meshes.
-    std::vector<Job<UUID>> anim_jobs; // Order: Anims.
+    Vector<Job<UUID>> mesh_jobs; // Order: Meshes.
+    Vector<Job<UUID>> anim_jobs; // Order: Anims.
 
     mesh_jobs.reserve(ai_meshes.size());
     anim_jobs.reserve(ai_anims.size());
@@ -412,7 +413,7 @@ auto import_scene_async(
     co_await reschedule_to(context.thread_pool());
 
 
-    std::vector<UUID> texture_uuids = texture_jobs | transform(get_job_result) | ranges::to<std::vector>();
+    Vector<UUID> texture_uuids = texture_jobs | transform(get_job_result) | ranges::to<Vector>();
 
 
     // Material files just bundle together multiple textures plus
@@ -420,7 +421,7 @@ auto import_scene_async(
     // because materials depend on textures and those usually take
     // the longest time to import.
 
-    std::vector<Job<UUID>> material_jobs; // Order: Materials
+    Vector<Job<UUID>> material_jobs; // Order: Materials
     material_jobs.reserve(ai_materials.size());
 
 
@@ -451,13 +452,13 @@ auto import_scene_async(
     co_await until_all_ready(material_jobs);
     co_await reschedule_to(context.thread_pool());
 
-    std::vector<UUID> mesh_uuids = mesh_jobs | transform(get_job_result) | ranges::to<std::vector>(); // Order: Meshes.
-    std::vector<UUID> material_uuids = material_jobs | transform(get_job_result) | ranges::to<std::vector>(); // Order: Materials.
+    Vector<UUID> mesh_uuids     = mesh_jobs     | transform(get_job_result) | ranges::to<Vector>(); // Order: Meshes.
+    Vector<UUID> material_uuids = material_jobs | transform(get_job_result) | ranges::to<Vector>(); // Order: Materials.
 
     // Mesh Description is a file that just references a Mesh+Material.
     // Sometimes this is referred to as a "Mesh Entity".
 
-    std::vector<Job<UUID>> mdesc_jobs; // Order: Meshes.
+    Vector<Job<UUID>> mdesc_jobs; // Order: Meshes.
 
     mdesc_jobs.reserve(mesh_uuids.size());
 
@@ -474,7 +475,7 @@ auto import_scene_async(
     co_await reschedule_to(context.thread_pool());
 
 
-    std::vector<UUID> mdesc_uuids = mdesc_jobs | transform(get_job_result) | ranges::to<std::vector>(); // Order: Meshes.
+    Vector<UUID> mdesc_uuids = mdesc_jobs | transform(get_job_result) | ranges::to<Vector>(); // Order: Meshes.
 
     // Assemble the final model file, which references all imported assets,
     // and stores the final scene graph.
@@ -509,7 +510,7 @@ auto import_scene_async(
     // Some scene nodes, like multimesh leaves are not going to have
     // an association with a particular aiNode. This is only helpful
     // for lookup of camera and light nodes, not meshes.
-    std::unordered_map<const aiNode*, size_t> node2sceneid;
+    HashMap<const aiNode*, size_t> node2sceneid;
 
     populate_scene_nodes_preorder(
         entities_array,
@@ -545,7 +546,7 @@ auto import_scene_async(
     // NOTE: Lights are found by name lookup.
     // TODO: Care should be taken to handle cases where a node is both a Light *and* a Mesh.
     // We could separate those nodes as leafs similar to how we split meshes.
-    for (const aiLight* ai_light : std::span(ai_scene->mLights, ai_scene->mNumLights)) {
+    for (const aiLight* ai_light : make_span(ai_scene->mLights, ai_scene->mNumLights)) {
         const aiNode* node = ai_scene->mRootNode->FindNode(ai_light->mName);
         const size_t scene_id = node2sceneid.at(node);
         auto& e = entities_array[scene_id];
@@ -554,7 +555,7 @@ auto import_scene_async(
     }
 
     // NOTE: Cameras are found by name lookup.
-    for (const aiCamera* ai_camera : std::span(ai_scene->mCameras, ai_scene->mNumCameras)) {
+    for (const aiCamera* ai_camera : make_span(ai_scene->mCameras, ai_scene->mNumCameras)) {
         // TODO:
         // ai_camera->mName;
     }
@@ -577,7 +578,7 @@ auto import_scene_async(
     scene_json["resource_type"] = resource_type;
     scene_json["self_uuid"]     = serialize_uuid(UUID{}); // Write null uuid to create space.
 
-    std::string scene_json_string;
+    String scene_json_string;
     scene_json.dump(scene_json_string, jsoncons::indenting::indent);
     const size_t file_size = scene_json_string.size();
 

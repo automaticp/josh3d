@@ -247,7 +247,7 @@ auto ResourceDatabase::map_resource(const UUID& uuid)
 
 void ResourceDatabase::update() {
 
-    while (std::optional uuid = remove_queue_.try_lock_and_try_pop()) {
+    while (Optional uuid = remove_queue_.try_lock_and_try_pop()) {
         // Move the data into a local list first.
         // _try_remove_resource() could take a while,
         // with enough time for new requests to come in.

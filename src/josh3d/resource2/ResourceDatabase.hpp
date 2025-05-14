@@ -17,6 +17,7 @@
 namespace josh {
 
 
+// TODO: Make 0-termination required.
 struct ResourcePath {
     static constexpr size_t max_length = 91;
 
@@ -192,37 +193,37 @@ public:
 
 
 private:
-    Path                               database_root_;
-    Path                               table_filepath_;
+    Path         database_root_;
+    Path         table_filepath_;
 
-    std::filebuf                       table_filebuf_;  // Keep open to be able to resize the file.
-    FileMapping                        file_mapping_;   // To quickly remap the file.
-    MappedRegion                       mapped_file_;    // Read/write to file through this.
+    std::filebuf table_filebuf_;  // Keep open to be able to resize the file.
+    FileMapping  file_mapping_;   // To quickly remap the file.
+    MappedRegion mapped_file_;    // Read/write to file through this.
 
     using row_id = size_t;
 
     // Primary map of the database that helps locate all relevant info by a UUID.
     // TODO: bimap?
-    HashMap<UUID, row_id>                   table_;
+    HashMap<UUID, row_id>     table_;
 
     // Intentionally ordered. TODO: There's a more efficient way to store this.
-    OrderedSet<row_id>                      empty_rows_;
+    OrderedSet<row_id>        empty_rows_;
 
     // Map: Path -> Use Count. To only delete a file when there are no more users of it.
     // Use strings as keys, not views, so that reallocation and reordering would not invalidate this.
-    HashMap<std::string, size_t, string_hash, std::equal_to<>>
-                                            path_uses_;
+    HashMap<String, size_t, string_hash, std::equal_to<>>
+                              path_uses_;
 
     // Integer that represents database state. Every update increments the state version.
-    uint64_t                                state_version_{};
+    uint64_t                  state_version_{};
 
     // Mutex of the whole database state above. Most operations are reads, contention is low.
     // Private functions (beginning with an "_") never lock the mutex.
-    mutable std::shared_mutex               state_mutex_;
+    mutable std::shared_mutex state_mutex_;
 
     // To let multiple threads "cancel" failed resource imports, without contending for the main state mutex.
-    ThreadsafeQueue<UUID>                   remove_queue_;
-    Vector<UUID>                            remove_list_; // Local remove list to not stall the remove queue.
+    ThreadsafeQueue<UUID>     remove_queue_;
+    Vector<UUID>              remove_list_; // Local remove list to not stall the remove queue.
 
     auto _row_ptr(row_id row_id) const noexcept -> Row*;
     auto _num_rows() const noexcept -> size_t;
