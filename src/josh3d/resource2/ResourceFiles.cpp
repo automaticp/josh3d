@@ -894,16 +894,30 @@ auto TextureFile::format(size_t mip_id) const noexcept
 
 
 auto TextureFile::num_mips() const noexcept
-    -> uint16_t
+    -> uint8_t
 {
     return header_ptr()->num_mips;
 }
 
 
 auto TextureFile::num_channels() const noexcept
-    -> uint16_t
+    -> uint8_t
 {
     return header_ptr()->num_channels;
+}
+
+
+auto TextureFile::colorspace() const noexcept
+    -> const Colorspace&
+{
+    return header_ptr()->colorspace;
+}
+
+
+auto TextureFile::colorspace() noexcept
+    -> Colorspace&
+{
+    return header_ptr()->colorspace;
 }
 
 
@@ -911,7 +925,7 @@ auto TextureFile::mip_spec(size_t mip_id) const noexcept
     -> MIPSpec
 {
     assert(mip_id < num_mips());
-    const MIPSpan& span       = header_ptr()->mips[mip_id];
+    const MIPSpan& span = header_ptr()->mips[mip_id];
     return {
         .size_bytes    = span.size_bytes,
         .width_pixels  = span.width_pixels,
@@ -978,7 +992,9 @@ auto TextureFile::create_in(MappedRegion mapped_region, UUID self_uuid, const Ar
     Header header{
         .preamble     = ResourcePreamble::create(resource_type, self_uuid),
         .num_channels = args.num_channels,
-        .num_mips     = uint16_t(num_mips),
+        .colorspace   = args.colorspace,
+        ._reserved0   = {},
+        .num_mips     = uint8_t(num_mips),
         .mips         = {}, // NOTE: Zero-init here. Fill later.
     };
 
@@ -1025,8 +1041,8 @@ auto TextureFile::open(MappedRegion mapped_region)
 
     // Check storage formats.
     for (const size_t mip_id : irange(header.num_mips)) {
-        if (to_underlying(file.format(mip_id)) >= to_underlying(StorageFormat::_count)) {
-            throw error::InvalidResourceFile("Texture file has invalid format.");
+        if (to_underlying(file.format(mip_id)) >= enum_size<StorageFormat>()) {
+            throw error::InvalidResourceFile("Texture file has invalid encoding.");
         }
     }
 

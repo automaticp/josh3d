@@ -70,11 +70,12 @@ private:
 
 class AssetImporterContext {
 public:
-    auto& resource_database()  noexcept { return self_.resource_database_;  }
+    auto& resource_database()  noexcept { return self_.resource_database_;         }
     auto& thread_pool()        noexcept { return self_.cradle_.loading_pool;       }
     auto& offscreen_context()  noexcept { return self_.cradle_.offscreen_context;  }
     auto& completion_context() noexcept { return self_.cradle_.completion_context; }
     auto& local_context()      noexcept { return self_.cradle_.local_context;      }
+    auto& importer()           noexcept { return self_;                            }
 
     // TODO: Remove.
     auto child_context() const noexcept

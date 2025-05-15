@@ -304,7 +304,8 @@ auto import_texture(
 
 
     const TextureFile::Args args{
-        .num_channels = uint16_t(num_channels),
+        .num_channels = uint8_t(num_channels),
+        .colorspace   = params.colorspace,
         .mip_specs    = mip_specs,
     };
 

@@ -192,6 +192,12 @@ struct DeferredExplicit {
     template<typename To>
     constexpr operator To() && { return To(FORWARD(from)); }
 };
+template<typename Func>
+struct DeferredConvert {
+    Func func;
+    using ret_type = std::invoke_result_t<Func>;
+    constexpr operator ret_type() && { return FORWARD(func)(); }
+};
 } // namespace detail
 
 
@@ -200,6 +206,12 @@ struct DeferredExplicit {
 template<typename From>
 auto defer_explicit(From&& from) noexcept {
     return detail::DeferredExplicit<From>{ FORWARD(from) };
+}
+
+
+template<typename Func>
+auto defer_convert(Func&& func) noexcept {
+    return detail::DeferredConvert<Func>(FORWARD(func));
 }
 
 

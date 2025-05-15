@@ -1,6 +1,7 @@
 #pragma once
 #include "MapMacro.hpp"
 #include <concepts>
+#include <iterator>
 #include <type_traits>
 
 
@@ -53,11 +54,12 @@ constexpr auto enum_cast(FromEnumT enum_value) noexcept
     return static_cast<To>(to_underlying(enum_value));
 }
 
+
 // NOLINTNEXTLINE
 #define _JOSH3D_ENUM_NAME_CASE(Name) \
     case Name: return #Name;
 // TODO: How do I "bind" arguments with macros?
-#define JOSH3D_DEFINE_ENUM_STRING(EnumType, ...)            \
+#define JOSH3D_DEFINE_ENUM_EXTRAS(EnumType, ...)            \
     constexpr auto enum_string(EnumType value) noexcept     \
         -> std::string_view                                 \
     {                                                       \
@@ -76,10 +78,23 @@ constexpr auto enum_cast(FromEnumT enum_value) noexcept
             JOSH3D_MAP(_JOSH3D_ENUM_NAME_CASE, __VA_ARGS__) \
             default: return "";                             \
         }                                                   \
+    }                                                       \
+    constexpr auto enum_size(EnumType) noexcept             \
+        -> size_t                                           \
+    {                                                       \
+        using enum EnumType;                                \
+        constexpr EnumType values[]{ __VA_ARGS__ };         \
+        return std::size(values);                           \
     }
 
 
-
+template<enumeration E>
+constexpr auto enum_size() noexcept
+    -> size_t
+{
+    // NOTE: Just (ab)using ADL lookup.
+    return enum_size(E{});
+}
 
 
 } // namespace josh

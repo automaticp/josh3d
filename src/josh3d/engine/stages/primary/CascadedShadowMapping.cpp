@@ -11,13 +11,14 @@
 #include "LightCasters.hpp"
 #include "MeshRegistry.hpp"
 #include "MeshStorage.hpp"
+#include "Ranges.hpp"
 #include "RenderEngine.hpp"
+#include "StaticMesh.hpp"
 #include "VertexStatic.hpp"
 #include "ViewFrustum.hpp"
 #include "tags/AlphaTested.hpp"
 #include "Materials.hpp"
 #include "Transform.hpp"
-#include "Mesh.hpp"
 #include "UniformTraits.hpp"
 #include "tags/ShadowCasting.hpp"
 #include <algorithm>
@@ -101,8 +102,6 @@ void fit_cascade_views_to_camera(
     bool                      pad_inner_cascades,
     float                     padding_tx)
 {
-    using glm::vec2, glm::vec3, glm::mat3, glm::mat4, glm::quat;
-
     // WARN: This is still heavily WIP.
 
     // TODO: There's still clipping for the largest cascade.
@@ -312,7 +311,7 @@ void cull_per_cascade(
 
     */
 
-    for (const Entity entity : registry.view<MTransform, Mesh, AABB>()) {
+    for (const Entity entity : registry.view<MTransform, StaticMesh, AABB>()) {
         const CHandle handle{ registry, entity };
         const auto& aabb = handle.get<AABB>();
 
@@ -453,27 +452,33 @@ void CascadedShadowMapping::operator()(
 namespace {
 
 
-// Requires that each entity in `entities` has MTransform and Mesh.
+// Requires that each entity in `entities` has MTransform and StaticMesh.
 //
 // Assumes that projection and view uniforms are already set.
 void draw_opaque_meshes(
     RawProgram<>                        sp,
     BindToken<Binding::DrawFramebuffer> bound_fbo,
+    const MeshRegistry&                 mesh_registry,
     const Registry&                     registry,
     std::ranges::input_range auto&&     entities)
 {
-    BindGuard bound_program = sp.use();
+    const auto* storage = mesh_registry.storage_for<VertexStatic>();
+    assert(storage);
+
+    BindGuard bound_sp  = sp.use();
+    BindGuard bound_vao = storage->vertex_array().bind();
+
     const Location model_loc = sp.get_uniform_location("model");
 
     for (const Entity entity : entities) {
-        auto [mtf, mesh] = registry.get<MTransform, Mesh>(entity);
+        auto [mtf, mesh] = registry.get<MTransform, StaticMesh>(entity);
         sp.uniform(model_loc, mtf.model());
-        mesh.draw(bound_program, bound_fbo);
+        draw_one_from_storage(*storage, bound_vao, bound_sp, bound_fbo, mesh.lods.cur());
     }
 }
 
 
-// Requires that each entity in `entities` has MTransform and MeshID<VertexPNUTB>.
+// Requires that each entity in `entities` has MTransform and StaticMesh.
 //
 // Assumes that projection and view uniforms are already set.
 void multidraw_opaque_meshes(
@@ -484,44 +489,49 @@ void multidraw_opaque_meshes(
     std::ranges::input_range auto&&     entities,
     UploadBuffer<mat4>&                 world_mats)
 {
-    using std::views::transform;
-    auto get_mesh_id   = [&](Entity e) -> decltype(auto) { return registry.get<MeshID<VertexStatic>>(e); };
+    const auto* storage = mesh_registry.storage_for<VertexStatic>();
+    assert(storage);
+
+    BindGuard bound_sp = sp.use();
+
+    auto get_mesh_id   = [&](Entity e) -> decltype(auto) { return registry.get<StaticMesh>(e).lods.cur(); };
     auto get_world_mat = [&](Entity e) -> decltype(auto) { return registry.get<MTransform>(e).model();  };
 
-    if (const auto* storage = mesh_registry.storage_for<VertexStatic>()) {
+    // Prepare world matrices for all drawable objects.
+    world_mats.restage(entities | transform(get_world_mat));
+    world_mats.bind_to_ssbo_index(0);
 
-        BindGuard bound_program = sp.use();
-
-        // Prepare world matrices for all drawable objects.
-        world_mats.restage(entities | transform(get_world_mat));
-        world_mats.bind_to_ssbo_index(0);
-
-        // Draw all at once.
-        multidraw_from_storage(*storage, bound_program, bound_fbo, entities | transform(get_mesh_id));
-    }
+    // Draw all at once.
+    multidraw_from_storage(*storage, bound_sp, bound_fbo, entities | transform(get_mesh_id));
 }
 
 
-// Requires that each entity in `entities` has MTransform, Mesh and MaterialDiffuse.
+// Requires that each entity in `entities` has MTransform, StaticMesh and MaterialDiffuse.
 // Also, it most likely has to be tagged AlphaTested.
 //
 // Assumes that projection and view uniforms are already set.
 void draw_alpha_tested_meshes(
     RawProgram<>                        sp,
     BindToken<Binding::DrawFramebuffer> bound_fbo,
+    const MeshRegistry&                 mesh_registry,
     const Registry&                     registry,
     std::ranges::input_range auto&&     entities)
 {
-    BindGuard bound_program = sp.use();
-    const Location model_loc = sp.get_uniform_location("model");
+    const auto* storage = mesh_registry.storage_for<VertexStatic>();
+    assert(storage);
+
+    BindGuard bound_sp  = sp.use();
+    BindGuard bound_vao = storage->vertex_array().bind();
 
     sp.uniform("material.diffuse", 0);
 
+    const Location model_loc = sp.get_uniform_location("model");
+
     for (const Entity entity : entities) {
-        auto [mtf, mesh, diffuse] = registry.get<MTransform, Mesh, MaterialDiffuse>(entity);
+        auto [mtf, mesh, diffuse] = registry.get<MTransform, StaticMesh, MaterialDiffuse>(entity);
         diffuse.texture->bind_to_texture_unit(0);
         sp.uniform(model_loc, mtf.model());
-        mesh.draw(bound_program, bound_fbo);
+        draw_one_from_storage(*storage, bound_vao, bound_sp, bound_fbo, mesh.lods.cur());
     }
 }
 
@@ -534,7 +544,8 @@ void draw_alpha_tested_meshes(
 void CascadedShadowMapping::draw_all_cascades_with_geometry_shader(
     RenderEnginePrimaryInterface& engine)
 {
-    const auto& registry = engine.registry();
+    const auto& registry      = engine.registry();
+    const auto& mesh_registry = engine.meshes();
     auto& maps = cascades_->maps;
 
     // No following calls are valid for empty cascades array.
@@ -577,10 +588,10 @@ void CascadedShadowMapping::draw_all_cascades_with_geometry_shader(
         set_common_uniforms(sp);
         // You could have no AT requested, or you could have an AT flag,
         // but no diffuse material to sample from. Both ignore Alpha-Testing.
-        auto no_alpha           = registry.view<MTransform, Mesh>(entt::exclude<AlphaTested>);
-        auto with_at_no_diffuse = registry.view<MTransform, Mesh, AlphaTested>(entt::exclude<MaterialDiffuse>);
-        draw_opaque_meshes(sp, bound_fbo, registry, no_alpha);
-        draw_opaque_meshes(sp, bound_fbo, registry, with_at_no_diffuse);
+        auto no_alpha           = registry.view<MTransform, StaticMesh>(entt::exclude<AlphaTested>);
+        auto with_at_no_diffuse = registry.view<MTransform, StaticMesh, AlphaTested>(entt::exclude<MaterialDiffuse>);
+        draw_opaque_meshes(sp, bound_fbo, mesh_registry, registry, no_alpha);
+        draw_opaque_meshes(sp, bound_fbo, mesh_registry, registry, with_at_no_diffuse);
     }
 
 
@@ -591,8 +602,8 @@ void CascadedShadowMapping::draw_all_cascades_with_geometry_shader(
         glapi::disable(Capability::FaceCulling);
 
         set_common_uniforms(sp);
-        auto with_alpha = registry.view<MTransform, Mesh, AlphaTested>();
-        draw_alpha_tested_meshes(sp, bound_fbo, registry, with_alpha);
+        auto with_alpha = registry.view<MTransform, StaticMesh, AlphaTested>();
+        draw_alpha_tested_meshes(sp, bound_fbo, mesh_registry, registry, with_alpha);
     }
 
 }
@@ -603,7 +614,8 @@ void CascadedShadowMapping::draw_all_cascades_with_geometry_shader(
 void CascadedShadowMapping::draw_with_culling_per_cascade(
     RenderEnginePrimaryInterface& engine)
 {
-    const auto& registry = engine.registry();
+    const auto& registry      = engine.registry();
+    const auto& mesh_registry = engine.meshes();
     auto& maps = cascades_->maps;
 
     // No following calls are valid for empty cascades array.
@@ -662,7 +674,7 @@ void CascadedShadowMapping::draw_with_culling_per_cascade(
         } else {
             const RawProgram<> sp = sp_per_cascade_no_alpha_.get();
             set_common_uniforms(sp);
-            draw_opaque_meshes(sp, bound_fbo, registry, drawstate.draw_list_opaque);
+            draw_opaque_meshes(sp, bound_fbo, mesh_registry, registry, drawstate.draw_list_opaque);
         }
 
 
@@ -673,7 +685,7 @@ void CascadedShadowMapping::draw_with_culling_per_cascade(
         {
             const RawProgram<> sp = sp_per_cascade_with_alpha_.get();
             set_common_uniforms(sp);
-            draw_alpha_tested_meshes(sp, bound_fbo, registry, drawstate.draw_list_at);
+            draw_alpha_tested_meshes(sp, bound_fbo, mesh_registry, registry, drawstate.draw_list_at);
         }
     }
 

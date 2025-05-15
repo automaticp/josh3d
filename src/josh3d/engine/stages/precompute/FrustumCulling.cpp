@@ -1,6 +1,7 @@
 #include "FrustumCulling.hpp"
 #include "Active.hpp"
 #include "Camera.hpp"
+#include "ECS.hpp"
 #include "GeometryCollision.hpp"
 #include "Tags.hpp"
 #include "RenderEngine.hpp"
@@ -21,15 +22,13 @@ namespace {
 
 
 void cull_from_bounding_spheres(
-    entt::registry&            registry,
+    Registry&                  registry,
     const ViewFrustumAsPlanes& frustum_world)
 {
-    using glm::vec3;
-
     auto cullable = std::as_const(registry).view<BoundingSphere>();
 
     for (auto [entity, bounding_sphere] : cullable.each()) {
-        const entt::handle handle{ registry, entity };
+        const Handle handle{ registry, entity };
 
         const bool should_be_culled = is_fully_outside_of(bounding_sphere, frustum_world);
 
@@ -41,15 +40,13 @@ void cull_from_bounding_spheres(
 
 
 void cull_from_aabbs(
-    entt::registry&            registry,
+    Registry&                  registry,
     const ViewFrustumAsPlanes& frustum_world)
 {
-    using glm::vec3;
-
     auto cullable = std::as_const(registry).view<AABB>();
 
     for (auto [entity, aabb] : cullable.each()) {
-        const entt::handle handle{ registry, entity };
+        const Handle handle{ registry, entity };
 
         const bool should_be_culled = is_fully_outside_of(aabb, frustum_world);
 

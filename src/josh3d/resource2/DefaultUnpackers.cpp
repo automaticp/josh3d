@@ -62,6 +62,9 @@ auto unpack_mesh(
         if (!handle.valid())
             co_return bail();
 
+        if (has_component<LocalAABB>(handle))
+            co_return bail();
+
         if (const auto* static_mesh = get_if<MeshResource::Static>(&resource.mesh)) {
             if (has_component<StaticMesh>(handle))
                 co_return bail();
@@ -72,6 +75,7 @@ auto unpack_mesh(
                 .aba_tag = aba_tag
             });
 
+            insert_component(handle, resource.aabb);
         }
 
         if (const auto* skinned_mesh = get_if<MeshResource::Skinned>(&resource.mesh)) {
@@ -86,7 +90,10 @@ auto unpack_mesh(
                 .aba_tag        = aba_tag,
             });
 
+            insert_component(handle, resource.aabb);
         }
+
+
     }
 
     // Incremental updates.

@@ -155,7 +155,8 @@ auto load_static_mesh(
         if (first_time) {
             first_time = false;
             usage = context.create_resource<RT::Mesh>(uuid, progress, MeshResource{
-                .mesh = MeshResource::Static{ lod_pack }
+                .mesh = MeshResource::Static{ lod_pack },
+                .aabb = file.aabb(),
             });
 
         } else {
@@ -241,7 +242,8 @@ auto load_skinned_mesh(
                 .mesh = MeshResource::Skinned{
                     .lods     = lod_pack,
                     .skeleton = co_await skeleton_job,
-                }
+                },
+                .aabb = file.aabb(),
             });
 
         } else {
@@ -338,16 +340,30 @@ try {
 
 namespace {
 
-auto pick_internal_format(ImageIntent intent, size_t num_channels) noexcept
+using Colorspace = TextureFile::Colorspace;
+using Encoding   = TextureFile::StorageFormat;
+
+auto pick_internal_format(Colorspace colorspace, size_t num_channels) noexcept
     -> InternalFormat
 {
-    if (num_channels == 3) {
-        return InternalFormat::SRGB8;
-    } else if (num_channels == 4) {
-        return InternalFormat::SRGBA8;
+    switch (colorspace) {
+        using enum Colorspace;
+        case Linear:
+            switch (num_channels) {
+                case 1: return InternalFormat::R8;
+                case 2: return InternalFormat::RG8;
+                case 3: return InternalFormat::RGB8;
+                case 4: return InternalFormat::RGBA8;
+                default: break;
+            } break;
+        case sRGB:
+            switch (num_channels) {
+                case 3: return InternalFormat::SRGB8;
+                case 4: return InternalFormat::SRGBA8;
+                default: break;
+            } break;
     }
-    // TODO: other
-    safe_unreachable();
+    safe_unreachable("Invalid image parameters.");
 }
 
 auto pick_pixel_data_format(TextureFile::StorageFormat format, size_t num_channels) noexcept
@@ -371,7 +387,6 @@ auto needs_decoding(TextureFile::StorageFormat format)
             return true;
         case RAW:
         case BC7:
-        case _count:
         default:
             return false;
     }
@@ -533,10 +548,10 @@ try {
 
     SharedTexture2D texture;
     const auto           num_channels = file.num_channels();
+    const Colorspace     colorspace   = file.colorspace();
     const NumLevels      num_mips     = file.num_mips();
     const Size2I         resolution0  = file.resolution(0);
-    const ImageIntent    intent       = ImageIntent::Albedo; // FIXME: Uhh, this should be in a file or something.
-    const InternalFormat iformat      = pick_internal_format(intent, num_channels);
+    const InternalFormat iformat      = pick_internal_format(colorspace, num_channels);
     texture->allocate_storage(resolution0, iformat, num_mips);
 
     // - Upload MIP range

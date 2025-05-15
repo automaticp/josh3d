@@ -48,7 +48,7 @@ void extract_skinned_mesh_verts_to(
 
     // Now fill out the ids and weights for each vertex.
     for (const aiBone* bone : bones) {
-        for (const aiVertexWeight& w : Span(bone->mWeights, bone->mNumWeights)) {
+        for (const aiVertexWeight& w : make_span(bone->mWeights, bone->mNumWeights)) {
             auto& info = vert_joint_infos[w.mVertexId];
             info.ws [info.n] = w.mWeight;
             info.ids[info.n] = node2jointid.at(bone->mNode);

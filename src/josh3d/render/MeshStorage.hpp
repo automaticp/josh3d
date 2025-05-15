@@ -67,6 +67,14 @@ void multidraw_from_storage(
     std::ranges::input_range auto&&     mesh_ids);
 
 
+template<typename VertexT>
+void draw_one_from_storage(
+    const MeshStorage<VertexT>&         storage,
+    BindToken<Binding::VertexArray>     bound_vao,
+    BindToken<Binding::Program>         bound_program,
+    BindToken<Binding::DrawFramebuffer> bound_fbo,
+    MeshID<VertexT>                     mesh_id);
+
 
 struct MeshPlacement {
     GLsizeiptr offset_bytes;
@@ -531,6 +539,28 @@ void multidraw_from_storage(
     );
 }
 
+
+template<typename VertexT>
+void draw_one_from_storage(
+    const MeshStorage<VertexT>&         storage,
+    BindToken<Binding::VertexArray>     bound_vao,
+    BindToken<Binding::Program>         bound_program,
+    BindToken<Binding::DrawFramebuffer> bound_fbo,
+    MeshID<VertexT>                     mesh_id)
+{
+    assert(storage.vertex_array().id() == bound_vao.id());
+    const MeshPlacement p = storage.query_one(mesh_id);
+    glapi::draw_elements_basevertex(
+        bound_vao,
+        bound_program,
+        bound_fbo,
+        storage.primitive_type(),
+        storage.element_type(),
+        p.offset_bytes,
+        p.count,
+        p.basevert
+    );
+}
 
 
 } // namespace josh

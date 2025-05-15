@@ -1,4 +1,5 @@
 #include "AnimationSystem.hpp"
+#include "Components.hpp"
 #include "RenderEngine.hpp"
 #include "SkeletalAnimation.hpp"
 #include "SkinnedMesh.hpp"
@@ -15,10 +16,11 @@ void AnimationSystem::operator()(
     auto& registry = engine.registry();
 
     for (auto [e, skinned_mesh, playing]
-        : registry.view<SkinnedMesh, PlayingAnimation>().each())
+        : registry.view<SkinnedMe2h, PlayingAnimation>().each())
     {
         if (playing.paused) continue; // Ugly hack.
-        assert(playing.current_anim->skeleton.get() == skinned_mesh.pose.skeleton.get());
+        assert(playing.current_anim->skeleton.get() == skinned_mesh.skeleton.get());
+        const auto& skeleton = *skinned_mesh.skeleton;
         const auto& anim     = *playing.current_anim;
         const auto  time     = playing.current_time;
         const auto  duration = anim.duration;
@@ -88,11 +90,13 @@ void AnimationSystem::operator()(
 
         */
 
+        auto& pose = get_or_create<Pose>({ registry, e }, [&]{ return Pose::from_skeleton(skeleton); });
+
         // Joints are stored in pre-order, meaning that for each node visited
         // all of it's ancestors have already been visited before.
         // This is useful, as it allows us to compute the M2J "top-down" from the root.
-        const std::span joints = playing.current_anim->skeleton->joints;
-        std::vector<mat4>& M2Js = skinned_mesh.pose.M2Js;
+        const auto joints = to_span(skeleton.joints);
+        const auto M2Js   = to_span(pose.M2Js);
 
         // Joint with index 0 is always root, we compute it separately, since it has no parent.
         const Transform root_tf = anim.sample_at(0, time);
@@ -106,7 +110,7 @@ void AnimationSystem::operator()(
         }
 
         // Fill out the skinning matrices. That's our job.
-        std::vector<mat4>& skinning_mats = skinned_mesh.pose.skinning_mats;
+        const auto skinning_mats = to_span(pose.skinning_mats);
         for (size_t j{ 0 }; j < joints.size(); ++j) {
             const mat4 B2M = joints[j].inv_bind;
             const mat4 M2J = M2Js[j];

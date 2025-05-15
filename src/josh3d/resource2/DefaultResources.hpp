@@ -1,4 +1,5 @@
 #pragma once
+#include "AABB.hpp"
 #include "Common.hpp"
 #include "GLObjects.hpp"
 #include "LODPack.hpp"
@@ -103,6 +104,7 @@ struct MeshResource {
 
     using variant_type = std::variant<Static, Skinned>;
     variant_type mesh;
+    LocalAABB    aabb;
 };
 template<> struct resource_traits<RT::Mesh> {
     using resource_type = MeshResource;

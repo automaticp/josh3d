@@ -1,10 +1,12 @@
 #pragma once
+#include "Common.hpp"
 #include "LODPack.hpp"
 #include "MeshStorage.hpp"
 #include "Resource.hpp"
 #include "VertexSkinned.hpp"
 #include "Skeleton.hpp"
 #include <cstdint>
+#include <glm/ext/matrix_transform.hpp>
 #include <memory>
 #include <ranges>
 #include <vector>
@@ -40,9 +42,29 @@ This is a rendering component.
 
 TODO: Encapsulate better.
 */
-struct SkinnedMesh {
+struct [[deprecated]] SkinnedMesh {
     MeshID<VertexSkinned> mesh_id;
     PosedSkeleton         pose;
+};
+
+
+struct Pose {
+    Vector<mat4> M2Js;          // Mesh->Joint CoB matrices. It is convenient to store this.
+    Vector<mat4> skinning_mats; // Per-joint B2J-equivalent active transformations in mesh space.
+
+    static auto from_skeleton(const Skeleton& skeleton)
+        -> Pose
+    {
+        const auto num_joints = skeleton.joints.size();
+        Pose pose;
+        pose.M2Js.reserve(num_joints);
+        pose.skinning_mats.reserve(num_joints);
+        for (const Joint& j : skeleton.joints) {
+            pose.M2Js.push_back(inverse(j.inv_bind));
+            pose.skinning_mats.push_back(glm::identity<mat4>());
+        }
+        return pose;
+    }
 };
 
 

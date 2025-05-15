@@ -7,8 +7,10 @@
 #include "GLProgram.hpp"
 #include "LightCasters.hpp"
 #include "Mesh.hpp"
+#include "MeshStorage.hpp"
 #include "RenderEngine.hpp"
 #include "SkinnedMesh.hpp"
+#include "StaticMesh.hpp"
 #include "TerrainChunk.hpp"
 #include "UniformTraits.hpp"
 #include "SceneGraph.hpp"
@@ -40,8 +42,8 @@ void SceneOverlays::draw_selected_highlight(
     const auto& registry = engine.registry();
     const auto& params   = selected_highlight_params;
 
-    if (!params.show_overlay) { return; }
-    if (registry.view<Selected>().empty()) { return; }
+    if (!params.show_overlay) return;
+    if (registry.view<Selected>().empty()) return;
 
     BindGuard bound_camera_ubo = engine.bind_camera_ubo();
 
@@ -97,10 +99,10 @@ void SceneOverlays::draw_selected_highlight(
 
                 traverse_subtree_preorder(handle, [&](CHandle node) {
                     if (has_component<MTransform>(node)) {
-                        if (has_component<Mesh>        (node)) { drawlist_static_meshes .emplace_back(node); }
-                        if (has_component<SkinnedMesh> (node)) { drawlist_skinned_meshes.emplace_back(node); }
-                        if (has_component<TerrainChunk>(node)) { drawlist_terrain_chunks.emplace_back(node); }
-                        if (has_component<PointLight>  (node)) { drawlist_plights       .emplace_back(node); }
+                        if (has_component<StaticMesh>        (node)) { drawlist_static_meshes .emplace_back(node); }
+                        if (has_components<SkinnedMe2h, Pose>(node)) { drawlist_skinned_meshes.emplace_back(node); }
+                        if (has_component<TerrainChunk>      (node)) { drawlist_terrain_chunks.emplace_back(node); }
+                        if (has_component<PointLight>        (node)) { drawlist_plights       .emplace_back(node); }
                     }
                 });
 
@@ -121,25 +123,34 @@ void SceneOverlays::draw_selected_highlight(
                         const RawProgram<> sp        = sp_static;
                         const Location     model_loc = model_static_loc;
 
-                        BindGuard bound_program = sp.use();
+                        const auto& storage = *engine.meshes().storage_for<VertexStatic>();
+
+                        BindGuard bound_vao = storage.vertex_array().bind();
+                        BindGuard bound_sp = sp.use();
 
                         for (const Entity entity : drawlist_static_meshes) {
-                            const auto [mesh, mtf] = registry.get<Mesh, MTransform>(entity);
+                            const auto [mesh, mtf] = registry.get<StaticMesh, MTransform>(entity);
                             sp.uniform(model_loc, mtf.model());
-                            mesh.draw(bound_program, bound_fbo);
+                            draw_one_from_storage(
+                                storage,
+                                bound_vao,
+                                bound_sp,
+                                bound_fbo,
+                                mesh.lods.cur()
+                            );
                         }
 
                         for (const Entity entity : drawlist_terrain_chunks) {
                             const auto [terrain, mtf] = registry.get<TerrainChunk, MTransform>(entity);
                             sp.uniform(model_loc, mtf.model());
-                            terrain.mesh.draw(bound_program, bound_fbo);
+                            terrain.mesh.draw(bound_sp, bound_fbo);
                         }
 
                         for (const Entity entity : drawlist_plights) {
                             const auto [plight, mtf] = registry.get<PointLight, MTransform>(entity);
                             // TODO: This probably won't work that well...
                             sp.uniform(model_loc, mtf.model());
-                            engine.primitives().sphere_mesh().draw(bound_program, bound_fbo);
+                            engine.primitives().sphere_mesh().draw(bound_sp, bound_fbo);
                         }
                     }
 
@@ -147,31 +158,28 @@ void SceneOverlays::draw_selected_highlight(
                         const RawProgram<> sp        = sp_skinned;
                         const Location     model_loc = model_skinned_loc;
 
-                        BindGuard bound_program = sp.use();
+                        BindGuard bound_sp = sp.use();
 
                         const auto& storage = *engine.meshes().storage_for<VertexSkinned>();
                         BindGuard bound_vao = storage.vertex_array().bind();
 
                         for (const Entity entity : drawlist_skinned_meshes) {
-                            const auto [skinned_mesh, mtf] = registry.get<SkinnedMesh, MTransform>(entity);
+                            const auto [skinned_mesh, pose, mtf] = registry.get<SkinnedMe2h, Pose, MTransform>(entity);
 
                             // TODO: TBH the skinning palette should probably be in some
                             // global buffer similar to MeshStorage but for skin matrices.
                             // Then we can multidraw all the skinned meshes too, heheee...
-                            skinning_mats_.restage(skinned_mesh.pose.skinning_mats);
+                            skinning_mats_.restage(pose.skinning_mats);
                             skinning_mats_.bind_to_ssbo_index(0);
 
                             sp.uniform(model_loc, mtf.model());
-                            auto [byte_offset, count, basevert] = storage.query_one(skinned_mesh.mesh_id);
-                            glapi::draw_elements_basevertex(
+
+                            draw_one_from_storage(
+                                storage,
                                 bound_vao,
-                                bound_program,
+                                bound_sp,
                                 bound_fbo,
-                                storage.primitive_type(),
-                                storage.element_type(),
-                                byte_offset,
-                                count,
-                                basevert
+                                skinned_mesh.lods.cur()
                             );
                         }
 
@@ -497,22 +505,21 @@ void SceneOverlays::draw_skeleton(
 
             auto draw_bones = [&](
                 const Entity&,
-                const SkinnedMesh& skinned_mesh,
+                const SkinnedMe2h& mesh,
+                const Pose&        pose,
                 const MTransform&  mtf)
             {
                 using std::views::iota, std::views::transform;
 
-                const auto& pose = skinned_mesh.pose;
-
                 const auto get_line = [&](size_t j) -> LineGPU {
-                    const size_t parent_id = pose.skeleton->joints[j].parent_id;
+                    const size_t parent_id = mesh.skeleton->joints[j].parent_id;
                     const vec3 end   = mtf.model() * pose.M2Js[j][3]; // Last column for position.
                     const vec3 start = mtf.model() * pose.M2Js[parent_id][3];
                     return { start, end };
                 };
 
                 bone_lines_buf_.restage(
-                    iota(size_t{ 1 }, pose.M2Js.size()) | // Skip root.
+                    irange(1, pose.M2Js.size()) | // Skip root.
                     transform(get_line)
                 );
 
@@ -532,9 +539,9 @@ void SceneOverlays::draw_skeleton(
             glapi::set_line_width(params.bone_width);
 
             if (params.selected_only) {
-                registry.view<Selected, SkinnedMesh, MTransform>().each(draw_bones);
+                registry.view<Selected, SkinnedMe2h, Pose, MTransform>().each(draw_bones);
             } else {
-                registry.view<SkinnedMesh, MTransform>().each(draw_bones);
+                registry.view<SkinnedMe2h, Pose, MTransform>().each(draw_bones);
             }
 
             glapi::disable(Capability::Blending);
@@ -553,18 +560,15 @@ void SceneOverlays::draw_skeleton(
 
             auto draw_joints = [&](
                 const Entity&,
-                const SkinnedMesh& skinned_mesh,
-                const MTransform&  mtf)
+                const Pose&       pose,
+                const MTransform& mtf)
             {
                 sp.uniform("model", mtf.model());
 
                 using std::views::transform;
                 const auto rescale = [&](const mat4& m) { return glm::scale(m, vec3(params.joint_scale)); };
 
-                joint_tfs_.restage(
-                    skinned_mesh.pose.M2Js |
-                    transform(rescale)
-                );
+                joint_tfs_.restage(pose.M2Js | transform(rescale));
 
                 BindGuard bound_tfs = joint_tfs_.bind_to_ssbo_index(0);
 
@@ -581,9 +585,9 @@ void SceneOverlays::draw_skeleton(
             };
 
             if (params.selected_only) {
-                registry.view<Selected, SkinnedMesh, MTransform>().each(draw_joints);
+                registry.view<Selected, Pose, MTransform>().each(draw_joints);
             } else {
-                registry.view<SkinnedMesh, MTransform>().each(draw_joints);
+                registry.view<Pose, MTransform>().each(draw_joints);
             }
         }
 

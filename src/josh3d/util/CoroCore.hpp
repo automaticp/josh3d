@@ -395,7 +395,11 @@ auto until_all_succeed(R&& awaitables)
         {
             struct Awaiter {
                 WhenAllSucceedAwaitable& self;
-                auto await_ready() noexcept -> bool { return false; }
+                auto await_ready() noexcept
+                    -> bool
+                {
+                    return std::ranges::size(self.awaitables) == 0;
+                }
                 auto await_suspend(std::coroutine_handle<> parent_coroutine) noexcept
                     -> std::coroutine_handle<>
                 {

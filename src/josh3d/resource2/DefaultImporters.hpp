@@ -22,6 +22,7 @@ struct ImportTextureParams {
     // This should also specify Mixed mode at least.
     // So it probably needs a new enum.
     TextureFile::StorageFormat storage_format;
+    TextureFile::Colorspace    colorspace;
     bool                       generate_mips = true;
 };
 

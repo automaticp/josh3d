@@ -1,5 +1,6 @@
 #pragma once
 #include "AABB.hpp"
+#include "EnumUtils.hpp"
 #include "Filesystem.hpp"
 #include "GLBuffers.hpp"
 #include "GLMutability.hpp"
@@ -48,6 +49,9 @@ enum class ImageIntent {
 };
 
 
+JOSH3D_DEFINE_ENUM_EXTRAS(ImageIntent, Unknown, Albedo, Alpha, Specular, Normal, Heightmap)
+
+
 auto image_intent_minmax_channels(ImageIntent intent) noexcept
     -> std::pair<size_t, size_t>;
 
@@ -62,6 +66,7 @@ enum class CubemapIntent {
 };
 
 
+JOSH3D_DEFINE_ENUM_EXTRAS(CubemapIntent, Unknown, Skybox)
 
 
 /*

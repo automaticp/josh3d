@@ -136,10 +136,8 @@ auto as_bytes(const Span<T>& span) noexcept
 { return { (const byte*)span.data(), span.size_bytes() }; }
 
 template<std::ranges::contiguous_range R>
-auto to_span(R&& r) noexcept
-    -> Span<std::ranges::range_value_t<R>>
-{
-    return { r.data(), r.size() };
+auto to_span(R&& r) noexcept {
+    return std::span{ r.data(), r.size() };
 }
 
 template<typename DstT, typename SrcT>

@@ -2,8 +2,10 @@
 #include "Asset.hpp"
 #include "AssetImporter.hpp"
 #include "Common.hpp"
+#include "ContainerUtils.hpp"
 #include "Filesystem.hpp"
 #include "Ranges.hpp"
+#include "ResourceFiles.hpp"
 #include <assimp/camera.h>
 #include <assimp/light.h>
 #include <assimp/material.h>
@@ -166,6 +168,26 @@ void populate_scene_nodes_preorder(
 }
 
 
+auto image_intent_colorspace(ImageIntent intent)
+    -> TextureFile::Colorspace
+{
+    switch (intent) {
+        using enum TextureFile::Colorspace;
+        case ImageIntent::Albedo:
+            return sRGB;
+        case ImageIntent::Specular:
+        case ImageIntent::Normal:
+        case ImageIntent::Alpha:
+        case ImageIntent::Heightmap:
+        case ImageIntent::Unknown:
+            return Linear;
+        default:
+            assert(false);
+            return Linear;
+    }
+}
+
+
 } // namespace
 
 
@@ -275,11 +297,11 @@ auto import_scene_async(
 
         const ImportTextureParams tex_params{
             .storage_format = params.texture_storage_format,
+            .colorspace     = image_intent_colorspace(tex_info.intent),
             .generate_mips  = params.generate_mips,
         };
 
-        // TODO: Should this use the dispatch table instead?
-        texture_jobs.emplace_back(import_texture(context.child_context(), path, tex_params));
+        texture_jobs.emplace_back(context.importer().import_asset(path, tex_params));
     }
 
 

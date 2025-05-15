@@ -1,6 +1,7 @@
 #include "SkinnedGeometry.hpp"
 #include "DefaultTextures.hpp"
 #include "Materials.hpp"
+#include "MeshStorage.hpp"
 #include "RenderEngine.hpp"
 #include "UniformTraits.hpp"
 #include "SkinnedMesh.hpp"
@@ -17,16 +18,17 @@ void SkinnedGeometry::operator()(
     RenderEnginePrimaryInterface& engine)
 {
     const auto& registry = engine.registry();
+    const auto* mesh_storage = engine.meshes().storage_for<VertexSkinned>();
+    if (not mesh_storage) return;
 
-    if (!engine.meshes().has_storage_for<VertexSkinned>()) return;
-
+    BindGuard bound_vao        = mesh_storage->vertex_array().bind();
     BindGuard bound_camera_ubo = engine.bind_camera_ubo();
     BindGuard bound_fbo        = gbuffer_->bind_draw();
 
-    auto view_opaque  = registry.view<Visible, MTransform, SkinnedMesh>(entt::exclude<AlphaTested>);
-    auto view_atested = registry.view<Visible, MTransform, SkinnedMesh, AlphaTested>();
+    auto view_opaque  = registry.view<Visible, MTransform, SkinnedMe2h, Pose>(entt::exclude<AlphaTested>);
+    auto view_atested = registry.view<Visible, MTransform, SkinnedMe2h, Pose, AlphaTested>();
 
-    const auto apply_materials = [&](entt::entity e, RawProgram<> sp, Location shininess_loc) {
+    const auto apply_materials = [&](Entity e, RawProgram<> sp, Location shininess_loc) {
 
         if (auto* mat_d = registry.try_get<MaterialDiffuse>(e)) {
             mat_d->texture->bind_to_texture_unit(0);
@@ -51,7 +53,7 @@ void SkinnedGeometry::operator()(
     };
 
 
-    auto draw_from_view = [&](RawProgram<> sp, auto entt_view) {
+    auto draw_from_view = [&](RawProgram<> sp, auto view) {
         BindGuard bound_program = sp.use();
 
         sp.uniform("material.diffuse",  0);
@@ -63,32 +65,18 @@ void SkinnedGeometry::operator()(
         Location object_id_loc    = sp.get_uniform_location("object_id");
         Location shininess_loc    = sp.get_uniform_location("material.shininess");
 
-        auto& mesh_storage = *engine.meshes().storage_for<VertexSkinned>();
-        BindGuard bound_vao = mesh_storage.vertex_array().bind();
-
-        for (auto [entity, world_mtf, skinned_mesh] : entt_view.each()) {
+        for (auto [entity, world_mtf, skinned_mesh, pose] : view.each()) {
             sp.uniform(model_loc,        world_mtf.model());
             sp.uniform(normal_model_loc, world_mtf.normal_model());
             sp.uniform(object_id_loc,    entt::to_integral(entity));
 
             apply_materials(entity, sp, shininess_loc);
 
-            skinning_mats_.restage(skinned_mesh.pose.skinning_mats);
+            skinning_mats_.restage(pose.skinning_mats);
             BindGuard bound_skin_mats = skinning_mats_.bind_to_ssbo_index(0);
 
             // TODO: Could batch if had SkinStorage.
-            auto [offset_bytes, count, basevert] = mesh_storage.query_one(skinned_mesh.mesh_id);
-
-            glapi::draw_elements_basevertex(
-                bound_vao,
-                bound_program,
-                bound_fbo,
-                mesh_storage.primitive_type(),
-                mesh_storage.element_type(),
-                offset_bytes,
-                count,
-                basevert
-            );
+            draw_one_from_storage(*mesh_storage, bound_vao, bound_program, bound_fbo, skinned_mesh.lods.cur());
         }
     };
 

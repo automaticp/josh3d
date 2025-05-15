@@ -25,6 +25,16 @@ namespace josh {
 
 /*
 First 24 bytes of each binary resource file.
+
+TODO: We probably want to store FileType and Version too.
+
+ImHex Pattern:
+
+struct Preamble {
+    char magic[4];
+    u32  resource_type;
+    u8   self_uuid[16];
+};
 */
 struct alignas(8) ResourcePreamble {
     uint32_t     _magic;        // "josh".
@@ -36,8 +46,15 @@ struct alignas(8) ResourcePreamble {
 };
 
 
+/*
+ImHex Pattern:
 
-
+struct ResourceName {
+    u8     len;
+    char   name[len];
+    padding[63 - len];
+};
+*/
 struct ResourceName {
     static constexpr size_t max_length = 63;
 
@@ -78,23 +95,11 @@ protected:
 
 
 /*
-Pattern (ImHex):
-
-struct Preamble {
-    char magic[4];
-    u32  resource_type;
-    u8   self_uuid[16];
-};
+ImHex Pattern:
 
 struct Joint {
     float inv_bind[16];
     u32   parent_id;
-};
-
-struct ResourceName {
-    u8     len;
-    char   name[len];
-    padding[63 - len];
 };
 
 struct SkeletonFile {
@@ -159,13 +164,7 @@ private:
 NOTE: This file layout requires double indirection to parse
 the keyframes, reading the header alone is not enough.
 
-Pattern (ImHex):
-
-struct Preamble {
-    char magic[4];
-    u32  resource_type;
-    u8   self_uuid[16];
-};
+ImHex Pattern:
 
 struct JointSpan {
     u32 offset_bytes;
@@ -442,12 +441,16 @@ public:
     static constexpr size_t max_mips = 16;
 
     // TODO: This is not fully supported yet.
+    // TODO: Rename to Encoding.
     enum class StorageFormat : uint16_t {
         RAW, // No compression. Directly streamable.
         PNG, // High compression. Needs decoding.
         BC7, // Low compression. Directly streamable.
+    };
 
-        _count,
+    enum class Colorspace : uint8_t {
+        Linear,
+        sRGB,
     };
 
     struct MIPSpan {
@@ -461,8 +464,10 @@ public:
 
     struct Header {
         ResourcePreamble preamble;
-        uint16_t         num_channels;
-        uint16_t         num_mips;
+        uint8_t          num_channels;
+        Colorspace       colorspace;
+        uint8_t          _reserved0;
+        uint8_t          num_mips;
         MIPSpan          mips[max_mips];
     };
 
@@ -474,7 +479,8 @@ public:
     };
 
     struct Args {
-        uint16_t            num_channels;
+        uint8_t             num_channels;
+        Colorspace          colorspace;
         Span<const MIPSpec> mip_specs; // Up-to max_mips.
     };
 
@@ -491,8 +497,10 @@ public:
 
     auto size_bytes() const noexcept -> size_t { return mapping_.get_size(); }
 
-    auto num_mips()     const noexcept -> uint16_t;
-    auto num_channels() const noexcept -> uint16_t;
+    auto num_mips()     const noexcept -> uint8_t;
+    auto num_channels() const noexcept -> uint8_t;
+    auto colorspace()   const noexcept -> const Colorspace&;
+    auto colorspace()         noexcept -> Colorspace&;
 
     auto mip_spec  (size_t mip_id) const noexcept -> MIPSpec;
     auto format    (size_t mip_id) const noexcept -> StorageFormat;
@@ -514,7 +522,8 @@ private:
 };
 
 
-JOSH3D_DEFINE_ENUM_STRING(TextureFile::StorageFormat, RAW, PNG, BC7)
+JOSH3D_DEFINE_ENUM_EXTRAS(TextureFile::StorageFormat, RAW, PNG, BC7)
+JOSH3D_DEFINE_ENUM_EXTRAS(TextureFile::Colorspace, Linear, sRGB)
 
 
 } // namespace josh
