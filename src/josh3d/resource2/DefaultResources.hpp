@@ -6,6 +6,7 @@
 #include "MeshStorage.hpp"
 #include "Resource.hpp"
 #include "ResourceInfo.hpp"
+#include "ResourceRegistry.hpp"
 #include "SkeletalAnimation.hpp"
 #include "Skeleton.hpp"
 #include "Transform.hpp"
@@ -162,6 +163,19 @@ inline void register_default_resource_info(
     m.register_resource_type<RT::Skeleton>();
     m.register_resource_type<RT::Material>();
     m.register_resource_type<RT::MeshDesc>();
+}
+
+
+inline void register_default_resource_storage(
+    ResourceRegistry& r)
+{
+    r.initialize_storage_for<RT::Scene>();
+    r.initialize_storage_for<RT::MeshDesc>();
+    r.initialize_storage_for<RT::Material>();
+    r.initialize_storage_for<RT::Mesh>();
+    r.initialize_storage_for<RT::Texture>();
+    r.initialize_storage_for<RT::Animation>();
+    r.initialize_storage_for<RT::Skeleton>();
 }
 
 

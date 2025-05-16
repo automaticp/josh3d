@@ -33,7 +33,7 @@ only applies along the local basis.
 class Transform {
 private:
     glm::vec3 position_   { 0.f, 0.f, 0.f };
-    glm::quat orientation_{ 1.f, 0.f, 0.f, 0.f };
+    glm::quat orientation_{ 0.f, 0.f, 0.f, 1.f };
     glm::vec3 scale_      { 1.f, 1.f, 1.f };
 
 public:
@@ -81,7 +81,7 @@ public:
     // Differs from GLM in that the locking axis is Pitch not Yaw.
     glm::vec3 get_euler() const noexcept {
         const auto& q = orientation_;
-        const glm::quat q_shfl{ q.w, q.y, q.x, q.z };
+        const auto q_shfl = glm::quat::wxyz(q.w, q.y, q.x, q.z);
 
         const glm::vec3 euler{
             glm::yaw(q_shfl),   // Pitch
@@ -97,7 +97,7 @@ public:
     // NOT with GLM's eulerAngles().
     void set_euler(const glm::vec3& euler) noexcept {
         const glm::quat p{ glm::vec3{ euler.y, euler.x, euler.z } };
-        orientation_ = glm::quat{ p.w, p.y, p.x, p.z };
+        orientation_ = glm::quat::wxyz(p.w, p.y, p.x, p.z);
     }
 
 

@@ -150,7 +150,7 @@ inline bool TransformWidget(josh::Transform& transform) noexcept {
     // associated with Yaw, not Pitch...? Maybe I am confused here but
     // I want it Pitch, so we also have to swap the euler representation.
     // (In my mind, Pitch and Yaw are Theta and Phi in spherical coordinates respectively).
-    const glm::quat q_shfl = glm::quat{ q.w, q.y, q.x, q.z };
+    const glm::quat q_shfl = glm::quat::wxyz(q.w, q.y, q.x, q.z);
     glm::vec3 euler = glm::degrees(glm::vec3{
         glm::yaw(q_shfl),   // Pitch
         glm::pitch(q_shfl), // Yaw
@@ -163,7 +163,7 @@ inline bool TransformWidget(josh::Transform& transform) noexcept {
         euler.z = glm::mod(euler.z, 360.f);
         // Un-shuffle back both the euler angles and quaternions.
         glm::quat p = glm::quat(glm::radians(glm::vec3{ euler.y, euler.x, euler.z }));
-        transform.orientation() = glm::quat{ p.w, p.y, p.x, p.z };
+        transform.orientation() = glm::quat::wxyz(p.w, p.y, p.x, p.z);
         feedback |= true;
     }
 

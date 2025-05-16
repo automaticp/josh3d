@@ -402,7 +402,7 @@ auto v2v(const aiVector3D& v) noexcept
 auto q2q(const aiQuaternion& q) noexcept
     -> quat
 {
-    return { q.w, q.x, q.y, q.z };
+    return quat::wxyz(q.w, q.x, q.y, q.z);
 }
 
 

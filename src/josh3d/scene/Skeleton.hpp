@@ -1,6 +1,7 @@
 #pragma once
-#include <cstdint>
 #include "Math.hpp"
+#include <cstdint>
+#include <vector>
 
 
 namespace josh {

@@ -3,6 +3,7 @@
 #include "Skeleton.hpp"
 #include "Transform.hpp"
 #include <glm/ext/quaternion_common.hpp>
+#include <memory>
 #include <ranges>
 
 
@@ -79,7 +80,7 @@ inline auto AnimationClip::sample_at(size_t joint_idx, double time) const noexce
     const auto& channels = keyframes[joint_idx];
 
     const vec3 position = channels.t.size() ? interpolate(channels.t, time, lerp_vec3)  : vec3(0.f, 0.f, 0.f);
-    const quat rotation = channels.r.size() ? interpolate(channels.r, time, slerp_quat) : quat(1.f, 0.f, 0.f, 0.f);
+    const quat rotation = channels.r.size() ? interpolate(channels.r, time, slerp_quat) : quat(0.f, 0.f, 0.f, 1.f);
     const vec3 scale    = channels.s.size() ? interpolate(channels.s, time, lerp_vec3)  : vec3(1.f, 1.f, 1.f);
 
     return { position, rotation, scale };

@@ -105,7 +105,7 @@ void populate_scene_nodes_preorder(
         const quat& rot = tf.orientation();
         const vec3& sca = tf.scaling();
         j["position"] = jsoncons::json(jsoncons::json_array_arg, { pos.x, pos.y, pos.z });
-        j["rotation"] = jsoncons::json(jsoncons::json_array_arg, { rot.w, rot.x, rot.y, rot.z });
+        j["rotation"] = jsoncons::json(jsoncons::json_array_arg, { rot.x, rot.y, rot.z, rot.w });
         j["scaling"]  = jsoncons::json(jsoncons::json_array_arg, { sca.x, sca.y, sca.z });
         return j;
     };
