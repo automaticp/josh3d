@@ -15,6 +15,8 @@
 #include <assimp/BaseImporter.h>
 #include <assimp/Importer.hpp>
 #include <jsoncons/json.hpp>
+#include <fmt/format.h>
+#include <fmt/std.h>
 
 
 namespace josh::detail {
@@ -589,9 +591,17 @@ auto import_scene_async(
     json scene_json;
     scene_json["entities"] = MOVE(entities_array);
 
+    String scene_name = [&]() -> String {
+        if (ai_scene->mName.length) {
+            return fmt::format("{}-{}", path.stem(), s2sv(ai_scene->mName));
+        } else {
+            return path.stem();
+        }
+    }();
+
     const ResourcePathHint path_hint{
         .directory = "scenes",
-        .name      = s2sv(ai_scene->mName),
+        .name      = scene_name,
         .extension = "jscene",
     };
 
