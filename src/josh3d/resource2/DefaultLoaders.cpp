@@ -5,6 +5,7 @@
 #include "CoroCore.hpp"
 #include "Coroutines.hpp"
 #include "DefaultResources.hpp"
+#include "DefaultResourceFiles.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLBuffers.hpp"
 #include "GLObjectHelpers.hpp"
@@ -58,13 +59,13 @@ struct StagingBuffers {
     UniqueBuffer<uint32_t> elems;
 };
 
-auto stage_lod(const MeshFile& file, uint8_t lod)
+auto stage_lod(const MeshFile& file, uint8_t lod_id)
     -> StagingBuffers
 {
-    const auto spec      = file.lod_spec(lod);
-    const auto src_verts = file.lod_verts_bytes(lod);
-    const auto src_elems = file.lod_elems_bytes(lod);
-    assert(spec.compression == MeshFile::Compression::None && "Compression not implemented.");
+    const auto& lod       = file.lod_span(lod_id);
+    const auto  src_verts = file.lod_verts_bytes(lod_id);
+    const auto  src_elems = file.lod_elems_bytes(lod_id);
+    assert(lod.compression == MeshFile::Compression::None && "Compression not implemented.");
 
     const StoragePolicies policies{
         .mode        = StorageMode::StaticServer,
@@ -103,14 +104,15 @@ auto load_static_mesh(
         -> Job<>
 {
     using VertexT = VertexStatic;
-    assert(file.layout() == MeshFile::VertexLayout::Static);
+    const auto& header = file.header();
+    assert(header.layout == MeshFile::VertexLayout::Static);
 
     ResourceProgress progress = ResourceProgress::Incomplete;
     ResourceUsage    usage{};
 
     StaticVector<StagingBuffers, 8> staged_lods;
 
-    const uint8_t num_lods  = file.num_lods();
+    const uint8_t num_lods  = header.num_lods;
     const uint8_t first_lod = num_lods - 1;
     assert(num_lods);
 
@@ -156,7 +158,7 @@ auto load_static_mesh(
             first_time = false;
             usage = context.create_resource<RT::Mesh>(uuid, progress, MeshResource{
                 .mesh = MeshResource::Static{ lod_pack },
-                .aabb = file.aabb(),
+                .aabb = header.aabb,
             });
 
         } else {
@@ -183,14 +185,15 @@ auto load_skinned_mesh(
         -> Job<>
 {
     using VertexT = VertexSkinned;
-    assert(file.layout() == MeshFile::VertexLayout::Skinned);
+    const auto& header = file.header();
+    assert(header.layout == MeshFile::VertexLayout::Skinned);
 
     ResourceProgress progress = ResourceProgress::Incomplete;
     ResourceUsage    usage{};
 
     StaticVector<StagingBuffers, 8> staged_lods;
 
-    const uint8_t num_lods  = file.num_lods();
+    const uint8_t num_lods  = header.num_lods;
     const uint8_t first_lod = num_lods - 1;
     assert(num_lods);
 
@@ -201,7 +204,7 @@ auto load_skinned_mesh(
     };
 
     // Launch as an async task in case the skeleton is not cached.
-    auto skeleton_job = get_skeleton(file.skeleton_uuid());
+    auto skeleton_job = get_skeleton(header.skeleton_uuid);
 
     LODPack<MeshID<VertexT>, 8> lod_pack{};
 
@@ -243,7 +246,7 @@ auto load_skinned_mesh(
                     .lods     = lod_pack,
                     .skeleton = co_await skeleton_job,
                 },
-                .aabb = file.aabb(),
+                .aabb = header.aabb,
             });
 
         } else {
@@ -278,7 +281,7 @@ try {
 
     auto& mesh_registry = context.mesh_registry();
 
-    switch (file.layout()) {
+    switch (file.header().layout) {
         using enum MeshFile::VertexLayout;
         case Static: {
             co_await load_static_mesh(context, file, uuid, mesh_registry);
@@ -341,7 +344,7 @@ try {
 namespace {
 
 using Colorspace = TextureFile::Colorspace;
-using Encoding   = TextureFile::StorageFormat;
+using Encoding   = TextureFile::Encoding;
 
 auto pick_internal_format(Colorspace colorspace, size_t num_channels) noexcept
     -> InternalFormat
@@ -366,10 +369,10 @@ auto pick_internal_format(Colorspace colorspace, size_t num_channels) noexcept
     safe_unreachable("Invalid image parameters.");
 }
 
-auto pick_pixel_data_format(TextureFile::StorageFormat format, size_t num_channels) noexcept
+auto pick_pixel_data_format(Encoding encoding, size_t num_channels) noexcept
     -> PixelDataFormat
 {
-    using enum TextureFile::StorageFormat;
+    using enum Encoding;
     if (num_channels == 3) {
         return PixelDataFormat::RGB;
     } else if (num_channels == 4) {
@@ -378,11 +381,11 @@ auto pick_pixel_data_format(TextureFile::StorageFormat format, size_t num_channe
     safe_unreachable();
 }
 
-auto needs_decoding(TextureFile::StorageFormat format)
+auto needs_decoding(Encoding encoding)
     -> bool
 {
-    switch (format) {
-        using enum TextureFile::StorageFormat;
+    switch (encoding) {
+        using enum Encoding;
         case PNG:
             return true;
         case RAW:
@@ -469,17 +472,18 @@ auto decode_and_upload_mip(
     uint8_t                mip_id)
         -> Job<>
 {
-    using StorageFormat = TextureFile::StorageFormat;
-    const size_t          num_channels = file.num_channels();
+    const auto&           header       = file.header();
+    const auto&           mip          = file.mip_span(mip_id);
+    const size_t          num_channels = header.num_channels;
     const PixelDataType   type         = PixelDataType::UByte;
 
-    const StorageFormat    src_format   = file.format(mip_id);
-    const PixelDataFormat  format       = pick_pixel_data_format(src_format, num_channels);
+    const Encoding         src_encoding = mip.encoding;
+    const PixelDataFormat  format       = pick_pixel_data_format(src_encoding, num_channels);
     const MipLevel         level        = int(mip_id);
-    const Extent2I         resolution   = file.resolution(mip_id);
+    const Extent2I         resolution   = Extent2I(mip.width, mip.height);
     const Span<const byte> src_bytes    = file.mip_bytes(mip_id);
 
-    assert(needs_decoding(src_format));
+    assert(needs_decoding(src_encoding));
 
     DecodedImage decoded_image =
         co_await decode_texture_async_png(context, src_bytes, num_channels);
@@ -504,19 +508,20 @@ auto upload_mip(
     uint8_t                mip_id)
         -> Job<>
 {
-    using StorageFormat = TextureFile::StorageFormat;
-    const size_t          num_channels = file.num_channels();
+    const auto&           header       = file.header();
+    const auto&           mip          = file.mip_span(mip_id);
+    const size_t          num_channels = header.num_channels;
     const PixelDataType   type         = PixelDataType::UByte;
 
     // TODO: Handle BC7 properly.
 
-    const StorageFormat    src_format   = file.format(mip_id);
-    const PixelDataFormat  format       = pick_pixel_data_format(src_format, num_channels);
+    const Encoding         src_encoding = mip.encoding;
+    const PixelDataFormat  format       = pick_pixel_data_format(src_encoding, num_channels);
     const MipLevel         level        = int(mip_id);
-    const Extent2I         resolution   = file.resolution(mip_id);
+    const Extent2I         resolution   = Extent2I(mip.width, mip.height);
     const Span<const byte> src_bytes    = file.mip_bytes(mip_id);
 
-    assert(not needs_decoding(src_format));
+    assert(not needs_decoding(src_encoding));
 
     if (expected_size(resolution, num_channels, type) != src_bytes.size()) throw RuntimeError("Size does not match resolution.");
 
@@ -543,14 +548,16 @@ try {
     co_await reschedule_to(context.thread_pool());
 
     auto file = TextureFile::open(context.resource_database().map_resource(uuid));
+    const auto& header = file.header();
 
     co_await reschedule_to(context.offscreen_context());
 
     SharedTexture2D texture;
-    const auto           num_channels = file.num_channels();
-    const Colorspace     colorspace   = file.colorspace();
-    const NumLevels      num_mips     = file.num_mips();
-    const Size2I         resolution0  = file.resolution(0);
+    const auto           num_channels = header.num_channels;
+    const Colorspace     colorspace   = header.colorspace;
+    const NumLevels      num_mips     = header.num_mips;
+    const auto&          mip0         = file.mip_span(0);
+    const Extent2I       resolution0  = Extent2I(mip0.width, mip0.height);
     const InternalFormat iformat      = pick_internal_format(colorspace, num_channels);
     texture->allocate_storage(resolution0, iformat, num_mips);
 
@@ -573,8 +580,8 @@ try {
         // Upload data for new mips.
         upload_jobs.clear();
         for (const auto mip_id : mip_ids) {
-            const auto format = file.format(mip_id);
-            if (needs_decoding(format)) {
+            const auto encoding = file.mip_span(mip_id).encoding;
+            if (needs_decoding(encoding)) {
                 upload_jobs.emplace_back(decode_and_upload_mip(context, file, texture, mip_id));
             } else {
                 upload_jobs.emplace_back(upload_mip(context, file, texture, mip_id));

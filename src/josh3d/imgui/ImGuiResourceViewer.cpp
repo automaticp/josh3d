@@ -76,7 +76,7 @@ void ImGuiResourceViewer::display_viewer() {
     };
 
 
-    using TextureFormat = TextureFile::StorageFormat;
+    using TextureFormat = TextureFile::Encoding;
     const TextureFormat formats[3]{
         TextureFormat::RAW,
         TextureFormat::PNG,
@@ -107,13 +107,13 @@ void ImGuiResourceViewer::display_viewer() {
     };
 
     if (ImGui::TreeNode("Import Texture")) {
-        texture_format_combo(import_texture_params.storage_format);
+        texture_format_combo(import_texture_params.encoding);
         ImGui::Checkbox("Generate Mipmaps", &import_texture_params.generate_mips);
         if (ImGui::Button("Import")) try_import_thing(import_texture_params);
         ImGui::TreePop();
     }
     if (ImGui::TreeNode("Import Scene")) {
-        texture_format_combo(import_scene_params.texture_storage_format);
+        texture_format_combo(import_scene_params.texture_encoding);
         ImGui::Checkbox("Generate Mipmaps", &import_scene_params.generate_mips);
         ImGui::SameLine();
         ImGui::Checkbox("Collapse Graph", &import_scene_params.collapse_graph);

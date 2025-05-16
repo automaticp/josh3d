@@ -1,4 +1,5 @@
 #include "Common.hpp"
+#include "DefaultResourceFiles.hpp"
 #include "GLAPICore.hpp"
 #include "GLObjects.hpp"
 #include "GLPixelPackTraits.hpp"
@@ -13,7 +14,6 @@
 #include "AssetImporter.hpp"
 #include "Ranges.hpp"
 #include "MallocSupport.hpp"
-#include "ResourceFiles.hpp"
 #include "TextureHelpers.hpp"
 #include "ImageData.hpp"
 #include <fmt/format.h>
@@ -24,7 +24,7 @@ namespace josh {
 namespace {
 
 
-using Format = TextureFile::StorageFormat;
+using Encoding = TextureFile::Encoding;
 
 
 struct EncodedImage {
@@ -32,7 +32,7 @@ struct EncodedImage {
     Size2I                     resolution;
     size_t                     num_channels;
     size_t                     size_bytes;
-    Format                     format;
+    Encoding                   encoding;
     auto span() const noexcept -> Span<ubyte> { return { data.get(), size_bytes }; }
 };
 
@@ -49,7 +49,7 @@ auto encode_texture_async_raw(
         .resolution   = Size2I(image.resolution()),
         .num_channels = image.num_channels(),
         .size_bytes   = image.size_bytes(),
-        .format       = Format::RAW,
+        .encoding     = Encoding::RAW,
     };
     result.data = image.release();
     co_return result;
@@ -111,7 +111,7 @@ auto encode_texture_async_png(
         .resolution   = Size2I(image.resolution()),
         .num_channels = image.num_channels(),
         .size_bytes   = size_bytes,
-        .format       = Format::PNG,
+        .encoding     = Encoding::PNG,
     };
 
 }
@@ -240,8 +240,8 @@ auto import_texture(
 
     // TODO: More formats must be supported.
     assert(
-        params.storage_format == Format::RAW ||
-        params.storage_format == Format::PNG
+        params.encoding == Encoding::RAW ||
+        params.encoding == Encoding::PNG
         && "Only RAW or PNG formats are supported for now. Sad."
     );
 
@@ -261,8 +261,8 @@ auto import_texture(
 
     for (auto& mip : mips) {
         // NOTE: Dropping mip data here by moving it out.
-        switch (params.storage_format) {
-            using enum Format;
+        switch (params.encoding) {
+            using enum Encoding;
             case RAW: encode_jobs.emplace_back(encode_texture_async_raw(context, MOVE(mip))); break;
             case PNG: encode_jobs.emplace_back(encode_texture_async_png(context, MOVE(mip))); break;
             // TODO: Not supported.
@@ -288,7 +288,7 @@ auto import_texture(
             .size_bytes    = uint32_t(im.size_bytes),
             .width_pixels  = uint16_t(im.resolution.width),
             .height_pixels = uint16_t(im.resolution.height),
-            .format        = im.format,
+            .encoding      = im.encoding,
         };
     };
 

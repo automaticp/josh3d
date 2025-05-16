@@ -113,9 +113,10 @@ auto import_skeleton_async(
 
 
     SkeletonFile file = SkeletonFile::create_in(MOVE(mregion), uuid, args);
+    const auto& header = file.header();
 
-    assert(file.num_joints() == joints.size());
-    assert(file.num_joints() == joint_names.size());
+    assert(header.num_joints == joints.size());
+    assert(header.num_joints == joint_names.size());
     const auto dst_joints      = file.joints();
     const auto dst_joint_names = file.joint_names();
 
@@ -178,15 +179,14 @@ auto import_anim_async(
     const ResourceType resource_type = AnimationFile::resource_type;
 
 
-    co_await reschedule_to(context.local_context());
     auto [uuid, mregion] = context.resource_database().generate_resource(resource_type, path_hint, file_size);
-    co_await reschedule_to(context.thread_pool());
 
 
     AnimationFile file = AnimationFile::create_in(MOVE(mregion), uuid, args);
 
-    file.skeleton_uuid() = skeleton_uuid;
-    file.duration_s()    = float(duration_s);
+    auto& header = file.header();
+    header.skeleton_uuid = skeleton_uuid;
+    header.duration_s    = float(duration_s);
 
     using ranges::views::enumerate;
     for (auto [joint_id, ai_jkfs] : enumerate(ai_jkfs_per_joint)) {

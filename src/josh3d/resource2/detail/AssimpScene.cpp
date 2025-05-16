@@ -296,7 +296,7 @@ auto import_scene_async(
         texid2jobid[tex_info.id] = texture_jobs.size();
 
         const ImportTextureParams tex_params{
-            .storage_format = params.texture_storage_format,
+            .encoding       = params.texture_encoding,
             .colorspace     = image_intent_colorspace(tex_info.intent),
             .generate_mips  = params.generate_mips,
         };

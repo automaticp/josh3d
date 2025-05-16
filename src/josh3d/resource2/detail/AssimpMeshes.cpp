@@ -167,7 +167,6 @@ auto import_mesh_async(
             .verts_bytes = verts_bytes,
             .elems_bytes = elems_bytes,
             .compression = Compression::None,
-            ._reserved0  = {},
         },
     };
 
@@ -182,9 +181,10 @@ auto import_mesh_async(
     auto [uuid, mregion] = context.resource_database().generate_resource(resource_type, path_hint, file_size);
 
     MeshFile file = MeshFile::create_in(MOVE(mregion), uuid, args);
+    auto& header = file.header();
 
-    file.skeleton_uuid() = skeleton_uuid;
-    file.aabb()          = aabb2aabb(ai_mesh->mAABB);
+    header.skeleton_uuid = skeleton_uuid;
+    header.aabb          = aabb2aabb(ai_mesh->mAABB);
 
     // NOTE: Ignoring compression for now. We have no compression options anyway.
 

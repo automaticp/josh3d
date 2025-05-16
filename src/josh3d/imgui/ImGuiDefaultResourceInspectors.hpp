@@ -1,10 +1,10 @@
 #pragma once
+#include "DefaultResourceFiles.hpp"
 #include "DefaultResources.hpp"
 #include "FileMapping.hpp"
 #include "ImGuiHelpers.hpp"
 #include "ImGuiResourceViewer.hpp"
 #include "Ranges.hpp"
-#include "ResourceFiles.hpp"
 #include "UUID.hpp"
 #include <imgui.h>
 #include <jsoncons/basic_json.hpp>
@@ -20,6 +20,7 @@ struct TextureInspector {
     TextureFile file = TextureFile::open(context.resource_database().map_resource(uuid));
 
     void operator()() {
+        const auto& header = file.header();
         const auto table_flags =
             ImGuiTableFlags_Borders           |
             ImGuiTableFlags_Resizable         |
@@ -31,25 +32,26 @@ struct TextureInspector {
         if (ImGui::BeginTable("MIPs", 4, table_flags)) {
             ImGui::TableSetupColumn("Level");
             ImGui::TableSetupColumn("Resolution");
-            ImGui::TableSetupColumn("Format");
+            ImGui::TableSetupColumn("Encoding");
             ImGui::TableSetupColumn("Size");
             ImGui::TableHeadersRow();
-            for (const auto mip_id : irange(file.num_mips())) {
+            for (const auto mip_id : irange(header.num_mips)) {
+                const auto& mip = file.mip_span(mip_id);
                 ImGui::TableNextRow();
 
                 ImGui::TableNextColumn();
                 ImGui::Text("%zu", mip_id);
 
                 ImGui::TableNextColumn();
-                const auto [w, h] = file.resolution(mip_id);
+                const auto [w, h] = Extent2I(mip.width, mip.height);
                 ImGui::Text("%dx%d", w, h);
 
                 ImGui::TableNextColumn();
-                const auto format = file.format(mip_id);
-                ImGui::Text("%s", enum_cstring(format));
+                const auto encoding = mip.encoding;
+                ImGui::Text("%s", enum_cstring(encoding));
 
                 ImGui::TableNextColumn();
-                const size_t size = file.mip_size_bytes(mip_id);
+                const size_t size = mip.size_bytes;
                 ImGui::Text("%zu", size);
             }
 

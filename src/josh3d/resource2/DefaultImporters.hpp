@@ -1,8 +1,8 @@
 #pragma once
 #include "AssetImporter.hpp"
+#include "DefaultResourceFiles.hpp"
 #include "Coroutines.hpp"
 #include "Filesystem.hpp"
-#include "ResourceFiles.hpp"
 #include "UUID.hpp"
 
 
@@ -21,9 +21,9 @@ struct ImportTextureParams {
     // TODO: Only RAW and PNG is supported for now.
     // This should also specify Mixed mode at least.
     // So it probably needs a new enum.
-    TextureFile::StorageFormat storage_format;
-    TextureFile::Colorspace    colorspace;
-    bool                       generate_mips = true;
+    TextureFile::Encoding   encoding;
+    TextureFile::Colorspace colorspace;
+    bool                    generate_mips = true;
 };
 
 
@@ -35,7 +35,7 @@ auto import_texture(
 
 
 struct ImportSceneParams {
-    TextureFile::StorageFormat texture_storage_format = TextureFile::StorageFormat::PNG;
+    TextureFile::Encoding texture_encoding = TextureFile::Encoding::PNG;
     bool generate_mips    = true;
     // bool skip_meshes     = false;
     // bool skip_textures   = false;
