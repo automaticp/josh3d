@@ -127,6 +127,28 @@ void ImGuiResourceViewer::display_viewer() {
     if (ImGui::TreeNode("Entries")) {
         using ranges::views::enumerate;
 
+        // FIXME: Very crappy filter.
+        thread_local ResourceType current_filtered = NullResource;
+        thread_local bool         do_filter        = false;
+
+        // TODO: CStrView would be a useful type when dealing with imgui.
+        // Right now, we just know that ResourceInfo returns null-terminated strings.
+        ImGui::Checkbox("##FilterCheckbox", &do_filter);
+        ImGui::SameLine();
+        ImGui::BeginDisabled(not do_filter);
+        if (ImGui::BeginCombo("Filter##Combo", resource_info().name_or(current_filtered, "None").data())) {
+            for (const ResourceType resource_type : resource_info().view_registered()) {
+                if (ImGui::Selectable(resource_info().name_of(resource_type).data(),
+                        resource_type == current_filtered))
+                {
+                    current_filtered = resource_type;
+                }
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::EndDisabled();
+
+
         const auto table_flags =
             ImGuiTableFlags_Borders     |
             ImGuiTableFlags_Resizable   |
@@ -147,6 +169,7 @@ void ImGuiResourceViewer::display_viewer() {
                 [&i, &unpack_signal, &inspect_signal](
                     const ResourceDatabase::Row& row)
             {
+                if (do_filter and not (row.type == current_filtered)) return;
                 ImGui::PushID(void_id(i));
                 ImGui::TableNextRow();
 
