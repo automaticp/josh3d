@@ -560,6 +560,7 @@ try {
     const Extent2I       resolution0  = Extent2I(mip0.width, mip0.height);
     const InternalFormat iformat      = pick_internal_format(colorspace, num_channels);
     texture->allocate_storage(resolution0, iformat, num_mips);
+    texture->set_sampler_min_mag_filters(MinFilter::LinearMipmapLinear, MagFilter::Linear);
 
     // - Upload MIP range
     // - Clamp MIPs
