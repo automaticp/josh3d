@@ -8,7 +8,7 @@
 #include "UUID.hpp"
 #include <cstdint>
 #include <functional>
-#include <fstream>
+#include <fstream> // IWYU pragma: keep (tool is drunk)
 #include <ranges>
 #include <shared_mutex>
 #include <streambuf>
@@ -17,14 +17,16 @@
 namespace josh {
 
 
-// TODO: Make 0-termination required.
+/*
+Fixed-width string stored in the database row that represents relative resource path.
+*/
 struct ResourcePath {
-    static constexpr size_t max_length = 91;
+    static constexpr size_t max_length = 89;
 
     uint8_t length;
-    char    path[max_length];
+    char    string[max_length];
 
-    auto view() const noexcept -> StrView { assert(length <= max_length); return { path, length }; }
+    auto view() const noexcept -> StrView { assert(length <= max_length); return { string, length }; }
     operator StrView() const noexcept { return view(); }
 };
 
@@ -58,25 +60,27 @@ the filesystem. The paths are always relative to the
 directory where the table file is contained.
 
 
-Pattern of the .jdb table (ImHex):
+ImHex Pattern:
 
-const u64 max_filepath_size = 91;
+const u64 max_filepath_size = 89;
 
 struct Row {
-    u8      uuid[16];                // UUID of the resource.
-    u32     resource_type;           // Resource type.
-    u8      filepath_size;           // Byte size of the string in the `filepath` field.
-    char    filepath[filepath_size]; // Path to the resource relative to the database root.
+    u8      uuid[16];
+    u32     resource_type;
+    u8      flags;
+    u8      _reserved0;
+    u8      filepath_size;
+    char    filepath[filepath_size];
     padding [max_filepath_size - filepath_size];
-    u64     offset_bytes;            // Offset of the resource data in the file.
-    u64     size_bytes;              // Size of the resource data in the file.
+    u64     offset_bytes;
+    u64     size_bytes;
 };
 
 Row rows[sizeof($)/128] @ 0x0;
 */
 class ResourceDatabase {
 public:
-    ResourceDatabase(const Path& database_root_dir);
+    ResourceDatabase(const Path& database_root);
 
     /*
     A single row in the table.
@@ -84,9 +88,11 @@ public:
     struct Row {
         UUID         uuid;         // UUID of the resource.
         ResourceType type;         // Type of the resource.
+        uint8_t      flags;        // Entry flags. Currently not used.
+        uint8_t      _reserved0;   //
         ResourcePath filepath;     // Path to the resource relative to the database root.
         uint64_t     offset_bytes; // Offset of the resource data in the file.
-        uint64_t     size_bytes;   // Size of the resource data in the file.
+        uint64_t     size_bytes;   // Size of the resource data in the file. HMM: Could be u32.
     };
 
     // Must be periodically called from the main thread.
@@ -232,7 +238,7 @@ private:
     void _bump_version() noexcept;
 
     // Create a new entry, possibly resizing the table. No checks are made. Version is not updated.
-    void _new_entry(const UUID& uuid, ResourceType type, const ResourcePath& path, uint64_t offset_bytes, uint64_t size_bytes);
+    void _new_entry(const UUID& uuid, ResourceType type, uint8_t flags, const ResourcePath& path, uint64_t offset_bytes, uint64_t size_bytes);
 
     struct UnlinkResult {
         bool   success;             // True if unliked, false if no such UUID.

@@ -152,6 +152,7 @@ void ResourceDatabase::_bump_version() noexcept {
 void ResourceDatabase::_new_entry(
     const UUID&         uuid,
     ResourceType        type,
+    uint8_t             flags,
     const ResourcePath& path,
     uint64_t            offset_bytes,
     uint64_t            size_bytes)
@@ -173,6 +174,8 @@ void ResourceDatabase::_new_entry(
     *_row_ptr(target_row_id) = {
         .uuid          = uuid,
         .type          = type,
+        .flags         = flags,
+        ._reserved0    = {},
         .filepath      = path,
         .offset_bytes  = offset_bytes,
         .size_bytes    = size_bytes,
@@ -291,11 +294,11 @@ auto path_from_hint(const ResourcePathHint& path_hint, size_t version) noexcept
     const size_t allowed_name_length = ResourcePath::max_length - taken_length;
 
     ResourcePath result;
-    char* ptr = result.path;
+    char* ptr = result.string;
 
     // Write directory.
     ptr = std::ranges::copy(directory, ptr).out;
-    *(ptr++) = Path::preferred_separator;
+    *(ptr++) = '/'; // TODO: Does it matter for Windows?
 
     // Write name.
     if (name.length() <= allowed_name_length) {
@@ -306,7 +309,7 @@ auto path_from_hint(const ResourcePathHint& path_hint, size_t version) noexcept
         auto truncated_name = name.substr(0, allowed_name_length);
         ptr = std::ranges::copy(truncated_name, ptr).out;
     }
-    const size_t remaining_length = ResourcePath::max_length - (ptr - result.path);
+    const size_t remaining_length = ResourcePath::max_length - (ptr - result.string);
     assert(remaining_length >= extension.length() + version_length);
 
     // Write version (if needed).
@@ -318,7 +321,7 @@ auto path_from_hint(const ResourcePathHint& path_hint, size_t version) noexcept
     *(ptr++) = '.';
     ptr = std::ranges::copy(extension, ptr).out;
 
-    result.length = ptr - result.path;
+    result.length = ptr - result.string;
     return result;
 }
 
@@ -449,7 +452,7 @@ auto ResourceDatabase::generate_resource(
         ));
     }
 
-    _new_entry(uuid, type, path, 0, size_bytes);
+    _new_entry(uuid, type, {}, path, 0, size_bytes);
     _bump_version();
 
     return {
