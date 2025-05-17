@@ -6,3 +6,4 @@
 .josh3d/
 out/
 CMakeUserPresets.json
+compile_commands.json
