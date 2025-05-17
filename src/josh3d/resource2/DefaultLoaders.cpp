@@ -1,4 +1,3 @@
-#include "Asset.hpp"
 #include "Common.hpp"
 #include "CategoryCasts.hpp"
 #include "ContainerUtils.hpp"
@@ -60,14 +59,11 @@ struct StagingBuffers {
     UniqueBuffer<uint32_t> elems;
 };
 
-auto stage_lod(const MeshFile& file, uint8_t lod_id)
-    -> StagingBuffers
+auto stage_lod(
+    Span<const ubyte> verts_bytes,
+    Span<const ubyte> elems_bytes)
+        -> StagingBuffers
 {
-    const auto& lod       = file.lod_span(lod_id);
-    const auto  src_verts = file.lod_verts_bytes(lod_id);
-    const auto  src_elems = file.lod_elems_bytes(lod_id);
-    assert(lod.compression == MeshFile::Compression::None && "Compression not implemented.");
-
     const StoragePolicies policies{
         .mode        = StorageMode::StaticServer,
         .mapping     = PermittedMapping::NoMapping,
@@ -77,8 +73,8 @@ auto stage_lod(const MeshFile& file, uint8_t lod_id)
     UniqueBuffer<uint32_t> dst_elems;
     UniqueUntypedBuffer    dst_verts;
 
-    dst_elems->specify_storage(pun_span<const uint32_t>(src_elems), policies);
-    dst_verts->as_typed<ubyte>().specify_storage(src_verts, policies);
+    dst_elems->specify_storage(pun_span<const uint32_t>(elems_bytes), policies);
+    dst_verts->as_typed<ubyte>().specify_storage(verts_bytes, policies);
 
     return { MOVE(dst_verts), MOVE(dst_elems) };
 };
@@ -97,30 +93,33 @@ auto upload_lods(
     }
 };
 
+
+} // namespace
+
+
 auto load_static_mesh(
-    ResourceLoaderContext& context,
-    const MeshFile&        file,
-    UUID                   uuid,
-    MeshRegistry&          mesh_registry)
+    ResourceLoaderContext context,
+    UUID                  uuid)
         -> Job<>
-{
-    using VertexT = VertexStatic;
+try {
+    co_await reschedule_to(context.thread_pool());
+
+    auto file = StaticMeshFile::open(context.resource_database().map_resource(uuid));
     const auto& header = file.header();
-    assert(header.layout == MeshFile::VertexLayout::Static);
+
+    // FIXME: Failure after creating the first epoch will probably break the
+    // resource registry. And I forgot why. Was it because partial loads cannot
+    // be cancelled? Maybe we should figure out a way to communicate that properly instead?
 
     ResourceProgress progress = ResourceProgress::Incomplete;
     ResourceUsage    usage{};
 
-    StaticVector<StagingBuffers, 8> staged_lods;
+    StaticVector<StagingBuffers,  8> staged_lods;
+    LODPack<MeshID<VertexStatic>, 8> lod_pack{};
 
-    const uint8_t num_lods  = header.num_lods;
-    const uint8_t first_lod = num_lods - 1;
-    assert(num_lods);
-
-    LODPack<MeshID<VertexT>, 8> lod_pack{};
-
-    uint8_t cur_lod    = num_lods;
-    bool    first_time = true;
+    const uint8_t num_lods   = header.num_lods;
+    uint8_t       cur_lod    = num_lods;
+    bool          first_time = true;
     do {
         // FIXME: This is overall pretty bad as it waits on a previous
         // LOD to be fully inserted into the mesh storage before proceeding
@@ -135,15 +134,15 @@ auto load_static_mesh(
         staged_lods.clear();
         const auto [beg_lod, end_lod] = next_lod_range(cur_lod, num_lods);
         const auto lod_ids            = reverse(irange(beg_lod, end_lod));
-        for (const auto i : lod_ids) {
-            staged_lods.emplace_back(stage_lod(file, i));
+        for (const auto lod_id : lod_ids) {
+            staged_lods.emplace_back(stage_lod(file.lod_verts_bytes(lod_id), file.lod_elems_bytes(lod_id)));
         }
 
         // Wait until this lod is staged then go to the main context.
         co_await context.completion_context().until_ready_on(context.offscreen_context(), create_fence());
         co_await reschedule_to(context.local_context());
 
-        upload_lods(mesh_registry.ensure_storage_for<VertexT>(), lod_pack, lod_ids, staged_lods);
+        upload_lods(context.mesh_registry().ensure_storage_for<VertexStatic>(), lod_pack, lod_ids, staged_lods);
 
         // Fence the upload from the main context, await in the offscreen.
         // TODO: Does this need to flush? What if it auto-flushes on fence creation?
@@ -157,17 +156,17 @@ auto load_static_mesh(
 
         if (first_time) {
             first_time = false;
-            usage = context.create_resource<RT::Mesh>(uuid, progress, MeshResource{
-                .mesh = MeshResource::Static{ lod_pack },
+            usage = context.create_resource<RT::StaticMesh>(uuid, progress, StaticMeshResource{
+                .lods = lod_pack,
                 .aabb = header.aabb,
             });
 
         } else {
-            context.update_resource<RT::Mesh>(uuid, [&](MeshResource& mesh)
+            context.update_resource<RT::StaticMesh>(uuid, [&](StaticMeshResource& mesh)
                 -> ResourceProgress
             {
                 // TODO: Uhh, is this right? Is this how we update this?
-                get<MeshResource::Static>(mesh.mesh).lods = lod_pack;
+                mesh.lods = lod_pack;
                 return progress;
             });
         }
@@ -176,55 +175,44 @@ auto load_static_mesh(
         cur_lod = beg_lod;
     } while (cur_lod != 0);
 
+} catch (...) {
+    context.fail_resource<RT::StaticMesh>(uuid);
 }
 
+
 auto load_skinned_mesh(
-    ResourceLoaderContext& context,
-    const MeshFile&        file,
-    UUID                   uuid,
-    MeshRegistry&          mesh_registry)
+    ResourceLoaderContext context,
+    UUID                  uuid)
         -> Job<>
-{
-    using VertexT = VertexSkinned;
+try {
+    co_await reschedule_to(context.thread_pool());
+
+    auto file = SkinnedMeshFile::open(context.resource_database().map_resource(uuid));
     const auto& header = file.header();
-    assert(header.layout == MeshFile::VertexLayout::Skinned);
 
     ResourceProgress progress = ResourceProgress::Incomplete;
     ResourceUsage    usage{};
 
-    StaticVector<StagingBuffers, 8> staged_lods;
+    StaticVector<StagingBuffers,   8> staged_lods;
+    LODPack<MeshID<VertexSkinned>, 8> lod_pack{};
 
-    const uint8_t num_lods  = header.num_lods;
-    const uint8_t first_lod = num_lods - 1;
-    assert(num_lods);
-
-    LODPack<MeshID<VertexT>, 8> lod_pack{};
-
-    uint8_t cur_lod    = num_lods;
-    bool    first_time = true;
+    const uint8_t num_lods   = header.num_lods;
+    uint8_t       cur_lod    = num_lods;
+    bool          first_time = true;
     do {
-        // FIXME: This is overall pretty bad as it waits on a previous
-        // LOD to be fully inserted into the mesh storage before proceeding
-        // to the next one. Each LOD could span multiple frames, and is forced
-        // to span at least one.
-        //
-        // TODO: Could we make it possible to load LODs out-of-order? It's just
-        // a small bitfield indicating availability, scanning that is very cheap.
-
         co_await reschedule_to(context.offscreen_context());
 
         staged_lods.clear();
         const auto [beg_lod, end_lod] = next_lod_range(cur_lod, num_lods);
         const auto lod_ids            = reverse(irange(beg_lod, end_lod));
-        cur_lod = beg_lod;
-        for (const auto i : lod_ids) {
-            staged_lods.emplace_back(stage_lod(file, i));
+        for (const auto lod_id : lod_ids) {
+            staged_lods.emplace_back(stage_lod(file.lod_verts_bytes(lod_id), file.lod_elems_bytes(lod_id)));
         }
 
         co_await context.completion_context().until_ready_on(context.offscreen_context(), create_fence());
         co_await reschedule_to(context.local_context());
 
-        upload_lods(mesh_registry.ensure_storage_for<VertexT>(), lod_pack, lod_ids, staged_lods);
+        upload_lods(context.mesh_registry().ensure_storage_for<VertexSkinned>(), lod_pack, lod_ids, staged_lods);
 
         co_await context.completion_context().until_ready_on(context.offscreen_context(), create_fence());
         co_await reschedule_to(context.thread_pool());
@@ -233,65 +221,31 @@ auto load_skinned_mesh(
 
         if (first_time) {
             first_time = false;
-            usage = context.create_resource<RT::Mesh>(uuid, progress, MeshResource{
-                .mesh = MeshResource::Skinned{
-                    .lods = lod_pack,
-                    // NOTE: The unpacking side should request the load of the skeleton.
-                    // TODO: Unfortunately we currently have no way to start loading the skeleton
-                    // before the first LOD arrives. This might be fixed by adding another "epoch"
-                    // but then the unpacking side needs to understand that the first update
-                    // might not make any new LODs available, only the skeleton UUID.
-                    .skeleton_uuid = file.header().skeleton_uuid,
-                },
-                .aabb = header.aabb,
+            usage = context.create_resource<RT::SkinnedMesh>(uuid, progress, SkinnedMeshResource{
+                .lods          = lod_pack,
+                .aabb          = header.aabb,
+                // NOTE: The unpacking side should request the load of the skeleton.
+                // TODO: Unfortunately we currently have no way to start loading the skeleton
+                // before the first LOD arrives. This might be fixed by adding another "epoch"
+                // but then the unpacking side needs to understand that the first update
+                // might not make any new LODs available, only the skeleton UUID.
+                .skeleton_uuid = header.skeleton_uuid,
             });
 
         } else {
-            context.update_resource<RT::Mesh>(uuid, [&](MeshResource& mesh)
+            context.update_resource<RT::SkinnedMesh>(uuid, [&](SkinnedMeshResource& mesh)
                 -> ResourceProgress
             {
-                // TODO: Uhh, is this right? Is this how we update this?
-                get<MeshResource::Skinned>(mesh.mesh).lods = lod_pack;
+                mesh.lods = lod_pack;
                 return progress;
             });
         }
 
+        cur_lod = beg_lod;
     } while (cur_lod != 0);
 
-}
-
-} // namespace
-
-
-auto load_mesh(
-    ResourceLoaderContext context,
-    UUID                  uuid)
-        -> Job<>
-try {
-    co_await reschedule_to(context.thread_pool());
-
-    auto file = MeshFile::open(context.resource_database().map_resource(uuid));
-
-    // FIXME: Failure past this point will probably break the registry.
-    // And I forgot why. Was it because partial loads cannot be cancelled?
-    // Maybe we should figure out a way to communicate that properly instead?
-
-    auto& mesh_registry = context.mesh_registry();
-
-    switch (file.header().layout) {
-        using enum MeshFile::VertexLayout;
-        case Static: {
-            co_await load_static_mesh(context, file, uuid, mesh_registry);
-            break;
-        }
-        case Skinned:
-            co_await load_skinned_mesh(context, file, uuid, mesh_registry);
-            break;
-        default: assert(false);
-    }
-
-} catch(...) {
-    context.fail_resource<RT::Mesh>(uuid);
+} catch (...) {
+    context.fail_resource<RT::SkinnedMesh>(uuid);
 }
 
 

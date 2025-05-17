@@ -329,7 +329,9 @@ protected:
 
 
 } // namespace error
-
+using error::AssetFileImportFailure;
+using error::AssetFileImportFailure;
+using error::AssetContentsParsingError;
 
 
 

@@ -3,6 +3,8 @@
 #include "FileMapping.hpp"
 #include "ResourceFiles.hpp"
 #include "DefaultResources.hpp"
+#include "VertexSkinned.hpp"
+#include <cstdint>
 
 
 /*
@@ -83,6 +85,7 @@ private:
     SkeletonFile(MappedRegion mregion) : mregion_(MOVE(mregion)) {}
     MappedRegion mregion_;
 };
+
 
 
 
@@ -218,94 +221,59 @@ private:
 
 
 /*
-TODO: We really should just have two different file types for Skinned
-and Static.
-
 NOTE: LOD levels are placed such that the lower resolution LODs
 are stored *before* the higher resolution ones. Reading the header
-will cache the entire page, making access to the low-resolution LODs "free".
+will cache the entire page, making access to the low-res LODs "free".
 This is useful for incremental streaming.
 
 Pattern:
 
-struct LODSpan {
-    u32         offset_bytes;
-    u32         num_verts;
-    u32         num_elems;
-    u32         verts_bytes;
-    u32         elems_bytes;
-    Compression compression;
-    u8          _reserved0;
-    u16         _reserved1;
-};
-
 struct LODData {
-    u8  verts[lods[i].verts_bytes];
-    u32 elems[lods[i].num_elems  ];
+    u8 verts[header.lods[i].verts_size_bytes]; // Aligned to alignof(vertex_type).
+    u8 elems[header.lods[i].elems_size_bytes]; // Aligned to alignof(element_type).
 };
 
-struct MeshFile {
-    Preamble     preamble;
-    UUID         skeleton_uuid;
-    VertexLayout layout;
-    u16          num_lods;
-    LocalAABB    aabb;
-    LODSpan      lods[max_lods];
-
-    LODData      lod_data[num_lods];
+struct StaticMeshFile {
+    Header  header;
+    LODData lod_data[header.num_lods];
 };
 */
-class MeshFile {
+class StaticMeshFile {
 public:
-    static constexpr auto     file_type     = "MeshFile"_hs;
+    static constexpr auto     file_type     = "StaticMeshFile"_hs;
     static constexpr uint16_t version       = 0;
-    static constexpr auto     resource_type = RT::Mesh;
+    static constexpr auto     resource_type = RT::StaticMesh;
     static constexpr size_t   max_lods      = 8;
-
-    enum class VertexLayout : uint16_t {
-        Static  = 0, // VertexStatic
-        Skinned = 1, // VertexSkinned
-    };
-
-    enum class Compression : uint8_t {
-        None = 0,
-    };
-
-    template<VertexLayout V>   struct layout_traits;
-    template<typename VertexT> struct vertex_traits;
+    using vertex_type  = VertexStatic;
+    using element_type = uint32_t;
 
     struct LODSpan {
-        // FIXME: The vertex and element data must be aligned if uncompressed.
-        uint32_t    offset_bytes; // Offset into the file, where the vertex data starts.
-        uint32_t    num_verts;    // Number of vertices encoded in the data.
-        uint32_t    num_elems;    // Number of elements in the data.
-        uint32_t    verts_bytes;  // Size of the vertex data in bytes. Always comes first.
-        uint32_t    elems_bytes;  // Size of the element data in bytes. Always comes after vertex data.
-        Compression compression;  // Vertex compression type. Per LOD.
-        uint8_t     _reserved0;   // HMM: Layout per-LOD? Why?
-        uint16_t    _reserved1;   //
+        uint32_t num_verts;          // Number of vertices encoded in the data.
+        uint32_t num_elems;          // Number of elements in the data.
+        uint32_t verts_offset_bytes; // Offset into the file, where the vertex data starts.
+        uint32_t elems_offset_bytes; // Offset into the file, where the element data starts.
+        uint32_t verts_size_bytes;   // Size of the vertex data in bytes.
+        uint32_t elems_size_bytes;   // Size of the element data in bytes.
     };
 
     struct Header {
-        ResourcePreamble preamble;
-        UUID             skeleton_uuid;  // UUID of the associated skeleton, if the layout is Skinned.
-        VertexLayout     layout;         // An enum identifying a specific vertex layout.
+        ResourcePreamble preamble;       //
+        uint16_t         _reserved0;     //
         uint8_t          num_lods;       // Number of LODs stored for this mesh (up-to 8).
-        uint8_t          _reserved0;     //
+        uint8_t          _reserved1;     //
         LocalAABB        aabb;           // AABB in mesh space. Largest of all LODs.
+        uint32_t         _reserved2;     //
         LODSpan          lods[max_lods]; // LOD descriptors that point to data in file.
     };
 
     struct LODSpec {
-        uint32_t    num_verts;
-        uint32_t    num_elems;
-        uint32_t    verts_bytes;
-        uint32_t    elems_bytes;
-        Compression compression;
+        uint32_t num_verts;
+        uint32_t num_elems;
+        uint32_t verts_size_bytes;
+        uint32_t elems_size_bytes;
     };
 
     struct Args {
-        VertexLayout        layout;
         Span<const LODSpec> lod_specs; // Up-to max_lods.
     };
 
@@ -314,11 +282,11 @@ public:
 
     [[nodiscard]]
     static auto create_in(MappedRegion mapped_region, UUID self_uuid, const Args& args)
-        -> MeshFile;
+        -> StaticMeshFile;
 
     [[nodiscard]]
     static auto open(MappedRegion mapped_region)
-        -> MeshFile;
+        -> StaticMeshFile;
 
     auto size_bytes() const noexcept -> size_t { return mregion_.get_size(); }
 
@@ -329,19 +297,95 @@ public:
     auto lod_elems_bytes(size_t lod_id) const noexcept -> Span<ubyte>;
 
 private:
-    MeshFile(MappedRegion mregion) : mregion_(MOVE(mregion)) {}
+    StaticMeshFile(MappedRegion mregion) : mregion_(MOVE(mregion)) {}
     MappedRegion mregion_;
 };
 
 
-template<> struct MeshFile::layout_traits<MeshFile::VertexLayout::Static>  { using type = VertexStatic;  };
-template<> struct MeshFile::layout_traits<MeshFile::VertexLayout::Skinned> { using type = VertexSkinned; };
-template<> struct MeshFile::vertex_traits<VertexStatic>  { static constexpr VertexLayout layout = VertexLayout::Static;  };
-template<> struct MeshFile::vertex_traits<VertexSkinned> { static constexpr VertexLayout layout = VertexLayout::Skinned; };
+/*
+NOTE: LOD levels are placed such that the lower resolution LODs
+are stored *before* the higher resolution ones. Reading the header
+will cache the entire page, making access to the low-res LODs "free".
+This is useful for incremental streaming.
+
+Pattern:
+
+struct LODData {
+    u8 verts[header.lods[i].verts_size_bytes]; // Aligned to alignof(vertex_type).
+    u8 elems[header.lods[i].elems_size_bytes]; // Aligned to alignof(element_type).
+};
+
+struct StaticMeshFile {
+    Header  header;
+    LODData lod_data[header.num_lods];
+};
+*/
+class SkinnedMeshFile {
+public:
+    static constexpr auto     file_type     = "SkinnedMeshFile"_hs;
+    static constexpr uint16_t version       = 0;
+    static constexpr auto     resource_type = RT::SkinnedMesh;
+    static constexpr size_t   max_lods      = 8;
+    using vertex_type  = VertexSkinned;
+    using element_type = uint32_t;
+
+    struct LODSpan {
+        uint32_t num_verts;          // Number of vertices encoded in the data.
+        uint32_t num_elems;          // Number of elements in the data.
+        uint32_t verts_offset_bytes; // Offset into the file, where the vertex data starts.
+        uint32_t elems_offset_bytes; // Offset into the file, where the element data starts.
+        uint32_t verts_size_bytes;   // Size of the vertex data in bytes.
+        uint32_t elems_size_bytes;   // Size of the element data in bytes.
+    };
+
+    struct Header {
+        ResourcePreamble preamble;       //
+        UUID             skeleton_uuid;  // UUID of the associated skeleton.
+        uint16_t         _reserved0;     //
+        uint8_t          num_lods;       // Number of LODs stored for this mesh (up-to 8).
+        uint8_t          _reserved1;     //
+        LocalAABB        aabb;           // AABB in mesh space. Largest of all LODs.
+        uint32_t         _reserved2;     //
+        LODSpan          lods[max_lods]; // LOD descriptors that point to data in file.
+    };
+
+    struct LODSpec {
+        uint32_t num_verts;
+        uint32_t num_elems;
+        uint32_t verts_size_bytes;
+        uint32_t elems_size_bytes;
+    };
+
+    struct Args {
+        UUID                skeleton_uuid;
+        Span<const LODSpec> lod_specs; // Up-to max_lods.
+    };
+
+    static auto required_size(const Args& args) noexcept
+        -> size_t;
+
+    [[nodiscard]]
+    static auto create_in(MappedRegion mapped_region, UUID self_uuid, const Args& args)
+        -> SkinnedMeshFile;
+
+    [[nodiscard]]
+    static auto open(MappedRegion mapped_region)
+        -> SkinnedMeshFile;
+
+    auto size_bytes() const noexcept -> size_t { return mregion_.get_size(); }
+
+    auto header() const noexcept -> Header&;
+
+    auto lod_span       (size_t lod_id) const noexcept -> LODSpan&;
+    auto lod_verts_bytes(size_t lod_id) const noexcept -> Span<ubyte>;
+    auto lod_elems_bytes(size_t lod_id) const noexcept -> Span<ubyte>;
+
+private:
+    SkinnedMeshFile(MappedRegion mregion) : mregion_(MOVE(mregion)) {}
+    MappedRegion mregion_;
+};
 
 
-JOSH3D_DEFINE_ENUM_EXTRAS(MeshFile::VertexLayout, Static, Skinned);
-JOSH3D_DEFINE_ENUM_EXTRAS(MeshFile::Compression, None);
 
 
 /*

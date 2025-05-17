@@ -9,7 +9,14 @@
 namespace josh {
 
 
-auto unpack_mesh(
+auto unpack_static_mesh(
+    ResourceUnpackerContext context,
+    UUID                    uuid,
+    Handle                  handle)
+        -> Job<>;
+
+
+auto unpack_skinned_mesh(
     ResourceUnpackerContext context,
     UUID                    uuid,
     Handle                  handle)
@@ -43,10 +50,11 @@ Convenience to automatically register all unpackers listed in this file. Optiona
 inline void register_default_unpackers(
     ResourceUnpacker& u)
 {
-    u.register_unpacker<RT::Mesh,     Handle>(&unpack_mesh);
-    u.register_unpacker<RT::Material, Handle>(&unpack_material);
-    u.register_unpacker<RT::MeshDesc, Handle>(&unpack_mdesc);
-    u.register_unpacker<RT::Scene,    Handle>(&unpack_scene);
+    u.register_unpacker<RT::Scene,       Handle>(&unpack_scene);
+    u.register_unpacker<RT::MeshDesc,    Handle>(&unpack_mdesc);
+    u.register_unpacker<RT::Material,    Handle>(&unpack_material);
+    u.register_unpacker<RT::StaticMesh,  Handle>(&unpack_static_mesh);
+    u.register_unpacker<RT::SkinnedMesh, Handle>(&unpack_skinned_mesh);
 }
 
 

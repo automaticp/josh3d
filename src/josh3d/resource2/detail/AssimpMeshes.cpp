@@ -2,6 +2,7 @@
 #include "Common.hpp"
 #include "Asset.hpp"
 #include "AssetImporter.hpp"
+#include "CoroCore.hpp"
 #include "VertexStatic.hpp"
 #include "VertexSkinned.hpp"
 #include <assimp/mesh.h>
@@ -27,11 +28,11 @@ void extract_skinned_mesh_verts_to(
 
     const bool valid_num_bones = bones.size() <= Skeleton::max_joints;
 
-    if (!normals.data())    { throw error::AssetContentsParsingError("Mesh data does not contain Normals.");    }
-    if (!uvs.data())        { throw error::AssetContentsParsingError("Mesh data does not contain UVs.");        }
-    if (!tangents.data())   { throw error::AssetContentsParsingError("Mesh data does not contain Tangents.");   }
-    if (!bones.data())      { throw error::AssetContentsParsingError("Mesh data does not contain Bones.");      }
-    if (!valid_num_bones)   { throw error::AssetContentsParsingError("Armature has too many Bones (>255)."); }
+    if (!normals.data())    { throw AssetContentsParsingError("Mesh data does not contain Normals.");    }
+    if (!uvs.data())        { throw AssetContentsParsingError("Mesh data does not contain UVs.");        }
+    if (!tangents.data())   { throw AssetContentsParsingError("Mesh data does not contain Tangents.");   }
+    if (!bones.data())      { throw AssetContentsParsingError("Mesh data does not contain Bones.");      }
+    if (!valid_num_bones)   { throw AssetContentsParsingError("Armature has too many Bones (>255)."); }
 
 
     using glm::uvec4;
@@ -81,9 +82,9 @@ void extract_static_mesh_verts_to(
     auto normals    = make_span(ai_mesh->mNormals,          ai_mesh->mNumVertices);
     auto tangents   = make_span(ai_mesh->mTangents,         ai_mesh->mNumVertices);
 
-    if (!normals.data())    { throw error::AssetContentsParsingError("Mesh data does not contain Normals.");    }
-    if (!uvs.data())        { throw error::AssetContentsParsingError("Mesh data does not contain UVs.");        }
-    if (!tangents.data())   { throw error::AssetContentsParsingError("Mesh data does not contain Tangents.");   }
+    if (!normals.data())    { throw AssetContentsParsingError("Mesh data does not contain Normals.");    }
+    if (!uvs.data())        { throw AssetContentsParsingError("Mesh data does not contain UVs.");        }
+    if (!tangents.data())   { throw AssetContentsParsingError("Mesh data does not contain Tangents.");   }
 
     assert(out_verts.size() == positions.size());
 
@@ -120,11 +121,9 @@ void extract_mesh_elems_to(
 } // namespace
 
 
-auto import_mesh_async(
-    AssetImporterContext                  context,
-    const aiMesh*                         ai_mesh,
-    UUID                                  skeleton_uuid,
-    const HashMap<const aiNode*, size_t>* node2jointid) // Optional, if Skinned.
+auto import_static_mesh_async(
+    AssetImporterContext context,
+    const aiMesh*        ai_mesh)
         -> Job<UUID>
 {
     co_await reschedule_to(context.thread_pool());
@@ -135,71 +134,95 @@ auto import_mesh_async(
         .extension = "jmesh",
     };
 
-    using VertexLayout = MeshFile::VertexLayout;
-    using LODSpec      = MeshFile::LODSpec;
-    using Compression  = MeshFile::Compression;
-
-    const VertexLayout layout = [&]{
-        if (ai_mesh->HasBones()) {
-            return VertexLayout::Skinned;
-        } else {
-            return VertexLayout::Static;
-        }
-    }();
-
-    auto vertex_size = [](VertexLayout layout) -> size_t {
-        switch (layout) {
-            case VertexLayout::Skinned: return sizeof(VertexSkinned);
-            case VertexLayout::Static:  return sizeof(VertexStatic);
-            default:                    return 0;
-        }
-    };
+    using LODSpec = StaticMeshFile::LODSpec;
 
     const uint32_t num_verts   = ai_mesh->mNumVertices;
     const uint32_t num_elems   = 3 * ai_mesh->mNumFaces;
     const uint32_t elems_bytes = num_elems * sizeof(uint32_t);
-    const uint32_t verts_bytes = num_verts * vertex_size(layout);
+    const uint32_t verts_bytes = num_verts * sizeof(VertexStatic);
+
+    // NOTE: Ignoring LODs for now.
 
     LODSpec spec[1]{
         LODSpec{
-            .num_verts   = num_verts,
-            .num_elems   = num_elems,
-            .verts_bytes = verts_bytes,
-            .elems_bytes = elems_bytes,
-            .compression = Compression::None,
+            .num_verts        = num_verts,
+            .num_elems        = num_elems,
+            .verts_size_bytes = verts_bytes,
+            .elems_size_bytes = elems_bytes
         },
     };
 
-    const MeshFile::Args args{
-        .layout    = layout,
+    const StaticMeshFile::Args args{
         .lod_specs = spec,
     };
 
-    const size_t       file_size     = MeshFile::required_size(args);
-    const ResourceType resource_type = MeshFile::resource_type;
+    const size_t       file_size     = StaticMeshFile::required_size(args);
+    const ResourceType resource_type = StaticMeshFile::resource_type;
 
     auto [uuid, mregion] = context.resource_database().generate_resource(resource_type, path_hint, file_size);
 
-    MeshFile file = MeshFile::create_in(MOVE(mregion), uuid, args);
+    auto file = StaticMeshFile::create_in(MOVE(mregion), uuid, args);
     auto& header = file.header();
 
-    header.skeleton_uuid = skeleton_uuid;
-    header.aabb          = aabb2aabb(ai_mesh->mAABB);
+    header.aabb = aabb2aabb(ai_mesh->mAABB);
 
-    // NOTE: Ignoring compression for now. We have no compression options anyway.
+    extract_static_mesh_verts_to(pun_span<VertexStatic>(file.lod_verts_bytes(0)), ai_mesh);
+    extract_mesh_elems_to       (pun_span<uint32_t>    (file.lod_elems_bytes(0)), ai_mesh);
 
-    if (layout == VertexLayout::Skinned) {
-        auto dst_verts = pun_span<VertexSkinned>(file.lod_verts_bytes(0));
-        assert(node2jointid);
-        extract_skinned_mesh_verts_to(dst_verts, ai_mesh, *node2jointid);
-    } else if (layout == VertexLayout::Static) {
-        auto dst_verts = pun_span<VertexStatic>(file.lod_verts_bytes(0));
-        extract_static_mesh_verts_to(dst_verts, ai_mesh);
-    }
+    co_return uuid;
+}
 
-    auto dst_elems = pun_span<uint32_t>(file.lod_elems_bytes(0));
-    extract_mesh_elems_to(dst_elems, ai_mesh);
 
+auto import_skinned_mesh_async(
+    AssetImporterContext                  context,
+    const aiMesh*                         ai_mesh,
+    UUID                                  skeleton_uuid,
+    const HashMap<const aiNode*, size_t>& node2jointid)
+        -> Job<UUID>
+{
+    co_await reschedule_to(context.thread_pool());
+
+    const ResourcePathHint path_hint{
+        .directory = "meshes",
+        .name      = s2sv(ai_mesh->mName),
+        .extension = "jmesh",
+    };
+
+    using LODSpec = SkinnedMeshFile::LODSpec;
+
+    const uint32_t num_verts   = ai_mesh->mNumVertices;
+    const uint32_t num_elems   = 3 * ai_mesh->mNumFaces;
+    const uint32_t elems_bytes = num_elems * sizeof(uint32_t);
+    const uint32_t verts_bytes = num_verts * sizeof(VertexSkinned);
+
+    // NOTE: Ignoring LODs for now.
+
+    LODSpec spec[1]{
+        LODSpec{
+            .num_verts        = num_verts,
+            .num_elems        = num_elems,
+            .verts_size_bytes = verts_bytes,
+            .elems_size_bytes = elems_bytes
+        },
+    };
+
+    const SkinnedMeshFile::Args args{
+        .skeleton_uuid = skeleton_uuid,
+        .lod_specs     = spec,
+    };
+
+    const size_t       file_size     = SkinnedMeshFile::required_size(args);
+    const ResourceType resource_type = SkinnedMeshFile::resource_type;
+
+    auto [uuid, mregion] = context.resource_database().generate_resource(resource_type, path_hint, file_size);
+
+    auto file = SkinnedMeshFile::create_in(MOVE(mregion), uuid, args);
+    auto& header = file.header();
+
+    header.aabb = aabb2aabb(ai_mesh->mAABB);
+
+    extract_skinned_mesh_verts_to(pun_span<VertexSkinned>(file.lod_verts_bytes(0)), ai_mesh, node2jointid);
+    extract_mesh_elems_to        (pun_span<uint32_t>     (file.lod_elems_bytes(0)), ai_mesh);
 
     co_return uuid;
 }

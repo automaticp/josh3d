@@ -410,16 +410,14 @@ auto import_scene_async(
     anim_jobs.reserve(ai_anims.size());
 
     for (const aiMesh* ai_mesh : ai_meshes) {
-        UUID                skeleton_uuid = {};
-        const Node2JointID* node2jointid  = nullptr;
-
-        if (const auto* item = try_find(mesh2armature, ai_mesh)) {
-            const auto [mesh, armature] = *item;
-            skeleton_uuid = armature2uuid.at(armature);
-            node2jointid  = &armature2_node2jointid.at(armature);
+        if (const auto* armature = try_find_value(mesh2armature, ai_mesh)) {
+            assert(ai_mesh->HasBones());
+            const auto  skeleton_uuid = armature2uuid.at(*armature);
+            const auto& node2jointid  = armature2_node2jointid.at(*armature);
+            mesh_jobs.emplace_back(import_skinned_mesh_async(context.child_context(), ai_mesh, skeleton_uuid, node2jointid));
+        } else /* static */ {
+            mesh_jobs.emplace_back(import_static_mesh_async(context.child_context(), ai_mesh));
         }
-
-        mesh_jobs.emplace_back(import_mesh_async(context.child_context(), ai_mesh, skeleton_uuid, node2jointid));
     }
 
     for (const aiAnimation* ai_anim : ai_anims) {

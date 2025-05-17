@@ -1,10 +1,10 @@
 #include "DefaultResourceFiles.hpp"
 #include "Common.hpp"
-#include "ContainerUtils.hpp"
 #include "FileMapping.hpp"
 #include "EnumUtils.hpp"
 #include "CategoryCasts.hpp"
 #include "Ranges.hpp"
+#include "Resource.hpp"
 #include "ResourceFiles.hpp"
 #include "UUID.hpp"
 #include <fmt/core.h>
@@ -52,15 +52,27 @@ auto ptr_at_offset(const MappedRegion& mregion, size_t offset_bytes) noexcept
 template<typename HeaderT>
 void throw_if_too_small_for_header(size_t file_size) noexcept(false) {
     if (file_size < sizeof(HeaderT)) {
-        throw error::InvalidResourceFile("Resource file is too small to contain header information.");
+        throw InvalidResourceFile("Resource file is too small to contain header information.");
     }
 }
 
 
 void throw_on_unexpected_size(size_t expected, size_t real) noexcept(false) {
-    if (real != expected) {
-        throw error::InvalidResourceFile(fmt::format("Resource file unexpected size. Expected {}, got {}.", expected, real));
-    }
+    if (real != expected)
+        throw InvalidResourceFile(fmt::format("Resource file unexpected size. Expected {}, got {}.", expected, real));
+
+}
+
+template<typename FileT>
+void throw_if_mismatched_preamble(const ResourcePreamble& preamble) noexcept(false) {
+    if (preamble.file_type != FileT::file_type)
+        throw_fmt<InvalidResourceFile>("Mismatched file type in resource preamble. Expected {}, got {}.", FileType(FileT::file_type), preamble.file_type);
+    // HMM: This only makes sense if a single file format stores only one resource type.
+    if (preamble.resource_type != FileT::resource_type)
+        throw_fmt<InvalidResourceFile>("Mismatched resource type in resource preamble. Expected {}, got {}.", ResourceType(FileT::resource_type), preamble.resource_type);
+    // HMM: This only makes sense if there's no cross-version compatibility.
+    if (preamble.version != FileT::version)
+        throw_fmt<InvalidResourceFile>("Mismatched version in resource preamble. Expected {}, got {}.", FileT::version, preamble.version);
 }
 
 
@@ -69,6 +81,15 @@ template<typename HeaderT>
 void write_header_to(MappedRegion& mapping, const HeaderT& src) noexcept {
     std::memcpy(mapping_bytes(mapping), &src, sizeof(HeaderT));
     mapping.flush(0, sizeof(HeaderT));
+}
+
+
+[[nodiscard]]
+constexpr auto next_aligned(uintptr_t value, size_t alignment)
+    -> uintptr_t
+{
+    const auto div_ceil = (value / alignment) + bool(value % alignment);
+    return div_ceil * alignment;
 }
 
 
@@ -142,6 +163,7 @@ auto SkeletonFile::open(MappedRegion mapped_region)
     const size_t file_size     = file.size_bytes();
     const size_t expected_size = required_size({ .num_joints = file.header().num_joints });
     throw_if_too_small_for_header<Header>(file_size);
+    throw_if_mismatched_preamble<SkeletonFile>(file.header().preamble);
     throw_on_unexpected_size(expected_size, file_size);
     return file;
 }
@@ -302,21 +324,22 @@ auto AnimationFile::open(MappedRegion mapped_region)
     const size_t file_size = file.size_bytes();
 
     throw_if_too_small_for_header<Header>(file_size);
+    throw_if_mismatched_preamble<AnimationFile>(file.header().preamble);
 
-    // Check if at least preamble is contained fully.
+    // Check if at least the spans are contained fully.
     const size_t num_joints = file.header().num_joints;
-    const size_t preamble_size = sizeof(Header) + num_joints * sizeof(JointSpan);
-    if (file_size < preamble_size) {
-        throw error::InvalidResourceFile("Animation file too small.");
+    const size_t with_spans_size = sizeof(Header) + num_joints * sizeof(JointSpan);
+    if (file_size < with_spans_size) {
+        throw InvalidResourceFile("Animation file too small to fit spans.");
     }
 
-    // Check that the last joint info is contained. We only need the preamble for this.
+    // Check that the last joint info is contained. We only need the spans for this.
     // This is assuming that each span is placed in incrementing order...
     JointSpan& last_span = file.joint_span(num_joints - 1);
     const size_t expected_size = last_span.offset_bytes + last_span.size_bytes;
     throw_on_unexpected_size(expected_size, file_size);
 
-    // We don't check each individual Keyframes structure for now.
+    // TODO: We don't check each individual Keyframes structure for now.
 
     return file;
 }
@@ -328,14 +351,14 @@ auto AnimationFile::open(MappedRegion mapped_region)
 
 
 
-auto MeshFile::header() const noexcept
+auto StaticMeshFile::header() const noexcept
     -> Header&
 {
     return *ptr_at_offset<Header>(mregion_, 0);
 }
 
 
-auto MeshFile::lod_span(size_t lod_id) const noexcept
+auto StaticMeshFile::lod_span(size_t lod_id) const noexcept
     -> LODSpan&
 {
     assert(lod_id < header().num_lods);
@@ -343,53 +366,43 @@ auto MeshFile::lod_span(size_t lod_id) const noexcept
 }
 
 
-auto MeshFile::lod_verts_bytes(size_t lod_id) const noexcept
+auto StaticMeshFile::lod_verts_bytes(size_t lod_id) const noexcept
     -> Span<ubyte>
 {
     assert(lod_id < header().num_lods);
     const LODSpan& span = lod_span(lod_id);
-    const size_t offset = span.offset_bytes;
-    return { ptr_at_offset<ubyte>(mregion_, offset), span.verts_bytes };
+    const size_t offset = span.verts_offset_bytes;
+    return { ptr_at_offset<ubyte>(mregion_, offset), span.verts_size_bytes };
 }
 
 
-auto MeshFile::lod_elems_bytes(size_t lod_id) const noexcept
+auto StaticMeshFile::lod_elems_bytes(size_t lod_id) const noexcept
     -> Span<ubyte>
 {
     assert(lod_id < header().num_lods);
     const LODSpan& span = lod_span(lod_id);
-    const size_t offset = span.offset_bytes + span.verts_bytes;
-    return { ptr_at_offset<ubyte>(mregion_, offset), span.elems_bytes };
+    const size_t offset = span.elems_offset_bytes;
+    return { ptr_at_offset<ubyte>(mregion_, offset), span.elems_size_bytes };
 }
 
 
-static auto vert_size(MeshFile::VertexLayout layout)
-    -> size_t
-{
-    switch (layout) {
-        using enum MeshFile::VertexLayout;
-        case Static:  return sizeof(MeshFile::layout_traits<Static>::type);
-        case Skinned: return sizeof(MeshFile::layout_traits<Skinned>::type);
-        default: safe_unreachable(); // NOTE: Validate before calling, buddy.
-    }
-}
-
-
-auto MeshFile::required_size(const Args& args) noexcept
+auto StaticMeshFile::required_size(const Args& args) noexcept
     -> size_t
 {
     size_t total_size = sizeof(Header);
     for (const LODSpec& spec : args.lod_specs) {
-        total_size += spec.verts_bytes;
-        total_size += spec.elems_bytes;
+        total_size = next_aligned(total_size, alignof(vertex_type));
+        total_size += spec.verts_size_bytes;
+        total_size = next_aligned(total_size, alignof(element_type));
+        total_size += spec.elems_size_bytes;
     }
 
     return total_size;
 }
 
 
-auto MeshFile::create_in(MappedRegion mapped_region, UUID self_uuid, const Args& args)
-    -> MeshFile
+auto StaticMeshFile::create_in(MappedRegion mapped_region, UUID self_uuid, const Args& args)
+    -> StaticMeshFile
 {
     assert(required_size(args) == mapped_region.get_size());
 
@@ -397,21 +410,17 @@ auto MeshFile::create_in(MappedRegion mapped_region, UUID self_uuid, const Args&
     assert(num_lods <= max_lods);
     assert(num_lods > 0);
 
-    MeshFile file{ MOVE(mapped_region) };
+    StaticMeshFile file{ MOVE(mapped_region) };
 
     Header header{
         .preamble   = ResourcePreamble::create(file_type, version, resource_type, self_uuid),
-        .skeleton_uuid   = {},
-        .layout     = args.layout,
-        .num_lods   = uint8_t(num_lods),
         ._reserved0 = {},
+        .num_lods   = uint8_t(num_lods),
+        ._reserved1 = {},
         .aabb       = {},
+        ._reserved2 = {},
         .lods       = {}, // NOTE: Zero-init here. Fill later.
     };
-
-    // FIXME: We need to guarantee that uncompressed vertex data
-    // is properly ALIGNED in the file! It should be possible to type pun.
-    // If some LODs are compressed and some aren't, this might not be the case.
 
     // Populate spans. From lowres LODs to hires.
     // NOTE: Uh, sorry for the "goes-to operator", it actually works here...
@@ -420,14 +429,18 @@ auto MeshFile::create_in(MappedRegion mapped_region, UUID self_uuid, const Args&
         LODSpan&       span = header.lods   [lod_id];
         const LODSpec& spec = args.lod_specs[lod_id];
 
-        span.offset_bytes = current_offset;
-        span.num_verts    = spec.num_verts;
-        span.num_elems    = spec.num_elems;
-        span.verts_bytes  = spec.verts_bytes;
-        span.elems_bytes  = spec.elems_bytes;
-        span.compression  = spec.compression;
+        span.num_verts = spec.num_verts;
+        span.num_elems = spec.num_elems;
 
-        current_offset += span.verts_bytes + span.elems_bytes;
+        current_offset          = next_aligned(current_offset, alignof(vertex_type));
+        span.verts_offset_bytes = current_offset;
+        span.verts_size_bytes   = spec.verts_size_bytes;
+        current_offset         += spec.verts_size_bytes;
+
+        current_offset          = next_aligned(current_offset, alignof(element_type));
+        span.elems_offset_bytes = current_offset;
+        span.elems_size_bytes   = spec.elems_size_bytes;
+        current_offset         += spec.elems_size_bytes;
     }
 
     write_header_to(file.mregion_, header);
@@ -436,39 +449,163 @@ auto MeshFile::create_in(MappedRegion mapped_region, UUID self_uuid, const Args&
 }
 
 
-auto MeshFile::open(MappedRegion mapped_region)
-    -> MeshFile
+auto StaticMeshFile::open(MappedRegion mapped_region)
+    -> StaticMeshFile
 {
-    MeshFile file{ MOVE(mapped_region) };
+    StaticMeshFile file{ MOVE(mapped_region) };
     const size_t file_size = file.size_bytes();
     throw_if_too_small_for_header<Header>(file_size);
+    throw_if_mismatched_preamble<StaticMeshFile>(file.header().preamble);
 
     const Header& header = file.header();
 
-    // Check layout type.
-    const bool valid_layout =
-        to_underlying(file.header().layout) < enum_size<VertexLayout>();
-
-    if (!valid_layout) {
-        throw InvalidResourceFile("Mesh file has invalid layout.");
-    }
-
     // Check lod limit.
-    if (header.num_lods > max_lods || header.num_lods == 0) {
+    if (header.num_lods > max_lods or header.num_lods == 0)
         throw InvalidResourceFile("Mesh file specifies invalid number of LODs.");
-    }
 
     // Check size.
     // Also check that each vertex bytesize is multiple of sizeof(VertexT).
     size_t expected_size = sizeof(Header);
     for (size_t lod_id{ 0 }; lod_id < header.num_lods; ++lod_id) {
-        const size_t verts_bytes = header.lods[lod_id].verts_bytes;
-        const size_t elems_bytes = header.lods[lod_id].elems_bytes;
-        if (verts_bytes % vert_size(header.layout)) {
+        const size_t verts_bytes = header.lods[lod_id].verts_size_bytes;
+        const size_t elems_bytes = header.lods[lod_id].elems_size_bytes;
+        if (verts_bytes % sizeof(vertex_type))
             throw InvalidResourceFile("Mesh file contains invalid vertex data.");
-        }
-        expected_size += verts_bytes;
-        expected_size += elems_bytes;
+        expected_size = next_aligned(expected_size, alignof(vertex_type))  + verts_bytes;
+        expected_size = next_aligned(expected_size, alignof(element_type)) + elems_bytes;
+    }
+
+    throw_on_unexpected_size(expected_size, file_size);
+
+    return file;
+}
+
+
+
+
+
+
+
+auto SkinnedMeshFile::header() const noexcept
+    -> Header&
+{
+    return *ptr_at_offset<Header>(mregion_, 0);
+}
+
+
+auto SkinnedMeshFile::lod_span(size_t lod_id) const noexcept
+    -> LODSpan&
+{
+    assert(lod_id < header().num_lods);
+    return header().lods[lod_id];
+}
+
+
+auto SkinnedMeshFile::lod_verts_bytes(size_t lod_id) const noexcept
+    -> Span<ubyte>
+{
+    assert(lod_id < header().num_lods);
+    const LODSpan& span = lod_span(lod_id);
+    const size_t offset = span.verts_offset_bytes;
+    return { ptr_at_offset<ubyte>(mregion_, offset), span.verts_size_bytes };
+}
+
+
+auto SkinnedMeshFile::lod_elems_bytes(size_t lod_id) const noexcept
+    -> Span<ubyte>
+{
+    assert(lod_id < header().num_lods);
+    const LODSpan& span = lod_span(lod_id);
+    const size_t offset = span.elems_offset_bytes;
+    return { ptr_at_offset<ubyte>(mregion_, offset), span.elems_size_bytes };
+}
+
+
+auto SkinnedMeshFile::required_size(const Args& args) noexcept
+    -> size_t
+{
+    size_t total_size = sizeof(Header);
+    for (const LODSpec& spec : args.lod_specs) {
+        total_size = next_aligned(total_size, alignof(vertex_type));
+        total_size += spec.verts_size_bytes;
+        total_size = next_aligned(total_size, alignof(element_type));
+        total_size += spec.elems_size_bytes;
+    }
+
+    return total_size;
+}
+
+
+auto SkinnedMeshFile::create_in(MappedRegion mapped_region, UUID self_uuid, const Args& args)
+    -> SkinnedMeshFile
+{
+    assert(required_size(args) == mapped_region.get_size());
+
+    const size_t num_lods = args.lod_specs.size();
+    assert(num_lods <= max_lods);
+    assert(num_lods > 0);
+
+    SkinnedMeshFile file{ MOVE(mapped_region) };
+
+    Header header{
+        .preamble      = ResourcePreamble::create(file_type, version, resource_type, self_uuid),
+        .skeleton_uuid = args.skeleton_uuid,
+        ._reserved0    = {},
+        .num_lods      = uint8_t(num_lods),
+        ._reserved1    = {},
+        .aabb          = {},
+        ._reserved2    = {},
+        .lods          = {}, // NOTE: Zero-init here. Fill later.
+    };
+
+    // Populate spans. From lowres LODs to hires.
+    // NOTE: Uh, sorry for the "goes-to operator", it actually works here...
+    size_t current_offset = sizeof(Header);
+    for (size_t lod_id{ num_lods }; lod_id --> 0;) {
+        LODSpan&       span = header.lods   [lod_id];
+        const LODSpec& spec = args.lod_specs[lod_id];
+
+        span.num_verts = spec.num_verts;
+        span.num_elems = spec.num_elems;
+
+        current_offset          = next_aligned(current_offset, alignof(vertex_type));
+        span.verts_offset_bytes = current_offset;
+        span.verts_size_bytes   = spec.verts_size_bytes;
+        current_offset         += spec.verts_size_bytes;
+
+        current_offset          = next_aligned(current_offset, alignof(element_type));
+        span.elems_offset_bytes = current_offset;
+        span.elems_size_bytes   = spec.elems_size_bytes;
+        current_offset         += spec.elems_size_bytes;
+    }
+
+    write_header_to(file.mregion_, header);
+
+    return file;
+}
+
+
+auto SkinnedMeshFile::open(MappedRegion mapped_region)
+    -> SkinnedMeshFile
+{
+    SkinnedMeshFile file{ MOVE(mapped_region) };
+    const size_t file_size = file.size_bytes();
+    throw_if_too_small_for_header<Header>(file_size);
+    throw_if_mismatched_preamble<SkinnedMeshFile>(file.header().preamble);
+
+    const Header& header = file.header();
+
+    if (header.num_lods > max_lods or header.num_lods == 0)
+        throw InvalidResourceFile("Mesh file specifies invalid number of LODs.");
+
+    size_t expected_size = sizeof(Header);
+    for (size_t lod_id{ 0 }; lod_id < header.num_lods; ++lod_id) {
+        const size_t verts_bytes = header.lods[lod_id].verts_size_bytes;
+        const size_t elems_bytes = header.lods[lod_id].elems_size_bytes;
+        if (verts_bytes % sizeof(vertex_type))
+            throw InvalidResourceFile("Mesh file contains invalid vertex data.");
+        expected_size = next_aligned(expected_size, alignof(vertex_type))  + verts_bytes;
+        expected_size = next_aligned(expected_size, alignof(element_type)) + elems_bytes;
     }
 
     throw_on_unexpected_size(expected_size, file_size);
@@ -569,24 +706,24 @@ auto TextureFile::open(MappedRegion mapped_region)
 
     const size_t file_size = file.size_bytes();
     throw_if_too_small_for_header<Header>(file_size);
+    throw_if_mismatched_preamble<TextureFile>(file.header().preamble);
 
-    Header& header = file.header();
+    const auto& header = file.header();
 
     // Check mip limit.
-    if (header.num_mips > max_mips || header.num_mips == 0) {
-        throw error::InvalidResourceFile("Texture file specifies invalid number of MIPs.");
-    }
+    if (header.num_mips > max_mips or header.num_mips == 0)
+        throw InvalidResourceFile("Texture file specifies invalid number of MIPs.");
+
 
     // Check channel limit.
-    if (header.num_channels > 4 || header.num_channels == 0) {
-        throw error::InvalidResourceFile("Texture file specifies invalid number of channels.");
-    }
+    if (header.num_channels > 4 or header.num_channels == 0)
+        throw InvalidResourceFile("Texture file specifies invalid number of channels.");
+
 
     // Check storage formats.
     for (const size_t mip_id : irange(header.num_mips)) {
-        if (to_underlying(file.mip_span(mip_id).encoding) >= enum_size<Encoding>()) {
-            throw error::InvalidResourceFile("Texture file has invalid encoding.");
-        }
+        if (to_underlying(file.mip_span(mip_id).encoding) >= enum_size<Encoding>())
+            throw InvalidResourceFile("Texture file has invalid encoding.");
     }
 
     // Check size.
@@ -600,8 +737,6 @@ auto TextureFile::open(MappedRegion mapped_region)
 
     return file;
 }
-
-
 
 
 } // namespace josh

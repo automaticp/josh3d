@@ -125,11 +125,17 @@ auto import_anim_async(
         -> Job<UUID>;
 
 
-auto import_mesh_async(
+auto import_static_mesh_async(
+    AssetImporterContext context,
+    const aiMesh*        ai_mesh)
+        -> Job<UUID>;
+
+
+auto import_skinned_mesh_async(
     AssetImporterContext                  context,
     const aiMesh*                         ai_mesh,
     UUID                                  skeleton_uuid,
-    const HashMap<const aiNode*, size_t>* node2jointid) // Optional, if Skinned.
+    const HashMap<const aiNode*, size_t>& node2jointid)
         -> Job<UUID>;
 
 

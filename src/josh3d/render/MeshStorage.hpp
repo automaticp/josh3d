@@ -33,12 +33,15 @@ struct MeshID;
 template<typename VertexT>
 struct MeshID {
     using vertex_type = VertexT;
-    uint64_t value{};
+    uint64_t value{}; // TODO: Could be 32-bit.
 
     operator MeshID<void>() const noexcept;
 };
 
 
+/*
+Type-erased MeshID.
+*/
 template<>
 struct MeshID<void> {
     using vertex_type = void;

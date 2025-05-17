@@ -20,7 +20,7 @@
 namespace josh {
 
 
-auto unpack_mesh(
+auto unpack_static_mesh(
     ResourceUnpackerContext context,
     UUID                    uuid,
     Handle                  handle)
@@ -56,83 +56,90 @@ auto unpack_mesh(
 
     // Initial step.
     {
-        auto [resource, usage] = co_await context.resource_loader().get_resource<RT::Mesh>(uuid, &epoch);
+        auto [resource, usage] = co_await context.resource_loader().get_resource<RT::StaticMesh>(uuid, &epoch);
         co_await reschedule_to(context.local_context());
 
-        if (!handle.valid())
+        if (not handle.valid() or handle.any_of<LocalAABB, StaticMesh>())
             co_return bail();
 
-        if (has_component<LocalAABB>(handle))
-            co_return bail();
+        insert_component<StaticMesh>(handle, {
+            .lods    = resource.lods,
+            .usage   = MOVE(usage),
+            .aba_tag = aba_tag
+        });
 
-        if (const auto* static_mesh = get_if<MeshResource::Static>(&resource.mesh)) {
-            if (has_component<StaticMesh>(handle))
-                co_return bail();
-
-            insert_component<StaticMesh>(handle, {
-                .lods    = static_mesh->lods,
-                .usage   = MOVE(usage),
-                .aba_tag = aba_tag
-            });
-
-            insert_component(handle, resource.aabb);
-        }
-
-        if (const auto* skinned_mesh = get_if<MeshResource::Skinned>(&resource.mesh)) {
-            if (has_component<SkinnedMe2h>(handle))
-                co_return bail();
-
-            // NOTE: Requesting a secondary Skeleton resource after the first LOD is loaded.
-            // This is suboptimal. May change when different mesh types are separated.
-            auto [skeleton_resource, skeleton_usage] = co_await context.resource_loader().get_resource<RT::Skeleton>(skinned_mesh->skeleton_uuid);
-
-            insert_component<SkinnedMe2h>(handle, {
-                .lods           = skinned_mesh->lods,
-                .usage          = MOVE(usage),
-                .skeleton       = skeleton_resource.skeleton,
-                .skeleton_usage = skeleton_usage,
-                .aba_tag        = aba_tag,
-            });
-
-            // NOTE: A bit dirty, but we need to emplace this to render skinned meshes.
-            // Computing best be done outside of the main thread, but alas...
-            insert_component(handle, Pose::from_skeleton(*skeleton_resource.skeleton));
-
-            insert_component(handle, resource.aabb);
-        }
+        insert_component(handle, resource.aabb);
     }
 
     // Incremental updates.
     while (epoch != final_epoch) {
-        auto [resource, usage] = co_await context.resource_loader().get_resource<RT::Mesh>(uuid, &epoch);
+        auto [resource, usage] = co_await context.resource_loader().get_resource<RT::StaticMesh>(uuid, &epoch);
         co_await reschedule_to(context.local_context());
 
-        if (!handle.valid())
+        if (not handle.valid() or not has_component<StaticMesh>(handle))
             co_return bail();
 
-        if (const auto* static_mesh = get_if<MeshResource::Static>(&resource.mesh)) {
-            if (!has_component<StaticMesh>(handle))
-                co_return bail();
+        auto& component = handle.get<StaticMesh>();
 
-            auto& component = handle.get<StaticMesh>();
-            if (component.aba_tag != aba_tag)
-                co_return bail();
+        if (component.aba_tag != aba_tag)
+            co_return bail();
 
-            component.lods = static_mesh->lods;
-            // TODO: Should we update the usage too? Why would it change?
-        }
+        // TODO: Should we update the usage too? Why would it change?
+        component.lods = resource.lods;
+    }
+}
 
-        if (const auto* skinned_mesh = get_if<MeshResource::Skinned>(&resource.mesh)) {
-            if (!has_component<SkinnedMe2h>(handle))
-                co_return bail();
 
-            auto& component = handle.get<SkinnedMe2h>();
-            if (component.aba_tag != aba_tag)
-                co_return bail();
+auto unpack_skinned_mesh(
+    ResourceUnpackerContext context,
+    UUID                    uuid,
+    Handle                  handle)
+        -> Job<>
+{
+    const auto aba_tag = uintptr_t(co_await peek_coroutine_address());
+    const auto bail = [](){};
 
-            component.lods = skinned_mesh->lods;
-        }
+    ResourceEpoch epoch = null_epoch;
 
+    {
+        auto [resource, usage] = co_await context.resource_loader().get_resource<RT::SkinnedMesh>(uuid, &epoch);
+        co_await reschedule_to(context.local_context());
+
+        if (not handle.valid() or handle.any_of<LocalAABB, SkinnedMe2h>())
+            co_return bail();
+
+        // NOTE: Requesting a secondary Skeleton resource after the first LOD is loaded.
+        // This is suboptimal. May consider updating first epoch with just the skeleton UUID.
+        auto [skeleton_resource, skeleton_usage] =
+            co_await context.resource_loader().get_resource<RT::Skeleton>(resource.skeleton_uuid);
+
+        insert_component<SkinnedMe2h>(handle, {
+            .lods           = resource.lods,
+            .usage          = MOVE(usage),
+            .skeleton       = skeleton_resource.skeleton,
+            .skeleton_usage = skeleton_usage,
+            .aba_tag        = aba_tag,
+        });
+
+        // NOTE: A bit dirty, but we need to emplace this to render skinned meshes.
+        // Computing best be done outside of the main thread, but alas...
+        insert_component(handle, Pose::from_skeleton(*skeleton_resource.skeleton));
+        insert_component(handle, resource.aabb);
+    }
+
+    while (epoch != final_epoch) {
+        auto [resource, usage] = co_await context.resource_loader().get_resource<RT::SkinnedMesh>(uuid, &epoch);
+        co_await reschedule_to(context.local_context());
+
+        if (not handle.valid() or not has_component<SkinnedMe2h>(handle))
+            co_return bail();
+
+        auto& component = handle.get<SkinnedMe2h>();
+
+        if (component.aba_tag != aba_tag)
+            co_return bail();
+
+        component.lods = resource.lods;
     }
 }
 
@@ -326,7 +333,7 @@ auto unpack_mdesc(
 
     StaticVector<Job<>, 2> jobs;
 
-    jobs.emplace_back(context.unpacker().unpack<RT::Mesh>    (mdesc.mesh_uuid,     handle));
+    jobs.emplace_back(context.unpacker().unpack_any(mdesc.mesh_uuid, handle));
     jobs.emplace_back(context.unpacker().unpack<RT::Material>(mdesc.material_uuid, handle));
 
     co_await until_all_succeed(jobs);

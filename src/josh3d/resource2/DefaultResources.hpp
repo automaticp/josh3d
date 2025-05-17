@@ -15,7 +15,6 @@
 #include "VertexStatic.hpp"
 #include <cstdint>
 #include <memory>
-#include <variant>
 
 
 /*
@@ -41,13 +40,14 @@ What a given "resource" should maybe be able to do:
 
 // "Fake enum" namespace.
 namespace ResourceType_ {
-constexpr ResourceTypeHS Scene     = "Scene"_hs;
-constexpr ResourceTypeHS Mesh      = "Mesh"_hs;
-constexpr ResourceTypeHS Texture   = "Texture"_hs;
-constexpr ResourceTypeHS Animation = "Animation"_hs;
-constexpr ResourceTypeHS Skeleton  = "Skeleton"_hs;
-constexpr ResourceTypeHS Material  = "Material"_hs;
-constexpr ResourceTypeHS MeshDesc  = "MeshDesc"_hs; // TODO: This name is shaky.
+constexpr ResourceTypeHS Scene       = "Scene"_hs;
+constexpr ResourceTypeHS StaticMesh  = "StaticMesh"_hs;
+constexpr ResourceTypeHS SkinnedMesh = "SkinnedMesh"_hs;
+constexpr ResourceTypeHS Texture     = "Texture"_hs;
+constexpr ResourceTypeHS Animation   = "Animation"_hs;
+constexpr ResourceTypeHS Skeleton    = "Skeleton"_hs;
+constexpr ResourceTypeHS Material    = "Material"_hs;
+constexpr ResourceTypeHS MeshDesc    = "MeshDesc"_hs; // TODO: This name is shaky.
 } // namespace ResourceType
 
 
@@ -65,21 +65,13 @@ struct SceneResource {
     using node_list_type = Vector<Node>;
     std::shared_ptr<node_list_type> nodes; // Pre-order.
 };
-template<> struct resource_traits<RT::Scene> {
-    using resource_type = SceneResource;
-};
-
-
+template<> struct resource_traits<RT::Scene> { using resource_type = SceneResource; };
 
 
 struct SkeletonResource {
     std::shared_ptr<Skeleton> skeleton;
 };
-template<> struct resource_traits<RT::Skeleton> {
-    using resource_type = SkeletonResource;
-};
-
-
+template<> struct resource_traits<RT::Skeleton> { using resource_type = SkeletonResource; };
 
 
 struct AnimationResource {
@@ -88,42 +80,28 @@ struct AnimationResource {
     double                                  duration_s;
     UUID                                    skeleton_uuid;
 };
-template<> struct resource_traits<RT::Animation> {
-    using resource_type = AnimationResource;
+template<> struct resource_traits<RT::Animation> { using resource_type = AnimationResource; };
+
+
+struct StaticMeshResource {
+    LODPack<MeshID<VertexStatic>, 8> lods;
+    LocalAABB                        aabb;
 };
+template<> struct resource_traits<RT::StaticMesh> { using resource_type = StaticMeshResource; };
 
 
-
-
-struct MeshResource {
-    struct Static {
-        LODPack<MeshID<VertexStatic>, 8> lods;
-    };
-
-    struct Skinned {
-        LODPack<MeshID<VertexSkinned>, 8> lods;
-        UUID                              skeleton_uuid;
-    };
-
-    using variant_type = std::variant<Static, Skinned>;
-    variant_type mesh;
-    LocalAABB    aabb;
+struct SkinnedMeshResource {
+    LODPack<MeshID<VertexSkinned>, 8> lods;
+    LocalAABB                         aabb;
+    UUID                              skeleton_uuid;
 };
-template<> struct resource_traits<RT::Mesh> {
-    using resource_type = MeshResource;
-};
-
-
+template<> struct resource_traits<RT::SkinnedMesh> { using resource_type = SkinnedMeshResource; };
 
 
 struct TextureResource {
     SharedTexture2D texture;
 };
-template<> struct resource_traits<RT::Texture> {
-    using resource_type = TextureResource;
-};
-
-
+template<> struct resource_traits<RT::Texture> { using resource_type = TextureResource; };
 
 
 struct MaterialResource {
@@ -132,11 +110,7 @@ struct MaterialResource {
     UUID  specular_uuid;
     float specpower;
 };
-template<> struct resource_traits<RT::Material> {
-    using resource_type = MaterialResource;
-};
-
-
+template<> struct resource_traits<RT::Material> { using resource_type = MaterialResource; };
 
 
 /*
@@ -148,9 +122,7 @@ struct MeshDescResource {
     UUID mesh_uuid;
     UUID material_uuid;
 };
-template<> struct resource_traits<RT::MeshDesc> {
-    using resource_type = MeshDescResource;
-};
+template<> struct resource_traits<RT::MeshDesc> { using resource_type = MeshDescResource; };
 
 
 
@@ -159,12 +131,13 @@ inline void register_default_resource_info(
     ResourceInfo& m)
 {
     m.register_resource_type<RT::Scene>();
-    m.register_resource_type<RT::Mesh>();
-    m.register_resource_type<RT::Texture>();
-    m.register_resource_type<RT::Animation>();
-    m.register_resource_type<RT::Skeleton>();
     m.register_resource_type<RT::Material>();
     m.register_resource_type<RT::MeshDesc>();
+    m.register_resource_type<RT::StaticMesh>();
+    m.register_resource_type<RT::SkinnedMesh>();
+    m.register_resource_type<RT::Texture>();
+    m.register_resource_type<RT::Skeleton>();
+    m.register_resource_type<RT::Animation>();
 }
 
 
@@ -174,10 +147,11 @@ inline void register_default_resource_storage(
     r.initialize_storage_for<RT::Scene>();
     r.initialize_storage_for<RT::MeshDesc>();
     r.initialize_storage_for<RT::Material>();
-    r.initialize_storage_for<RT::Mesh>();
+    r.initialize_storage_for<RT::StaticMesh>();
+    r.initialize_storage_for<RT::SkinnedMesh>();
     r.initialize_storage_for<RT::Texture>();
-    r.initialize_storage_for<RT::Animation>();
     r.initialize_storage_for<RT::Skeleton>();
+    r.initialize_storage_for<RT::Animation>();
 }
 
 
