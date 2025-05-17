@@ -1,9 +1,9 @@
 #pragma once
 #include "CategoryCasts.hpp"
 #include "CommonConcepts.hpp"
+#include "ScopeExit.hpp"
 #include "ContainerUtils.hpp"
 #include "Ranges.hpp"
-#include <boost/scope/scope_exit.hpp>
 #include <atomic>
 #include <cassert>
 #include <concepts>
@@ -277,7 +277,7 @@ struct CompletionNotifier {
                     assert(state);
                     assert(state->parent_coroutine);
 
-                    const auto destroy_self = boost::scope::scope_exit([&]{ self.destroy(); });
+                    ON_SCOPE_EXIT([&]{ self.destroy(); });
 
                     if (state->num_remaining.fetch_sub(1, std::memory_order_acq_rel) == 1) {
                         return state->parent_coroutine;

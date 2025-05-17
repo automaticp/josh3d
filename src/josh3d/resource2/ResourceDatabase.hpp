@@ -257,7 +257,7 @@ private:
 
 
 
-inline void ResourceDatabase::for_each_row(
+void ResourceDatabase::for_each_row(
     std::invocable<const Row &> auto&& f) const
 {
     const auto rlock = std::shared_lock(state_mutex_);

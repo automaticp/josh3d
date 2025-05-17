@@ -148,15 +148,15 @@ private:
 
 // ADL pls
 template<typename ResT, typename ...ArgTs>
-void swap(UniqueFunction<ResT(ArgTs...)>& lhs,
+void swap(
+    UniqueFunction<ResT(ArgTs...)>& lhs,
     UniqueFunction<ResT(ArgTs...)>& rhs) noexcept
 {
     lhs.swap(rhs);
 }
 
 template<typename ResT, typename ...ArgTs>
-bool operator==(const UniqueFunction<ResT(ArgTs...)>& fun,
-    std::nullptr_t) noexcept
+bool operator==(const UniqueFunction<ResT(ArgTs...)>& fun, std::nullptr_t) noexcept
 {
     return !fun;
 }

@@ -7,6 +7,7 @@
 #include "ObjectLifecycle.hpp"
 #include "RuntimeError.hpp"
 #include "SceneGraph.hpp"
+#include "ScopeExit.hpp"
 #include "Tags.hpp"
 #include "Transform.hpp"
 #include "ContainerUtils.hpp"
@@ -19,7 +20,6 @@
 #include <fmt/core.h>
 #include <fmt/format.h>
 #include <range/v3/view/enumerate.hpp>
-#include <boost/scope/defer.hpp>
 #include <fstream>
 #include <cstdint>
 #include <stdexcept>
@@ -118,7 +118,7 @@ void SceneImporter::import_from_json(const json& j) {
 
 
     thread_local std::unordered_map<ID, Entry> id2entry;
-    BOOST_SCOPE_DEFER [&] { id2entry.clear(); };
+    ON_SCOPE_EXIT([&]{ id2entry.clear(); });
 
 
     // TODO: This is an interesting idea that can help with all

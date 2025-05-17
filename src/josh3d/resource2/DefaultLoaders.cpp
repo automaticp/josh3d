@@ -1,3 +1,4 @@
+#include "DefaultLoaders.hpp"
 #include "Common.hpp"
 #include "CategoryCasts.hpp"
 #include "ContainerUtils.hpp"
@@ -35,6 +36,20 @@
 
 
 namespace josh {
+
+
+void register_default_loaders(ResourceLoader& l) {
+    l.register_loader<RT::Scene>      (&load_scene);
+    l.register_loader<RT::MeshDesc>   (&load_mdesc);
+    l.register_loader<RT::Material>   (&load_material);
+    l.register_loader<RT::StaticMesh> (&load_static_mesh);
+    l.register_loader<RT::SkinnedMesh>(&load_skinned_mesh);
+    l.register_loader<RT::Texture>    (&load_texture);
+    l.register_loader<RT::Skeleton>   (&load_skeleton);
+    l.register_loader<RT::Animation>  (&load_animation);
+}
+
+
 namespace {
 
 using jsoncons::json;

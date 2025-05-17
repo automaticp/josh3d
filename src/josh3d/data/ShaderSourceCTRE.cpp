@@ -17,8 +17,8 @@ namespace josh {
 auto ShaderSource::find_version_directive(const_subrange subrange) noexcept
     -> std::optional<VersionDirective>
 {
-    // 1 or 2 Captures:                                  ( 1 )   (        2         )?
-    // Example:                            #   version    430     core
+    // 1 or 2 Captures:                                      ( 1 )   (        2         )?
+    // Example:                                #   version    430     core
     auto match = ctre::multiline_search<R"(^\h*#\h*version\h+(\d+)\h+(core|compatibility)?\h*$)">(subrange);
 
     if (match) {
@@ -38,8 +38,8 @@ auto ShaderSource::find_version_directive(const_subrange subrange) noexcept
 auto ShaderSource::find_include_directive(const_subrange subrange) noexcept
     -> std::optional<IncludeDirective>
 {
-    // 1 Capture:                                        (    1    )
-    // Example:                            #   include    "xx.glsl"
+    // 1 Capture:                                            (    1    )
+    // Example:                                #   include    "xx.glsl"
     auto match = ctre::multiline_search<R"(^\h*#\h*include\h*(<.+>|".+")\h*$)">(subrange);
     // Captures either: "..." or <...>, so need to strip chars later.
 
@@ -59,8 +59,8 @@ auto ShaderSource::find_include_directive(const_subrange subrange) noexcept
 auto ShaderSource::find_include_extension_directive(const_subrange subrange) noexcept
     -> std::optional<IncludeExtensionDirective>
 {
-    // 1 Capture:                                                                            (             1             )
-    // Example:                            #   extension   GL_GOOGLE_include_directive   :            enable
+    // 1 Capture:                                                                                (             1             )
+    // Example:                                #   extension   GL_GOOGLE_include_directive   :            enable
     auto match = ctre::multiline_search<R"(^\h*#\h*extension\h+GL_GOOGLE_include_directive\h*:\h*(require|enable|warn|disable)\h*$)">(subrange);
 
     if (match) {

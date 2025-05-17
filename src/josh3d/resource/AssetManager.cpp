@@ -12,6 +12,7 @@
 #include "ImageData.hpp"
 #include "MeshRegistry.hpp"
 #include "OffscreenContext.hpp"
+#include "ScopeExit.hpp"
 #include "SkeletalAnimation.hpp"
 #include "Skeleton.hpp"
 #include "TextureHelpers.hpp"
@@ -28,8 +29,6 @@
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 #include <bits/ranges_algo.h>
-#include <boost/scope/defer.hpp>
-#include <boost/scope/scope_fail.hpp>
 #include <exception>
 #include <glm/ext.hpp>
 #include <glm/ext/matrix_transform.hpp>
@@ -187,8 +186,8 @@ auto AssetManager::load_texture(AssetPath path, ImageIntent intent)
     }
     // Otherwise we need to load and resolve it ourselves.
 
-    const auto on_exception = // Resolve the pending requests with the same exception.
-        boost::scope::scope_fail([&] { cache_.fail_and_resolve_pending<AssetKind::Texture>(path); });
+    // Resolve the pending requests with the same exception.
+    ON_SCOPE_FAIL([&]{ cache_.fail_and_resolve_pending<AssetKind::Texture>(path); });
 
 
     // Do the image loading/decompression with stb.
@@ -273,8 +272,7 @@ auto AssetManager::load_cubemap(AssetPath path, CubemapIntent intent)
         co_return move_out(asset);
     }
 
-    const auto on_exception =
-        boost::scope::scope_fail([&]{ cache_.fail_and_resolve_pending<AssetKind::Cubemap>(path); });
+    ON_SCOPE_FAIL([&]{ cache_.fail_and_resolve_pending<AssetKind::Cubemap>(path); });
 
 
     std::array<File, 6> files = parse_cubemap_json_for_files(File(path.entry()));
@@ -643,8 +641,7 @@ auto AssetManager::load_model(AssetPath path)
         co_return move_out(asset);
     }
 
-    const auto on_exception =
-        boost::scope::scope_fail([&] { cache_.fail_and_resolve_pending<AssetKind::Model>(path); });
+    ON_SCOPE_FAIL([&] { cache_.fail_and_resolve_pending<AssetKind::Model>(path); });
 
 
 
@@ -737,7 +734,7 @@ auto AssetManager::load_model(AssetPath path)
     // until the first suspension point. For that, we need to scope *it* and other scene-related variables.
     {
         thread_local Assimp::Importer importer;
-        BOOST_SCOPE_DEFER [&] { importer.FreeScene(); };
+        ON_SCOPE_EXIT([&]{ importer.FreeScene(); });
 
         // The flags are hardcoded, the following processing
         // relies on most of these flags being always set.

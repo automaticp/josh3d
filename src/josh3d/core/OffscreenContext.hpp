@@ -53,7 +53,7 @@ auto OffscreenContext::emplace(FuncT&& func)
     if constexpr (std::invocable<FuncT, glfw::Window&>) {
         return emplace_request(FORWARD(func));
     } else {
-        return emplace_request([func=FORWARD(func)](glfw::Window&) { FORWARD(func)(); });
+        return emplace_request([func=FORWARD(func)](glfw::Window&) { func(); });
     }
 }
 

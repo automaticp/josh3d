@@ -1,5 +1,4 @@
 #pragma once
-#include <glfwpp/glfwpp.h>
 
 
 namespace josh {
@@ -12,11 +11,7 @@ private:
     double delta_{};
 
 public:
-    void update() noexcept {
-        previous_ = current_;
-        current_ = glfw::getTime();
-        delta_ = current_ - previous_;
-    }
+    void update() noexcept;
 
     template<typename FloatT = double>
     FloatT current() const noexcept { return static_cast<FloatT>(current_); }

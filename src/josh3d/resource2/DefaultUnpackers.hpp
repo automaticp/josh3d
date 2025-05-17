@@ -1,12 +1,21 @@
 #pragma once
 #include "Coroutines.hpp"
-#include "ECS.hpp"
-#include "DefaultResources.hpp"
 #include "ResourceUnpacker.hpp"
+#include "ECS.hpp"
 #include "UUID.hpp"
 
 
 namespace josh {
+
+
+class ResourceUnpacker;
+class ResourceUnpackerContext;
+
+
+/*
+Convenience to automatically register all unpackers listed in this file. Optional.
+*/
+void register_default_unpackers(ResourceUnpacker& u);
 
 
 auto unpack_static_mesh(
@@ -42,20 +51,6 @@ auto unpack_scene(
     UUID                    uuid,
     Handle                  handle)
         -> Job<>;
-
-
-/*
-Convenience to automatically register all unpackers listed in this file. Optional.
-*/
-inline void register_default_unpackers(
-    ResourceUnpacker& u)
-{
-    u.register_unpacker<RT::Scene,       Handle>(&unpack_scene);
-    u.register_unpacker<RT::MeshDesc,    Handle>(&unpack_mdesc);
-    u.register_unpacker<RT::Material,    Handle>(&unpack_material);
-    u.register_unpacker<RT::StaticMesh,  Handle>(&unpack_static_mesh);
-    u.register_unpacker<RT::SkinnedMesh, Handle>(&unpack_skinned_mesh);
-}
 
 
 } // namespace josh

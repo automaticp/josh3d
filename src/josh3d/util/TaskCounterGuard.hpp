@@ -1,6 +1,7 @@
 #pragma once
 #include "Semantics.hpp"
 #include <atomic>
+#include <cassert>
 #include <cstddef>
 #include <utility>
 

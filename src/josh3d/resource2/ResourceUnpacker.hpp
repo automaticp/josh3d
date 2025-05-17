@@ -6,12 +6,9 @@
 #include "ResourceDatabase.hpp"
 #include "ResourceLoader.hpp"
 #include "ResourceRegistry.hpp"
-#include "RuntimeError.hpp"
 #include "TaskCounterGuard.hpp"
 #include "TypeInfo.hpp"
 #include <boost/container_hash/hash.hpp>
-#include <fmt/core.h>
-#include <utility>
 
 
 namespace josh {
@@ -165,19 +162,6 @@ auto ResourceUnpacker::unpack_any(UUID uuid, DestinationT destination)
     const auto type = resource_database_.type_of(uuid);
     const key_type key{ .resource_type=type, .destination_type=type_id<DestinationT>() };
     return _unpack(key, uuid, AnyRef(destination));
-}
-
-
-inline auto ResourceUnpacker::_unpack(const key_type& key, UUID uuid, AnyRef destination)
-    -> Job<>
-{
-    if (auto* kv = try_find(dispatch_table_, key)) {
-        // FIXME: Something about const-correctness is amiss here. Likely because of UniqueFunction.
-        auto& unpacker = kv->second;
-        return unpacker(ResourceUnpackerContext(*this), uuid, destination);
-    } else {
-        throw RuntimeError(fmt::format("No unpacker found for resource type {} and destination type {}.", resource_info().name_or_id(key.resource_type), key.destination_type.pretty_name()));
-    }
 }
 
 

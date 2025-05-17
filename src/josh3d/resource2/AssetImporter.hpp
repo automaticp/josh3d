@@ -122,16 +122,4 @@ auto AssetImporter::import_asset(Path path, ParamsT params)
 }
 
 
-inline auto AssetImporter::_import_asset(const key_type& key, Path path, AnyRef params)
-    -> Job<UUID>
-{
-    if (auto* kv = try_find(dispatch_table_, key)) {
-        auto& importer = kv->second;
-        return importer(AssetImporterContext(*this), MOVE(path), params);
-    } else {
-        throw RuntimeError(fmt::format("No importer found for ParamType {}", key.pretty_name()));
-    }
-}
-
-
 } // namespace josh

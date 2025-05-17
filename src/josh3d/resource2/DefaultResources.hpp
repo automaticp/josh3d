@@ -5,8 +5,6 @@
 #include "LODPack.hpp"
 #include "MeshStorage.hpp"
 #include "Resource.hpp"
-#include "ResourceInfo.hpp"
-#include "ResourceRegistry.hpp"
 #include "SkeletalAnimation.hpp"
 #include "Skeleton.hpp"
 #include "Transform.hpp"
@@ -36,6 +34,14 @@ What a given "resource" should maybe be able to do:
     ResourceFile -> Asset (+Metadata)     : Be optionally re-exported back to an asset
 
 */
+
+
+class ResourceInfo;
+class ResourceRegistry;
+
+
+void register_default_resource_info(ResourceInfo& m);
+void register_default_resource_storage(ResourceRegistry& r);
 
 
 // "Fake enum" namespace.
@@ -123,36 +129,6 @@ struct MeshDescResource {
     UUID material_uuid;
 };
 template<> struct resource_traits<RT::MeshDesc> { using resource_type = MeshDescResource; };
-
-
-
-
-inline void register_default_resource_info(
-    ResourceInfo& m)
-{
-    m.register_resource_type<RT::Scene>();
-    m.register_resource_type<RT::Material>();
-    m.register_resource_type<RT::MeshDesc>();
-    m.register_resource_type<RT::StaticMesh>();
-    m.register_resource_type<RT::SkinnedMesh>();
-    m.register_resource_type<RT::Texture>();
-    m.register_resource_type<RT::Skeleton>();
-    m.register_resource_type<RT::Animation>();
-}
-
-
-inline void register_default_resource_storage(
-    ResourceRegistry& r)
-{
-    r.initialize_storage_for<RT::Scene>();
-    r.initialize_storage_for<RT::MeshDesc>();
-    r.initialize_storage_for<RT::Material>();
-    r.initialize_storage_for<RT::StaticMesh>();
-    r.initialize_storage_for<RT::SkinnedMesh>();
-    r.initialize_storage_for<RT::Texture>();
-    r.initialize_storage_for<RT::Skeleton>();
-    r.initialize_storage_for<RT::Animation>();
-}
 
 
 } // namespace josh

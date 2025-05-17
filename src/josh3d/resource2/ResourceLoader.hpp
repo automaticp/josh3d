@@ -4,7 +4,6 @@
 #include "ResourceDatabase.hpp"
 #include "ResourceRegistry.hpp"
 #include "MeshRegistry.hpp"
-#include <fmt/core.h>
 
 
 namespace josh {
@@ -297,23 +296,6 @@ auto ResourceLoader::load(UUID uuid)
     -> Job<PublicResource<TypeV>>
 {
     co_return co_await get_resource<TypeV>(uuid);
-}
-
-
-inline auto ResourceLoader::_start_loading(const key_type& key, const UUID& uuid)
-    -> Job<>
-{
-    if (auto* kv = try_find(dispatch_table_, key)) {
-        auto& loader = kv->second;
-        // HMM: The loader actually returns a job here, but we do not track it
-        // when we submit a load in the get_resource() call.
-        //
-        // The lifetime is fine, it will self-destroy once finished, but
-        // aren't we missing out on something important here by discarding it?
-        return loader(ResourceLoaderContext(*this), uuid);
-    } else {
-        throw RuntimeError(fmt::format("No loader found for resource type {}.", resource_info().name_or_id(key)));
-    }
 }
 
 

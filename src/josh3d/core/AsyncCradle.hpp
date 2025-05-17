@@ -5,7 +5,9 @@
 #include "Semantics.hpp"
 #include "TaskCounterGuard.hpp"
 #include "ThreadPool.hpp"
-#include <glfwpp/window.h>
+
+
+namespace glfw { class Window; }
 
 
 namespace josh {

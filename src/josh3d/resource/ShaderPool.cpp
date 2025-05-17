@@ -570,8 +570,6 @@ auto ShaderToken::get() noexcept
 }
 
 
-
-
 // Boring boilerplate for PIMPL.
 
 

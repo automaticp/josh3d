@@ -27,7 +27,7 @@ namespace josh {
 namespace detail {
 
 template<typename T, size_t Size>
-inline auto make_array_filled_with(const T& init_value)
+auto make_array_filled_with(const T& init_value)
     -> std::array<T, Size>
 {
     return

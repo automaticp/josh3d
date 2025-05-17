@@ -57,7 +57,7 @@ struct ProgramDefines {
 };
 
 
-inline auto ProgramDefines::define(const char* name, auto&& value)
+auto ProgramDefines::define(const char* name, auto&& value)
     -> ProgramDefines&
 {
     std::stringstream ss;

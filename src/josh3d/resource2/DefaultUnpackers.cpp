@@ -1,3 +1,4 @@
+#include "DefaultUnpackers.hpp"
 #include "Common.hpp"
 #include "Components.hpp"
 #include "CoroCore.hpp"
@@ -18,6 +19,15 @@
 
 
 namespace josh {
+
+
+void register_default_unpackers(ResourceUnpacker& u) {
+    u.register_unpacker<RT::Scene,       Handle>(&unpack_scene);
+    u.register_unpacker<RT::MeshDesc,    Handle>(&unpack_mdesc);
+    u.register_unpacker<RT::Material,    Handle>(&unpack_material);
+    u.register_unpacker<RT::StaticMesh,  Handle>(&unpack_static_mesh);
+    u.register_unpacker<RT::SkinnedMesh, Handle>(&unpack_skinned_mesh);
+}
 
 
 auto unpack_static_mesh(

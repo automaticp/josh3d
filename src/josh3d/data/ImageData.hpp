@@ -90,7 +90,7 @@ private:
 
 
 template<typename ChannelT>
-inline ImageData<ChannelT>::ImageData(
+ImageData<ChannelT>::ImageData(
     const Size2S& resolution,
     size_t        num_channels)
     : data_        { malloc_unique<channel_type[]>(resolution.area() * num_channels) }
@@ -100,7 +100,7 @@ inline ImageData<ChannelT>::ImageData(
 
 
 template<typename ChannelT>
-inline ImageData<ChannelT>::ImageData(
+ImageData<ChannelT>::ImageData(
     unique_malloc_ptr<ChannelT[]>&& data,
     const Size2S&                   resolution,
     size_t                          num_channels)

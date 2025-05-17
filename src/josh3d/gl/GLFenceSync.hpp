@@ -4,7 +4,7 @@
 #include "GLScalars.hpp"
 #include "GLMutability.hpp"
 #include "EnumUtils.hpp"
-#include "SingleArgMacro.hpp"
+#include "CommonMacros.hpp" // IWYU pragma: keep
 #include "detail/MagicConstructorsMacro.hpp"
 #include "detail/RawGLHandle.hpp"
 #include <glbinding/gl/bitfield.h>

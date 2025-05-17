@@ -2,7 +2,7 @@
 #include "CategoryCasts.hpp"
 #include "ContainerUtils.hpp"
 #include "CoroCore.hpp"
-#include <boost/scope/scope_exit.hpp>
+#include "ScopeExit.hpp"
 #include <cassert>
 #include <concepts>
 #include <coroutine>
@@ -187,7 +187,7 @@ public:
                 //
                 // The return value is evaluated *before* destructors are run, so
                 // we should be okay when transferring control to another coroutine.
-                auto release_self = boost::scope::scope_exit([&]{ if (p.is_owning()) p.release_ownership(); });
+                ON_SCOPE_EXIT([&]{ if (p.is_owning()) p.release_ownership(); });
                 // Transfer control to "parent" coroutine, if any.
                 if (std::coroutine_handle<> continuation = p.packed_state_.continuation()) {
                     return continuation;

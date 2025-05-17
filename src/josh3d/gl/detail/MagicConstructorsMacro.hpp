@@ -1,7 +1,7 @@
 #pragma once
-#include "GLMutability.hpp"   // IWYU pragma: keep
-#include "SingleArgMacro.hpp" // IWYU pragma: keep
-#include <utility>            // IWYU pragma: keep
+#include "GLMutability.hpp" // IWYU pragma: keep
+#include "CommonMacros.hpp" // IWYU pragma: keep
+#include <utility>          // IWYU pragma: keep
 
 
 

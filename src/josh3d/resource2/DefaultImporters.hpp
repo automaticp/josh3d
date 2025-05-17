@@ -1,5 +1,4 @@
 #pragma once
-#include "AssetImporter.hpp"
 #include "DefaultResourceFiles.hpp"
 #include "Coroutines.hpp"
 #include "Filesystem.hpp"
@@ -14,7 +13,11 @@ would take 3s to respond otherwise. I blame ranges.
 namespace josh {
 
 
+class AssetImporter;
 class AssetImporterContext;
+
+
+void register_default_importers(AssetImporter& i);
 
 
 struct ImportTextureParams {
@@ -51,14 +54,6 @@ auto import_scene(
     Path                 path,
     ImportSceneParams    params)
         -> Job<UUID>;
-
-
-inline void register_default_importers(
-    AssetImporter& i)
-{
-    i.register_importer<ImportSceneParams>  (&import_scene);
-    i.register_importer<ImportTextureParams>(&import_texture);
-}
 
 
 } // namespace josh
