@@ -82,18 +82,24 @@ auto unpack_mesh(
             if (has_component<SkinnedMe2h>(handle))
                 co_return bail();
 
+            // NOTE: Requesting a secondary Skeleton resource after the first LOD is loaded.
+            // This is suboptimal. May change when different mesh types are separated.
+            auto [skeleton_resource, skeleton_usage] = co_await context.resource_loader().get_resource<RT::Skeleton>(skinned_mesh->skeleton_uuid);
+
             insert_component<SkinnedMe2h>(handle, {
                 .lods           = skinned_mesh->lods,
                 .usage          = MOVE(usage),
-                .skeleton       = skinned_mesh->skeleton.resource.skeleton,
-                .skeleton_usage = skinned_mesh->skeleton.usage,
+                .skeleton       = skeleton_resource.skeleton,
+                .skeleton_usage = skeleton_usage,
                 .aba_tag        = aba_tag,
             });
 
+            // NOTE: A bit dirty, but we need to emplace this to render skinned meshes.
+            // Computing best be done outside of the main thread, but alas...
+            insert_component(handle, Pose::from_skeleton(*skeleton_resource.skeleton));
+
             insert_component(handle, resource.aabb);
         }
-
-
     }
 
     // Incremental updates.

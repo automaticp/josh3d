@@ -160,9 +160,9 @@ void ImGuiResourceViewer::display_viewer() {
         if (ImGui::BeginTable("Resources", 5, table_flags)) {
             ImGui::TableSetupColumn("Type");
             ImGui::TableSetupColumn("File");
-            ImGui::TableSetupColumn("Offset");
+            ImGui::TableSetupColumn("Offset", ImGuiTableColumnFlags_DefaultHide);
             ImGui::TableSetupColumn("Size");
-            ImGui::TableSetupColumn("UUID");
+            ImGui::TableSetupColumn("UUID", ImGuiTableColumnFlags_DefaultHide);
             ImGui::TableHeadersRow();
             size_t i = 0;
             resource_database.for_each_row(

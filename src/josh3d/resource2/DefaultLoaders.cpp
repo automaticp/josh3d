@@ -21,6 +21,7 @@
 #include "ResourceFiles.hpp"
 #include "ResourceLoader.hpp"
 #include "RuntimeError.hpp"
+#include "SkeletalAnimation.hpp"
 #include "UUID.hpp"
 #include "VertexSkinned.hpp"
 #include "VertexStatic.hpp"
@@ -197,15 +198,6 @@ auto load_skinned_mesh(
     const uint8_t first_lod = num_lods - 1;
     assert(num_lods);
 
-    const auto get_skeleton = [&](UUID skeleton_uuid)
-        -> Job<PrivateResource<RT::Skeleton>>
-    {
-        co_return co_await context.get_resource_dependency<RT::Skeleton>(skeleton_uuid);
-    };
-
-    // Launch as an async task in case the skeleton is not cached.
-    auto skeleton_job = get_skeleton(header.skeleton_uuid);
-
     LODPack<MeshID<VertexT>, 8> lod_pack{};
 
     uint8_t cur_lod    = num_lods;
@@ -243,8 +235,13 @@ auto load_skinned_mesh(
             first_time = false;
             usage = context.create_resource<RT::Mesh>(uuid, progress, MeshResource{
                 .mesh = MeshResource::Skinned{
-                    .lods     = lod_pack,
-                    .skeleton = co_await skeleton_job,
+                    .lods = lod_pack,
+                    // NOTE: The unpacking side should request the load of the skeleton.
+                    // TODO: Unfortunately we currently have no way to start loading the skeleton
+                    // before the first LOD arrives. This might be fixed by adding another "epoch"
+                    // but then the unpacking side needs to understand that the first update
+                    // might not make any new LODs available, only the skeleton UUID.
+                    .skeleton_uuid = file.header().skeleton_uuid,
                 },
                 .aabb = header.aabb,
             });
@@ -621,6 +618,65 @@ try {
 
 } catch(...) {
     context.fail_resource<RT::Texture>(uuid);
+}
+
+
+auto load_skeleton(
+    ResourceLoaderContext context,
+    UUID                  uuid)
+        -> Job<>
+try {
+    co_await reschedule_to(context.thread_pool());
+
+    auto file = SkeletonFile::open(context.resource_database().map_resource(uuid));
+
+    // TODO: Not loading or storing the joint names so far.
+    // That's mostly the issue with the Skeleton representation.
+
+    auto skeleton = Skeleton{ .joints=file.joints() | ranges::to<Vector>() };
+
+    auto _ = context.create_resource<RT::Skeleton>(uuid, ResourceProgress::Complete, SkeletonResource{
+        .skeleton = std::make_shared<Skeleton>(MOVE(skeleton)),
+    });
+
+} catch(...) {
+    context.fail_resource<RT::Skeleton>(uuid);
+}
+
+
+auto load_animation(
+    ResourceLoaderContext context,
+    UUID                  uuid)
+        -> Job<>
+try {
+    co_await reschedule_to(context.thread_pool());
+
+    auto file = AnimationFile::open(context.resource_database().map_resource(uuid));
+    const auto& header = file.header();
+
+    using JointKeyframes = AnimationClip::JointKeyframes;
+    Vector<JointKeyframes> keyframes; keyframes.reserve(header.num_joints);
+
+    // TODO: Possible to make a generic Key<TimeT, ValueT> type that converts times?
+    auto kv2kv = [](const AnimationFile::KeyVec3& key) { return AnimationClip::Key<vec3>{ key.time_s, key.value }; };
+    auto kq2kq = [](const AnimationFile::KeyQuat& key) { return AnimationClip::Key<quat>{ key.time_s, key.value }; };
+
+    for (const size_t joint_id : irange(header.num_joints)) {
+        keyframes.push_back({
+            .t = file.pos_keys(joint_id) | transform(kv2kv) | ranges::to<Vector>(),
+            .r = file.rot_keys(joint_id) | transform(kq2kq) | ranges::to<Vector>(),
+            .s = file.sca_keys(joint_id) | transform(kv2kv) | ranges::to<Vector>(),
+        });
+    }
+
+    auto _ = context.create_resource<RT::Animation>(uuid, ResourceProgress::Complete, AnimationResource{
+        .keyframes     = std::make_shared<Vector<JointKeyframes>>(MOVE(keyframes)),
+        .duration_s    = file.header().duration_s,
+        .skeleton_uuid = file.header().skeleton_uuid,
+    });
+
+} catch (...) {
+    context.fail_resource<RT::Animation>(uuid);
 }
 
 

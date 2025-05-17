@@ -83,8 +83,10 @@ template<> struct resource_traits<RT::Skeleton> {
 
 
 struct AnimationResource {
-    std::shared_ptr<AnimationClip> animation;
-    UUID                           skeleton_uuid;
+    using keyframes_type = AnimationClip::JointKeyframes;
+    std::shared_ptr<Vector<keyframes_type>> keyframes;
+    double                                  duration_s;
+    UUID                                    skeleton_uuid;
 };
 template<> struct resource_traits<RT::Animation> {
     using resource_type = AnimationResource;
@@ -100,7 +102,7 @@ struct MeshResource {
 
     struct Skinned {
         LODPack<MeshID<VertexSkinned>, 8> lods;
-        PrivateResource<RT::Skeleton>     skeleton;
+        UUID                              skeleton_uuid;
     };
 
     using variant_type = std::variant<Static, Skinned>;
