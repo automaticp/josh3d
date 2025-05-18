@@ -49,6 +49,7 @@ ImGuiApplicationAssembly::ImGuiApplicationAssembly(
     ResourceDatabase&  resource_database,
     AssetImporter&     asset_importer,
     ResourceUnpacker&  resource_unpacker,
+    TaskCounterGuard&  task_counter,
     VirtualFilesystem& vfs
 )
     : window_         { window             }
@@ -59,6 +60,7 @@ ImGuiApplicationAssembly::ImGuiApplicationAssembly(
     , resource_database_{ resource_database }
     , asset_importer_ { asset_importer     }
     , resource_unpacker_(resource_unpacker)
+    , task_counter_   (task_counter)
     , vfs_            { vfs                }
     , context_        { window             }
     , window_settings_{ window             }
@@ -89,7 +91,12 @@ ImGuiIOWants ImGuiApplicationAssembly::get_io_wants() const noexcept {
 
 void ImGuiApplicationAssembly::new_frame() {
     // FIXME: Use external FrameTimer.
-    avg_frame_timer_.update(globals::frame_timer.delta<float>());
+    const float dt = globals::frame_timer.delta<float>();
+    avg_frame_timer_.update(dt);
+
+    frame_deltas_.resize(num_frames_plotted_);
+    frame_offset_ = (frame_offset_ + 1) % int(frame_deltas_.size());
+    frame_deltas_.at(frame_offset_) = dt * 1.e3f; // Convert to ms.
 
     std::snprintf(
         fps_str_.data(), fps_str_.size() + 1,
@@ -315,6 +322,7 @@ void ImGuiApplicationAssembly::draw_widgets() {
                 ImGui::Checkbox("Demo Window",    &show_demo_window   );
                 ImGui::Checkbox("Asset Manager",  &show_asset_manager );
                 ImGui::Checkbox("Resource Files", &show_resource_viewer);
+                ImGui::Checkbox("Frame Graph",    &show_frame_graph   );
 
                 ImGui::Separator();
 
@@ -429,6 +437,8 @@ void ImGuiApplicationAssembly::draw_widgets() {
                 logs_open_b4 = logs_open;
             }
 
+            const auto num_tasks = task_counter_.hint_num_tasks_in_flight();
+            if (num_tasks) ImGui::Text("[%zu]", num_tasks);
 
             const float size_gizmo     = ImGui::CalcTextSize(gizmo_info_str_template_).x;
             const float size_fps       = ImGui::CalcTextSize(fps_str_template_).x;
@@ -444,6 +454,12 @@ void ImGuiApplicationAssembly::draw_widgets() {
             ImGui::EndMainMenuBar();
         }
 
+
+        if (show_frame_graph) {
+            if (ImGui::Begin("Frame Graph")) {
+                display_frame_graph();
+            } ImGui::End();
+        }
 
         if (show_engine_hooks) {
             if (ImGui::Begin("Render Engine")) {
@@ -520,6 +536,20 @@ void ImGuiApplicationAssembly::reset_dockspace(ImGuiID dockspace_id) {
 
 
     ImGui::DockBuilderFinish(dockspace_id);
+}
+
+
+void ImGuiApplicationAssembly::display_frame_graph() {
+    ImGui::PlotLines("##FrameTimes",
+        frame_deltas_.data(), int(frame_deltas_.size()), frame_offset_,
+        nullptr, 0.f, upper_frametime_limit_, ImGui::GetContentRegionAvail());
+
+    ImGui::OpenPopupOnItemClick("FrameGraph Settings");
+    if (ImGui::BeginPopup("FrameGraph Settings")) {
+        ImGui::DragInt("Num Frames", &num_frames_plotted_, 1.f, 1, 1200);
+        ImGui::DragFloat("Max Frame Time, ms", &upper_frametime_limit_, 1.f, 0.1f, 200.f);
+        ImGui::EndPopup();
+    }
 }
 
 

@@ -2,6 +2,7 @@
 #include "AssetImporter.hpp"
 #include "AssetUnpacker.hpp"
 #include "AssetManager.hpp"
+#include "Common.hpp"
 #include "ECS.hpp"
 #include "ImGuiAssetBrowser.hpp"
 #include "ImGuiContextWrapper.hpp"
@@ -16,9 +17,9 @@
 #include "ImGuizmoGizmos.hpp"
 #include "ResourceDatabase.hpp"
 #include "ResourceUnpacker.hpp"
+#include "TaskCounterGuard.hpp"
 #include <sstream>
 #include <string>
-#include <entt/fwd.hpp>
 
 
 namespace glfw { class Window; }
@@ -54,6 +55,7 @@ public:
     bool show_demo_window     = false; // For debugging.
     bool show_asset_manager   = false; // For debugging.
     bool show_resource_viewer = false;
+    bool show_frame_graph     = false;
 
     float background_alpha{ 0.8f };
 
@@ -67,6 +69,7 @@ public:
         ResourceDatabase&  resource_database,
         AssetImporter&     asset_importer,
         ResourceUnpacker&  resource_unpacker,
+        TaskCounterGuard&  task_counter,
         VirtualFilesystem& vfs);
 
 
@@ -103,6 +106,7 @@ private:
     ResourceDatabase&  resource_database_;
     AssetImporter&     asset_importer_;
     ResourceUnpacker&  resource_unpacker_;
+    TaskCounterGuard&  task_counter_;
     VirtualFilesystem& vfs_;
 
     ImGuiContextWrapper context_;
@@ -138,6 +142,13 @@ private:
 
     void draw_widgets();
     void reset_dockspace(unsigned int dockspace_id);
+
+    // FrameGraph widget state. TODO: Move elsewhere?
+    int           num_frames_plotted_ = 300;
+    int           frame_offset_{};
+    float         upper_frametime_limit_ = 33.f;
+    Vector<float> frame_deltas_;
+    void display_frame_graph();
 
 };
 

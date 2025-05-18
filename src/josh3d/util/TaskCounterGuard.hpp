@@ -42,6 +42,14 @@ public:
         return count_.load(std::memory_order_acquire) != 0;
     }
 
+    // Returns the number of tasks in flight at the point of the query.
+    // WARN: Subject to TOCTOU and should be only used as a hint.
+    auto hint_num_tasks_in_flight() const noexcept
+        -> size_t
+    {
+        return count_.load(std::memory_order_acquire);
+    }
+
     // Returns an RAII enabled guard that automatically increments/decrements the task counter.
     // Must be obtained on the same thread that would destroy the TaskCounterGuard,
     // before the operation is scheduled on another thread.

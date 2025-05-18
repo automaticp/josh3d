@@ -217,6 +217,7 @@ DemoScene::DemoScene(glfw::Window& window)
         resource_database_,
         asset_importer_,
         resource_unpacker_,
+        async_cradle_.task_counter,
         vfs()
     )
 {
