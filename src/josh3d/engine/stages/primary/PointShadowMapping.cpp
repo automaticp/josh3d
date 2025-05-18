@@ -2,14 +2,17 @@
 #include "GLAPIBinding.hpp"
 #include "GLProgram.hpp"
 #include "GLTextures.hpp"
+#include "MeshRegistry.hpp"
+#include "MeshStorage.hpp"
+#include "StaticMesh.hpp"
 #include "UniformTraits.hpp" // IWYU pragma: keep (traits)
 #include "BoundingSphere.hpp"
+#include "VertexStatic.hpp"
 #include "tags/ShadowCasting.hpp"
 #include "tags/AlphaTested.hpp"
 #include "Materials.hpp"
 #include "Transform.hpp"
 #include "LightCasters.hpp"
-#include "Mesh.hpp"
 #include "tags/Visible.hpp"
 #include "ECS.hpp"
 #include <glbinding/gl/bitfield.h>
@@ -92,6 +95,7 @@ void PointShadowMapping::map_point_shadows(
     RenderEnginePrimaryInterface& engine)
 {
     const auto& registry = engine.registry();
+    const auto& mesh_registry = engine.meshes();
     auto& maps = product_->maps;
 
 
@@ -159,7 +163,7 @@ void PointShadowMapping::map_point_shadows(
             auto [_, plight, mtf, sphere] : plights_with_shadows_view.each())
         {
             set_per_light_uniforms(sp, mtf.decompose_position(), cubemap_id, z_near, sphere.radius);
-            draw_all_world_geometry_with_alpha_test(bound_program, bound_fbo, registry);
+            draw_all_world_geometry_with_alpha_test(bound_program, bound_fbo, mesh_registry, registry);
 
             ++cubemap_id;
         }
@@ -174,7 +178,7 @@ void PointShadowMapping::map_point_shadows(
             auto [_, plight, mtf, sphere] : plights_with_shadows_view.each())
         {
             set_per_light_uniforms(sp, mtf.decompose_position(), cubemap_id, z_near, sphere.radius);
-            draw_all_world_geometry_no_alpha_test(bound_program, bound_fbo, registry);
+            draw_all_world_geometry_no_alpha_test(bound_program, bound_fbo, mesh_registry, registry);
 
             ++cubemap_id;
         }
@@ -188,18 +192,25 @@ void PointShadowMapping::map_point_shadows(
 
 
 void PointShadowMapping::draw_all_world_geometry_no_alpha_test(
-    BindToken<Binding::Program>         bound_program,
+    BindToken<Binding::Program>         bound_sp,
     BindToken<Binding::DrawFramebuffer> bound_fbo,
-    const entt::registry&               registry)
+    const MeshRegistry&                 mesh_registry,
+    const Registry&                     registry)
 {
     // Assumes that projection and view are already set.
 
+    const auto* storage = mesh_registry.storage_for<VertexStatic>();
+    if (not storage) return;
+
+    BindGuard bound_vao = storage->vertex_array().bind();
+
+    // TODO: Could easily multidraw this.
     auto draw_from_view = [&](auto view) {
         const RawProgram<> sp = sp_no_alpha_;
         const Location model_loc = sp.get_uniform_location("model");
         for (auto [entity, world_mtf, mesh] : view.each()) {
             sp.uniform(model_loc, world_mtf.model());
-            mesh.draw(bound_program, bound_fbo);
+            draw_one_from_storage(*storage, bound_vao, bound_sp, bound_fbo, mesh.lods.cur());
         }
     };
 
@@ -208,25 +219,29 @@ void PointShadowMapping::draw_all_world_geometry_no_alpha_test(
     //
     // Both ignore Alpha-Testing.
 
-    draw_from_view(registry.view<MTransform, Mesh>(entt::exclude<AlphaTested>));
-    draw_from_view(registry.view<MTransform, Mesh, AlphaTested>(entt::exclude<MaterialDiffuse>));
+    draw_from_view(registry.view<MTransform, StaticMesh>(entt::exclude<AlphaTested>));
+    draw_from_view(registry.view<MTransform, StaticMesh, AlphaTested>(entt::exclude<MaterialDiffuse>));
 
 }
 
 
 void PointShadowMapping::draw_all_world_geometry_with_alpha_test(
-    BindToken<Binding::Program>         bound_program,
+    BindToken<Binding::Program>         bound_sp,
     BindToken<Binding::DrawFramebuffer> bound_fbo,
-    const entt::registry&               registry)
+    const MeshRegistry&                 mesh_registry,
+    const Registry&                     registry)
 {
     // Assumes that projection and view are already set.
+    const auto* storage = mesh_registry.storage_for<VertexStatic>();
+    if (not storage) return;
+
+    BindGuard bound_vao = storage->vertex_array().bind();
+
     const RawProgram<> sp = sp_with_alpha_;
 
     sp.uniform("material.diffuse", 0);
 
-    auto meshes_with_alpha_view =
-        registry.view<MTransform, Mesh, MaterialDiffuse, AlphaTested>();
-
+    auto meshes_with_alpha_view = registry.view<MTransform, StaticMesh, MaterialDiffuse, AlphaTested>();
 
     const Location model_loc = sp.get_uniform_location("model");
     for (auto [entity, world_mtf, mesh, diffuse]
@@ -234,7 +249,7 @@ void PointShadowMapping::draw_all_world_geometry_with_alpha_test(
     {
         diffuse.texture->bind_to_texture_unit(0);
         sp.uniform(model_loc, world_mtf.model());
-        mesh.draw(bound_program, bound_fbo);
+        draw_one_from_storage(*storage, bound_vao, bound_sp, bound_fbo, mesh.lods.cur());
     }
 
 }

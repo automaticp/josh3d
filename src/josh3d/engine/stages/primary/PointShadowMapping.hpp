@@ -1,6 +1,8 @@
 #pragma once
+#include "ECS.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLTextures.hpp"
+#include "MeshRegistry.hpp"
 #include "RenderEngine.hpp"
 #include "RenderTarget.hpp"
 #include "ShaderPool.hpp"
@@ -59,17 +61,20 @@ private:
     void map_point_shadows(RenderEnginePrimaryInterface& engine);
 
     void resize_cubemap_array_storage_if_needed(
-        const entt::registry& registry);
+        const Registry& registry);
 
     void draw_all_world_geometry_with_alpha_test(
-        BindToken<Binding::Program>         bound_program,
+        BindToken<Binding::Program>         bound_sp,
         BindToken<Binding::DrawFramebuffer> bound_fbo,
-        const entt::registry&               registry);
+        const MeshRegistry&                 mesh_registry,
+        const Registry&                     registry);
 
     void draw_all_world_geometry_no_alpha_test(
-        BindToken<Binding::Program>         bound_program,
+        BindToken<Binding::Program>         bound_sp,
         BindToken<Binding::DrawFramebuffer> bound_fbo,
-        const entt::registry&               registry);
+        const MeshRegistry&                 mesh_registry,
+        const Registry&                     registry);
+
 
 };
 
