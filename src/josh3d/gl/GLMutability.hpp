@@ -143,7 +143,8 @@ template<typename RawH>
 struct mutability_traits;
 
 
-template<template<typename...> typename RawTemplate, mutability_tag MutT, typename ...OtherTs>
+template<template<typename...> typename RawTemplate, typename MutT, typename ...OtherTs>
+    requires mutability_tag<MutT>
 struct mutability_traits<RawTemplate<MutT, OtherTs...>> {
     using mutability                 = MutT;
     using opposite_mutability        = MutT::opposite_mutability;
@@ -159,7 +160,7 @@ struct mutability_traits<RawTemplate<MutT, OtherTs...>> {
 
 template<typename RawH>
 concept specifies_mutability = requires {
-    sizeof(mutability_traits<RawH>);
+    requires (sizeof(mutability_traits<RawH>) != 0);
 };
 
 

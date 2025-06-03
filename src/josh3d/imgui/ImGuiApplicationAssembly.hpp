@@ -2,6 +2,7 @@
 #include "AssetImporter.hpp"
 #include "AssetUnpacker.hpp"
 #include "AssetManager.hpp"
+#include "AsyncCradle.hpp"
 #include "Common.hpp"
 #include "ECS.hpp"
 #include "ImGuiAssetBrowser.hpp"
@@ -70,6 +71,7 @@ public:
         AssetImporter&     asset_importer,
         ResourceUnpacker&  resource_unpacker,
         TaskCounterGuard&  task_counter,
+        AsyncCradleRef     async_cradle,
         VirtualFilesystem& vfs);
 
 
@@ -107,6 +109,7 @@ private:
     AssetImporter&     asset_importer_;
     ResourceUnpacker&  resource_unpacker_;
     TaskCounterGuard&  task_counter_;
+    AsyncCradleRef     async_cradle;
     VirtualFilesystem& vfs_;
 
     ImGuiContextWrapper context_;

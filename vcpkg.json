@@ -21,6 +21,7 @@
         "glm",
         "libspng",
         "stb",
+        "cgltf",
         "assimp",
         "range-v3",
         "ctre",

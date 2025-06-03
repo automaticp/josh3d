@@ -1,165 +1,263 @@
-#include "AssimpCommon.hpp"
+#include "SimpleThroughporters.hpp"
 #include "Asset.hpp"
-#include "AssetImporter.hpp"
+#include "AsyncCradle.hpp"
 #include "Common.hpp"
 #include "ContainerUtils.hpp"
-#include "Filesystem.hpp"
-#include "Ranges.hpp"
-#include "ResourceFiles.hpp"
-#include <assimp/camera.h>
-#include <assimp/light.h>
+#include "CoroCore.hpp"
+#include "GLAPIBinding.hpp"
+#include "GLBuffers.hpp"
+#include "GLObjectHelpers.hpp"
+#include "GLObjects.hpp"
+#include "GLPixelPackTraits.hpp"
+#include "GLTextures.hpp"
+#include "Logging.hpp"
+#include "MeshRegistry.hpp"
+#include "MeshStorage.hpp"
+#include "Scalars.hpp"
+#include "SkeletalAnimation.hpp"
+#include "Skeleton.hpp"
+#include "TextureHelpers.hpp"
+#include "VertexSkinned.hpp"
+#include "VertexStatic.hpp"
+#include "detail/AssimpCommon.hpp"
+#include "detail/AssimpSceneRepr.hpp"
+#include <assimp/Importer.hpp>
+#include <assimp/anim.h>
+#include <assimp/importerdesc.h>
 #include <assimp/material.h>
-#include <assimp/scene.h>
 #include <assimp/mesh.h>
 #include <assimp/postprocess.h>
+#include <assimp/scene.h>
 #include <assimp/BaseImporter.h>
-#include <assimp/Importer.hpp>
-#include <jsoncons/json.hpp>
-#include <fmt/format.h>
-#include <fmt/std.h>
+#include <boost/container_hash/hash.hpp>
+#include <range/v3/numeric/accumulate.hpp>
+#include <iterator>
 
 
-namespace josh::detail {
+namespace josh {
 namespace {
 
+using namespace detail;
+using asr = AssimpSceneRepr;
 
-void populate_scene_nodes_preorder(
-    jsoncons::json&                              array,
-    const aiScene*                               ai_scene,
-    const aiNode*                                node,
-    HashMap<const aiNode*, size_t>&              node2sceneid,
-    std::unordered_multimap<size_t, size_t>&     meshid2sceneids,
-    const HashMap<const aiNode*, const aiBone*>& node2bone)
+auto image_intent_internal_format(ImageIntent intent, size_t num_channels)
+    -> InternalFormat
 {
-    if (!node) return;
-
-    // We do not populate the actual entry data as each node does not
-    // directly reference the type of entity it represents.
-    //
-    // Instead, we do only the following:
-    //
-    //  - Populate each node with scene graph information: "parent", "transform" and "name".
-    //    We skip the bone nodes here though, as we have no way to deal with it.
-    //
-    //  - Build a map from node ptr to an index in the `array`, so that later
-    //    processing can reference the right array element from the node ptr
-    //    and emplace there the relevant components.
-    //
-    //  - Populate a map from each mesh to a set of nodes that reference it.
-    //
-
-    // If bone, stop traversal here. Skeleton joints aren't part of the scene graph in our model.
-    // NOTE: We miss out on the information about nodes attached to joints, but since
-    // we have no way of representing that either, it's no big deal so far.
-    if (node2bone.contains(node)) return;
-
-
-    assert(array.is_array());
-    const size_t primary_scene_id = array.size(); // Not accounting for multimesh leaves.
-    array.emplace_back();
-
-    auto [it, was_emplaced] = node2sceneid.emplace(node, primary_scene_id);
-    assert(was_emplaced);
-
-    auto transform_as_json = [](const Transform& tf) {
-        jsoncons::json j;
-        const vec3& pos = tf.position();
-        const quat& rot = tf.orientation();
-        const vec3& sca = tf.scaling();
-        j["position"] = jsoncons::json(jsoncons::json_array_arg, { pos.x, pos.y, pos.z });
-        j["rotation"] = jsoncons::json(jsoncons::json_array_arg, { rot.x, rot.y, rot.z, rot.w });
-        j["scaling"]  = jsoncons::json(jsoncons::json_array_arg, { sca.x, sca.y, sca.z });
-        return j;
-    };
-
-    auto populate_array_entry = [&](
-        jsoncons::json&  j,
-        const Transform& tf,
-        StrView          name,
-        const size_t*    parent_id)
+    switch (intent)
     {
-        j["transform"] = transform_as_json(tf);
-        if (name.size()) {
-            j["name"] = name;
-        }
-        if (parent_id) {
-            j["parent"] = *parent_id;
-        }
-    };
-
-    // Populate the primary scene node.
-    populate_array_entry(
-        array[primary_scene_id],
-        m2tf(node->mTransformation),
-        s2sv(node->mName),
-        // `node2sceneid` is populated in pre-order, so we should always find our parent there.
-        try_find_value(node2sceneid, node->mParent)
-    );
-
-    if (node->mNumMeshes) {
-        if (node->mNumMeshes == 1) {
-
-            // If a node contains only a single mesh then it is directly associated with it.
-            const auto mesh_id = node->mMeshes[0];
-            meshid2sceneids.emplace(mesh_id, primary_scene_id);
-
-        } else /* num_meshes > 1 */ {
-
-            // If there are more than one mesh per node, then we create additional
-            // child leaf nodes in our representation of the scene to accomodate that.
-            for (const auto [i, mesh_id] : enumerate(make_span(node->mMeshes, node->mNumMeshes))) {
-                const size_t leaf_scene_id = array.size();
-                array.emplace_back();
-                meshid2sceneids.emplace(mesh_id, leaf_scene_id);
-
-                populate_array_entry(
-                    array[leaf_scene_id],
-                    Transform(),                             // Identity transform.
-                    s2sv(ai_scene->mMeshes[mesh_id]->mName), // Get name from the mesh.
-                    &primary_scene_id                        // Always has a parent node.
-                );
+        case ImageIntent::Albedo:
+            switch (num_channels)
+            {
+                case 3: return InternalFormat::SRGB8;
+                case 4: return InternalFormat::SRGBA8;
             }
-
-        }
+        default:
+            switch (num_channels)
+            {
+                case 1: return InternalFormat::R8;
+                case 2: return InternalFormat::RG8;
+                case 3: return InternalFormat::RGB8;
+                case 4: return InternalFormat::RGBA8;
+            }
     }
-
-
-    for (const aiNode* child : make_span(node->mChildren, node->mNumChildren)) {
-        populate_scene_nodes_preorder(array, ai_scene, child, node2sceneid, meshid2sceneids, node2bone);
-    }
+    throw_fmt<error::AssetLoadingError>("No InternalFormat for ImageIntent {} and {} channels.", enum_string(intent), num_channels);
 }
 
-
-auto image_intent_colorspace(ImageIntent intent)
-    -> TextureFile::Colorspace
+auto pixel_data_format(size_t num_channels)
+    -> PixelDataFormat
 {
-    switch (intent) {
-        using enum TextureFile::Colorspace;
-        case ImageIntent::Albedo:
-            return sRGB;
-        case ImageIntent::Specular:
-        case ImageIntent::Normal:
-        case ImageIntent::Alpha:
-        case ImageIntent::Heightmap:
-        case ImageIntent::Unknown:
-            return Linear;
-        default:
-            assert(false);
-            return Linear;
+    switch (num_channels)
+    {
+        case 1: return PixelDataFormat::Red;
+        case 2: return PixelDataFormat::RG;
+        case 3: return PixelDataFormat::RGB;
+        case 4: return PixelDataFormat::RGBA;
     }
+    throw_fmt<error::AssetLoadingError>("No PixelDataFormat for {} channels.", num_channels);
+}
+
+auto load_texture(
+    Path           path,
+    ImageIntent    intent,
+    bool           generate_mips,
+    AsyncCradleRef async_cradle)
+        -> Job<UniqueTexture2D>
+{
+    co_await reschedule_to(async_cradle.loading_pool);
+
+    const auto [min, max] = image_intent_minmax_channels(intent);
+    ImageData<ubyte> image_data = load_image_data_from_file<ubyte>(File(path), min, max);
+
+    co_await reschedule_to(async_cradle.offscreen_context);
+
+    UniqueTexture2D texture;
+    const Extent2I        resolution0 = Extent2I(image_data.resolution());
+    const NumLevels       num_levels  = generate_mips ? max_num_levels(resolution0) : NumLevels(1);
+    const InternalFormat  iformat     = image_intent_internal_format(intent, image_data.num_channels());
+    const PixelDataFormat pdformat    = pixel_data_format(image_data.num_channels());
+    const PixelDataType   pdtype      = PixelDataType::UByte;
+    texture->allocate_storage(resolution0, iformat, num_levels);
+    texture->upload_image_region({ {}, resolution0 }, pdformat, pdtype, image_data.data());
+    if (generate_mips) texture->generate_mipmaps();
+    texture->set_sampler_min_mag_filters(MinFilter::LinearMipmapLinear, MagFilter::Linear);
+
+    co_await async_cradle.completion_context.until_ready_on(async_cradle.offscreen_context, create_fence());
+    co_return texture;
+}
+
+enum class VertexType
+{
+    Static,
+    Skinned,
+};
+
+struct Mesh
+{
+    VertexType vertex_type;
+    MeshID<>   mesh_id;
+};
+
+template<typename VertexT>
+[[nodiscard]]
+auto upload_mesh(
+    Span<VertexT>         verts_data,
+    Span<u32>             elems_data,
+    MeshStorage<VertexT>& mesh_storage,
+    AsyncCradleRef        async)
+        -> Job<MeshID<VertexT>>
+{
+    co_await reschedule_to(async.offscreen_context);
+
+    const StoragePolicies policies = {
+        .mode        = StorageMode::StaticServer,
+        .mapping     = PermittedMapping::NoMapping,
+        .persistence = PermittedPersistence::NotPersistent,
+    };
+    UniqueBuffer<VertexT> verts_staging = specify_buffer(to_span(verts_data), policies);
+    UniqueBuffer<u32>     elems_staging = specify_buffer(to_span(elems_data), policies);
+
+    co_await async.completion_context.until_ready_on(async.local_context, create_fence());
+
+    make_available<Binding::ArrayBuffer>       (verts_staging->id());
+    make_available<Binding::ElementArrayBuffer>(elems_staging->id());
+
+    const MeshID<VertexT> mesh_id = mesh_storage.insert_buffer(verts_staging, elems_staging);
+
+    co_return mesh_id;
+}
+
+[[nodiscard]]
+auto load_static_mesh(
+    const asr::Mesh&           mesh,
+    MeshStorage<VertexStatic>& storage,
+    AsyncCradleRef             async)
+        -> Job<Mesh>
+{
+    co_await reschedule_to(async.loading_pool);
+
+    Vector<VertexStatic> verts_data = pack_static_mesh_verts(mesh.ptr);
+    Vector<u32>          elems_data = pack_mesh_elems(mesh.ptr);
+
+    const MeshID<VertexStatic> mesh_id =
+        co_await upload_mesh(to_span(verts_data), to_span(elems_data), storage, async);
+
+    co_return Mesh{ VertexType::Static, mesh_id };
+}
+
+[[nodiscard]]
+auto load_skinned_mesh(
+    const asr::Mesh&            mesh,
+    MeshStorage<VertexSkinned>& storage,
+    AsyncCradleRef              async)
+        -> Job<Mesh>
+{
+    co_await reschedule_to(async.loading_pool);
+
+    Vector<VertexSkinned> verts_data = pack_skinned_mesh_verts(mesh.ptr, mesh.boneid2jointid);
+    Vector<u32>           elems_data = pack_mesh_elems(mesh.ptr);
+
+    const MeshID<VertexSkinned> mesh_id =
+        co_await upload_mesh(to_span(verts_data), to_span(elems_data), storage, async);
+
+    co_return Mesh{ VertexType::Skinned, mesh_id };
+}
+
+[[nodiscard]]
+auto load_skeleton(
+    const asr::Armature& armature,
+    AsyncCradleRef       async)
+        -> Job<Skeleton>
+{
+    co_await reschedule_to(async.loading_pool);
+
+    auto j2j = [](const asr::Joint& j) -> Joint
+    {
+        return { .inv_bind=j.inv_bind, .parent_id=j.parent_idx };
+    };
+
+    co_return Skeleton{
+        .joints = armature.joints | transform(j2j) | ranges::to<Vector<Joint>>(),
+    };
+}
+
+[[nodiscard]]
+auto load_anim(
+    const asr::Animation&  anim,
+    const AssimpSceneRepr& scene,
+    AsyncCradleRef         async)
+        -> Job<AnimationClip>
+{
+    co_await reschedule_to(async.loading_pool);
+
+    const asr::Armature& armature = scene.registry.get<asr::Armature>(anim.armature_id);
+    const auto           ai_joint_motions = make_span(anim->mChannels, anim->mNumChannels);
+
+    const double tps        = (anim->mTicksPerSecond != 0) ? anim->mTicksPerSecond : 30.0;
+    const double duration_s = anim->mDuration / tps;
+
+    Vector<AnimationClip::JointKeyframes> joint_keyframes(ai_joint_motions.size());
+
+    for (const aiNodeAnim* ai_joint_motion : ai_joint_motions)
+    {
+        // Lookup by name again, bleugh.
+        const asr::NodeID nodeid  = scene.name2nodeid.at(s2sv(ai_joint_motion->mNodeName));
+        const u32         jointid = armature.nodeid2jointid.at(nodeid);
+
+        auto& keyframes = joint_keyframes[jointid];
+
+        // It is guaranteed by assimp that times are monotonically *increasing*.
+        const auto ai_pos_keys = make_span(ai_joint_motion->mPositionKeys, ai_joint_motion->mNumPositionKeys);
+        const auto ai_rot_keys = make_span(ai_joint_motion->mRotationKeys, ai_joint_motion->mNumRotationKeys);
+        const auto ai_sca_keys = make_span(ai_joint_motion->mScalingKeys,  ai_joint_motion->mNumScalingKeys );
+
+        const auto to_vec3_key = [&tps](const aiVectorKey& vk) -> AnimationClip::Key<vec3> { return { float(vk.mTime / tps), v2v(vk.mValue) }; };
+        const auto to_quat_key = [&tps](const aiQuatKey&   qk) -> AnimationClip::Key<quat> { return { float(qk.mTime / tps), q2q(qk.mValue) }; };
+
+        std::ranges::copy(ai_pos_keys | transform(to_vec3_key), std::back_inserter(keyframes.t));
+        std::ranges::copy(ai_rot_keys | transform(to_quat_key), std::back_inserter(keyframes.r));
+        std::ranges::copy(ai_sca_keys | transform(to_vec3_key), std::back_inserter(keyframes.s));
+    }
+
+    co_return AnimationClip{
+        .duration  = duration_s,
+        .keyframes = MOVE(joint_keyframes),
+        .skeleton  = nullptr, // FIXME: Uhh, well we probably shouldn't reference things like this.
+    };
 }
 
 
 } // namespace
 
 
-auto import_scene_async(
-    AssetImporterContext context,
-    Path                 path,
-    ImportSceneParams    params)
-        -> Job<UUID>
+auto throughport_scene(
+    Path                   path,
+    Handle                 dst_handle,
+    AssimpThroughportParams params,
+    AsyncCradleRef         async,
+    MeshRegistry&          mesh_registry)
+        -> Job<>
 {
-    co_await reschedule_to(context.thread_pool());
+    co_await reschedule_to(async.loading_pool);
 
     const Path parent_dir = path.parent_path(); // Reused in a few places.
 
@@ -187,7 +285,92 @@ auto import_scene_async(
 
     const aiScene* ai_scene = ai_importer.ReadFile(path, flags);
 
-    if (!ai_scene) { throw error::AssetFileImportFailure(path, ai_importer.GetErrorString()); }
+    // Yeah, this is dumb. I don't know a of better way.
+    // Why is there no GetLastExtension() or similar?
+    const bool is_obj = (path.extension() == ".obj");
+    const bool height_as_normals = is_obj;
+
+    if (!ai_scene) throw AssetFileImportFailure(path, ai_importer.GetErrorString());
+
+    auto alloc = asr::allocator<>();
+    auto scene = AssimpSceneRepr::from_scene(*ai_scene, alloc);
+    auto& registry = scene.registry;
+
+    logstream() << "Repr Contents:\n";
+    for (const asr::Mesh& mesh : registry.storage<asr::Mesh>())
+        logstream() << "Mesh: " << mesh->mName.C_Str() << "\n";
+    for (const asr::Armature& armature : registry.storage<asr::Armature>())
+        logstream() << "Armature: " << armature.name << "\n";
+    for (const asr::Animation& anim : registry.storage<asr::Animation>())
+        logstream() << "Anim: " << anim->mName.C_Str() << "\n";
+    for (const asr::Texture& tex : registry.storage<asr::Texture>())
+        logstream() << "Texture: " << tex.path << "\n";
+
+    logstream() << "Scene Graph:\n";
+    for (const asr::Node& node : registry.storage<asr::Node>())
+    {
+        for (const auto _ : irange(node.depth))
+            logstream() << "  ";
+
+        logstream() << node->mName.C_Str() << "\n";
+    }
+
+    // Textures.
+    // Start loading textures first since they'd take the longest to complete.
+
+    auto mattexture_jobs = Vector<Job<UniqueTexture2D>>();
+    mattexture_jobs.reserve(registry.storage<asr::MatTexture>().size());
+
+    for (const auto [mattexture_id, mattexture] : registry.view<asr::MatTexture>().each())
+    {
+        const auto& texture = registry.get<asr::Texture>(mattexture.texture_id);
+        if (texture.embedded) throw AssetContentsParsingError("TODO: Embedded textures are not supported.");
+        const ImageIntent intent = ai_texture_type_to_image_intent(mattexture.type, height_as_normals);
+        mattexture_jobs.emplace_back(load_texture(parent_dir / texture.path, intent, params.generate_mips, async));
+    }
+
+    // Meshes.
+    // No LODs are supported here.
+
+    auto mesh_jobs = Vector<Job<Mesh>>();
+    mesh_jobs.reserve(registry.storage<asr::Mesh>().size());
+
+    auto load_mesh = [&](const asr::Mesh& mesh)
+    {
+        if (mesh->HasBones()) return load_skinned_mesh(mesh, *mesh_registry.storage_for<VertexSkinned>(), async);
+        else                  return load_static_mesh(mesh, *mesh_registry.storage_for<VertexStatic>(), async);
+    };
+
+    for (const auto [mesh_id, mesh] : registry.view<asr::Mesh>().each())
+        mesh_jobs.emplace_back(load_mesh(mesh));
+
+    // Skeletons.
+    // TODO: We still have no skeleton/animation pool.
+
+    auto skeleton_jobs = Vector<Job<Skeleton>>();
+    skeleton_jobs.reserve(registry.storage<asr::Armature>().size());
+
+    // TODO: Uhh, instancing probably does not work... Try?
+
+    for (const asr::Armature& armature : registry.storage<asr::Armature>())
+        skeleton_jobs.emplace_back(load_skeleton(armature, async));
+
+    // Animations.
+    // TODO: Currently nowhere to store them. But we'll do them for completeness.
+
+    auto anim_jobs = Vector<Job<AnimationClip>>();
+    anim_jobs.reserve(registry.storage<asr::Animation>().size());
+
+    for (const asr::Animation& anim : registry.storage<asr::Animation>())
+        anim_jobs.emplace_back(load_anim(anim, scene, async));
+
+
+
+    auto get_result     = transform([](auto&& job) { return job.get_result(); });
+    auto extract_result = transform([](auto&& job) { return MOVE(job).get_result(); });
+
+
+#if 0
 
     const auto ai_meshes    = make_span(ai_scene->mMeshes,     ai_scene->mNumMeshes   ); // Order: Meshes.
     const auto ai_materials = make_span(ai_scene->mMaterials,  ai_scene->mNumMaterials); // Order: Materials.
@@ -248,8 +431,8 @@ auto import_scene_async(
     // We'll submit jobs for them and then move on to loading other stuff.
     const size_t num_textures = path2texinfo.size();
 
-    Vector<Job<UUID>>       texture_jobs;
-    Vector<TextureJobIndex> texid2jobid;
+    std::vector<Job<UniqueTexture2D>> texture_jobs;
+    Vector<TextureJobIndex>           texid2jobid;
     texid2jobid .resize (num_textures);
     texture_jobs.reserve(num_textures);
 
@@ -257,13 +440,7 @@ auto import_scene_async(
         const auto& [path, tex_info] = item;
         texid2jobid[tex_info.id] = texture_jobs.size();
 
-        const ImportTextureParams tex_params{
-            .encoding       = params.texture_encoding,
-            .colorspace     = image_intent_colorspace(tex_info.intent),
-            .generate_mips  = params.generate_mips,
-        };
-
-        texture_jobs.emplace_back(context.importer().import_asset(path, tex_params));
+        texture_jobs.emplace_back(load_texture(path, tex_info.intent, params.generate_mips, async_cradle));
     }
 
 
@@ -395,7 +572,7 @@ auto import_scene_async(
     co_await reschedule_to(context.thread_pool());
 
 
-    Vector<UUID> texture_uuids = texture_jobs | transform(get_job_result) | ranges::to<Vector>();
+    // Vector<UUID> texture_uuids = texture_jobs | transform(get_job_result) | ranges::to<Vector>();
 
 
     // Material files just bundle together multiple textures plus
@@ -596,7 +773,10 @@ auto import_scene_async(
     // Use remove_resource_later()?
 
     co_return uuid;
+#endif
+
+    co_return;
 }
 
 
-} // namespace josh::detail
+} // namespace josh

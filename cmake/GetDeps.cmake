@@ -133,6 +133,17 @@ target_link_libraries(stb_implementation PRIVATE stb::stb)
 target_link_libraries(stb::stb INTERFACE stb_implementation)
 
 
+# === cgltf ===
+# cgltf::cgltf
+find_path(CGLTF_INCLUDE_DIR "cgltf.h" REQUIRED)
+add_library(cgltf::cgltf IMPORTED INTERFACE)
+target_include_directories(cgltf::cgltf INTERFACE ${CGLTF_INCLUDE_DIR})
+
+add_library(cgltf_implementation STATIC ${CMAKE_SOURCE_DIR}/external/cgltf_implementation.c)
+target_link_libraries(cgltf_implementation PRIVATE cgltf::cgltf)
+target_link_libraries(cgltf::cgltf INTERFACE cgltf_implementation)
+
+
 # === nlohmann-json ===
 # nlohmann_json::nlohmann_json
 find_package(nlohmann_json CONFIG REQUIRED)

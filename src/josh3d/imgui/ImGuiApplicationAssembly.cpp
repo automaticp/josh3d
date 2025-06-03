@@ -3,6 +3,7 @@
 #include "Asset.hpp"
 #include "AssetImporter.hpp"
 #include "AssetManager.hpp"
+#include "AsyncCradle.hpp"
 #include "CategoryCasts.hpp"
 #include "ContainerUtils.hpp"
 #include "FrameTimer.hpp"
@@ -50,6 +51,7 @@ ImGuiApplicationAssembly::ImGuiApplicationAssembly(
     AssetImporter&     asset_importer,
     ResourceUnpacker&  resource_unpacker,
     TaskCounterGuard&  task_counter,
+    AsyncCradleRef     async_cradle,
     VirtualFilesystem& vfs
 )
     : window_         { window             }
@@ -61,6 +63,7 @@ ImGuiApplicationAssembly::ImGuiApplicationAssembly(
     , asset_importer_ { asset_importer     }
     , resource_unpacker_(resource_unpacker)
     , task_counter_   (task_counter)
+    , async_cradle    (async_cradle)
     , vfs_            { vfs                }
     , context_        { window             }
     , window_settings_{ window             }
@@ -68,7 +71,7 @@ ImGuiApplicationAssembly::ImGuiApplicationAssembly(
     , stage_hooks_    { engine             }
     , scene_list_     { registry, asset_manager, asset_unpacker, scene_importer }
     , asset_browser_  { asset_manager      }
-    , resource_viewer_(resource_database, asset_importer, resource_unpacker, registry, engine.mesh_registry())
+    , resource_viewer_(resource_database, asset_importer, resource_unpacker, registry, engine.mesh_registry(), async_cradle)
     , selected_menu_  { registry           }
     , gizmos_         { registry           }
 {}

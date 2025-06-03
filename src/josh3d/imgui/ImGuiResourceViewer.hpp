@@ -1,5 +1,6 @@
 #pragma once
 #include "AssetImporter.hpp"
+#include "AsyncCradle.hpp"
 #include "Common.hpp"
 #include "Resource.hpp"
 #include "ResourceDatabase.hpp"
@@ -21,6 +22,7 @@ struct ImGuiResourceViewer {
     ResourceUnpacker&   resource_unpacker;
     Registry&           registry;
     const MeshRegistry& mesh_registry;
+    AsyncCradleRef      async_cradle;
 
     void display_viewer();
 

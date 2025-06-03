@@ -4,10 +4,12 @@
 #include "Coroutines.hpp"
 #include "DefaultImporters.hpp"
 #include "Logging.hpp"
+#include "MeshRegistry.hpp"
 #include "ObjectLifecycle.hpp"
 #include "Resource.hpp"
 #include "ResourceDatabase.hpp"
 #include "ResourceFiles.hpp"
+#include "SimpleThroughporters.hpp"
 #include "UUID.hpp"
 #include <algorithm>
 #include <exception>
@@ -62,8 +64,25 @@ void ImGuiResourceViewer::display_viewer() {
         current_inspector = nullopt;
     }
 
+
     ImGui::Text("Root: %s", resource_database.root().c_str());
     ImGui::InputText("Path", &path);
+
+    ImGui::SameLine();
+    if (ImGui::Button("Throughport"))
+    {
+        try
+        {
+            throughport_scene_assimp(path, create_handle(registry), {}, async_cradle, const_cast<MeshRegistry&>(mesh_registry)).get_result();
+            last_error = {};
+        }
+        catch (const std::exception& e)
+        {
+            last_error = e.what();
+        }
+
+
+    }
 
     auto try_import_thing = [&](auto params) {
         try {

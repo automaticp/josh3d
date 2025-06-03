@@ -3,6 +3,7 @@
 #include "GLAPI.hpp"
 #include "GLScalars.hpp"
 #include "GLKind.hpp"
+#include <concepts>
 #include <glbinding/gl/functions.h>
 
 
@@ -162,8 +163,8 @@ JOSH3D_SPECIALIZE_DSA_ALLOCATOR(Sampler)
 
 template<typename RawH>
 concept supports_gl_allocator = requires {
-   requires same_as_remove_cvref<decltype(RawH::kind_type), GLKind>;
-   requires sizeof(GLAllocator<RawH::kind_type>) != 0;
+    { RawH::kind_type } -> std::convertible_to<GLKind>;
+    typename GLAllocator<RawH::kind_type>;
 };
 
 

@@ -1,6 +1,8 @@
 #pragma once
-#include "GLScalars.hpp"
 #include "EnumUtils.hpp"
+#include "GLScalars.hpp"
+#include <concepts>
+#include <type_traits>
 
 
 namespace josh::detail {

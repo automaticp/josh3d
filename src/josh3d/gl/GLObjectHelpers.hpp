@@ -10,15 +10,17 @@
 #include <glbinding/gl/types.h>
 #include <algorithm>
 #include <bit>
+#include <type_traits>
 
 
 namespace josh {
 
 
 template<typename T>
-UniqueBuffer<T> allocate_buffer(
+auto allocate_buffer(
     NumElems               num_elements,
     const StoragePolicies& policies = {}) noexcept
+        -> UniqueBuffer<std::remove_const_t<T>>
 {
     UniqueBuffer<T> buffer;
     buffer->allocate_storage(num_elements, policies);
@@ -27,11 +29,12 @@ UniqueBuffer<T> allocate_buffer(
 
 
 template<typename T>
-UniqueBuffer<T> specify_buffer(
-    std::span<const T>     src_buf,
+auto specify_buffer(
+    std::span<T>           src_buf,
     const StoragePolicies& policies = {}) noexcept
+        -> UniqueBuffer<std::remove_const_t<T>>
 {
-    UniqueBuffer<T> buffer;
+    UniqueBuffer<std::remove_const_t<T>> buffer;
     buffer->specify_storage(src_buf, policies);
     return buffer;
 }

@@ -171,6 +171,24 @@ private:
 };
 
 
+/*
+Schedule a function to run as a job on the specified executor.
+
+Note that the function arguments are forwarded without copies.
+Beware that normal functions are usually reference-hungry, and
+do not materialize its arguments. Mind the lifetimes of passed
+arguments, or wrap the function in a lambda with proper captures.
+*/
+template<typename Func, typename ...Args>
+auto launch_job_on(
+    executor auto& e,
+    Func&&         f,
+    Args&&...      args)
+        -> Job<std::invoke_result_t<Func, Args...>>
+{
+    co_await reschedule_to(e);
+    co_return FORWARD(f)(FORWARD(args)...);
+}
 
 
 /*

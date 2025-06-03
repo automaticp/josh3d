@@ -4,9 +4,11 @@
 #include "AABB.hpp"
 #include "Asset.hpp"
 #include "DefaultImporters.hpp"
+#include "Scalars.hpp"
 #include "Transform.hpp"
 #include "UUID.hpp"
 #include <assimp/aabb.h>
+#include <assimp/material.h>
 #include <assimp/matrix4x4.h>
 #include <assimp/quaternion.h>
 #include <assimp/scene.h>
@@ -28,25 +30,54 @@ using MaterialIndex   = size_t;
 using TextureJobIndex = size_t;
 
 
-struct TextureInfo {
+struct TextureInfo
+{
     TextureIndex id     = -1;
     ImageIntent  intent = ImageIntent::Unknown;
 };
 
 
-struct MaterialIDs {
+struct MaterialIDs
+{
     TextureIndex diffuse_id  = -1;
     TextureIndex specular_id = -1;
     TextureIndex normal_id   = -1;
 };
 
 
-struct MaterialUUIDs {
+struct MaterialUUIDs
+{
     UUID diffuse_uuid;
     UUID specular_uuid;
     UUID normal_uuid;
 };
 
+// TODO: Deprecate
+auto get_path_to_ai_texture(
+    const Path&       parent_dir,
+    const aiMaterial* material,
+    aiTextureType     type)
+        -> Path;
+
+// TODO: Deprecate
+auto get_ai_texture_type(const Path& path, ImageIntent intent)
+    -> aiTextureType;
+
+// NOTE: height_as_normals is needed for .obj, sadly.
+auto image_intent_to_ai_texture_type(ImageIntent intent, bool height_as_normals = false)
+    -> aiTextureType;
+
+auto ai_texture_type_to_image_intent(aiTextureType textype, bool height_as_normals = false)
+    -> ImageIntent;
+
+auto pack_mesh_elems(const aiMesh* ai_mesh)
+    -> Vector<u32>;
+
+auto pack_static_mesh_verts(const aiMesh* ai_mesh)
+    -> Vector<VertexStatic>;
+
+auto pack_skinned_mesh_verts(const aiMesh* ai_mesh, Span<const u32> boneid2jointid)
+        -> Vector<VertexSkinned>;
 
 inline auto v2v(const aiVector3D& v) noexcept
     -> vec3
@@ -54,13 +85,11 @@ inline auto v2v(const aiVector3D& v) noexcept
     return { v.x, v.y, v.z };
 }
 
-
 inline auto q2q(const aiQuaternion& q) noexcept
     -> quat
 {
     return quat::wxyz(q.w, q.x, q.y, q.z);
 }
-
 
 inline auto m2m(const aiMatrix4x4& m) noexcept
     -> mat4
@@ -73,11 +102,9 @@ inline auto m2m(const aiMatrix4x4& m) noexcept
     msrc.Transpose();
 
     mat4 mdst;
-    for (size_t i{ 0 }; i < 4; ++i) {
-        for (size_t j{ 0 }; j < 4; ++j) {
+    for (const usize i : irange(4))
+        for (const usize j : irange(4))
             mdst[int(i)][int(j)] = msrc[i][j];
-        }
-    }
 
     return mdst;
 }
@@ -93,13 +120,17 @@ inline auto m2tf(const aiMatrix4x4& m) noexcept
     return { v2v(pos), q2q(rot), v2v(sca) };
 }
 
-
 inline auto s2sv(const aiString& s) noexcept
     -> StrView
 {
     return { s.data, s.length };
 }
 
+inline auto s2s(const aiString& s)
+    -> String
+{
+    return { s.data, s.length };
+}
 
 inline auto aabb2aabb(const aiAABB& aabb) noexcept
     -> LocalAABB
@@ -107,14 +138,12 @@ inline auto aabb2aabb(const aiAABB& aabb) noexcept
     return { v2v(aabb.mMin), v2v(aabb.mMax) };
 }
 
-
 auto import_skeleton_async(
     AssetImporterContext                         context,
     const aiNode*                                armature,
     HashMap<const aiNode*, size_t>&              node2jointid,
     const HashMap<const aiNode*, const aiBone*>& node2bone)
         -> Job<UUID>;
-
 
 auto import_anim_async(
     AssetImporterContext                  context,
@@ -124,12 +153,10 @@ auto import_anim_async(
     const HashMap<const aiNode*, size_t>& node2jointid)
         -> Job<UUID>;
 
-
 auto import_static_mesh_async(
     AssetImporterContext context,
     const aiMesh*        ai_mesh)
         -> Job<UUID>;
-
 
 auto import_skinned_mesh_async(
     AssetImporterContext                  context,

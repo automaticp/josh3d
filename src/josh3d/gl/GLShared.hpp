@@ -21,12 +21,13 @@ struct RefCount {
 } // namespace detail
 
 
-template<supports_gl_allocator RawHandleT>
+template<typename RawHandleT>
 class GLShared
     : private GLAllocator<RawHandleT::kind_type>
     , public  josh::detail::target_type_if_specified<RawHandleT>
 {
 public:
+    static_assert(supports_gl_allocator<RawHandleT>);
     using                   handle_type    = RawHandleT;
     static constexpr GLKind kind_type      = handle_type::kind_type;
     using                   allocator_type = GLAllocator<kind_type>;
@@ -40,7 +41,7 @@ private:
     using mutable_type    = mt::mutable_type;
     using opposite_type   = mt::opposite_type;
 
-    template<supports_gl_allocator T> friend class GLShared;
+    template<typename T> friend class GLShared;
 
     // The state of the GLShared consists of two components:
     // 1. Integer ID stored in the `handle_type` base class;

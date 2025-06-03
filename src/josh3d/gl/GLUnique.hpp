@@ -10,17 +10,18 @@
 namespace josh {
 
 
-template<supports_gl_allocator RawHandleT>
+template<typename RawHandleT>
 class GLShared;
 
 
 
-template<supports_gl_allocator RawHandleT>
+template<typename RawHandleT>
 class GLUnique
     : private GLAllocator<RawHandleT::kind_type>
     , public  josh::detail::target_type_if_specified<RawHandleT>
 {
 public:
+    static_assert(supports_gl_allocator<RawHandleT>);
     using                   handle_type    = RawHandleT;
     static constexpr GLKind kind_type      = handle_type::kind_type;
     using                   allocator_type = GLAllocator<kind_type>;
@@ -34,8 +35,8 @@ private:
     using mutable_type    = mt::mutable_type;
     using opposite_type   = mt::opposite_type;
 
-    template<supports_gl_allocator T> friend class GLUnique; // For conversion through the underlying handle.
-    template<supports_gl_allocator T> friend class GLShared; // For sharing conversion since there's no release().
+    template<typename T> friend class GLUnique; // For conversion through the underlying handle.
+    template<typename T> friend class GLShared; // For sharing conversion since there's no release().
 
 public:
     GLUnique()
@@ -122,7 +123,8 @@ namespace josh {
 
 // Override the mutabililty_traits for specializations of GLUnique so that the mutability
 // is inferred from the underlying Raw handle.
-template<template<typename...> typename RawTemplate, mutability_tag MutT, typename ...OtherTs>
+template<template<typename...> typename RawTemplate, typename MutT, typename ...OtherTs>
+    requires mutability_tag<MutT>
 struct mutability_traits<GLUnique<RawTemplate<MutT, OtherTs...>>>
     : mutability_traits<RawTemplate<MutT, OtherTs...>>
 {};

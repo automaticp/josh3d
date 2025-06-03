@@ -280,7 +280,38 @@ struct overloaded : Ts... {
 };
 
 
+namespace detail {
+struct NullaryInvoker {
+    auto operator%(auto&& f) const -> decltype(auto) { return f(); }
+};
+} // namespace detail
 
+
+/*
+Convenience for immediately invoked lambda expressions.
+The sole purpose is to not have an ugly trailing `()`.
+*/
+constexpr detail::NullaryInvoker eval = {};
+
+
+namespace detail {
+template<size_t N>
+struct Expander {
+    constexpr auto operator%(auto&& f) const
+        -> decltype(auto)
+    {
+        return f(std::make_index_sequence<N>());
+    }
+};
+} // namespace detail
+
+
+/*
+Emulation of expansion statements/expressions.
+This comes up a lot when dealing with packs.
+*/
+#define EXPAND(I, N, ...) \
+    ::josh::detail::Expander<N>() % [__VA_ARGS__]<size_t ...I>(std::index_sequence<I...>)
 
 
 struct BSearchResult {

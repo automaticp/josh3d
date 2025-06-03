@@ -42,11 +42,30 @@ using HashMap = boost::unordered::unordered_flat_map<KeyT, ValueT, HashF, KeyEqu
 
 template<
     typename KeyT,
+    typename ValueT,
+    typename AllocatorT,
+    typename HashF = boost::hash<KeyT>,
+    typename KeyEqualF = std::equal_to<KeyT>
+>
+using HashMapA = boost::unordered::unordered_flat_map<KeyT, ValueT, HashF, KeyEqualF, AllocatorT>;
+
+
+template<
+    typename KeyT,
     typename HashF = boost::hash<KeyT>,
     typename KeyEqualF = std::equal_to<KeyT>,
     typename AllocatorT = std::allocator<KeyT>
 >
 using HashSet = boost::unordered::unordered_flat_set<KeyT, HashF, KeyEqualF, AllocatorT>;
+
+
+template<
+    typename KeyT,
+    typename AllocatorT,
+    typename HashF = boost::hash<KeyT>,
+    typename KeyEqualF = std::equal_to<KeyT>
+>
+using HashSetA = boost::unordered::unordered_flat_set<KeyT, HashF, KeyEqualF, AllocatorT>;
 
 
 template<
@@ -60,10 +79,27 @@ using OrderedMap = std::map<KeyT, ValueT, CompareF, AllocatorT>;
 
 template<
     typename KeyT,
+    typename ValueT,
+    typename AllocatorT,
+    typename CompareF = std::less<KeyT>
+>
+using OrderedMapA = std::map<KeyT, ValueT, CompareF, AllocatorT>;
+
+
+template<
+    typename KeyT,
     typename CompareF = std::less<KeyT>,
     typename AllocatorT = std::allocator<KeyT>
 >
 using OrderedSet = std::set<KeyT, CompareF, AllocatorT>;
+
+
+template<
+    typename KeyT,
+    typename AllocatorT,
+    typename CompareF = std::less<KeyT>
+>
+using OrderedSetA = std::set<KeyT, CompareF, AllocatorT>;
 
 
 template<
@@ -157,6 +193,9 @@ using namespace std::string_view_literals;
 
 
 using String = std::string;
+
+template<typename AllocatorT>
+using StringA = std::basic_string<char, std::char_traits<char>, AllocatorT>;
 
 
 } // namespace josh
