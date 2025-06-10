@@ -150,6 +150,16 @@ constexpr auto as_readyable(F&& f) noexcept
     return ReadyableAdaptor(FORWARD(f));
 }
 
+/*
+Adapt a reference to a readyable as a readyable. For use in containers.
+*/
+template<readyable T>
+struct ReadyableRef
+{
+    T* r;
+    constexpr auto is_ready() const { return r->is_ready(); }
+};
+
 
 /*
 Suspend if the readyable is not ready.

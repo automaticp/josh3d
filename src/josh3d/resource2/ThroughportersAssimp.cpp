@@ -1,4 +1,4 @@
-#include "SimpleThroughporters.hpp"
+#include "Throughporters.hpp"
 #include "Asset.hpp"
 #include "AsyncCradle.hpp"
 #include "Common.hpp"
@@ -192,7 +192,7 @@ auto load_skeleton(
 
     auto j2j = [](const asr::Joint& j) -> Joint
     {
-        return { .inv_bind=j.inv_bind, .parent_id=j.parent_idx };
+        return { .inv_bind=j.inv_bind, .parent_idx=j.parent_idx };
     };
 
     co_return Skeleton{

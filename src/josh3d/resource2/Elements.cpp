@@ -130,34 +130,41 @@ auto copy_convert_elements(
 
 #undef JOSH3D_EACH_ELEMENT_X
 
+    usize num_copied = 0;
     auto body = [&]<uindex I, uindex J>(comptime_idx<I>, comptime_idx<J>)
     {
         constexpr auto dst_element = elements[I];
         constexpr auto src_element = elements[J];
         if (dst.element == dst_element and src.element == src_element)
+        {
             convert_elements<dst_element, src_element>(
                 min_count, dst_bytes, dst.stride, src_bytes, src.stride);
+            num_copied += min_count; // For sanity, should only ever be added once.
+        }
     };
 
     // You know things are bad when you need both an X-macro *and* a
     // doubly-nested "expansion statement". Reflection when already?
 
     // Rest-in-peace, compiler. You did well in this life.
+
     EXPAND(I, N, &)
     {
-        EXPAND(J, N, &)
-        {
-            ((void(I),
+        ((void(I),
+            EXPAND(J, N, &)
+            {
+                // Need to "bind" to a normal variable to prevent nested expansion.
+                constexpr auto I_ = I;
                 ((void(J),
-                    body(comptime_idx<I>{}, comptime_idx<J>{})
-                ), ...)
-            ), ...);
-        };
+                    body(comptime_idx<I_>{}, comptime_idx<J>{})
+                ), ...);
+            }
+        ), ...);
     };
 
-    // Who said the compiler will even *try* to optimize those if statements?
+    assert(num_copied == min_count);
 
-    return min_count;
+    return num_copied;
 }
 
 void copy_convert_one_element(

@@ -29,6 +29,7 @@ public:
 
 
     Size2S resolution()   const noexcept { return resolution_;   }
+    Size2I resolutioni()  const noexcept { return Size2I(resolution_); }
     size_t num_channels() const noexcept { return num_channels_; }
     size_t size_bytes()   const noexcept {
         return sizeof(channel_type) * resolution_.area() * num_channels_;

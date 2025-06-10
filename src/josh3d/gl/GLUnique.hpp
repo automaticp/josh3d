@@ -29,6 +29,9 @@ public:
 private:
     handle_type handle_;
 
+    struct PrivateKey {};
+    GLUnique(handle_type h, PrivateKey) : handle_(h) {}
+
     using mt              = mutability_traits<handle_type>;
     using mutability      = mt::mutability;
     using const_type      = mt::const_type;
@@ -52,15 +55,17 @@ public:
         : handle_{ handle_type::from_id(this->allocator_type::request(static_cast<GLenum>(handle_type::target_type))) }
     {}
 
-
+    // Will take ownership of the `handle`. Note that this is unsafe.
+    static auto take_ownership(handle_type handle)
+        -> GLUnique
+    {
+        return { handle, PrivateKey() };
+    }
 
     // Basic handle access.
     const handle_type* operator->() const noexcept { return &handle_; }
     const handle_type& operator*()  const noexcept { return handle_;  }
     handle_type        get()        const noexcept { return handle_;  }
-
-
-
 
     // Implicit conversion to owned raw handles.
     // The && operators are deleted to prevent "slicing".
@@ -69,13 +74,9 @@ public:
     operator const_type()   const&& noexcept = delete;
     operator mutable_type() const&& noexcept = delete;
 
-
-
-
     // No copy.
     GLUnique(const GLUnique&)            = delete;
     GLUnique& operator=(const GLUnique&) = delete;
-
 
     // Move c-tor.
     GLUnique(GLUnique&& other) noexcept

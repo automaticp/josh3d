@@ -1,4 +1,5 @@
 #pragma once
+#include "AnimationStorage.hpp"
 #include "AssetImporter.hpp"
 #include "AssetUnpacker.hpp"
 #include "AssetManager.hpp"
@@ -16,8 +17,10 @@
 #include "ImGuiSelected.hpp"
 #include "AvgFrameTimeCounter.hpp"
 #include "ImGuizmoGizmos.hpp"
+#include "MeshRegistry.hpp"
 #include "ResourceDatabase.hpp"
 #include "ResourceUnpacker.hpp"
+#include "SkeletonStorage.hpp"
 #include "TaskCounterGuard.hpp"
 #include <sstream>
 #include <string>
@@ -57,6 +60,7 @@ public:
     bool show_asset_manager   = false; // For debugging.
     bool show_resource_viewer = false;
     bool show_frame_graph     = false;
+    bool show_debug_window    = false; // General debugging stuff.
 
     float background_alpha{ 0.8f };
 
@@ -64,6 +68,9 @@ public:
         glfw::Window&      window,
         RenderEngine&      engine,
         Registry&          registry,
+        MeshRegistry&      mesh_registry,
+        SkeletonStorage&   skeleton_storage,
+        AnimationStorage&  animation_storage,
         AssetManager&      asset_manager,
         AssetUnpacker&     asset_2npacker_,
         SceneImporter&     scene_importer,
@@ -100,9 +107,15 @@ public:
 
 private:
 
+    // NOTE: Everything about this gigantic list is insane
+    // and is in dire need of refactoring. Sorry.
+
     glfw::Window&      window_;
     RenderEngine&      engine_;
     Registry&          registry_;
+    MeshRegistry&      mesh_registry_;
+    SkeletonStorage&   skeleton_storage_;
+    AnimationStorage&  animation_storage_;
     AssetManager&      asset_manager_;
     AssetUnpacker&     asset_unpacker_;
     ResourceDatabase&  resource_database_;
@@ -153,6 +166,7 @@ private:
     Vector<float> frame_deltas_;
     void display_frame_graph();
 
+    void display_debug();
 };
 
 

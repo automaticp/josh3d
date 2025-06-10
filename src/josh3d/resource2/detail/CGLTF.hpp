@@ -1,6 +1,6 @@
 #pragma once
+#include "AABB.hpp"
 #include "Common.hpp"
-#include "ElementHelpers.hpp"
 #include "Elements.hpp"
 #include "EnumUtils.hpp"
 #include "ExternalScene.hpp"
@@ -89,6 +89,9 @@ inline auto to_string(const char* cstr_or_null)
 auto to_transform(const cgltf_node& node) noexcept
     -> Transform;
 
+auto to_local_aabb(const cgltf_accessor& accessor) noexcept
+    -> Optional<LocalAABB>;
+
 auto to_sampler_info(const cgltf_sampler& sampler) noexcept
     -> esr::SamplerInfo;
 
@@ -112,9 +115,14 @@ auto to_elements_view(const cgltf_accessor& accessor)
 
 /*
 Returns a view for each accessor, of null view if none for each type.
+Optionally sets AABB, if the min/max is present. If `aabb` is passed but
+the resulting optional is nullopt after this call, then there was no
+min/max data in the position accessor or the conversion could not be made.
 */
-auto parse_primitive_attributes(const cgltf_primitive& primitive)
-    -> AttributeViews;
+auto parse_primitive_attributes(
+    const cgltf_primitive& _primitive,
+    Optional<LocalAABB>*   aabb = nullptr)
+        -> esr::MeshAttributes;
 
 /*
 Parse `gltf` and create an `ExternalSceneRepr` over the source gltf data.
@@ -125,7 +133,8 @@ as it will keep views to the source gltf buffers.
 NOTE: This is relatively expensive and will allocate some memory.
 PRE: `gltf` has all buffer data loaded with `cgltf_load_buffers()`.
 */
-auto to_external_scene(const cgltf_data& gltf)
+[[nodiscard]]
+auto to_external_scene(const cgltf_data& gltf, Path base_dir)
     -> esr::ExternalScene;
 
 

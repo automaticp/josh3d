@@ -105,7 +105,7 @@ void AnimationSystem::operator()(
         for (size_t j{ 1 }; j < joints.size(); ++j) {
             const Transform joint_tf = anim.sample_at(j, time);
             const mat4 P2J = joint_tf.mtransform().model();
-            const mat4 M2P = M2Js[joints[j].parent_id];
+            const mat4 M2P = M2Js[joints[j].parent_idx];
             M2Js[j] = M2P * P2J;
         }
 

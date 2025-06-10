@@ -1,4 +1,5 @@
 #pragma once
+#include "AnimationStorage.hpp"
 #include "AssetImporter.hpp"
 #include "AssetUnpacker.hpp"
 #include "AssetManager.hpp"
@@ -17,6 +18,7 @@
 #include "Semantics.hpp"
 #include "SharedStorage.hpp"
 #include "RenderEngine.hpp"
+#include "SkeletonStorage.hpp"
 #include <boost/iostreams/tee.hpp>
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
@@ -50,6 +52,8 @@ private:
     josh::AsyncCradle       async_cradle_;
 
     josh::MeshRegistry      mesh_registry_;
+    josh::SkeletonStorage   skeleton_storage_;
+    josh::AnimationStorage  animation_storage_;
 
     josh::AssetManager      asset_manager_;
     josh::AssetUnpacker     asset_unpacker_;

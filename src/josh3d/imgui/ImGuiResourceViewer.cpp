@@ -1,4 +1,5 @@
 #include "ImGuiResourceViewer.hpp"
+#include "ECS.hpp"
 #include "ImGuiHelpers.hpp"
 #include "Common.hpp"
 #include "Coroutines.hpp"
@@ -6,10 +7,11 @@
 #include "Logging.hpp"
 #include "MeshRegistry.hpp"
 #include "ObjectLifecycle.hpp"
+#include "Processing.hpp"
 #include "Resource.hpp"
 #include "ResourceDatabase.hpp"
 #include "ResourceFiles.hpp"
-#include "SimpleThroughporters.hpp"
+#include "Throughporters.hpp"
 #include "UUID.hpp"
 #include <algorithm>
 #include <exception>
@@ -31,6 +33,8 @@ void ImGuiResourceViewer::display_viewer() {
     thread_local ImportTextureParams import_texture_params = {};
 
     thread_local Optional<Job<>> unpacking_job;
+
+    thread_local Optional<Job<>> throughporting_job;
 
     thread_local Optional<inspector_type> current_inspector;
 
@@ -73,7 +77,21 @@ void ImGuiResourceViewer::display_viewer() {
     {
         try
         {
-            throughport_scene_assimp(path, create_handle(registry), {}, async_cradle, const_cast<MeshRegistry&>(mesh_registry)).get_result();
+            const GLTFThroughportParams params = {
+                .generate_mips = true,
+                .unitarization = Unitarization::InsertDummy,
+            };
+
+            const ThroughportContext context = {
+                registry,
+                mesh_registry,
+                skeleton_storage,
+                animation_storage,
+                async_cradle,
+            };
+
+            throughporting_job = throughport_scene_gltf(path, nullent, params, context);
+
             last_error = {};
         }
         catch (const std::exception& e)
@@ -261,6 +279,19 @@ void ImGuiResourceViewer::display_viewer() {
             logstream() << "Unpacked ...something.\n";
         } catch (const std::exception& e) {
             logstream() << "Unpacking failed: " << e.what() << "\n";
+        }
+    }
+
+    if (throughporting_job and throughporting_job->is_ready())
+    {
+        try
+        {
+            move_out(throughporting_job).get_result();
+            logstream() << "Throughported... something.\n";
+        }
+        catch (const std::exception& e)
+        {
+            logstream() << "Throughporting failed: " << e.what() << "\n";
         }
     }
 

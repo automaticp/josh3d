@@ -1,21 +1,20 @@
 #pragma once
 #include "AABB.hpp"
-#include "Asset.hpp"
 #include "Common.hpp"
-#include "ElementHelpers.hpp"
 #include "Elements.hpp"
 #include "EnumUtils.hpp"
+#include "Filesystem.hpp"
 #include "GLAPICommonTypes.hpp"
-#include "Ranges.hpp"
+#include "GLTextures.hpp"
+#include "ImageProperties.hpp"
 #include "Scalars.hpp"
 #include "StringHash.hpp"
 #include "Transform.hpp"
-#include <algorithm>
+#include "VertexFormat.hpp"
+#include <entt/entt.hpp>
 #include <bit>
 #include <cstring>
-#include <entt/entity/fwd.hpp>
 #include <functional>
-#include <memory>
 
 
 /*
@@ -139,11 +138,24 @@ struct Node
 struct Light
 {
     // TODO:
+    u32 _dummy = {}; // Stop being a tag.
 };
 
 struct Camera
 {
     // TODO:
+    u32 _dummy = {};
+};
+
+struct MeshAttributes
+{
+    ElementsView        indices;
+    ElementsView        positions;
+    ElementsView        uvs;
+    ElementsView        normals;
+    ElementsView        tangents;
+    ElementsView        joint_ids; // Only for skinned.
+    ElementsView        joint_ws;  // Only for skinned.
 };
 
 /*
@@ -152,9 +164,11 @@ Singular mesh primitive. Unlike glTF definition as a collection of primitives.
 struct Mesh
 {
     string         name;
-    AttributeViews attributes;
-    bool           is_skinned; // Could be skinned even if it does not refer to a skin_id in this scene.
-    SkinID         skin_id;    // Referenced skin, if any.
+    MeshAttributes attributes;
+    LocalAABB      aabb;        // Why do I always forget this one?
+    VertexFormat   format;      // Could be skinned even if it does not refer to a skin_id in this scene.
+    MaterialID     material_id; // Associated material, if any.
+    SkinID         skin_id;     // Referenced skin, if any.
 };
 
 // TODO: This is for identifying channels in a view.
@@ -175,19 +189,24 @@ constexpr auto num_channels(ChannelMask mask) noexcept
 }
 
 // TODO: What should this be exactly?
-struct ImageView
+struct [[deprecated]] ImageView
 {
-    ElementsView data;    // If not encoded, each element corresponds to an image "pixel". If encoded, this is just a byte stream.
-    u32          width;   // Width in pixels. Might be 0 if encoded.
-    u32          height;  // Height in pixels. Might be 0 if encoded.
-    bool         encoded; // If encoded, the data needs to be decoded from some common format (ex. PNG, JPEG). The data.element will likely be just a byte stream u8vec1. This flag is used to differentiate it from a normal single-channel image.
+    ElementsView data;         // If not encoded, each element corresponds to an image "pixel". If encoded, this is just a byte stream.
+    u32          width;        // Width in pixels. Might be 0 if encoded.
+    u32          height;       // Height in pixels. Might be 0 if encoded.
+    u8           num_channels; // Number of channels in the image. Might be 0 if encoded.
+    bool         encoded;      // If encoded, the data needs to be decoded from some common format (ex. PNG, JPEG). The data.element will likely be just a byte stream u8vec1. This flag is used to differentiate it from a normal single-channel image.
     constexpr explicit operator bool() const noexcept { return bool(data); }
 };
 
 struct Image
 {
-    string    path;     // Relative path to source file on disk if not embedded, unspecified if it is.
-    ImageView embedded; // Embedded image view. Optional, will be null if no data is embedded.
+    string       path;         // Relative path to source file on disk if not embedded, unspecified if it is.
+    ElementsView embedded;     // Embedded image view. Optional, will be null if no data is embedded.
+    u32          width;        // Width in pixels. Might be 0 if encoded.
+    u32          height;       // Height in pixels. Might be 0 if encoded.
+    u8           num_channels; // Number of channels in the image. Might be 0 if encoded.
+    bool         is_encoded;   // If encoded, the data needs to be decoded from some common format (ex. PNG, JPEG). The data.element will likely be just a byte stream u8vec1. This flag is used to differentiate it from a normal single-channel image.
 };
 
 /*
@@ -206,7 +225,8 @@ struct Texture
 {
     string      name;
     ImageID     image_id;     // Referenced image.
-    u8          channel0;     // First channel in the image data. The number of channels depends on the material slot.
+    SwizzleRGBA swizzle;      // Swizzle transformation that brings the texture to the [RGBA] spec of the slot.
+    Colorspace  colorspace;   // Colorspace of the data in the image. This could be sRGB or Linear, since only those have conversion for "free".
     SamplerInfo sampler_info; // Sampler info. As data, not as a separate object.
 };
 
@@ -222,36 +242,52 @@ JOSH3D_DEFINE_ENUM_EXTRAS(AlphaMethod, None, Test, Blend);
 This is a bit of a soup of most things you could possibly want.
 Not every texture type is currently supported for rendering, however.
 
-NOTE: We split the base color into its RGB and Alpha parts.
-We also split the MetallicRoughness into two textures.
+NOTE: We split the MetallicRoughness into two textures.
 This is better for compatibility with various formats.
 Note that the data could still come from the same image,
 the relevant channels will just be sliced after decoding.
+
+Each material texture has a certain "swizzle convention",
+that is the layout of the texture channels *post-swizzle*.
+This is encoded in the description of each slot as the [RGBA],
+and relates the source channel to the sampled channel.
+The swizzle itself can be taken from the Texture struct.
+
+Each texture should take the base uploaded image, create a
+view with the Texture::swizzle, then the resulting texture
+can be interpreted according to the [RGBA] specification.
+
+For example, when sampling the `tex` texture with the [R1G0]
+spec via `vec4 s = texture(tex);` the `s` contains the values:
+
+    s.r == red_color;
+    s.g == 1;
+    s.b == green_color;
+    s.a == 0;
+
 */
 struct Material
 {
     string      name;
-    TextureID   albedo_id         = null_id;    // Surface albedo (aka. RGB of Base Color).
-    vec3        albedo_factor     = vec3(1.0f); // Per-channel RGB multiplier applied to albedo.
-    TextureID   alpha_id          = null_id;    // Single-channel transparency map.
+    TextureID   color_id          = null_id;    // [RGBA|RGB1] Surface base color [RGB] in sRGB and optionally alpha [A].
+    vec3        color_factor      = vec3(1.0f); // Per-channel RGB multiplier applied to albedo.
     float       alpha_factor      = 1.0f;
     AlphaMethod alpha_method      = AlphaMethod::None;
     bool        double_sided      = false;      // Whether to enable backface culling. Would normally be true if `alpha_method` is not None.
     float       alpha_threshold   = 0.0f;       // Draw if `alpha > threshold`. Only considered if `alpha_method` is Test.
-    TextureID   metallic_id       = null_id;    // PBR metallicity map.
+    TextureID   metallic_id       = null_id;    // [00M0] PBR Metallicity [M] map.
     float       metallic_factor   = 1.0f;       // Additional factor to multiply metallicity by.
-    TextureID   roughness_id      = null_id;    // PBR roughness map.
+    TextureID   roughness_id      = null_id;    // [0R00] PBR Roughness [R] map.
     float       roughness_factor  = 1.0f;       // Additional factor to multiply roughness by.
-    TextureID   specular_color_id = null_id;    // Some "specular" map.
+    TextureID   specular_color_id = null_id;    // [RGB0] Some "Colored Specular" [RGB] map.
     vec3        specular_color_factor = vec3(1.0f);
-    TextureID   specular_id       = null_id;
+    TextureID   specular_id       = null_id;    // [000S] Some "Grayscale specular" [S] map.
     float       specular_factor   = 1.0f;
-    TextureID   normal_id         = null_id;    // Tangent-space normal map.
-    TextureID   emissive_id       = null_id;    // Color emission map.
+    TextureID   normal_id         = null_id;    // [XYZ0] Tangent-space Normal [XYZ] map.
+    TextureID   emissive_id       = null_id;    // [RGB1] Color Emission [RGB] map.
     vec3        emissive_factor   = vec3(1.0f); // Per-channel [0, 1] RGB multiplier applied to emissive.
     float       emissive_strength = 1.0f;       // HDR multiplier [0, inf] for emissive. If using SI this is probably [W/sr/m^2] (or nits?).
 };
-
 
 struct Joint
 {
@@ -289,8 +325,6 @@ JOSH3D_DEFINE_ENUM_EXTRAS(MotionInterpolation, Step, Linear, CubicSpline);
 
 struct MotionChannel
 {
-    // TODO: Should `tps` really be defined per-channel?
-    float               tps           = {}; // Ticks per second. Zero if unknown. Use `ticks[i] * (tps ? tps : default_tps)` to recover time in seconds.
     MotionInterpolation interpolation = MotionInterpolation::Linear;
     ElementsView        ticks         = {}; // Time in abstract "ticks" from animation start time point.
     ElementsView        values        = {}; // Channel values, type depends on the usage slot. `element_count` should be the same as in `ticks`.
@@ -313,6 +347,8 @@ struct NodeAnimation
 {
     string                 name;
     map<NodeID, TRSMotion> motions;
+    float                  tps;      // Ticks per second. Zero if unknown. Use `ticks[i] * (tps ? tps : default_tps)` to recover time in seconds.
+    float                  duration; // Total duration in ticks.
 };
 
 /*
@@ -323,8 +359,10 @@ more as a "multi-animation" containter.
 struct SkinAnimation
 {
     string              name;
+    map<u32, TRSMotion> motions;  // JointIndex -> Motion.
     SkinID              skin_id;
-    map<u32, TRSMotion> motions; // JointIndex -> Motion.
+    float               tps;      // Ticks per second. Zero if unknown. Use `ticks[i] * (tps ? tps : default_tps)` to recover time in seconds.
+    float               duration; // Total duration in ticks.
 };
 
 /*
@@ -342,6 +380,8 @@ struct MorphAnimation
 /*
 Animation is more of a collection of different animation kinds that
 are supposed to be played together.
+
+TODO: There could be a start time offset per individual animation.
 */
 struct Animation
 {
@@ -354,8 +394,10 @@ struct Animation
 struct ExternalScene
     : Registry
 {
-    // NOTE: No member variables here, everything is accessed
-    // through the registry interface instead.
+    Path base_dir; // If resource paths are specified, they should either be absolute, or relative to this base directory.
+
+    // NOTE: No member variables for objects here, everything
+    // is accessed through the registry interface instead.
 
     template<typename T>
     struct Created { ID id; T& component; };

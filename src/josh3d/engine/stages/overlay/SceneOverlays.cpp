@@ -512,7 +512,7 @@ void SceneOverlays::draw_skeleton(
                 using std::views::iota, std::views::transform;
 
                 const auto get_line = [&](size_t j) -> LineGPU {
-                    const size_t parent_id = mesh.skeleton->joints[j].parent_id;
+                    const size_t parent_id = mesh.skeleton->joints[j].parent_idx;
                     const vec3 end   = mtf.model() * pose.M2Js[j][3]; // Last column for position.
                     const vec3 start = mtf.model() * pose.M2Js[parent_id][3];
                     return { start, end };

@@ -14,6 +14,7 @@
 #include "ImGuiSelected.hpp"
 #include "ImGuizmoGizmos.hpp"
 #include "Camera.hpp"
+#include "Materials.hpp"
 #include "Ranges.hpp"
 #include "RenderEngine.hpp"
 #include "ResourceDatabase.hpp"
@@ -43,7 +44,10 @@ namespace josh {
 ImGuiApplicationAssembly::ImGuiApplicationAssembly(
     glfw::Window&      window,
     RenderEngine&      engine,
-    entt::registry&    registry,
+    Registry&          registry,
+    MeshRegistry&      mesh_registry,
+    SkeletonStorage&   skeleton_storage,
+    AnimationStorage&  animation_storage,
     AssetManager&      asset_manager,
     AssetUnpacker&     asset_unpacker,
     SceneImporter&     scene_importer,
@@ -57,6 +61,9 @@ ImGuiApplicationAssembly::ImGuiApplicationAssembly(
     : window_         { window             }
     , engine_         { engine             }
     , registry_       { registry           }
+    , mesh_registry_    { mesh_registry     }
+    , skeleton_storage_ { skeleton_storage  }
+    , animation_storage_{ animation_storage }
     , asset_manager_  { asset_manager      }
     , asset_unpacker_ { asset_unpacker     }
     , resource_database_{ resource_database }
@@ -71,7 +78,7 @@ ImGuiApplicationAssembly::ImGuiApplicationAssembly(
     , stage_hooks_    { engine             }
     , scene_list_     { registry, asset_manager, asset_unpacker, scene_importer }
     , asset_browser_  { asset_manager      }
-    , resource_viewer_(resource_database, asset_importer, resource_unpacker, registry, engine.mesh_registry(), async_cradle)
+    , resource_viewer_(resource_database, asset_importer, resource_unpacker, registry, mesh_registry, skeleton_storage, animation_storage, async_cradle)
     , selected_menu_  { registry           }
     , gizmos_         { registry           }
 {}
@@ -326,6 +333,7 @@ void ImGuiApplicationAssembly::draw_widgets() {
                 ImGui::Checkbox("Asset Manager",  &show_asset_manager );
                 ImGui::Checkbox("Resource Files", &show_resource_viewer);
                 ImGui::Checkbox("Frame Graph",    &show_frame_graph   );
+                ImGui::Checkbox("Debug",          &show_debug_window  );
 
                 ImGui::Separator();
 
@@ -504,6 +512,13 @@ void ImGuiApplicationAssembly::draw_widgets() {
             } ImGui::End();
         }
 
+        if (show_debug_window)
+        {
+            if (ImGui::Begin("Debug"))
+                display_debug();
+            ImGui::End();
+        }
+
         ImGui::PopStyleColor();
     }
 
@@ -555,5 +570,39 @@ void ImGuiApplicationAssembly::display_frame_graph() {
     }
 }
 
+void ImGuiApplicationAssembly::display_debug()
+{
+    namespace Im = ImGui;
+    if (Im::TreeNode("Texture Swizzle"))
+    {
+        thread_local SwizzleRGBA swizzle = {};
+
+        auto selector = [](const char* channel, Swizzle* tgt)
+        {
+            if (ImGui::BeginCombo(channel, enum_cstring(*tgt)))
+            {
+                for (const Swizzle s : enum_iter<Swizzle>())
+                    if (ImGui::Selectable(enum_cstring(s), *tgt == s))
+                        *tgt = s;
+                ImGui::EndCombo();
+            }
+        };
+
+        selector("R", &swizzle.r);
+        selector("G", &swizzle.g);
+        selector("B", &swizzle.b);
+        selector("A", &swizzle.a);
+
+        if (Im::Button("Convert All Diffuse"))
+        {
+            for (auto [e, mtl] : registry_.view<MaterialDiffuse>().each())
+            {
+                // NOTE: Effectively doing a GL const_cast.
+                RawTexture2D<>::from_id(mtl.texture->id()).set_swizzle_rgba(swizzle);
+            }
+        }
+        Im::TreePop();
+    }
+}
 
 } // namespace josh

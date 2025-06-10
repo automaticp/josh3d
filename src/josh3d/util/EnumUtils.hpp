@@ -2,6 +2,7 @@
 #include "MapMacro.hpp"
 #include <concepts>
 #include <iterator>
+#include <span>
 #include <type_traits>
 
 
@@ -58,45 +59,77 @@ constexpr auto enum_cast(FromEnumT enum_value) noexcept
     constexpr auto  operator~ (Enum e) noexcept { return Enum(~to_underlying(e)); }                                   \
 // NOLINTEND(bugprone-macro-parentheses)
 
-// NOLINTNEXTLINE(bugprone-reserved-identifier)
-#define _JOSH3D_ENUM_NAME_CASE(Name) \
+// NOLINTBEGIN(bugprone-reserved-identifier)
+#define _JOSH3D_ENUM_CASE_NAME_RETURN_NAME(Name) \
     case Name: return #Name;
+#define _JOSH3D_ENUM_CASE_NAME(Name) \
+    case Name:
+// NOLINTEND(bugprone-reserved-identifier)
+
 // TODO: How do I "bind" arguments with macros?
 #define JOSH3D_DEFINE_ENUM_EXTRAS(EnumType, ...)            \
     constexpr auto enum_string(EnumType value) noexcept     \
         -> std::string_view                                 \
     {                                                       \
-        switch (value) {                                    \
+        switch (value)                                      \
+        {                                                   \
             using enum EnumType;                            \
-            JOSH3D_MAP(_JOSH3D_ENUM_NAME_CASE, __VA_ARGS__) \
+            JOSH3D_MAP(_JOSH3D_ENUM_CASE_NAME_RETURN_NAME,  \
+                __VA_ARGS__)                                \
             default: return "";                             \
         }                                                   \
     }                                                       \
-                                                            \
     constexpr auto enum_cstring(EnumType value) noexcept    \
         -> const char*                                      \
     {                                                       \
-        switch (value) {                                    \
+        switch (value)                                      \
+        {                                                   \
             using enum EnumType;                            \
-            JOSH3D_MAP(_JOSH3D_ENUM_NAME_CASE, __VA_ARGS__) \
+            JOSH3D_MAP(_JOSH3D_ENUM_CASE_NAME_RETURN_NAME,  \
+                __VA_ARGS__)                                \
             default: return "";                             \
         }                                                   \
+    }                                                       \
+    constexpr auto enum_valid(EnumType value) noexcept      \
+        -> bool                                             \
+    {                                                       \
+        switch (value)                                      \
+        {                                                   \
+            using enum EnumType;                            \
+            JOSH3D_MAP(_JOSH3D_ENUM_CASE_NAME, __VA_ARGS__) \
+                return true;                                \
+            default:                                        \
+                return false;                               \
+        }                                                   \
+    }                                                       \
+    namespace enum_detail::E##EnumType {                    \
+    using enum EnumType;                                    \
+    constexpr enum EnumType values[]{ __VA_ARGS__ };        \
     }                                                       \
     constexpr auto enum_size(EnumType) noexcept             \
         -> size_t                                           \
     {                                                       \
-        using enum EnumType;                                \
-        constexpr EnumType values[]{ __VA_ARGS__ };         \
-        return std::size(values);                           \
+        return std::size(enum_detail::E##EnumType::values); \
+    }                                                       \
+    constexpr auto enum_iter(EnumType) noexcept             \
+        -> std::span<const EnumType>                        \
+    {                                                       \
+        return std::span(enum_detail::E##EnumType::values); \
     }
-
 
 template<enumeration E>
 constexpr auto enum_size() noexcept
     -> size_t
 {
-    // NOTE: Just (ab)using ADL lookup.
+    // NOTE: Just (ab)using ADL.
     return enum_size(E{});
+}
+
+template<enumeration E>
+constexpr auto enum_iter() noexcept
+    -> std::span<const E>
+{
+    return enum_iter(E{});
 }
 
 

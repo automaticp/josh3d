@@ -66,6 +66,7 @@ enum class Swizzle : GLuint {
     Zero  = GLuint(gl::GL_ZERO),
     One   = GLuint(gl::GL_ONE),
 };
+JOSH3D_DEFINE_ENUM_EXTRAS(Swizzle, Red, Green, Blue, Alpha, Zero, One);
 
 
 struct SwizzleRGBA {
@@ -73,6 +74,60 @@ struct SwizzleRGBA {
     Swizzle g{ Swizzle::Green };
     Swizzle b{ Swizzle::Blue  };
     Swizzle a{ Swizzle::Alpha };
+
+    // Constructs a SwizzleRGBA with all channel slots set to `s`.
+    constexpr static auto all(Swizzle s) noexcept
+        -> SwizzleRGBA
+    {
+        return { s, s, s, s };
+    }
+
+    // Returns the number of channel slots that are not Zero or One. Up to 4.
+    constexpr auto num_nonconst() const noexcept
+        -> size_t
+    {
+        auto nonconst = [](Swizzle s)
+            -> bool
+        {
+            return (s != Swizzle::Zero) and (s != Swizzle::One);
+        };
+        return
+            nonconst(r) +
+            nonconst(g) +
+            nonconst(b) +
+            nonconst(a);
+    }
+
+    // Returns the number of unique nonconst target channels referenced by this `SwizzleRGBA`. Up to 4.
+    // For example, the number of unique nonconst target channels in `SwizzleRGBA{ Red, Red, Zero, Blue }`
+    // is 2, and in `SwizzleRGBA{ Red, Zero, One, Red }` is 1.
+    constexpr auto num_unique_nonconst() const noexcept
+        -> size_t
+    {
+        bool nonconst[4] = {};
+        auto mark = [&](Swizzle s)
+        {
+            switch (s)
+            {
+                case Swizzle::Red:   nonconst[0] = true; break;
+                case Swizzle::Green: nonconst[1] = true; break;
+                case Swizzle::Blue:  nonconst[2] = true; break;
+                case Swizzle::Alpha: nonconst[3] = true; break;
+                default: break;
+            }
+        };
+        mark(r);
+        mark(g);
+        mark(b);
+        mark(a);
+        return
+            nonconst[0] +
+            nonconst[1] +
+            nonconst[2] +
+            nonconst[3];
+    }
+
+    constexpr auto operator==(const SwizzleRGBA&) const noexcept -> bool = default;
 };
 
 

@@ -1,4 +1,5 @@
 #pragma once
+#include "AnimationStorage.hpp"
 #include "AssetImporter.hpp"
 #include "AsyncCradle.hpp"
 #include "Common.hpp"
@@ -7,6 +8,7 @@
 #include "ResourceUnpacker.hpp"
 #include "ECS.hpp"
 #include "MeshRegistry.hpp"
+#include "SkeletonStorage.hpp"
 #include "UniqueFunction.hpp"
 
 
@@ -21,7 +23,9 @@ struct ImGuiResourceViewer {
     AssetImporter&      asset_importer;
     ResourceUnpacker&   resource_unpacker;
     Registry&           registry;
-    const MeshRegistry& mesh_registry;
+    MeshRegistry&       mesh_registry;
+    SkeletonStorage&    skeleton_storage;
+    AnimationStorage&   animation_storage;
     AsyncCradleRef      async_cradle;
 
     void display_viewer();

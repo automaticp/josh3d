@@ -1,10 +1,16 @@
 #include "CGLTF.hpp"
+#include "AABB.hpp"
 #include "Common.hpp"
 #include "ContainerUtils.hpp"
 #include "Elements.hpp"
 #include "ExternalScene.hpp"
 #include "GLAPICommonTypes.hpp"
+#include "GLTextures.hpp"
+#include "ImageProperties.hpp"
+#include "Processing.hpp"
+#include "Ranges.hpp"
 #include "Transform.hpp"
+#include "VertexFormat.hpp"
 #include <cgltf.h>
 #include <glm/ext.hpp>
 
@@ -27,6 +33,27 @@ auto to_transform(const cgltf_node& node) noexcept
     if (node.has_scale)       tf.scaling()     = to_vec3(node.scale);
 
     return tf;
+}
+
+auto to_local_aabb(const cgltf_accessor& accessor) noexcept
+    -> Optional<LocalAABB>
+{
+    auto grab_vec3 = [](const float* src_arr, Element src_element)
+    {
+        const ElementsView src = {
+            .bytes         = src_arr,
+            .element_count = 1,
+            .stride        = u32(element_size(src_element)),
+            .element       = src_element,
+        };
+        return copy_convert_one_element<vec3>(src, 0);
+    };
+
+    if (accessor.has_min and accessor.has_max)
+        if (const Optional element = to_element(accessor.component_type, accessor.type, accessor.normalized))
+            return LocalAABB{ grab_vec3(accessor.min, *element), grab_vec3(accessor.max, *element) };
+
+    return nullopt;
 }
 
 auto to_sampler_info(const cgltf_sampler& _sampler) noexcept
@@ -150,8 +177,10 @@ auto to_elements_view(const cgltf_accessor& accessor)
     };
 }
 
-auto parse_primitive_attributes(const cgltf_primitive& _primitive)
-    -> AttributeViews
+auto parse_primitive_attributes(
+    const cgltf_primitive& _primitive,
+    Optional<LocalAABB>*   aabb)
+        -> esr::MeshAttributes
 {
     constexpr usize N = 6;
     const cgltf_attribute* attributes[N] = {
@@ -184,6 +213,14 @@ auto parse_primitive_attributes(const cgltf_primitive& _primitive)
     }
 
     const cgltf_accessor* indices = _primitive.indices;
+
+    if (aabb)
+    {
+        if (attributes[0] and attributes[0]->data)
+            *aabb = to_local_aabb(*attributes[0]->data);
+        else
+            *aabb = nullopt;
+    }
 
     return {
         .indices   = indices       ? to_elements_view(*indices)             : ElementsView(),
@@ -303,10 +340,12 @@ void populate_node_relationships(
 
 } // namespace
 
-auto to_external_scene(const cgltf_data& gltf)
+auto to_external_scene(const cgltf_data& gltf, Path _base_dir)
     -> esr::ExternalScene
 {
-    esr::ExternalScene scene;
+    esr::ExternalScene scene = {
+        .base_dir = MOVE(_base_dir),
+    };
 
     /*
     NOTE: Will prefix gltf-specific data with _ to differentiate.
@@ -324,7 +363,6 @@ auto to_external_scene(const cgltf_data& gltf)
     const auto _nodes      = make_span(gltf.nodes,      gltf.nodes_count     );
     const auto _meshes     = make_span(gltf.meshes,     gltf.meshes_count    );
     const auto _images     = make_span(gltf.images,     gltf.images_count    );
-    const auto _textures   = make_span(gltf.textures,   gltf.textures_count  );
     const auto _materials  = make_span(gltf.materials,  gltf.materials_count );
     const auto _lights     = make_span(gltf.lights,     gltf.lights_count    );
     const auto _cameras    = make_span(gltf.cameras,    gltf.cameras_count   );
@@ -361,6 +399,203 @@ auto to_external_scene(const cgltf_data& gltf)
 
 
 
+    auto _image2image_id = esr::map<const cgltf_image*, esr::ImageID>();
+
+
+    for (const cgltf_image& _image : _images)
+    {
+        auto [image_id, image] = scene.create_as<esr::Image>({
+            .path = eval%[&]() -> esr::string {
+                if (_image.uri)       return _image.uri;
+                if (_image.name)      return _image.name;
+                if (_image.mime_type) return _image.mime_type;
+                return {};
+            },
+           .embedded = eval%[&]() -> ElementsView {
+                if (_image.buffer_view)
+                {
+                    return {
+                        .bytes         = cgltf_buffer_view_data(_image.buffer_view),
+                        .element_count = _image.buffer_view->size,
+                        .stride        = 1,
+                        .element       = element_u8vec1,
+                    };
+                }
+                return {};
+            },
+            .width        = {}, // Will fill below.
+            .height       = {}, // ''
+            .num_channels = {}, // ''
+            .is_encoded   = true // NOTE: glTF images are always encoded.
+        });
+
+        // NOTE: Here we always query the image info (w, h, num_channels)
+        // even if the image is on disk. This info is needed later in the
+        // material tear-down pass to tell if certain channles (like alpha)
+        // are present or not. glTF sadly does not enforce this info inside
+        // the json itself. I'd consider this opaque "channel packing" philosophy
+        // to be a defect in the spec.
+
+        const Optional info = eval%[&]{
+            if (const auto& data = image.embedded)
+            {
+                return peek_encoded_image_info({ (const ubyte*)data.bytes, data.element_count });
+            }
+            else
+            {
+                const Path filepath = scene.base_dir / image.path;
+                return peek_encoded_image_info(filepath.c_str());
+            }
+        };
+
+        if (not info)
+            throw_fmt("Could not get image info for {}.", image.path);
+
+        image.width        = info->resolution.width;
+        image.height       = info->resolution.height;
+        image.num_channels = info->num_channels;
+
+        _image2image_id.emplace(&_image, image_id);
+    } // for (_image)
+
+
+
+    // NOTE: We don't parse cgltf_texture into esr::Texture directly, since
+    // what glTF defines as a texture is somewhat distant from our representation
+    // where we use additional colorspace and swizzle information, and, in practice
+    // create a separate esr::Texture per-material per-slot.
+    //
+    // As such, there isn't a 1-to-1 mapping between cgltf_texture* and esr::TextureID.
+
+    auto _material2material_id = esr::map<const cgltf_material*, esr::MaterialID>();
+
+    for (const cgltf_material& _material : _materials)
+    {
+        auto [material_id, material] = scene.create_as<esr::Material>({
+            .name = to_string(_material.name),
+            // Will fill out the rest below.
+        });
+
+        // These define the basic source-to-spec swizzles and colorspace conversions
+        // for all of the textures. glTF is well-specified with respect to this,
+        // maybe *too well specified* since it mandates merged channels for RGB and Alpha,
+        // as well as packed metallic and roughness. We don't want that, so there's a
+        // texture per slot.
+        struct ViewInfo
+        {
+            SwizzleRGBA swizzle;
+            Colorspace  colorspace;
+        };
+
+        using enum Swizzle;
+        using enum Colorspace;
+
+        const ViewInfo info_color_rgba = { .swizzle={ Red,  Green, Blue, Alpha }, .colorspace=sRGB   };
+        const ViewInfo info_color_rgb1 = { .swizzle={ Red,  Green, Blue, One   }, .colorspace=sRGB   };
+        const ViewInfo info_metallic   = { .swizzle={ Zero, Zero,  Blue, Zero  }, .colorspace=Linear };
+        const ViewInfo info_roughness  = { .swizzle={ Zero, Green, Zero, Zero  }, .colorspace=Linear };
+        const ViewInfo info_spec_color = { .swizzle={ Red,  Green, Blue, Zero  }, .colorspace=sRGB   };
+        const ViewInfo info_spec_gray  = { .swizzle={ Zero, Zero,  Zero, Alpha }, .colorspace=Linear };
+        const ViewInfo info_normal     = { .swizzle={ Red,  Green, Blue, Zero  }, .colorspace=Linear };
+        const ViewInfo info_emissive   = { .swizzle={ Red,  Green, Blue, Zero  }, .colorspace=sRGB   };
+
+        auto _create_texture = [&](
+            const cgltf_texture& _texture,
+            esr::ImageID         image_id,
+            const ViewInfo&      info)
+                -> auto
+        {
+            return scene.create_as<esr::Texture>({
+                .name         = to_string(_texture.name),
+                .image_id     = image_id,
+                .swizzle      = info.swizzle,
+                .colorspace   = info.colorspace,
+                .sampler_info = _texture.sampler ? to_sampler_info(*_texture.sampler) : esr::SamplerInfo{},
+            });
+        };
+
+        const overloaded create_texture = {
+            _create_texture,
+            [&](const cgltf_texture& _texture, const ViewInfo& info)
+            {
+                return _create_texture(_texture, _image2image_id.at(_texture.image), info);
+            },
+        };
+
+        material.alpha_threshold = _material.alpha_cutoff;
+        material.alpha_method = eval%[&]{
+            switch (_material.alpha_mode)
+            {
+                case cgltf_alpha_mode_opaque: return esr::AlphaMethod::None;
+                case cgltf_alpha_mode_mask:   return esr::AlphaMethod::Test;
+                case cgltf_alpha_mode_blend:  return esr::AlphaMethod::Blend;
+                default:                      return esr::AlphaMethod::None;
+            }
+        };
+        material.double_sided = _material.double_sided;
+
+        if (_material.has_pbr_metallic_roughness)
+        {
+            const cgltf_pbr_metallic_roughness& _mat = _material.pbr_metallic_roughness;
+
+            if (const cgltf_texture* _base_texture = _mat.base_color_texture.texture)
+            {
+                const esr::ImageID image_id = _image2image_id.at(_base_texture->image);
+                const esr::Image&  image    = scene.get<esr::Image>(image_id);
+
+                const bool     has_alpha = (image.num_channels == 4);
+                const ViewInfo info      = has_alpha ? info_color_rgba : info_color_rgb1;
+
+                material.color_id = create_texture(*_base_texture, image_id, info).id;
+            }
+            material.color_factor = vec3(to_vec4(_mat.base_color_factor));
+            material.alpha_factor = float(_mat.base_color_factor[3]);
+
+            if (const cgltf_texture* _mr_texture = _mat.metallic_roughness_texture.texture)
+            {
+                const esr::ImageID image_id = _image2image_id.at(_mr_texture->image);
+
+                // Split into two components.
+                // glTF: "Its green channel contains roughness values and its blue channel contains metalness values."
+                material.metallic_id  = create_texture(*_mr_texture, image_id, info_metallic).id;
+                material.roughness_id = create_texture(*_mr_texture, image_id, info_roughness).id;
+            }
+            material.roughness_factor = _mat.roughness_factor;
+            material.metallic_factor  = _mat.metallic_factor;
+        }
+
+        if (_material.has_specular)
+        {
+            // The old Phong specular will likely masquarade as one of these textures.
+            const cgltf_specular& _mat = _material.specular;
+
+            // NOTE: These textures are not specified as merged, but are *very likely*
+            // to be merged into a single RGBA texture anyway. Way to go, that's how
+            // you do this!
+            if (const cgltf_texture* _spec_color_texture = _mat.specular_color_texture.texture)
+                material.specular_color_id = create_texture(*_spec_color_texture, info_spec_color).id;
+
+            if (const cgltf_texture* _spec_texture = _mat.specular_texture.texture)
+                material.specular_id = create_texture(*_spec_texture, info_spec_gray).id;
+
+            material.specular_color_factor = to_vec3(_mat.specular_color_factor);
+            material.specular_factor       = float(_mat.specular_factor);
+        }
+
+        if (const cgltf_texture* _normal_texture = _material.normal_texture.texture)
+            material.normal_id = create_texture(*_normal_texture, info_normal).id;
+
+        if (const cgltf_texture* _emissive_texture = _material.emissive_texture.texture)
+            material.emissive_id = create_texture(*_emissive_texture, info_emissive).id;
+
+        material.emissive_factor   = to_vec3(_material.emissive_factor);
+        material.emissive_strength = float(_material.emissive_strength.emissive_strength);
+
+        _material2material_id.emplace(&_material, material_id);
+    } // for (_materials)
+
+
+
     // NOTE: glTF "Meshes" are extra annoying because they are not "meshes",
     // but just bundles of *real* renderable meshes (under common definition).
     // We create this temporary entity type just to deal with them in the scene
@@ -390,7 +625,8 @@ auto to_external_scene(const cgltf_data& gltf)
             if (_primitive.has_draco_mesh_compression)
                 throw GLTFParseError("Draco mesh compression not supported.");
 
-            const AttributeViews attributes = parse_primitive_attributes(_primitive);
+            Optional<LocalAABB> aabb_opt;
+            const esr::MeshAttributes attributes = parse_primitive_attributes(_primitive, &aabb_opt);
 
             // NOTE: We decide on whether the mesh is skinned based on the presence
             // of respective attributes, even if no skeleton is attached to it.
@@ -400,200 +636,32 @@ auto to_external_scene(const cgltf_data& gltf)
             if (is_skinned) validate_attributes_skinned(attributes);
             else            validate_attributes_static (attributes);
 
+            const auto format =
+                is_skinned ? VertexFormat::Skinned : VertexFormat::Static;
+
+            const esr::MaterialID material_id =
+                _primitive.material ? _material2material_id.at(_primitive.material) : esr::null_id;
+
+            // NOTE: This might actually do an O(N) minmax reduction. Fairly expensive.
+            if (not aabb_opt) aabb_opt = compute_aabb(attributes.positions);
+
+            // compute_aabb() can fail if the position attribute is not convertible,
+            // but that should never happen given that we validated it before.
+            assert(aabb_opt);
+
             // We do not unpack data, just do validation and emplace views.
             const esr::MeshID mesh_id = scene.create_as<esr::Mesh>({
-                .name       = to_string(_mesh.name), // NOTE: Will have duplicate names for multiprimitives.
-                .attributes = attributes,            //
-                .is_skinned = is_skinned,            //
-                .skin_id    = esr::null_id,          // Will be added later, if has a skin to refer to in this file.
+                .name        = to_string(_mesh.name), // NOTE: Will have duplicate names for multiprimitives.
+                .attributes  = attributes,
+                .aabb        = aabb_opt.value(),
+                .format      = format,
+                .material_id = material_id,
+                .skin_id     = esr::null_id, // Will be added later, if has a skin to refer to in this file.
             }).id;
 
             meshbundle.mesh_ids.push_back(mesh_id);
         } // for (_primitives)
     } // for (_meshes)
-
-
-
-    auto _image2image_id = esr::map<const cgltf_image*, esr::ImageID>();
-
-    for (const cgltf_image& _image : _images)
-    {
-        // NOTE: glTF images are always encoded.
-        // FIXME: We likely want a simpler "ptr + size + num_channels + width + height" spec.
-        const esr::ImageView embedded = eval%[&]() -> esr::ImageView {
-            if (not _image.buffer_view) return {};
-            return {
-                .data = {
-                    .bytes         = cgltf_buffer_view_data(_image.buffer_view),
-                    .element_count = _image.buffer_view->size,
-                    .stride        = 1,
-                    .element       = element_u8vec1,
-                },
-                .width   = {},   // Unknown,
-                .height  = {},   // ''
-                .encoded = true,
-            };
-        };
-
-        auto [image_id, image] = scene.create_as<esr::Image>({
-            .path = eval%[&]() -> esr::string {
-                if (_image.uri)       return _image.uri;
-                if (_image.name)      return _image.name;
-                if (_image.mime_type) return _image.mime_type;
-                return {};
-            },
-            .embedded = embedded,
-        });
-        _image2image_id.emplace(&_image, image_id);
-    } // for (_image)
-
-
-
-    // NOTE: A trick similar to MeshBundle is used for splitting the BaseColor texture
-    // into the Color and Alpha parts, and MetallicRoughness texture into components.
-
-    struct TexBundle
-    {
-        esr::TextureID primary_id;   // The primary texture. If split, Color or Metallic, depending on the slot.
-        esr::TextureID secondary_id; // If split, Alpha or Roughness, depending on the slot.
-    };
-    using TexBundleID = esr::ID;
-
-    auto _texture2texbundle_id = esr::map<const cgltf_texture*, TexBundleID>();
-
-    for (const cgltf_texture& _texture : _textures)
-    {
-        // TODO: Should we just check the extension list instead?
-        if (_texture.has_basisu)
-            throw GLTFParseError("BasisU images not supported.");
-
-        auto [primary_id, primary] = scene.create_as<esr::Texture>({
-            .name         = to_string(_texture.name),
-            .image_id     = _image2image_id.at(_texture.image),
-            .channel0     = {}, // Will be changed later, if the split is needed.
-            .sampler_info = _texture.sampler ? to_sampler_info(*_texture.sampler) : esr::SamplerInfo{},
-        });
-
-        // First we just create a bundle with only one texture. We will then
-        // split them when going over the materials, once we know the proper slot.
-        //
-        // HMM: This breaks texture "instancing", but I've not seen the same
-        // image used for two unrelated purposes as a single "texture" before.
-        auto [texbundle_id, texbundle] = scene.create_as<TexBundle>({
-            .primary_id   = primary_id,
-            .secondary_id = esr::null_id,
-        });
-
-        _texture2texbundle_id.emplace(&_texture, texbundle_id);
-    } // for (_texture)
-
-
-
-    auto _material2material_id = esr::map<const cgltf_material*, esr::MaterialID>();
-
-    for (const cgltf_material& _material : _materials)
-    {
-        auto [material_id, material] = scene.create_as<esr::Material>({
-            .name = to_string(_material.name),
-            // Will fill out the rest below.
-        });
-
-        material.alpha_threshold = _material.alpha_cutoff;
-        material.alpha_method = eval%[&]{
-            switch (_material.alpha_mode)
-            {
-                case cgltf_alpha_mode_opaque: return esr::AlphaMethod::None;
-                case cgltf_alpha_mode_mask:   return esr::AlphaMethod::Test;
-                case cgltf_alpha_mode_blend:  return esr::AlphaMethod::Blend;
-                default:                      return esr::AlphaMethod::None;
-            }
-        };
-        material.double_sided = _material.double_sided;
-
-        if (_material.has_pbr_metallic_roughness)
-        {
-            const cgltf_pbr_metallic_roughness& _mat = _material.pbr_metallic_roughness;
-
-            if (const cgltf_texture* _base_texture = _mat.base_color_texture.texture)
-            {
-                // Split by creating a secondary texture from the primary.
-                auto& texbundle = scene.get<TexBundle>(_texture2texbundle_id.at(_base_texture));
-                if (texbundle.secondary_id == esr::null_id)
-                {
-                    auto secondary = scene.get<esr::Texture>(texbundle.primary_id);
-                    secondary.channel0 = 3; // Last channel for alpha.
-                    texbundle.secondary_id = scene.create_as<esr::Texture>(MOVE(secondary)).id;
-                }
-                material.albedo_id = texbundle.primary_id;
-                material.alpha_id  = texbundle.secondary_id;
-            }
-            material.albedo_factor = vec3(to_vec4(_mat.base_color_factor));
-            material.alpha_factor  = float(_mat.base_color_factor[3]);
-
-            if (const cgltf_texture* _mr_texture = _mat.metallic_roughness_texture.texture)
-            {
-                // Split again into two components.
-                // "Its green channel contains roughness values and its blue channel contains metalness values."
-                auto& texbundle = scene.get<TexBundle>(_texture2texbundle_id.at(_mr_texture));
-                if (texbundle.secondary_id == esr::null_id) // If was not yet split.
-                {
-                    // NOTE: Will override channels for *both* textures.
-                    auto& primary = scene.get<esr::Texture>(texbundle.primary_id);
-                    auto secondary = primary;
-                    primary  .channel0 = 1; // Roughness is green.
-                    secondary.channel0 = 2; // Metalness is blue.
-                    texbundle.secondary_id = scene.create_as<esr::Texture>(MOVE(secondary)).id;
-                }
-                material.roughness_id = texbundle.primary_id;
-                material.metallic_id  = texbundle.secondary_id;
-            }
-            material.roughness_factor = _mat.roughness_factor;
-            material.metallic_factor  = _mat.metallic_factor;
-        }
-
-        if (_material.has_specular)
-        {
-            // The old Phong specular will likely masquarade as one of these textures.
-            const cgltf_specular& _mat = _material.specular;
-
-            // NOTE: These textures are not specified as merged, but are *very likely*
-            // to be merged into a single RGBA texture anyway. Way to go, that's how
-            // you do this!
-            if (const cgltf_texture* _spec_color_texture = _mat.specular_color_texture.texture)
-            {
-                auto& texbundle = scene.get<TexBundle>(_texture2texbundle_id.at(_spec_color_texture));
-                auto& primary   = scene.get<esr::Texture>(texbundle.primary_id);
-                primary.channel0 = 0; // RGB.
-                material.specular_color_id = texbundle.primary_id;
-            }
-            material.specular_color_factor = to_vec3(_mat.specular_color_factor);
-
-            if (const cgltf_texture* _spec_texture = _mat.specular_texture.texture)
-            {
-                auto& texbundle = scene.get<TexBundle>(_texture2texbundle_id.at(_spec_texture));
-                auto& primary   = scene.get<esr::Texture>(texbundle.primary_id);
-                primary.channel0 = 3; // Alpha.
-                material.specular_id = texbundle.primary_id;
-            }
-            material.specular_factor = float(_mat.specular_factor);
-        }
-
-        if (const cgltf_texture* _normal_texture = _material.normal_texture.texture)
-        {
-            auto& texbundle = scene.get<TexBundle>(_texture2texbundle_id.at(_normal_texture));
-            material.normal_id = texbundle.primary_id;
-        }
-
-        if (const cgltf_texture* _emissive_texture = _material.emissive_texture.texture)
-        {
-            auto& texbundle = scene.get<TexBundle>(_texture2texbundle_id.at(_emissive_texture));
-            material.emissive_id = texbundle.primary_id;
-        }
-        material.emissive_factor   = to_vec3(_material.emissive_factor);
-        material.emissive_strength = float(_material.emissive_strength.emissive_strength);
-
-        _material2material_id.emplace(&_material, material_id);
-    } // for (_materials)
 
 
 
@@ -797,15 +865,23 @@ auto to_external_scene(const cgltf_data& gltf)
                 _channel.target_path == cgltf_animation_path_type_rotation or
                 _channel.target_path == cgltf_animation_path_type_scale)
             {
-                auto assign_trs_channel = [](esr::TRSMotion& trs_motion, const cgltf_animation_channel& _channel)
+                auto assign_trs_channel = [](
+                    esr::TRSMotion&                trs_motion,
+                    const cgltf_animation_channel& _channel,
+                    float&                         duration)
                 {
                     // NOTE: Only one MotionChannel is populated per _channel. Makes sense.
                     const esr::MotionChannel channel = {
-                        .tps           = 1.0f, // glTF is always seconds.
                         .interpolation = to_motion_interpolation(_channel.sampler->interpolation),
                         .ticks         = to_elements_view(*_channel.sampler->input),
                         .values        = to_elements_view(*_channel.sampler->output),
                     };
+
+                    const auto max_time =
+                        copy_convert_one_element<float>(channel.ticks, channel.ticks.element_count - 1);
+
+                    if (max_time > duration)
+                        duration = max_time;
 
                     switch (_channel.target_path)
                     {
@@ -828,9 +904,11 @@ auto to_external_scene(const cgltf_data& gltf)
                     if (it == animation.skin_animations.end())
                     {
                         const auto skin_animation_id = scene.create_as<esr::SkinAnimation>({
-                            .name    = to_string(_animation.name),
-                            .skin_id = skin_id,
-                            .motions = {}, // Fill later.
+                            .name     = to_string(_animation.name),
+                            .motions  = {},   // Fill later.
+                            .skin_id  = skin_id,
+                            .tps      = 1.0f, // glTF is always seconds.
+                            .duration = {},   // Fill later, as a max T of all motions.
                         }).id;
                         it = animation.skin_animations.emplace(skin_id, skin_animation_id).first;
                     }
@@ -842,9 +920,9 @@ auto to_external_scene(const cgltf_data& gltf)
 
                     // Ah yes, the ".first->second" member. A close relative of the "&*" operator.
                     // The overuse of std::pair in STL style is incredible. Soooo "generic" and "reusable".
-                    esr::TRSMotion& trs_motion = skin_animation.motions.emplace(joint_idx).first->second;
+                    esr::TRSMotion& trs_motion = skin_animation.motions.try_emplace(joint_idx).first->second;
 
-                    assign_trs_channel(trs_motion, _channel);
+                    assign_trs_channel(trs_motion, _channel, skin_animation.duration);
                 }
                 else // Scene-graph node.
                 {
@@ -852,17 +930,19 @@ auto to_external_scene(const cgltf_data& gltf)
                     if (animation.node_animations.empty())
                     {
                         const auto node_animation_id = scene.create_as<esr::NodeAnimation>({
-                            .name    = to_string(_animation.name),
-                            .motions = {}, // Fill later.
+                            .name     = to_string(_animation.name),
+                            .motions  = {}, // Fill later.
+                            .tps      = 1.0f,
+                            .duration = {},
                         }).id;
                         animation.node_animations.emplace_back(node_animation_id);
                     }
                     const esr::NodeAnimationID node_animation_id = animation.node_animations.back();
                     esr::NodeAnimation&        node_animation    = scene.get<esr::NodeAnimation>(node_animation_id);
 
-                    esr::TRSMotion& trs_motion = node_animation.motions.emplace(target_node_id).first->second;
+                    esr::TRSMotion& trs_motion = node_animation.motions.try_emplace(target_node_id).first->second;
 
-                    assign_trs_channel(trs_motion, _channel);
+                    assign_trs_channel(trs_motion, _channel, node_animation.duration);
                 }
             }
         } // for (_channel)

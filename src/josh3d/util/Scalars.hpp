@@ -8,10 +8,16 @@ There are certain aesthetic reasons to make things less ugly and more consistent
 
 Prefer these typedefs over the original names.
 
+The following types are used as-is:
+
+    bool
+    char
+    float
+    double
+
 NOTE: Currently not used consistently, but one day...
 */
 namespace josh {
-
 
 using usize   = size_t;    // Unsigned size type.
 using uindex  = size_t;    // Unsigned index type.
@@ -27,17 +33,5 @@ using i16     = int16_t;
 using i32     = int32_t;
 using i64     = int64_t;
 using uchar   = unsigned char;
-
-
-/*
-The following types are used as-is:
-
-    bool
-    char
-    float
-    double
-
-*/
-
 
 } // namespace josh

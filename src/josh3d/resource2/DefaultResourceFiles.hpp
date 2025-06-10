@@ -495,7 +495,6 @@ private:
     MappedRegion mregion_;
 };
 
-
 JOSH3D_DEFINE_ENUM_EXTRAS(TextureFile::Encoding, RAW, PNG, BC7);
 JOSH3D_DEFINE_ENUM_EXTRAS(TextureFile::Colorspace, Linear, sRGB);
 

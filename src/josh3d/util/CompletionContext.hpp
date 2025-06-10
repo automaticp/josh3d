@@ -173,7 +173,7 @@ auto CompletionContext::until_all_ready(R&& readyables)
         }
 
         void await_suspend(std::coroutine_handle<> awaiting_coroutine) {
-            self.requests_.emplace(awaiting_coroutine, await_ready_job, move_out(await_ready_job_owner));
+            self.requests_.emplace(NotReady{ awaiting_coroutine, await_ready_job, move_out(await_ready_job_owner) });
         }
 
         void await_resume() const noexcept {}
@@ -198,7 +198,7 @@ auto CompletionContext::until_ready(R&& readyable)
             return !await_ready_job;
         }
         void await_suspend(std::coroutine_handle<> awaiting_coroutine) {
-            self.requests_.emplace(awaiting_coroutine, await_ready_job, move_out(await_ready_job_owner));
+            self.requests_.emplace(NotReady{ awaiting_coroutine, await_ready_job, move_out(await_ready_job_owner) });
         }
         void await_resume() const noexcept {}
     };

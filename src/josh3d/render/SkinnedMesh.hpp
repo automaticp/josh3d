@@ -3,6 +3,8 @@
 #include "LODPack.hpp"
 #include "MeshStorage.hpp"
 #include "Resource.hpp"
+#include "Scalars.hpp"
+#include "SkeletonStorage.hpp"
 #include "VertexSkinned.hpp"
 #include "Skeleton.hpp"
 #include <cstdint>
@@ -53,8 +55,19 @@ struct SkinnedMe2h {
     // TODO: Shouldn't PublicResource be a vocabulary type?
     std::shared_ptr<const Skeleton>   skeleton;
     ResourceUsage                     skeleton_usage;
-    uintptr_t                         aba_tag{};
+    uintptr_t                         aba_tag = {};
 };
 
+/*
+Version 3 compatible with SkeletonStorage.
+*/
+struct SkinnedMe3h
+{
+    LODPack<MeshID<VertexSkinned>, 8> lods;
+    ResourceUsage                     usage;
+    SkeletonID                        skeleton_id;
+    ResourceUsage                     skeleton_usage;
+    uintptr                           aba_tag = {};
+};
 
 } // namespace josh

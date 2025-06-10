@@ -1,6 +1,7 @@
 #pragma once
 #include "CategoryCasts.hpp"
 #include "CommonConcepts.hpp"
+#include <fmt/core.h>
 #include <concepts>
 #include <stdexcept>
 #include <type_traits>
@@ -8,6 +9,10 @@
 #include <algorithm>
 
 
+/*
+NOTE: Currently a mess of a header with all kinds of "utility" stuff.
+The name needs to be changed someday.
+*/
 namespace josh {
 
 
@@ -272,6 +277,12 @@ auto pop(T& queue_like)
 }
 
 
+/*
+Ever been bothered by how `std::integral_constant` makes you repeat the type?
+Or by how it's an *integral*_constant, even though it totaly works with all NTTPs?
+Be bothered no more.
+*/
+template<auto V> struct value_constant : std::integral_constant<decltype(V), V> {};
 
 
 template<typename ...Ts>
@@ -305,7 +316,6 @@ struct Expander {
 };
 } // namespace detail
 
-
 /*
 Emulation of expansion statements/expressions.
 This comes up a lot when dealing with packs.
@@ -319,6 +329,34 @@ struct BSearchResult {
     size_t next_idx{};
     float  s       {}; // Interpolation coefficient.
 };
+
+
+/*
+Create a new *unique* type by deriving from an existing one.
+
+Not every HashMap<UUID, Path> is a ResourceFileTable,
+but every ResourceFileTable is a HashMap<UUID, Path>.
+
+NOTE: Might not get every semantic detail right 100%.
+*/
+#define JOSH3D_DERIVE_TYPE(Name, ...)                         \
+    struct Name : __VA_ARGS__                                 \
+    {                                                         \
+        using Base = __VA_ARGS__;                             \
+        using Base::Base;                                     \
+        template<same_as_remove_cvref<Base> T>                \
+        requires std::copy_constructible<std::decay_t<T>>     \
+        Name(const T& base)                                   \
+            : Base{ base }                                    \
+        {}                                                    \
+        template<same_as_remove_cvref<Base> T>                \
+        requires std::move_constructible<std::decay_t<T>> and \
+            not_move_or_copy_constructor_of<Name, T>          \
+        Name(T&& base) noexcept                               \
+            : Base{ MOVE(base) }                              \
+        {}                                                    \
+    }
+
 
 
 // Searches a *sorted* random-access sequence `range` for a `value`.
@@ -370,17 +408,43 @@ auto binary_search(
 }
 
 
-// Panics by throwing a logic_error. Does not cause UB.
+/*
+Panics by throwing a logic_error. Does not cause UB.
+TODO: Deprecate in favor of panic().
+*/
 [[noreturn]]
-inline void safe_unreachable() noexcept(false) {
+inline void safe_unreachable() noexcept(false)
+{
     throw std::logic_error("Reached unreachable.");
 }
 
-// Panics by thowing a logic_error with a custom message. Does not cause UB.
+/*
+Panics by thowing a logic_error with a custom message. Does not cause UB.
+TODO: Deprecate in favor of panic().
+*/
 [[noreturn]]
-inline void safe_unreachable(const char* message) noexcept(false) {
+inline void safe_unreachable(const char* message) noexcept(false)
+{
     throw std::logic_error(message);
 }
 
+/*
+Panics by throwing a logic_error with an optional custom message. Does not cause UB.
+*/
+[[noreturn]]
+inline void panic(const char* message = nullptr) noexcept(false)
+{
+    throw std::logic_error(message ? message : "Panic.");
+}
+
+/*
+Panics by throwing a logic_error with a formatted message. Does not cause UB.
+*/
+template<typename ...Args>
+[[noreturn]]
+void panic_fmt(fmt::format_string<Args...> msg, Args&&... args)
+{
+    throw std::logic_error(fmt::format(msg, FORWARD(args)...));
+}
 
 } // namespace josh
