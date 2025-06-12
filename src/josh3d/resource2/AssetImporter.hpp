@@ -16,7 +16,6 @@ namespace josh {
 
 class AssetImporterContext;
 
-
 /*
 AssetImporter is a relatively independent tool that takes
 external assets of different kinds (models, meshes, textures, etc.),
@@ -29,7 +28,8 @@ the loading itself. Only imported resources can be loaded by the engine.
 NOTE: Technically unrelated to the "assimp" library, although
 we currently use it internally to import mesh and model data.
 */
-class AssetImporter {
+class AssetImporter
+{
 public:
     AssetImporter(
         ResourceDatabase& resource_database,
@@ -67,8 +67,8 @@ private:
         -> Job<UUID>;
 };
 
-
-class AssetImporterContext {
+class AssetImporterContext
+{
 public:
     auto& resource_database()  noexcept { return self_.resource_database_;         }
     auto& thread_pool()        noexcept { return self_.cradle_.loading_pool;       }
@@ -83,6 +83,7 @@ public:
     {
         return { self_ };
     }
+
 private:
     friend AssetImporter;
     AssetImporterContext(AssetImporter& self) : self_(self), task_guard_(self.cradle_.task_counter) {}
@@ -90,12 +91,10 @@ private:
     SingleTaskGuard task_guard_;
 };
 
-
-
-
 template<typename ParamsT,
     of_signature<Job<UUID>(AssetImporterContext, Path, ParamsT)> ImporterF>
-void AssetImporter::register_importer(ImporterF&& f) {
+void AssetImporter::register_importer(ImporterF&& f)
+{
     const key_type key = typeid(ParamsT);
     auto [it, was_emplaced] = dispatch_table_.try_emplace(
         key,
@@ -111,7 +110,6 @@ void AssetImporter::register_importer(ImporterF&& f) {
     );
     assert(was_emplaced);
 }
-
 
 template<typename ParamsT>
 auto AssetImporter::import_asset(Path path, ParamsT params)

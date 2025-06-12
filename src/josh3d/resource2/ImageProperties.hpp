@@ -18,6 +18,18 @@ enum class Colorspace : u8
 JOSH3D_DEFINE_ENUM_EXTRAS(Colorspace, Linear, sRGB);
 
 /*
+NOTE: This is supposed to reflect the serialized format of TextureFile,
+although the exact underlying type or values are not guaranteed.
+*/
+enum class ImageEncoding : u8
+{
+    Raw, // No compression. Directly streamable.
+    PNG, // High compression. Needs decoding.
+    BC7, // Low compression. Directly streamable.
+};
+JOSH3D_DEFINE_ENUM_EXTRAS(ImageEncoding, Raw, PNG, BC7);
+
+/*
 R8/RG8/RGB8/RGBA8 from num_channels.
 PRE: num_channels: [1, 4].
 */

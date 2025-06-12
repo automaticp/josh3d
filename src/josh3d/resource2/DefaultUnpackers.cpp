@@ -1,33 +1,23 @@
-#include "DefaultUnpackers.hpp"
+#include "DefaultResources.hpp"
 #include "Common.hpp"
 #include "Components.hpp"
 #include "CoroCore.hpp"
 #include "Coroutines.hpp"
-#include "DefaultResources.hpp"
 #include "GLTextures.hpp"
 #include "Materials.hpp"
 #include "Ranges.hpp"
 #include "ResourceRegistry.hpp"
 #include "ResourceUnpacker.hpp"
 #include "ECS.hpp"
+#include "Scalars.hpp"
 #include "SceneGraph.hpp"
 #include "SkinnedMesh.hpp"
 #include "StaticMesh.hpp"
 #include "Tags.hpp"
 #include "tags/AlphaTested.hpp"
-#include <cstdint>
 
 
 namespace josh {
-
-
-void register_default_unpackers(ResourceUnpacker& u) {
-    u.register_unpacker<RT::Scene,       Handle>(&unpack_scene);
-    u.register_unpacker<RT::MeshDesc,    Handle>(&unpack_mdesc);
-    u.register_unpacker<RT::Material,    Handle>(&unpack_material);
-    u.register_unpacker<RT::StaticMesh,  Handle>(&unpack_static_mesh);
-    u.register_unpacker<RT::SkinnedMesh, Handle>(&unpack_skinned_mesh);
-}
 
 
 auto unpack_static_mesh(
@@ -53,7 +43,7 @@ auto unpack_static_mesh(
     to use a separate component that is "linked" to the primary one via
     some on_destroy<Component>() callback or similar.
     */
-    const auto aba_tag = uintptr_t(co_await peek_coroutine_address());
+    const auto aba_tag = uintptr(co_await peek_coroutine_address());
 
     /*
     FIXME: When we "bail", we likely want to report this somehow,
@@ -66,7 +56,9 @@ auto unpack_static_mesh(
 
     // Initial step.
     {
-        auto [resource, usage] = co_await context.resource_loader().get_resource<RT::StaticMesh>(uuid, &epoch);
+        auto [resource, usage] =
+            co_await context.resource_loader().get_resource<RT::StaticMesh>(uuid, &epoch);
+
         co_await reschedule_to(context.local_context());
 
         if (not handle.valid() or handle.any_of<LocalAABB, StaticMesh>())
@@ -82,8 +74,11 @@ auto unpack_static_mesh(
     }
 
     // Incremental updates.
-    while (epoch != final_epoch) {
-        auto [resource, usage] = co_await context.resource_loader().get_resource<RT::StaticMesh>(uuid, &epoch);
+    while (epoch != final_epoch)
+    {
+        auto [resource, usage] =
+            co_await context.resource_loader().get_resource<RT::StaticMesh>(uuid, &epoch);
+
         co_await reschedule_to(context.local_context());
 
         if (not handle.valid() or not has_component<StaticMesh>(handle))
@@ -99,20 +94,21 @@ auto unpack_static_mesh(
     }
 }
 
-
 auto unpack_skinned_mesh(
     ResourceUnpackerContext context,
     UUID                    uuid,
     Handle                  handle)
         -> Job<>
 {
-    const auto aba_tag = uintptr_t(co_await peek_coroutine_address());
+    const auto aba_tag = uintptr(co_await peek_coroutine_address());
     const auto bail = [](){};
 
     ResourceEpoch epoch = null_epoch;
 
     {
-        auto [resource, usage] = co_await context.resource_loader().get_resource<RT::SkinnedMesh>(uuid, &epoch);
+        auto [resource, usage] =
+            co_await context.resource_loader().get_resource<RT::SkinnedMesh>(uuid, &epoch);
+
         co_await reschedule_to(context.local_context());
 
         if (not handle.valid() or handle.any_of<LocalAABB, SkinnedMe2h>())
@@ -137,8 +133,11 @@ auto unpack_skinned_mesh(
         insert_component(handle, resource.aabb);
     }
 
-    while (epoch != final_epoch) {
-        auto [resource, usage] = co_await context.resource_loader().get_resource<RT::SkinnedMesh>(uuid, &epoch);
+    while (epoch != final_epoch)
+    {
+        auto [resource, usage] =
+            co_await context.resource_loader().get_resource<RT::SkinnedMesh>(uuid, &epoch);
+
         co_await reschedule_to(context.local_context());
 
         if (not handle.valid() or not has_component<SkinnedMe2h>(handle))
@@ -153,9 +152,7 @@ auto unpack_skinned_mesh(
     }
 }
 
-
 namespace {
-
 
 // TODO: Can we make the code less repetetive?
 auto unpack_material_diffuse(
@@ -164,12 +161,14 @@ auto unpack_material_diffuse(
     Handle                   handle)
         -> Job<>
 {
-    const auto aba_tag = uintptr_t(co_await peek_coroutine_address());
+    const auto aba_tag = uintptr(co_await peek_coroutine_address());
     const auto bail = [](){};
 
     ResourceEpoch epoch = null_epoch;
     {
-        auto [resource, usage] = co_await context.resource_loader().get_resource<RT::Texture>(uuid, &epoch);
+        auto [resource, usage] =
+            co_await context.resource_loader().get_resource<RT::Texture>(uuid, &epoch);
+
         co_await reschedule_to(context.local_context());
 
         if (!handle.valid())
@@ -191,8 +190,11 @@ auto unpack_material_diffuse(
         });
     }
 
-    while (epoch != final_epoch) {
-        auto [resource, usage] = co_await context.resource_loader().get_resource<RT::Texture>(uuid, &epoch);
+    while (epoch != final_epoch)
+    {
+        auto [resource, usage] =
+            co_await context.resource_loader().get_resource<RT::Texture>(uuid, &epoch);
+
         co_await reschedule_to(context.local_context());
 
         if (!handle.valid())
@@ -202,6 +204,7 @@ auto unpack_material_diffuse(
             co_return bail();
 
         auto& component = handle.get<MaterialDiffuse>();
+
         if (component.aba_tag != aba_tag)
             co_return bail();
 
@@ -209,19 +212,20 @@ auto unpack_material_diffuse(
     }
 }
 
-
 auto unpack_material_normal(
     ResourceUnpackerContext& context,
     UUID                     uuid,
     Handle                   handle)
         -> Job<>
 {
-    const auto aba_tag = uintptr_t(co_await peek_coroutine_address());
+    const auto aba_tag = uintptr(co_await peek_coroutine_address());
     const auto bail = [](){};
 
     ResourceEpoch epoch = null_epoch;
     {
-        auto [resource, usage] = co_await context.resource_loader().get_resource<RT::Texture>(uuid, &epoch);
+        auto [resource, usage] =
+            co_await context.resource_loader().get_resource<RT::Texture>(uuid, &epoch);
+
         co_await reschedule_to(context.local_context());
 
         if (!handle.valid())
@@ -237,8 +241,11 @@ auto unpack_material_normal(
         });
     }
 
-    while (epoch != final_epoch) {
-        auto [resource, usage] = co_await context.resource_loader().get_resource<RT::Texture>(uuid, &epoch);
+    while (epoch != final_epoch)
+    {
+        auto [resource, usage] =
+            co_await context.resource_loader().get_resource<RT::Texture>(uuid, &epoch);
+
         co_await reschedule_to(context.local_context());
 
         if (!handle.valid())
@@ -248,13 +255,13 @@ auto unpack_material_normal(
             co_return bail();
 
         auto& component = handle.get<MaterialNormal>();
+
         if (component.aba_tag != aba_tag)
             co_return bail();
 
         component.texture = MOVE(resource.texture);
     }
 }
-
 
 auto unpack_material_specular(
     ResourceUnpackerContext& context,
@@ -263,12 +270,14 @@ auto unpack_material_specular(
     float                    specpower)
         -> Job<>
 {
-    const auto aba_tag = uintptr_t(co_await peek_coroutine_address());
+    const auto aba_tag = uintptr(co_await peek_coroutine_address());
     const auto bail = [](){};
 
     ResourceEpoch epoch = null_epoch;
     {
-        auto [resource, usage] = co_await context.resource_loader().get_resource<RT::Texture>(uuid, &epoch);
+        auto [resource, usage] =
+            co_await context.resource_loader().get_resource<RT::Texture>(uuid, &epoch);
+
         co_await reschedule_to(context.local_context());
 
         if (!handle.valid())
@@ -285,8 +294,11 @@ auto unpack_material_specular(
         });
     }
 
-    while (epoch != final_epoch) {
-        auto [resource, usage] = co_await context.resource_loader().get_resource<RT::Texture>(uuid, &epoch);
+    while (epoch != final_epoch)
+    {
+        auto [resource, usage] =
+             co_await context.resource_loader().get_resource<RT::Texture>(uuid, &epoch);
+
         co_await reschedule_to(context.local_context());
 
         if (!handle.valid())
@@ -296,6 +308,7 @@ auto unpack_material_specular(
             co_return bail();
 
         auto& component = handle.get<MaterialSpecular>();
+
         if (component.aba_tag != aba_tag)
             co_return bail();
 
@@ -303,9 +316,7 @@ auto unpack_material_specular(
     }
 }
 
-
 } // namespace
-
 
 auto unpack_material(
     ResourceUnpackerContext context,
@@ -317,21 +328,17 @@ auto unpack_material(
 
     StaticVector<Job<>, 3> jobs;
 
-    if (not material.diffuse_uuid.is_nil()) {
+    if (not material.diffuse_uuid.is_nil())
         jobs.emplace_back(unpack_material_diffuse(context, material.diffuse_uuid, handle));
-    }
 
-    if (not material.normal_uuid.is_nil()) {
+    if (not material.normal_uuid.is_nil())
         jobs.emplace_back(unpack_material_normal(context, material.normal_uuid, handle));
-    }
 
-    if (not material.specular_uuid.is_nil()) {
+    if (not material.specular_uuid.is_nil())
         jobs.emplace_back(unpack_material_specular(context, material.specular_uuid, handle, material.specpower));
-    }
 
     co_await until_all_succeed(jobs);
 }
-
 
 auto unpack_mdesc(
     ResourceUnpackerContext context,
@@ -348,7 +355,6 @@ auto unpack_mdesc(
 
     co_await until_all_succeed(jobs);
 }
-
 
 auto unpack_scene(
     ResourceUnpackerContext context,
@@ -384,23 +390,27 @@ auto unpack_scene(
 
     registry.create(new_entities.begin(), new_entities.end());
 
-    for (const auto [node, entity] : zip(nodes, new_entities)) {
+    for (const auto [node, entity] : zip(nodes, new_entities))
+    {
         const Handle node_handle = { registry, entity };
         node_handle.emplace<Transform>(node.transform);
-        if (node.parent_index != SceneResource::Node::no_parent) {
+        if (node.parent_index != SceneResource::Node::no_parent)
+        {
             attach_to_parent(node_handle, new_entities[node.parent_index]);
-        } else /* root */ {
+        }
+        else /* root */
+        {
             // NOTE: All root nodes are attached to the scene handle.
             // I might revise this or make it configurable.
             attach_to_parent(node_handle, handle);
         }
     }
 
-    for (const auto [node, entity] : zip(nodes, new_entities)) {
+    for (const auto [node, entity] : zip(nodes, new_entities))
+    {
         const Handle handle = { registry, entity };
-        if (not node.uuid.is_nil()) {
+        if (not node.uuid.is_nil())
             entity_jobs.emplace_back(context.unpacker().unpack_any(node.uuid, handle));
-        }
     }
 
     co_await until_all_succeed(entity_jobs);

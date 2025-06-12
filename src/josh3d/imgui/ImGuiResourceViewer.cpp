@@ -1,9 +1,10 @@
 #include "ImGuiResourceViewer.hpp"
+#include "DefaultResourceFiles.hpp"
 #include "ECS.hpp"
 #include "ImGuiHelpers.hpp"
 #include "Common.hpp"
 #include "Coroutines.hpp"
-#include "DefaultImporters.hpp"
+#include "DefaultResources.hpp"
 #include "Logging.hpp"
 #include "MeshRegistry.hpp"
 #include "ObjectLifecycle.hpp"
@@ -112,45 +113,25 @@ void ImGuiResourceViewer::display_viewer() {
         }
     };
 
-
-    using TextureFormat = TextureFile::Encoding;
-    const TextureFormat formats[3]{
-        TextureFormat::RAW,
-        TextureFormat::PNG,
-        TextureFormat::BC7,
-    };
-
-    const char* format_names[3]{
-        enum_cstring(formats[0]),
-        enum_cstring(formats[1]),
-        enum_cstring(formats[2]),
-    };
-
-    auto texture_format_combo = [&](TextureFormat& current_format) {
-        size_t current_idx = 0;
-        for (const TextureFormat format : formats) {
-            if (format == current_format) break;
-            ++current_idx;
-        }
-
-        if (ImGui::BeginCombo("Texture Format", enum_cstring(current_format))) {
-            for (const size_t i : irange(std::size(formats))) {
-                if (ImGui::Selectable(format_names[i], current_idx == i)) {
-                    current_format = formats[i];
-                }
-            }
+    auto texture_encoding_combo = [&](ImportEncoding& current_format)
+    {
+        if (ImGui::BeginCombo("Texture Format", enum_cstring(current_format)))
+        {
+            for (const ImportEncoding enc : enum_iter<ImportEncoding>())
+                if (ImGui::Selectable(enum_cstring(enc), current_format == enc))
+                    current_format = enc;
             ImGui::EndCombo();
         }
     };
 
     if (ImGui::TreeNode("Import Texture")) {
-        texture_format_combo(import_texture_params.encoding);
+        texture_encoding_combo(import_texture_params.encoding);
         ImGui::Checkbox("Generate Mipmaps", &import_texture_params.generate_mips);
         if (ImGui::Button("Import")) try_import_thing(import_texture_params);
         ImGui::TreePop();
     }
     if (ImGui::TreeNode("Import Scene")) {
-        texture_format_combo(import_scene_params.texture_encoding);
+        texture_encoding_combo(import_scene_params.texture_encoding);
         ImGui::Checkbox("Generate Mipmaps", &import_scene_params.generate_mips);
         ImGui::SameLine();
         ImGui::Checkbox("Collapse Graph", &import_scene_params.collapse_graph);

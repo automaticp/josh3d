@@ -3,7 +3,7 @@
 #include "Common.hpp"
 #include "AABB.hpp"
 #include "Asset.hpp"
-#include "DefaultImporters.hpp"
+#include "DefaultResources.hpp"
 #include "Scalars.hpp"
 #include "Transform.hpp"
 #include "UUID.hpp"

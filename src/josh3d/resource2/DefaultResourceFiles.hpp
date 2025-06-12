@@ -1,10 +1,10 @@
 #pragma once
+#include "Scalars.hpp"
 #include "EnumUtils.hpp"
 #include "FileMapping.hpp"
 #include "ResourceFiles.hpp"
 #include "DefaultResources.hpp"
 #include "VertexSkinned.hpp"
-#include <cstdint>
 
 
 /*
@@ -45,27 +45,30 @@ struct SkeletonFile {
 
 SkeletonFile skeleton_file @ 0x0;
 */
-class SkeletonFile {
+class SkeletonFile
+{
 public:
-    static constexpr auto     file_type     = "SkeletonFile"_hs;
-    static constexpr uint16_t version       = 0;
-    static constexpr auto     resource_type = RT::Skeleton;
+    static constexpr auto file_type     = "SkeletonFile"_hs;
+    static constexpr u16  version       = 0;
+    static constexpr auto resource_type = RT::Skeleton;
 
-    struct Header {
+    struct Header
+    {
         ResourcePreamble preamble;
-        uint16_t         _reserved0;
-        uint16_t         num_joints;
-        uint32_t         _reserved1;
+        u16              _reserved0;
+        u16              num_joints;
+        u16              _reserved1;
     };
 
-    struct Args {
-        uint16_t num_joints;
+    struct Args
+    {
+        u16 num_joints;
     };
 
     // Calculate the number of bytes required for creation of
     // the file with the specified arguments.
     static auto required_size(const Args& args) noexcept
-        -> size_t;
+        -> usize;
 
     [[nodiscard]]
     static auto create_in(MappedRegion mapped_region, UUID self_uuid, const Args& args)
@@ -75,7 +78,7 @@ public:
     static auto open(MappedRegion mapped_region)
         -> SkeletonFile;
 
-    auto size_bytes()  const noexcept -> size_t { return mregion_.get_size(); }
+    auto size_bytes()  const noexcept -> usize { return mregion_.get_size(); }
 
     auto header()      const noexcept -> Header&;
     auto joints()      const noexcept -> Span<Joint>;
@@ -85,9 +88,6 @@ private:
     SkeletonFile(MappedRegion mregion) : mregion_(MOVE(mregion)) {}
     MappedRegion mregion_;
 };
-
-
-
 
 /*
 NOTE: This file layout requires double indirection to parse
@@ -145,54 +145,62 @@ struct AnimationFile {
 
 AnimationFile anim_file @ 0x0;
 */
-class AnimationFile {
+class AnimationFile
+{
 public:
-    static constexpr auto     file_type     = "AnimationFile"_hs;
-    static constexpr uint16_t version       = 0;
-    static constexpr auto     resource_type = RT::Animation;
+    static constexpr auto file_type     = "AnimationFile"_hs;
+    static constexpr u16  version       = 0;
+    static constexpr auto resource_type = RT::Animation;
 
-    struct JointSpan {
-        uint32_t offset_bytes; // Offset at which keyframes of a particular joint are located.
-        uint32_t size_bytes;   // Size for sanity.
+    struct JointSpan
+    {
+        u32 offset_bytes; // Offset at which keyframes of a particular joint are located.
+        u32 size_bytes;   // Size for sanity.
     };
 
-    struct KeyframesHeader {
-        uint32_t _reserved0;
-        uint32_t num_pos_keys;
-        uint32_t num_rot_keys;
-        uint32_t num_sca_keys;
+    struct KeyframesHeader
+    {
+        u32 _reserved0;
+        u32 num_pos_keys;
+        u32 num_rot_keys;
+        u32 num_sca_keys;
     };
 
-    struct KeyVec3 {
+    struct KeyVec3
+    {
         float time_s;
         vec3  value;
     };
 
-    struct KeyQuat {
+    struct KeyQuat
+    {
         float time_s;
         quat  value;
     };
 
-    struct Header {
+    struct Header
+    {
         ResourcePreamble preamble;
         UUID             skeleton_uuid;
         float            duration_s;
-        uint16_t         _reserved1;
-        uint16_t         num_joints;
+        u16              _reserved1;
+        u16              num_joints;
     };
 
-    struct KeySpec {
-        uint32_t num_pos_keys;
-        uint32_t num_rot_keys;
-        uint32_t num_sca_keys;
+    struct KeySpec
+    {
+        u32 num_pos_keys;
+        u32 num_rot_keys;
+        u32 num_sca_keys;
     };
 
-    struct Args {
+    struct Args
+    {
         Span<const KeySpec> key_specs; // Per-joint.
     };
 
     static auto required_size(const Args& args) noexcept
-        -> size_t;
+        -> usize;
 
     [[nodiscard]]
     static auto create_in(MappedRegion mapped_region, UUID self_uuid, const Args& args)
@@ -202,24 +210,21 @@ public:
     static auto open(MappedRegion mapped_region)
         -> AnimationFile;
 
-    auto size_bytes() const noexcept -> size_t { return mregion_.get_size(); }
+    auto size_bytes() const noexcept -> usize { return mregion_.get_size(); }
 
     auto header() const noexcept -> Header&;
 
-    auto joint_span      (size_t joint_id) const noexcept -> JointSpan&;
-    auto keyframes_header(size_t joint_id) const noexcept -> KeyframesHeader&;
-    auto pos_keys        (size_t joint_id) const noexcept -> Span<KeyVec3>;
-    auto rot_keys        (size_t joint_id) const noexcept -> Span<KeyQuat>;
-    auto sca_keys        (size_t joint_id) const noexcept -> Span<KeyVec3>;
+    auto joint_span      (uindex joint_id) const noexcept -> JointSpan&;
+    auto keyframes_header(uindex joint_id) const noexcept -> KeyframesHeader&;
+    auto pos_keys        (uindex joint_id) const noexcept -> Span<KeyVec3>;
+    auto rot_keys        (uindex joint_id) const noexcept -> Span<KeyQuat>;
+    auto sca_keys        (uindex joint_id) const noexcept -> Span<KeyVec3>;
 
 private:
     AnimationFile(MappedRegion mregion) : mregion_(MOVE(mregion)) {}
     MappedRegion mregion_;
 };
 
-
-
-
 /*
 NOTE: LOD levels are placed such that the lower resolution LODs
 are stored *before* the higher resolution ones. Reading the header
@@ -238,47 +243,52 @@ struct StaticMeshFile {
     LODData lod_data[header.num_lods];
 };
 */
-class StaticMeshFile {
+class StaticMeshFile
+{
 public:
-    static constexpr auto     file_type     = "StaticMeshFile"_hs;
-    static constexpr uint16_t version       = 0;
-    static constexpr auto     resource_type = RT::StaticMesh;
-    static constexpr size_t   max_lods      = 8;
+    static constexpr auto  file_type     = "StaticMeshFile"_hs;
+    static constexpr u16   version       = 0;
+    static constexpr auto  resource_type = RT::StaticMesh;
+    static constexpr usize max_lods      = 8;
     using vertex_type  = VertexStatic;
-    using element_type = uint32_t;
+    using element_type = u32;
 
-    struct LODSpan {
-        uint32_t num_verts;          // Number of vertices encoded in the data.
-        uint32_t num_elems;          // Number of elements in the data.
-        uint32_t verts_offset_bytes; // Offset into the file, where the vertex data starts.
-        uint32_t elems_offset_bytes; // Offset into the file, where the element data starts.
-        uint32_t verts_size_bytes;   // Size of the vertex data in bytes.
-        uint32_t elems_size_bytes;   // Size of the element data in bytes.
+    struct LODSpan
+    {
+        u32 num_verts;          // Number of vertices encoded in the data.
+        u32 num_elems;          // Number of elements in the data.
+        u32 verts_offset_bytes; // Offset into the file, where the vertex data starts.
+        u32 elems_offset_bytes; // Offset into the file, where the element data starts.
+        u32 verts_size_bytes;   // Size of the vertex data in bytes.
+        u32 elems_size_bytes;   // Size of the element data in bytes.
     };
 
-    struct Header {
+    struct Header
+    {
         ResourcePreamble preamble;       //
-        uint16_t         _reserved0;     //
-        uint8_t          num_lods;       // Number of LODs stored for this mesh (up-to 8).
-        uint8_t          _reserved1;     //
+        u16              _reserved0;     //
+        u8               num_lods;       // Number of LODs stored for this mesh (up-to 8).
+        u8               _reserved1;     //
         LocalAABB        aabb;           // AABB in mesh space. Largest of all LODs.
-        uint32_t         _reserved2;     //
+        u32              _reserved2;     //
         LODSpan          lods[max_lods]; // LOD descriptors that point to data in file.
     };
 
-    struct LODSpec {
-        uint32_t num_verts;
-        uint32_t num_elems;
-        uint32_t verts_size_bytes;
-        uint32_t elems_size_bytes;
+    struct LODSpec
+    {
+        u32 num_verts;
+        u32 num_elems;
+        u32 verts_size_bytes;
+        u32 elems_size_bytes;
     };
 
-    struct Args {
+    struct Args
+    {
         Span<const LODSpec> lod_specs; // Up-to max_lods.
     };
 
     static auto required_size(const Args& args) noexcept
-        -> size_t;
+        -> usize;
 
     [[nodiscard]]
     static auto create_in(MappedRegion mapped_region, UUID self_uuid, const Args& args)
@@ -288,20 +298,19 @@ public:
     static auto open(MappedRegion mapped_region)
         -> StaticMeshFile;
 
-    auto size_bytes() const noexcept -> size_t { return mregion_.get_size(); }
+    auto size_bytes() const noexcept -> usize { return mregion_.get_size(); }
 
     auto header() const noexcept -> Header&;
 
-    auto lod_span       (size_t lod_id) const noexcept -> LODSpan&;
-    auto lod_verts_bytes(size_t lod_id) const noexcept -> Span<ubyte>;
-    auto lod_elems_bytes(size_t lod_id) const noexcept -> Span<ubyte>;
+    auto lod_span       (uindex lod_id) const noexcept -> LODSpan&;
+    auto lod_verts_bytes(uindex lod_id) const noexcept -> Span<ubyte>;
+    auto lod_elems_bytes(uindex lod_id) const noexcept -> Span<ubyte>;
 
 private:
     StaticMeshFile(MappedRegion mregion) : mregion_(MOVE(mregion)) {}
     MappedRegion mregion_;
 };
 
-
 /*
 NOTE: LOD levels are placed such that the lower resolution LODs
 are stored *before* the higher resolution ones. Reading the header
@@ -320,49 +329,54 @@ struct StaticMeshFile {
     LODData lod_data[header.num_lods];
 };
 */
-class SkinnedMeshFile {
+class SkinnedMeshFile
+{
 public:
-    static constexpr auto     file_type     = "SkinnedMeshFile"_hs;
-    static constexpr uint16_t version       = 0;
-    static constexpr auto     resource_type = RT::SkinnedMesh;
-    static constexpr size_t   max_lods      = 8;
+    static constexpr auto  file_type     = "SkinnedMeshFile"_hs;
+    static constexpr u16   version       = 0;
+    static constexpr auto  resource_type = RT::SkinnedMesh;
+    static constexpr usize max_lods      = 8;
     using vertex_type  = VertexSkinned;
-    using element_type = uint32_t;
+    using element_type = u32;
 
-    struct LODSpan {
-        uint32_t num_verts;          // Number of vertices encoded in the data.
-        uint32_t num_elems;          // Number of elements in the data.
-        uint32_t verts_offset_bytes; // Offset into the file, where the vertex data starts.
-        uint32_t elems_offset_bytes; // Offset into the file, where the element data starts.
-        uint32_t verts_size_bytes;   // Size of the vertex data in bytes.
-        uint32_t elems_size_bytes;   // Size of the element data in bytes.
+    struct LODSpan
+    {
+        u32 num_verts;          // Number of vertices encoded in the data.
+        u32 num_elems;          // Number of elements in the data.
+        u32 verts_offset_bytes; // Offset into the file, where the vertex data starts.
+        u32 elems_offset_bytes; // Offset into the file, where the element data starts.
+        u32 verts_size_bytes;   // Size of the vertex data in bytes.
+        u32 elems_size_bytes;   // Size of the element data in bytes.
     };
 
-    struct Header {
+    struct Header
+    {
         ResourcePreamble preamble;       //
         UUID             skeleton_uuid;  // UUID of the associated skeleton.
-        uint16_t         _reserved0;     //
-        uint8_t          num_lods;       // Number of LODs stored for this mesh (up-to 8).
-        uint8_t          _reserved1;     //
+        u16              _reserved0;     //
+        u8               num_lods;       // Number of LODs stored for this mesh (up-to 8).
+        u8               _reserved1;     //
         LocalAABB        aabb;           // AABB in mesh space. Largest of all LODs.
-        uint32_t         _reserved2;     //
+        u32              _reserved2;     //
         LODSpan          lods[max_lods]; // LOD descriptors that point to data in file.
     };
 
-    struct LODSpec {
-        uint32_t num_verts;
-        uint32_t num_elems;
-        uint32_t verts_size_bytes;
-        uint32_t elems_size_bytes;
+    struct LODSpec
+    {
+        u32 num_verts;
+        u32 num_elems;
+        u32 verts_size_bytes;
+        u32 elems_size_bytes;
     };
 
-    struct Args {
+    struct Args
+    {
         UUID                skeleton_uuid;
         Span<const LODSpec> lod_specs; // Up-to max_lods.
     };
 
     static auto required_size(const Args& args) noexcept
-        -> size_t;
+        -> usize;
 
     [[nodiscard]]
     static auto create_in(MappedRegion mapped_region, UUID self_uuid, const Args& args)
@@ -372,21 +386,18 @@ public:
     static auto open(MappedRegion mapped_region)
         -> SkinnedMeshFile;
 
-    auto size_bytes() const noexcept -> size_t { return mregion_.get_size(); }
+    auto size_bytes() const noexcept -> usize { return mregion_.get_size(); }
 
     auto header() const noexcept -> Header&;
 
-    auto lod_span       (size_t lod_id) const noexcept -> LODSpan&;
-    auto lod_verts_bytes(size_t lod_id) const noexcept -> Span<ubyte>;
-    auto lod_elems_bytes(size_t lod_id) const noexcept -> Span<ubyte>;
+    auto lod_span       (uindex lod_id) const noexcept -> LODSpan&;
+    auto lod_verts_bytes(uindex lod_id) const noexcept -> Span<ubyte>;
+    auto lod_elems_bytes(uindex lod_id) const noexcept -> Span<ubyte>;
 
 private:
     SkinnedMeshFile(MappedRegion mregion) : mregion_(MOVE(mregion)) {}
     MappedRegion mregion_;
 };
-
-
-
 
 /*
 NOTE: MIP levels are placed such that the lower resolution MIPs
@@ -420,60 +431,67 @@ struct TextureFile {
     MIPData    mip_data[num_mips];
 };
 */
-class TextureFile {
+class TextureFile
+{
 public:
-    static constexpr auto     file_type     = "TextureFile"_hs;
-    static constexpr uint16_t version       = 0;
-    static constexpr auto     resource_type = RT::Texture;
-    static constexpr size_t   max_mips      = 16;
+    static constexpr auto  file_type     = "TextureFile"_hs;
+    static constexpr u16   version       = 0;
+    static constexpr auto  resource_type = RT::Texture;
+    static constexpr usize max_mips      = 16;
 
     // TODO: This is not fully supported yet.
-    enum class Encoding : uint8_t {
+    enum class Encoding : u8
+    {
         RAW, // No compression. Directly streamable.
         PNG, // High compression. Needs decoding.
         BC7, // Low compression. Directly streamable.
     };
 
-    enum class Colorspace : uint8_t {
+    enum class Colorspace : u8
+    {
         Linear,
         sRGB,
     };
 
-    struct MIPSpan {
-        uint32_t offset_bytes;
-        uint32_t size_bytes;
-        uint16_t width;  // In pixels.
-        uint16_t height; // In pixels.
+    struct MIPSpan
+    {
+        u32      offset_bytes;
+        u32      size_bytes;
+        u16      width;  // In pixels.
+        u16      height; // In pixels.
         Encoding encoding;
-        uint8_t  _reserved0;
-        uint16_t _reserved1;
+        u8       _reserved0;
+        u16      _reserved1;
     };
 
-    struct Header {
+    struct Header
+    {
         ResourcePreamble preamble;
-        uint8_t          num_channels;
+        u8               num_channels;
         Colorspace       colorspace;
-        uint8_t          _reserved0;
-        uint8_t          num_mips;
-        uint32_t         _reserved1;
+        u8               _reserved0;
+        u8               num_mips;
+        u32              _reserved1;
         MIPSpan          mips[max_mips];
     };
 
-    struct MIPSpec {
-        uint32_t size_bytes;
-        uint16_t width_pixels;
-        uint16_t height_pixels;
+    struct MIPSpec
+    {
+        u32      size_bytes;
+        u16      width_pixels;
+        u16      height_pixels;
         Encoding encoding;
     };
 
-    struct Args {
-        uint8_t             num_channels;
+    struct Args
+    {
+        u8                  num_channels;
         Colorspace          colorspace;
         Span<const MIPSpec> mip_specs; // Up-to max_mips.
     };
 
     static auto required_size(const Args& args) noexcept
-        -> size_t;
+        -> usize;
 
     [[nodiscard]]
     static auto create_in(MappedRegion mapped_region, UUID self_uuid, const Args& args)
@@ -483,12 +501,12 @@ public:
     static auto open(MappedRegion mapped_region)
         -> TextureFile;
 
-    auto size_bytes() const noexcept -> size_t { return mregion_.get_size(); }
+    auto size_bytes() const noexcept -> usize { return mregion_.get_size(); }
 
     auto header() const noexcept -> Header&;
 
-    auto mip_span (size_t mip_id) const noexcept -> MIPSpan&;
-    auto mip_bytes(size_t mip_id) const noexcept -> Span<ubyte>;
+    auto mip_span (uindex mip_id) const noexcept -> MIPSpan&;
+    auto mip_bytes(uindex mip_id) const noexcept -> Span<ubyte>;
 
 private:
     TextureFile(MappedRegion mregion) : mregion_(MOVE(mregion)) {}

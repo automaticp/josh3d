@@ -131,10 +131,10 @@ void populate_scene_nodes_preorder(
 
 
 auto image_intent_colorspace(ImageIntent intent)
-    -> TextureFile::Colorspace
+    -> Colorspace
 {
     switch (intent) {
-        using enum TextureFile::Colorspace;
+        using enum Colorspace;
         case ImageIntent::Albedo:
             return sRGB;
         case ImageIntent::Specular:

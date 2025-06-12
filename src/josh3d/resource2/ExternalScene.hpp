@@ -12,7 +12,6 @@
 #include "Transform.hpp"
 #include "VertexFormat.hpp"
 #include <entt/entt.hpp>
-#include <bit>
 #include <cstring>
 #include <functional>
 
@@ -60,7 +59,6 @@ is a major PITA.
 */
 struct ExternalScene;
 
-
 /*
 Scene reference/ID vocabulary.
 */
@@ -82,13 +80,11 @@ using SkinAnimationID  = ID; // Animation data for this particular kind.
 using NodeAnimationID  = ID; // Animation data for this particular kind.
 using MorphAnimationID = ID; // Animation data for this particular kind.
 
-
 /*
 Special value used to identify lack of a referenced object.
 It is *the* value implied when referred to as "null" or "no" id.
 */
 constexpr ID null_id = entt::null;
-
 
 /*
 Vocabulary for containers used in ESR.
@@ -118,6 +114,8 @@ Scene objects and their components are defined below.
 /*
 To follow along with glTF, there's multi-scene support.
 Confusingly, ExternalSceneRepr can contain multiple scenes.
+
+TODO: Rename to "Subscene".
 */
 struct Scene
 {
@@ -169,34 +167,6 @@ struct Mesh
     VertexFormat   format;      // Could be skinned even if it does not refer to a skin_id in this scene.
     MaterialID     material_id; // Associated material, if any.
     SkinID         skin_id;     // Referenced skin, if any.
-};
-
-// TODO: This is for identifying channels in a view.
-// FIXME: Not used, remove?
-enum class ChannelMask : u8
-{
-    R = (1 << 0),
-    G = (1 << 1),
-    B = (1 << 2),
-    A = (1 << 3),
-};
-JOSH3D_DEFINE_ENUM_BITSET_OPERATORS(ChannelMask);
-
-constexpr auto num_channels(ChannelMask mask) noexcept
-    -> usize
-{
-    return std::popcount(to_underlying(mask));
-}
-
-// TODO: What should this be exactly?
-struct [[deprecated]] ImageView
-{
-    ElementsView data;         // If not encoded, each element corresponds to an image "pixel". If encoded, this is just a byte stream.
-    u32          width;        // Width in pixels. Might be 0 if encoded.
-    u32          height;       // Height in pixels. Might be 0 if encoded.
-    u8           num_channels; // Number of channels in the image. Might be 0 if encoded.
-    bool         encoded;      // If encoded, the data needs to be decoded from some common format (ex. PNG, JPEG). The data.element will likely be just a byte stream u8vec1. This flag is used to differentiate it from a normal single-channel image.
-    constexpr explicit operator bool() const noexcept { return bool(data); }
 };
 
 struct Image
@@ -405,7 +375,6 @@ struct ExternalScene
     template<typename T>
     auto create_as(T&& component) -> Created<T>;
 };
-
 
 template<typename T>
 auto ExternalScene::create_as(T&& component)

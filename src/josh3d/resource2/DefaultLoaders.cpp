@@ -1,11 +1,9 @@
-#include "DefaultLoaders.hpp"
+#include "DefaultResources.hpp"
 #include "Common.hpp"
 #include "CategoryCasts.hpp"
 #include "ContainerUtils.hpp"
 #include "CoroCore.hpp"
 #include "Coroutines.hpp"
-#include "DefaultResources.hpp"
-#include "DefaultResourceFiles.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLBuffers.hpp"
 #include "GLObjectHelpers.hpp"
@@ -14,6 +12,7 @@
 #include "GLTextures.hpp"
 #include "LODPack.hpp"
 #include "MallocSupport.hpp"
+#include "DefaultResourceFiles.hpp"
 #include "MeshRegistry.hpp"
 #include "MeshStorage.hpp"
 #include "Ranges.hpp"
@@ -21,6 +20,7 @@
 #include "ResourceFiles.hpp"
 #include "ResourceLoader.hpp"
 #include "RuntimeError.hpp"
+#include "Scalars.hpp"
 #include "SkeletalAnimation.hpp"
 #include "UUID.hpp"
 #include "VertexSkinned.hpp"
@@ -36,42 +36,31 @@
 
 
 namespace josh {
-
-
-void register_default_loaders(ResourceLoader& l) {
-    l.register_loader<RT::Scene>      (&load_scene);
-    l.register_loader<RT::MeshDesc>   (&load_mdesc);
-    l.register_loader<RT::Material>   (&load_material);
-    l.register_loader<RT::StaticMesh> (&load_static_mesh);
-    l.register_loader<RT::SkinnedMesh>(&load_skinned_mesh);
-    l.register_loader<RT::Texture>    (&load_texture);
-    l.register_loader<RT::Skeleton>   (&load_skeleton);
-    l.register_loader<RT::Animation>  (&load_animation);
-}
-
-
 namespace {
+
 
 using jsoncons::json;
 
-struct LODRange {
-    uint8_t beg_lod;
-    uint8_t end_lod;
+struct LODRange
+{
+    u8 beg_lod;
+    u8 end_lod;
 };
 
-auto next_lod_range(uint8_t cur_lod, uint8_t num_lods)
+auto next_lod_range(u8 cur_lod, u8 num_lods)
     -> LODRange
 {
     // TODO: Something more advanced...
     assert(cur_lod);
-    const uint8_t lod = std::max(cur_lod, uint8_t(1)) - 1;
-    const uint8_t end = lod + 1;
+    const u8 lod = std::max(cur_lod, u8(1)) - 1;
+    const u8 end = lod + 1;
     return { lod, end };
 }
 
-struct StagingBuffers {
-    UniqueUntypedBuffer    verts;
-    UniqueBuffer<uint32_t> elems;
+struct StagingBuffers
+{
+    UniqueUntypedBuffer verts;
+    UniqueBuffer<u32>   elems;
 };
 
 auto stage_lod(
@@ -79,16 +68,16 @@ auto stage_lod(
     Span<const ubyte> elems_bytes)
         -> StagingBuffers
 {
-    const StoragePolicies policies{
+    const StoragePolicies policies = {
         .mode        = StorageMode::StaticServer,
         .mapping     = PermittedMapping::NoMapping,
         .persistence = PermittedPersistence::NotPersistent,
     };
 
-    UniqueBuffer<uint32_t> dst_elems;
-    UniqueUntypedBuffer    dst_verts;
+    UniqueBuffer<u32>   dst_elems;
+    UniqueUntypedBuffer dst_verts;
 
-    dst_elems->specify_storage(pun_span<const uint32_t>(elems_bytes), policies);
+    dst_elems->specify_storage(pun_span<const u32>(elems_bytes), policies);
     dst_verts->as_typed<ubyte>().specify_storage(verts_bytes, policies);
 
     return { MOVE(dst_verts), MOVE(dst_elems) };
@@ -101,22 +90,22 @@ auto upload_lods(
     std::ranges::range auto&&    lod_ids,
     Span<const StagingBuffers>   staged_lods)
 {
-    for (const auto [i, staged] : zip(lod_ids, staged_lods)) {
+    for (const auto [i, staged] : zip(lod_ids, staged_lods))
+    {
         make_available<Binding::ArrayBuffer>       (staged.verts->id());
         make_available<Binding::ElementArrayBuffer>(staged.elems->id());
         lod_pack.lods[i] = storage.insert_buffer(staged.verts->template as_typed<VertexT>(), staged.elems);
     }
 };
 
-
 } // namespace
-
 
 auto load_static_mesh(
     ResourceLoaderContext context,
     UUID                  uuid)
         -> Job<>
-try {
+try
+{
     co_await reschedule_to(context.thread_pool());
 
     auto file = StaticMeshFile::open(context.resource_database().map_resource(uuid));
@@ -132,10 +121,11 @@ try {
     StaticVector<StagingBuffers,  8> staged_lods;
     LODPack<MeshID<VertexStatic>, 8> lod_pack{};
 
-    const uint8_t num_lods   = header.num_lods;
-    uint8_t       cur_lod    = num_lods;
-    bool          first_time = true;
-    do {
+    const u8 num_lods   = header.num_lods;
+    u8       cur_lod    = num_lods;
+    bool     first_time = true;
+    do
+    {
         // FIXME: This is overall pretty bad as it waits on a previous
         // LOD to be fully inserted into the mesh storage before proceeding
         // to the next one. Each LOD could span multiple frames, and is forced
@@ -149,9 +139,8 @@ try {
         staged_lods.clear();
         const auto [beg_lod, end_lod] = next_lod_range(cur_lod, num_lods);
         const auto lod_ids            = reverse(irange(beg_lod, end_lod));
-        for (const auto lod_id : lod_ids) {
+        for (const auto lod_id : lod_ids)
             staged_lods.emplace_back(stage_lod(file.lod_verts_bytes(lod_id), file.lod_elems_bytes(lod_id)));
-        }
 
         // Wait until this lod is staged then go to the main context.
         co_await context.completion_context().until_ready_on(context.offscreen_context(), create_fence());
@@ -169,14 +158,16 @@ try {
 
         if (beg_lod == 0) progress = ResourceProgress::Complete;
 
-        if (first_time) {
+        if (first_time)
+        {
             first_time = false;
             usage = context.create_resource<RT::StaticMesh>(uuid, progress, StaticMeshResource{
                 .lods = lod_pack,
                 .aabb = header.aabb,
             });
-
-        } else {
+        }
+        else
+        {
             context.update_resource<RT::StaticMesh>(uuid, [&](StaticMeshResource& mesh)
                 -> ResourceProgress
             {
@@ -186,20 +177,21 @@ try {
             });
         }
 
-
         cur_lod = beg_lod;
-    } while (cur_lod != 0);
-
-} catch (...) {
+    }
+    while (cur_lod != 0);
+}
+catch (...)
+{
     context.fail_resource<RT::StaticMesh>(uuid);
 }
-
 
 auto load_skinned_mesh(
     ResourceLoaderContext context,
     UUID                  uuid)
         -> Job<>
-try {
+try
+{
     co_await reschedule_to(context.thread_pool());
 
     auto file = SkinnedMeshFile::open(context.resource_database().map_resource(uuid));
@@ -211,18 +203,18 @@ try {
     StaticVector<StagingBuffers,   8> staged_lods;
     LODPack<MeshID<VertexSkinned>, 8> lod_pack{};
 
-    const uint8_t num_lods   = header.num_lods;
-    uint8_t       cur_lod    = num_lods;
-    bool          first_time = true;
-    do {
+    const u8 num_lods   = header.num_lods;
+    u8       cur_lod    = num_lods;
+    bool     first_time = true;
+    do
+    {
         co_await reschedule_to(context.offscreen_context());
 
         staged_lods.clear();
         const auto [beg_lod, end_lod] = next_lod_range(cur_lod, num_lods);
         const auto lod_ids            = reverse(irange(beg_lod, end_lod));
-        for (const auto lod_id : lod_ids) {
+        for (const auto lod_id : lod_ids)
             staged_lods.emplace_back(stage_lod(file.lod_verts_bytes(lod_id), file.lod_elems_bytes(lod_id)));
-        }
 
         co_await context.completion_context().until_ready_on(context.offscreen_context(), create_fence());
         co_await reschedule_to(context.local_context());
@@ -234,7 +226,8 @@ try {
 
         if (beg_lod == 0) progress = ResourceProgress::Complete;
 
-        if (first_time) {
+        if (first_time)
+        {
             first_time = false;
             usage = context.create_resource<RT::SkinnedMesh>(uuid, progress, SkinnedMeshResource{
                 .lods          = lod_pack,
@@ -246,8 +239,9 @@ try {
                 // might not make any new LODs available, only the skeleton UUID.
                 .skeleton_uuid = header.skeleton_uuid,
             });
-
-        } else {
+        }
+        else
+        {
             context.update_resource<RT::SkinnedMesh>(uuid, [&](SkinnedMeshResource& mesh)
                 -> ResourceProgress
             {
@@ -257,18 +251,20 @@ try {
         }
 
         cur_lod = beg_lod;
-    } while (cur_lod != 0);
-
-} catch (...) {
+    }
+    while (cur_lod != 0);
+}
+catch (...)
+{
     context.fail_resource<RT::SkinnedMesh>(uuid);
 }
-
 
 auto load_mdesc(
     ResourceLoaderContext context,
     UUID                  uuid)
         -> Job<>
-try {
+try
+{
     co_await reschedule_to(context.thread_pool());
 
     auto mregion = context.resource_database().map_resource(uuid);
@@ -280,16 +276,18 @@ try {
         .mesh_uuid     = deserialize_uuid(j.at("mesh")    .as_string_view()),
         .material_uuid = deserialize_uuid(j.at("material").as_string_view()),
     });
-} catch(...) {
+}
+catch(...)
+{
     context.fail_resource<RT::MeshDesc>(uuid);
 }
-
 
 auto load_material(
     ResourceLoaderContext context,
     UUID                  uuid)
         -> Job<>
-try {
+try
+{
     co_await reschedule_to(context.thread_pool());
 
     auto mregion = context.resource_database().map_resource(uuid);
@@ -302,23 +300,26 @@ try {
         .specular_uuid = deserialize_uuid(j.at("specular").as_string_view()),
         .specpower     = j.at("specpower").as<float>(),
     });
-} catch (...) {
+}
+catch (...)
+{
     context.fail_resource<RT::Material>(uuid);
 }
 
-
 namespace {
 
-using Colorspace = TextureFile::Colorspace;
-using Encoding   = TextureFile::Encoding;
+using FileEncoding   = TextureFile::Encoding;
+using FileColorspace = TextureFile::Colorspace;
 
-auto pick_internal_format(Colorspace colorspace, size_t num_channels) noexcept
+auto pick_internal_format(FileColorspace colorspace, usize num_channels) noexcept
     -> InternalFormat
 {
-    switch (colorspace) {
-        using enum Colorspace;
+    switch (colorspace)
+    {
+        using enum FileColorspace;
         case Linear:
-            switch (num_channels) {
+            switch (num_channels)
+            {
                 case 1: return InternalFormat::R8;
                 case 2: return InternalFormat::RG8;
                 case 3: return InternalFormat::RGB8;
@@ -326,32 +327,31 @@ auto pick_internal_format(Colorspace colorspace, size_t num_channels) noexcept
                 default: break;
             } break;
         case sRGB:
-            switch (num_channels) {
+            switch (num_channels)
+            {
                 case 3: return InternalFormat::SRGB8;
                 case 4: return InternalFormat::SRGBA8;
                 default: break;
             } break;
     }
-    safe_unreachable("Invalid image parameters.");
+    panic("Invalid image parameters.");
 }
 
-auto pick_pixel_data_format(Encoding encoding, size_t num_channels) noexcept
+auto pick_pixel_data_format(FileEncoding encoding, usize num_channels) noexcept
     -> PixelDataFormat
 {
-    using enum Encoding;
-    if (num_channels == 3) {
-        return PixelDataFormat::RGB;
-    } else if (num_channels == 4) {
-        return PixelDataFormat::RGBA;
-    }
-    safe_unreachable();
+    using enum FileEncoding;
+    if (num_channels == 3) return PixelDataFormat::RGB;
+    if (num_channels == 4) return PixelDataFormat::RGBA;
+    panic();
 }
 
-auto needs_decoding(Encoding encoding)
+auto needs_decoding(FileEncoding encoding)
     -> bool
 {
-    switch (encoding) {
-        using enum Encoding;
+    switch (encoding)
+    {
+        using enum FileEncoding;
         case PNG:
             return true;
         case RAW:
@@ -363,12 +363,13 @@ auto needs_decoding(Encoding encoding)
 
 // TODO: Maybe we could aready write these helpers once and not torture ourselves
 // recreating this every time this information is needed in 300 different places.
-auto expected_size(Extent2I resolution, size_t num_channels, PixelDataType type)
-    -> size_t
+auto expected_size(Extent2I resolution, usize num_channels, PixelDataType type)
+    -> usize
 {
-    const size_t num_pixels = size_t(resolution.width) * size_t(resolution.height);
-    const size_t channel_size = [&]{
-        switch (type) {
+    const usize num_pixels = usize(resolution.width) * usize(resolution.height);
+    const usize channel_size = eval%[&]{
+        switch (type)
+        {
             using PDT = PixelDataType;
             case PDT::UByte:
             case PDT::Byte:
@@ -384,20 +385,21 @@ auto expected_size(Extent2I resolution, size_t num_channels, PixelDataType type)
             default:
                 throw RuntimeError("PixelDataType not supported.");
         }
-    }();
+    };
     return num_pixels * num_channels * channel_size;
 }
 
-struct DecodedImage {
-    unique_malloc_ptr<byte[]> bytes;
-    size_t                    size_bytes;
-    auto span() const noexcept -> Span<byte> { return { bytes.get(), size_bytes }; }
+struct DecodedImage
+{
+    unique_malloc_ptr<ubyte[]> bytes;
+    usize                      size_bytes;
+    auto span() const noexcept -> Span<ubyte> { return { bytes.get(), size_bytes }; }
 };
 
 auto decode_texture_async_png(
     ResourceLoaderContext& context,
-    Span<const byte>       bytes,
-    size_t                 num_channels)
+    Span<const ubyte>      bytes,
+    usize                  num_channels)
         -> Job<DecodedImage>
 {
     co_await reschedule_to(context.thread_pool());
@@ -407,23 +409,24 @@ auto decode_texture_async_png(
     int       err       = 0;
 
     err = spng_set_png_buffer(ctx, bytes.data(), bytes.size_bytes());
-    if (err) throw RuntimeError(fmt::format("Failed setting PNG buffer: {}.", spng_strerror(err)));
+    if (err) throw_fmt("Failed setting PNG buffer: {}.", spng_strerror(err));
 
-    const auto format = [&]{
-        switch (num_channels) {
+    const auto format = eval%[&]{
+        switch (num_channels)
+        {
             case 3: return SPNG_FMT_RGB8;
             case 4: return SPNG_FMT_RGBA8;
-            default: std::terminate();
+            default: panic();
         }
-    }();
+    };
 
-    size_t decoded_size;
+    usize decoded_size;
     err = spng_decoded_image_size(ctx, format, &decoded_size);
-    if (err) throw RuntimeError(fmt::format("Failed querying PNG image size: {}.", spng_strerror(err)));
+    if (err) throw_fmt("Failed querying PNG image size: {}.", spng_strerror(err));
 
-    auto decoded_bytes = malloc_unique<byte[]>(decoded_size);
+    auto decoded_bytes = malloc_unique<ubyte[]>(decoded_size);
     err = spng_decode_image(ctx, decoded_bytes.get(), decoded_size, format, 0);
-    if (err) throw RuntimeError(fmt::format("Failed decoding PNG image: {}.", spng_strerror(err)));
+    if (err) throw_fmt("Failed decoding PNG image: {}.", spng_strerror(err));
 
     co_return DecodedImage{
         .bytes      = MOVE(decoded_bytes),
@@ -435,26 +438,27 @@ auto decode_and_upload_mip(
     ResourceLoaderContext& context,
     const TextureFile&     file,
     RawTexture2D<>         texture,
-    uint8_t                mip_id)
+    u8                     mip_id)
         -> Job<>
 {
-    const auto&           header       = file.header();
-    const auto&           mip          = file.mip_span(mip_id);
-    const size_t          num_channels = header.num_channels;
-    const PixelDataType   type         = PixelDataType::UByte;
+    const auto&         header       = file.header();
+    const auto&         mip          = file.mip_span(mip_id);
+    const usize         num_channels = header.num_channels;
+    const PixelDataType type         = PixelDataType::UByte;
 
-    const Encoding         src_encoding = mip.encoding;
-    const PixelDataFormat  format       = pick_pixel_data_format(src_encoding, num_channels);
-    const MipLevel         level        = int(mip_id);
-    const Extent2I         resolution   = Extent2I(mip.width, mip.height);
-    const Span<const byte> src_bytes    = file.mip_bytes(mip_id);
+    const FileEncoding      src_encoding = mip.encoding;
+    const PixelDataFormat   format       = pick_pixel_data_format(src_encoding, num_channels);
+    const MipLevel          level        = int(mip_id);
+    const Extent2I          resolution   = Extent2I(mip.width, mip.height);
+    const Span<const ubyte> src_bytes    = file.mip_bytes(mip_id);
 
     assert(needs_decoding(src_encoding));
 
     DecodedImage decoded_image =
         co_await decode_texture_async_png(context, src_bytes, num_channels);
 
-    if (expected_size(resolution, num_channels, type) != decoded_image.size_bytes) throw RuntimeError("Size does not match resolution.");
+    if (expected_size(resolution, num_channels, type) != decoded_image.size_bytes)
+        throw RuntimeError("Size does not match resolution.");
 
     co_await reschedule_to(context.offscreen_context());
 
@@ -471,17 +475,17 @@ auto upload_mip(
     ResourceLoaderContext& context,
     const TextureFile&     file,
     RawTexture2D<>         texture,
-    uint8_t                mip_id)
+    u8                     mip_id)
         -> Job<>
 {
-    const auto&           header       = file.header();
-    const auto&           mip          = file.mip_span(mip_id);
-    const size_t          num_channels = header.num_channels;
-    const PixelDataType   type         = PixelDataType::UByte;
+    const auto&         header       = file.header();
+    const auto&         mip          = file.mip_span(mip_id);
+    const usize         num_channels = header.num_channels;
+    const PixelDataType type         = PixelDataType::UByte;
 
     // TODO: Handle BC7 properly.
 
-    const Encoding         src_encoding = mip.encoding;
+    const FileEncoding     src_encoding = mip.encoding;
     const PixelDataFormat  format       = pick_pixel_data_format(src_encoding, num_channels);
     const MipLevel         level        = int(mip_id);
     const Extent2I         resolution   = Extent2I(mip.width, mip.height);
@@ -489,7 +493,8 @@ auto upload_mip(
 
     assert(not needs_decoding(src_encoding));
 
-    if (expected_size(resolution, num_channels, type) != src_bytes.size()) throw RuntimeError("Size does not match resolution.");
+    if (expected_size(resolution, num_channels, type) != src_bytes.size())
+        throw RuntimeError("Size does not match resolution.");
 
     co_await reschedule_to(context.offscreen_context());
 
@@ -502,15 +507,14 @@ auto upload_mip(
     );
 };
 
-
 } // namespace
-
 
 auto load_texture(
     ResourceLoaderContext context,
     UUID                  uuid)
         -> Job<>
-try {
+try
+{
     co_await reschedule_to(context.thread_pool());
 
     auto file = TextureFile::open(context.resource_database().map_resource(uuid));
@@ -520,7 +524,7 @@ try {
 
     SharedTexture2D texture;
     const auto           num_channels = header.num_channels;
-    const Colorspace     colorspace   = header.colorspace;
+    const FileColorspace colorspace   = header.colorspace;
     const NumLevels      num_mips     = header.num_mips;
     const auto&          mip0         = file.mip_span(0);
     const Extent2I       resolution0  = Extent2I(mip0.width, mip0.height);
@@ -534,11 +538,12 @@ try {
 
     SmallVector<Job<>, 3> upload_jobs;
 
-    auto    usage      = ResourceUsage();
-    auto    progress   = ResourceProgress::Incomplete;
-    uint8_t cur_mip    = num_mips;
-    bool    first_time = true;
-    do {
+    auto usage      = ResourceUsage();
+    auto progress   = ResourceProgress::Incomplete;
+    u8   cur_mip    = num_mips;
+    bool first_time = true;
+    do
+    {
         // FIXME: next_lod_range() is really dumb, and unsuitable for textures.
         const auto [beg_mip, end_mip] = next_lod_range(cur_mip, num_mips);
         const auto mip_ids            = reverse(irange(beg_mip, end_mip));
@@ -546,13 +551,14 @@ try {
 
         // Upload data for new mips.
         upload_jobs.clear();
-        for (const auto mip_id : mip_ids) {
+        for (const auto mip_id : mip_ids)
+        {
             const auto encoding = file.mip_span(mip_id).encoding;
-            if (needs_decoding(encoding)) {
+
+            if (needs_decoding(encoding))
                 upload_jobs.emplace_back(decode_and_upload_mip(context, file, texture, mip_id));
-            } else {
+            else
                 upload_jobs.emplace_back(upload_mip(context, file, texture, mip_id));
-            }
         }
 
         // NOTE: All uploading jobs are finishing in the offscreen
@@ -565,7 +571,8 @@ try {
 
         if (cur_mip == 0) progress = ResourceProgress::Complete;
 
-        if (first_time) {
+        if (first_time)
+        {
             first_time = false;
             // Clamp available MIP region.
             // NOTE: This will explode if not done from the GPU context.
@@ -573,8 +580,9 @@ try {
             usage = context.create_resource<RT::Texture>(uuid, progress, TextureResource{
                 .texture = texture
             });
-
-        } else {
+        }
+        else
+        {
             context.update_resource<RT::Texture>(uuid, [&](TextureResource& resource)
                 -> ResourceProgress
             {
@@ -582,19 +590,20 @@ try {
                 return progress; // This is very awkward.
             });
         }
-
-    } while (cur_mip != 0);
-
-} catch(...) {
+    }
+    while (cur_mip != 0);
+}
+catch(...)
+{
     context.fail_resource<RT::Texture>(uuid);
 }
-
 
 auto load_skeleton(
     ResourceLoaderContext context,
     UUID                  uuid)
         -> Job<>
-try {
+try
+{
     co_await reschedule_to(context.thread_pool());
 
     auto file = SkeletonFile::open(context.resource_database().map_resource(uuid));
@@ -607,17 +616,18 @@ try {
     auto _ = context.create_resource<RT::Skeleton>(uuid, ResourceProgress::Complete, SkeletonResource{
         .skeleton = std::make_shared<Skeleton>(MOVE(skeleton)),
     });
-
-} catch(...) {
+}
+catch(...)
+{
     context.fail_resource<RT::Skeleton>(uuid);
 }
-
 
 auto load_animation(
     ResourceLoaderContext context,
     UUID                  uuid)
         -> Job<>
-try {
+try
+{
     co_await reschedule_to(context.thread_pool());
 
     auto file = AnimationFile::open(context.resource_database().map_resource(uuid));
@@ -630,7 +640,8 @@ try {
     auto kv2kv = [](const AnimationFile::KeyVec3& key) { return AnimationClip::Key<vec3>{ key.time_s, key.value }; };
     auto kq2kq = [](const AnimationFile::KeyQuat& key) { return AnimationClip::Key<quat>{ key.time_s, key.value }; };
 
-    for (const size_t joint_id : irange(header.num_joints)) {
+    for (const uindex joint_id : irange(header.num_joints))
+    {
         keyframes.push_back({
             .t = file.pos_keys(joint_id) | transform(kv2kv) | ranges::to<Vector>(),
             .r = file.rot_keys(joint_id) | transform(kq2kq) | ranges::to<Vector>(),
@@ -643,31 +654,30 @@ try {
         .duration_s    = file.header().duration_s,
         .skeleton_uuid = file.header().skeleton_uuid,
     });
-
-} catch (...) {
+}
+catch (...)
+{
     context.fail_resource<RT::Animation>(uuid);
 }
-
 
 namespace {
 
 using Node = SceneResource::Node;
-constexpr int32_t no_parent  = Node::no_parent;
-constexpr int32_t no_node    = -1;
+constexpr i32 no_parent = Node::no_parent;
+constexpr i32 no_node   = -1;
 
-struct NodeInfo {
-    int32_t num_children = 0;
-    int32_t last_child   = no_node; // Last and prev instead of frist and next
-    int32_t prev_sibling = no_node; // so that the storage order would be preserved for siblings.
+struct NodeInfo
+{
+    i32 num_children = 0;
+    i32 last_child   = no_node; // Last and prev instead of frist and next
+    i32 prev_sibling = no_node; // so that the storage order would be preserved for siblings.
 };
-
-
 
 auto read_vec3(const json& j)
     -> vec3
 {
     vec3 v{};
-    if (j.size() != 3) { throw RuntimeError("Vector argument must be a three element array."); }
+    if (j.size() != 3) throw RuntimeError("Vector argument must be a three element array.");
     v[0] = j[0].as<float>();
     v[1] = j[1].as<float>();
     v[2] = j[2].as<float>();
@@ -678,7 +688,7 @@ auto read_quat(const json& j)
     -> quat
 {
     quat q{};
-    if (j.size() != 4) { throw RuntimeError("Quaternion argument must be a four element array."); }
+    if (j.size() != 4) throw RuntimeError("Quaternion argument must be a four element array.");
     q[0] = j[0].as<float>();
     q[1] = j[1].as<float>();
     q[2] = j[2].as<float>();
@@ -713,30 +723,31 @@ auto read_uuid(const json& j)
 }
 
 auto read_parent_idx(const json& j)
-    -> int32_t
+    -> i32
 {
-    return j.get_value_or<int32_t>("parent", no_parent);
+    return j.get_value_or<i32>("parent", no_parent);
 }
 
 void populate_nodes_preorder(
     Vector<Node>&        dst_nodes,
-    int32_t              dst_parent_idx,
-    int32_t              src_current_idx,
+    i32                  dst_parent_idx,
+    i32                  src_current_idx,
     Span<const NodeInfo> infos,
     const json&          entities_array)
 {
-    const int32_t dst_current_idx = int32_t(dst_nodes.size());
+    const i32   dst_current_idx = i32(dst_nodes.size());
     const auto& entity = entities_array[src_current_idx];
 
-    dst_nodes.emplace_back(Node{
+    dst_nodes.push_back({
         .transform    = read_transform(entity),
         .parent_index = dst_parent_idx,
         .uuid         = read_uuid(entity),
     });
 
     // Then iterate children.
-    int32_t src_child_idx = infos[src_current_idx].last_child;
-    while (src_child_idx != no_node) {
+    i32 src_child_idx = infos[src_current_idx].last_child;
+    while (src_child_idx != no_node)
+    {
         populate_nodes_preorder(
             dst_nodes,
             dst_current_idx,
@@ -744,18 +755,19 @@ void populate_nodes_preorder(
             infos,
             entities_array
         );
+
         src_child_idx = infos[src_child_idx].prev_sibling;
     }
 }
 
 } // namespace
 
-
 auto load_scene(
     ResourceLoaderContext context,
     UUID                  uuid)
         -> Job<>
-try {
+try
+{
     co_await reschedule_to(context.thread_pool());
 
     auto mregion = context.resource_database().map_resource(uuid);
@@ -780,28 +792,33 @@ try {
     // TODO: Check parent ids for being in-range.
 
     thread_local Vector<NodeInfo> infos; infos.resize(entities.size(), {});
-    thread_local Vector<int32_t>  roots; roots.clear();
+    thread_local Vector<i32>      roots; roots.clear();
 
-    for (const auto [i, entity] : enumerate(entities_array)) {
+    for (const auto [i, entity] : enumerate(entities_array))
+    {
         // Parent index in the json *source* array.
-        const int32_t parent_idx = read_parent_idx(entity);
-        if (parent_idx == no_parent) {
+        const i32 parent_idx = read_parent_idx(entity);
+        if (parent_idx == no_parent)
+        {
             roots.emplace_back(i);
-        } else {
+        }
+        else
+        {
             NodeInfo& parent = infos[parent_idx];
             NodeInfo& node   = infos[i];
             // NOTE: Not sure if this is correct.
-            if (parent.last_child != no_node) {
+            if (parent.last_child != no_node)
                 node.prev_sibling = parent.last_child;
-            }
+
             ++parent.num_children;
-            parent.last_child = int32_t(i);
+            parent.last_child = i32(i);
         }
     }
 
     Vector<Node> nodes; nodes.reserve(entities.size());
 
-    for (const int32_t root_idx : roots) {
+    for (const i32 root_idx : roots)
+    {
         populate_nodes_preorder(
             nodes,
             no_parent,
@@ -814,8 +831,9 @@ try {
     auto _ = context.create_resource<RT::Scene>(uuid, ResourceProgress::Complete, SceneResource{
         .nodes = std::make_shared<Vector<Node>>(MOVE(nodes)),
     });
-
-} catch(...) {
+}
+catch(...)
+{
     context.fail_resource<RT::Scene>(uuid);
 }
 

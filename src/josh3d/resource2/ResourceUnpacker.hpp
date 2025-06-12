@@ -6,33 +6,31 @@
 #include "ResourceDatabase.hpp"
 #include "ResourceLoader.hpp"
 #include "ResourceRegistry.hpp"
+#include "Scalars.hpp"
 #include "TaskCounterGuard.hpp"
 #include "TypeInfo.hpp"
 #include <boost/container_hash/hash.hpp>
 
 
 namespace josh {
-
-
 namespace detail {
-struct UnpackerKey {
+struct UnpackerKey
+{
     ResourceType resource_type;
     TypeIndex    destination_type;
     auto operator==(const UnpackerKey&) const noexcept -> bool = default;
 };
 inline auto hash_value(const UnpackerKey& u) noexcept
-    -> size_t
+    -> usize
 {
-    size_t seed = 0;
+    usize seed = 0;
     boost::hash_combine(seed, u.resource_type);
     boost::hash_combine(seed, u.destination_type);
     return seed;
 }
 } // namespace detail
 
-
 class ResourceUnpackerContext;
-
 
 /*
 Unpacking is the process of converting the intermediate resource
@@ -47,7 +45,8 @@ Unpacking never loads data from disk directly, and instead retrieves
 all the data through the ResourceRegistry, which is responsible for
 loading, caching and evicting actual resource data.
 */
-class ResourceUnpacker {
+class ResourceUnpacker
+{
 public:
     ResourceUnpacker(
         ResourceDatabase& resource_database,
@@ -90,8 +89,8 @@ private:
         -> Job<>;
 };
 
-
-class ResourceUnpackerContext {
+class ResourceUnpackerContext
+{
 public:
     auto& resource_registry()  noexcept { return self_.resource_registry_;         }
     auto& resource_loader()    noexcept { return self_.resource_loader_;           }
@@ -123,13 +122,11 @@ private:
     SingleTaskGuard   task_guard_;
 };
 
-
-
-
 template<ResourceType TypeV, typename DestinationT,
     of_signature<Job<>(ResourceUnpackerContext, UUID, DestinationT)> UnpackerF>
-void ResourceUnpacker::register_unpacker(UnpackerF&& f) {
-    const key_type key{ .resource_type=TypeV, .destination_type=typeid(DestinationT) };
+void ResourceUnpacker::register_unpacker(UnpackerF&& f)
+{
+    const key_type key = { .resource_type=TypeV, .destination_type=typeid(DestinationT) };
     auto [it, was_emplaced] = dispatch_table_.try_emplace(
         key,
         [f=FORWARD(f)](ResourceUnpackerContext context, UUID uuid, AnyRef destination)
@@ -145,22 +142,20 @@ void ResourceUnpacker::register_unpacker(UnpackerF&& f) {
     assert(was_emplaced);
 }
 
-
 template<ResourceType TypeV, typename DestinationT>
 auto ResourceUnpacker::unpack(UUID uuid, DestinationT destination)
     -> Job<>
 {
-    const key_type key{ .resource_type=TypeV, .destination_type=type_id<DestinationT>() };
+    const key_type key = { .resource_type=TypeV, .destination_type=type_id<DestinationT>() };
     return _unpack(key, uuid, AnyRef(destination));
 }
-
 
 template<typename DestinationT>
 auto ResourceUnpacker::unpack_any(UUID uuid, DestinationT destination)
     -> Job<>
 {
     const auto type = resource_database_.type_of(uuid);
-    const key_type key{ .resource_type=type, .destination_type=type_id<DestinationT>() };
+    const key_type key = { .resource_type=type, .destination_type=type_id<DestinationT>() };
     return _unpack(key, uuid, AnyRef(destination));
 }
 

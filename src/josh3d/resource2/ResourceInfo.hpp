@@ -13,7 +13,6 @@ namespace josh {
 
 class ResourceInfo;
 
-
 /*
 Access the global ResourceInfo instance.
 
@@ -34,14 +33,14 @@ I mean, the RTTI is global too. Just resolved at compile/link time.
 auto resource_info() noexcept
     -> ResourceInfo&;
 
-
 /*
 A simple container of the resource meta information.
 
 HMM: It could be useful to accept arbitrary properties
 encoded by their type. A table of tables, so to speak.
 */
-class ResourceInfo {
+class ResourceInfo
+{
 public:
     // Register the resource type from the hashed string identifier.
     // This will pickup the name from the hashed string and the
@@ -79,21 +78,19 @@ public:
     auto name_of(ResourceType type) const noexcept
         -> StrView
     {
-        if (const auto* info = try_find_value(id2info_, type)) {
+        if (const auto* info = try_find_value(id2info_, type))
             return info->name;
-        } else {
+        else
             return {};
-        }
     }
 
     auto name_or(ResourceType type, StrView default_) const noexcept
         -> StrView
     {
-        if (const auto name = name_of(type); name.size()) {
+        if (const auto name = name_of(type); name.size())
             return name;
-        } else {
+        else
             return default_;
-        }
     }
 
     // Returns the name of the resource or a stringified version
@@ -102,21 +99,19 @@ public:
     auto name_or_id(ResourceType type) const noexcept
         -> String
     {
-        if (const auto name = name_of(type); name.size()) {
+        if (const auto name = name_of(type); name.size())
             return String(name);
-        } else {
+        else
             return std::to_string(type);
-        }
     }
 
     auto type_of(ResourceType type) const noexcept
         -> const TypeInfo*
     {
-        if (const auto* info = try_find_value(id2info_, type)) {
+        if (const auto* info = try_find_value(id2info_, type))
             return &info->resource_type;
-        } else {
+        else
             return nullptr;
-        }
     }
 
     // Returns the ResourceType corresponding to the resource name
@@ -124,15 +119,15 @@ public:
     auto id_from_name(StrView name)
         -> ResourceType
     {
-        if (const auto* id = try_find_value(name2id_, name)) {
+        if (const auto* id = try_find_value(name2id_, name))
             return *id;
-        } else {
+        else
             return NullResource;
-        }
     }
 
 private:
-    struct Info {
+    struct Info
+    {
         String          name;
         const TypeInfo& resource_type;
     };
@@ -142,7 +137,6 @@ private:
     id2info_map_type id2info_;
     name2id_map_type name2id_;
 };
-
 
 inline auto resource_info() noexcept
     -> ResourceInfo&

@@ -6,10 +6,10 @@
 #include "MutexPool.hpp"
 #include "ResourceInfo.hpp"
 #include "RuntimeError.hpp"
+#include "Scalars.hpp"
 #include "UUID.hpp"
 #include <fmt/core.h>
 #include <cassert>
-#include <cstdint>
 #include <coroutine>
 #include <atomic>
 #include <memory>
@@ -74,7 +74,6 @@ Ordered by performance and latency requirement:
 */
 namespace josh {
 
-
 /*
 Resource epoch is used to signal the progression of the resource loading
 process. The value is incremented each time a resource is updated
@@ -101,8 +100,7 @@ Note that the `final_epoch` can be returned on the first request, either
 in the case where the resource is already loaded or if the loading process
 happened in a single step.
 */
-using ResourceEpoch = uint32_t;
-
+using ResourceEpoch = u32;
 
 /*
 A special *input* value of ResourceEpoch indicating that no resource
@@ -110,7 +108,6 @@ is yet held by the calling side. The calling side would likely initialize
 its inout `epoch` variable with this value.
 */
 constexpr ResourceEpoch null_epoch = 0;
-
 
 /*
 A special *output* value of the ResourceEpoch indicating that the resource
@@ -120,7 +117,6 @@ NOTE: The integral value of `final_epoch` is not arbitrary, it must always hold
 that `final_epoch > epoch` for any valid value of `epoch`, including `null_epoch`.
 */
 constexpr ResourceEpoch final_epoch = -1;
-
 
 /*
 A collection of resource-associated storage types that map each resource UUID
@@ -132,7 +128,8 @@ in order to not hamper "creative uses" of the registry by other systems.
 Specialized functions or dedicated "thing do'er" classes should likely be used
 to interact with the registry entries in a correct and meaningful way.
 */
-class ResourceRegistry {
+class ResourceRegistry
+{
 public:
     template<ResourceType TypeV>
     struct Storage;
@@ -156,11 +153,9 @@ public:
     auto get_storage()
         -> Storage<TypeV>&
     {
-        if (auto* storage = try_get_storage<TypeV>()) {
+        if (auto* storage = try_get_storage<TypeV>())
             return *storage;
-        } else {
-            throw RuntimeError(fmt::format("No storage found for resource type: {}.", resource_info().name_or_id(TypeV)));
-        }
+        throw_fmt("No storage found for resource type: {}.", resource_info().name_or_id(TypeV));
     }
 
     // Get a pointer to the storage of the specified resource type.
@@ -169,28 +164,30 @@ public:
     auto try_get_storage()
         -> Storage<TypeV>*
     {
-        if (any_storage_type* any_storage = try_find_value(registry_, TypeV)) {
+        if (any_storage_type* any_storage = try_find_value(registry_, TypeV))
+        {
             auto* ptr = any_cast<Storage<TypeV>>(any_storage);
             assert(ptr && "Storage entry exists, but the type is mismatched.");
             return ptr;
-        } else {
-            return nullptr;
         }
+        return nullptr;
     }
 
     template<ResourceType TypeV>
-    struct Entry {
+    struct Entry
+    {
         using resource_type = resource_traits<TypeV>::resource_type;
-        using refcount_type = std::atomic<size_t>;
+        using refcount_type = std::atomic<usize>;
 
         std::unique_ptr<refcount_type> refcount;  // Refcount needs stable address. The flat hash table doesn't give you that.
-        uint32_t                       mutex_idx; // NOTE: using 32-bit index to pack the structure better.
+        u32                            mutex_idx; // NOTE: using 32-bit index to pack the structure better.
         ResourceEpoch                  epoch;
         resource_type                  resource;
     };
 
     template<ResourceType TypeV>
-    struct Storage {
+    struct Storage
+    {
         using resource_type    = resource_traits<TypeV>::resource_type;
         using entry_type       = Entry<TypeV>;
         using entry_mutex_type = std::shared_mutex;
@@ -200,13 +197,12 @@ public:
         using kv_type          = map_type::value_type; // I'm running out of words.
 
     private:
-        static constexpr size_t mutex_pool_size = 32; // Has to fit in uint32_t.
-        static_assert(mutex_pool_size < uint32_t(-1));
+        static constexpr usize mutex_pool_size = 32; // Has to fit in u32.
+        static_assert(mutex_pool_size < u32(-1));
         MutexPool<entry_mutex_type> entry_mutex_pool_{ mutex_pool_size }; // For operations that modify each entry in the map.
     public:
         mutable map_mutex_type      map_mutex;                            // For operations that modify the map itself (insert/remove).
         map_type                    map;
-
 
         using pending_list_type = SmallVector<std::coroutine_handle<>, 2>;
 
@@ -220,7 +216,8 @@ public:
         we use the presence of *an entry* in a pending map as a signifier that
         the resource is currently being loaded.
         */
-        struct PendingLists {
+        struct PendingLists
+        {
             pending_list_type incremental;
             pending_list_type only_final;
         };
@@ -246,7 +243,7 @@ public:
             assert(map_lock.mutex() == &map_mutex);
             auto [it, was_emplaced] = map.try_emplace(uuid, entry_type{
                 .refcount  = std::make_unique<typename entry_type::refcount_type>(0),
-                .mutex_idx = uint32_t(entry_mutex_pool_.new_mutex_idx()),
+                .mutex_idx = u32(entry_mutex_pool_.new_mutex_idx()),
                 .epoch     = epoch,
                 .resource  = MOVE(resource),
             });

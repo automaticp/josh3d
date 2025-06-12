@@ -4,9 +4,8 @@
 #include "Resource.hpp"
 #include "RuntimeError.hpp"
 #include "Math.hpp"
+#include "Scalars.hpp"
 #include "UUID.hpp"
-#include <cstddef>
-#include <cstdint>
 
 
 /*
@@ -14,11 +13,9 @@ Common vocabulary for resource files.
 */
 namespace josh {
 
-
-template<size_t N>
+template<usize N>
 using FileTypeHS = FixedHashedString<N>;
 using FileType   = HashedID;
-
 
 /*
 First bytes of each non-inline binary resource file.
@@ -33,22 +30,22 @@ struct Preamble {
     u8   self_uuid[16];
 };
 */
-struct alignas(8) ResourcePreamble {
-    uint32_t     _magic;        // "josh".
+struct alignas(8) ResourcePreamble
+{
+    u32          _magic;        // "josh".
     FileType     file_type;     // Type of the file.
-    uint16_t     version;       // Version of the file format.
-    uint16_t     _reserved0;    //
+    u16          version;       // Version of the file format.
+    u16          _reserved0;    //
     ResourceType resource_type; // Type of stored resource.
     UUID         resource_uuid; // UUID of stored resource.
 
     static auto create(
         FileType     file_type,
-        uint16_t     version,
+        u16          version,
         ResourceType resource_type,
         const UUID&  resource_uuid) noexcept
             -> ResourcePreamble;
 };
-
 
 /*
 A string type with fixed byte size for use in binary files.
@@ -62,11 +59,12 @@ struct ResourceName {
     padding[63 - len];
 };
 */
-struct ResourceName {
-    static constexpr size_t max_length = 63;
+struct ResourceName
+{
+    static constexpr usize max_length = 63;
 
-    uint8_t length;
-    char    string[max_length];
+    u8   length;
+    char string[max_length];
 
     // Construct from a string view.
     // Truncates if the string is longer than `max_length`.
@@ -81,7 +79,6 @@ struct ResourceName {
     auto view() const noexcept -> StrView;
     operator StrView() const noexcept { return view(); }
 };
-
 
 namespace error {
 /*

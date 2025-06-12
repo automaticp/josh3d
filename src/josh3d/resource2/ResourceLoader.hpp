@@ -1,5 +1,6 @@
 #pragma once
 #include "AsyncCradle.hpp"
+#include "ContainerUtils.hpp"
 #include "Resource.hpp"
 #include "ResourceDatabase.hpp"
 #include "ResourceRegistry.hpp"
@@ -17,16 +18,16 @@ This information only travels one way: from loading jobs to the loading context.
 This is similar to the ResourceEpoch in spirit, but the control over the exact
 value of the epoch is not given to loaders. Every update increments the epoch automatically.
 */
-enum class ResourceProgress : bool {
+enum class ResourceProgress : bool
+{
     Incomplete, // Resource has only been loaded partially. More will come.
     Complete,   // Resource has been loaded to its full (all LODs, MIPs, etc.).
 };
 
-
 class ResourceLoaderContext;
 
-
-class ResourceLoader {
+class ResourceLoader
+{
 public:
     ResourceLoader(
         ResourceDatabase& resource_database,
@@ -92,8 +93,8 @@ private:
         -> Job<>;
 };
 
-
-class ResourceLoaderContext {
+class ResourceLoaderContext
+{
 public:
     // Basic helpers.
     auto& resource_database()  noexcept { return self_.resource_database_;         }
@@ -168,21 +169,17 @@ private:
         const UUID&                       uuid,
         ResourceEpoch                     epoch,
         std::exception_ptr                exception);
-
 };
-
-
-
 
 template<ResourceType TypeV,
     of_signature<Job<>(ResourceLoaderContext, UUID)> LoaderF>
-void ResourceLoader::register_loader(LoaderF&& loader) {
+void ResourceLoader::register_loader(LoaderF&& loader)
+{
     const key_type key = TypeV;
     auto [it, was_emplaced] = dispatch_table_.try_emplace(key, FORWARD(loader));
     assert(was_emplaced);
     resource_registry_.initialize_storage_for<TypeV>();
 }
-
 
 template<ResourceType TypeV>
 auto ResourceLoader::get_resource(
@@ -197,7 +194,8 @@ auto ResourceLoader::get_resource(
     assert(not inout_epoch or *inout_epoch != final_epoch &&
         "Input epoch cannot be final. No point requesting a resource when the final version is already held.");
 
-    struct Awaiter {
+    struct Awaiter
+    {
         ResourceLoader& self;
         storage_type&   storage;
         UUID            uuid;
@@ -213,10 +211,12 @@ auto ResourceLoader::get_resource(
             -> bool
         {
             const auto map_lock = std::shared_lock(storage.map_mutex);
-            if (const kv_type* kv = try_find(storage.map, uuid)) {
+            if (const kv_type* kv = try_find(storage.map, uuid))
+            {
                 const entry_type& entry = kv->second;
                 const auto entry_lock = std::shared_lock(storage.mutex_of(entry));
-                if (_caller_wants(entry.epoch)) {
+                if (_caller_wants(entry.epoch))
+                {
                     if (inout_epoch) *inout_epoch = entry.epoch;
                     result = storage.obtain_public(*kv, entry_lock);
                     return true;
@@ -229,10 +229,12 @@ auto ResourceLoader::get_resource(
             -> bool
         {
             const auto map_lock = std::shared_lock(storage.map_mutex);
-            if (const kv_type* kv = try_find(storage.map, uuid)) {
+            if (const kv_type* kv = try_find(storage.map, uuid))
+            {
                 const entry_type& entry = kv->second;
                 const auto entry_lock = std::shared_lock(storage.mutex_of(entry));
-                if (_caller_wants(entry.epoch)) {
+                if (_caller_wants(entry.epoch))
+                {
                     if (inout_epoch) *inout_epoch = entry.epoch;
                     result = storage.obtain_public(*kv, entry_lock);
                     return false;
@@ -243,8 +245,8 @@ auto ResourceLoader::get_resource(
             auto [it, was_emplaced] = storage.pending.try_emplace(uuid);
 
             auto& pending_lists = it->second;
-            if (only_final) { pending_lists.only_final .emplace_back(h); }
-            else            { pending_lists.incremental.emplace_back(h); }
+            if (only_final) pending_lists.only_final .emplace_back(h);
+            else            pending_lists.incremental.emplace_back(h);
 
             if (was_emplaced) self._start_loading(TypeV, uuid);
 
@@ -255,7 +257,8 @@ auto ResourceLoader::get_resource(
         auto await_resume()
             -> PublicResource<TypeV>
         {
-            if (auto exception = std::current_exception()) {
+            if (auto exception = std::current_exception())
+            {
                 // NOTE: This only works if this is called inside a catch block.
                 // Currently, we try to ensure that inside resolve_pending().
                 std::rethrow_exception(exception);
@@ -264,7 +267,9 @@ auto ResourceLoader::get_resource(
                 // Maybe we could use another table for the transient stuff.
                 // TODO: Think about potential locking issues related to that.
             }
-            if (!result) {
+
+            if (not result)
+            {
                 const auto map_lock = std::shared_lock(storage.map_mutex);
                 const kv_type* kv = try_find(storage.map, uuid);
                 assert(kv);
@@ -274,6 +279,7 @@ auto ResourceLoader::get_resource(
                 if (inout_epoch) *inout_epoch = entry.epoch;
                 result = storage.obtain_public(*kv, entry_lock);
             }
+
             return move_out(result);
         }
 
@@ -290,14 +296,12 @@ auto ResourceLoader::get_resource(
     return Awaiter{ *this, resource_registry_.get_storage<TypeV>(), uuid, inout_epoch };
 }
 
-
 template<ResourceType TypeV>
 auto ResourceLoader::load(UUID uuid)
     -> Job<PublicResource<TypeV>>
 {
     co_return co_await get_resource<TypeV>(uuid);
 }
-
 
 template<ResourceType TypeV>
 void ResourceLoaderContext::resolve_pending(
@@ -323,9 +327,8 @@ void ResourceLoaderContext::resolve_pending(
         // We remove the entries from pending, they have to come back to pending
         // by calling get_resource() again later.
         incremental = MOVE(pending_lists.incremental);
-        if (final_resolve) {
+        if (final_resolve)
             only_final = MOVE(pending_lists.only_final);
-        }
 
         // If this completes or fails the progress, then no one can be pending anymore.
         // Subsequent calls to get_resource() will instead return Complete cached entry,
@@ -336,27 +339,33 @@ void ResourceLoaderContext::resolve_pending(
         // if we failed the load midway through, but at the same time, the
         // unpacking side still retains the usage for partial item and
         // needs some way to decide whether to keep it or retry a load.
-        if (final_resolve) {
+        if (final_resolve)
             storage.pending.erase(it);
-        }
     }
 
-    auto resume_from_list = [&](pending_list_type& pending_list) {
-        if (not exception) {
+    auto resume_from_list = [&](pending_list_type& pending_list)
+    {
+        if (not exception)
+        {
             // Manually resume each coroutine that was pending to "notify" it.
             // The caller is encouraged to reschedule somewhere else asap.
-            for (std::coroutine_handle<>& handle : pending_list) {
+            for (std::coroutine_handle<>& handle : pending_list)
                 handle.resume();
-            }
-        } else {
+        }
+        else
+        {
             // This is particularly insane, but is required so that the
             // await_resume() of the woken up coroutine could see
             // std::current_exception() - it only returns non-null during
             // exception "handling" - effectively, inside a catch block.
-            for (std::coroutine_handle<>& handle : pending_list) {
-                try {
+            for (std::coroutine_handle<>& handle : pending_list)
+            {
+                try
+                {
                     std::rethrow_exception(exception);
-                } catch (...) {
+                }
+                catch (...)
+                {
                     // std::current_exception() can be called here.
                     handle.resume();
                 }
@@ -365,11 +374,9 @@ void ResourceLoaderContext::resolve_pending(
     };
 
     resume_from_list(incremental);
-    if (final_resolve) {
+    if (final_resolve)
         resume_from_list(only_final);
-    }
 }
-
 
 template<ResourceType TypeV>
 auto ResourceLoaderContext::create_resource(
@@ -388,7 +395,7 @@ auto ResourceLoaderContext::create_resource(
 
     storage_type& storage = self_.resource_registry_.get_storage<TypeV>();
 
-    ResourceUsage usage = [&]{
+    ResourceUsage usage = eval%[&]{
         const auto map_lock = std::unique_lock(storage.map_mutex);
         // EWW: This allocates a new entry under a lock.
         // In particular, the heap allocation of refcount
@@ -401,7 +408,7 @@ auto ResourceLoaderContext::create_resource(
         // that the resource is still alive at least until we resolve all pending.
         const auto entry_lock = std::shared_lock(storage.mutex_of(kv->second));
         return storage.obtain_usage(*kv, entry_lock);
-    }();
+    };
 
     // We hold the "usage" but no longer hold the locks.
     // Go grab the pending jobs and resume them one-by-one
@@ -411,7 +418,6 @@ auto ResourceLoaderContext::create_resource(
     // The loader needs to hold onto the usage to keep the resource alive.
     return usage;
 }
-
 
 template<ResourceType TypeV, typename UpdateF>
     requires of_signature<UpdateF, ResourceProgress(typename resource_traits<TypeV>::resource_type&)>
@@ -424,7 +430,7 @@ void ResourceLoaderContext::update_resource(
 
     storage_type& storage = self_.resource_registry_.get_storage<TypeV>();
 
-    const ResourceEpoch epoch = [&]{
+    const ResourceEpoch epoch = eval%[&]{
         // Note that the locks are inverse of the create_resource().
         // Map is locked for read, since we don't create a new entry,
         // the entry is locked for write, since we update it.
@@ -439,18 +445,16 @@ void ResourceLoaderContext::update_resource(
         const ResourceProgress new_progress =
             update_fun(storage.access_resource(*entry, entry_lock));
 
-        if (new_progress == ResourceProgress::Complete) {
+        if (new_progress == ResourceProgress::Complete)
             entry->epoch = final_epoch;
-        } else {
+        else
             ++entry->epoch;
-        }
 
         return entry->epoch;
-    }();
+    };
 
     resolve_pending(storage, uuid, epoch, nullptr);
 }
-
 
 template<ResourceType TypeV>
 void ResourceLoaderContext::fail_resource(
@@ -463,7 +467,9 @@ void ResourceLoaderContext::fail_resource(
 
     storage_type& storage = self_.resource_registry_.get_storage<TypeV>();
 
-    const auto has_entry [[maybe_unused]] = [&]{
+    const auto has_entry [[maybe_unused]] = [&]()
+        -> bool
+    {
         const auto  map_lock = std::shared_lock(storage.map_mutex);
         const auto* kv       = try_find(storage.map, uuid);
         return bool(kv);
@@ -474,7 +480,6 @@ void ResourceLoaderContext::fail_resource(
 
     resolve_pending(storage, uuid, final_epoch, exception);
 }
-
 
 template<ResourceType TypeV>
 auto ResourceLoaderContext::get_resource_dependency(

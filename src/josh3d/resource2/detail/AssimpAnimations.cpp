@@ -2,6 +2,8 @@
 #include "AssetImporter.hpp"
 #include "Common.hpp"
 #include "Ranges.hpp"
+#include "ResourceFiles.hpp"
+#include "DefaultResourceFiles.hpp"
 #include <assimp/scene.h>
 #include <assimp/mesh.h>
 
