@@ -1,4 +1,5 @@
 #pragma once
+#include "CategoryCasts.hpp"
 #include "GLAPICommonTypes.hpp"
 #include "GLObjectHelpers.hpp"
 #include "GLPixelPackTraits.hpp"
@@ -171,11 +172,7 @@ template<typename ChannelT>
     detail::UntypedImageLoadResult<ChannelT> im =
         detail::load_image_from_file_impl<ChannelT>(file, min_channels, max_channels, flip_vertically);
 
-    return {
-        std::move(im.data),
-        im.resolution,
-        im.num_channels
-    };
+    return ImageData<ChannelT>::take_ownership(MOVE(im.data), im.resolution, im.num_channels);
 }
 
 

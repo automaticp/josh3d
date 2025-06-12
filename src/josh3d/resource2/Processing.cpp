@@ -3,12 +3,14 @@
 #include "Elements.hpp"
 #include "ExternalScene.hpp"
 #include "GLObjectHelpers.hpp"
+#include "ImageData.hpp"
 #include "MeshRegistry.hpp"
 #include "Ranges.hpp"
 #include "RuntimeError.hpp"
+#include "MallocSupport.hpp"
 #include <glm/ext.hpp>
-#include <limits>
 #include <stb_image.h>
+#include <limits>
 
 
 namespace josh {
@@ -37,6 +39,129 @@ auto peek_encoded_image_info(Span<const ubyte> bytes)
         .resolution   = Extent2S(w, h),
         .num_channels = u8(num_channels),
     };
+}
+
+auto decode_image_from_memory(Span<const ubyte> bytes, bool vflip)
+    -> ImageData<ubyte>
+{
+    const usize max_size = std::numeric_limits<int>::max();
+
+    if (bytes.size() > max_size)
+        throw_fmt<RuntimeError>("Image byte buffer too large. Got {}, max is {}.",
+            bytes.size(), max_size);
+
+    const int size = int(bytes.size());
+
+    int w, h, num_channels;
+    stbi_set_flip_vertically_on_load_thread(vflip);
+    auto image =
+        unique_malloc_ptr<ubyte[]>(stbi_load_from_memory(bytes.data(), size, &w, &h, &num_channels, 0));
+
+    if (not image)
+        throw_fmt<RuntimeError>("Could not decode image with STBI: {}.", stbi_failure_reason());
+
+    const Extent2S resoultion = { usize(w), usize(h) };
+
+    return ImageData<ubyte>::take_ownership(MOVE(image), resoultion, usize(num_channels));
+}
+
+auto decode_image_from_memory(ElementsView src, bool vflip)
+    -> ImageData<ubyte>
+{
+    // HMM: We *could* do an extra copy instead, but the "conversion"
+    // of the byte data itself is meaningless as an operation.
+
+    if (src.element != element_u8vec1)
+        throw_fmt("Invalid element of encoded bytes. Expected u8vec1, got {}{}.",
+            enum_string(src.element.type), enum_string(src.element.layout));
+
+    if (src.stride != 1)
+        throw_fmt("Invalid stride of encoded bytes. Expected 1, got {}.", src.stride);
+
+    const usize size = element_size(src.element) * src.element_count;
+
+    return decode_image_from_memory(make_span((const ubyte*)src.bytes, size), vflip);
+}
+
+auto load_image_from_file(const char* file, bool vflip)
+    -> ImageData<ubyte>
+{
+    int w, h, num_channels;
+    stbi_set_flip_vertically_on_load_thread(vflip);
+    auto image =
+        unique_malloc_ptr<ubyte[]>(stbi_load(file, &w, &h, &num_channels, 0));
+
+    if (not image)
+        throw_fmt("Could not load and decode image with STBI: {}.", stbi_failure_reason());
+
+    const Extent2S resoultion = { usize(w), usize(h) };
+
+    return ImageData<ubyte>::take_ownership(MOVE(image), resoultion, usize(num_channels));
+}
+
+/*
+The "elements" in this case are pixels. Ex. `RGB == u8vec3`.
+Will throw if a safe conversion cannot be made.
+
+FIXME: This does a completely useless copy if the src.element.type is u8. Why is it like that?
+We likely need an ImageView instead to describe raw image data.
+
+PRE: `resolution.area() == pixels.element_count`.
+*/
+auto convert_raw_pixels_to_image_data(
+    const ElementsView& pixels,
+    const Extent2S&     resolution)
+        -> ImageData<ubyte>
+{
+    assert(resolution.area() == pixels.element_count);
+
+    const ElementsView& src          = pixels;
+    const usize         num_channels = component_count(src.element.layout);
+
+    auto result = ImageData<ubyte>(resolution, num_channels);
+
+    const Element dst_element = {
+        .type   = ComponentType::u8,
+        .layout = ElementLayout(num_channels - 1), // FIXME: Not very safe.
+    };
+
+    const ElementsMutableView dst = {
+        .bytes         = result.data(),
+        .element_count = result.resolution().area(),
+        .stride        = u32(element_size(dst_element)),
+        .element       = dst_element,
+    };
+
+    if (not always_safely_convertible(src.element, dst.element))
+        throw_fmt<RuntimeError>("Cannot guarantee safe conversion from {} to {}.",
+            enum_string(src.element.type), enum_string(dst.element.type));
+
+    copy_convert_elements(dst, src);
+
+    return result;
+}
+
+auto upload_base_image_data(
+    ImageView<const ubyte> imview,
+    bool                   generate_mips)
+        -> UniqueTexture2D
+{
+    UniqueTexture2D texture;
+
+    const auto resolution   = imview.resolutioni();
+    const auto num_levels   = generate_mips ? max_num_levels(resolution) : NumLevels(1);
+    const auto num_channels = imview.num_channels();
+    const auto iformat      = ubyte_iformat_from_num_channels(num_channels);
+    texture->allocate_storage(resolution, iformat, num_levels);
+
+    const auto pdtype   = PixelDataType::UByte;
+    const auto pdformat = base_pdformat_from_num_channels(num_channels);
+    texture->upload_image_region({ {}, resolution }, pdformat, pdtype, imview.data());
+
+    if (generate_mips)
+        texture->generate_mipmaps();
+
+    return texture;
 }
 
 namespace {

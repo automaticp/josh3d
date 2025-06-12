@@ -14,12 +14,10 @@
 #include "ExternalScene.hpp"
 #include "GLObjectHelpers.hpp"
 #include "GLObjects.hpp"
-#include "GLPixelPackTraits.hpp"
 #include "GLTextures.hpp"
 #include "ImageData.hpp"
 #include "ImageProperties.hpp"
 #include "LightCasters.hpp"
-#include "MallocSupport.hpp"
 #include "Materials.hpp"
 #include "MeshRegistry.hpp"
 #include "MeshStorage.hpp"
@@ -38,161 +36,11 @@
 #include "tags/AlphaTested.hpp"
 #include <glbinding/gl/functions.h>
 #include <stb_image.h>
-#include <memory>
 #include <ranges>
-#include <limits>
 
 
 namespace josh {
 
-// TODO: Move to Processing.hpp or to STB.hpp
-auto decode_image_from_memory(Span<const ubyte> bytes)
-    -> ImageData<ubyte>
-{
-    const usize max_size = std::numeric_limits<int>::max();
-
-    if (bytes.size() > max_size)
-        throw_fmt<RuntimeError>("Image byte buffer too large. Got {}, max is {}.",
-            bytes.size(), max_size);
-
-    const int size = int(bytes.size());
-
-    int w, h, num_channels;
-    stbi_set_flip_vertically_on_load_thread(true);
-    auto image =
-        unique_malloc_ptr<ubyte[]>(stbi_load_from_memory(bytes.data(), size, &w, &h, &num_channels, 0));
-
-    if (not image)
-        throw_fmt<RuntimeError>("Could not decode image with STBI: {}.", stbi_failure_reason());
-
-    const Extent2S resoultion = { usize(w), usize(h) };
-
-    return ImageData<ubyte>(MOVE(image), resoultion, usize(num_channels));
-}
-
-/*
-Will do extra checks to make sure the src is just bytes.
-*/
-auto decode_image_from_memory(ElementsView src)
-    -> ImageData<ubyte>
-{
-    // HMM: We *could* do an extra copy instead, but the "conversion"
-    // of the byte data itself is meaningless as an operation.
-
-    if (src.element != element_u8vec1)
-        throw_fmt<RuntimeError>("Invalid element of encoded bytes. Expected u8vec1, got {}{}.",
-            enum_string(src.element.type), enum_string(src.element.layout));
-
-    if (src.stride != 1)
-        throw_fmt<RuntimeError>("Invalid stride of encoded bytes. Expected 1, got {}.",
-            src.stride);
-
-    const usize size = element_size(src.element) * src.element_count;
-
-    return decode_image_from_memory(make_span((const ubyte*)src.bytes, size));
-}
-
-auto load_image_from_file(const char* file)
-    -> ImageData<ubyte>
-{
-    int w, h, num_channels;
-    stbi_set_flip_vertically_on_load_thread(true);
-    auto image =
-        unique_malloc_ptr<ubyte[]>(stbi_load(file, &w, &h, &num_channels, 0));
-
-    if (not image)
-        throw_fmt<RuntimeError>("Could not load and decode image with STBI: {}.", stbi_failure_reason());
-
-    const Extent2S resoultion = { usize(w), usize(h) };
-
-    return ImageData<ubyte>(MOVE(image), resoultion, usize(num_channels));
-}
-
-/*
-FIXME: We should use a different vocabulary type.
-PRE: `not image.is_encoded`.
-PRE: `bool(image.embedded)`.
-*/
-auto convert_to_image_data(const esr::Image& image)
-    -> ImageData<ubyte>
-{
-    assert(not image.is_encoded);
-    assert(image.embedded);
-
-    const ElementsView& src = image.embedded;
-
-    const usize    num_channels = component_count(src.element.layout);
-    const Extent2S resolution   = { image.width, image.height };
-
-    auto result = ImageData<ubyte>(resolution, num_channels);
-
-    const Element dst_element = {
-        .type   = ComponentType::u8,
-        .layout = ElementLayout(num_channels - 1), // FIXME: Not very safe.
-    };
-
-    const ElementsMutableView dst = {
-        .bytes         = result.data(),
-        .element_count = result.resolution().area(),
-        .stride        = u32(element_size(dst_element)),
-        .element       = dst_element,
-    };
-
-    if (not always_safely_convertible(src.element, dst.element))
-        throw_fmt<RuntimeError>("Cannot guarantee safe conversion from {} to {}.",
-            enum_string(src.element.type), enum_string(dst.element.type));
-
-    copy_convert_elements(dst, src);
-
-    return result;
-}
-
-// =========
-// Below is stuff actually specific to this file.
-
-auto load_or_decode_esr_image(const esr::Image& image, const Path& base_dir)
-    -> ImageData<ubyte>
-{
-    if (image.embedded)
-    {
-        if (image.is_encoded)
-            return decode_image_from_memory(image.embedded);
-        else // Embedded, but already decoded. Rare.
-            return convert_to_image_data(image);
-    }
-    else
-    {
-        const Path file = base_dir / image.path;
-        return load_image_from_file(file.c_str());
-    }
-}
-
-/*
-This will simply pick one of the R/RG/RGB/RGBA internal formats,
-and *will* generate mips, but won't set any sampling or swizzle.
-
-You are supposed to create separate texture views from this base
-texture with their own samplers and swizzle state.
-*/
-auto upload_base_image_data(const ImageData<ubyte>& imdata)
-    -> UniqueTexture2D
-{
-    UniqueTexture2D texture;
-
-    const auto resolution   = imdata.resolutioni();
-    const auto num_levels   = max_num_levels(resolution);
-    const auto num_channels = imdata.num_channels();
-    const auto iformat      = ubyte_iformat_from_num_channels(num_channels);
-    texture->allocate_storage(resolution, iformat, num_levels);
-
-    const auto pdtype   = PixelDataType::UByte;
-    const auto pdformat = base_pdformat_from_num_channels(num_channels);
-    texture->upload_image_region({ {}, resolution }, pdformat, pdtype, imdata.data());
-
-    texture->generate_mipmaps();
-
-    return texture;
-}
 
 JOSH3D_DERIVE_TYPE(BaseTextureJob, Job<UniqueTexture2D>);
 
@@ -274,43 +122,6 @@ auto await_base_image_then_create_texture_view(
     co_return view;
 }
 
-#if 0
-auto upload_esr_texture(
-    const esr::ExternalScene& scene,
-    const esr::Texture&       texture,
-    AsyncCradleRef            async)
-        -> TextureJob
-{
-    const esr::ImageID image_id = texture.image_id;
-
-    // NOTE: We cannot directly co_await the image jobs because multiple
-    // textures could try to await a single image job, and that does not work
-    // that way (can't have multiple continuations, will assert). We can instead
-    // just poll. There might be a better way than polling but this is sufficent.
-    auto& job = scene.get<ImageJob>(image_id);
-    co_await async.completion_context.until_ready(job);
-
-    // FIXME: We know which channel is channel0, but we don't know the desired
-    // number of channels or the colorspace of the image. This should be passed
-    // from the material slot that uses this.
-    //
-    // HMM: We might use a texture de-instancing postprocessing pass that does
-    // the figuring-out for us and creates a new type with all that extra information.
-    //
-    // HMM: This might be a bit cracked, but for channel slicing we could use
-    // TextureViews + Swizzle to get the same effect. Whether this will help
-    // with the sampling bandwidth the same way depends on the storage layout,
-    // but it could be a way to save memory?
-    // This, of course does not work if we want to convert, say, alpha maps
-    // to punchthrough format.
-    //
-    // TODO: Explore this. We could very likely simplify our life with this.
-
-    // SharedTexture2D gpu_texture;
-    // gpu_texture.set_swizzle_rgba(Swizzle::)
-}
-#endif
-
 // NOTE: Infer the concrete type of the vertex from the esr::Mesh itself.
 JOSH3D_DERIVE_TYPE(MeshJob, Job<MeshID<>>);
 
@@ -377,14 +188,7 @@ auto pack_and_insert_skeleton(
 {
     co_await reschedule_to(async.loading_pool);
 
-    auto j2j = [](const esr::Joint& j)
-        -> Joint
-    {
-        return {
-            .inv_bind   = j.inv_bind,
-            .parent_idx = j.parent_idx,
-        };
-    };
+    auto j2j = [](const esr::Joint& j) -> Joint { return { j.inv_bind, j.parent_idx }; };
 
     Skeleton skeleton = {
         .joints = skin.joints | transform(j2j) | ranges::to<Vector>(),
@@ -508,18 +312,6 @@ auto tag_and_assemble_scene_graph(
     {
         auto& pending = scene.get_or_emplace<PendingUnpacking>(entity_id);
         pending.targets.push_back(target);
-#if 0
-        // Specifically tag the material of the mesh, since we want
-        // to emplace mesh data and material concurrently.
-        if (const auto* mesh = scene.try_get<esr::Mesh>(entity_id))
-        {
-            if (mesh->material_id != esr::null_id)
-            {
-                auto& pending = scene.get_or_emplace<PendingUnpacking>(mesh->material_id);
-                pending.targets.push_back(target);
-            }
-        }
-#endif
     }
 
     // Then iterate children.

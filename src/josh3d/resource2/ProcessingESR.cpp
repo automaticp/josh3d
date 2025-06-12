@@ -4,6 +4,23 @@
 
 namespace josh {
 
+auto load_or_decode_esr_image(const esr::Image& image, const Path& base_dir)
+    -> ImageData<ubyte>
+{
+    if (image.embedded)
+    {
+        if (image.is_encoded)
+            return decode_image_from_memory(image.embedded);
+        else // Embedded, but already decoded. Rare.
+            return convert_raw_pixels_to_image_data(image.embedded, { image.width, image.height });
+    }
+    else
+    {
+        const Path file = base_dir / image.path;
+        return load_image_from_file(file.c_str());
+    }
+}
+
 void unitarize_external_scene(
     esr::ExternalScene& scene,
     Unitarization       algorithm)

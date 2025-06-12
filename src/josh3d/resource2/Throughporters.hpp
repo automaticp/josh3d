@@ -46,7 +46,7 @@ otherwise the scene will be emplaced directly into the `context.registry`.
 
 Beware that the `scene` will likely contain ElementViews over external
 data. Care must be taken to keep the data alive for at least as long
-as the job itself. The simplest way to guarantee this is emplace
+as the job itself. The simplest way to guarantee this is to emplace
 the data owner into the `scene` as an entity component or a context entry.
 */
 auto throughport_external_scene(

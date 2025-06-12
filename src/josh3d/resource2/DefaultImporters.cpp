@@ -224,7 +224,7 @@ auto generate_mips(
             { {}, resolution },
             format,
             type,
-            image.span(),
+            to_span(image),
             mip_level
         );
         mips.emplace_back(MOVE(image));
