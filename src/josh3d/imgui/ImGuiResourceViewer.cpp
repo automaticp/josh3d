@@ -1,6 +1,7 @@
 #include "ImGuiResourceViewer.hpp"
 #include "ECS.hpp"
 #include "ImGuiHelpers.hpp"
+#include "ImGuiExtras.hpp"
 #include "Common.hpp"
 #include "Coroutines.hpp"
 #include "DefaultResources.hpp"
@@ -10,6 +11,7 @@
 #include "Resource.hpp"
 #include "ResourceDatabase.hpp"
 #include "Throughporters.hpp"
+#include "UIContext.hpp"
 #include "UUID.hpp"
 #include <algorithm>
 #include <exception>
@@ -20,8 +22,17 @@
 namespace josh {
 
 
-void ImGuiResourceViewer::display_viewer()
+void ImGuiResourceViewer::display(UIContext& ui)
 {
+    auto& resource_database = ui.runtime.resource_database;
+    auto& asset_importer    = ui.runtime.asset_importer;
+    auto& resource_unpacker = ui.runtime.resource_unpacker;
+    auto& registry          = ui.runtime.registry;
+    auto& mesh_registry     = ui.runtime.mesh_registry;
+    auto& skeleton_storage  = ui.runtime.skeleton_storage;
+    auto& animation_storage = ui.runtime.animation_storage;
+    auto& async_cradle      = ui.runtime.async_cradle;
+
     thread_local String path;
     thread_local String last_error;
 
@@ -59,7 +70,7 @@ void ImGuiResourceViewer::display_viewer()
         try
         {
             const ResourceType type = resource_database.type_of(uuid); // TOCTOU, but rare
-            current_inspector = _inspector_factories.at(type)(ResourceInspectorContext(*this), uuid);
+            current_inspector = _inspector_factories.at(type)(ui, uuid);
             ImGui::OpenPopup("Inspect", ImGuiPopupFlags_NoOpenOverExistingPopup);
         }
         catch (const std::exception& e)
@@ -118,20 +129,9 @@ void ImGuiResourceViewer::display_viewer()
         }
     };
 
-    auto texture_encoding_combo = [&](ImportEncoding& current_format)
-    {
-        if (ImGui::BeginCombo("Texture Format", enum_cstring(current_format)))
-        {
-            for (const ImportEncoding enc : enum_iter<ImportEncoding>())
-                if (ImGui::Selectable(enum_cstring(enc), current_format == enc))
-                    current_format = enc;
-            ImGui::EndCombo();
-        }
-    };
-
     if (ImGui::TreeNode("Import Texture"))
     {
-        texture_encoding_combo(import_texture_params.encoding);
+        ImGui::EnumCombo("Texture Encoding", &import_texture_params.encoding);
         ImGui::Checkbox("Generate Mipmaps", &import_texture_params.generate_mips);
         if (ImGui::Button("Import")) try_import_thing(import_texture_params);
         ImGui::TreePop();
@@ -139,7 +139,7 @@ void ImGuiResourceViewer::display_viewer()
 
     if (ImGui::TreeNode("Import Scene"))
     {
-        texture_encoding_combo(import_scene_params.texture_encoding);
+        ImGui::EnumCombo("Texture Encoding", &import_scene_params.texture_encoding);
         ImGui::Checkbox("Generate Mipmaps", &import_scene_params.generate_mips);
         ImGui::SameLine();
         ImGui::Checkbox("Collapse Graph", &import_scene_params.collapse_graph);

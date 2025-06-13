@@ -7,6 +7,7 @@
 #include "DefaultTextures.hpp"
 #include "ECS.hpp"
 #include "GLObjects.hpp"
+#include "ImGuiExtras.hpp"
 #include "ImGuiHelpers.hpp"
 #include "LightCasters.hpp"
 #include "Mesh.hpp"
@@ -251,7 +252,7 @@ inline void MaterialsWidget(entt::handle mesh) noexcept {
         const ImVec4&         tint_color)
     {
         const auto tex_id = void_id(texture.id());
-        imgui::ImageGL(tex_id, preview_size, tint_color, frame_color);
+        ImGui::ImageGL(tex_id, preview_size, tint_color, frame_color);
         // All hover and click tests below are for this image above ^.
 
         const auto hover_widget = [&] {
@@ -271,7 +272,7 @@ inline void MaterialsWidget(entt::handle mesh) noexcept {
                 }
             }();
 
-            imgui::ImageGL(tex_id, hovered_size, tex_tint, frame_color);
+            ImGui::ImageGL(tex_id, hovered_size, tex_tint, frame_color);
             ImGui::Text("%s, %dx%d", name, resolution.width, resolution.height);
         };
 

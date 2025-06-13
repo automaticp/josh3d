@@ -7,6 +7,7 @@
 #include "ContainerUtils.hpp"
 #include "FrameTimer.hpp"
 #include "GLAPIBinding.hpp"
+#include "ImGuiExtras.hpp"
 #include "ImGuiHelpers.hpp"
 #include "ImGuiResourceViewer.hpp"
 #include "ImGuiSceneList.hpp"
@@ -21,16 +22,15 @@
 #include "VPath.hpp"
 #include "VirtualFilesystem.hpp"
 #include "glfwpp/window.h"
-#include <exception>
 #include <fmt/core.h>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <imgui_stdlib.h>
 #include <range/v3/view/enumerate.hpp>
+#include <exception>
 #include <cmath>
 #include <cstdio>
 #include <iterator>
-#include <optional>
 
 
 namespace josh {
@@ -43,14 +43,7 @@ ImGuiApplicationAssembly::ImGuiApplicationAssembly(
     : window(window)
     , runtime(runtime)
     // TODO: DESTROY THIS
-    , context(window)
-    , window_settings(window)
-    , vfs_control(vfs())
-    , stage_hooks(runtime.renderer)
-    , scene_list(runtime.registry, runtime.asset_manager, runtime.asset_unpacker, runtime.scene_importer)
-    , resource_viewer(runtime.resource_database, runtime.asset_importer, runtime.resource_unpacker, runtime.registry, runtime.mesh_registry, runtime.skeleton_storage, runtime.animation_storage, runtime.async_cradle)
-    , selected_menu(runtime.registry)
-    , gizmos(runtime.registry)
+    , imgui_context(window)
 {}
 
 auto ImGuiApplicationAssembly::get_io_wants() const noexcept
@@ -107,32 +100,30 @@ void ImGuiApplicationAssembly::new_frame(const FrameTimer& frame_timer)
     std::snprintf(_gizmo_info_str.data(), _gizmo_info_str.size() + 1,
         _gizmo_info_str_fmt, space_char, op_char);
 
-    context.new_frame();
+    imgui_context.new_frame();
     gizmos.new_frame();
 }
 
 namespace {
 
+// TODO: Deprecate
 void display_asset_manager_debug(AssetManager& asset_manager)
 {
-    thread_local std::optional<SharedTextureAsset>            texture_asset;
-    thread_local std::optional<SharedJob<SharedTextureAsset>> last_texture_job;
-    thread_local std::string                                  texture_vpath;
+    thread_local Optional<SharedTextureAsset>            texture_asset;
+    thread_local Optional<SharedJob<SharedTextureAsset>> last_texture_job;
+    thread_local String                                  texture_vpath;
 
-    thread_local std::optional<SharedModelAsset>            model_asset;
-    thread_local std::optional<SharedJob<SharedModelAsset>> last_model_job;
-    thread_local std::string                                model_vpath;
+    thread_local Optional<SharedModelAsset>            model_asset;
+    thread_local Optional<SharedJob<SharedModelAsset>> last_model_job;
+    thread_local String                                model_vpath;
 
-    thread_local std::string last_error;
+    thread_local String last_error;
 
-
-    if (last_texture_job && !last_texture_job->is_ready()) {
+    if (last_texture_job and not last_texture_job->is_ready())
         ImGui::TextUnformatted("Loading Texture...");
-    }
-    if (last_model_job && !last_model_job->is_ready()) {
-        ImGui::TextUnformatted("Loading Model...");
-    }
 
+    if (last_model_job and not last_model_job->is_ready())
+        ImGui::TextUnformatted("Loading Model...");
 
     if (last_texture_job && last_texture_job->is_ready()) {
         try {
@@ -163,7 +154,7 @@ void display_asset_manager_debug(AssetManager& asset_manager)
 
     if (texture_asset) {
         ImGui::TextUnformatted(texture_asset->path.entry().c_str());
-        imgui::ImageGL(texture_asset->texture->id(), { 480, 480 });
+        ImGui::ImageGL(texture_asset->texture->id(), { 480, 480 });
     }
     if (model_asset) {
         ImGui::TextUnformatted(model_asset->path.entry().c_str());
@@ -179,7 +170,7 @@ void display_asset_manager_debug(AssetManager& asset_manager)
             const auto visible_ids = std::span(ids, next_id);
             using ranges::views::enumerate;
             for (auto [i, id] : enumerate(visible_ids)) {
-                imgui::ImageGL(id, { 64, 64 });
+                ImGui::ImageGL(id, { 64, 64 });
                 if (i < visible_ids.size() - 1) { ImGui::SameLine(); }
             }
         }
@@ -227,15 +218,10 @@ void display_asset_manager_debug(AssetManager& asset_manager)
     }
 }
 
-
 } // namespace
 
-
-
-
-
-void ImGuiApplicationAssembly::draw_widgets() {
-
+void ImGuiApplicationAssembly::_draw_widgets()
+{
     // TODO: Keep active windows within docknodes across "hides".
 
     auto bg_col = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
@@ -249,26 +235,23 @@ void ImGuiApplicationAssembly::draw_widgets() {
     // How it still works somewhat "correctly" after both,
     // is beyond me.
     const ImGuiID dockspace_id = 1; // TODO: Is this an arbitraty nonzero value? IDK after the API change.
-    ImGui::DockSpaceOverViewport(
-        dockspace_id,
-        ImGui::GetMainViewport(),
-        ImGuiDockNodeFlags_PassthruCentralNode
-    );
+    ImGui::DockSpaceOverViewport(dockspace_id, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
     ImGui::PopStyleColor();
 
     // FIXME: Terrible, maybe will add "was resized" flag to WindowSizeCache instead.
-    static Extent2F old_size{ 0, 0 };
+    static Extent2F old_size = { 0, 0 };
     auto vport_size = ImGui::GetMainViewport()->Size;
     Extent2F new_size = { vport_size.x, vport_size.y };
-    if (old_size != new_size) {
+    if (old_size != new_size)
+    {
         // Do the reset inplace, before the windows are submitted.
-        reset_dockspace(dockspace_id);
+        _reset_dockspace(dockspace_id);
         old_size = new_size;
     }
 
     if (not hidden)
     {
-        auto reset_later = on_signal([&, this] { reset_dockspace(dockspace_id); });
+        auto reset_later = on_signal([&, this] { _reset_dockspace(dockspace_id); });
 
         auto bg_col = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
         bg_col.w = background_alpha;
@@ -281,20 +264,20 @@ void ImGuiApplicationAssembly::draw_widgets() {
 
             if (ImGui::BeginMenu("Window"))
             {
-                window_settings.display();
+                window_settings.display(*this);
                 ImGui::EndMenu();
             }
 
             if (ImGui::BeginMenu("ImGui"))
             {
-                ImGui::Checkbox("Render Engine",  &show_engine_hooks  );
-                ImGui::Checkbox("Scene",          &show_scene_list    );
-                ImGui::Checkbox("Selected",       &show_selected      );
-                ImGui::Checkbox("Demo Window",    &show_demo_window   );
-                ImGui::Checkbox("Asset Manager",  &show_asset_manager );
+                ImGui::Checkbox("Render Engine",  &show_engine_hooks   );
+                ImGui::Checkbox("Scene",          &show_scene_list     );
+                ImGui::Checkbox("Selected",       &show_selected       );
+                ImGui::Checkbox("Demo Window",    &show_demo_window    );
+                ImGui::Checkbox("Asset Manager",  &show_asset_manager  );
                 ImGui::Checkbox("Resource Files", &show_resource_viewer);
-                ImGui::Checkbox("Frame Graph",    &show_frame_graph   );
-                ImGui::Checkbox("Debug",          &show_debug_window  );
+                ImGui::Checkbox("Frame Graph",    &show_frame_graph    );
+                ImGui::Checkbox("Debug",          &show_debug_window   );
 
                 ImGui::Separator();
 
@@ -337,21 +320,14 @@ void ImGuiApplicationAssembly::draw_widgets() {
                     0.001f, 5.f, "%.3f", ImGuiSliderFlags_Logarithmic);
                 ImGui::EndDisabled();
 
-                // TODO: EnumCombo
-                if (ImGui::BeginCombo("HDR Format", enum_cstring(engine.main_buffer_format)))
-                {
-                    for (const auto format : enum_iter<HDRFormat>())
-                        if (ImGui::Selectable(enum_cstring(format), format == engine.main_buffer_format))
-                            engine.main_buffer_format = format;
-                    ImGui::EndCombo();
-                }
+                ImGui::EnumCombo("HDR Format", &engine.main_buffer_format);
 
                 ImGui::EndMenu();
             }
 
             if (ImGui::BeginMenu("VFS"))
             {
-                vfs_control.display();
+                vfs_control.display(*this);
                 ImGui::EndMenu();
             }
 
@@ -404,28 +380,28 @@ void ImGuiApplicationAssembly::draw_widgets() {
         if (show_frame_graph)
         {
             if (ImGui::Begin("Frame Graph"))
-                display_frame_graph();
+                _display_frame_graph();
             ImGui::End();
         }
 
         if (show_engine_hooks)
         {
             if (ImGui::Begin("Render Engine"))
-                stage_hooks.display();
+                stage_hooks.display(*this);
             ImGui::End();
         }
 
         if (show_selected)
         {
             if (ImGui::Begin("Selected"))
-                selected_menu.display();
+                selected_menu.display(*this);
             ImGui::End();
         }
 
         if (show_scene_list)
         {
             if (ImGui::Begin("Scene"))
-                scene_list.display();
+                scene_list.display(*this);
             ImGui::End();
         }
 
@@ -442,14 +418,14 @@ void ImGuiApplicationAssembly::draw_widgets() {
         if (show_resource_viewer)
         {
             if (ImGui::Begin("Resources"))
-                resource_viewer.display_viewer();
+                resource_viewer.display(*this);
             ImGui::End();
         }
 
         if (show_debug_window)
         {
             if (ImGui::Begin("Debug"))
-                display_debug();
+                _display_debug();
             ImGui::End();
         }
 
@@ -459,17 +435,17 @@ void ImGuiApplicationAssembly::draw_widgets() {
 
 void ImGuiApplicationAssembly::display()
 {
-    draw_widgets();
+    _draw_widgets();
     if (const auto camera = get_active<Camera, MTransform>(runtime.registry))
     {
         const mat4 view_mat = inverse(camera.get<MTransform>().model());
         const mat4 proj_mat = camera.get<Camera>().projection_mat();
-        gizmos.display(view_mat, proj_mat);
+        gizmos.display(*this, view_mat, proj_mat);
     }
-    context.render();
+    imgui_context.render();
 }
 
-void ImGuiApplicationAssembly::reset_dockspace(ImGuiID dockspace_id)
+void ImGuiApplicationAssembly::_reset_dockspace(ImGuiID dockspace_id)
 {
     ImGui::DockBuilderRemoveNode(dockspace_id);
     auto flags = ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags{ ImGuiDockNodeFlags_DockSpace };
@@ -489,7 +465,7 @@ void ImGuiApplicationAssembly::reset_dockspace(ImGuiID dockspace_id)
     ImGui::DockBuilderFinish(dockspace_id);
 }
 
-void ImGuiApplicationAssembly::display_frame_graph()
+void ImGuiApplicationAssembly::_display_frame_graph()
 {
     ImGui::PlotLines("##FrameTimes",
         _frame_deltas.data(), int(_frame_deltas.size()), _frame_offset,
@@ -504,27 +480,16 @@ void ImGuiApplicationAssembly::display_frame_graph()
     }
 }
 
-void ImGuiApplicationAssembly::display_debug()
+void ImGuiApplicationAssembly::_display_debug()
 {
     if (ImGui::TreeNode("Texture Swizzle"))
     {
         thread_local SwizzleRGBA swizzle = {};
 
-        auto selector = [](const char* channel, Swizzle* tgt)
-        {
-            if (ImGui::BeginCombo(channel, enum_cstring(*tgt)))
-            {
-                for (const Swizzle s : enum_iter<Swizzle>())
-                    if (ImGui::Selectable(enum_cstring(s), *tgt == s))
-                        *tgt = s;
-                ImGui::EndCombo();
-            }
-        };
-
-        selector("R", &swizzle.r);
-        selector("G", &swizzle.g);
-        selector("B", &swizzle.b);
-        selector("A", &swizzle.a);
+        ImGui::EnumCombo("R", &swizzle.r);
+        ImGui::EnumCombo("G", &swizzle.g);
+        ImGui::EnumCombo("B", &swizzle.b);
+        ImGui::EnumCombo("A", &swizzle.a);
 
         if (ImGui::Button("Convert All Diffuse"))
         {

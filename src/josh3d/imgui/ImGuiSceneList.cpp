@@ -1,4 +1,9 @@
 #include "ImGuiSceneList.hpp"
+#include "ImGuiApplicationAssembly.hpp"
+#include "AssetManager.hpp"
+#include "AssetUnpacker.hpp"
+#include "SceneImporter.hpp"
+#include "ECS.hpp"
 #include "Active.hpp"
 #include "Asset.hpp"
 #include "Camera.hpp"
@@ -12,6 +17,7 @@
 #include "Tags.hpp"
 #include "TerrainChunk.hpp"
 #include "Transform.hpp"
+#include "UIContext.hpp"
 #include "tags/Selected.hpp"
 #include "tags/ShadowCasting.hpp"
 #include <entt/entity/entity.hpp>
@@ -186,8 +192,13 @@ void display_node_recursive(
 
 } // namespace
 
-void ImGuiSceneList::display()
+void ImGuiSceneList::display(UIContext& ui)
 {
+    auto& registry       = ui.runtime.registry;
+    auto& asset_manager  = ui.runtime.asset_manager;
+    auto& asset_unpacker = ui.runtime.asset_unpacker;
+    auto& scene_importer = ui.runtime.scene_importer;
+
     // To handle selection, scene graph modification and destruction outside the loop.
     Signals signals = {};
 

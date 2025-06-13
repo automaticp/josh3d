@@ -1,6 +1,8 @@
 #include "ImGuiVFSControl.hpp"
 #include "Filesystem.hpp"
 #include "Scalars.hpp"
+#include "UIContext.hpp"
+#include "VFSRoots.hpp"
 #include "VirtualFilesystem.hpp"
 #include "VPath.hpp"
 #include "ImGuiHelpers.hpp"
@@ -10,12 +12,11 @@
 
 
 namespace josh {
+namespace {
 
-
-void ImGuiVFSControl::_roots_listbox_widget()
+void roots_listbox_widget(VFSRoots& roots)
 {
     using it_t = VFSRoots::const_iterator;
-    VFSRoots& roots = vfs_.roots();
 
     auto remove_later = on_value_change_from(roots.end(),
         [&](const auto& to_remove) { roots.erase(to_remove); });
@@ -74,24 +75,24 @@ void ImGuiVFSControl::_roots_listbox_widget()
     }
 }
 
-void ImGuiVFSControl::_add_new_root_widget()
+void add_new_root_widget(ImGuiVFSControl& self, VirtualFilesystem& vfs)
 {
-    auto try_add_root = [&, this]
+    auto try_add_root = [&]
     {
         try
         {
-            _exception_str = "";
-            vfs_.roots().push_front(Directory(_new_root));
+            self._exception_str = {};
+            vfs.roots().push_front(Directory(self._new_root));
         }
         catch (const error::RuntimeError& err)
         {
-            _exception_str = err.what();
+            self._exception_str = err.what();
         }
     };
 
     auto add_root_later = on_signal(try_add_root);
 
-    if (ImGui::InputText("##New Root Input", &_new_root, ImGuiInputTextFlags_EnterReturnsTrue))
+    if (ImGui::InputText("##New Root Input", &self._new_root, ImGuiInputTextFlags_EnterReturnsTrue))
         add_root_later.set(true);
 
     ImGui::SameLine();
@@ -100,44 +101,44 @@ void ImGuiVFSControl::_add_new_root_widget()
         add_root_later.set(true);
 }
 
-void ImGuiVFSControl::_debug_resolve_widget()
+void debug_resolve_widget(ImGuiVFSControl& self, VirtualFilesystem& vfs)
 {
     if (ImGui::TreeNode("Debug"))
     {
         if (ImGui::Button("Clear Invalid Roots"))
         {
-            usize num_removed = vfs_.roots().remove_invalid();
-            _exception_str = "Removed " + std::to_string(num_removed) + " Invalid Roots";
+            const usize num_removed = vfs.roots().remove_invalid();
+            self._exception_str = "Removed " + std::to_string(num_removed) + " Invalid Roots";
         }
 
-        auto try_resolve_file = [this]
+        auto try_resolve_file = [&]
         {
-            _exception_str = "";
+            self._exception_str = {};
             try
             {
-                _last_resolved_entry = vfs_.resolve_file(VPath(_test_vpath)).path();
+                self._last_resolved_entry = vfs.resolve_file(VPath(self._test_vpath)).path();
             }
             catch (const error::RuntimeError& err)
             {
-                _exception_str = err.what();
+                self._exception_str = err.what();
             }
         };
 
-        auto try_resolve_dir = [this]
+        auto try_resolve_dir = [&]
         {
-            _exception_str = "";
+            self._exception_str = {};
             try
             {
-                _last_resolved_entry = vfs_.resolve_directory(VPath(_test_vpath)).path();
+                self._last_resolved_entry = vfs.resolve_directory(VPath(self._test_vpath)).path();
             }
             catch (const error::RuntimeError& err)
             {
-                _exception_str = err.what();
+                self._exception_str = err.what();
             }
         };
 
-        if (ImGui::InputText("VPath", &_test_vpath))
-            _last_resolved_entry = "";
+        if (ImGui::InputText("VPath", &self._test_vpath))
+            self._last_resolved_entry = "";
 
         if (ImGui::Button("Resolve File"))
             try_resolve_file();
@@ -147,17 +148,19 @@ void ImGuiVFSControl::_debug_resolve_widget()
         if (ImGui::Button("Resolve Directory"))
             try_resolve_dir();
 
-        ImGui::TextUnformatted(_last_resolved_entry.c_str());
+        ImGui::TextUnformatted(self._last_resolved_entry.c_str());
 
         ImGui::TreePop();
     }
 }
 
-void ImGuiVFSControl::display()
+} // namespace
+
+void ImGuiVFSControl::display(UIContext&)
 {
-    _roots_listbox_widget();
-    _add_new_root_widget();
-    _debug_resolve_widget();
+    roots_listbox_widget(vfs().roots());
+    add_new_root_widget(*this, vfs());
+    debug_resolve_widget(*this, vfs());
 
     ImGui::TextColored({ 1.0f, 0.5f, 0.5f, 1.0f }, "%s", _exception_str.c_str());
 }

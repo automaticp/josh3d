@@ -1,14 +1,19 @@
 #include "ImGuiEngineHooks.hpp"
+#include "RenderEngine.hpp"
+#include "RenderStage.hpp"
+#include "ImGuiApplicationAssembly.hpp"
+#include "UIContext.hpp"
 #include <imgui.h>
 
 
 namespace josh {
 
 
-void ImGuiEngineHooks::display()
+void ImGuiEngineHooks::display(UIContext& ui)
 {
-    auto& hooks = _hooks;
-    auto display_hooks = [&, this](auto stages_view)
+    auto& engine = ui.runtime.renderer;
+    auto& hooks  = _hooks;
+    auto display_hooks = [&](auto stages_view)
     {
         for (int id = 0; auto& stage : stages_view) {
             ImGui::PushID(id);

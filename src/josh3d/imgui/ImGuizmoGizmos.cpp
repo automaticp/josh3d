@@ -7,6 +7,7 @@
 #include "Tags.hpp"
 #include "Transform.hpp"
 #include "Transform.hpp"
+#include "UIContext.hpp"
 #include "tags/Selected.hpp"
 #include <ImGuizmo.h>
 #include <entt/entity/fwd.hpp>
@@ -124,9 +125,12 @@ This will require translation of all objects w.r.t. the midpoint. Should be doab
 (There may be more options for each point)
 */
 void ImGuizmoGizmos::display(
+    UIContext&  ui,
     const mat4& view_mat,
     const mat4& proj_mat)
 {
+    auto& registry = ui.runtime.registry;
+
     bool debug_window_open = false;
     if (display_debug_window)
         debug_window_open = ImGui::Begin("GizmoDebug");
@@ -365,7 +369,7 @@ void ImGuizmoGizmos::display(
                 v_B = inverse(A2B) * v_A
 
             */
-            const auto covariant     = [](const vec3& v) { return vec4(v, 0.f); };
+         // const auto covariant     = [](const vec3& v) { return vec4(v, 0.f); };
             const auto contravariant = [](const vec3& v) { return vec4(v, 1.f); };
 
 
@@ -426,7 +430,7 @@ void ImGuizmoGizmos::display(
                 const mat4 L2P = inverse(P2L);
 
                 const mat4 W2P = W2L * L2P;
-                const mat4 P2W = inverse(W2P);
+             // const mat4 P2W = inverse(W2P);
 
                 const mat4 M2P = M2W * W2P;
                 const mat4 P2M = inverse(M2P);

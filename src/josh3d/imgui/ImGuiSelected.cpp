@@ -1,4 +1,5 @@
 #include "ImGuiSelected.hpp"
+#include "UIContext.hpp"
 #include "Camera.hpp"
 #include "Components.hpp"
 #include "ImGuiComponentWidgets.hpp"
@@ -15,8 +16,10 @@
 namespace josh {
 
 
-void ImGuiSelected::display()
+void ImGuiSelected::display(UIContext& ui)
 {
+    auto& registry = ui.runtime.registry;
+
     for (const Entity entity : registry.view<Selected>())
     {
         ImGui::PushID(void_id(entity));

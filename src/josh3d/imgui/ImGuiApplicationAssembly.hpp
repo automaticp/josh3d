@@ -62,7 +62,7 @@ struct ImGuiApplicationAssembly
     glfw::Window& window;
     Runtime&      runtime;
 
-    ImGuiContextWrapper context;
+    ImGuiContextWrapper imgui_context;
     ImGuiWindowSettings window_settings;
     ImGuiVFSControl     vfs_control;
     ImGuiEngineHooks    stage_hooks;
@@ -90,8 +90,8 @@ struct ImGuiApplicationAssembly
     String _frametime_str  = _frametime_str_template;
     String _gizmo_info_str = _gizmo_info_str_template;
 
-    void draw_widgets();
-    void reset_dockspace(unsigned dockspace_id);
+    void _draw_widgets();
+    void _reset_dockspace(unsigned dockspace_id);
 
     // FrameGraph widget state. TODO: Move elsewhere?
     int           _num_frames_plotted    = 300;
@@ -99,9 +99,8 @@ struct ImGuiApplicationAssembly
     float         _upper_frametime_limit = 33.f;
     Vector<float> _frame_deltas;
 
-    void display_frame_graph();
-
-    void display_debug();
+    void _display_frame_graph();
+    void _display_debug();
 };
 
 

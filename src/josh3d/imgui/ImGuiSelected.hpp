@@ -1,5 +1,5 @@
 #pragma once
-#include "ECS.hpp"
+#include "UIContextFwd.hpp"
 
 
 namespace josh {
@@ -7,12 +7,10 @@ namespace josh {
 
 struct ImGuiSelected
 {
-    Registry& registry;
-
     bool display_model_matrix   = false;
     bool display_all_components = false;
 
-    void display();
+    void display(UIContext& ui);
 };
 
 

@@ -9,6 +9,7 @@
 #include "ECS.hpp"
 #include "MeshRegistry.hpp"
 #include "SkeletonStorage.hpp"
+#include "UIContextFwd.hpp"
 #include "UniqueFunction.hpp"
 
 
@@ -18,16 +19,7 @@ struct ResourceInspectorContext;
 
 struct ImGuiResourceViewer
 {
-    ResourceDatabase&   resource_database;
-    AssetImporter&      asset_importer;
-    ResourceUnpacker&   resource_unpacker;
-    Registry&           registry;
-    MeshRegistry&       mesh_registry;
-    SkeletonStorage&    skeleton_storage;
-    AnimationStorage&   animation_storage;
-    AsyncCradleRef      async_cradle;
-
-    void display_viewer();
+    void display(UIContext& ui);
 
     // TODO: Probably support multiple tabs. For now we use a popup.
     // void display_inspectors();
@@ -40,28 +32,20 @@ struct ImGuiResourceViewer
     auto register_inspector(ResourceType type) -> bool;
 
     using inspector_type         = UniqueFunction<void()>;
-    using inspector_factory_type = UniqueFunction<inspector_type(ResourceInspectorContext, UUID)>;
+    using inspector_factory_type = UniqueFunction<inspector_type(UIContext&, UUID)>;
     HashMap<ResourceType, inspector_factory_type> _inspector_factories;
 };
 
-
-// TODO: Surely more is needed.
-struct ResourceInspectorContext
-{
-    auto& resource_database() const noexcept { return _self.resource_database; }
-
-    ImGuiResourceViewer& _self;
-};
 
 template<typename T>
 auto ImGuiResourceViewer::register_inspector(ResourceType type)
     -> bool
 {
     auto [it, was_emplaced] =
-        _inspector_factories.try_emplace(type, [](ResourceInspectorContext context, UUID uuid)
+        _inspector_factories.try_emplace(type, [](UIContext& context, UUID uuid)
             -> inspector_type
         {
-            return inspector_type(T(MOVE(context), uuid));
+            return inspector_type(T(context, uuid));
         });
     return was_emplaced;
 }

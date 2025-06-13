@@ -141,41 +141,4 @@ template<typename ActionF>
 }
 
 
-namespace imgui {
-
-/*
-Wrapper of ImGui::Image that flips the image UVs
-to accomodate the OpenGL bottom-left origin.
-*/
-inline void ImageGL(
-    ImTextureID   image_id,
-    const ImVec2& size,
-    const ImVec4& tint_color = { 1.0f, 1.0f, 1.0f, 1.0f },
-    const ImVec4& border_color = { 1.0f, 1.0f, 1.0f, 1.0f }) noexcept
-{
-    ImGui::Image(image_id, size, ImVec2{ 0.f, 1.f }, ImVec2{ 1.f, 0.f }, tint_color, border_color);
-}
-
-inline void ImageGL(
-    unsigned int  image_id,
-    const ImVec2& size,
-    const ImVec4& tint_color = { 1.0f, 1.0f, 1.0f, 1.0f },
-    const ImVec4& border_color = { 1.0f, 1.0f, 1.0f, 1.0f }) noexcept
-{
-    ImageGL(void_id(image_id), size, tint_color, border_color);
-}
-
-} // namespace imgui
 } // namespace josh
-
-/*
-Extensions to ImGui namespace.
-*/
-namespace ImGui {
-
-inline void TextUnformatted(std::string_view str)
-{
-    TextUnformatted(str.begin(), str.end());
-}
-
-} // namespace ImGui

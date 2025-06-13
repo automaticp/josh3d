@@ -1,8 +1,7 @@
 #pragma once
-#include "ECS.hpp"
 #include "EnumUtils.hpp"
 #include "Skeleton.hpp"
-#include <entt/fwd.hpp>
+#include "UIContextFwd.hpp"
 
 
 namespace josh {
@@ -32,15 +31,13 @@ JOSH3D_DEFINE_ENUM_EXTRAS(GizmoLocation, LocalOrigin, AABBMidpoint);
 
 struct ImGuizmoGizmos
 {
-    Registry& registry;
-
     GizmoOperation active_operation     = GizmoOperation::Translation;
     GizmoSpace     active_space         = GizmoSpace::World;
     GizmoLocation  preferred_location   = GizmoLocation::AABBMidpoint;
     bool           display_debug_window = false;
 
     void new_frame();
-    void display(const mat4& view_mat, const mat4& proj_mat);
+    void display(UIContext& ui, const mat4& view_mat, const mat4& proj_mat);
 };
 
 

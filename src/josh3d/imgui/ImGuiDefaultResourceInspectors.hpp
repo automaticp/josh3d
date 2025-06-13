@@ -4,8 +4,10 @@
 #include "DefaultResources.hpp"
 #include "FileMapping.hpp"
 #include "ImGuiHelpers.hpp"
+#include "ImGuiExtras.hpp"
 #include "ImGuiResourceViewer.hpp"
 #include "Ranges.hpp"
+#include "UIContext.hpp"
 #include "UUID.hpp"
 #include <imgui.h>
 #include <jsoncons/basic_json.hpp>
@@ -16,10 +18,10 @@ namespace josh {
 
 struct TextureInspector
 {
-    ResourceInspectorContext context;
-    UUID                     uuid;
+    UIContext& context;
+    UUID       uuid;
 
-    TextureFile file = TextureFile::open(context.resource_database().map_resource(uuid));
+    TextureFile file = TextureFile::open(context.runtime.resource_database.map_resource(uuid));
 
     void operator()()
     {
@@ -70,11 +72,11 @@ struct TextureInspector
 
 struct SceneInspector
 {
-    ResourceInspectorContext context;
-    UUID                     uuid;
+    UIContext& context;
+    UUID       uuid;
 
     jsoncons::json file = eval%[this] {
-        const auto mregion = context.resource_database().map_resource(uuid);
+        const auto mregion = context.runtime.resource_database.map_resource(uuid);
         const auto text    = to_span<char>(mregion);
         const auto view    = StrView(text.begin(), text.end());
         return jsoncons::json::parse(view);
@@ -112,15 +114,13 @@ struct SceneInspector
 
                     ImGui::TableNextColumn();
                     auto& name = entry.at_or_null("name");
-                    if (not name.is_null()) {
+                    if (not name.is_null())
                         ImGui::TextUnformatted(name.as_string_view());
-                    }
 
                     ImGui::TableNextColumn();
                     auto& uuid = entry.at_or_null("uuid");
-                    if (not uuid.is_null()) {
+                    if (not uuid.is_null())
                         ImGui::TextUnformatted(uuid.as_string_view());
-                    }
 
                     ImGui::PopID();
                 }
@@ -137,7 +137,6 @@ inline void register_default_resource_inspectors(
     v.register_inspector<TextureInspector>(RT::Texture);
     v.register_inspector<SceneInspector>(RT::Scene);
 }
-
 
 
 } // namespace josh

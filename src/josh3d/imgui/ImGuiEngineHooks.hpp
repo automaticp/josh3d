@@ -1,7 +1,7 @@
 #pragma once
 #include "CategoryCasts.hpp"
-#include "RenderEngine.hpp"
-#include "RenderStage.hpp"
+#include "Common.hpp"
+#include "UIContextFwd.hpp"
 #include "UniqueFunction.hpp"
 #include <concepts>
 #include <typeindex>
@@ -34,9 +34,7 @@ a general Render Stages debug window.
 */
 struct ImGuiEngineHooks
 {
-    RenderEngine& engine;
-
-    void display();
+    void display(UIContext& ui);
 
     // This will source the target stage type from the `StageHookT::target_stage_type` typedef.
     // HMM: Why would this be a good idea at all?

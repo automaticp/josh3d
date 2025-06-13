@@ -1,4 +1,5 @@
 #include "AllPostprocessHooks.hpp"
+#include "ImGuiExtras.hpp"
 #include "detail/SimpleStageHookMacro.hpp"
 // IWYU pragma: begin_keep
 #include "stages/postprocess/Bloom.hpp"
@@ -67,7 +68,7 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(postprocess, Bloom) {
         const float w = ImGui::GetContentRegionAvail().x;
         const float h = w / stage_.blur_texture_resolution().aspect_ratio();
 
-        imgui::ImageGL(void_id(stage_.blur_texture().id()), { w, h });
+        ImGui::ImageGL(void_id(stage_.blur_texture().id()), { w, h });
 
         ImGui::Indent();
 
