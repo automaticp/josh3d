@@ -24,12 +24,12 @@
 #include "tags/AlphaTested.hpp"
 #include "tags/ShadowCasting.hpp"
 #include "tags/Visible.hpp"
-#include <cassert>
 #include <entt/entity/entity.hpp>
 #include <entt/entity/fwd.hpp>
 #include <glm/fwd.hpp>
 #include <glm/trigonometric.hpp>
 #include <imgui.h>
+#include <cassert>
 
 
 namespace josh::imgui {

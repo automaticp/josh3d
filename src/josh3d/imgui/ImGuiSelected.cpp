@@ -15,26 +15,23 @@
 namespace josh {
 
 
-void ImGuiSelected::display() {
-
-    for (auto entity : registry_.view<Selected>()) {
+void ImGuiSelected::display()
+{
+    for (const Entity entity : registry.view<Selected>())
+    {
         ImGui::PushID(void_id(entity));
-        const entt::handle handle{ registry_, entity };
-
+        const Handle handle = { registry, entity };
 
         imgui::GenericHeaderText(handle);
 
         // Display Transform independent of other components.
-        if (auto transform = handle.try_get<Transform>()) {
+        if (auto* transform = handle.try_get<Transform>())
             imgui::TransformWidget(*transform);
-        }
 
         // Mostly for debugging.
-        if (display_model_matrix) {
-            if (auto mtf = handle.try_get<MTransform>()) {
+        if (display_model_matrix)
+            if (auto* mtf = handle.try_get<MTransform>())
                 imgui::Matrix4x4DisplayWidget(mtf->model());
-            }
-        }
 
         if (has_component<Mesh>(handle) or
             has_component<SkinnedMesh>(handle) or
@@ -43,30 +40,27 @@ void ImGuiSelected::display() {
             imgui::MaterialsWidget(handle);
         }
 
-        if (has_component<SkinnedMesh>(handle)) {
+        if (has_component<SkinnedMesh>(handle))
             imgui::AnimationsWidget(handle);
-        }
 
-        if (has_component<PointLight>(handle)) {
+        if (has_component<PointLight>(handle))
             imgui::PointLightHandleWidget(handle);
-        }
 
-        if (has_component<DirectionalLight>(handle)) {
+        if (has_component<DirectionalLight>(handle))
             imgui::DirectionalLightHandleWidget(handle);
-        }
 
-        if (has_component<AmbientLight>(handle)) {
+        if (has_component<AmbientLight>(handle))
             imgui::AmbientLightHandleWidget(handle);
-        }
 
-        if (has_component<Camera>(handle)) {
+        if (has_component<Camera>(handle))
             imgui::CameraHandleWidget(handle);
-        }
 
         ImGui::Separator();
 
-        if (display_all_components) {
-            for (auto&& [index, storage] : handle.storage()) {
+        if (display_all_components)
+        {
+            for (auto&& [index, storage] : handle.storage())
+            {
                 const auto name = storage.type().name();
                 ImGui::Text("%.*s", int(name.size()), name.data());
             }
@@ -75,7 +69,6 @@ void ImGuiSelected::display() {
 
         ImGui::PopID();
     }
-
 }
 
 

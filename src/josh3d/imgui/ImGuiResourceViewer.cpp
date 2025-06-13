@@ -1,17 +1,14 @@
 #include "ImGuiResourceViewer.hpp"
-#include "DefaultResourceFiles.hpp"
 #include "ECS.hpp"
 #include "ImGuiHelpers.hpp"
 #include "Common.hpp"
 #include "Coroutines.hpp"
 #include "DefaultResources.hpp"
 #include "Logging.hpp"
-#include "MeshRegistry.hpp"
 #include "ObjectLifecycle.hpp"
 #include "Processing.hpp"
 #include "Resource.hpp"
 #include "ResourceDatabase.hpp"
-#include "ResourceFiles.hpp"
 #include "Throughporters.hpp"
 #include "UUID.hpp"
 #include <algorithm>
@@ -23,7 +20,8 @@
 namespace josh {
 
 
-void ImGuiResourceViewer::display_viewer() {
+void ImGuiResourceViewer::display_viewer()
+{
     thread_local String path;
     thread_local String last_error;
 
@@ -40,35 +38,40 @@ void ImGuiResourceViewer::display_viewer() {
     thread_local Optional<inspector_type> current_inspector;
 
 
-    auto unpack_signal = on_value_change_from<UUID>({}, [&](UUID uuid) {
-        auto handle = create_handle(registry);
+    auto unpack_signal = on_value_change_from<UUID>({}, [&](UUID uuid)
+    {
+        const Handle handle = create_handle(registry);
         handle.emplace<Transform>();
-        try {
+        try
+        {
             unpacking_job = resource_unpacker.unpack_any(uuid, handle);
             last_error = {};
-        } catch (const std::exception& e) {
+        }
+        catch (const std::exception& e)
+        {
             last_error = e.what();
         }
     });
 
-
     // FIXME: 1-frame delay is ugly.
-    auto inspect_signal = on_value_change_from<UUID>({}, [&](UUID uuid) {
-        try {
+    auto inspect_signal = on_value_change_from<UUID>({}, [&](UUID uuid)
+    {
+        try
+        {
             const ResourceType type = resource_database.type_of(uuid); // TOCTOU, but rare
             current_inspector = _inspector_factories.at(type)(ResourceInspectorContext(*this), uuid);
             ImGui::OpenPopup("Inspect", ImGuiPopupFlags_NoOpenOverExistingPopup);
-        } catch (const std::exception& e) {
+        }
+        catch (const std::exception& e)
+        {
             last_error = e.what();
         }
     });
 
     // NOTE: Trying to close the unused file.
     // TODO: Is there a better flow for this?
-    if (current_inspector and not ImGui::IsPopupOpen("Inspect")) {
+    if (current_inspector and not ImGui::IsPopupOpen("Inspect"))
         current_inspector = nullopt;
-    }
-
 
     ImGui::Text("Root: %s", resource_database.root().c_str());
     ImGui::InputText("Path", &path);
@@ -99,16 +102,18 @@ void ImGuiResourceViewer::display_viewer() {
         {
             last_error = e.what();
         }
-
-
     }
 
-    auto try_import_thing = [&](auto params) {
-        try {
+    auto try_import_thing = [&](auto params)
+    {
+        try
+        {
             importing_job = asset_importer.import_asset(path, params);
             // TODO: Should also log?
             last_error = {};
-        } catch (const std::exception& e) {
+        }
+        catch (const std::exception& e)
+        {
             last_error = e.what();
         }
     };
@@ -124,13 +129,16 @@ void ImGuiResourceViewer::display_viewer() {
         }
     };
 
-    if (ImGui::TreeNode("Import Texture")) {
+    if (ImGui::TreeNode("Import Texture"))
+    {
         texture_encoding_combo(import_texture_params.encoding);
         ImGui::Checkbox("Generate Mipmaps", &import_texture_params.generate_mips);
         if (ImGui::Button("Import")) try_import_thing(import_texture_params);
         ImGui::TreePop();
     }
-    if (ImGui::TreeNode("Import Scene")) {
+
+    if (ImGui::TreeNode("Import Scene"))
+    {
         texture_encoding_combo(import_scene_params.texture_encoding);
         ImGui::Checkbox("Generate Mipmaps", &import_scene_params.generate_mips);
         ImGui::SameLine();
@@ -142,9 +150,8 @@ void ImGuiResourceViewer::display_viewer() {
     }
 
 
-    if (ImGui::TreeNode("Entries")) {
-        using ranges::views::enumerate;
-
+    if (ImGui::TreeNode("Entries"))
+    {
         // FIXME: Very crappy filter.
         thread_local ResourceType current_filtered = NullResource;
         thread_local bool         do_filter        = false;
@@ -155,17 +162,12 @@ void ImGuiResourceViewer::display_viewer() {
         ImGui::SameLine();
         ImGui::BeginDisabled(not do_filter);
         if (ImGui::BeginCombo("Filter##Combo", resource_info().name_or(current_filtered, "None").data())) {
-            for (const ResourceType resource_type : resource_info().view_registered()) {
-                if (ImGui::Selectable(resource_info().name_of(resource_type).data(),
-                        resource_type == current_filtered))
-                {
+            for (const ResourceType resource_type : resource_info().view_registered())
+                if (ImGui::Selectable(resource_info().name_of(resource_type).data(), resource_type == current_filtered))
                     current_filtered = resource_type;
-                }
-            }
             ImGui::EndCombo();
         }
         ImGui::EndDisabled();
-
 
         const auto table_flags =
             ImGuiTableFlags_Borders     |
@@ -175,17 +177,17 @@ void ImGuiResourceViewer::display_viewer() {
             ImGuiTableFlags_SizingStretchProp |
             ImGuiTableFlags_HighlightHoveredColumn;
 
-        if (ImGui::BeginTable("Resources", 5, table_flags)) {
+        if (ImGui::BeginTable("Resources", 5, table_flags))
+        {
             ImGui::TableSetupColumn("Type");
             ImGui::TableSetupColumn("File");
             ImGui::TableSetupColumn("Offset", ImGuiTableColumnFlags_DefaultHide);
             ImGui::TableSetupColumn("Size");
             ImGui::TableSetupColumn("UUID", ImGuiTableColumnFlags_DefaultHide);
             ImGui::TableHeadersRow();
-            size_t i = 0;
-            resource_database.for_each_row(
-                [&i, &unpack_signal, &inspect_signal](
-                    const ResourceDatabase::Row& row)
+            usize i = 0;
+            resource_database.for_each_row([&i, &unpack_signal, &inspect_signal](
+                const ResourceDatabase::Row& row)
             {
                 if (do_filter and not (row.type == current_filtered)) return;
                 ImGui::PushID(void_id(i));
@@ -201,16 +203,16 @@ void ImGuiResourceViewer::display_viewer() {
                 *end = '\0';
                 // NOTE: No ability to select it yet. Just a visual hover hint.
                 ImGui::Selectable(path, false, ImGuiSelectableFlags_SpanAllColumns);
-                if (ImGui::BeginPopupContextItem()) {
-                    if (ImGui::MenuItem("Unpack")) {
+                if (ImGui::BeginPopupContextItem())
+                {
+                    if (ImGui::MenuItem("Unpack"))
                         unpack_signal.set(row.uuid);
-                    }
-                    if (ImGui::MenuItem("Inspect...")) {
+
+                    if (ImGui::MenuItem("Inspect..."))
                         inspect_signal.set(row.uuid);
-                    }
+
                     ImGui::EndPopup();
                 }
-
 
                 ImGui::TableNextColumn();
                 ImGui::Text("%zu", row.offset_bytes);
@@ -232,33 +234,37 @@ void ImGuiResourceViewer::display_viewer() {
         ImGui::TreePop();
     }
 
-
-
-    if (ImGui::BeginPopup("Inspect")) {
+    if (ImGui::BeginPopup("Inspect"))
+    {
         // TODO: What if this throws?
         current_inspector.value()();
         ImGui::EndPopup();
     }
 
-
-
-    if (importing_job and importing_job->is_ready()) {
-        try {
+    if (importing_job and importing_job->is_ready())
+    {
+        try
+        {
             last_imported = move_out(importing_job).get_result();
             char uuid_string[37]{};
             serialize_uuid_to(uuid_string, *last_imported);
             logstream() << "Imported " << uuid_string << ".\n";
-        } catch (const std::exception& e) {
+        }
+        catch (const std::exception& e)
+        {
             logstream() << "Import failed: " << e.what() << "\n";
         }
-
     }
 
-    if (unpacking_job and unpacking_job->is_ready()) {
-        try {
+    if (unpacking_job and unpacking_job->is_ready())
+    {
+        try
+        {
             move_out(unpacking_job).get_result();
             logstream() << "Unpacked ...something.\n";
-        } catch (const std::exception& e) {
+        }
+        catch (const std::exception& e)
+        {
             logstream() << "Unpacking failed: " << e.what() << "\n";
         }
     }
@@ -275,7 +281,6 @@ void ImGuiResourceViewer::display_viewer() {
             logstream() << "Throughporting failed: " << e.what() << "\n";
         }
     }
-
 
     ImGui::TextUnformatted(last_error.c_str());
 }

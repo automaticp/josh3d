@@ -5,7 +5,6 @@
 #include "GLMutability.hpp"
 #include "ThreadsafeQueue.hpp"
 #include "UniqueFunction.hpp"
-#include "CoroCore.hpp"
 #include <concepts>
 #include <latch>
 #include <stop_token>
@@ -18,12 +17,13 @@ namespace glfw { class Window; }
 namespace josh {
 
 
-class OffscreenContext {
+class OffscreenContext
+{
 public:
     OffscreenContext(const glfw::Window& shared_with);
 
     template<typename FuncT>
-        requires std::invocable<FuncT> || std::invocable<FuncT, glfw::Window&>
+        requires std::invocable<FuncT> or std::invocable<FuncT, glfw::Window&>
     auto emplace(FuncT&& func) -> Future<void>;
 
 private:
@@ -32,7 +32,8 @@ private:
     auto emplace_request(Task task)
         -> Future<void>;
 
-    struct Request {
+    struct Request
+    {
         Task          task;
         Promise<void> promise;
     };
@@ -46,15 +47,14 @@ private:
 
 
 template<typename FuncT>
-    requires std::invocable<FuncT> || std::invocable<FuncT, glfw::Window&>
+    requires std::invocable<FuncT> or std::invocable<FuncT, glfw::Window&>
 auto OffscreenContext::emplace(FuncT&& func)
     -> Future<void>
 {
-    if constexpr (std::invocable<FuncT, glfw::Window&>) {
+    if constexpr (std::invocable<FuncT, glfw::Window&>)
         return emplace_request(FORWARD(func));
-    } else {
+    else
         return emplace_request([func=FORWARD(func)](glfw::Window&) { func(); });
-    }
 }
 
 

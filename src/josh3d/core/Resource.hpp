@@ -10,10 +10,9 @@ Basic vocabulary for various resource types.
 namespace josh {
 
 
-template<size_t N>
+template<usize N>
 using ResourceTypeHS = FixedHashedString<N>;
 using ResourceType   = HashedID;
-
 
 /*
 Null resource identifier to represent lack of a resource.
@@ -23,26 +22,25 @@ NOTE: Default HashedString corresponds to a value of 0.
 constexpr auto NullResource = ResourceTypeHS<0>();
 static_assert(NullResource.value() == ResourceType());
 
-
 /*
 Unique identifier of each resource.
 
 TODO: Might not need to store the type. Bloats sizes, can be recovered through database.
 */
-struct ResourceItem {
+struct ResourceItem
+{
     ResourceType type;
     UUID         uuid;
 };
-
 
 using ResourceUsage = Usage<ResourceItem>;
 
 
 template<ResourceType TypeV> struct resource_traits;
 
-
 template<ResourceType TypeV>
-concept specializes_resource_traits = requires {
+concept specializes_resource_traits = requires
+{
     typename resource_traits<TypeV>::resource_type;
 };
 
@@ -56,12 +54,12 @@ wrappers. This is similar to the const_iterator problem, since most of the resou
 types are simple handles. Right now, "read-only" is only ensured by an honor system.
 */
 template<ResourceType TypeV>
-struct PublicResource {
+struct PublicResource
+{
     using resource_type = resource_traits<TypeV>::resource_type;
     resource_type resource;
     ResourceUsage usage;
 };
-
 
 /*
 Resource-with-usage that provides mutable "private" access to a particular resource.

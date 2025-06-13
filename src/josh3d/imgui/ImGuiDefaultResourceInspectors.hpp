@@ -1,4 +1,5 @@
 #pragma once
+#include "ContainerUtils.hpp"
 #include "DefaultResourceFiles.hpp"
 #include "DefaultResources.hpp"
 #include "FileMapping.hpp"
@@ -13,13 +14,15 @@
 namespace josh {
 
 
-struct TextureInspector {
+struct TextureInspector
+{
     ResourceInspectorContext context;
     UUID                     uuid;
 
     TextureFile file = TextureFile::open(context.resource_database().map_resource(uuid));
 
-    void operator()() {
+    void operator()()
+    {
         const auto& header = file.header();
         const auto table_flags =
             ImGuiTableFlags_Borders           |
@@ -29,13 +32,16 @@ struct TextureInspector {
             ImGuiTableFlags_SizingStretchProp |
             ImGuiTableFlags_HighlightHoveredColumn;
 
-        if (ImGui::BeginTable("MIPs", 4, table_flags)) {
+        if (ImGui::BeginTable("MIPs", 4, table_flags))
+        {
             ImGui::TableSetupColumn("Level");
             ImGui::TableSetupColumn("Resolution");
             ImGui::TableSetupColumn("Encoding");
             ImGui::TableSetupColumn("Size");
             ImGui::TableHeadersRow();
-            for (const auto mip_id : irange(header.num_mips)) {
+
+            for (const auto mip_id : irange(header.num_mips))
+            {
                 const auto& mip = file.mip_span(mip_id);
                 ImGui::TableNextRow();
 
@@ -62,18 +68,20 @@ struct TextureInspector {
 };
 
 
-struct SceneInspector {
+struct SceneInspector
+{
     ResourceInspectorContext context;
     UUID                     uuid;
 
-    jsoncons::json file = [this]{
+    jsoncons::json file = eval%[this] {
         const auto mregion = context.resource_database().map_resource(uuid);
         const auto text    = to_span<char>(mregion);
         const auto view    = StrView(text.begin(), text.end());
         return jsoncons::json::parse(view);
-    }();
+    };
 
-    void operator()() {
+    void operator()()
+    {
         if (auto& entries = file.at_or_null("entities");
             not entries.is_null())
         {
@@ -87,12 +95,15 @@ struct SceneInspector {
                 ImGuiTableFlags_SizingStretchProp |
                 ImGuiTableFlags_HighlightHoveredColumn;
 
-            if (ImGui::BeginTable("Entries", 3, table_flags)) {
+            if (ImGui::BeginTable("Entries", 3, table_flags))
+            {
                 ImGui::TableSetupColumn("Index");
                 ImGui::TableSetupColumn("Name");
                 ImGui::TableSetupColumn("UUID");
                 ImGui::TableHeadersRow();
-                for (auto [i, entry] : enumerate(entries_range)) {
+
+                for (auto [i, entry] : enumerate(entries_range))
+                {
                     ImGui::PushID(void_id(i));
                     ImGui::TableNextRow();
 
@@ -113,12 +124,12 @@ struct SceneInspector {
 
                     ImGui::PopID();
                 }
+
                 ImGui::EndTable();
             }
         }
     }
 };
-
 
 inline void register_default_resource_inspectors(
     ImGuiResourceViewer& v)

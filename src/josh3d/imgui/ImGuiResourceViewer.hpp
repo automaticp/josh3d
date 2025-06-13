@@ -14,11 +14,10 @@
 
 namespace josh {
 
-
 struct ResourceInspectorContext;
 
-
-struct ImGuiResourceViewer {
+struct ImGuiResourceViewer
+{
     ResourceDatabase&   resource_database;
     AssetImporter&      asset_importer;
     ResourceUnpacker&   resource_unpacker;
@@ -47,12 +46,12 @@ struct ImGuiResourceViewer {
 
 
 // TODO: Surely more is needed.
-struct ResourceInspectorContext {
+struct ResourceInspectorContext
+{
     auto& resource_database() const noexcept { return _self.resource_database; }
 
     ImGuiResourceViewer& _self;
 };
-
 
 template<typename T>
 auto ImGuiResourceViewer::register_inspector(ResourceType type)

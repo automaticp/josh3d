@@ -4,27 +4,27 @@
 namespace josh {
 
 
-class FrameTimer {
-private:
-    double current_{};
-    double previous_{};
-    double delta_{};
-
+class FrameTimer
+{
 public:
     void update() noexcept;
 
     template<typename FloatT = double>
-    FloatT current() const noexcept { return static_cast<FloatT>(current_); }
+    auto current() const noexcept -> FloatT { return static_cast<FloatT>(current_); }
     template<typename FloatT = double>
-    FloatT previous() const noexcept { return static_cast<FloatT>(previous_); }
+    auto previous() const noexcept -> FloatT { return static_cast<FloatT>(previous_); }
     template<typename FloatT = double>
-    FloatT delta() const noexcept { return static_cast<FloatT>(delta_); }
+    auto delta() const noexcept -> FloatT { return static_cast<FloatT>(delta_); }
+
+private:
+    double current_{};
+    double previous_{};
+    double delta_{};
 };
 
-
+// EWW: There's very little reason to do this.
 namespace globals {
 inline FrameTimer frame_timer;
 } // namespace globals
-
 
 } // namespace josh

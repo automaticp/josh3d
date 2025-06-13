@@ -5,44 +5,32 @@
 #include <glfwpp/glfwpp.h>
 
 
-
 namespace josh {
 
+struct ImGuiWindowSettings
+{
+    glfw::Window& window;
 
+    void display();
 
-class ImGuiWindowSettings {
-private:
-    glfw::Window& window_;
+    bool _is_vsync_on   = false; // FIXME: assumed, not guaranteed
+    bool _is_fullscreen = bool((GLFWmonitor*)window.getMonitor());
 
-    bool is_vsync_on_{ false }; // FIXME: assumed, not guaranteed
-    bool is_fullscreen_{
-        bool(static_cast<GLFWmonitor*>(window_.getMonitor()))
-    };
-
-
-    struct WindowedParamsBackup {
+    struct WindowedParamsBackup
+    {
         int xpos, ypos, width, height;
     };
 
     // Saved before going fullscreen.
-    WindowedParamsBackup windowed_params_{
-        get_current_windowed_params()
-    };
+    WindowedParamsBackup _windowed_params = _get_current_windowed_params();
 
-    WindowedParamsBackup get_current_windowed_params() const {
-        auto [w, h] = window_.getSize();
-        auto [x, y] = window_.getPos();
+    auto _get_current_windowed_params() const
+        -> WindowedParamsBackup
+    {
+        auto [w, h] = window.getSize();
+        auto [x, y] = window.getPos();
         return { x, y, w, h };
     }
-
-public:
-    ImGuiWindowSettings(glfw::Window& window) : window_{ window } {}
-
-    void display();
 };
-
-
-
-
 
 } // namespace josh

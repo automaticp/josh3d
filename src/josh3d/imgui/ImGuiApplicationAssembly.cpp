@@ -1,7 +1,6 @@
 #include "ImGuiApplicationAssembly.hpp"
 #include "Active.hpp"
 #include "Asset.hpp"
-#include "AssetImporter.hpp"
 #include "AssetManager.hpp"
 #include "AsyncCradle.hpp"
 #include "CategoryCasts.hpp"
@@ -17,13 +16,11 @@
 #include "Materials.hpp"
 #include "Ranges.hpp"
 #include "RenderEngine.hpp"
-#include "ResourceDatabase.hpp"
-#include "ResourceUnpacker.hpp"
-#include "SceneImporter.hpp"
 #include "Region.hpp"
 #include "Transform.hpp"
 #include "VPath.hpp"
 #include "VirtualFilesystem.hpp"
+#include "glfwpp/window.h"
 #include <exception>
 #include <fmt/core.h>
 #include <imgui.h>
@@ -36,57 +33,30 @@
 #include <optional>
 
 
-
-
 namespace josh {
 
 
 ImGuiApplicationAssembly::ImGuiApplicationAssembly(
-    glfw::Window&      window,
-    RenderEngine&      engine,
-    Registry&          registry,
-    MeshRegistry&      mesh_registry,
-    SkeletonStorage&   skeleton_storage,
-    AnimationStorage&  animation_storage,
-    AssetManager&      asset_manager,
-    AssetUnpacker&     asset_unpacker,
-    SceneImporter&     scene_importer,
-    ResourceDatabase&  resource_database,
-    AssetImporter&     asset_importer,
-    ResourceUnpacker&  resource_unpacker,
-    TaskCounterGuard&  task_counter,
-    AsyncCradleRef     async_cradle,
-    VirtualFilesystem& vfs
+    glfw::Window& window,
+    Runtime&      runtime
 )
-    : window_         { window             }
-    , engine_         { engine             }
-    , registry_       { registry           }
-    , mesh_registry_    { mesh_registry     }
-    , skeleton_storage_ { skeleton_storage  }
-    , animation_storage_{ animation_storage }
-    , asset_manager_  { asset_manager      }
-    , asset_unpacker_ { asset_unpacker     }
-    , resource_database_{ resource_database }
-    , asset_importer_ { asset_importer     }
-    , resource_unpacker_(resource_unpacker)
-    , task_counter_   (task_counter)
-    , async_cradle    (async_cradle)
-    , vfs_            { vfs                }
-    , context_        { window             }
-    , window_settings_{ window             }
-    , vfs_control_    { vfs                }
-    , stage_hooks_    { engine             }
-    , scene_list_     { registry, asset_manager, asset_unpacker, scene_importer }
-    , asset_browser_  { asset_manager      }
-    , resource_viewer_(resource_database, asset_importer, resource_unpacker, registry, mesh_registry, skeleton_storage, animation_storage, async_cradle)
-    , selected_menu_  { registry           }
-    , gizmos_         { registry           }
+    : window(window)
+    , runtime(runtime)
+    // TODO: DESTROY THIS
+    , context(window)
+    , window_settings(window)
+    , vfs_control(vfs())
+    , stage_hooks(runtime.renderer)
+    , scene_list(runtime.registry, runtime.asset_manager, runtime.asset_unpacker, runtime.scene_importer)
+    , resource_viewer(runtime.resource_database, runtime.asset_importer, runtime.resource_unpacker, runtime.registry, runtime.mesh_registry, runtime.skeleton_storage, runtime.animation_storage, runtime.async_cradle)
+    , selected_menu(runtime.registry)
+    , gizmos(runtime.registry)
 {}
 
-
-ImGuiIOWants ImGuiApplicationAssembly::get_io_wants() const noexcept {
+auto ImGuiApplicationAssembly::get_io_wants() const noexcept
+    -> ImGuiIOWants
+{
     auto& io = ImGui::GetIO();
-
     return {
         .capture_mouse     = io.WantCaptureMouse,
         .capture_mouse_unless_popup_close
@@ -98,60 +68,53 @@ ImGuiIOWants ImGuiApplicationAssembly::get_io_wants() const noexcept {
     };
 }
 
+void ImGuiApplicationAssembly::new_frame(const FrameTimer& frame_timer)
+{
+    const float dt = frame_timer.delta<float>();
+    _avg_frame_timer.update(dt);
 
-void ImGuiApplicationAssembly::new_frame() {
-    // FIXME: Use external FrameTimer.
-    const float dt = globals::frame_timer.delta<float>();
-    avg_frame_timer_.update(dt);
+    _frame_deltas.resize(_num_frames_plotted);
+    _frame_offset = (_frame_offset + 1) % int(_frame_deltas.size());
+    _frame_deltas.at(_frame_offset) = dt * 1.e3f; // Convert to ms.
 
-    frame_deltas_.resize(num_frames_plotted_);
-    frame_offset_ = (frame_offset_ + 1) % int(frame_deltas_.size());
-    frame_deltas_.at(frame_offset_) = dt * 1.e3f; // Convert to ms.
+    std::snprintf(_fps_str.data(), _fps_str.size() + 1,
+        _fps_str_fmt, 1.f / _avg_frame_timer.get_current_average());
 
-    std::snprintf(
-        fps_str_.data(), fps_str_.size() + 1,
-        fps_str_fmt_,
-        1.f / avg_frame_timer_.get_current_average()
-    );
+    std::snprintf(_frametime_str.data(), _frametime_str.size() + 1,
+        _frametime_str_fmt, _avg_frame_timer.get_current_average() * 1.E3f); // s -> ms
 
-    std::snprintf(
-        frametime_str_.data(), frametime_str_.size() + 1,
-        frametime_str_fmt_,
-        avg_frame_timer_.get_current_average() * 1.E3f // s -> ms
-    );
+    const char space_char = eval%[this]{
+        switch (gizmos.active_space)
+        {
+            using enum GizmoSpace;
+            case World: return 'W';
+            case Local: return 'L';
+            default:    return ' ';
+        }
+    };
 
-    std::snprintf(
-        gizmo_info_str_.data(), gizmo_info_str_.size() + 1,
-        gizmo_info_str_fmt_,
-        [this]() -> char {
-            switch (active_gizmo_space()) {
-                using enum GizmoSpace;
-                case World: return 'W';
-                case Local: return 'L';
-                default:    return ' ';
-            }
-        }(),
-        [this]() -> char {
-            switch (active_gizmo_operation()) {
-                using enum GizmoOperation;
-                case Translation: return 'T';
-                case Rotation:    return 'R';
-                case Scaling:     return 'S';
-                default:          return ' ';
-            }
-        }()
-    );
+    const char op_char = eval%[this]{
+        switch (gizmos.active_operation)
+        {
+            using enum GizmoOperation;
+            case Translation: return 'T';
+            case Rotation:    return 'R';
+            case Scaling:     return 'S';
+            default:          return ' ';
+        }
+    };
 
-    context_.new_frame();
-    gizmos_.new_frame();
+    std::snprintf(_gizmo_info_str.data(), _gizmo_info_str.size() + 1,
+        _gizmo_info_str_fmt, space_char, op_char);
+
+    context.new_frame();
+    gizmos.new_frame();
 }
-
-
 
 namespace {
 
-
-void display_asset_manager_debug(AssetManager& asset_manager) {
+void display_asset_manager_debug(AssetManager& asset_manager)
+{
     thread_local std::optional<SharedTextureAsset>            texture_asset;
     thread_local std::optional<SharedJob<SharedTextureAsset>> last_texture_job;
     thread_local std::string                                  texture_vpath;
@@ -303,32 +266,30 @@ void ImGuiApplicationAssembly::draw_widgets() {
         old_size = new_size;
     }
 
-    if (!is_hidden()) {
-
+    if (not hidden)
+    {
         auto reset_later = on_signal([&, this] { reset_dockspace(dockspace_id); });
 
         auto bg_col = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
         bg_col.w = background_alpha;
         ImGui::PushStyleColor(ImGuiCol_WindowBg, bg_col);
 
-
-        if (ImGui::BeginMainMenuBar()) {
+        if (ImGui::BeginMainMenuBar())
+        {
             ImGui::TextUnformatted("Josh3D-Demo");
-
             ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
 
-
-            if (ImGui::BeginMenu("Window")) {
-                window_settings_.display();
+            if (ImGui::BeginMenu("Window"))
+            {
+                window_settings.display();
                 ImGui::EndMenu();
             }
 
-
-            if (ImGui::BeginMenu("ImGui")) {
+            if (ImGui::BeginMenu("ImGui"))
+            {
                 ImGui::Checkbox("Render Engine",  &show_engine_hooks  );
                 ImGui::Checkbox("Scene",          &show_scene_list    );
                 ImGui::Checkbox("Selected",       &show_selected      );
-                ImGui::Checkbox("Assets",         &show_asset_browser );
                 ImGui::Checkbox("Demo Window",    &show_demo_window   );
                 ImGui::Checkbox("Asset Manager",  &show_asset_manager );
                 ImGui::Checkbox("Resource Files", &show_resource_viewer);
@@ -337,179 +298,152 @@ void ImGuiApplicationAssembly::draw_widgets() {
 
                 ImGui::Separator();
 
-                ImGui::SliderFloat(
-                    "FPS Avg. Interval, s", &avg_frame_timer_.averaging_interval,
-                    0.001f, 5.f, "%.3f", ImGuiSliderFlags_Logarithmic
-                );
+                ImGui::SliderFloat("FPS Avg. Interval, s", &_avg_frame_timer.averaging_interval,
+                    0.001f, 5.f, "%.3f", ImGuiSliderFlags_Logarithmic);
 
                 ImGui::SliderFloat("Bg. Alpha", &background_alpha, 0.f, 1.f);
 
                 reset_later.set(ImGui::Button("Reset Dockspace"));
 
-                ImGui::Checkbox("Gizmo Debug Window", &gizmos_.display_debug_window);
+                ImGui::Checkbox("Gizmo Debug Window", &gizmos.display_debug_window);
 
                 const char* gizmo_locations[] = {
                     "Local Origin",
                     "AABB Midpoint"
                 };
 
-                int location_id = to_underlying(gizmos_.preferred_location);
+                // TODO: EnumListBox
+                int location_id = to_underlying(gizmos.preferred_location);
                 if (ImGui::ListBox("Gizmo Locaton", &location_id,
                     gizmo_locations, std::size(gizmo_locations), 2))
                 {
-                    gizmos_.preferred_location = GizmoLocation{ location_id };
+                    gizmos.preferred_location = GizmoLocation(location_id);
                 }
 
-                ImGui::Checkbox("Show Model Matrix in Selected", &selected_menu_.display_model_matrix);
-                ImGui::Checkbox("Show All Components in Selected", &selected_menu_.display_all_components);
+                ImGui::Checkbox("Show Model Matrix in Selected", &selected_menu.display_model_matrix);
+                ImGui::Checkbox("Show All Components in Selected", &selected_menu.display_all_components);
 
                 ImGui::EndMenu();
             }
 
+            if (ImGui::BeginMenu("Engine"))
+            {
+                auto& engine = runtime.renderer;
+                ImGui::Checkbox("RGB -> sRGB",    &engine.enable_srgb_conversion);
+                ImGui::Checkbox("GPU/CPU Timers", &engine.capture_stage_timings );
 
-            if (ImGui::BeginMenu("Engine")) {
-
-                ImGui::Checkbox("RGB -> sRGB",    &engine_.enable_srgb_conversion);
-                ImGui::Checkbox("GPU/CPU Timers", &engine_.capture_stage_timings );
-
-                ImGui::BeginDisabled(!engine_.capture_stage_timings);
-                ImGui::SliderFloat(
-                    "Timing Interval, s", &engine_.stage_timing_averaging_interval_s,
-                    0.001f, 5.f, "%.3f", ImGuiSliderFlags_Logarithmic
-                );
+                ImGui::BeginDisabled(not engine.capture_stage_timings);
+                ImGui::SliderFloat("Timing Interval, s", &engine.stage_timing_averaging_interval_s,
+                    0.001f, 5.f, "%.3f", ImGuiSliderFlags_Logarithmic);
                 ImGui::EndDisabled();
 
-                using HDRFormat = RenderEngine::HDRFormat;
-
-                const HDRFormat formats[3]{
-                    HDRFormat::R11F_G11F_B10F,
-                    HDRFormat::RGB16F,
-                    HDRFormat::RGB32F
-                };
-
-                const char* format_names[3]{
-                    "R11F_G11F_B10F",
-                    "RGB16F",
-                    "RGB32F",
-                };
-
-                size_t current_idx = 0;
-                for (const HDRFormat format : formats) {
-                    if (format == engine_.main_buffer_format) { break; }
-                    ++current_idx;
-                }
-
-                if (ImGui::BeginCombo("HDR Format", format_names[current_idx])) {
-                    for (size_t i{ 0 }; i < std::size(formats); ++i) {
-                        if (ImGui::Selectable(format_names[i], current_idx == i)) {
-                            engine_.main_buffer_format = formats[i];
-                        }
-                    }
+                // TODO: EnumCombo
+                if (ImGui::BeginCombo("HDR Format", enum_cstring(engine.main_buffer_format)))
+                {
+                    for (const auto format : enum_iter<HDRFormat>())
+                        if (ImGui::Selectable(enum_cstring(format), format == engine.main_buffer_format))
+                            engine.main_buffer_format = format;
                     ImGui::EndCombo();
                 }
 
                 ImGui::EndMenu();
             }
 
-
-            if (ImGui::BeginMenu("VFS")) {
-                vfs_control_.display();
+            if (ImGui::BeginMenu("VFS"))
+            {
+                vfs_control.display();
                 ImGui::EndMenu();
             }
 
-
             {
-                auto log_view = log_sink_.view();
-                const bool new_logs = log_view.size() > last_log_size_;
+                auto log_view = _log_sink.view();
+                const bool new_logs = log_view.size() > _last_log_size;
 
-                if (new_logs) {
+                if (new_logs)
                     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4{ 1.0, 1.0, 0.0, 1.0 });
-                }
 
                 // NOTE: This is somewhat messy. If this is common, might be worth writing helpers.
                 thread_local bool logs_open_b4 = false;
                 const bool        logs_open    = ImGui::BeginMenu("Logs");
 
-                if (new_logs) {
+                if (new_logs)
                     ImGui::PopStyleColor();
-                }
 
-                const bool was_closed = !logs_open && logs_open_b4;
+                const bool was_closed = not logs_open and logs_open_b4;
 
-                if (logs_open) {
+                if (logs_open)
+                {
                     ImGui::TextUnformatted(log_view.begin(), log_view.end());
                     ImGui::EndMenu();
                 }
 
-                if (was_closed) {
-                    last_log_size_ = log_view.size();
-                }
+                if (was_closed)
+                    _last_log_size = log_view.size();
 
                 logs_open_b4 = logs_open;
             }
 
-            const auto num_tasks = task_counter_.hint_num_tasks_in_flight();
-            if (num_tasks) ImGui::Text("[%zu]", num_tasks);
+            const auto num_tasks = runtime.async_cradle.task_counter.hint_num_tasks_in_flight();
+            if (num_tasks)
+                ImGui::Text("[%zu]", num_tasks);
 
-            const float size_gizmo     = ImGui::CalcTextSize(gizmo_info_str_template_).x;
-            const float size_fps       = ImGui::CalcTextSize(fps_str_template_).x;
-            const float size_frametime = ImGui::CalcTextSize(frametime_str_template_).x;
+            const float size_gizmo     = ImGui::CalcTextSize(_gizmo_info_str_template).x;
+            const float size_fps       = ImGui::CalcTextSize(_fps_str_template).x;
+            const float size_frametime = ImGui::CalcTextSize(_frametime_str_template).x;
 
             ImGui::SameLine(ImGui::GetContentRegionMax().x - (size_gizmo + size_fps + size_frametime));
-            ImGui::TextUnformatted(gizmo_info_str_.c_str());
+            ImGui::TextUnformatted(_gizmo_info_str.c_str());
             ImGui::SameLine(ImGui::GetContentRegionMax().x - (size_fps + size_frametime));
-            ImGui::TextUnformatted(fps_str_.c_str());
+            ImGui::TextUnformatted(_fps_str.c_str());
             ImGui::SameLine(ImGui::GetContentRegionMax().x - (size_frametime));
-            ImGui::TextUnformatted(frametime_str_.c_str());
+            ImGui::TextUnformatted(_frametime_str.c_str());
 
             ImGui::EndMainMenuBar();
         }
 
-
-        if (show_frame_graph) {
-            if (ImGui::Begin("Frame Graph")) {
+        if (show_frame_graph)
+        {
+            if (ImGui::Begin("Frame Graph"))
                 display_frame_graph();
-            } ImGui::End();
+            ImGui::End();
         }
 
-        if (show_engine_hooks) {
-            if (ImGui::Begin("Render Engine")) {
-                stage_hooks_.display();
-            } ImGui::End();
+        if (show_engine_hooks)
+        {
+            if (ImGui::Begin("Render Engine"))
+                stage_hooks.display();
+            ImGui::End();
         }
 
-        if (show_selected) {
-            if (ImGui::Begin("Selected")) {
-                selected_menu_.display();
-            } ImGui::End();
+        if (show_selected)
+        {
+            if (ImGui::Begin("Selected"))
+                selected_menu.display();
+            ImGui::End();
         }
 
-        if (show_scene_list) {
-            if (ImGui::Begin("Scene")) {
-                scene_list_.display();
-            } ImGui::End();
+        if (show_scene_list)
+        {
+            if (ImGui::Begin("Scene"))
+                scene_list.display();
+            ImGui::End();
         }
 
-        if (show_asset_browser) {
-            if (ImGui::Begin("Assets")) {
-                asset_browser_.display();
-            } ImGui::End();
-        }
-
-        if (show_demo_window) {
+        if (show_demo_window)
             ImGui::ShowDemoWindow();
+
+        if (show_asset_manager)
+        {
+            if (ImGui::Begin("Asset Manager"))
+                display_asset_manager_debug(runtime.asset_manager);
+            ImGui::End();
         }
 
-        if (show_asset_manager) {
-            if (ImGui::Begin("Asset Manager")) {
-                display_asset_manager_debug(asset_manager_);
-            } ImGui::End();
-        }
-
-        if (show_resource_viewer) {
-            if (ImGui::Begin("Resources")) {
-                resource_viewer_.display_viewer();
-            } ImGui::End();
+        if (show_resource_viewer)
+        {
+            if (ImGui::Begin("Resources"))
+                resource_viewer.display_viewer();
+            ImGui::End();
         }
 
         if (show_debug_window)
@@ -521,22 +455,22 @@ void ImGuiApplicationAssembly::draw_widgets() {
 
         ImGui::PopStyleColor();
     }
-
 }
 
-
-void ImGuiApplicationAssembly::display() {
+void ImGuiApplicationAssembly::display()
+{
     draw_widgets();
-    if (const auto camera = get_active<Camera, MTransform>(registry_)) {
-        const glm::mat4 view_mat = inverse(camera.get<MTransform>().model());
-        const glm::mat4 proj_mat = camera.get<Camera>().projection_mat();
-        gizmos_.display(view_mat, proj_mat);
+    if (const auto camera = get_active<Camera, MTransform>(runtime.registry))
+    {
+        const mat4 view_mat = inverse(camera.get<MTransform>().model());
+        const mat4 proj_mat = camera.get<Camera>().projection_mat();
+        gizmos.display(view_mat, proj_mat);
     }
-    context_.render();
+    context.render();
 }
 
-
-void ImGuiApplicationAssembly::reset_dockspace(ImGuiID dockspace_id) {
+void ImGuiApplicationAssembly::reset_dockspace(ImGuiID dockspace_id)
+{
     ImGui::DockBuilderRemoveNode(dockspace_id);
     auto flags = ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags{ ImGuiDockNodeFlags_DockSpace };
 	ImGui::DockBuilderAddNode(dockspace_id, flags);
@@ -552,28 +486,27 @@ void ImGuiApplicationAssembly::reset_dockspace(ImGuiID dockspace_id) {
     ImGui::DockBuilderDockWindow("Scene",         left_id       );
     ImGui::DockBuilderDockWindow("Render Engine", right_id      );
 
-
     ImGui::DockBuilderFinish(dockspace_id);
 }
 
-
-void ImGuiApplicationAssembly::display_frame_graph() {
+void ImGuiApplicationAssembly::display_frame_graph()
+{
     ImGui::PlotLines("##FrameTimes",
-        frame_deltas_.data(), int(frame_deltas_.size()), frame_offset_,
-        nullptr, 0.f, upper_frametime_limit_, ImGui::GetContentRegionAvail());
+        _frame_deltas.data(), int(_frame_deltas.size()), _frame_offset,
+        nullptr, 0.f, _upper_frametime_limit, ImGui::GetContentRegionAvail());
 
     ImGui::OpenPopupOnItemClick("FrameGraph Settings");
-    if (ImGui::BeginPopup("FrameGraph Settings")) {
-        ImGui::DragInt("Num Frames", &num_frames_plotted_, 1.f, 1, 1200);
-        ImGui::DragFloat("Max Frame Time, ms", &upper_frametime_limit_, 1.f, 0.1f, 200.f);
+    if (ImGui::BeginPopup("FrameGraph Settings"))
+    {
+        ImGui::DragInt("Num Frames", &_num_frames_plotted, 1.f, 1, 1200);
+        ImGui::DragFloat("Max Frame Time, ms", &_upper_frametime_limit, 1.f, 0.1f, 200.f);
         ImGui::EndPopup();
     }
 }
 
 void ImGuiApplicationAssembly::display_debug()
 {
-    namespace Im = ImGui;
-    if (Im::TreeNode("Texture Swizzle"))
+    if (ImGui::TreeNode("Texture Swizzle"))
     {
         thread_local SwizzleRGBA swizzle = {};
 
@@ -593,15 +526,15 @@ void ImGuiApplicationAssembly::display_debug()
         selector("B", &swizzle.b);
         selector("A", &swizzle.a);
 
-        if (Im::Button("Convert All Diffuse"))
+        if (ImGui::Button("Convert All Diffuse"))
         {
-            for (auto [e, mtl] : registry_.view<MaterialDiffuse>().each())
+            for (auto [e, mtl] : runtime.registry.view<MaterialDiffuse>().each())
             {
                 // NOTE: Effectively doing a GL const_cast.
                 RawTexture2D<>::from_id(mtl.texture->id()).set_swizzle_rgba(swizzle);
             }
         }
-        Im::TreePop();
+        ImGui::TreePop();
     }
 }
 

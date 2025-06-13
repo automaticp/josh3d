@@ -1,21 +1,18 @@
 #pragma once
-#include <entt/entity/fwd.hpp>
+#include "ECS.hpp"
 
 
 namespace josh {
 
 
-class ImGuiSelected {
-public:
-    bool display_model_matrix{ false };
-    bool display_all_components{ false };
+struct ImGuiSelected
+{
+    Registry& registry;
 
-    ImGuiSelected(entt::registry& registry) : registry_{ registry } {}
+    bool display_model_matrix   = false;
+    bool display_all_components = false;
 
     void display();
-
-private:
-    entt::registry& registry_;
 };
 
 

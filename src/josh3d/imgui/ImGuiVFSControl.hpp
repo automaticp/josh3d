@@ -1,35 +1,26 @@
 #pragma once
+#include "Common.hpp"
 #include "Filesystem.hpp"
-#include <string>
 
 
 namespace josh {
 
-
 class VirtualFilesystem;
 
-
-class ImGuiVFSControl {
-private:
+struct ImGuiVFSControl
+{
     VirtualFilesystem& vfs_;
-
-    std::string new_root_;
-
-    std::string test_vpath_;
-    Path last_resolved_entry_;
-
-    std::string exception_str_;
-
-public:
-    ImGuiVFSControl(VirtualFilesystem& vfs) : vfs_{ vfs } {}
 
     void display();
 
-private:
-    void roots_listbox_widget();
-    void add_new_root_widget();
-    void debug_resolve_widget();
+    String _new_root;
+    String _test_vpath;
+    Path   _last_resolved_entry;
+    String _exception_str;
 
+    void _roots_listbox_widget();
+    void _add_new_root_widget();
+    void _debug_resolve_widget();
 };
 
 

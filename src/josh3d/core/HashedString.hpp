@@ -1,8 +1,7 @@
 #pragma once
+#include "Scalars.hpp"
 #include <cassert>
 #include <compare>
-#include <cstddef>
-#include <cstdint>
 #include <cstring>
 #include <entt/core/hashed_string.hpp>
 
@@ -24,11 +23,11 @@ for declaring string identifiers for different purposes, like:
 */
 namespace josh {
 
-
 namespace detail {
 
-template<size_t N, typename CharT>
-struct FixedStringStorage {
+template<usize N, typename CharT>
+struct FixedStringStorage
+{
     using value_type = CharT;
     constexpr auto data() const noexcept -> const value_type* { return _string; }
     value_type _string[N]{};
@@ -38,13 +37,20 @@ struct FixedStringStorage {
 Special case for size 0.
 */
 template<typename CharT>
-struct FixedStringStorage<0, CharT> {
+struct FixedStringStorage<0, CharT>
+{
     using value_type = CharT;
     constexpr auto data() const noexcept -> const value_type* { return nullptr; }
 };
 
 } // namespace detail
 
+
+/*
+Identifier for use at runtime in hash tables and such.
+Can have a collision of definitions, but should be rare.
+*/
+using HashedID = u32;
 
 /*
 A reimplementation of entt::hashed_string as a structural type
@@ -57,7 +63,7 @@ is not accidentally constructed from a non-literal string.
 The class is a fixed-width copy of a string literal with
 the same uniqueness semantics as entt::hashed_string.
 */
-template<size_t N, typename CharT, typename HashT = uint32_t>
+template<usize N, typename CharT, typename HashT = HashedID>
 struct BasicFixedHashedString
     : detail::FixedStringStorage<N, CharT>
 {
@@ -65,7 +71,7 @@ struct BasicFixedHashedString
     using storage_type = detail::FixedStringStorage<N, CharT>;
     using value_type   = CharT;
     using hash_type    = HashT;
-    using size_type    = size_t;
+    using size_type    = usize;
 
     // Constructs a "null" string with hash value of 0.
     //
@@ -92,7 +98,8 @@ struct BasicFixedHashedString
     // NOTE: Will rehash the string to the correct value if the hash_type does not match.
     // Beware the interfaces that accept hash_type directly as they implicitly depend on the
     // hashing algorithm and the width of the hash_type. These interfaces should be avoided.
-    constexpr operator entt::basic_hashed_string<value_type>() const noexcept {
+    constexpr operator entt::basic_hashed_string<value_type>() const noexcept
+    {
         if (N) return { data(), length() };
         else   return {};
     }
@@ -109,12 +116,13 @@ struct BasicFixedHashedString
 };
 
 
-template<size_t N, typename CharT, typename HashT>
+template<usize N, typename CharT, typename HashT>
 consteval BasicFixedHashedString<N, CharT, HashT>::BasicFixedHashedString(
     const value_type (&literal_string)[N]) noexcept
 {
     static_assert(N);
-    auto strlen [[maybe_unused]] = [](const value_type* str) {
+    auto strlen [[maybe_unused]] = [](const value_type* str)
+    {
         size_type i{};
         while (*str++ != '\0') ++i;
         return i;
@@ -127,7 +135,8 @@ consteval BasicFixedHashedString<N, CharT, HashT>::BasicFixedHashedString(
     constexpr auto prime  = hash_traits_type::prime;
 
     _hash = offset;
-    for (size_type i{}; i < length; ++i) {
+    for (size_type i{}; i < length; ++i)
+    {
         this->_string[i] = literal_string[i];
         _hash            = (_hash ^ hash_type(literal_string[i])) * prime;
     }
@@ -138,26 +147,17 @@ consteval BasicFixedHashedString<N, CharT, HashT>::BasicFixedHashedString(
 An identifier that can be used at compile time in constexpr and NTTP contexts.
 In most circumstances, it is best to define a constexpr variable with the string value instead.
 */
-template<size_t N>
-using FixedHashedString = BasicFixedHashedString<N, char, uint32_t>;
+template<usize N>
+using FixedHashedString = BasicFixedHashedString<N, char, HashedID>;
 using NullFixedHashedString = FixedHashedString<0>;
 
+template<BasicFixedHashedString S>
+consteval auto operator""_hs() noexcept { return S; }
 
 /*
 Sanity check.
 */
 static_assert(FixedHashedString("Hello").value() == entt::hashed_string("Hello").value());
-
-
-template<BasicFixedHashedString S>
-consteval auto operator""_hs() noexcept { return S; }
-
-
-/*
-Identifier for use at runtime in hash tables and such.
-Can have a collision of definitions, but should be rare.
-*/
-using HashedID = uint32_t;
 
 
 } // namespace josh

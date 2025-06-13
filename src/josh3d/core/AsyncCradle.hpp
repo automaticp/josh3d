@@ -2,6 +2,7 @@
 #include "CompletionContext.hpp"
 #include "LocalContext.hpp"
 #include "OffscreenContext.hpp"
+#include "Scalars.hpp"
 #include "Semantics.hpp"
 #include "TaskCounterGuard.hpp"
 #include "ThreadPool.hpp"
@@ -12,9 +13,7 @@ namespace glfw { class Window; }
 
 namespace josh {
 
-
 struct AsyncCradleRef;
-
 
 /*
 A collection of async contexts and helpers used widely across all job-based systems.
@@ -30,8 +29,8 @@ struct AsyncCradle
     LocalContext      local_context;      // Main-thread context run during per-frame update. Must be last.
 
     AsyncCradle(
-        size_t              task_pool_size,
-        size_t              loading_pool_size,
+        usize               task_pool_size,
+        usize               loading_pool_size,
         const glfw::Window& main_window
     )
         : task_pool         (task_pool_size)
@@ -45,8 +44,8 @@ struct AsyncCradle
     operator AsyncCradleRef() noexcept;
 };
 
-
-struct AsyncCradleRef {
+struct AsyncCradleRef
+{
     ThreadPool&        task_pool;
     ThreadPool&        loading_pool;
     CompletionContext& completion_context;
@@ -55,8 +54,8 @@ struct AsyncCradleRef {
     LocalContext&      local_context;
 };
 
-
-inline AsyncCradle::operator AsyncCradleRef() noexcept {
+inline AsyncCradle::operator AsyncCradleRef() noexcept
+{
     return {
         .task_pool          = task_pool,
         .loading_pool       = loading_pool,

@@ -1,4 +1,5 @@
 #include "UUID.hpp"
+#include "Common.hpp"
 #include <boost/uuid/random_generator.hpp>
 #include <boost/uuid/string_generator.hpp>
 #include <boost/uuid/uuid_generators.hpp>
@@ -23,8 +24,7 @@ auto generate_uuid() noexcept
     return random_generator();
 }
 
-
-auto deserialize_uuid(std::string_view string_repr)
+auto deserialize_uuid(StrView string_repr)
     -> UUID
 {
     // NOLINTNEXTLINE(misc-use-internal-linkage)
@@ -32,28 +32,26 @@ auto deserialize_uuid(std::string_view string_repr)
     return string_generator(string_repr.begin(), string_repr.end());
 }
 
-
-void serialize_uuid_to(std::span<char, 36> out_buf, const UUID& uuid) {
+void serialize_uuid_to(std::span<char, 36> out_buf, const UUID& uuid)
+{
     const bool success =
         boost::uuids::to_chars(uuid, out_buf.data(), out_buf.data() + out_buf.size());
     assert(success);
 }
 
-
-void serialize_uuid_to(std::span<char, 37> out_buf, const UUID& uuid) {
+void serialize_uuid_to(std::span<char, 37> out_buf, const UUID& uuid)
+{
     const bool success =
         boost::uuids::to_chars(uuid, out_buf.data(), out_buf.data() + out_buf.size());
     assert(success);
     out_buf[out_buf.size() - 1] = '\0';
 }
 
-
 auto serialize_uuid(const UUID& uuid)
-    -> std::string
+    -> String
 {
     return boost::uuids::to_string(uuid);
 }
-
 
 
 } // namespace josh

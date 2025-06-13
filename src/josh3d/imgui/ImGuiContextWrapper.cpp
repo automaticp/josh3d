@@ -6,7 +6,8 @@
 
 namespace josh {
 
-ImGuiContextWrapper::ImGuiContextWrapper(glfw::Window& window) {
+ImGuiContextWrapper::ImGuiContextWrapper(glfw::Window& window)
+{
     ImGui::CreateContext();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init();
@@ -18,18 +19,21 @@ ImGuiContextWrapper::ImGuiContextWrapper(glfw::Window& window) {
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 }
 
-void ImGuiContextWrapper::new_frame() const {
+void ImGuiContextWrapper::new_frame() const
+{
     ImGui_ImplGlfw_NewFrame();
     ImGui_ImplOpenGL3_NewFrame();
     ImGui::NewFrame();
 }
 
-void ImGuiContextWrapper::render() const {
+void ImGuiContextWrapper::render() const
+{
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-ImGuiContextWrapper::~ImGuiContextWrapper() noexcept {
+ImGuiContextWrapper::~ImGuiContextWrapper() noexcept
+{
     ImGui_ImplGlfw_Shutdown();
     ImGui_ImplOpenGL3_Shutdown();
     ImGui::DestroyContext();
