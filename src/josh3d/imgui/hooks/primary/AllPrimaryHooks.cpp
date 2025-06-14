@@ -1,4 +1,6 @@
 #include "AllPrimaryHooks.hpp"
+#include "ImGuiExtras.hpp"
+#include "Region.hpp"
 #include "detail/SimpleStageHookMacro.hpp"
 // IWYU pragma: begin_keep
 #include "stages/primary/CascadedShadowMapping.hpp"
@@ -286,33 +288,30 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, Sky) {
 }
 
 
-JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, SSAO) {
-
-    ImGui::Checkbox("Enable Occlusion Sampling", &stage_.enable_occlusion_sampling);
+JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, SSAO)
+{
+    ImGui::Checkbox("Enable Sampling", &stage_.enable_sampling);
 
     ImGui::SliderFloat(
         "Resolution Divisor", &stage_.resolution_divisor, 0.1f, 10.f,
         "%.3f", ImGuiSliderFlags_Logarithmic
     );
 
-
-    int kernel_size = static_cast<int>(stage_.get_kernel_size());
+    int kernel_size = int(stage_.kernel_size());
     if (ImGui::SliderInt("Kernel Size", &kernel_size,
         1, 256, "%d", ImGuiSliderFlags_Logarithmic))
     {
-        stage_.set_kernel_size(static_cast<size_t>(kernel_size));
+        stage_.regenerate_kernel(usize(kernel_size));
     }
 
-    if (ImGui::Button("Regenerate Kernel")) {
-        stage_.regenerate_kernels();
-    }
+    if (ImGui::Button("Regenerate Kernel"))
+        stage_.regenerate_kernel(stage_.kernel_size());
 
-
-    float min_angle_deg = glm::degrees(stage_.get_min_sample_angle_from_surface_rad());
+    float min_angle_deg = glm::degrees(stage_.deflection_rad());
     if (ImGui::SliderFloat("Min. Angle, Deg", &min_angle_deg,
         0.f, 89.f, "%.1f"))
     {
-        stage_.set_min_sample_angle_from_surface_rad(glm::radians(min_angle_deg));
+        stage_.set_deflection_rad(glm::radians(min_angle_deg));
     }
 
     ImGui::SliderFloat(
@@ -325,33 +324,18 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(primary, SSAO) {
         "%.4f", ImGuiSliderFlags_Logarithmic
     );
 
+    using NoiseMode = stages::primary::SSAONoiseMode;
 
-    using NoiseMode = stages::primary::SSAO::NoiseMode;
-
-    const char* noise_mode_names[] = {
-        "Sampled",
-        "Generated"
-    };
-
-    int mode_id = to_underlying(stage_.noise_mode);
-    if (ImGui::ListBox("Noise Mode", &mode_id,
-        noise_mode_names, std::size(noise_mode_names), 2))
-    {
-        stage_.noise_mode = NoiseMode{ mode_id };
-    }
+    ImGui::EnumListBox("Noise Mode", &stage_.noise_mode, 2);
 
     ImGui::BeginDisabled(stage_.noise_mode != NoiseMode::SampledFromTexture);
 
-    Size2I noise_size = stage_.get_noise_texture_size();
-    if (ImGui::SliderInt2("Noise Size", &noise_size.width,
-        1, 128))
-    {
-        stage_.set_noise_texture_size(noise_size);
-    }
+    Extent2I noise_resolution = stage_.noise_texture_resolution();
+    if (ImGui::SliderInt2("Noise Size", &noise_resolution.width, 1, 128))
+        stage_.regenerate_noise_texture(noise_resolution);
 
-    if (ImGui::Button("Regenerate Noise Texture")) {
-        stage_.regenerate_noise_texture();
-    }
+    if (ImGui::Button("Regenerate Noise Texture"))
+        stage_.regenerate_noise_texture(stage_.noise_texture_resolution());
 
     ImGui::EndDisabled();
 

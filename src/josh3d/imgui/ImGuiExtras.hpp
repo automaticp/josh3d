@@ -2,6 +2,7 @@
 #include "EnumUtils.hpp"
 #include "ImGuiHelpers.hpp"
 #include <imgui.h>
+#include <imgui_internal.h>
 
 
 /*
@@ -48,7 +49,7 @@ auto EnumCombo(
     E*                   enumerant,
     ImGuiComboFlags      combo_flags = {},
     ImGuiSelectableFlags selectable_flags = {})
-    -> bool
+        -> bool
 {
     if (ImGui::BeginCombo(label, enum_cstring(*enumerant), combo_flags))
     {
@@ -60,5 +61,40 @@ auto EnumCombo(
     }
     return false;
 }
+
+template<josh::enumeration E>
+auto EnumListBox(
+    const char*          label,
+    E*                   enumerant,
+    const ImVec2&        size = { 0, 0 },
+    ImGuiSelectableFlags selectable_flags = {})
+        -> bool
+{
+    if (ImGui::BeginListBox(label, size))
+    {
+        for (const auto e : enum_iter(E()))
+            if (ImGui::Selectable(enum_cstring(e), e == *enumerant, selectable_flags))
+                *enumerant = e;
+        ImGui::EndListBox();
+        return true;
+    }
+    return false;
+}
+
+template<josh::enumeration E>
+auto EnumListBox(
+    const char*          label,
+    E*                   enumerant,
+    int                  height_in_items,
+    ImGuiSelectableFlags selectable_flags = {})
+        -> bool
+{
+    const ImVec2 wh = {
+        0,
+        float(height_in_items) * ImGui::GetTextLineHeightWithSpacing()
+    };
+    return EnumListBox(label, enumerant, wh, selectable_flags);
+}
+
 
 } // namespace ImGui

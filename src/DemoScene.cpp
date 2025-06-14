@@ -183,25 +183,18 @@ DemoScene::DemoScene(
     auto skinning      = stages::precompute::AnimationSystem();
     auto psmapping     = stages::primary::PointShadowMapping();
     auto csmapping     = stages::primary::CascadedShadowMapping();
-    auto idbuffer      = stages::primary::IDBufferStorage(renderer.main_resolution);
-    auto gbuffer       = stages::primary::GBufferStorage(
-        renderer.main_resolution,
-        // This is me sharing the depth target between the GBuffer and the
-        // main framebuffer of the RenderEngine, so that deferred and forward draws
-        // would overlap properly. Seems to work so far...
-        renderer.share_main_depth_attachment(),
-        idbuffer.share_write_view()
-    );
+    auto idbuffer      = stages::primary::IDBufferStorage();
+    auto gbuffer       = stages::primary::GBufferStorage();
     auto defgeom       = stages::primary::DeferredGeometry();
     auto skingeom      = stages::primary::SkinnedGeometry();
     auto terraingeom   = stages::primary::TerrainGeometry();
-    auto ssao          = stages::primary::SSAO(renderer.main_resolution);
+    auto ssao          = stages::primary::SSAO();
     auto defshad       = stages::primary::DeferredShading();
     auto lightdummies  = stages::primary::LightDummies();
     auto sky           = stages::primary::Sky();
     auto fog           = stages::postprocess::Fog();
     auto bloom2        = stages::postprocess::Bloom2();
-    auto hdreyeing     = stages::postprocess::HDREyeAdaptation(renderer.main_resolution);
+    auto hdreyeing     = stages::postprocess::HDREyeAdaptation();
     auto fxaaaaaaa     = stages::postprocess::FXAA();
     auto gbugger       = stages::overlay::GBufferDebug();
     auto csmbugger     = stages::overlay::CSMDebug();

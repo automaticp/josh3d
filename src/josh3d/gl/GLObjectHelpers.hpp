@@ -91,9 +91,7 @@ bool resize_to_fit(
     if (new_elem_count != old_elem_count) {
         if (old_elem_count == 0) {
             // That means the buffer does not have a storage allocated yet.
-            // Allocate one with default parameters for storage mode and mapping.
-            // Those are DynamicServer storage, ReadWrite permitted mapping and NotPersistent persistence.
-            // If you cared enough about these flags, then you wouldn't use this function.
+            // Allocate one with the provided policies.
             buffer->allocate_storage(new_elem_count, policies);
         } else if (new_elem_count == 0) {
             buffer = {}; // Policies are dropped here.

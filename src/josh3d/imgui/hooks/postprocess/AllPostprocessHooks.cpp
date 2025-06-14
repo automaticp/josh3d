@@ -260,9 +260,9 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(postprocess, HDREyeAdaptation) {
 
     if (ImGui::TreeNode("Stats")) {
 
-        ImGui::Text("Latest Exposure: %.3f",     stage_.view_output().exposure);
-        ImGui::Text("Latest Screen Value: %.3f", stage_.view_output().screen_value);
-        ImGui::Text("Latency (Frames): %lu",     stage_.view_output().latency_in_frames);
+        ImGui::Text("Latest Exposure: %.3f",     stage_.exposure.exposure);
+        ImGui::Text("Latest Screen Value: %.3f", stage_.exposure.screen_value);
+        ImGui::Text("Latency (Frames): %lu",     stage_.exposure.latency_in_frames);
 
         auto dims = stage_.get_sampling_block_dims();
         ImGui::Text(

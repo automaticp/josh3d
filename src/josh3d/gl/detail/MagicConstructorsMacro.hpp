@@ -112,6 +112,7 @@ macro that does exactly that. Wonderful.
 private:                                                                      \
     explicit Self(Parent::id_type id) noexcept : Parent{ id } {}              \
 public:                                                                       \
+    Self() noexcept : Parent({}) {}                                           \
     using id_type = Parent::id_type;                                          \
     static constexpr Self from_id(id_type id) noexcept { return Self{ id }; } \
 

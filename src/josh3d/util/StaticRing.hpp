@@ -1,35 +1,42 @@
 #pragma once
+#include "CategoryCasts.hpp"
+#include "Scalars.hpp"
 #include <array>
-#include <cstddef>
 
 
 namespace josh {
 
 
-template<typename T, size_t N>
-class StaticRing {
+template<typename T, usize N>
+class StaticRing
+{
 public:
     constexpr StaticRing(std::array<T, N> elements) noexcept
-        : storage_{ std::move(elements) }
+        : storage_{ MOVE(elements) }
     {}
 
-    constexpr       T& current()       noexcept { return storage_[current_]; }
-    constexpr const T& current() const noexcept { return storage_[current_]; }
+    template<typename ...Ts> requires (sizeof...(Ts) == N)
+    constexpr StaticRing(Ts&&... elements) noexcept
+        : storage_{ FORWARD(elements)... }
+    {}
 
-    constexpr       T& next()          noexcept { return storage_[next_];    }
-    constexpr const T& next()    const noexcept { return storage_[next_];    }
+    constexpr auto current()       noexcept ->       T& { return storage_[current_]; }
+    constexpr auto current() const noexcept -> const T& { return storage_[current_]; }
+    constexpr auto next()          noexcept ->       T& { return storage_[next_];    }
+    constexpr auto next()    const noexcept -> const T& { return storage_[next_];    }
 
-    constexpr void advance() noexcept {
+    constexpr void advance() noexcept
+    {
         current_ = (current_ + 1) % storage_.size();
         next_    = (next_    + 1) % storage_.size();
     }
 
-    constexpr size_t size() const noexcept { return storage_.size(); }
+    constexpr auto size() const noexcept -> usize { return storage_.size(); }
 
 private:
     std::array<T, N> storage_;
-    size_t           current_ = 0;
-    size_t           next_    = 1;
+    uindex           current_ = 0;
+    uindex           next_    = 1;
 };
 
 

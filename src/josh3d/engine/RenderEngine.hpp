@@ -35,31 +35,12 @@ to be done with the engine during various stages.
 struct RenderEngineCommonInterface;
 
 /*
-A wrapper object that constrains the set of actions avaliable
-during precompute stages. Passed to the precompute stages
-as a proxy for RenderEngine.
+A set of wrapper objects that constrains the set of actions avaliable
+during specified stages. Passed to the the stages as a proxy for RenderEngine.
 */
 struct RenderEnginePrecomputeInterface;
-
-/*
-A wrapper object that constrains the set of actions avaliable
-during primary stages. Passed to the primary stages
-as a proxy for RenderEngine.
-*/
 struct RenderEnginePrimaryInterface;
-
-/*
-A wrapper object that constrains the set of actions avaliable
-during postprocessing stages. Passed to the postprocessing stages
-as a proxy for RenderEngine.
-*/
 struct RenderEnginePostprocessInterface;
-
-/*
-A wrapper object that constrains the set of actions avaliable
-during overlay stages. Passed to the overlay stages
-as a proxy for RenderEngine.
-*/
 struct RenderEngineOverlayInterface;
 
 enum class HDRFormat : GLuint
@@ -240,6 +221,10 @@ struct RenderEnginePrimaryInterface : RenderEngineCommonInterface
     // to it. Hear me? You! Yes, you. Think twice before implementing it again.
     //
     // I didn't allow it initially for a reason.
+
+    // FIXME: Unscrew this on the main rendertarget level.
+    auto main_depth_texture() noexcept -> RawTexture2D<> { return RawTexture2D<>::from_id(_engine.main_depth_texture().id()); }
+    auto main_color_texture() noexcept -> RawTexture2D<> { return RawTexture2D<>::from_id(_engine.main_color_texture().id()); }
 
     auto main_depth_attachment() const noexcept -> const auto& { return _engine.main_depth_attachment();       }
     auto share_main_depth_attachment() noexcept -> auto        { return _engine.share_main_depth_attachment(); }
