@@ -3,6 +3,7 @@
 #include "Active.hpp"
 #include "LightCasters.hpp"
 #include "Transform.hpp"
+#include "stages/primary/GBufferStorage.hpp"
 #include <ranges>
 
 
@@ -12,12 +13,11 @@ namespace josh::stages::overlay {
 void CSMDebug::operator()(
     RenderEngineOverlayInterface& engine)
 {
-    switch (mode) {
+    switch (mode)
+    {
         case OverlayMode::Views: return draw_views_overlay(engine);
         case OverlayMode::Maps:  return draw_maps_overlay(engine);
-        case OverlayMode::None:
-        default:
-            return;
+        case OverlayMode::None:  return;
     }
 }
 
@@ -26,6 +26,8 @@ void CSMDebug::draw_views_overlay(
     RenderEngineOverlayInterface& engine)
 {
     const auto& registry = engine.registry();
+    const auto* gbuffer  = engine.belt().try_get<GBuffer>();
+    const auto* cascades = engine.belt().try_get<Cascades>();
 
     if (const auto dlight = get_active<DirectionalLight, Transform>(registry)) {
 
@@ -34,11 +36,11 @@ void CSMDebug::draw_views_overlay(
         const auto sp = sp_views_.get();
         BindGuard bound_camera = engine.bind_camera_ubo();
 
-        csm_views_buf_.restage(cascades_->views | std::views::transform(CascadeViewGPU::create_from));
+        csm_views_buf_.restage(cascades->views | transform(CascadeViewGPU::create_from));
         csm_views_buf_.bind_to_ssbo_index(3);
 
-        gbuffer_->depth_texture()  .bind_to_texture_unit(0);
-        gbuffer_->normals_texture().bind_to_texture_unit(1);
+        gbuffer->depth_texture()  .bind_to_texture_unit(0);
+        gbuffer->normals_texture().bind_to_texture_unit(1);
 
         sp.uniform("tex_depth",   0);
         sp.uniform("tex_normals", 1);
@@ -60,8 +62,12 @@ void CSMDebug::draw_views_overlay(
 void CSMDebug::draw_maps_overlay(
     RenderEngineOverlayInterface& engine)
 {
+    const auto* cascades = engine.belt().try_get<Cascades>();
+
+    if (not cascades) return;
+
     const auto sp = sp_maps_.get();
-    cascades_->maps.depth_attachment().texture() .bind_to_texture_unit(0);
+    cascades->maps.depth_attachment().texture() .bind_to_texture_unit(0);
     BindGuard bound_maps_sampler = maps_sampler_->bind_to_texture_unit(0);
 
     sp.uniform("cascades",   0);

@@ -141,6 +141,9 @@ void RenderEngine::render(
     const RenderEnginePostprocessInterface interface_postprocess = { interface_common };
     const RenderEngineOverlayInterface     interface_overlay     = { interface_common };
 
+    // Sweep the belt. This removes all *stale* items from the previous frame.
+    belt.sweep();
+
     // Precompute.
     execute_stages(precompute_, interface_precompute);
 

@@ -15,10 +15,6 @@ class SkinnedGeometry {
 public:
     bool enable_backface_culling{ true };
 
-    SkinnedGeometry(SharedStorageMutableView<GBuffer> gbuffer_view)
-        : gbuffer_{ std::move(gbuffer_view) }
-    {}
-
     void operator()(RenderEnginePrimaryInterface&);
 
 private:
@@ -31,8 +27,6 @@ private:
         .frag = VPath("src/shaders/dfr_geometry_skinned.frag")},
         ProgramDefines()
             .define("ENABLE_ALPHA_TESTING", 1));
-
-    SharedStorageMutableView<GBuffer> gbuffer_;
 
     // FIXME: There should be a pool of poses uploaded by the
     // animation system, where the pallete is only referenced

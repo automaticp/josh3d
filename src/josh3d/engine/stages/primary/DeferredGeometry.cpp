@@ -1,4 +1,5 @@
 #include "DeferredGeometry.hpp"
+#include "stages/primary/GBufferStorage.hpp"
 #include "GLAPICore.hpp"
 #include "GLProgram.hpp"
 #include "MeshStorage.hpp"
@@ -26,7 +27,10 @@ void DeferredGeometry::operator()(
 {
     const auto& registry = engine.registry();
     const auto* mesh_storage = engine.meshes().storage_for<VertexStatic>();
+    auto*       gbuffer      = engine.belt().try_get<GBuffer>();
+
     if (not mesh_storage) return;
+    if (not gbuffer)      return;
 
     BindGuard bound_camera_ubo = engine.bind_camera_ubo();
 
@@ -61,7 +65,7 @@ void DeferredGeometry::operator()(
     };
 
 
-    BindGuard bound_fbo = gbuffer_->bind_draw();
+    BindGuard bound_fbo = gbuffer->bind_draw();
     BindGuard bound_vao = mesh_storage->vertex_array().bind();
 
 

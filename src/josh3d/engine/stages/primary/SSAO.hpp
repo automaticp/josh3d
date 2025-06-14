@@ -59,7 +59,7 @@ public:
     } noise_mode{ NoiseMode::GeneratedInShader };
 
 
-    SSAO(SharedStorageView<GBuffer> gbuffer);
+    SSAO(const Extent2I& intial_resolution);
 
     void regenerate_kernels();
     size_t get_kernel_size() const noexcept { return sampling_kernel_->get_num_elements(); }
@@ -104,8 +104,6 @@ private:
     ShaderToken sp_blur_ = shader_pool().get({
         .vert = VPath("src/shaders/postprocess.vert"),
         .frag = VPath("src/shaders/ssao_blur.frag")});
-
-    SharedStorageView<GBuffer> gbuffer_;
 
     using NoisyTarget   = RenderTarget<NoDepthAttachment, UniqueAttachment<Renderable::Texture2D>>;
     using BlurredTarget = RenderTarget<NoDepthAttachment, UniqueAttachment<Renderable::Texture2D>>;
@@ -162,16 +160,9 @@ private:
 
 
 
-inline SSAO::SSAO(SharedStorageView<GBuffer> gbuffer)
-    : gbuffer_{ std::move(gbuffer) }
-    , noisy_target_{
-        scaled_resolution(gbuffer_->resolution()),
-        { InternalFormat::R8 }
-    }
-    , blurred_target_{
-        scaled_resolution(gbuffer_->resolution()),
-        { InternalFormat::R8 }
-    }
+inline SSAO::SSAO(const Extent2I& resolution)
+    : noisy_target_  (scaled_resolution(resolution), { InternalFormat::R8 })
+    , blurred_target_(scaled_resolution(resolution), { InternalFormat::R8 })
 {
     regenerate_kernels();
     regenerate_noise_texture();
@@ -275,10 +266,12 @@ inline void SSAO::regenerate_noise_texture() {
 inline void SSAO::operator()(
     RenderEnginePrimaryInterface& engine)
 {
+    auto* gbuffer = engine.belt().try_get<GBuffer>();
 
-    if (!enable_occlusion_sampling) return;
+    if (not gbuffer) return;
+    if (not enable_occlusion_sampling) return;
 
-    Size2I source_resolution = gbuffer_->resolution();
+    Size2I source_resolution = gbuffer->resolution();
     Size2I target_resolution = scaled_resolution(source_resolution);
 
     noisy_target_  .resize(target_resolution);
@@ -301,8 +294,8 @@ inline void SSAO::operator()(
         const RawProgram<> sp = sp_sampling_;
         BindGuard bound_camera = engine.bind_camera_ubo();
 
-        gbuffer_->depth_texture()        .bind_to_texture_unit(0);
-        gbuffer_->normals_texture()      .bind_to_texture_unit(1);
+        gbuffer->depth_texture()        .bind_to_texture_unit(0);
+        gbuffer->normals_texture()      .bind_to_texture_unit(1);
         MultibindGuard bound_gbuffer_samplers{
             target_sampler_             ->bind_to_texture_unit(0),
             target_sampler_             ->bind_to_texture_unit(1)
@@ -355,6 +348,8 @@ inline void SSAO::operator()(
 
     // TODO: This is not my responsibility, but everyone else suffers if I don't do this ;_;
     glapi::set_viewport({ {}, source_resolution });
+
+    engine.belt().put_ref(*output_);
 }
 
 

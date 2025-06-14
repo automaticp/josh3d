@@ -6,6 +6,7 @@
 #include "UniformTraits.hpp"
 #include "SkinnedMesh.hpp"
 #include "VertexSkinned.hpp"
+#include "stages/primary/GBufferStorage.hpp"
 #include "tags/AlphaTested.hpp"
 #include "tags/Visible.hpp"
 #include "ECS.hpp"
@@ -17,13 +18,16 @@ namespace josh::stages::primary {
 void SkinnedGeometry::operator()(
     RenderEnginePrimaryInterface& engine)
 {
-    const auto& registry = engine.registry();
+    const auto& registry     = engine.registry();
     const auto* mesh_storage = engine.meshes().storage_for<VertexSkinned>();
+    auto*       gbuffer      = engine.belt().try_get<GBuffer>();
+
     if (not mesh_storage) return;
+    if (not gbuffer)      return;
 
     BindGuard bound_vao        = mesh_storage->vertex_array().bind();
     BindGuard bound_camera_ubo = engine.bind_camera_ubo();
-    BindGuard bound_fbo        = gbuffer_->bind_draw();
+    BindGuard bound_fbo        = gbuffer->bind_draw();
 
     auto view_opaque  = registry.view<Visible, MTransform, SkinnedMe2h, Pose>(entt::exclude<AlphaTested>);
     auto view_atested = registry.view<Visible, MTransform, SkinnedMe2h, Pose, AlphaTested>();

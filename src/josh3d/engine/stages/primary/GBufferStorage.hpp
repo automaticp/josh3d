@@ -3,7 +3,6 @@
 #include "GLAPIBinding.hpp"
 #include "GLMutability.hpp"
 #include "GLTextures.hpp"
-#include "Mesh.hpp"
 #include "RenderEngine.hpp"
 #include "RenderTarget.hpp"
 #include "Attachments.hpp"
@@ -30,6 +29,7 @@ public:
         ObjectID = 3
     };
 
+    // FIXME: This is awful. Stop. Just use a framebuffer.
     GBuffer(
         const Size2I&                           resolution,
         SharedAttachment<Renderable::Texture2D> depth,
@@ -148,7 +148,7 @@ class GBufferStorage {
 public:
     GBufferStorage(
         const Size2I&                           resolution,
-        SharedAttachment<Renderable::Texture2D> depth,
+        SharedAttachment<Renderable::Texture2D> depth, // FIXME: Don't like this.
         SharedStorageMutableView<IDBuffer>      id_buffer)
         : gbuffer_{
             resolution,
@@ -196,17 +196,14 @@ private:
 inline void GBufferStorage::operator()(
     RenderEnginePrimaryInterface& engine)
 {
-
     resize(engine.main_resolution());
 
-    if (!gbuffer_->depth_attachment().is_shared_from(engine.main_depth_attachment())) {
+    if (not gbuffer_->depth_attachment().is_shared_from(engine.main_depth_attachment()))
         gbuffer_->reset_depth_attachment(engine.share_main_depth_attachment());
-    }
 
-    if (!gbuffer_->object_id_attachment().is_shared_from(idbuffer_->object_id_attachment())) {
-        gbuffer_->reset_object_id_attachment(idbuffer_->share_object_id_attachment());
-    }
-
+    if (auto* idbuffer = engine.belt().try_get<IDBuffer>())
+        if (not gbuffer_->object_id_attachment().is_shared_from(idbuffer->object_id_attachment()))
+            gbuffer_->reset_object_id_attachment(idbuffer->share_object_id_attachment());
 
     BindGuard bound_fbo{ gbuffer_->bind_draw() };
 
@@ -214,6 +211,7 @@ inline void GBufferStorage::operator()(
     glapi::clear_color_buffer(bound_fbo, to_underlying(GBuffer::Slot::Albedo),   RGBAF{ 0.f, 0.f, 0.f, 0.f });
     glapi::clear_color_buffer(bound_fbo, to_underlying(GBuffer::Slot::Specular), RGBAF{ 0.f });
 
+    engine.belt().put_ref(*gbuffer_);
 }
 
 

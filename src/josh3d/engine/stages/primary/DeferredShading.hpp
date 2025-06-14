@@ -1,19 +1,15 @@
 #pragma once
+#include "stages/primary/PointShadowMapping.hpp"
+#include "stages/primary/CascadedShadowMapping.hpp"
 #include "GLAPICommonTypes.hpp"
 #include "GLObjects.hpp"
 #include "GLScalars.hpp"
 #include "LightsGPU.hpp"
 #include "ShaderPool.hpp"
-#include "SharedStorage.hpp"
-#include "GBufferStorage.hpp"
 #include "UploadBuffer.hpp"
 #include "VPath.hpp"
-#include "stages/primary/PointShadowMapping.hpp"
-#include "stages/primary/CascadedShadowMapping.hpp"
-#include "stages/primary/SSAO.hpp"
 #include <entt/entity/fwd.hpp>
 #include <glbinding/gl/enum.h>
-#include <utility>
 
 
 namespace josh::stages::primary {
@@ -51,28 +47,9 @@ public:
 
     float plight_fade_start_fraction { 0.75f }; // [0, 1] in fraction of bounding radius.
 
-
-    DeferredShading(
-        SharedView<GBuffer>                 gbuffer,
-        SharedView<PointShadows>            input_psm,
-        SharedView<Cascades>                input_csm,
-        SharedView<AmbientOcclusionBuffers> input_ao
-    )
-        : gbuffer_  { std::move(gbuffer)   }
-        , input_psm_{ std::move(input_psm) }
-        , input_csm_{ std::move(input_csm) }
-        , input_ao_ { std::move(input_ao)  }
-    {}
-
     void operator()(RenderEnginePrimaryInterface&);
 
-
 private:
-    SharedView<GBuffer>                 gbuffer_;
-    SharedView<PointShadows>            input_psm_;
-    SharedView<Cascades>                input_csm_;
-    SharedView<AmbientOcclusionBuffers> input_ao_;
-
     ShaderToken sp_singlepass_ = shader_pool().get({
         .vert = VPath("src/shaders/dfr_shading.vert"),
         .frag = VPath("src/shaders/dfr_shading_singlepass.frag")});
@@ -124,8 +101,8 @@ private:
         return s;
     }();
 
-    void update_point_light_buffers(const entt::registry& registry);
-    void update_cascade_buffer();
+    void update_point_light_buffers(const Registry& registry);
+    void update_cascade_buffer(const Cascades& csm);
 
     void draw_singlepass(RenderEnginePrimaryInterface& engine);
     void draw_multipass (RenderEnginePrimaryInterface& engine);

@@ -1,5 +1,6 @@
 #pragma once
 #include "Attachments.hpp"
+#include "Belt.hpp"
 #include "ECS.hpp"
 #include "EnumUtils.hpp"
 #include "GLAPIBinding.hpp"
@@ -86,6 +87,11 @@ public:
     // The wall-time interval between updates of the timers, in seconds.
     // Note that the GPU timing is asyncronous and might lag behind by a frame or two.
     float stage_timing_averaging_interval_s = 0.5f;
+
+    // Communication channel for pipeline stages. The belt is swept
+    // in the beginning of the call to `render()`, *before* the pipeline
+    // is executed. You are free to peek after.
+    Belt belt;
 
     RenderEngine(
         Extent2I  main_resolution,
@@ -186,6 +192,7 @@ private:
 
 struct RenderEngineCommonInterface
 {
+    auto belt()               noexcept -> Belt&                 { return _engine.belt;   }
     auto meshes()       const noexcept -> const MeshRegistry&   { return _mesh_registry; }
     auto registry()     const noexcept -> const Registry&       { return _registry;      }
     auto primitives()   const noexcept -> const Primitives&     { return _primitives;    }

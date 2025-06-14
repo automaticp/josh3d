@@ -105,6 +105,7 @@ inline void IDBufferStorage::operator()(
 
     glapi::clear_color_buffer(bound_fbo, 0, RGBAUI{ .r=null_color });
 
+    engine.belt().put_ref(*idbuffer_);
 }
 
 

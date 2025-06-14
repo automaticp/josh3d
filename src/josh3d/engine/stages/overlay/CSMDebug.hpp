@@ -24,22 +24,15 @@ public:
         Maps  = 2,
     } mode { OverlayMode::None };
 
-    auto num_cascades() const noexcept { return cascades_->views.size(); }
+    // TODO: Hmm, interesting... This doesn't work.
+    // We could query the pipeline directly though.
+    auto num_cascades() const noexcept { return last_num_cascades_; }
     GLuint cascade_id{ 0 };
-
-    CSMDebug(
-        SharedView<GBuffer>  input_gbuffer,
-        SharedView<Cascades> input_cascades
-    )
-        : gbuffer_ { std::move(input_gbuffer)  }
-        , cascades_{ std::move(input_cascades) }
-    {}
 
     void operator()(RenderEngineOverlayInterface& engine);
 
 private:
-    SharedView<GBuffer>  gbuffer_;
-    SharedView<Cascades> cascades_;
+    usize last_num_cascades_;
 
     ShaderToken sp_views_ = shader_pool().get({
         .vert = VPath("src/shaders/postprocess.vert"),
@@ -57,7 +50,6 @@ private:
     }();
 
     UploadBuffer<CascadeViewGPU> csm_views_buf_;
-
 
     void draw_views_overlay(RenderEngineOverlayInterface& engine);
     void draw_maps_overlay (RenderEngineOverlayInterface& engine);

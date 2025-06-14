@@ -22,7 +22,6 @@
 #include "Scalars.hpp"
 #include "SceneGraph.hpp"
 #include "ShaderPool.hpp"
-#include "SharedStorage.hpp"
 #include "WindowSizeCache.hpp"
 #include "FrameTimer.hpp"
 #include "RenderEngine.hpp"
@@ -193,24 +192,21 @@ DemoScene::DemoScene(
         renderer.share_main_depth_attachment(),
         idbuffer.share_write_view()
     );
-    auto defgeom       = stages::primary::DeferredGeometry(gbuffer.share_write_view());
-    auto skingeom      = stages::primary::SkinnedGeometry(gbuffer.share_write_view());
-    auto terraingeom   = stages::primary::TerrainGeometry(gbuffer.share_write_view());
-    auto ssao          = stages::primary::SSAO(gbuffer.share_read_view());
-    auto defshad       = stages::primary::DeferredShading(gbuffer.share_read_view(), psmapping.share_output_view(), csmapping.share_output_view(), ssao.share_output_view());
-    auto lightdummies  = stages::primary::LightDummies(renderer.share_main_depth_attachment(), renderer.share_main_color_attachment(), idbuffer.share_write_view());
+    auto defgeom       = stages::primary::DeferredGeometry();
+    auto skingeom      = stages::primary::SkinnedGeometry();
+    auto terraingeom   = stages::primary::TerrainGeometry();
+    auto ssao          = stages::primary::SSAO(renderer.main_resolution);
+    auto defshad       = stages::primary::DeferredShading();
+    auto lightdummies  = stages::primary::LightDummies();
     auto sky           = stages::primary::Sky();
     auto fog           = stages::postprocess::Fog();
     auto bloom2        = stages::postprocess::Bloom2();
     auto hdreyeing     = stages::postprocess::HDREyeAdaptation(renderer.main_resolution);
     auto fxaaaaaaa     = stages::postprocess::FXAA();
-    auto gbugger       = stages::overlay::GBufferDebug(gbuffer.share_read_view());
-    auto csmbugger     = stages::overlay::CSMDebug(gbuffer.share_read_view(), csmapping.share_output_view());
-    auto ssaobugger    = stages::overlay::SSAODebug(ssao.share_output_view());
+    auto gbugger       = stages::overlay::GBufferDebug();
+    auto csmbugger     = stages::overlay::CSMDebug();
+    auto ssaobugger    = stages::overlay::SSAODebug();
     auto sceneovers    = stages::overlay::SceneOverlays();
-
-    // FIXME: We need this for later, but for the wrong reasons (mouse picking).
-    auto gbuffer_read_view = gbuffer.share_read_view();
 
     _imgui.stage_hooks.add_hook(imguihooks::precompute::PointLightSetup());
     _imgui.stage_hooks.add_hook(imguihooks::primary::PointShadowMapping());
@@ -254,7 +250,7 @@ DemoScene::DemoScene(
     renderer.add_next_overlay_stage    ("SSAO Debug",                MOVE(ssaobugger));
     renderer.add_next_overlay_stage    ("Scene Overlays",            MOVE(sceneovers));
 
-    configure_input(gbuffer_read_view);
+    configure_input();
     register_default_resource_info   (resource_info());
     register_default_resource_storage(runtime.resource_registry);
     register_default_importers       (runtime.asset_importer);
@@ -288,7 +284,7 @@ DemoScene::~DemoScene() noexcept
     while (tasks_drained != 0);
 }
 
-void DemoScene::configure_input(SharedStorageView<GBuffer> gbuffer)
+void DemoScene::configure_input()
 {
     _input_freecam.configure(_input);
 
@@ -300,9 +296,14 @@ void DemoScene::configure_input(SharedStorageView<GBuffer> gbuffer)
 
     // FIXME: This whole thing is really in the wrong place though.
     _input.bind_mouse_button(glfw::MouseButton::Left,
-        [gbuffer=MOVE(gbuffer), this](const MouseButtonCallbackArgs& args)
+        [this](const MouseButtonCallbackArgs& args)
         {
+            // Bail if there's no ID buffer to peek at.
+            if (not runtime.renderer.belt.has<IDBuffer>()) return;
+
             auto& registry = runtime.registry;
+            auto& idbuffer = runtime.renderer.belt.get<IDBuffer>();
+
             if (args.is_pressed())
             {
                 const bool select_exact = args.mods & glfw::ModifierKeyBit::Control;
@@ -320,8 +321,11 @@ void DemoScene::configure_input(SharedStorageView<GBuffer> gbuffer)
                 const auto     pdformat     = PixelDataFormat::RedInteger;
                 const auto     pdtype       = PixelDataType::UInt;
 
-                gbuffer->object_id_texture().download_image_region_into(
-                   target_pixel, pdformat, pdtype, std::span{ &id, 1 });
+                // NOTE: This is a guaranteed way to get a stall, but we
+                // don't really care since it's not really noticeable.
+                // But it does show up as a nasty spike on the framegraph.
+                idbuffer.object_id_texture().download_image_region_into(
+                    target_pixel, pdformat, pdtype, make_span(&id, 1));
 
                 Handle provoking_handle = { registry, Entity(id) };
 
@@ -329,7 +333,7 @@ void DemoScene::configure_input(SharedStorageView<GBuffer> gbuffer)
                 // or something else has destroyed the entity after
                 // the ID buffer was generated on the previous frame.
                 // (Can this even happen? Either way, bail if so.)
-                if (!provoking_handle.valid())
+                if (not provoking_handle.valid())
                 {
                     if (toggle_mode)
                     {

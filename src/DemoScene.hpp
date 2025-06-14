@@ -43,8 +43,7 @@ struct DemoScene
     josh::ImGuiApplicationAssembly _imgui;
 
 private:
-    // EWW: This is a small wrinkle that covers a gigantic hole in the design.
-    void configure_input(josh::SharedStorageView<josh::GBuffer> gbuffer);
+    void configure_input();
     void init_registry();
     void update_input_blocker_from_imgui_io_state();
 };

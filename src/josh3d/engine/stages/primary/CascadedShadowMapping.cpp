@@ -444,6 +444,8 @@ void CascadedShadowMapping::operator()(
 
     // TODO: Whose responsibility it is to set the viewport? Not of this stage tbh.
     glapi::set_viewport({ {}, engine.main_resolution() });
+
+    engine.belt().put_ref(*cascades_);
 }
 
 

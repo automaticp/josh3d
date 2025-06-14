@@ -1,8 +1,6 @@
 #pragma once
-#include "stages/primary/GBufferStorage.hpp"
 #include "RenderStage.hpp"
 #include "ShaderPool.hpp"
-#include "SharedStorage.hpp"
 #include "VPath.hpp"
 #include <entt/entity/fwd.hpp>
 
@@ -15,12 +13,7 @@ class DeferredGeometry {
 public:
     bool enable_backface_culling{ true };
 
-    DeferredGeometry(SharedStorageMutableView<GBuffer> gbuffer_view)
-        : gbuffer_{ std::move(gbuffer_view) }
-    {}
-
     void operator()(RenderEnginePrimaryInterface&);
-
 
 private:
     ShaderToken sp_ds_at = shader_pool().get({
@@ -42,9 +35,6 @@ private:
     ShaderToken sp_dsn_noat = shader_pool().get({
         .vert = VPath("src/shaders/dfr_geometry_mat_dsn.vert"),
         .frag = VPath("src/shaders/dfr_geometry_mat_dsn.frag")});
-
-
-    SharedStorageMutableView<GBuffer> gbuffer_;
 
 };
 

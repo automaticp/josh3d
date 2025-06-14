@@ -1,4 +1,5 @@
 #include "TerrainGeometry.hpp"
+#include "stages/primary/GBufferStorage.hpp"
 #include "GLProgram.hpp"
 #include "UniformTraits.hpp"
 #include "RenderEngine.hpp"
@@ -16,10 +17,14 @@ void TerrainGeometry::operator()(
     RenderEnginePrimaryInterface& engine)
 {
     const auto& registry = engine.registry();
+    auto*       gbuffer  = engine.belt().try_get<GBuffer>();
+
+    if (not gbuffer) return;
+
     const RawProgram<> sp = sp_;
 
     BindGuard bound_camera  = engine.bind_camera_ubo();
-    BindGuard bound_fbo     = gbuffer_->bind_draw();
+    BindGuard bound_fbo     = gbuffer->bind_draw();
     BindGuard bound_program = sp.use();
 
     for (auto [entity, world_mtf, chunk]
@@ -34,7 +39,6 @@ void TerrainGeometry::operator()(
 
         chunk.mesh.draw(bound_program, bound_fbo);
     }
-
 }
 
 

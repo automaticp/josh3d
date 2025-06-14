@@ -9,30 +9,34 @@ Because I'm done typing this out again and again.
 */
 namespace josh {
 
+/*
+NOTE: Constants instead of `using` because the linter then has "constant" color.
+*/
+constexpr auto enumerate = ranges::views::enumerate;
+constexpr auto zip       = ranges::views::zip;
+constexpr auto transform = std::views::transform;
+constexpr auto reverse   = std::views::reverse;
 
-using ranges::views::enumerate;
-using ranges::views::zip;
-using std::views::transform;
-using std::views::reverse;
+/*
+Similar to `views::iota()`, but actually compiles the first time around.
 
-
-// Similar to `views::iota()`, but actually compiles the first time around.
-//
-// Analogous to Python's `range(beg, end)`, represents a half-open index range: `[beg, end)`.
+Analogous to Python's `range(beg, end)`, represents a half-open index range: `[beg, end)`.
+*/
 constexpr auto irange(size_t beg, size_t end) noexcept
     -> std::ranges::iota_view<size_t, size_t>
 {
     return std::views::iota(beg, end);
 }
 
+/*
+Similar to `views::iota()`, but actually compiles the first time around.
 
-// Similar to `views::iota()`, but actually compiles the first time around.
-//
-// Note that this single argument version specifies an *upper* bound, unlike
-// `views::iota()` where single argument would be the starting index.
-// Hence the name difference.
-//
-// Analogous to Python's `range(n)`, represents a half-open index range: `[0, n)`.
+Note that this single argument version specifies an *upper* bound, unlike
+`views::iota()` where single argument would be the starting index.
+Hence the name difference.
+
+Analogous to Python's `range(n)`, represents a half-open index range: `[0, n)`.
+*/
 constexpr auto irange(size_t n) noexcept
     -> std::ranges::iota_view<size_t, size_t>
 {

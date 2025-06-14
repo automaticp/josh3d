@@ -1,11 +1,10 @@
 #pragma once
+#include "stages/primary/SSAO.hpp"
 #include "GLObjects.hpp"
 #include "GLTextures.hpp"
 #include "RenderEngine.hpp"
 #include "EnumUtils.hpp"
-#include "SharedStorage.hpp"
 #include "VPath.hpp"
-#include "stages/primary/SSAO.hpp"
 
 
 namespace josh::stages::overlay {
@@ -22,19 +21,12 @@ public:
 
     OverlayMode mode{ OverlayMode::None };
 
-    SSAODebug(SharedStorageView<AmbientOcclusionBuffers> input_ao) noexcept
-        : input_ao_{ std::move(input_ao) }
-    {}
-
     void operator()(RenderEngineOverlayInterface& engine);
 
 private:
     ShaderToken sp_ = shader_pool().get({
         .vert = VPath("src/shaders/postprocess.vert"),
         .frag = VPath("src/shaders/ovl_ssao_debug.frag")});
-
-    SharedStorageView<AmbientOcclusionBuffers> input_ao_;
-
 };
 
 
@@ -43,22 +35,22 @@ private:
 inline void SSAODebug::operator()(
     RenderEngineOverlayInterface& engine)
 {
+    if (mode == OverlayMode::None) return;
 
-    if (mode == OverlayMode::None) {
-        return;
-    }
+    const auto* aobuffers = engine.belt().try_get<AmbientOcclusionBuffers>();
+
+    if (not aobuffers) return;
 
     const auto sp = sp_.get();
 
-    input_ao_->noisy_texture  .bind_to_texture_unit(0);
-    input_ao_->blurred_texture.bind_to_texture_unit(1);
+    aobuffers->noisy_texture  .bind_to_texture_unit(0);
+    aobuffers->blurred_texture.bind_to_texture_unit(1);
 
     sp.uniform("mode", to_underlying(mode));
     sp.uniform("tex_noisy_occlusion", 0);
     sp.uniform("tex_occlusion",       1);
 
     engine.draw_fullscreen_quad(sp.use());
-
 }
 
 

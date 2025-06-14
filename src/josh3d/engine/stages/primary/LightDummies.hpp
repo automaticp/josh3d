@@ -2,8 +2,8 @@
 #include "Attachments.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLObjects.hpp"
+#include "GLTextures.hpp"
 #include "ShaderPool.hpp"
-#include "SharedStorage.hpp"
 #include "Transform.hpp"
 #include "UniformTraits.hpp" // IWYU pragma: keep (traits)
 #include "LightCasters.hpp"
@@ -29,43 +29,33 @@ public:
     float light_scale{ 0.1f };
     bool  attenuate_color{ true };
 
-    LightDummies(
-        SharedAttachment<Renderable::Texture2D> depth,
-        SharedAttachment<Renderable::Texture2D> color,
-        SharedStorageMutableView<IDBuffer>      idbuffer)
-        : target_{
-            std::move(depth),
-            std::move(color),
-            idbuffer->share_object_id_attachment()
-        }
-        , idbuffer_{ std::move(idbuffer) }
-    {}
-
     void operator()(RenderEnginePrimaryInterface& engine);
 
 private:
     ShaderToken sp_ = shader_pool().get({
         .vert = VPath("src/shaders/light_dummies_point.vert"),
-        .frag = VPath("src/shaders/light_dummies_point.frag"),
-    });
+        .frag = VPath("src/shaders/light_dummies_point.frag")});
 
-    using Target = RenderTarget<
-        SharedAttachment<Renderable::Texture2D>, // Depth
-        SharedAttachment<Renderable::Texture2D>, // Color
-        SharedAttachment<Renderable::Texture2D>  // ObjectID
-    >;
+    // FIXME: This exposes a dumb design where suddenly light
+    // dummies cannot be drawn if there's no ID buffer???
+    // We should just go back to framebuffers, it is much simpler.
+    // using Target = RenderTarget<
+    //     SharedAttachment<Renderable::Texture2D>, // Depth
+    //     SharedAttachment<Renderable::Texture2D>, // Color
+    //     SharedAttachment<Renderable::Texture2D>  // ObjectID
+    // >;
 
-    Target target_;
+    // Optional<Target> target_;
 
-    SharedStorageMutableView<IDBuffer> idbuffer_;
+    UniqueFramebuffer target_;
 
     void relink_attachments(RenderEnginePrimaryInterface& engine);
 
     struct PLightParamsGPU {
-        alignas(std430::align_vec3)  glm::vec3  position;
-        alignas(std430::align_float) float      scale;
-        alignas(std430::align_vec3)  glm::vec3  color;
-        alignas(std430::align_uint)  uint       id;
+        alignas(std430::align_vec3)  vec3  position;
+        alignas(std430::align_float) float scale;
+        alignas(std430::align_vec3)  vec3  color;
+        alignas(std430::align_uint)  uint  id;
     };
 
     UploadBuffer<PLightParamsGPU> plight_params_;
@@ -75,11 +65,9 @@ private:
 };
 
 
-
-
 inline void LightDummies::operator()(RenderEnginePrimaryInterface& engine) {
 
-    if (!display) { return; }
+    if (not display) return;
 
     relink_attachments(engine);
     update_plight_params(engine.registry());
@@ -91,7 +79,7 @@ inline void LightDummies::operator()(RenderEnginePrimaryInterface& engine) {
         BindGuard bound_instance_buffer = plight_params_.bind_to_ssbo_index(0);
 
         BindGuard bound_program = sp_.get().use();
-        BindGuard bound_fbo     = target_.bind_draw();
+        BindGuard bound_fbo     = target_->bind_draw();
 
         const Mesh& mesh = engine.primitives().sphere_mesh();
         BindGuard bound_vao = mesh.vertex_array().bind();
@@ -109,9 +97,6 @@ inline void LightDummies::operator()(RenderEnginePrimaryInterface& engine) {
 
     }
 }
-
-
-
 
 inline void LightDummies::update_plight_params(
     const entt::registry& registry)
@@ -137,23 +122,21 @@ inline void LightDummies::update_plight_params(
     plight_params_.restage(plight_params_view);
 }
 
-
-
-
 inline void LightDummies::relink_attachments(
     RenderEnginePrimaryInterface& engine)
 {
-    if (!target_.depth_attachment().is_shared_from(engine.main_depth_attachment())) {
-        target_.reset_depth_attachment(engine.share_main_depth_attachment());
-    }
+    // TODO: Should be able to query the current attachment, no?
+    // We just attach every frame for now.
 
-    if (!target_.color_attachment<0>().is_shared_from(engine.main_color_attachment())) {
-        target_.reset_color_attachment<0>(engine.share_main_color_attachment());
-    }
+    // NOTE: This is exactly the case where `const` brings unneccessary
+    // amounts of friction. RenderTarget is very hostile to giving mutable
+    // access to textures, which we sorta-kinda need for framebuffers.
+    auto unconst = [](RawTexture2D<GLConst> texture) { return RawTexture2D<>::from_id(texture.id()); };
 
-    if (!target_.color_attachment<1>().is_shared_from(idbuffer_->object_id_attachment())) {
-        target_.reset_color_attachment<1>(idbuffer_->share_object_id_attachment());
-    }
+    target_->attach_texture_to_depth_buffer(unconst(engine.main_depth_attachment().texture()));
+    target_->attach_texture_to_color_buffer(unconst(engine.main_color_attachment().texture()), 0);
+    if (auto* idbuffer = engine.belt().try_get<IDBuffer>())
+        target_->attach_texture_to_color_buffer(unconst(idbuffer->object_id_texture()), 1);
 }
 
 
