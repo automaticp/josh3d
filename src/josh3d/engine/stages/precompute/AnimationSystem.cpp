@@ -4,10 +4,9 @@
 #include "SkeletalAnimation.hpp"
 #include "SkinnedMesh.hpp"
 #include "Transform.hpp"
-#include "ECS.hpp"
 
 
-namespace josh::stages::precompute {
+namespace josh {
 
 
 void AnimationSystem::operator()(
@@ -102,7 +101,8 @@ void AnimationSystem::operator()(
         const Transform root_tf = anim.sample_at(0, time);
         M2Js[0] = root_tf.mtransform().model();
 
-        for (size_t j{ 1 }; j < joints.size(); ++j) {
+        for (const uindex j : irange(1, joints.size()))
+        {
             const Transform joint_tf = anim.sample_at(j, time);
             const mat4 P2J = joint_tf.mtransform().model();
             const mat4 M2P = M2Js[joints[j].parent_idx];
@@ -111,7 +111,8 @@ void AnimationSystem::operator()(
 
         // Fill out the skinning matrices. That's our job.
         const auto skinning_mats = to_span(pose.skinning_mats);
-        for (size_t j{ 0 }; j < joints.size(); ++j) {
+        for (const uindex j : irange(joints.size()))
+        {
             const mat4 B2M = joints[j].inv_bind;
             const mat4 M2J = M2Js[j];
 
@@ -121,13 +122,11 @@ void AnimationSystem::operator()(
 
         // Advance the clock forward, and possibly, destroy the PlayingAnimation if it's over.
         playing.current_time = time + dt;
-        if (playing.current_time >= duration) {
+        if (playing.current_time >= duration)
             registry.erase<PlayingAnimation>(e);
-        }
     }
 
 }
 
 
-
-} // namespace josh::stages::precompute
+} // namespace josh

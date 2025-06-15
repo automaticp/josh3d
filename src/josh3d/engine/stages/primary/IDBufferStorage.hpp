@@ -33,12 +33,6 @@ inline void IDBuffer::_resize(Extent2I new_resolution)
 }
 
 
-} // namespace josh
-
-
-namespace josh::stages::primary {
-
-
 /*
 Provides the storage for the ObjectID, resizes and clears it on each pass.
 
@@ -46,8 +40,9 @@ Place it before any other stages that draw into the IDBuffer.
 */
 struct IDBufferStorage
 {
-    IDBuffer idbuffer;
     void operator()(RenderEnginePrimaryInterface& engine);
+
+    IDBuffer idbuffer;
 };
 
 
@@ -56,7 +51,7 @@ inline void IDBufferStorage::operator()(
 {
     idbuffer._resize(engine.main_resolution());
 
-    BindGuard bfbo = idbuffer.bind_draw();
+    const BindGuard bfbo = idbuffer.bind_draw();
 
     // The ObjectID buffer is cleared with the null sentinel value.
     constexpr auto null_color = to_underlying(nullent);
@@ -66,4 +61,4 @@ inline void IDBufferStorage::operator()(
 }
 
 
-} // namespace josh::stages::primary
+} // namespace josh

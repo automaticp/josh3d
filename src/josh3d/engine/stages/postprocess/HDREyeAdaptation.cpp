@@ -4,9 +4,10 @@
 #include "GLObjects.hpp"
 #include "GLProgram.hpp"
 #include "ReadbackBuffer.hpp"
+#include "UniformTraits.hpp"
 
 
-namespace josh::stages::postprocess {
+namespace josh {
 
 
 HDREyeAdaptation::HDREyeAdaptation(float initial_screen_value)
@@ -160,4 +161,4 @@ void HDREyeAdaptation::_pull_late_exposure()
 }
 
 
-} // namespace josh::stages::postprocess
+} // namespace josh

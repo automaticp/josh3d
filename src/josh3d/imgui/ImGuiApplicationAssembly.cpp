@@ -467,9 +467,15 @@ void ImGuiApplicationAssembly::_reset_dockspace(ImGuiID dockspace_id)
 
 void ImGuiApplicationAssembly::_display_frame_graph()
 {
+    const float frametime_s = _avg_frame_timer.get_current_average();
+    const float fps         = 1 / frametime_s;
+
+    thread_local String overlay; overlay.clear();
+    fmt::format_to(std::back_inserter(overlay), "{:6>.1f} FPS {:>5.2f} ms", fps, frametime_s * 1e3f);
+
     ImGui::PlotLines("##FrameTimes",
         _frame_deltas.data(), int(_frame_deltas.size()), _frame_offset,
-        nullptr, 0.f, _upper_frametime_limit, ImGui::GetContentRegionAvail());
+        overlay.c_str(), 0.f, _upper_frametime_limit, ImGui::GetContentRegionAvail());
 
     ImGui::OpenPopupOnItemClick("FrameGraph Settings");
     if (ImGui::BeginPopup("FrameGraph Settings"))

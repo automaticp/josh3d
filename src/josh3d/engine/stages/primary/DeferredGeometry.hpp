@@ -2,16 +2,14 @@
 #include "RenderStage.hpp"
 #include "ShaderPool.hpp"
 #include "VPath.hpp"
-#include <entt/entity/fwd.hpp>
 
 
+namespace josh {
 
-namespace josh::stages::primary {
 
-
-class DeferredGeometry {
-public:
-    bool enable_backface_culling{ true };
+struct DeferredGeometry
+{
+    bool backface_culling = true;
 
     void operator()(RenderEnginePrimaryInterface&);
 
@@ -35,8 +33,7 @@ private:
     ShaderToken sp_dsn_noat = shader_pool().get({
         .vert = VPath("src/shaders/dfr_geometry_mat_dsn.vert"),
         .frag = VPath("src/shaders/dfr_geometry_mat_dsn.frag")});
-
 };
 
 
-} // namespace josh::stages::primary
+} // namespace josh

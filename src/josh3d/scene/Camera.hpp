@@ -16,12 +16,12 @@ This had more stuff, and had more of a reason to exist. Not anymore.
 template<typename CRTP>
 class CameraBase {
 protected:
-    ViewFrustumAsPlanes planes_local_frustum_;
-    ViewFrustumAsQuads  quads_local_frustum_;
+    FrustumPlanes planes_local_frustum_;
+    FrustumQuads  quads_local_frustum_;
 
     CameraBase(
-        const ViewFrustumAsPlanes& planes_local_frust,
-        const ViewFrustumAsQuads&  quads_local_frust) noexcept
+        const FrustumPlanes& planes_local_frust,
+        const FrustumQuads&  quads_local_frust) noexcept
         : planes_local_frustum_{ planes_local_frust }
         , quads_local_frustum_ { quads_local_frust  }
     {}
@@ -31,14 +31,14 @@ protected:
 public:
     // Local view frustum in six-plane representation.
     auto view_frustum_as_planes() const noexcept
-        -> const ViewFrustumAsPlanes&
+        -> const FrustumPlanes&
     {
         return planes_local_frustum_;
     }
 
     // Local view frustum in two-quad representation.
     auto view_frustum_as_quads() const noexcept
-        -> const ViewFrustumAsQuads&
+        -> const FrustumQuads&
     {
         return quads_local_frustum_;
     }

@@ -2,13 +2,13 @@
 #include "RenderEngine.hpp"
 
 
-namespace josh::stages::precompute {
+namespace josh {
 
 
-class FrustumCulling {
-public:
+struct FrustumCulling
+{
     void operator()(RenderEnginePrecomputeInterface& engine);
 };
 
 
-} // namespace josh::stages::precompute
+} // namespace josh

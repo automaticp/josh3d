@@ -1,55 +1,92 @@
 #pragma once
-#include "stages/primary/PointShadowMapping.hpp"
 #include "stages/primary/CascadedShadowMapping.hpp"
 #include "GLAPICommonTypes.hpp"
 #include "GLObjects.hpp"
-#include "GLScalars.hpp"
 #include "LightsGPU.hpp"
 #include "ShaderPool.hpp"
 #include "UploadBuffer.hpp"
 #include "VPath.hpp"
-#include <entt/entity/fwd.hpp>
-#include <glbinding/gl/enum.h>
 
 
-namespace josh::stages::primary {
+namespace josh {
 
 
-class DeferredShading {
-public:
-    using PointShadows = PointShadowMapping::PointShadows;
-
-    enum class Mode {
+struct DeferredShading
+{
+    enum class Mode
+    {
         SinglePass,
         MultiPass
     };
 
-    struct PointShadowParams {
-        glm::vec2 bias_bounds{ 0.0001f, 0.08f };
-        GLint     pcf_extent{ 1 };
-        GLfloat   pcf_offset{ 0.01f };
+    struct PointShadowParams
+    {
+        vec2  bias_bounds = { 0.0001f, 0.08f };
+        i32   pcf_extent  = 1;
+        float pcf_offset  = 0.01f;
     };
 
-    struct DirShadowParams {
-        GLfloat base_bias_tx{ 0.2f };
-        GLint   pcf_extent{ 1 };
-        GLfloat pcf_offset{ 1.0f };
+    struct DirShadowParams
+    {
+        float base_bias_tx = 0.2f;
+        i32   pcf_extent   = 1;
+        float pcf_offset   = 1.0f;
     };
 
-
-    Mode mode{ Mode::SinglePass };
+    Mode mode = Mode::SinglePass;
 
     PointShadowParams point_params;
     DirShadowParams   dir_params;
 
-    bool  use_ambient_occlusion  { true };
-    float ambient_occlusion_power{ 0.8f };
+    bool  use_ambient_occlusion   = true;
+    float ambient_occlusion_power = 0.8f;
 
-    float plight_fade_start_fraction { 0.75f }; // [0, 1] in fraction of bounding radius.
+    float plight_fade_start_fraction = 0.75f; // [0, 1] in fraction of bounding radius.
 
-    void operator()(RenderEnginePrimaryInterface&);
+    void operator()(RenderEnginePrimaryInterface& engine);
 
 private:
+    UploadBuffer<PointLightBoundedGPU> plights_with_shadow_buf_;
+    UploadBuffer<PointLightBoundedGPU> plights_no_shadow_buf_;
+    UploadBuffer<CascadeViewGPU>       csm_views_buf_;
+
+    UniqueSampler target_sampler_ = eval%[]{
+        UniqueSampler s;
+        s->set_min_mag_filters(MinFilter::Nearest, MagFilter::Nearest);
+        s->set_wrap_all(Wrap::ClampToEdge);
+        return s;
+    };
+
+    UniqueSampler csm_sampler_ = eval%[]{
+        UniqueSampler s;
+        s->set_min_mag_filters(MinFilter::Linear, MagFilter::Linear);
+        s->set_border_color_float({ .r=1.f });
+        s->set_wrap_all(Wrap::ClampToBorder);
+        // Enable shadow sampling with built-in 2x2 PCF
+        s->set_compare_ref_depth_to_texture(true);
+        // Comparison: result = ref OPERATOR texture
+        // This will return "how much this fragment is lit" from 0 to 1.
+        // If you want "how much it's in shadow", use (1.0 - result).
+        // Or set the comparison func to Greater.
+        s->set_compare_func(CompareOp::Less);
+        return s;
+    };
+
+    UniqueSampler psm_sampler_ = eval%[]{
+        UniqueSampler s;
+        s->set_min_mag_filters(MinFilter::Linear, MagFilter::Linear);
+        s->set_wrap_all(Wrap::ClampToEdge);
+        s->set_compare_ref_depth_to_texture(true);
+        s->set_compare_func(CompareOp::Less);
+        return s;
+    };
+
+    void update_point_light_buffers(const Registry& registry);
+    void update_cascade_buffer(const Cascades& csm);
+
+    void draw_singlepass(RenderEnginePrimaryInterface& engine);
+    void draw_multipass (RenderEnginePrimaryInterface& engine);
+
     ShaderToken sp_singlepass_ = shader_pool().get({
         .vert = VPath("src/shaders/dfr_shading.vert"),
         .frag = VPath("src/shaders/dfr_shading_singlepass.frag")});
@@ -65,49 +102,8 @@ private:
     ShaderToken sp_pass_ambi_dir_ = shader_pool().get({
         .vert = VPath("src/shaders/dfr_shading.vert"),
         .frag = VPath("src/shaders/dfr_shading_ambi_dir.frag")});
-
-    UploadBuffer<PointLightBoundedGPU> plights_with_shadow_buf_;
-    UploadBuffer<PointLightBoundedGPU> plights_no_shadow_buf_;
-    UploadBuffer<CascadeViewGPU>       csm_views_buf_;
-
-    UniqueSampler target_sampler_ = []() {
-        UniqueSampler s;
-        s->set_min_mag_filters(MinFilter::Nearest, MagFilter::Nearest);
-        s->set_wrap_all(Wrap::ClampToEdge);
-        return s;
-    }();
-
-    UniqueSampler csm_sampler_ = []() {
-        UniqueSampler s;
-        s->set_min_mag_filters(MinFilter::Linear, MagFilter::Linear);
-        s->set_border_color_float({ .r=1.f });
-        s->set_wrap_all(Wrap::ClampToBorder);
-        // Enable shadow sampling with built-in 2x2 PCF
-        s->set_compare_ref_depth_to_texture(true);
-        // Comparison: result = ref OPERATOR texture
-        // This will return "how much this fragment is lit" from 0 to 1.
-        // If you want "how much it's in shadow", use (1.0 - result).
-        // Or set the comparison func to Greater.
-        s->set_compare_func(CompareOp::Less);
-        return s;
-    }();
-
-    UniqueSampler psm_sampler_ = []() {
-        UniqueSampler s;
-        s->set_min_mag_filters(MinFilter::Linear, MagFilter::Linear);
-        s->set_wrap_all(Wrap::ClampToEdge);
-        s->set_compare_ref_depth_to_texture(true);
-        s->set_compare_func(CompareOp::Less);
-        return s;
-    }();
-
-    void update_point_light_buffers(const Registry& registry);
-    void update_cascade_buffer(const Cascades& csm);
-
-    void draw_singlepass(RenderEnginePrimaryInterface& engine);
-    void draw_multipass (RenderEnginePrimaryInterface& engine);
-
 };
+JOSH3D_DEFINE_ENUM_EXTRAS(DeferredShading::Mode, SinglePass, MultiPass);
 
 
-} // namespace josh::stages::primary
+} // namespace josh

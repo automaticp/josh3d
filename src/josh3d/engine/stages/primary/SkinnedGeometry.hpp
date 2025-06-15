@@ -1,23 +1,29 @@
 #pragma once
+#include "Math.hpp"
 #include "UploadBuffer.hpp"
-#include "stages/primary/GBufferStorage.hpp"
 #include "RenderStage.hpp"
 #include "ShaderPool.hpp"
-#include "SharedStorage.hpp"
 #include "VPath.hpp"
 
 
 
-namespace josh::stages::primary {
+namespace josh {
 
 
-class SkinnedGeometry {
-public:
-    bool enable_backface_culling{ true };
+struct SkinnedGeometry
+{
+    bool backface_culling = true;
 
     void operator()(RenderEnginePrimaryInterface&);
 
 private:
+    // FIXME: There should be a pool of poses uploaded by the
+    // animation system, where the pallete is only referenced
+    // by some integral SkeletonID as an index into a sparse set.
+    // Or something like that. This would allow us to multidraw
+    // skinned meshes.
+    UploadBuffer<mat4> skinning_mats_;
+
     ShaderToken sp_opaque = shader_pool().get({
         .vert = VPath("src/shaders/dfr_geometry_skinned.vert"),
         .frag = VPath("src/shaders/dfr_geometry_skinned.frag")});
@@ -27,15 +33,7 @@ private:
         .frag = VPath("src/shaders/dfr_geometry_skinned.frag")},
         ProgramDefines()
             .define("ENABLE_ALPHA_TESTING", 1));
-
-    // FIXME: There should be a pool of poses uploaded by the
-    // animation system, where the pallete is only referenced
-    // by some integral SkeletonID as an index into a sparse set.
-    // Or something like that. This would allow us to multidraw
-    // skinned meshes.
-    UploadBuffer<mat4> skinning_mats_;
-
 };
 
 
-} // namespace josh::stages::primary
+} // namespace josh

@@ -30,77 +30,65 @@
 #include <span>
 
 
-
-
-namespace josh::stages::primary {
+namespace josh {
 
 
 CascadedShadowMapping::CascadedShadowMapping(
-    size_t        num_desired_cascades,
-    const Size1I& side_resolution
-)
-    : side_resolution{ side_resolution }
-    , num_cascades_  { allowed_num_cascades(num_desired_cascades) }
-    , cascades_{ Cascades{
-        .maps{
-            { side_resolution, side_resolution },
-            GLsizei(num_cascades_),
-            { InternalFormat::DepthComponent32F }
-        },
-        .views      {},
-        .drawstates{}
-    } }
-{}
-
-
-CascadedShadowMapping::CascadedShadowMapping()
-    : CascadedShadowMapping(4, { 2048 })
-{}
-
-
-auto CascadedShadowMapping::allowed_num_cascades(size_t desired_num) const noexcept
-    -> size_t
+    i32 side_resolution,
+    i32 num_desired_cascades)
 {
-    return std::clamp(desired_num, size_t(1), max_cascades());
+    assert(side_resolution > 0);
+    const i32 num_cascades = allowed_num_cascades(num_desired_cascades);
+    cascades.maps._resize({ side_resolution, side_resolution }, num_cascades);
 }
-
 
 auto CascadedShadowMapping::num_cascades() const noexcept
-    -> size_t
+    -> i32
 {
-    return num_cascades_;
+    return cascades.maps.num_cascades();
 }
 
+auto CascadedShadowMapping::side_resolution() const noexcept
+    -> i32
+{
+    return cascades.maps.resolution().width;
+}
+
+void CascadedShadowMapping::resize_maps(
+    i32 side_resolution,
+    i32 num_desired_cascades)
+{
+    assert(side_resolution > 0);
+    cascades.maps._resize({ side_resolution, side_resolution }, allowed_num_cascades(num_desired_cascades));
+}
+
+auto CascadedShadowMapping::allowed_num_cascades(i32 desired_num) const noexcept
+    -> i32
+{
+    return std::clamp(desired_num, 1, max_cascades());
+}
 
 auto CascadedShadowMapping::max_cascades() const noexcept
-    -> size_t
+    -> i32
 {
     // TODO: Query API limits.
     return 7; // Chosen by a fair rice doll.
 }
 
 
-void CascadedShadowMapping::set_num_cascades(size_t desired_num) noexcept {
-    num_cascades_ = allowed_num_cascades(desired_num);
-}
-
-
-
-
 namespace {
 
-
 void fit_cascade_views_to_camera(
-    std::vector<CascadeView>& out_views,
-    size_t                    num_cascades,
-    const Size2I&             resolution,
-    const vec3&               cam_position,
-    const ViewFrustumAsQuads& frustum_world,
-    const vec3&               light_dir,
-    float                     split_log_weight,
-    float                     split_bias,
-    bool                      pad_inner_cascades,
-    float                     padding_tx)
+    Vector<CascadeView>& out_views,
+    usize                num_cascades,
+    Extent2I             resolution,
+    const vec3&          cam_position,
+    const FrustumQuads&  frustum_world,
+    const vec3&          light_dir,
+    float                split_log_weight,
+    float                split_bias,
+    bool                 pad_inner_cascades,
+    float                padding_tx)
 {
     // WARN: This is still heavily WIP.
 
@@ -108,11 +96,11 @@ void fit_cascade_views_to_camera(
     const float largest_observable_length = // OR IS IT?
         glm::length(frustum_world.far().points[0] - cam_position);
 
-    const float z_near{ 0.f };
-    const float z_far { 2 * largest_observable_length };
+    const float z_near = 0.f;
+    const float z_far  = 2 * largest_observable_length;
 
     // Similar to cam_offset in simple shadow mapping.
-    const float cam_offset{ (z_far - z_near) / 2.f };
+    const float cam_offset = (z_far - z_near) / 2.f;
 
     // Global basis upvector is a good choice because it doesn't
     // rotate the cascade with the frustum, reducing shimmer.
@@ -126,8 +114,8 @@ void fit_cascade_views_to_camera(
     // Each cascade "looks at" the camera origin from the same Z = 0 point.
     // The only difference is in the horizontal/vertical projection boundaries.
     // TODO: This *might* be worth changing to allow different Z = 0 points per cascade.
-    const mat4 shadow_look_at      = glm::lookAt(shadow_cam_position, cam_position, shadow_cam_upvector);
-    const mat4 inv_shadow_look_at  = inverse(shadow_look_at);
+    const mat4 shadow_look_at     = glm::lookAt(shadow_cam_position, cam_position, shadow_cam_upvector);
+    const mat4 inv_shadow_look_at = inverse(shadow_look_at);
 
     // Shadow look_at is a view matrix of shadowcam-space, which is a shadow->world CoB.
     // We use it to transform the contravariant frustum points from world to shadow-space.
@@ -135,7 +123,6 @@ void fit_cascade_views_to_camera(
 
     const auto& near = cam_frust_in_shadow_view.near();
     const auto& far  = cam_frust_in_shadow_view.far();
-
 
     // We find the min-max fits for the frustum in the camera view space.
     // We ignore the Z axis, as the depth of the projection is governed
@@ -147,23 +134,23 @@ void fit_cascade_views_to_camera(
     // Well, actually, you probably want the distance to one of the corners
     // of the far plane, to account for most extreme cases as well.
     // FIXME: This might be the cause of the far side shadow clipping.
-    constexpr float inf{ std::numeric_limits<float>::infinity() };
+    constexpr float inf = std::numeric_limits<float>::infinity();
     vec2 min{  inf,  inf };
     vec2 max{ -inf, -inf };
     {
-        auto minmax_update_from_corner = [&](const vec3& corner) {
+        auto minmax_update_from_corner = [&](const vec3& corner)
+        {
             min.x = std::min(min.x, corner.x);
             min.y = std::min(min.y, corner.y);
             max.x = std::max(max.x, corner.x);
             max.y = std::max(max.y, corner.y);
         };
 
-        for (const vec3& corner : cam_frust_in_shadow_view.near().points) {
+        for (const vec3& corner : cam_frust_in_shadow_view.near().points)
             minmax_update_from_corner(corner);
-        }
-        for (const vec3& corner : cam_frust_in_shadow_view.far().points) {
+
+        for (const vec3& corner : cam_frust_in_shadow_view.far().points)
             minmax_update_from_corner(corner);
-        }
     }
 
     // The size of the largest cascade is taken from the largest diagonal
@@ -173,7 +160,6 @@ void fit_cascade_views_to_camera(
         glm::distance(far.points[0], near.points[2])
     );
 
-
     // This is taken from:
     //     F. Zhang et. al.
     //     "Parallel-Split Shadow Maps for Large-scale Virtual Environments"
@@ -181,25 +167,28 @@ void fit_cascade_views_to_camera(
     //
     // However, this is applied to a simple [0, max_scale] space.
     // The question of what space to apply the split logic in is still an open one.
-    auto split_fun_log = [&](size_t split_id) {
+    auto split_fun_log = [&](uindex split_id)
+    {
         return glm::pow(max_scale, float(split_id + 1) / float(num_cascades));
     };
 
-    auto split_fun_uniform = [&](size_t split_id) {
+    auto split_fun_uniform = [&](uindex split_id)
+    {
         return max_scale * float(split_id + 1) / float(num_cascades);
     };
 
-    auto split_fun_practical = [&](size_t split_id, float log_weight, float bias) {
+    auto split_fun_practical = [&](uindex split_id, float log_weight, float bias)
+    {
         log_weight = glm::clamp(log_weight, 0.f, 1.f);
-        return    (log_weight) * split_fun_log(split_id) +
+        return
+            (log_weight)       * split_fun_log(split_id) +
             (1.f - log_weight) * split_fun_uniform(split_id) + bias;
     };
 
-
     out_views.clear();
-    const size_t last_cascade_idx = num_cascades - 1;
-    for (size_t i{ 0 }; i < num_cascades; ++i) {
-
+    const uindex last_cascade_idx = num_cascades - 1;
+    for (const uindex i : irange(num_cascades))
+    {
         const float split_side = split_fun_practical(i, split_log_weight, split_bias);
 
         float l = -split_side / 2.f;
@@ -208,12 +197,13 @@ void fit_cascade_views_to_camera(
         float t = +split_side / 2.f;
 
         // Size of a single shadowmap texel in shadowmap view-space.
-        const vec2 tx_scale{
+        const vec2 tx_scale = {
             split_side / float(resolution.width),
             split_side / float(resolution.height)
         };
 
-        auto snap_to_grid = [&](float& l, float& r, float& b, float& t) {
+        auto snap_to_grid = [&](float& l, float& r, float& b, float& t)
+        {
             // FIXME: This, as any other world-space computation will completely
             // break down when far away from the origin.
             // The addition and subtraction of `center.x` will obliterate
@@ -236,60 +226,59 @@ void fit_cascade_views_to_camera(
             r = glm::floorMultiple(rv, tx_scale.x) - center.x;
             b = glm::floorMultiple(bv, tx_scale.y) - center.y;
             t = glm::floorMultiple(tv, tx_scale.y) - center.y;
-
         };
 
         snap_to_grid(l, r, b, t);
 
         const mat4 shadow_proj = glm::ortho(l, r, b, t, z_near, z_far);
 
-        const ViewFrustumAsPlanes frustum_world =
-            ViewFrustumAsPlanes::make_local_orthographic(l, r, b, t, z_near, z_far)
+        const FrustumPlanes frustum_world =
+            FrustumPlanes::make_local_orthographic(l, r, b, t, z_near, z_far)
                 .transformed(inv_shadow_look_at);
 
-        const ViewFrustumAsPlanes frustum_padded_world = [&]{
-            if (pad_inner_cascades && i != last_cascade_idx) {
+        const FrustumPlanes frustum_padded_world = eval%[&]{
+            if (pad_inner_cascades and i != last_cascade_idx)
+            {
                 // Padding is only along X and Y.
                 const float lp = l + padding_tx * tx_scale.x;
                 const float rp = r - padding_tx * tx_scale.x;
                 const float bp = b + padding_tx * tx_scale.y;
                 const float tp = t - padding_tx * tx_scale.y;
-                return ViewFrustumAsPlanes::make_local_orthographic(lp, rp, bp, tp, z_near, z_far)
+                return FrustumPlanes::make_local_orthographic(lp, rp, bp, tp, z_near, z_far)
                     .transformed(inv_shadow_look_at);
-            } else {
+            }
+            else
+            {
                 return frustum_world;
             }
-        }();
+        };
 
         out_views.push_back({
-            .params        = {
-                .width  = r - l,
-                .height = t - b,
-                .z_near = z_near,
-                .z_far  = z_far
-            },
+            .width         = r - l,
+            .height        = t - b,
+            .z_near        = z_near,
+            .z_far         = z_far,
             .tx_scale      = tx_scale,
             .frustum_world = frustum_world,
             .frustum_padded_world = frustum_padded_world,
             .view_mat      = shadow_look_at,
             .proj_mat      = shadow_proj,
         });
-
     }
 }
 
-
 void cull_per_cascade(
-    std::span<const CascadeView> views,
-    std::span<CascadeDrawState>  drawstates,
-    const Registry&              registry)
+    Span<const CascadeView> views,
+    Span<CascadeDrawState>  drawstates,
+    const Registry&         registry)
 {
     assert(views.size() != 0);
     assert(views.size() == drawstates.size());
-    const size_t num_cascades = views.size();
+    const usize num_cascades = views.size();
 
     // Reset all lists first.
-    for (auto& drawstate : drawstates) {
+    for (auto& drawstate : drawstates)
+    {
         drawstate.draw_list_at     .clear();
         drawstate.draw_list_opaque .clear();
     }
@@ -308,11 +297,11 @@ void cull_per_cascade(
            Adjust culling according to the padded frustum. This is conservative
            and will result in more draw calls, since both inner and outer cascade
            need to draw an object if it is in the "blend region".
-
     */
 
-    for (const Entity entity : registry.view<MTransform, StaticMesh, AABB>()) {
-        const CHandle handle{ registry, entity };
+    for (const Entity entity : registry.view<MTransform, StaticMesh, AABB>())
+    {
+        const CHandle handle = { registry, entity };
         const auto& aabb = handle.get<AABB>();
 
         // We can discard draws for meshes, whose extents are too small
@@ -329,16 +318,18 @@ void cull_per_cascade(
         //    can get culled, even though they are much larger than
         //    the texels in other dimensions.
         //
-        const vec3 extents = aabb.extents();
-
         using std::min, std::max;
+
+        const vec3 extents = aabb.extents();
 
         const float median_extent =
             max(min(extents.x, extents.y), min(max(extents.x, extents.y), extents.z));
 
+        // TODO: Is there really not a better way?
         using memptr_type = decltype(&CascadeDrawState::draw_list_at);
 
-        auto test_cascades_and_output_into = [&](memptr_type out_list_mptr) {
+        auto test_cascades_and_output_into = [&](memptr_type out_list_mptr)
+        {
             // We abuse the fact that the cascades are stored in order
             // from smallest to largest, where the outer cascades
             // always fully contain the inner ones.
@@ -347,44 +338,36 @@ void cull_per_cascade(
             // the outer cascade, then we don't render that object to the
             // outer cascade, since it will be sampled from the inner anyway.
 
-            for (size_t i{ 0 }; i < num_cascades; ++i) {
+            for (const uindex i : irange(num_cascades))
+            {
                 const auto& view      = views     [i];
                 auto&       drawstate = drawstates[i];
 
-                if (view.tx_scale.x > median_extent) {
+                if (view.tx_scale.x > median_extent)
                     break; // Too small, discard.
-                }
 
                 const auto& padded_frustum = view.frustum_padded_world;
                 const auto& full_frustum   = view.frustum_world;
 
-                if (is_fully_inside_of(aabb, padded_frustum)) {
+                if (is_fully_inside_of(aabb, padded_frustum))
+                {
                     (drawstate.*out_list_mptr).emplace_back(entity);
                     break;
                 }
 
-                if (!is_fully_outside_of(aabb, full_frustum)) {
+                if (not is_fully_outside_of(aabb, full_frustum))
                     (drawstate.*out_list_mptr).emplace_back(entity);
-                }
             }
         };
 
-
-        if (has_tag<AlphaTested>(handle) &&
-            has_component<MaterialDiffuse>(handle))
-        {
+        if (has_tag<AlphaTested>(handle) and has_component<MaterialDiffuse>(handle))
             test_cascades_and_output_into(&CascadeDrawState::draw_list_at);
-        } else {
+        else
             test_cascades_and_output_into(&CascadeDrawState::draw_list_opaque);
-        }
     }
-
 }
 
-
 } // namespace
-
-
 
 
 void CascadedShadowMapping::operator()(
@@ -393,16 +376,11 @@ void CascadedShadowMapping::operator()(
     const auto& registry = engine.registry();
 
     // Check if the scene's directional light has shadow-casting enabled.
-    if (const auto dlight = get_active<DirectionalLight, Transform, ShadowCasting>(registry)) {
-
-        // Resize maps.
-        const Size2I resolution{ side_resolution, side_resolution };
-        cascades_->maps.resize(resolution, GLsizei(num_cascades())); // Will only resize on mismatch.
-
+    if (const CHandle dlight = get_active<DirectionalLight, Transform, ShadowCasting>(registry))
+    {
         // Update cascade views.
-        if (const auto cam = get_active<Camera, MTransform>(registry)) {
-
-            using glm::vec3;
+        if (const CHandle cam = get_active<Camera, MTransform>(registry))
+        {
             // TODO: As everywhere else, use MTf and decompose orientation.
             const vec3 light_dir     = dlight.get<Transform>().orientation() * -Z;
             const auto cam_mtf       = cam.get<MTransform>();
@@ -410,9 +388,9 @@ void CascadedShadowMapping::operator()(
             const auto frustum_world = cam.get<Camera>().view_frustum_as_quads().transformed(cam_mtf.model());
 
             fit_cascade_views_to_camera(
-                cascades_->views,
+                cascades.views,
                 num_cascades(),
-                resolution,
+                cascades.maps.resolution(),
                 cam_position,
                 frustum_world,
                 light_dir,
@@ -424,39 +402,40 @@ void CascadedShadowMapping::operator()(
         }
 
         // Resize drawstates if necessary.
-        cascades_->drawstates.resize(num_cascades());
+        cascades.drawstates.resize(num_cascades());
 
         // Do the shadowmapping pass.
-        if (strategy == Strategy::SinglepassGS) {
-            cascades_->draw_lists_active = false;
+        if (strategy == Strategy::SinglepassGS)
+        {
+            cascades.draw_lists_active = false;
             draw_all_cascades_with_geometry_shader(engine);
-        } else if (strategy == Strategy::PerCascadeCulling) {
-            cascades_->draw_lists_active = true;
-            cull_per_cascade(cascades_->views, cascades_->drawstates, registry);
+        }
+        else if (strategy == Strategy::PerCascadeCulling)
+        {
+            cascades.draw_lists_active = true;
+            cull_per_cascade(cascades.views, cascades.drawstates, registry);
             draw_with_culling_per_cascade(engine);
         }
 
         // Pass-through other params.
-        cascades_->blend_possible          = support_cascade_blending;
-        cascades_->blend_max_size_inner_tx = blend_size_inner_tx;
-
+        cascades.blend_possible          = support_cascade_blending;
+        cascades.blend_max_size_inner_tx = blend_size_inner_tx;
     }
 
     // TODO: Whose responsibility it is to set the viewport? Not of this stage tbh.
     glapi::set_viewport({ {}, engine.main_resolution() });
 
-    engine.belt().put_ref(*cascades_);
+    engine.belt().put_ref(cascades);
 }
-
-
 
 
 namespace {
 
+/*
+Requires that each entity in `entities` has MTransform and StaticMesh.
 
-// Requires that each entity in `entities` has MTransform and StaticMesh.
-//
-// Assumes that projection and view uniforms are already set.
+Assumes that projection and view uniforms are already set.
+*/
 void draw_opaque_meshes(
     RawProgram<>                        sp,
     BindToken<Binding::DrawFramebuffer> bound_fbo,
@@ -467,22 +446,25 @@ void draw_opaque_meshes(
     const auto* storage = mesh_registry.storage_for<VertexStatic>();
     assert(storage);
 
-    BindGuard bound_sp  = sp.use();
-    BindGuard bound_vao = storage->vertex_array().bind();
+    const BindGuard bsp = sp.use();
+    const BindGuard bva = storage->vertex_array().bind();
 
     const Location model_loc = sp.get_uniform_location("model");
 
-    for (const Entity entity : entities) {
+    for (const Entity entity : entities)
+    {
         auto [mtf, mesh] = registry.get<MTransform, StaticMesh>(entity);
         sp.uniform(model_loc, mtf.model());
-        draw_one_from_storage(*storage, bound_vao, bound_sp, bound_fbo, mesh.lods.cur());
+        draw_one_from_storage(*storage, bva, bsp, bound_fbo, mesh.lods.cur());
     }
 }
 
 
-// Requires that each entity in `entities` has MTransform and StaticMesh.
-//
-// Assumes that projection and view uniforms are already set.
+/*
+Requires that each entity in `entities` has MTransform and StaticMesh.
+
+Assumes that projection and view uniforms are already set.
+*/
 void multidraw_opaque_meshes(
     RawProgram<>                        sp,
     BindToken<Binding::DrawFramebuffer> bound_fbo,
@@ -494,7 +476,7 @@ void multidraw_opaque_meshes(
     const auto* storage = mesh_registry.storage_for<VertexStatic>();
     assert(storage);
 
-    BindGuard bound_sp = sp.use();
+    const BindGuard bsp = sp.use();
 
     auto get_mesh_id   = [&](Entity e) -> decltype(auto) { return registry.get<StaticMesh>(e).lods.cur(); };
     auto get_world_mat = [&](Entity e) -> decltype(auto) { return registry.get<MTransform>(e).model();  };
@@ -504,15 +486,16 @@ void multidraw_opaque_meshes(
     world_mats.bind_to_ssbo_index(0);
 
     // Draw all at once.
-    multidraw_from_storage(*storage, bound_sp, bound_fbo, entities | transform(get_mesh_id));
+    multidraw_from_storage(*storage, bsp, bound_fbo, entities | transform(get_mesh_id));
 }
 
+/*
+Requires that each entity in `entities` has MTransform, StaticMesh and MaterialDiffuse.
+Also, it most likely has to be tagged AlphaTested.
 
-// Requires that each entity in `entities` has MTransform, StaticMesh and MaterialDiffuse.
-// Also, it most likely has to be tagged AlphaTested.
-//
-// Assumes that projection and view uniforms are already set.
-void draw_alpha_tested_meshes(
+Assumes that projection and view uniforms are already set.
+*/
+ void draw_alpha_tested_meshes(
     RawProgram<>                        sp,
     BindToken<Binding::DrawFramebuffer> bound_fbo,
     const MeshRegistry&                 mesh_registry,
@@ -522,25 +505,23 @@ void draw_alpha_tested_meshes(
     const auto* storage = mesh_registry.storage_for<VertexStatic>();
     assert(storage);
 
-    BindGuard bound_sp  = sp.use();
-    BindGuard bound_vao = storage->vertex_array().bind();
+    const BindGuard bsp = sp.use();
+    const BindGuard bva = storage->vertex_array().bind();
 
     sp.uniform("material.diffuse", 0);
 
     const Location model_loc = sp.get_uniform_location("model");
 
-    for (const Entity entity : entities) {
+    for (const Entity entity : entities)
+    {
         auto [mtf, mesh, diffuse] = registry.get<MTransform, StaticMesh, MaterialDiffuse>(entity);
         diffuse.texture->bind_to_texture_unit(0);
         sp.uniform(model_loc, mtf.model());
-        draw_one_from_storage(*storage, bound_vao, bound_sp, bound_fbo, mesh.lods.cur());
+        draw_one_from_storage(*storage, bva, bsp, bound_fbo, mesh.lods.cur());
     }
 }
 
-
 } // namespace
-
-
 
 
 void CascadedShadowMapping::draw_all_cascades_with_geometry_shader(
@@ -548,55 +529,62 @@ void CascadedShadowMapping::draw_all_cascades_with_geometry_shader(
 {
     const auto& registry      = engine.registry();
     const auto& mesh_registry = engine.meshes();
-    auto& maps = cascades_->maps;
+    auto& maps = cascades.maps;
 
     // No following calls are valid for empty cascades array.
-    // The framebuffer would be incomplete.
-    assert(num_cascades() != 0 && maps.num_array_elements() != 0);
-
+    // The framebuffer would be incomplete. This should be accounted for before.
+    assert(num_cascades() > 0);
 
     glapi::set_viewport({ {}, maps.resolution() });
     glapi::enable(Capability::DepthTesting);
 
-    BindGuard bound_fbo = maps.bind_draw();
+    fbo_->attach_texture_to_depth_buffer(maps.textures());
+    const BindGuard bfb = fbo_->bind_draw();
 
-    glapi::clear_depth_buffer(bound_fbo, 1.f);
+    glapi::clear_depth_buffer(bfb, 1.f);
 
-
-    auto set_common_uniforms = [&](RawProgram<> sp) {
+    auto set_common_uniforms = [&](RawProgram<> sp)
+    {
         const auto num_cascades = GLsizei(this->num_cascades()); // These conversions are incredible.
 
-        Location proj_loc = sp.get_uniform_location("projections");
-        Location view_loc = sp.get_uniform_location("views");
+        const Location proj_loc = sp.get_uniform_location("projections");
+        const Location view_loc = sp.get_uniform_location("views");
 
-        for (GLsizei cascade_id{ 0 }; cascade_id < num_cascades; ++cascade_id) {
-            sp.uniform(Location{ proj_loc + cascade_id }, cascades_->views[cascade_id].proj_mat);
-            sp.uniform(Location{ view_loc + cascade_id }, cascades_->views[cascade_id].view_mat);
+        for (GLsizei cascade_id = 0; cascade_id < num_cascades; ++cascade_id)
+        {
+            sp.uniform(Location{ proj_loc + cascade_id }, cascades.views[cascade_id].proj_mat);
+            sp.uniform(Location{ view_loc + cascade_id }, cascades.views[cascade_id].view_mat);
         }
         sp.uniform("num_cascades", num_cascades);
     };
 
-
+    // SinglepassGS - Opaque.
     {
         const RawProgram<> sp = sp_singlepass_gs_no_alpha_.get();
 
-        if (enable_face_culling) {
+        if (enable_face_culling)
+        {
             glapi::enable(Capability::FaceCulling);
             glapi::set_face_culling_target(enum_cast<Faces>(faces_to_cull));
-        } else {
+        }
+        else
+        {
             glapi::disable(Capability::FaceCulling);
         }
 
         set_common_uniforms(sp);
+
         // You could have no AT requested, or you could have an AT flag,
         // but no diffuse material to sample from. Both ignore Alpha-Testing.
+
+        // TODO: This are negative filters. Negative filters are *not* fast.
         auto no_alpha           = registry.view<MTransform, StaticMesh>(entt::exclude<AlphaTested>);
         auto with_at_no_diffuse = registry.view<MTransform, StaticMesh, AlphaTested>(entt::exclude<MaterialDiffuse>);
-        draw_opaque_meshes(sp, bound_fbo, mesh_registry, registry, no_alpha);
-        draw_opaque_meshes(sp, bound_fbo, mesh_registry, registry, with_at_no_diffuse);
+        draw_opaque_meshes(sp, bfb, mesh_registry, registry, no_alpha);
+        draw_opaque_meshes(sp, bfb, mesh_registry, registry, with_at_no_diffuse);
     }
 
-
+    // SinglepassGS - Alpha
     {
         const RawProgram<> sp = sp_singlepass_gs_with_alpha_.get();
 
@@ -604,31 +592,30 @@ void CascadedShadowMapping::draw_all_cascades_with_geometry_shader(
         glapi::disable(Capability::FaceCulling);
 
         set_common_uniforms(sp);
+
         auto with_alpha = registry.view<MTransform, StaticMesh, AlphaTested>();
-        draw_alpha_tested_meshes(sp, bound_fbo, mesh_registry, registry, with_alpha);
+        draw_alpha_tested_meshes(sp, bfb, mesh_registry, registry, with_alpha);
     }
-
 }
-
-
-
 
 void CascadedShadowMapping::draw_with_culling_per_cascade(
     RenderEnginePrimaryInterface& engine)
 {
     const auto& registry      = engine.registry();
     const auto& mesh_registry = engine.meshes();
-    auto& maps = cascades_->maps;
+    auto& maps = cascades.maps;
 
     // No following calls are valid for empty cascades array.
     // The framebuffer would be incomplete.
-    assert(num_cascades() != 0 && maps.num_array_elements() != 0);
+    assert(num_cascades() > 0);
 
+    // FIXME: Just clear the texture? No?
+    fbo_->attach_texture_to_depth_buffer(cascades.maps.textures());
     // TODO: Should be part of the Framebuffer interface and exposed through RenderTarget.
     // This is much faster than clearing each layer one-by-one. Don't do that.
     const float clear_depth{ 1.f };
     gl::glClearNamedFramebufferfv(
-        maps.framebuffer().id(),
+        fbo_->id(),
         gl::GL_DEPTH, // Buffer.
         0,            // Must be 0.
         &clear_depth  // "Color"
@@ -637,33 +624,35 @@ void CascadedShadowMapping::draw_with_culling_per_cascade(
     glapi::set_viewport({ {}, maps.resolution() });
     glapi::enable(Capability::DepthTesting);
 
-    for (GLuint cascade_id{ 0 }; cascade_id < num_cascades(); ++cascade_id) {
+    for (const uindex cascade_id : irange(num_cascades()))
+    {
         const Layer cascade_layer = GLint(cascade_id);
-        const auto& view          = cascades_->views[cascade_id];
-        auto&       drawstate     = cascades_->drawstates[cascade_id];
+        const auto& view          = cascades.views[cascade_id];
+        auto&       drawstate     = cascades.drawstates[cascade_id];
 
-        auto set_common_uniforms = [&](RawProgram<> sp) {
+        auto set_common_uniforms = [&](RawProgram<> sp)
+        {
             sp.uniform("projection", view.proj_mat);
             sp.uniform("view",       view.view_mat);
         };
 
-
-        cascade_layer_target_.reset_depth_attachment(cascades_->maps.share_depth_attachment_layer(cascade_layer));
-
-        BindGuard bound_fbo = cascade_layer_target_.bind_draw();
-
-
-
+        // Attach layer-by-layer.
+        fbo_->attach_texture_layer_to_depth_buffer(maps.textures(), cascade_layer);
+        const BindGuard bfb = fbo_->bind_draw();
 
         // Draw opaque.
-        if (enable_face_culling) {
+        if (enable_face_culling)
+        {
             glapi::enable(Capability::FaceCulling);
             glapi::set_face_culling_target(enum_cast<Faces>(faces_to_cull));
-        } else {
+        }
+        else
+        {
             glapi::disable(Capability::FaceCulling);
         }
 
-        if (multidraw_opaque) {
+        if (multidraw_opaque)
+        {
             // FIXME: Somehow, we are getting some odd glitches here that are
             // not even reproduced in renderdoc. Meaning glitchy frame
             // does not have the same glitches after capture. Driver bug?
@@ -672,22 +661,22 @@ void CascadedShadowMapping::draw_with_culling_per_cascade(
             // culling is enabled...
             const RawProgram<> sp = sp_per_cascade_opaque_multidraw_.get();
             set_common_uniforms(sp);
-            multidraw_opaque_meshes(sp, bound_fbo, engine.meshes(), registry, drawstate.draw_list_opaque, drawstate.world_mats_opaque);
-        } else {
+            multidraw_opaque_meshes(sp, bfb, engine.meshes(), registry, drawstate.draw_list_opaque, drawstate.world_mats_opaque);
+        }
+        else
+        {
             const RawProgram<> sp = sp_per_cascade_no_alpha_.get();
             set_common_uniforms(sp);
-            draw_opaque_meshes(sp, bound_fbo, mesh_registry, registry, drawstate.draw_list_opaque);
+            draw_opaque_meshes(sp, bfb, mesh_registry, registry, drawstate.draw_list_opaque);
         }
 
-
-        // Draw alpha-tested.
+        // Draw alpha-tested. One-by-one.
         glapi::set_face_culling_target(Faces::Back);
         glapi::disable(Capability::FaceCulling);
-
         {
             const RawProgram<> sp = sp_per_cascade_with_alpha_.get();
             set_common_uniforms(sp);
-            draw_alpha_tested_meshes(sp, bound_fbo, mesh_registry, registry, drawstate.draw_list_at);
+            draw_alpha_tested_meshes(sp, bfb, mesh_registry, registry, drawstate.draw_list_at);
         }
     }
 

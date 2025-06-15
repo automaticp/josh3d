@@ -102,7 +102,7 @@ void program_operations() {
 
 [[maybe_unused]]
 inline void foooo(Layer layer) noexcept {
-    static_cast<GLint>(layer);
+    auto _ [[maybe_unused]] = static_cast<GLint>(layer);
 }
 
 
@@ -180,7 +180,7 @@ void texture_operations() {
 
     }
 
-    max_num_levels({ 4096, 4096, 4096 }).value;
+    auto _ [[maybe_unused]] = max_num_levels({ 4096, 4096, 4096 }).value;
     // n.value;
     allocate_texture<TextureTarget::Texture3D>(Size3I{ 0, 0, 0 }, InternalFormat::RGBA, NumLevels{ 7 });
 

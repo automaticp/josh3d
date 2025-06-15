@@ -4,11 +4,11 @@
 namespace josh {
 
 
-auto ViewFrustumAsQuads::make_local_z_symmetric(
+auto FrustumQuads::make_local_z_symmetric(
     float near_width, float near_height,
     float far_width,  float far_height,
     float z_near,     float z_far) noexcept
-        -> ViewFrustumAsQuads
+        -> FrustumQuads
 {
     const float nhw = near_width  / 2.f;
     const float nhh = near_height / 2.f;
@@ -26,14 +26,14 @@ auto ViewFrustumAsQuads::make_local_z_symmetric(
         glm::vec3{  fhw, -fhh, z_far },
         glm::vec3{  fhw,  fhh, z_far },
     };
-    return ViewFrustumAsQuads{ near, far };
+    return FrustumQuads{ near, far };
 }
 
 
-auto ViewFrustumAsQuads::make_local_perspective(
+auto FrustumQuads::make_local_perspective(
     float fovy_rad, float aspect_ratio,
     float z_near,   float z_far) noexcept
-        -> ViewFrustumAsQuads
+        -> FrustumQuads
 {
     using std::tan, std::atan;
 
@@ -46,23 +46,23 @@ auto ViewFrustumAsQuads::make_local_perspective(
     const float height_near = height_far * (z_near / z_far);
     const float width_near  = width_far  * (z_near / z_far);
 
-    return ViewFrustumAsQuads::make_local_z_symmetric(
+    return FrustumQuads::make_local_z_symmetric(
         width_near, height_near, width_far, height_far, z_near, z_far
     );
 }
 
 
-auto ViewFrustumAsQuads::transformed(const glm::mat4& world_mat) const noexcept
-    -> ViewFrustumAsQuads
+auto FrustumQuads::transformed(const glm::mat4& world_mat) const noexcept
+    -> FrustumQuads
 {
     return { near_.transformed(world_mat), far_.transformed(world_mat) };
 }
 
 
-auto ViewFrustumAsPlanes::make_local_perspective(
+auto FrustumPlanes::make_local_perspective(
     float fovy_rad, float aspect_ratio,
     float z_near,   float z_far) noexcept
-        -> ViewFrustumAsPlanes
+        -> FrustumPlanes
 {
     // RH (X: right, Y: up, Z: back) coordinate system.
 
@@ -85,11 +85,11 @@ auto ViewFrustumAsPlanes::make_local_perspective(
 }
 
 
-auto ViewFrustumAsPlanes::make_local_orthographic(
+auto FrustumPlanes::make_local_orthographic(
     float left_side,   float right_side,
     float bottom_side, float top_side,
     float z_near,      float z_far) noexcept
-        -> ViewFrustumAsPlanes
+        -> FrustumPlanes
 {
     const Plane near { {  0.f,  0.f,  1.f }, -z_near      };
     const Plane far  { {  0.f,  0.f, -1.f },  z_far       };
@@ -101,10 +101,10 @@ auto ViewFrustumAsPlanes::make_local_orthographic(
 }
 
 
-auto ViewFrustumAsPlanes::make_local_orthographic(
+auto FrustumPlanes::make_local_orthographic(
     float width,  float height,
     float z_near, float z_far) noexcept
-        -> ViewFrustumAsPlanes
+        -> FrustumPlanes
 {
     const float hw = width  / 2.f;
     const float hh = height / 2.f;
@@ -112,8 +112,8 @@ auto ViewFrustumAsPlanes::make_local_orthographic(
 }
 
 
-auto ViewFrustumAsPlanes::transformed(const glm::mat4& world_mat) const noexcept
-    -> ViewFrustumAsPlanes
+auto FrustumPlanes::transformed(const glm::mat4& world_mat) const noexcept
+    -> FrustumPlanes
 {
     return {
         near_.transformed(world_mat), far_   .transformed(world_mat),

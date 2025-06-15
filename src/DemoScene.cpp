@@ -27,13 +27,11 @@
 #include "RenderEngine.hpp"
 #include "Transform.hpp"
 #include "VPath.hpp"
-#include "stages/overlay/SceneOverlays.hpp"
-#include "stages/precompute/AnimationSystem.hpp"
-#include "stages/primary/SkinnedGeometry.hpp"
 #include "tags/Selected.hpp"
 #include "tags/ShadowCasting.hpp"
 #include "Filesystem.hpp"
 #include "Tags.hpp"
+#include "stages/precompute/AnimationSystem.hpp"
 #include "stages/precompute/PointLightSetup.hpp"
 #include "stages/precompute/TransformResolution.hpp"
 #include "stages/precompute/BoundingVolumeResolution.hpp"
@@ -44,21 +42,20 @@
 #include "stages/primary/IDBufferStorage.hpp"
 #include "stages/primary/GBufferStorage.hpp"
 #include "stages/primary/DeferredGeometry.hpp"
+#include "stages/primary/SkinnedGeometry.hpp"
 #include "stages/primary/TerrainGeometry.hpp"
 #include "stages/primary/DeferredShading.hpp"
 #include "stages/primary/LightDummies.hpp"
 #include "stages/primary/Sky.hpp"
-#include "stages/postprocess/Bloom2.hpp"
 #include "stages/postprocess/FXAA.hpp"
 #include "stages/postprocess/HDREyeAdaptation.hpp"
 #include "stages/postprocess/Fog.hpp"
+#include "stages/postprocess/BloomAW.hpp"
 #include "stages/overlay/CSMDebug.hpp"
 #include "stages/overlay/SSAODebug.hpp"
 #include "stages/overlay/GBufferDebug.hpp"
-#include "hooks/precompute/AllPrecomputeHooks.hpp"
-#include "hooks/primary/AllPrimaryHooks.hpp"
-#include "hooks/postprocess/AllPostprocessHooks.hpp"
-#include "hooks/overlay/AllOverlayHooks.hpp"
+#include "stages/overlay/SceneOverlays.hpp"
+#include "hooks/AllHooks.hpp"
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
 #include <entt/entity/view.hpp>
@@ -176,72 +173,47 @@ DemoScene::DemoScene(
 {
     auto& renderer = runtime.renderer;
 
-    auto plightsetup   = stages::precompute::PointLightSetup();
-    auto tfresolution  = stages::precompute::TransformResolution();
-    auto bvresolution  = stages::precompute::BoundingVolumeResolution();
-    auto frustumculler = stages::precompute::FrustumCulling();
-    auto skinning      = stages::precompute::AnimationSystem();
-    auto psmapping     = stages::primary::PointShadowMapping();
-    auto csmapping     = stages::primary::CascadedShadowMapping();
-    auto idbuffer      = stages::primary::IDBufferStorage();
-    auto gbuffer       = stages::primary::GBufferStorage();
-    auto defgeom       = stages::primary::DeferredGeometry();
-    auto skingeom      = stages::primary::SkinnedGeometry();
-    auto terraingeom   = stages::primary::TerrainGeometry();
-    auto ssao          = stages::primary::SSAO();
-    auto defshad       = stages::primary::DeferredShading();
-    auto lightdummies  = stages::primary::LightDummies();
-    auto sky           = stages::primary::Sky();
-    auto fog           = stages::postprocess::Fog();
-    auto bloom2        = stages::postprocess::Bloom2();
-    auto hdreyeing     = stages::postprocess::HDREyeAdaptation();
-    auto fxaaaaaaa     = stages::postprocess::FXAA();
-    auto gbugger       = stages::overlay::GBufferDebug();
-    auto csmbugger     = stages::overlay::CSMDebug();
-    auto ssaobugger    = stages::overlay::SSAODebug();
-    auto sceneovers    = stages::overlay::SceneOverlays();
+    renderer.add_next_precompute_stage ("Point Light Setup",         PointLightSetup());
+    renderer.add_next_precompute_stage ("Transfrom Resolution",      TransformResolution());
+    renderer.add_next_precompute_stage ("BV Resolution",             BoundingVolumeResolution());
+    renderer.add_next_precompute_stage ("Frustum Culling",           FrustumCulling());
+    renderer.add_next_precompute_stage ("Skinning",                  AnimationSystem());
+    renderer.add_next_primary_stage    ("Point Shadow Mapping",      PointShadowMapping());
+    renderer.add_next_primary_stage    ("Cascaded Shadow Mapping",   CascadedShadowMapping());
+    renderer.add_next_primary_stage    ("IDBuffer",                  IDBufferStorage());
+    renderer.add_next_primary_stage    ("GBuffer",                   GBufferStorage());
+    renderer.add_next_primary_stage    ("Deferred Mesh Geometry",    DeferredGeometry());
+    renderer.add_next_primary_stage    ("Deferred Skinned Geometry", SkinnedGeometry());
+    renderer.add_next_primary_stage    ("Deferred Terrain Geometry", TerrainGeometry());
+    renderer.add_next_primary_stage    ("SSAO",                      SSAO());
+    renderer.add_next_primary_stage    ("Deferred Shading",          DeferredShading());
+    renderer.add_next_primary_stage    ("Light Dummies",             LightDummies());
+    renderer.add_next_primary_stage    ("Sky",                       Sky());
+    renderer.add_next_postprocess_stage("Fog",                       Fog());
+    renderer.add_next_postprocess_stage("BloomAW",                   BloomAW());
+    renderer.add_next_postprocess_stage("HDR Eye Adaptation",        HDREyeAdaptation());
+    renderer.add_next_postprocess_stage("FXAA",                      FXAA());
+    renderer.add_next_overlay_stage    ("GBuffer Debug",             GBufferDebug());
+    renderer.add_next_overlay_stage    ("CSM Debug",                 CSMDebug());
+    renderer.add_next_overlay_stage    ("SSAO Debug",                SSAODebug());
+    renderer.add_next_overlay_stage    ("Scene Overlays",            SceneOverlays());
 
-    _imgui.stage_hooks.add_hook(imguihooks::precompute::PointLightSetup());
-    _imgui.stage_hooks.add_hook(imguihooks::primary::PointShadowMapping());
-    _imgui.stage_hooks.add_hook(imguihooks::primary::CascadedShadowMapping());
-    _imgui.stage_hooks.add_hook(imguihooks::primary::DeferredGeometry());
-    _imgui.stage_hooks.add_hook(imguihooks::primary::SSAO());
-    _imgui.stage_hooks.add_hook(imguihooks::primary::DeferredShading());
-    _imgui.stage_hooks.add_hook(imguihooks::primary::LightDummies());
-    _imgui.stage_hooks.add_hook(imguihooks::primary::Sky());
-    _imgui.stage_hooks.add_hook(imguihooks::postprocess::Fog());
-    _imgui.stage_hooks.add_hook(imguihooks::postprocess::Bloom2());
-    _imgui.stage_hooks.add_hook(imguihooks::postprocess::HDREyeAdaptation());
-    _imgui.stage_hooks.add_hook(imguihooks::postprocess::FXAA());
-    _imgui.stage_hooks.add_hook(imguihooks::overlay::GBufferDebug());
-    _imgui.stage_hooks.add_hook(imguihooks::overlay::CSMDebug());
-    _imgui.stage_hooks.add_hook(imguihooks::overlay::SSAODebug());
-    _imgui.stage_hooks.add_hook(imguihooks::overlay::SceneOverlays());
-
-    renderer.add_next_precompute_stage ("Point Light Setup",         MOVE(plightsetup));   // NOLINT(performance-move-const-arg)
-    renderer.add_next_precompute_stage ("Transfrom Resolution",      MOVE(tfresolution));  // NOLINT(performance-move-const-arg)
-    renderer.add_next_precompute_stage ("BV Resolution",             MOVE(bvresolution));  // NOLINT(performance-move-const-arg)
-    renderer.add_next_precompute_stage ("Frustum Culling",           MOVE(frustumculler)); // NOLINT(performance-move-const-arg)
-    renderer.add_next_precompute_stage ("Skinning",                  MOVE(skinning));      // NOLINT(performance-move-const-arg)
-    renderer.add_next_primary_stage    ("Point Shadow Mapping",      MOVE(psmapping));
-    renderer.add_next_primary_stage    ("Cascaded Shadow Mapping",   MOVE(csmapping));
-    renderer.add_next_primary_stage    ("IDBuffer",                  MOVE(idbuffer));
-    renderer.add_next_primary_stage    ("GBuffer",                   MOVE(gbuffer));
-    renderer.add_next_primary_stage    ("Deferred Mesh Geometry",    MOVE(defgeom));
-    renderer.add_next_primary_stage    ("Deferred Skinned Geometry", MOVE(skingeom));
-    renderer.add_next_primary_stage    ("Deferred Terrain Geometry", MOVE(terraingeom));
-    renderer.add_next_primary_stage    ("SSAO",                      MOVE(ssao));
-    renderer.add_next_primary_stage    ("Deferred Shading",          MOVE(defshad));
-    renderer.add_next_primary_stage    ("Light Dummies",             MOVE(lightdummies));
-    renderer.add_next_primary_stage    ("Sky",                       MOVE(sky));
-    renderer.add_next_postprocess_stage("Fog",                       MOVE(fog));       // NOLINT(performance-move-const-arg)
-    renderer.add_next_postprocess_stage("Bloom2",                    MOVE(bloom2));
-    renderer.add_next_postprocess_stage("HDR Eye Adaptation",        MOVE(hdreyeing));
-    renderer.add_next_postprocess_stage("FXAA",                      MOVE(fxaaaaaaa)); // NOLINT(performance-move-const-arg)
-    renderer.add_next_overlay_stage    ("GBuffer Debug",             MOVE(gbugger));
-    renderer.add_next_overlay_stage    ("CSM Debug",                 MOVE(csmbugger));
-    renderer.add_next_overlay_stage    ("SSAO Debug",                MOVE(ssaobugger));
-    renderer.add_next_overlay_stage    ("Scene Overlays",            MOVE(sceneovers));
+    _imgui.stage_hooks.add_hook(imguihooks::PointLightSetup());
+    _imgui.stage_hooks.add_hook(imguihooks::PointShadowMapping());
+    _imgui.stage_hooks.add_hook(imguihooks::CascadedShadowMapping());
+    _imgui.stage_hooks.add_hook(imguihooks::DeferredGeometry());
+    _imgui.stage_hooks.add_hook(imguihooks::SSAO());
+    _imgui.stage_hooks.add_hook(imguihooks::DeferredShading());
+    _imgui.stage_hooks.add_hook(imguihooks::LightDummies());
+    _imgui.stage_hooks.add_hook(imguihooks::Sky());
+    _imgui.stage_hooks.add_hook(imguihooks::Fog());
+    _imgui.stage_hooks.add_hook(imguihooks::BloomAW());
+    _imgui.stage_hooks.add_hook(imguihooks::HDREyeAdaptation());
+    _imgui.stage_hooks.add_hook(imguihooks::FXAA());
+    _imgui.stage_hooks.add_hook(imguihooks::GBufferDebug());
+    _imgui.stage_hooks.add_hook(imguihooks::CSMDebug());
+    _imgui.stage_hooks.add_hook(imguihooks::SSAODebug());
+    _imgui.stage_hooks.add_hook(imguihooks::SceneOverlays());
 
     configure_input();
     register_default_resource_info   (resource_info());

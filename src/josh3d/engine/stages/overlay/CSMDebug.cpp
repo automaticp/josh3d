@@ -1,13 +1,15 @@
 #include "CSMDebug.hpp"
+#include "ECS.hpp"
 #include "GLAPIBinding.hpp"
 #include "Active.hpp"
+#include "Geometry.hpp"
 #include "LightCasters.hpp"
+#include "Ranges.hpp"
 #include "Transform.hpp"
 #include "stages/primary/GBufferStorage.hpp"
-#include <ranges>
 
 
-namespace josh::stages::overlay {
+namespace josh {
 
 
 void CSMDebug::operator()(
@@ -15,12 +17,11 @@ void CSMDebug::operator()(
 {
     switch (mode)
     {
+        case OverlayMode::None:  return;
         case OverlayMode::Views: return draw_views_overlay(engine);
         case OverlayMode::Maps:  return draw_maps_overlay(engine);
-        case OverlayMode::None:  return;
     }
 }
-
 
 void CSMDebug::draw_views_overlay(
     RenderEngineOverlayInterface& engine)
@@ -29,12 +30,13 @@ void CSMDebug::draw_views_overlay(
     const auto* gbuffer  = engine.belt().try_get<GBuffer>();
     const auto* cascades = engine.belt().try_get<Cascades>();
 
-    if (const auto dlight = get_active<DirectionalLight, Transform>(registry)) {
-
-        const glm::vec3 light_dir = dlight.get<Transform>().orientation() * glm::vec3{ 0.f, 0.f, -1.f };
+    if (const CHandle dlight = get_active<DirectionalLight, Transform>(registry))
+    {
+        // FIXME: You know what.
+        const vec3 light_dir = dlight.get<Transform>().orientation() * -Z;
 
         const auto sp = sp_views_.get();
-        BindGuard bound_camera = engine.bind_camera_ubo();
+        const BindGuard bcam = engine.bind_camera_ubo();
 
         csm_views_buf_.restage(cascades->views | transform(CascadeViewGPU::create_from));
         csm_views_buf_.bind_to_ssbo_index(3);
@@ -48,16 +50,13 @@ void CSMDebug::draw_views_overlay(
         sp.uniform("dir_light.color",     dlight.get<DirectionalLight>().hdr_color());
         sp.uniform("dir_light.direction", light_dir);
 
-        glapi::disable(Capability::DepthTesting);
-        {
-            BindGuard bound_program = sp.use();
-            engine.draw_fullscreen_quad(bound_program);
-        }
-        glapi::enable(Capability::DepthTesting);
+        const BindGuard bsp = sp.use();
 
+        glapi::disable(Capability::DepthTesting);
+        engine.draw_fullscreen_quad(bsp);
+        glapi::enable(Capability::DepthTesting);
     }
 }
-
 
 void CSMDebug::draw_maps_overlay(
     RenderEngineOverlayInterface& engine)
@@ -66,21 +65,29 @@ void CSMDebug::draw_maps_overlay(
 
     if (not cascades) return;
 
+    _update_cascade_info(*cascades);
+    const u32 cascade_idx = current_cascade_idx();
+
     const auto sp = sp_maps_.get();
-    cascades->maps.depth_attachment().texture() .bind_to_texture_unit(0);
-    BindGuard bound_maps_sampler = maps_sampler_->bind_to_texture_unit(0);
+    cascades->maps.textures().bind_to_texture_unit(0);
+    const BindGuard bound_sampler = maps_sampler_->bind_to_texture_unit(0);
 
     sp.uniform("cascades",   0);
-    sp.uniform("cascade_id", cascade_id);
+    sp.uniform("cascade_id", cascade_idx);
+
+    const BindGuard bsp = sp.use();
 
     glapi::disable(Capability::DepthTesting);
-    {
-        BindGuard bound_program = sp.use();
-        engine.draw_fullscreen_quad(bound_program);
-    }
+    engine.draw_fullscreen_quad(bsp);
     glapi::enable(Capability::DepthTesting);
 }
 
+void CSMDebug::_update_cascade_info(const Cascades& cascades)
+{
+    const usize num_cascades = cascades.views.size();
+    last_cascade_idx_    = std::clamp(desired_cascade_idx_, uindex(0), num_cascades - 1);
+    desired_cascade_idx_ = last_cascade_idx_;
+    last_num_cascades_   = num_cascades;
+}
 
-
-} // namespace josh::stages::overlay
+} // namespace josh

@@ -4,11 +4,11 @@
 #include "VPath.hpp"
 
 
-namespace josh::stages::primary {
+namespace josh {
 
 
-class TerrainGeometry {
-public:
+struct TerrainGeometry
+{
     void operator()(RenderEnginePrimaryInterface& engine);
 
 private:
@@ -18,4 +18,4 @@ private:
 };
 
 
-} // namespace josh::stages::primary
+} // namespace josh

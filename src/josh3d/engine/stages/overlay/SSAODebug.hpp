@@ -7,16 +7,16 @@
 #include "VPath.hpp"
 
 
-namespace josh::stages::overlay {
+namespace josh {
 
 
 struct SSAODebug
 {
-    enum class OverlayMode
+    enum class OverlayMode : i32
     {
-        None,
-        Noisy,
-        Blurred,
+        None    = 0,
+        Noisy   = 1,
+        Blurred = 2,
     };
 
     OverlayMode mode = OverlayMode::None;
@@ -28,6 +28,7 @@ private:
         .vert = VPath("src/shaders/postprocess.vert"),
         .frag = VPath("src/shaders/ovl_ssao_debug.frag")});
 };
+JOSH3D_DEFINE_ENUM_EXTRAS(SSAODebug::OverlayMode, None, Noisy, Blurred);
 
 
 inline void SSAODebug::operator()(
@@ -43,11 +44,13 @@ inline void SSAODebug::operator()(
     aobuffers->noisy_texture()  .bind_to_texture_unit(0);
     aobuffers->blurred_texture().bind_to_texture_unit(1);
 
-    sp.uniform("mode", to_underlying(mode));
+    sp.uniform("mode",                to_underlying(mode));
     sp.uniform("tex_noisy_occlusion", 0);
     sp.uniform("tex_occlusion",       1);
 
-    engine.draw_fullscreen_quad(sp.use());
+    const BindGuard bsp = sp.use();
+
+    engine.draw_fullscreen_quad(bsp);
 }
 
 

@@ -7,7 +7,7 @@
 #include "VPath.hpp"
 
 
-namespace josh::stages::primary {
+namespace josh {
 
 
 struct LightDummies
@@ -18,10 +18,6 @@ struct LightDummies
 
     void operator()(RenderEnginePrimaryInterface& engine);
 
-    ShaderToken _sp = shader_pool().get({
-        .vert = VPath("src/shaders/light_dummies_point.vert"),
-        .frag = VPath("src/shaders/light_dummies_point.frag")});
-
     struct PLightParamsGPU
     {
         alignas(std430::align_vec3)  vec3  position;
@@ -31,10 +27,15 @@ struct LightDummies
     };
 
     UploadBuffer<PLightParamsGPU> _plight_params;
-    void _restage_plight_params(const Registry& registry);
     UniqueFramebuffer             _fbo;
+
+    void _restage_plight_params(const Registry& registry);
     void _relink_attachments(RenderEnginePrimaryInterface& engine);
+
+    ShaderToken _sp = shader_pool().get({
+        .vert = VPath("src/shaders/light_dummies_point.vert"),
+        .frag = VPath("src/shaders/light_dummies_point.frag")});
 };
 
 
-} // namespace josh::stages::primary
+} // namespace josh

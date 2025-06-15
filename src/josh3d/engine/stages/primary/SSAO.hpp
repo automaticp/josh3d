@@ -9,6 +9,7 @@
 #include "RenderEngine.hpp"
 #include "UploadBuffer.hpp"
 #include "VPath.hpp"
+#include <glm/trigonometric.hpp>
 
 
 namespace josh {
@@ -43,10 +44,6 @@ inline void AOBuffers::_resize(Extent2I new_resolution)
     _fbo_blurred->attach_texture_to_color_buffer(_blurred, slot);
 }
 
-} // namespace josh
-
-
-namespace josh::stages::primary {
 
 enum class SSAONoiseMode
 {
@@ -63,30 +60,30 @@ struct SSAO
     float resolution_divisor = 2.f; // Used to scale the Occlusion buffer resolution compared to screen size.
     SSAONoiseMode noise_mode = SSAONoiseMode::GeneratedInShader;
 
-    SSAO(usize kernel_size = 12, Extent2I noise_texture_resolution = { 16, 16 });
-
-    AOBuffers aobuffers;
-
-    void operator()(RenderEnginePrimaryInterface& engine);
-
-    auto kernel_size() const noexcept -> usize { return sampling_kernel_.num_staged(); }
-    void regenerate_kernel(usize kernel_size);
-
+    auto kernel_size() const noexcept -> usize { return kernel_.num_staged(); }
     // Minimum allowed angle between the surface and each kernel vector.
     auto deflection_rad() const noexcept -> float { return deflection_rad_; }
-    void set_deflection_rad(float angle_rad);
+    void regenerate_kernel(usize kernel_size, float deflection_rad);
 
     auto noise_texture_resolution() -> Extent2I { return noise_texture_->get_resolution(); }
     void regenerate_noise_texture(Extent2I resolution);
 
-private:
-    ShaderToken sp_sampling_ = shader_pool().get({
-        .vert = VPath("src/shaders/postprocess.vert"),
-        .frag = VPath("src/shaders/ssao_sampling.frag")});
+    SSAO(
+        usize    kernel_size = 12,
+        float    deflection_rad = glm::radians(5.0f),
+        Extent2I noise_texture_resolution = { 16, 16 });
 
-    ShaderToken sp_blur_ = shader_pool().get({
-        .vert = VPath("src/shaders/postprocess.vert"),
-        .frag = VPath("src/shaders/ssao_blur.frag")});
+    void operator()(RenderEnginePrimaryInterface& engine);
+
+    AOBuffers aobuffers;
+
+private:
+    UniqueTexture2D noise_texture_;
+
+    // NOTE: We use vec4 to avoid issues with alignment in std430,
+    // even though we only need vec3 of data.
+    UploadBuffer<vec4> kernel_;
+    float              deflection_rad_ = {};
 
     UniqueSampler target_sampler_ = eval%[]{
         UniqueSampler s;
@@ -95,22 +92,14 @@ private:
         return s;
     };
 
-    UniqueTexture2D noise_texture_;
+    ShaderToken sp_sampling_ = shader_pool().get({
+        .vert = VPath("src/shaders/postprocess.vert"),
+        .frag = VPath("src/shaders/ssao_sampling.frag")});
 
-    // It's still unclear to me why they call it "kernel".
-    // I get that it *sounds like* convolution:
-    //   "for each pixel get N samples and reduce that to one value"
-    // But it is not convolution in a mathematical sense, no?
-
-    // NOTE: We use vec4 to avoid issues with alignment in std430,
-    // even though we only need vec3 of data.
-    UploadBuffer<vec4> sampling_kernel_;
-
-    float deflection_rad_ = glm::radians(5.f);
-
-    auto _scaled_resolution(const Extent2I& resolution) const noexcept
-        -> Extent2I;
+    ShaderToken sp_blur_ = shader_pool().get({
+        .vert = VPath("src/shaders/postprocess.vert"),
+        .frag = VPath("src/shaders/ssao_blur.frag")});
 };
 
 
-} // namespace josh::stages::primary
+} // namespace josh

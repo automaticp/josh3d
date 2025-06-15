@@ -44,6 +44,9 @@ struct AsyncCradle
     operator AsyncCradleRef() noexcept;
 };
 
+/*
+HMM: Uh, why does this exist at all? Why not pass AsyncCradle& around?
+*/
 struct AsyncCradleRef
 {
     ThreadPool&        task_pool;

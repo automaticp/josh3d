@@ -2,6 +2,7 @@
 #include "GLAPIBinding.hpp"
 #include "GLPixelPackTraits.hpp"
 #include "GLTextures.hpp"
+#include "Geometry.hpp"
 #include "ImageData.hpp"
 #include "Region.hpp"
 #include "stages/primary/GBufferStorage.hpp"
@@ -9,15 +10,28 @@
 #include <random>
 
 
-namespace josh::stages::primary {
+namespace josh {
 
 // TODO: Surely there must be a better place for this?
 inline thread_local std::mt19937 urbg_{ std::random_device{}() };
 
+namespace {
 
-SSAO::SSAO(usize kernel_size, Extent2I noise_texture_resolution)
+auto scaled_resolution(const Extent2I& resolution, float divisor) noexcept
+    -> Extent2I
 {
-    regenerate_kernel(kernel_size);
+    return {
+        i32(float(resolution.width)  / divisor),
+        i32(float(resolution.height) / divisor),
+    };
+}
+
+} // namespace
+
+
+SSAO::SSAO(usize kernel_size, float deflection_rad, Extent2I noise_texture_resolution)
+{
+    regenerate_kernel(kernel_size, deflection_rad);
     regenerate_noise_texture(noise_texture_resolution);
 }
 
@@ -30,7 +44,7 @@ void SSAO::operator()(RenderEnginePrimaryInterface& engine)
     if (not gbuffer) return;
 
     const Extent2I source_resolution = gbuffer->resolution();
-    const Extent2I target_resolution = _scaled_resolution(source_resolution);
+    const Extent2I target_resolution = scaled_resolution(source_resolution, resolution_divisor);
 
     aobuffers._resize(target_resolution);
 
@@ -55,7 +69,7 @@ void SSAO::operator()(RenderEnginePrimaryInterface& engine)
             gbuffer->normals_texture().bind_to_texture_unit(1),
             target_sampler_->          bind_to_texture_unit(1),
             noise_texture_->           bind_to_texture_unit(2),
-            sampling_kernel_.          bind_to_ssbo_index(0),
+            kernel_.                   bind_to_ssbo_index(0),
             engine.                    bind_camera_ubo(),
         };
 
@@ -96,10 +110,15 @@ void SSAO::operator()(RenderEnginePrimaryInterface& engine)
     engine.belt().put_ref(aobuffers);
 }
 
-void SSAO::regenerate_kernel(usize n)
+void SSAO::regenerate_kernel(usize n, float deflection_rad)
 {
+    if (n == kernel_.num_staged() and deflection_rad == deflection_rad_)
+        return;
+
     std::normal_distribution<float>       gaussian_dist;
     std::uniform_real_distribution<float> uniform_dist;
+
+    const float sin_deflection = glm::sin(deflection_rad);
 
     const auto hemispherical_vec = [&]()
         -> vec4
@@ -121,7 +140,7 @@ void SSAO::regenerate_kernel(usize n)
             vec.z = glm::abs(vec.z);
             vec   = glm::normalize(vec);
         }
-        while (dot(vec, vec3(0, 0, 1)) < glm::sin(deflection_rad_));
+        while (dot(vec, Z) < sin_deflection);
 
         // Scaling our vector by random r in range [0, 1) will produce
         // the distribution of points in the final kernel with density
@@ -138,7 +157,8 @@ void SSAO::regenerate_kernel(usize n)
         return { vec, 0 };
     };
 
-    sampling_kernel_.restage(ranges::views::generate_n(hemispherical_vec, n));
+    kernel_.restage(ranges::views::generate_n(hemispherical_vec, n));
+    deflection_rad_ = deflection_rad;
 }
 
 void SSAO::regenerate_noise_texture(Extent2I resolution)
@@ -165,21 +185,5 @@ void SSAO::regenerate_noise_texture(Extent2I resolution)
     noise_texture_->upload_image_region({ {}, resolution }, PixelDataFormat::RGB, PixelDataType::Float, imdata.data());
 }
 
-void SSAO::set_deflection_rad(float angle_rad)
-{
-    deflection_rad_ = angle_rad;
-    regenerate_kernel(kernel_size());
-}
 
-auto SSAO::_scaled_resolution(const Extent2I& resolution) const noexcept
-    -> Extent2I
-{
-    return {
-        int(float(resolution.width)  / resolution_divisor),
-        int(float(resolution.height) / resolution_divisor),
-    };
-}
-
-
-
-} // namespace josh::stages::primary
+} // namespace josh

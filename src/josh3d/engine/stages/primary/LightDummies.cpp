@@ -5,19 +5,16 @@
 #include "Ranges.hpp"
 #include "ShaderPool.hpp"
 #include "Transform.hpp"
-#include "UniformTraits.hpp" // IWYU pragma: keep (traits)
+#include "UniformTraits.hpp"
 #include "LightCasters.hpp"
 #include "RenderEngine.hpp"
 #include "UploadBuffer.hpp"
 #include "Mesh.hpp"
 #include "stages/primary/IDBufferStorage.hpp"
-#include <entt/entity/entity.hpp>
-#include <entt/entity/fwd.hpp>
-#include <entt/entt.hpp>
 #include <ranges>
 
 
-namespace josh::stages::primary {
+namespace josh {
 
 void LightDummies::operator()(RenderEnginePrimaryInterface& engine)
 {
@@ -86,4 +83,4 @@ void LightDummies::_relink_attachments(RenderEnginePrimaryInterface& engine)
 }
 
 
-} // namespace josh::stages::primary
+} // namespace josh

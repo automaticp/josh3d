@@ -1,46 +1,50 @@
 #pragma once
+#include "EnumUtils.hpp"
 #include "GLAPICommonTypes.hpp"
+#include "Scalars.hpp"
 #include "UniformTraits.hpp"
 #include "GLObjects.hpp"
 #include "UploadBuffer.hpp"
 #include "stages/primary/CascadedShadowMapping.hpp"
-#include "stages/primary/GBufferStorage.hpp"
 #include "RenderEngine.hpp"
 #include "VPath.hpp"
 
 
-namespace josh::stages::overlay {
+namespace josh {
 
 
-class CSMDebug {
-public:
-    using Cascades       = primary::Cascades;
-    using CascadeView    = primary::CascadeView;
-    using CascadeViewGPU = primary::CascadeViewGPU;
+struct CSMDebug
+{
+    enum class OverlayMode
+    {
+        None,
+        Views,
+        Maps,
+    };
 
-    enum class OverlayMode : GLint {
-        None  = 0,
-        Views = 1,
-        Maps  = 2,
-    } mode { OverlayMode::None };
+    OverlayMode mode = OverlayMode::None;
 
-    // TODO: Hmm, interesting... This doesn't work.
-    // We could query the pipeline directly though.
-    auto num_cascades() const noexcept { return last_num_cascades_; }
-    GLuint cascade_id{ 0 };
+    // NOTE: The follwing are mere hints because the real number of
+    // cascades might have changed before you selected one, and the frame
+    // actually updated the cascades. This works OK most of the time still.
+
+    auto num_cascades_hint() const noexcept -> usize { return last_num_cascades_; }
+    auto current_cascade_idx() const noexcept -> uindex { return last_cascade_idx_; }
+    void select_cascade(uindex desired_cascade_idx) { desired_cascade_idx_ = desired_cascade_idx; }
 
     void operator()(RenderEngineOverlayInterface& engine);
 
 private:
-    usize last_num_cascades_;
+    void draw_views_overlay(RenderEngineOverlayInterface& engine);
+    void draw_maps_overlay (RenderEngineOverlayInterface& engine);
 
-    ShaderToken sp_views_ = shader_pool().get({
-        .vert = VPath("src/shaders/postprocess.vert"),
-        .frag = VPath("src/shaders/ovl_csm_debug_views.frag")});
+    // What a pain...
+    uindex desired_cascade_idx_ = 0;
+    uindex last_cascade_idx_    = 0;
+    usize  last_num_cascades_   = 1;
+    void _update_cascade_info(const Cascades& cascades);
 
-    ShaderToken sp_maps_ = shader_pool().get({
-        .vert = VPath("src/shaders/postprocess.vert"),
-        .frag = VPath("src/shaders/ovl_csm_debug_maps.frag")});
+    UploadBuffer<CascadeViewGPU> csm_views_buf_;
 
     UniqueSampler maps_sampler_ = []{
         UniqueSampler s;
@@ -49,14 +53,15 @@ private:
         return s;
     }();
 
-    UploadBuffer<CascadeViewGPU> csm_views_buf_;
+    ShaderToken sp_views_ = shader_pool().get({
+        .vert = VPath("src/shaders/postprocess.vert"),
+        .frag = VPath("src/shaders/ovl_csm_debug_views.frag")});
 
-    void draw_views_overlay(RenderEngineOverlayInterface& engine);
-    void draw_maps_overlay (RenderEngineOverlayInterface& engine);
-
+    ShaderToken sp_maps_ = shader_pool().get({
+        .vert = VPath("src/shaders/postprocess.vert"),
+        .frag = VPath("src/shaders/ovl_csm_debug_maps.frag")});
 };
+JOSH3D_DEFINE_ENUM_EXTRAS(CSMDebug::OverlayMode, None, Views, Maps);
 
 
-
-
-} // namespace josh::stages::overlay
+} // namespace josh

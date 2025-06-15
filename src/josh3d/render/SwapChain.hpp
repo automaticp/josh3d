@@ -10,6 +10,9 @@
 namespace josh {
 
 
+/*
+FIXME: It would be easier to just model a StaticRing<2>.
+*/
 template<specialization_of<RenderTarget> TargetT>
 class SwapChain {
 public:

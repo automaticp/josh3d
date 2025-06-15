@@ -8,9 +8,7 @@
 #include <entt/entt.hpp>
 
 
-
-
-namespace josh::stages::primary {
+namespace josh {
 
 
 void TerrainGeometry::operator()(
@@ -23,9 +21,9 @@ void TerrainGeometry::operator()(
 
     const RawProgram<> sp = sp_;
 
-    BindGuard bound_camera  = engine.bind_camera_ubo();
-    BindGuard bound_fbo     = gbuffer->bind_draw();
-    BindGuard bound_program = sp.use();
+    const BindGuard bcam = engine.bind_camera_ubo();
+    const BindGuard bfb  = gbuffer->bind_draw();
+    const BindGuard bsp  = sp.use();
 
     for (auto [entity, world_mtf, chunk]
         : registry.view<MTransform, TerrainChunk>().each())
@@ -37,9 +35,9 @@ void TerrainGeometry::operator()(
         sp.uniform("object_id",    entt::to_integral(entity));
         sp.uniform("test_color",   0);
 
-        chunk.mesh.draw(bound_program, bound_fbo);
+        chunk.mesh.draw(bsp, bfb);
     }
 }
 
 
-} // namespace josh::stages::primary
+} // namespace josh

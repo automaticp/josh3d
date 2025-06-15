@@ -1,6 +1,5 @@
 #pragma once
 #include "GLAPIBinding.hpp"
-#include "GLMutability.hpp"
 #include "GLObjects.hpp"
 #include "GLTextures.hpp"
 #include "Region.hpp"
@@ -94,10 +93,6 @@ inline void GBuffer::_reset_object_id(RawTexture2D<> new_object_id)
 }
 
 
-} // namespace josh
-namespace josh::stages::primary {
-
-
 /*
 Provides the storage for the GBuffer and clears it on each pass.
 
@@ -105,8 +100,9 @@ Place it before any other stages that draw into the GBuffer.
 */
 struct GBufferStorage
 {
-    GBuffer gbuffer;
     void operator()(RenderEnginePrimaryInterface& engine);
+
+    GBuffer gbuffer;
 };
 
 
@@ -118,7 +114,7 @@ inline void GBufferStorage::operator()(
     if (auto* idbuffer = engine.belt().try_get<IDBuffer>())
         gbuffer._reset_object_id(idbuffer->object_id_texture());
 
-    BindGuard bfbo = gbuffer.bind_draw();
+    const BindGuard bfbo = gbuffer.bind_draw();
 
     glapi::clear_color_buffer(bfbo, GBuffer::slot_normals,  RGBAF{ 0.f, 0.f, 0.f });
     glapi::clear_color_buffer(bfbo, GBuffer::slot_albedo,   RGBAF{ 0.f, 0.f, 0.f });

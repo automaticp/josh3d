@@ -885,6 +885,7 @@ enum class Face : GLuint {
     Front = GLuint(gl::GL_FRONT),
     Back  = GLuint(gl::GL_BACK),
 };
+JOSH3D_DEFINE_ENUM_EXTRAS(Face, Front, Back);
 
 
 JOSH3D_DEFINE_STRONG_SCALAR(Mask, GLuint);

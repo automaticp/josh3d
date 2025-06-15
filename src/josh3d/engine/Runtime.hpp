@@ -36,7 +36,7 @@ struct RuntimeParams
 A collection of systems and contexts that represent the core part of *the engine*.
 It is useful to aggregate this and not pass around all pieces individually.
 
-NOTE: The order of members here is not arbitrary. These members can depend on one
+NOTE: The order of members here is *not* arbitrary. These members can depend on one
 another. Reordering might lead to locking or segfaults on shutdown.
 */
 struct Runtime

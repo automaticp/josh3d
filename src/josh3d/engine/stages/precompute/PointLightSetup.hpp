@@ -1,32 +1,31 @@
 #pragma once
+#include "EnumUtils.hpp"
 #include "RenderEngine.hpp"
-#include "ECS.hpp"
 #include "LightCasters.hpp"
 #include "BoundingSphere.hpp"
 #include <glm/common.hpp>
 
 
-namespace josh::stages::precompute {
+namespace josh {
 
 
-class PointLightSetup {
-public:
-    enum class Strategy {
+struct PointLightSetup
+{
+    enum class Strategy
+    {
         FixedRadius,
         RadiosityThreshold,
         // ReverseExposure
     };
 
-    Strategy strategy{ Strategy::RadiosityThreshold };
+    Strategy strategy = Strategy::RadiosityThreshold;
 
-    float bounding_radius    { 10.0f  };
-    float radiosity_threshold{ 0.005f };
+    float bounding_radius     = 10.0f;
+    float radiosity_threshold = 0.005f;
 
     void operator()(RenderEnginePrecomputeInterface& engine);
-
 };
-
-
+JOSH3D_DEFINE_ENUM_EXTRAS(PointLightSetup::Strategy, FixedRadius, RadiosityThreshold);
 
 
 inline void PointLightSetup::operator()(
@@ -114,31 +113,29 @@ inline void PointLightSetup::operator()(
 
     */
 
-
-    using glm::vec3;
     using std::max, std::sqrt;
     constexpr float four_pi = 4.f * glm::pi<float>();
 
-
-    if (strategy == Strategy::FixedRadius) {
-
-        for (auto [e, plight] : registry.view<PointLight>().each()) {
+    if (strategy == Strategy::FixedRadius)
+    {
+        for (auto [e, plight] : registry.view<PointLight>().each())
+        {
             const float r0 = bounding_radius;
-            registry.emplace_or_replace<LocalBoundingSphere>(e, glm::vec3{}, r0);
+            registry.emplace_or_replace<LocalBoundingSphere>(e, vec3{}, r0);
         }
-
-    } else if (strategy == Strategy::RadiosityThreshold) {
-
-        for (auto [e, plight] : registry.view<PointLight>().each()) {
+    }
+    else if (strategy == Strategy::RadiosityThreshold)
+    {
+        for (auto [e, plight] : registry.view<PointLight>().each())
+        {
             const vec3  P    = plight.hdr_color();
             const float Pmax = max({ P.x, P.y, P.z });
             const float J0   = radiosity_threshold;
             const float r0   = sqrt(Pmax / (four_pi * J0));
-            registry.emplace_or_replace<LocalBoundingSphere>(e, glm::vec3{}, r0);
+            registry.emplace_or_replace<LocalBoundingSphere>(e, vec3{}, r0);
         }
-
     }
 }
 
 
-} // namespace josh::stages::precompute
+} // namespace josh

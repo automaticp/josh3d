@@ -8,18 +8,15 @@
 #include "RenderEngine.hpp"
 #include "GLScalars.hpp"
 #include "VPath.hpp"
-#include <glbinding/gl/gl.h>
-#include <entt/entity/fwd.hpp>
 
 
+namespace josh {
 
 
-namespace josh::stages::overlay {
-
-
-class GBufferDebug {
-public:
-    enum class OverlayMode : GLint {
+struct GBufferDebug
+{
+    enum class OverlayMode : GLint
+    {
         None         = 0,
         Albedo       = 1,
         Specular     = 2,
@@ -31,24 +28,22 @@ public:
         ObjectID     = 8,
     };
 
-    OverlayMode mode{ OverlayMode::None };
+    OverlayMode mode = OverlayMode::None;
 
     void operator()(RenderEngineOverlayInterface& engine);
 
 private:
-    ShaderToken sp_ = shader_pool().get({
-        .vert = VPath("src/shaders/postprocess.vert"),
-        .frag = VPath("src/shaders/ovl_gbuffer_debug.frag")});
-
     UniqueSampler integer_sampler_ = []{
         UniqueSampler s;
         s->set_min_mag_filters(MinFilter::Nearest, MagFilter::Nearest);
         return s;
     }();
 
+    ShaderToken sp_ = shader_pool().get({
+        .vert = VPath("src/shaders/postprocess.vert"),
+        .frag = VPath("src/shaders/ovl_gbuffer_debug.frag")});
 };
-
-
+JOSH3D_DEFINE_ENUM_EXTRAS(GBufferDebug::OverlayMode, None, Albedo, Specular, Position, Depth, DepthLinear, Normals, DrawRegion, ObjectID);
 
 
 inline void GBufferDebug::operator()(
@@ -60,7 +55,7 @@ inline void GBufferDebug::operator()(
 
     if (not gbuffer) return;
 
-    BindGuard bound_camera = engine.bind_camera_ubo();
+    const BindGuard bcam = engine.bind_camera_ubo();
 
     gbuffer->depth_texture()    .bind_to_texture_unit(0);
     gbuffer->normals_texture()  .bind_to_texture_unit(1);
@@ -68,7 +63,7 @@ inline void GBufferDebug::operator()(
     gbuffer->specular_texture() .bind_to_texture_unit(3);
     gbuffer->object_id_texture().bind_to_texture_unit(4);
 
-    BindGuard bound_integer_sampler = integer_sampler_->bind_to_texture_unit(4);
+    const BindGuard bound_sampler = integer_sampler_->bind_to_texture_unit(4);
 
     const auto sp = sp_.get();
 
@@ -79,9 +74,9 @@ inline void GBufferDebug::operator()(
     sp.uniform("gbuffer.tex_specular", 3);
     sp.uniform("tex_object_id",        4);
 
+    const BindGuard bsp = sp.use();
 
-    engine.draw_fullscreen_quad(sp.use());
-
+    engine.draw_fullscreen_quad(bsp);
 }
 
 

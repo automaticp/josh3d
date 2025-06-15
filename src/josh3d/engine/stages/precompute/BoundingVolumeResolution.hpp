@@ -2,13 +2,13 @@
 #include "RenderEngine.hpp"
 
 
-namespace josh::stages::precompute {
+namespace josh {
 
 
-class BoundingVolumeResolution {
-public:
+struct BoundingVolumeResolution
+{
     void operator()(RenderEnginePrecomputeInterface& engine);
 };
 
 
-} // namespace josh::stages::precompute
+} // namespace josh
