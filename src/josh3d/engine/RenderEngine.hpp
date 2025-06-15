@@ -231,8 +231,9 @@ struct RenderEngineCommonInterface
     auto camera_data()  const noexcept -> const auto&           { return _engine.camera_data_; }
     // TODO: Something about window resolution being separate?
     // TODO: Also main_resolution() is not accurate in Overlay stages.
-    auto main_resolution() const noexcept -> Extent2I          { return _engine.main_resolution(); }
-    auto frame_timer()     const noexcept -> const FrameTimer& { return _frame_timer;    }
+    auto main_resolution()   const noexcept -> Extent2I          { return _engine.main_resolution(); }
+    auto window_resolution() const noexcept -> Extent2I          { return _window_resolution; }
+    auto frame_timer()       const noexcept -> const FrameTimer& { return _frame_timer;    }
 
     auto bind_camera_ubo(u32 index = 0) const noexcept
         -> BindToken<BindingIndexed::UniformBuffer>
@@ -245,6 +246,7 @@ struct RenderEngineCommonInterface
     const MeshRegistry& _mesh_registry;
     const Primitives&   _primitives;
     const FrameTimer&   _frame_timer;
+    Extent2I            _window_resolution;
 };
 
 struct RenderEnginePrecomputeInterface : RenderEngineCommonInterface

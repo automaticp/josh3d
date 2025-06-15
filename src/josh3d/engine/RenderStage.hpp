@@ -80,33 +80,24 @@ Don't ask questions, I'm confused myself.
 template<typename AnyStageT>
 struct Stage
 {
-public:
-    // Something about exposing not only the public interface of the stage
-    // but also it's lifetime and ownership really makes me wish for a nuclear winter.
-    //
-    // Do we need a FunctionRef?
-    auto get()                    noexcept ->       AnyStageT&      { return stage_;           }
-    auto get()              const noexcept -> const AnyStageT&      { return stage_;           }
-    auto name()             const noexcept -> const String&         { return name_;            }
-    auto stage_type()       const noexcept -> const std::type_info& { return *type_info_;      }
+    auto get()                    noexcept ->       AnyStageT&      { return _stage;           }
+    auto get()              const noexcept -> const AnyStageT&      { return _stage;           }
+    auto name()             const noexcept -> const String&         { return _name;            }
+    auto stage_type()       const noexcept -> const std::type_info& { return *_type_info;      }
     auto stage_type_index() const noexcept ->       std::type_index { return { stage_type() }; }
+    auto cpu_frametimer()   const noexcept -> const AvgFrameTimeCounter& { return _cpu_timer; }
+    auto gpu_frametimer()   const noexcept -> const AvgFrameTimeCounter& { return _gpu_timer.get_timer(); }
 
-    auto cpu_frametimer() const noexcept -> const AvgFrameTimeCounter& { return cpu_timer_; }
-    auto gpu_frametimer() const noexcept -> const AvgFrameTimeCounter& { return gpu_timer_.get_timer(); }
-
-private:
-    friend RenderEngine;
-
-    String                name_;
-    AnyStageT             stage_;
-    const std::type_info* type_info_;
-    AvgFrameTimeCounter   cpu_timer_{};
-    GPUTimer              gpu_timer_{}; // Will need to preserve frame delta per query.
+    String                _name;
+    AnyStageT             _stage;
+    const std::type_info* _type_info;
+    AvgFrameTimeCounter   _cpu_timer = {};
+    GPUTimer              _gpu_timer = {}; // Will need to preserve frame delta per query.
 
     Stage(String name, AnyStageT&& stage)
-        : name_     { MOVE(name)            }
-        , stage_    { MOVE(stage)           }
-        , type_info_{ &stage_.target_type() }
+        : _name     { MOVE(name)            }
+        , _stage    { MOVE(stage)           }
+        , _type_info{ &_stage.target_type() }
     {}
 };
 

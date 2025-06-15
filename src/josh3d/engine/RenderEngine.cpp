@@ -1,6 +1,7 @@
 #include "RenderEngine.hpp"
 #include "Active.hpp"
 #include "Camera.hpp"
+#include "GLAPICore.hpp"
 #include "GLFramebuffer.hpp"
 #include "GLObjects.hpp"
 #include "MeshRegistry.hpp"
@@ -65,10 +66,10 @@ void RenderEngine::render(
         {
             for (auto& stage : stages)
             {
-                stage.gpu_timer_.resolve_available_time_queries();
+                stage._gpu_timer.resolve_available_time_queries();
 
-                stage.cpu_timer_.averaging_interval = stage_timing_averaging_interval_s;
-                stage.gpu_timer_.set_averaging_interval(stage_timing_averaging_interval_s);
+                stage._cpu_timer.averaging_interval = stage_timing_averaging_interval_s;
+                stage._gpu_timer.set_averaging_interval(stage_timing_averaging_interval_s);
 
                 UniqueQueryTimeElapsed tquery;
                 tquery->begin_query();
@@ -78,10 +79,10 @@ void RenderEngine::render(
                 stage.get()(interface);
 
                 auto t1 = std::chrono::steady_clock::now();
-                stage.cpu_timer_.update(std::chrono::duration<float>(t1 - t0).count(), frame_timer.delta<float>());
+                stage._cpu_timer.update(std::chrono::duration<float>(t1 - t0).count(), frame_timer.delta<float>());
 
                 tquery->end_query();
-                stage.gpu_timer_.emplace_new_time_query(MOVE(tquery), frame_timer.delta<float>());
+                stage._gpu_timer.emplace_new_time_query(MOVE(tquery), frame_timer.delta<float>());
             }
         }
         else
@@ -92,11 +93,12 @@ void RenderEngine::render(
     };
 
     const RenderEngineCommonInterface interface_common = {
-        ._engine        = *this,
-        ._registry      = registry,
-        ._mesh_registry = mesh_registry,
-        ._primitives    = primitives,
-        ._frame_timer   = frame_timer
+        ._engine            = *this,
+        ._registry          = registry,
+        ._mesh_registry     = mesh_registry,
+        ._primitives        = primitives,
+        ._frame_timer       = frame_timer,
+        ._window_resolution = window_resolution,
     };
     const RenderEnginePrecomputeInterface  interface_precompute  = { interface_common };
     const RenderEnginePrimaryInterface     interface_primary     = { interface_common };
@@ -119,6 +121,9 @@ void RenderEngine::render(
     glapi::enable(Capability::DepthTesting);
     execute_stages(primary_, interface_primary);
     glapi::disable(Capability::DepthTesting);
+
+    // Will reset viewport here just in case.
+    glapi::set_viewport({ {}, main_resolution() });
 
     // Postprocess.
     _main_target._swap();

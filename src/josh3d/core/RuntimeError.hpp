@@ -43,7 +43,8 @@ using error::RuntimeError;
 
 template<typename ErrorT = RuntimeError, typename ...Args>
 [[noreturn]]
-void throw_fmt(fmt::format_string<Args...> msg, Args&&... args) {
+void throw_fmt(fmt::format_string<Args...> msg, Args&&... args)
+{
     throw ErrorT(fmt::format(msg, FORWARD(args)...));
 }
 

@@ -37,9 +37,6 @@ void PointShadowMapping::operator()(
 
     map_point_shadows(engine);
 
-    // TODO: Wrong responisbility.
-    glapi::set_viewport({ {}, engine.main_resolution() });
-
     engine.belt().put_ref(point_shadows);
 }
 

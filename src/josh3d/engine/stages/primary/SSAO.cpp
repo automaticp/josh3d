@@ -104,9 +104,6 @@ void SSAO::operator()(RenderEnginePrimaryInterface& engine)
         engine.primitives().quad_mesh().draw(bsp, bfb);
     }
 
-    // FIXME: This is not my responsibility, but everyone else suffers if I don't do this ;_;
-    glapi::set_viewport({ {}, source_resolution });
-
     engine.belt().put_ref(aobuffers);
 }
 

@@ -4,6 +4,7 @@
 #include "ECS.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLAPICommonTypes.hpp"
+#include "GLAPICore.hpp"
 #include "GLProgram.hpp"
 #include "Geometry.hpp"
 #include "ShaderPool.hpp"
@@ -29,6 +30,7 @@ void Sky::operator()(RenderEnginePrimaryInterface& engine)
     glapi::disable(Capability::FaceCulling);
     glapi::set_depth_mask(false); // Disables writes to depth buffer.
     glapi::set_depth_test_condition(CompareOp::LEqual);
+    glapi::set_viewport({ {}, engine.main_resolution() });
 
     switch (sky_type)
     {

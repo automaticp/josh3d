@@ -3,6 +3,7 @@
 #include "ECS.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLAPICommonTypes.hpp"
+#include "GLAPICore.hpp"
 #include "GLProgram.hpp"
 #include "LightsGPU.hpp"
 #include "Mesh.hpp"
@@ -172,7 +173,7 @@ void DeferredShading::draw_singlepass(
     sp.uniform("psm_params.pcf_extent",  point_params.pcf_extent);
     sp.uniform("psm_params.pcf_offset",  point_params.pcf_offset);
 
-
+    glapi::set_viewport({ {}, engine.main_resolution() });
     glapi::disable(Capability::DepthTesting);
     engine.draw([&](auto bfb)
     {
@@ -225,15 +226,17 @@ so that it could be used as a stepping stone / testbed for other stuff.
 void DeferredShading::draw_multipass(
     RenderEnginePrimaryInterface& engine)
 {
-    const auto& registry  = engine.registry();
-    auto*       gbuffer   = engine.belt().try_get<GBuffer>();
-    auto*       point_shadows       = engine.belt().try_get<PointShadows>();
-    auto*       cascades  = engine.belt().try_get<Cascades>();
-    auto*       aobuffers = engine.belt().try_get<AOBuffers>();
+    const auto& registry      = engine.registry();
+    auto*       gbuffer       = engine.belt().try_get<GBuffer>();
+    auto*       point_shadows = engine.belt().try_get<PointShadows>();
+    auto*       cascades      = engine.belt().try_get<Cascades>();
+    auto*       aobuffers     = engine.belt().try_get<AOBuffers>();
 
     if (not gbuffer) return;
-    // TODO: Could these be optional? Especially AO.
-    if (not point_shadows or not cascades or not aobuffers) return;
+    // TODO: Could these be optional?
+    if (not point_shadows or not cascades) return;
+
+    glapi::set_viewport({ {}, engine.main_resolution() });
 
     const BindGuard bcam = engine.bind_camera_ubo();
     const MultibindGuard bound_gbuffer = {
@@ -269,11 +272,18 @@ void DeferredShading::draw_multipass(
         }
 
         // Ambient Occlusion.
-        aobuffers->blurred_texture()                 .bind_to_texture_unit(4);
-        BindGuard bound_ao_sampler = target_sampler_->bind_to_texture_unit(4);
-        sp.uniform("use_ambient_occlusion",    use_ambient_occlusion);
-        sp.uniform("tex_ambient_occlusion",    4);
-        sp.uniform("ambient_occlusion_power",  ambient_occlusion_power);
+        if (aobuffers)
+        {
+            aobuffers->blurred_texture().bind_to_texture_unit(4);
+            const BindGuard bound_sampler = target_sampler_->bind_to_texture_unit(4);
+            sp.uniform("use_ambient_occlusion",    use_ambient_occlusion);
+            sp.uniform("tex_ambient_occlusion",    4);
+            sp.uniform("ambient_occlusion_power",  ambient_occlusion_power);
+        }
+        else
+        {
+            sp.uniform("use_ambient_occlusion", false);
+        }
 
         // Directional Light.
         {

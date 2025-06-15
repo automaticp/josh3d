@@ -22,6 +22,7 @@ Checks: 'boost-*,
     -modernize-raw-string-literal,
     -modernize-use-designated-initializers,
     -modernize-use-using,
+    -modernize-use-emplace,
     performance-*,
     -performance-enum-size,
     portability-*'

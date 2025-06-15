@@ -64,6 +64,8 @@ void DeferredGeometry::operator()(
         }
     };
 
+    glapi::set_viewport({ {}, gbuffer->resolution() });
+
     const BindGuard bfb = gbuffer->bind_draw();
     const BindGuard bva = mesh_storage->vertex_array().bind();
 

@@ -1,5 +1,6 @@
 #include "SkinnedGeometry.hpp"
 #include "DefaultTextures.hpp"
+#include "GLAPICore.hpp"
 #include "Materials.hpp"
 #include "MeshStorage.hpp"
 #include "RenderEngine.hpp"
@@ -28,6 +29,8 @@ void SkinnedGeometry::operator()(
     const BindGuard bva  = mesh_storage->vertex_array().bind();
     const BindGuard bcam = engine.bind_camera_ubo();
     const BindGuard bfb  = gbuffer->bind_draw();
+
+    glapi::set_viewport({ {}, gbuffer->resolution() });
 
     auto view_opaque  = registry.view<Visible, MTransform, SkinnedMe2h, Pose>(entt::exclude<AlphaTested>);
     auto view_atested = registry.view<Visible, MTransform, SkinnedMe2h, Pose, AlphaTested>();

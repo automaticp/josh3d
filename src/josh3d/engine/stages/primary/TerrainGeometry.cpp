@@ -1,4 +1,5 @@
 #include "TerrainGeometry.hpp"
+#include "GLAPICore.hpp"
 #include "stages/primary/GBufferStorage.hpp"
 #include "GLProgram.hpp"
 #include "UniformTraits.hpp"
@@ -20,6 +21,8 @@ void TerrainGeometry::operator()(
     if (not gbuffer) return;
 
     const RawProgram<> sp = sp_;
+
+    glapi::set_viewport({ {}, gbuffer->resolution() });
 
     const BindGuard bcam = engine.bind_camera_ubo();
     const BindGuard bfb  = gbuffer->bind_draw();

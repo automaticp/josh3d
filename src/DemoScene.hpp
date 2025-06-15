@@ -4,7 +4,6 @@
 #include "Input.hpp"
 #include "InputFreeCamera.hpp"
 #include "Semantics.hpp"
-#include "SharedStorage.hpp"
 #include <glfwpp/window.h>
 #include <ostream>
 

@@ -3,7 +3,6 @@
 #include "AssetManager.hpp"
 #include "AssetUnpacker.hpp"
 #include "AsyncCradle.hpp"
-#include "CategoryCasts.hpp"
 #include "ContainerUtils.hpp"
 #include "DefaultResources.hpp"
 #include "GLPixelPackTraits.hpp"

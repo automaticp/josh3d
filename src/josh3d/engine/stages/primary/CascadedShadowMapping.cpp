@@ -422,9 +422,6 @@ void CascadedShadowMapping::operator()(
         cascades.blend_max_size_inner_tx = blend_size_inner_tx;
     }
 
-    // TODO: Whose responsibility it is to set the viewport? Not of this stage tbh.
-    glapi::set_viewport({ {}, engine.main_resolution() });
-
     engine.belt().put_ref(cascades);
 }
 

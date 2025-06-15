@@ -1,6 +1,7 @@
 #include "LightDummies.hpp"
 #include "ECS.hpp"
 #include "GLAPIBinding.hpp"
+#include "GLAPICore.hpp"
 #include "GLObjects.hpp"
 #include "Ranges.hpp"
 #include "ShaderPool.hpp"
@@ -34,6 +35,8 @@ void LightDummies::operator()(RenderEnginePrimaryInterface& engine)
         const BindGuard bsp = _sp.get().use();
         const BindGuard bfb = _fbo->bind_draw();
         const BindGuard bva = mesh.vertex_array().bind();
+
+        glapi::set_viewport({ {}, engine.main_resolution() });
 
         glapi::draw_elements_instanced(
             bva, bsp, bfb,
