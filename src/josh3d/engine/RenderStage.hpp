@@ -14,7 +14,7 @@
 namespace josh {
 
 
-class RenderEngine;
+struct RenderEngine;
 struct RenderEnginePrecomputeInterface;
 struct RenderEnginePrimaryInterface;
 struct RenderEnginePostprocessInterface;

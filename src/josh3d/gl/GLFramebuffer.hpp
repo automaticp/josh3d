@@ -28,6 +28,7 @@ enum class BlitFilter : GLuint {
     Nearest = GLuint(gl::GL_NEAREST),
     Linear  = GLuint(gl::GL_LINEAR),
 };
+JOSH3D_DEFINE_ENUM_EXTRAS(BlitFilter, Nearest, Linear);
 
 
 enum class FramebufferStatus : GLuint {

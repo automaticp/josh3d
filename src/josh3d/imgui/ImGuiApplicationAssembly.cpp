@@ -320,7 +320,17 @@ void ImGuiApplicationAssembly::_draw_widgets()
                     0.001f, 5.f, "%.3f", ImGuiSliderFlags_Logarithmic);
                 ImGui::EndDisabled();
 
-                ImGui::EnumCombo("HDR Format", &engine.main_buffer_format);
+                // TODO: Should be able to set render
+                // resolution separate from the window size.
+                auto color_format = engine.main_color_format();
+                auto depth_format = engine.main_depth_format();
+                auto resolution   = engine.main_resolution();
+                if (ImGui::EnumCombo("Color Format", &color_format) +
+                    ImGui::EnumCombo("Depth Format", &depth_format) +
+                    ImGui::SliderInt2("Main Resolution", &resolution.width, 1, 4096))
+                {
+                    engine.respec_main_target(resolution, color_format, depth_format);
+                }
 
                 ImGui::EndMenu();
             }

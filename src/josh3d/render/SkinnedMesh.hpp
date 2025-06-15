@@ -32,9 +32,9 @@ SkinnedMesh is simply a reference to a mesh in the storage plus a posed skeleton
 
 This is a rendering component.
 
-TODO: Encapsulate better.
+TODO: DEPRECATE
 */
-struct [[deprecated]] SkinnedMesh {
+struct SkinnedMesh {
     MeshID<VertexSkinned> mesh_id;
     PosedSkeleton         pose;
 };

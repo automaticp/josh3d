@@ -1,10 +1,8 @@
 #include "RenderEngine.hpp"
 #include "Active.hpp"
-#include "EnumUtils.hpp"
 #include "Camera.hpp"
 #include "GLFramebuffer.hpp"
 #include "GLObjects.hpp"
-#include "GLTextures.hpp"
 #include "MeshRegistry.hpp"
 #include "RenderStage.hpp"
 #include "Skeleton.hpp"
@@ -13,30 +11,20 @@
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/gl.h>
 #include <glm/ext/matrix_transform.hpp>
-#include <glm/glm.hpp>
 #include <glm/matrix.hpp>
 #include <chrono>
 
 
 namespace josh {
 
+
 RenderEngine::RenderEngine(
     Extent2I  main_resolution,
-    HDRFormat main_format
-)
-    : main_buffer_format{ main_format     }
-    , main_resolution   { main_resolution }
-    , main_depth_       {
-        make_main_depth(main_resolution)
-    }
-    , main_swapchain_   {
-        make_main_swapchain(
-            main_resolution,
-            enum_cast<InternalFormat>(main_buffer_format),
-            main_depth_
-        )
-    }
-{}
+    HDRFormat main_color_format,
+    DSFormat  main_depth_format)
+{
+    respec_main_target(main_resolution, main_color_format, main_depth_format);
+}
 
 void RenderEngine::render(
     Registry&           registry,
@@ -45,32 +33,6 @@ void RenderEngine::render(
     const Extent2I&     window_resolution,
     const FrameTimer&   frame_timer)
 {
-    // Update main render buffer if necessary.
-    const bool resolution_changed =
-        main_resolution != main_swapchain_.resolution();
-
-    const bool iformat_changed =
-        enum_cast<InternalFormat>(main_buffer_format) !=
-            main_swapchain_.back_target().color_attachment().internal_format();
-
-    if (resolution_changed or iformat_changed)
-    {
-        main_depth_.resize(main_resolution);
-
-        if (iformat_changed)
-        {
-            const InternalFormat new_iformat = enum_cast<InternalFormat>(main_buffer_format);
-            // Will also reattach new depth.
-            main_swapchain_ = make_main_swapchain(main_resolution, new_iformat, main_depth_);
-        }
-        else
-        {
-            main_swapchain_.resize(main_resolution);
-            main_swapchain_.front_target().reset_depth_attachment(main_depth_.share());
-            main_swapchain_.back_target() .reset_depth_attachment(main_depth_.share());
-        }
-    }
-
     // Update camera.
     // TODO: Orthographic has no notion of aspect_ratio.
     // TODO: Should this be done after precompute? As precompute can change what's active.
@@ -82,7 +44,7 @@ void RenderEngine::render(
     {
         Camera& camera = handle.get<Camera>();
         auto params = camera.get_params();
-        params.aspect_ratio = main_resolution.aspect_ratio();
+        params.aspect_ratio = main_resolution().aspect_ratio();
         camera.update_params(params);
 
         mat4 view = glm::identity<mat4>();
@@ -93,7 +55,7 @@ void RenderEngine::render(
     }
 
     // Update viewport.
-    glapi::set_viewport({ {}, main_resolution });
+    glapi::set_viewport({ {}, main_resolution() });
 
     auto execute_stages = [&](
         auto& stages,
@@ -149,8 +111,8 @@ void RenderEngine::render(
 
     // Primary.
     {
-        BindGuard bound_fbo = main_swapchain_.back_target().bind_draw();
-        glapi::clear_depth_stencil_buffer(bound_fbo, 1.0f, 0);
+        const BindGuard bfb = _main_target._back().fbo->bind_draw();
+        glapi::clear_depth_stencil_buffer(bfb, 1.0f, 0);
     }
 
     // To swapchain backbuffer.
@@ -159,16 +121,20 @@ void RenderEngine::render(
     glapi::disable(Capability::DepthTesting);
 
     // Postprocess.
-    main_swapchain_.swap_buffers();
+    _main_target._swap();
     // To swapchain (swap each draw).
     execute_stages(postprocess_, interface_postprocess);
 
     // Blit front to default (opt. sRGB)
     if (enable_srgb_conversion) glapi::enable(Capability::SRGBConversion);
 
-    main_swapchain_.front_target().framebuffer().blit_to(
+    // FIXME: Currently, the blitting is very limited because of the
+    // severe mismatch of formats between the main target and the
+    // default fbo. Linear filtering does not work, and mismatched
+    // resolutions completely break overlays.
+    _main_target._front().fbo->blit_to(
         default_fbo_,
-        { {}, main_resolution   }, // Internal rendering resolution.
+        { {}, main_resolution() }, // Internal rendering resolution.
         { {}, window_resolution }, // This is technically window size and can technically differ, technically.
         BufferMask::ColorBit | BufferMask::DepthBit,
         BlitFilter::Nearest
@@ -200,26 +166,6 @@ void RenderEngine::render(
     // Present.
 }
 
-auto RenderEngine::make_main_depth(const Extent2I& resolution)
-    -> DepthAttachment
-{
-    DepthAttachment depth{ InternalFormat::Depth24_Stencil8 };
-    depth.resize(resolution);
-    return depth;
-}
-
-auto RenderEngine::make_main_swapchain(
-    const Extent2I&  resolution,
-    InternalFormat   iformat,
-    DepthAttachment& depth)
-        -> SwapChain<MainTarget>
-{
-    return {
-        MainTarget{ resolution, depth.share(), { iformat } },
-        MainTarget{ resolution, depth.share(), { iformat } },
-    };
-}
-
 void RenderEngine::update_camera_data(
     const mat4& view,
     const mat4& proj,
@@ -247,6 +193,11 @@ void RenderEngine::update_camera_data(
     };
 
     camera_ubo_->upload_data({ &camera_data_, 1 });
+}
+
+void RenderEngine::respec_main_target(Extent2I resolution, HDRFormat color_iformat, DSFormat depth_iformat)
+{
+    _main_target._respec(resolution, color_iformat, depth_iformat);
 }
 
 

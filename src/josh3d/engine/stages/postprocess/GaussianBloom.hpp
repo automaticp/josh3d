@@ -40,7 +40,7 @@ inline void GaussianBloomTarget::_resize(Extent2I resolution)
     if (resolution != _resolution)
     {
         _resolution = resolution;
-        for (auto& side : _swapchain._storage)
+        for (auto& side : _swapchain.storage)
         {
             side.texture = {};
             side.texture->allocate_storage(_resolution, iformat);
