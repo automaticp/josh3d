@@ -71,7 +71,7 @@ template<josh::enumeration E>
 auto EnumListBox(
     const char*          label,
     E*                   enumerant,
-    const ImVec2&        size = { 0, 0 },
+    const ImVec2&        size,
     ImGuiSelectableFlags selectable_flags = {})
         -> bool
 {
@@ -93,7 +93,7 @@ template<josh::enumeration E>
 auto EnumListBox(
     const char*          label,
     E*                   enumerant,
-    int                  height_in_items,
+    int                  height_in_items  = 0,
     ImGuiSelectableFlags selectable_flags = {})
         -> bool
 {

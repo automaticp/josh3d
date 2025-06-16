@@ -15,7 +15,6 @@ ImGuiContextWrapper::ImGuiContextWrapper(glfw::Window& window)
     auto [x, y] = window.getContentScale();
     ImGui::GetStyle().ScaleAllSizes(x);
     ImGui::GetIO().FontGlobalScale = x;
-    ImGui::GetIO().IniFilename = nullptr;
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 }
 

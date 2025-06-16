@@ -16,6 +16,7 @@
 #include "LightCasters.hpp"
 #include "ObjectLifecycle.hpp"
 #include "OffscreenContext.hpp"
+#include "Region.hpp"
 #include "ResourceDatabase.hpp"
 #include "Runtime.hpp"
 #include "Scalars.hpp"
@@ -181,9 +182,9 @@ DemoScene::DemoScene(
     renderer.add_next_primary_stage    ("Cascaded Shadow Mapping",   CascadedShadowMapping());
     renderer.add_next_primary_stage    ("IDBuffer",                  IDBufferStorage());
     renderer.add_next_primary_stage    ("GBuffer",                   GBufferStorage());
-    renderer.add_next_primary_stage    ("Deferred Mesh Geometry",    DeferredGeometry());
-    renderer.add_next_primary_stage    ("Deferred Skinned Geometry", SkinnedGeometry());
-    renderer.add_next_primary_stage    ("Deferred Terrain Geometry", TerrainGeometry());
+    renderer.add_next_primary_stage    ("Static Geometry",           DeferredGeometry());
+    renderer.add_next_primary_stage    ("Skinned Geometry",          SkinnedGeometry());
+    renderer.add_next_primary_stage    ("Terrain Geometry",          TerrainGeometry());
     renderer.add_next_primary_stage    ("SSAO",                      SSAO());
     renderer.add_next_primary_stage    ("Deferred Shading",          DeferredShading());
     renderer.add_next_primary_stage    ("Light Dummies",             LightDummies());
@@ -273,15 +274,22 @@ void DemoScene::configure_input()
                 const bool select_exact = args.mods & glfw::ModifierKeyBit::Control;
                 const bool toggle_mode  = args.mods & glfw::ModifierKeyBit::Shift;
 
-                const auto [x,    y   ] = args.window.getCursorPos();
-                const auto [sz_x, sz_y] = args.window.getFramebufferSize();
-                int ix = int(x);
-                int iy = int(y);
+                // NOTE: Cursor position is in window coordinates, but we need
+                // the IDBuffer pixels, whoose resolution is syncronized with the
+                // main target, so we'll have to convert.
+                const Offset2I target_offset = eval%[&]() -> Offset2I {
+                    const auto [x_src, y_src] = args.window.getCursorPos();
+                    const auto [w_src, h_src] = args.window.getFramebufferSize();
+                    // It's also upside down, fun.
+                    const vec2 uv = { x_src / w_src, 1.0 - y_src / h_src };
+                    const auto [w_tgt, h_tgt] = idbuffer.resolution();
+                    return { int(uv.x * double(w_tgt)), int(uv.y * double(h_tgt)) };
+                };
 
                 entt::id_type id{ entt::null };
 
                 // FIXME: Is this off-by-one?
-                const Region2I target_pixel = { { ix, sz_y - iy }, { 1, 1 } };
+                const Region2I target_pixel = { target_offset, { 1, 1 } };
                 const auto     pdformat     = PixelDataFormat::RedInteger;
                 const auto     pdtype       = PixelDataType::UInt;
 

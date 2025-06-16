@@ -109,9 +109,6 @@ void SSAO::operator()(RenderEnginePrimaryInterface& engine)
 
 void SSAO::regenerate_kernel(usize n, float deflection_rad)
 {
-    if (n == kernel_.num_staged() and deflection_rad == deflection_rad_)
-        return;
-
     std::normal_distribution<float>       gaussian_dist;
     std::uniform_real_distribution<float> uniform_dist;
 

@@ -34,6 +34,9 @@ void RenderEngine::render(
     const Extent2I&     window_resolution,
     const FrameTimer&   frame_timer)
 {
+    const Region2I main_viewport   = { {}, main_resolution() };
+    const Region2I window_viewport = { {}, window_resolution };
+
     // Update camera.
     // TODO: Orthographic has no notion of aspect_ratio.
     // TODO: Should this be done after precompute? As precompute can change what's active.
@@ -45,7 +48,9 @@ void RenderEngine::render(
     {
         Camera& camera = handle.get<Camera>();
         auto params = camera.get_params();
-        params.aspect_ratio = main_resolution().aspect_ratio();
+        // NOTE: We are using the aspect ratio of the window, not the main target.
+        // Otherwise, this comes out stretched when aspect ratios mismatch.
+        params.aspect_ratio = window_resolution.aspect_ratio();
         camera.update_params(params);
 
         mat4 view = glm::identity<mat4>();
@@ -55,12 +60,10 @@ void RenderEngine::render(
         update_camera_data(view, camera.projection_mat(), params.z_near, params.z_far);
     }
 
-    // Update viewport.
-    glapi::set_viewport({ {}, main_resolution() });
-
     auto execute_stages = [&](
-        auto& stages,
-        auto  interface)
+        auto&           stages,
+        auto            interface,
+        const Region2I* viewport = nullptr)
     {
         if (capture_stage_timings)
         {
@@ -76,6 +79,8 @@ void RenderEngine::render(
 
                 auto t0 = std::chrono::steady_clock::now();
 
+                if (viewport) glapi::set_viewport(*viewport);
+
                 stage.get()(interface);
 
                 auto t1 = std::chrono::steady_clock::now();
@@ -88,7 +93,10 @@ void RenderEngine::render(
         else
         {
             for (auto& stage : stages)
+            {
+                if (viewport) glapi::set_viewport(*viewport);
                 stage.get()(interface);
+            }
         }
     };
 
@@ -119,16 +127,13 @@ void RenderEngine::render(
 
     // To swapchain backbuffer.
     glapi::enable(Capability::DepthTesting);
-    execute_stages(primary_, interface_primary);
+    execute_stages(primary_, interface_primary, &main_viewport);
     glapi::disable(Capability::DepthTesting);
-
-    // Will reset viewport here just in case.
-    glapi::set_viewport({ {}, main_resolution() });
 
     // Postprocess.
     _main_target._swap();
     // To swapchain (swap each draw).
-    execute_stages(postprocess_, interface_postprocess);
+    execute_stages(postprocess_, interface_postprocess, &main_viewport);
 
     // Blit front to default (opt. sRGB)
     if (enable_srgb_conversion) glapi::enable(Capability::SRGBConversion);
@@ -166,7 +171,7 @@ void RenderEngine::render(
     // might be reasonable just as the assumption about stable registry.
 
     // Overlay.
-    execute_stages(overlay_, interface_overlay);
+    execute_stages(overlay_, interface_overlay, &window_viewport);
 
     // Present.
 }

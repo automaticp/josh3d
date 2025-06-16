@@ -43,8 +43,9 @@ struct ImGuiApplicationAssembly
     bool show_selected        = true;
     bool show_demo_window     = false; // For debugging.
     bool show_asset_manager   = false; // For debugging.
-    bool show_resource_viewer = false;
-    bool show_frame_graph     = false;
+    bool show_resource_viewer = true;
+    bool show_frame_graph     = true;
+    bool show_log_window      = true;
     bool show_debug_window    = false; // General debugging stuff.
 
     float background_alpha = 0.8f;

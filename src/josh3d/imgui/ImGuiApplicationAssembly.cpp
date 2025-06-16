@@ -18,6 +18,7 @@
 #include "Ranges.hpp"
 #include "RenderEngine.hpp"
 #include "Region.hpp"
+#include "ScopeExit.hpp"
 #include "Transform.hpp"
 #include "VPath.hpp"
 #include "VirtualFilesystem.hpp"
@@ -42,7 +43,6 @@ ImGuiApplicationAssembly::ImGuiApplicationAssembly(
 )
     : window(window)
     , runtime(runtime)
-    // TODO: DESTROY THIS
     , imgui_context(window)
 {}
 
@@ -223,10 +223,10 @@ void display_asset_manager_debug(AssetManager& asset_manager)
 void ImGuiApplicationAssembly::_draw_widgets()
 {
     // TODO: Keep active windows within docknodes across "hides".
-
     auto bg_col = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
     bg_col.w = 0.f;
     ImGui::PushStyleColor(ImGuiCol_WindowBg, bg_col);
+
     // FIXME: This is probably terribly broken in some way.
     // For the frames that reset the dockspace, this initialization
     // may be reset before OR after the widgets are drawn:
@@ -238,28 +238,11 @@ void ImGuiApplicationAssembly::_draw_widgets()
     ImGui::DockSpaceOverViewport(dockspace_id, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
     ImGui::PopStyleColor();
 
-    // FIXME: Terrible, maybe will add "was resized" flag to WindowSizeCache instead.
-    static Extent2F old_size = { 0, 0 };
-    auto vport_size = ImGui::GetMainViewport()->Size;
-    Extent2F new_size = { vport_size.x, vport_size.y };
-    if (old_size != new_size)
-    {
-        // Do the reset inplace, before the windows are submitted.
-        _reset_dockspace(dockspace_id);
-        old_size = new_size;
-    }
-
     if (not hidden)
     {
-        auto reset_later = on_signal([&, this] { _reset_dockspace(dockspace_id); });
-
-        auto bg_col = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
-        bg_col.w = background_alpha;
-        ImGui::PushStyleColor(ImGuiCol_WindowBg, bg_col);
-
         if (ImGui::BeginMainMenuBar())
         {
-            ImGui::TextUnformatted("Josh3D-Demo");
+            ImGui::TextUnformatted("JoshEd");
             ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
 
             if (ImGui::BeginMenu("Window"))
@@ -277,6 +260,7 @@ void ImGuiApplicationAssembly::_draw_widgets()
                 ImGui::Checkbox("Asset Manager",  &show_asset_manager  );
                 ImGui::Checkbox("Resource Files", &show_resource_viewer);
                 ImGui::Checkbox("Frame Graph",    &show_frame_graph    );
+                ImGui::Checkbox("Logs",           &show_log_window     );
                 ImGui::Checkbox("Debug",          &show_debug_window   );
 
                 ImGui::Separator();
@@ -286,22 +270,8 @@ void ImGuiApplicationAssembly::_draw_widgets()
 
                 ImGui::SliderFloat("Bg. Alpha", &background_alpha, 0.f, 1.f);
 
-                reset_later.set(ImGui::Button("Reset Dockspace"));
-
                 ImGui::Checkbox("Gizmo Debug Window", &gizmos.display_debug_window);
-
-                const char* gizmo_locations[] = {
-                    "Local Origin",
-                    "AABB Midpoint"
-                };
-
-                // TODO: EnumListBox
-                int location_id = to_underlying(gizmos.preferred_location);
-                if (ImGui::ListBox("Gizmo Locaton", &location_id,
-                    gizmo_locations, std::size(gizmo_locations), 2))
-                {
-                    gizmos.preferred_location = GizmoLocation(location_id);
-                }
+                ImGui::EnumListBox("Gizmo Location", &gizmos.preferred_location);
 
                 ImGui::Checkbox("Show Model Matrix in Selected", &selected_menu.display_model_matrix);
                 ImGui::Checkbox("Show All Components in Selected", &selected_menu.display_all_components);
@@ -341,6 +311,8 @@ void ImGuiApplicationAssembly::_draw_widgets()
                 ImGui::EndMenu();
             }
 
+            // Logs.
+            // TODO: This should probably be removed.
             {
                 auto log_view = _log_sink.view();
                 const bool new_logs = log_view.size() > _last_log_size;
@@ -439,7 +411,12 @@ void ImGuiApplicationAssembly::_draw_widgets()
             ImGui::End();
         }
 
-        ImGui::PopStyleColor();
+        if (show_log_window)
+        {
+            if (ImGui::Begin("Logs"))
+                ImGui::TextUnformatted(_log_sink.view());
+            ImGui::End();
+        }
     }
 }
 
@@ -477,21 +454,27 @@ void ImGuiApplicationAssembly::_reset_dockspace(ImGuiID dockspace_id)
 
 void ImGuiApplicationAssembly::_display_frame_graph()
 {
-    const float frametime_s = _avg_frame_timer.get_current_average();
-    const float fps         = 1 / frametime_s;
+    thread_local bool display_fps = false;
 
-    thread_local String overlay; overlay.clear();
-    fmt::format_to(std::back_inserter(overlay), "{:6>.1f} FPS {:>5.2f} ms", fps, frametime_s * 1e3f);
-
+    const char* overlay = nullptr;
+    if (display_fps)
+    {
+        thread_local String overlay_str; overlay_str.clear();
+        const float frametime_s = _avg_frame_timer.get_current_average();
+        const float fps         = 1 / frametime_s;
+        fmt::format_to(std::back_inserter(overlay_str), "{:6>.1f} FPS {:>5.2f} ms", fps, frametime_s * 1e3f);
+        overlay = overlay_str.c_str();
+    }
     ImGui::PlotLines("##FrameTimes",
         _frame_deltas.data(), int(_frame_deltas.size()), _frame_offset,
-        overlay.c_str(), 0.f, _upper_frametime_limit, ImGui::GetContentRegionAvail());
+        overlay, 0.f, _upper_frametime_limit, ImGui::GetContentRegionAvail());
 
     ImGui::OpenPopupOnItemClick("FrameGraph Settings");
     if (ImGui::BeginPopup("FrameGraph Settings"))
     {
         ImGui::DragInt("Num Frames", &_num_frames_plotted, 1.f, 1, 1200);
         ImGui::DragFloat("Max Frame Time, ms", &_upper_frametime_limit, 1.f, 0.1f, 200.f);
+        ImGui::Checkbox("Display FPS", &display_fps);
         ImGui::EndPopup();
     }
 }
