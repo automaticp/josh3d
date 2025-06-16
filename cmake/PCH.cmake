@@ -8,8 +8,6 @@ target_precompile_headers(pch INTERFACE
     <fmt/core.h>
     <fmt/format.h>
     <fmt/std.h>
-    <imgui.h>
-    <imgui_stdlib.h>
     <glm/glm.hpp>
     <glm/ext.hpp>
     <glm/gtc/type_ptr.hpp>
