@@ -12,6 +12,7 @@
 #include "UploadBuffer.hpp"
 #include "Mesh.hpp"
 #include "stages/primary/IDBufferStorage.hpp"
+#include <glbinding/gl/functions.h>
 #include <ranges>
 
 
@@ -82,7 +83,16 @@ void LightDummies::_relink_attachments(RenderEnginePrimaryInterface& engine)
     _fbo->attach_texture_to_depth_buffer(engine.main_depth_texture());
     _fbo->attach_texture_to_color_buffer(engine.main_color_texture(), 0);
     if (auto* idbuffer = engine.belt().try_get<IDBuffer>())
+    {
         _fbo->attach_texture_to_color_buffer(idbuffer->object_id_texture(), 1);
+        // TODO: This should probably be wrapped differently or
+        // have a different name, like enable_color_slot_for_draw().
+        _fbo->specify_color_buffers_for_draw(0, 1);
+    }
+    else
+    {
+        _fbo->specify_color_buffers_for_draw(0);
+    }
 }
 
 
