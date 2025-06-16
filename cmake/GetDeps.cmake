@@ -84,6 +84,7 @@ add_library(glfwpp::glfwpp ALIAS GLFWPP)
 find_package(glm CONFIG REQUIRED)
 target_compile_definitions(glm::glm INTERFACE GLM_ENABLE_EXPERIMENTAL)
 target_compile_definitions(glm::glm INTERFACE GLM_FORCE_QUAT_DATA_XYZW)
+target_compile_definitions(glm::glm INTERFACE GLM_FORCE_SIZE_T_LENGTH)
 
 
 # === range-v3 ===

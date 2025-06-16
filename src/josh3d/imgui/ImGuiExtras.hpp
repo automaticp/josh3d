@@ -28,7 +28,10 @@ inline void ImageGL(
     const ImVec4& tint_color = { 1.0f, 1.0f, 1.0f, 1.0f },
     const ImVec4& border_color = { 1.0f, 1.0f, 1.0f, 1.0f }) noexcept
 {
-    ImGui::ImageWithBg(image_id, size, ImVec2(0, 1), ImVec2(1, 0), tint_color, border_color);
+    const ImVec4 bg_color = { 0, 0, 0, 0 };
+    ImGui::PushStyleColor(ImGuiCol_Border, border_color); // NOTE: Workaround to preserve the old behavior.
+    ImGui::ImageWithBg(image_id, size, ImVec2(0, 1), ImVec2(1, 0), bg_color, tint_color);
+    ImGui::PopStyleColor();
 }
 
 inline void TextUnformatted(std::string_view str)

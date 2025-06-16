@@ -149,89 +149,86 @@ void ImGuiResourceViewer::display(UIContext& ui)
         ImGui::TreePop();
     }
 
+    ImGui::SeparatorText("Entries");
 
-    if (ImGui::TreeNode("Entries"))
+    // FIXME: Very crappy filter.
+    thread_local ResourceType current_filtered = NullResource;
+    thread_local bool         do_filter        = false;
+
+    // TODO: CStrView would be a useful type when dealing with imgui.
+    // Right now, we just know that ResourceInfo returns null-terminated strings.
+    ImGui::Checkbox("##FilterCheckbox", &do_filter);
+    ImGui::SameLine();
+    ImGui::BeginDisabled(not do_filter);
+    if (ImGui::BeginCombo("Filter##Combo", resource_info().name_or(current_filtered, "None").data())) {
+        for (const ResourceType resource_type : resource_info().view_registered())
+            if (ImGui::Selectable(resource_info().name_of(resource_type).data(), resource_type == current_filtered))
+                current_filtered = resource_type;
+        ImGui::EndCombo();
+    }
+    ImGui::EndDisabled();
+
+    const auto table_flags =
+        ImGuiTableFlags_Borders     |
+        ImGuiTableFlags_Resizable   |
+        ImGuiTableFlags_Reorderable |
+        ImGuiTableFlags_Hideable    |
+        ImGuiTableFlags_SizingStretchProp |
+        ImGuiTableFlags_HighlightHoveredColumn;
+
+    if (ImGui::BeginTable("Resources", 5, table_flags))
     {
-        // FIXME: Very crappy filter.
-        thread_local ResourceType current_filtered = NullResource;
-        thread_local bool         do_filter        = false;
-
-        // TODO: CStrView would be a useful type when dealing with imgui.
-        // Right now, we just know that ResourceInfo returns null-terminated strings.
-        ImGui::Checkbox("##FilterCheckbox", &do_filter);
-        ImGui::SameLine();
-        ImGui::BeginDisabled(not do_filter);
-        if (ImGui::BeginCombo("Filter##Combo", resource_info().name_or(current_filtered, "None").data())) {
-            for (const ResourceType resource_type : resource_info().view_registered())
-                if (ImGui::Selectable(resource_info().name_of(resource_type).data(), resource_type == current_filtered))
-                    current_filtered = resource_type;
-            ImGui::EndCombo();
-        }
-        ImGui::EndDisabled();
-
-        const auto table_flags =
-            ImGuiTableFlags_Borders     |
-            ImGuiTableFlags_Resizable   |
-            ImGuiTableFlags_Reorderable |
-            ImGuiTableFlags_Hideable    |
-            ImGuiTableFlags_SizingStretchProp |
-            ImGuiTableFlags_HighlightHoveredColumn;
-
-        if (ImGui::BeginTable("Resources", 5, table_flags))
+        ImGui::TableSetupColumn("Type");
+        ImGui::TableSetupColumn("File");
+        ImGui::TableSetupColumn("Offset", ImGuiTableColumnFlags_DefaultHide);
+        ImGui::TableSetupColumn("Size");
+        ImGui::TableSetupColumn("UUID", ImGuiTableColumnFlags_DefaultHide);
+        ImGui::TableHeadersRow();
+        usize i = 0;
+        resource_database.for_each_row([&i, &unpack_signal, &inspect_signal](
+            const ResourceDatabase::Row& row)
         {
-            ImGui::TableSetupColumn("Type");
-            ImGui::TableSetupColumn("File");
-            ImGui::TableSetupColumn("Offset", ImGuiTableColumnFlags_DefaultHide);
-            ImGui::TableSetupColumn("Size");
-            ImGui::TableSetupColumn("UUID", ImGuiTableColumnFlags_DefaultHide);
-            ImGui::TableHeadersRow();
-            usize i = 0;
-            resource_database.for_each_row([&i, &unpack_signal, &inspect_signal](
-                const ResourceDatabase::Row& row)
+            if (do_filter and not (row.type == current_filtered)) return;
+            ImGui::PushID(void_id(i));
+            ImGui::TableNextRow();
+
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted(resource_info().name_or(row.type, "(unknown)"));
+
+            ImGui::TableNextColumn();
+            // TODO: We really should guarantee null-termination in the path
+            char path[ResourcePath::max_length + 1];
+            auto end = std::ranges::copy(row.filepath.view(), path).out;
+            *end = '\0';
+            // NOTE: No ability to select it yet. Just a visual hover hint.
+            ImGui::Selectable(path, false, ImGuiSelectableFlags_SpanAllColumns);
+            if (ImGui::BeginPopupContextItem())
             {
-                if (do_filter and not (row.type == current_filtered)) return;
-                ImGui::PushID(void_id(i));
-                ImGui::TableNextRow();
+                if (ImGui::MenuItem("Unpack"))
+                    unpack_signal.set(row.uuid);
 
-                ImGui::TableNextColumn();
-                ImGui::TextUnformatted(resource_info().name_or(row.type, "(unknown)"));
+                if (ImGui::MenuItem("Inspect..."))
+                    inspect_signal.set(row.uuid);
 
-                ImGui::TableNextColumn();
-                // TODO: We really should guarantee null-termination in the path
-                char path[ResourcePath::max_length + 1];
-                auto end = std::ranges::copy(row.filepath.view(), path).out;
-                *end = '\0';
-                // NOTE: No ability to select it yet. Just a visual hover hint.
-                ImGui::Selectable(path, false, ImGuiSelectableFlags_SpanAllColumns);
-                if (ImGui::BeginPopupContextItem())
-                {
-                    if (ImGui::MenuItem("Unpack"))
-                        unpack_signal.set(row.uuid);
+                ImGui::EndPopup();
+            }
 
-                    if (ImGui::MenuItem("Inspect..."))
-                        inspect_signal.set(row.uuid);
+            ImGui::TableNextColumn();
+            ImGui::Text("%zu", row.offset_bytes);
 
-                    ImGui::EndPopup();
-                }
+            ImGui::TableNextColumn();
+            ImGui::Text("%zu", row.size_bytes);
 
-                ImGui::TableNextColumn();
-                ImGui::Text("%zu", row.offset_bytes);
+            ImGui::TableNextColumn();
+            char uuid_str[37]{};
+            serialize_uuid_to(uuid_str, row.uuid);
+            ImGui::TextUnformatted(uuid_str);
 
-                ImGui::TableNextColumn();
-                ImGui::Text("%zu", row.size_bytes);
+            ++i;
+            ImGui::PopID();
+        });
 
-                ImGui::TableNextColumn();
-                char uuid_str[37]{};
-                serialize_uuid_to(uuid_str, row.uuid);
-                ImGui::TextUnformatted(uuid_str);
-
-                ++i;
-                ImGui::PopID();
-            });
-
-            ImGui::EndTable();
-        }
-        ImGui::TreePop();
+        ImGui::EndTable();
     }
 
     if (ImGui::BeginPopup("Inspect"))
@@ -284,7 +281,6 @@ void ImGuiResourceViewer::display(UIContext& ui)
 
     ImGui::TextUnformatted(last_error.c_str());
 }
-
 
 
 } // namespace josh

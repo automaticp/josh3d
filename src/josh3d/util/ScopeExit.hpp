@@ -17,6 +17,10 @@ namespace josh {
         JOSH3D_CONCAT(_scope_exit_fn_, __LINE__)                       \
     }
 
+/*
+Alternative, single-statement spelling for ON_SCOPE_EXIT(...).
+*/
+#define DEFER(...) ON_SCOPE_EXIT([&]{ __VA_ARGS__; })
 
 namespace detail {
 auto uncaught_exceptions() noexcept -> int;
