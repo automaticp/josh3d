@@ -251,7 +251,7 @@ inline void MaterialsWidget(entt::handle mesh) noexcept {
         const ImVec4&         frame_color,
         const ImVec4&         tint_color)
     {
-        const auto tex_id = void_id(texture.id());
+        const auto tex_id = texture.id();
         ImGui::ImageGL(tex_id, preview_size, tint_color, frame_color);
         // All hover and click tests below are for this image above ^.
 

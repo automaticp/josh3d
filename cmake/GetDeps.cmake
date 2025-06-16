@@ -85,10 +85,6 @@ find_package(glm CONFIG REQUIRED)
 target_compile_definitions(glm::glm INTERFACE GLM_ENABLE_EXPERIMENTAL)
 target_compile_definitions(glm::glm INTERFACE GLM_FORCE_QUAT_DATA_XYZW)
 
-# === dear-imgui ===
-# imgui::imgui
-find_package(imgui CONFIG REQUIRED)
-
 
 # === Imguizmo ===
 # unofficial::imguizmo::imguizmo

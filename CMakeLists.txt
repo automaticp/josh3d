@@ -6,8 +6,8 @@ option(JOSH3D_USE_PCH         "Use precompiled headers when building the library
 option(JOSH3D_BUILD_WITH_ASAN "Enable AddressSanitizer when building the library" OFF)
 option(JOSH3D_BUILD_WITH_TSAN "Enable ThreadSanitizer when building the library"  OFF)
 
-
-include(cmake/GetDeps.cmake) # Find/Download external dependencies.
+include(external/BuildDeps.cmake) # Configure embedded dependencies.
+include(cmake/GetDeps.cmake)      # Find/Download external dependencies.
 
 add_subdirectory(src)
 

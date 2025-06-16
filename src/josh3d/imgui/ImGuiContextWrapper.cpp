@@ -13,9 +13,10 @@ ImGuiContextWrapper::ImGuiContextWrapper(glfw::Window& window)
     ImGui_ImplOpenGL3_Init();
 
     auto [x, y] = window.getContentScale();
+    ImGui::GetStyle().FontScaleDpi = x;
     ImGui::GetStyle().ScaleAllSizes(x);
-    ImGui::GetIO().FontGlobalScale = x;
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DpiEnableScaleFonts;
 }
 
 void ImGuiContextWrapper::new_frame() const

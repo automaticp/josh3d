@@ -43,7 +43,7 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(GaussianBloom)
         ImGui::Unindent();
         const float w = ImGui::GetContentRegionAvail().x;
         const float h = w / stage.target.resolution().aspect_ratio();
-        ImGui::ImageGL(void_id(stage.target.front_texture().id()), { w, h });
+        ImGui::ImageGL(stage.target.front_texture().id(), { w, h });
         ImGui::Indent();
         ImGui::TreePop();
     }
