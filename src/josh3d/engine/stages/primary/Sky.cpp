@@ -94,12 +94,10 @@ void Sky::draw_procedural_sky(
     const RawProgram<> sp = sp_proc_;
     const BindGuard bcam = engine.bind_camera_ubo();
 
-    if (const CHandle dlight = get_active<DirectionalLight, Transform>(registry))
+    if (const CHandle dlight = get_active<DirectionalLight, MTransform>(registry))
     {
-        // TODO: We should decompose_orientation() from the MTransform instead.
-        // Oh god, this sounds like hell. WHY would you ever parent a directional light?!
         const vec3 light_dir =
-            dlight.get<Transform>().orientation() * -Z;
+            decompose_rotation(dlight.get<MTransform>()) * -Z;
 
         const vec3 light_dir_view_space =
             glm::normalize(vec3{ engine.camera_data().view * vec4{ light_dir, 0.f } });

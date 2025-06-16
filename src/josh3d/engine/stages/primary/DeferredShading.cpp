@@ -59,10 +59,10 @@ auto get_active_dlight_or_default(const Registry& registry)
     vec3 color        = { 0.f, 0.f, 0.f };
     vec3 direction    = { 1.f, 1.f, 1.f };
     bool cast_shadows = false;
-    if (const CHandle dlight = get_active<DirectionalLight, Transform>(registry))
+    if (const CHandle dlight = get_active<DirectionalLight, MTransform>(registry))
     {
         color        = dlight.get<DirectionalLight>().hdr_color();
-        direction    = dlight.get<Transform>().orientation() * -Z;
+        direction    = decompose_rotation(dlight.get<MTransform>()) * -Z;
         cast_shadows = has_tag<ShadowCasting>(dlight);
     }
     return { color, direction, cast_shadows };

@@ -376,13 +376,13 @@ void CascadedShadowMapping::operator()(
     const auto& registry = engine.registry();
 
     // Check if the scene's directional light has shadow-casting enabled.
-    if (const CHandle dlight = get_active<DirectionalLight, Transform, ShadowCasting>(registry))
+    if (const CHandle dlight = get_active<DirectionalLight, MTransform, ShadowCasting>(registry))
     {
         // Update cascade views.
         if (const CHandle cam = get_active<Camera, MTransform>(registry))
         {
             // TODO: As everywhere else, use MTf and decompose orientation.
-            const vec3 light_dir     = dlight.get<Transform>().orientation() * -Z;
+            const vec3 light_dir     = decompose_rotation(dlight.get<MTransform>()) * -Z;
             const auto cam_mtf       = cam.get<MTransform>();
             const vec3 cam_position  = cam_mtf.decompose_position();
             const auto frustum_world = cam.get<Camera>().view_frustum_as_quads().transformed(cam_mtf.model());

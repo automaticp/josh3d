@@ -30,10 +30,9 @@ void CSMDebug::draw_views_overlay(
     const auto* gbuffer  = engine.belt().try_get<GBuffer>();
     const auto* cascades = engine.belt().try_get<Cascades>();
 
-    if (const CHandle dlight = get_active<DirectionalLight, Transform>(registry))
+    if (const CHandle dlight = get_active<DirectionalLight, MTransform>(registry))
     {
-        // FIXME: You know what.
-        const vec3 light_dir = dlight.get<Transform>().orientation() * -Z;
+        const vec3 light_dir = decompose_rotation(dlight.get<MTransform>()) * -Z;
 
         const auto sp = sp_views_.get();
         const BindGuard bcam = engine.bind_camera_ubo();
