@@ -16,7 +16,7 @@
 #include "UniformTraits.hpp"
 #include "SceneGraph.hpp"
 #include "Transform.hpp"
-#include "tags/Selected.hpp"
+#include "Selected.hpp"
 #include <entt/entity/fwd.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <range/v3/view/drop.hpp>

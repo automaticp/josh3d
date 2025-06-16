@@ -18,8 +18,8 @@
 #include "TerrainChunk.hpp"
 #include "Transform.hpp"
 #include "UIContext.hpp"
-#include "tags/Selected.hpp"
-#include "tags/ShadowCasting.hpp"
+#include "Selected.hpp"
+#include "ShadowCasting.hpp"
 #include <entt/entity/entity.hpp>
 #include <entt/entity/fwd.hpp>
 #include <exception>

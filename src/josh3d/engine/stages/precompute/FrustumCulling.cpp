@@ -8,7 +8,7 @@
 #include "BoundingSphere.hpp"
 #include "Transform.hpp"
 #include "ViewFrustum.hpp"
-#include "tags/Visible.hpp"
+#include "Visible.hpp"
 #include <utility>
 
 

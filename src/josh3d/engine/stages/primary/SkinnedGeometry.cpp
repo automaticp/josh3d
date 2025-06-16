@@ -8,8 +8,8 @@
 #include "SkinnedMesh.hpp"
 #include "VertexSkinned.hpp"
 #include "stages/primary/GBufferStorage.hpp"
-#include "tags/AlphaTested.hpp"
-#include "tags/Visible.hpp"
+#include "AlphaTested.hpp"
+#include "Visible.hpp"
 #include "ECS.hpp"
 
 

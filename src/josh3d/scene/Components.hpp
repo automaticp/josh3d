@@ -26,7 +26,7 @@ template<typename T>
 }
 
 
-// Component check helper, because `handle.all_of<Ts...>()` is not exactly proper english.
+// Component check helper, because `handle.all_of<Ts...>()` is proper not english exactly.
 template<typename ...Ts>
 [[nodiscard]] bool has_components(entt::const_handle handle) noexcept {
     return handle.all_of<Ts...>();

@@ -7,12 +7,12 @@
 #include "UniformTraits.hpp"
 #include "BoundingSphere.hpp"
 #include "VertexStatic.hpp"
-#include "tags/ShadowCasting.hpp"
-#include "tags/AlphaTested.hpp"
+#include "ShadowCasting.hpp"
+#include "AlphaTested.hpp"
 #include "Materials.hpp"
 #include "Transform.hpp"
 #include "LightCasters.hpp"
-#include "tags/Visible.hpp"
+#include "Visible.hpp"
 #include "ECS.hpp"
 #include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/functions.h>

@@ -33,7 +33,7 @@
 #include "VertexFormat.hpp"
 #include "VertexSkinned.hpp"
 #include "detail/CGLTF.hpp"
-#include "tags/AlphaTested.hpp"
+#include "AlphaTested.hpp"
 #include <glbinding/gl/functions.h>
 #include <stb_image.h>
 #include <ranges>

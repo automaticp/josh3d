@@ -14,7 +14,7 @@
 #include "SkinnedMesh.hpp"
 #include "StaticMesh.hpp"
 #include "Tags.hpp"
-#include "tags/AlphaTested.hpp"
+#include "AlphaTested.hpp"
 
 
 namespace josh {

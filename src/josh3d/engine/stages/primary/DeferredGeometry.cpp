@@ -6,12 +6,12 @@
 #include "StaticMesh.hpp"
 #include "UniformTraits.hpp"
 #include "Materials.hpp"
-#include "tags/AlphaTested.hpp"
+#include "AlphaTested.hpp"
 #include "Transform.hpp"
 #include "RenderEngine.hpp"
 #include "Transform.hpp"
 #include "DefaultTextures.hpp"
-#include "tags/Visible.hpp"
+#include "Visible.hpp"
 
 
 namespace josh {

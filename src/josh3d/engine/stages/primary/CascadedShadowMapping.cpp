@@ -16,11 +16,11 @@
 #include "StaticMesh.hpp"
 #include "VertexStatic.hpp"
 #include "ViewFrustum.hpp"
-#include "tags/AlphaTested.hpp"
+#include "AlphaTested.hpp"
 #include "Materials.hpp"
 #include "Transform.hpp"
 #include "UniformTraits.hpp"
-#include "tags/ShadowCasting.hpp"
+#include "ShadowCasting.hpp"
 #include <algorithm>
 #include <entt/entity/fwd.hpp>
 #include <glbinding-aux/Meta.h>

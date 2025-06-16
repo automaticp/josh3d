@@ -24,9 +24,9 @@
 #include "TerrainChunk.hpp"
 #include "Transform.hpp"
 #include "VPath.hpp"
-#include "tags/AlphaTested.hpp"
-#include "tags/ShadowCasting.hpp"
-#include "tags/Visible.hpp"
+#include "AlphaTested.hpp"
+#include "ShadowCasting.hpp"
+#include "Visible.hpp"
 #include <entt/entity/entity.hpp>
 #include <entt/entity/fwd.hpp>
 #include <glm/fwd.hpp>

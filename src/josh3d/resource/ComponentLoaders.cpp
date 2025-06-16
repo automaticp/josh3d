@@ -17,7 +17,7 @@
 #include "Name.hpp"
 #include "Skybox.hpp"
 #include "detail/StaticAssertFalseMacro.hpp"
-#include "tags/AlphaTested.hpp"
+#include "AlphaTested.hpp"
 #include <entt/entity/fwd.hpp>
 #include <entt/entt.hpp>
 #include <glm/ext/matrix_transform.hpp>

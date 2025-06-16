@@ -8,7 +8,7 @@
 #include "Mesh.hpp"
 #include "SkinnedMesh.hpp"
 #include "Transform.hpp"
-#include "tags/Selected.hpp"
+#include "Selected.hpp"
 #include <entt/entity/entity.hpp>
 #include <imgui.h>
 

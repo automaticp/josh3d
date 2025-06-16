@@ -16,9 +16,9 @@
 #include "stages/primary/CascadedShadowMapping.hpp"
 #include "stages/primary/GBufferStorage.hpp"
 #include "stages/primary/SSAO.hpp"
-#include "tags/ShadowCasting.hpp"
+#include "ShadowCasting.hpp"
 #include "RenderEngine.hpp"
-#include "tags/Visible.hpp"
+#include "Visible.hpp"
 #include <entt/entity/fwd.hpp>
 #include <entt/entity/registry.hpp>
 #include <glbinding/gl/gl.h>
