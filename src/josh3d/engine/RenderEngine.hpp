@@ -142,6 +142,8 @@ struct RenderEngine
     // The wall-time interval between updates of the timers, in seconds.
     // Note that the GPU timing is asyncronous and might lag behind by a frame or two.
     float stage_timing_averaging_interval_s = 0.5f;
+    // Automatically resize the main target to window size on each call to render().
+    bool  fit_window_size = true;
 
     // Communication channel for pipeline stages. The belt is swept
     // in the beginning of the call to `render()`, *before* the pipeline

@@ -20,3 +20,13 @@ target_include_directories(dear-imgui PUBLIC
     ${IMGUI_DIR}/misc/cpp/
     ${IMGUI_DIR}/backends/)
 add_library(imgui::imgui ALIAS dear-imgui)
+
+# === imguizmo ===
+# Targets:
+#   imguizmo::imguizmo
+set(IMGUIZMO_DIR ${CMAKE_SOURCE_DIR}/external/imguizmo)
+add_library(imguizmo STATIC)
+target_sources(imguizmo PRIVATE ${IMGUIZMO_DIR}/ImGuizmo.cpp)
+target_include_directories(imguizmo PUBLIC ${IMGUIZMO_DIR})
+target_link_libraries(imguizmo PUBLIC imgui::imgui)
+add_library(imguizmo::imguizmo ALIAS imguizmo)

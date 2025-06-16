@@ -86,11 +86,6 @@ target_compile_definitions(glm::glm INTERFACE GLM_ENABLE_EXPERIMENTAL)
 target_compile_definitions(glm::glm INTERFACE GLM_FORCE_QUAT_DATA_XYZW)
 
 
-# === Imguizmo ===
-# unofficial::imguizmo::imguizmo
-find_package(unofficial-imguizmo CONFIG REQUIRED)
-
-
 # === range-v3 ===
 # range-v3::range-v3
 # range-v3::concepts

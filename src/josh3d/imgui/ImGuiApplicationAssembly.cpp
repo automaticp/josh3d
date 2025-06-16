@@ -290,17 +290,19 @@ void ImGuiApplicationAssembly::_draw_widgets()
                     0.001f, 5.f, "%.3f", ImGuiSliderFlags_Logarithmic);
                 ImGui::EndDisabled();
 
-                // TODO: Should be able to set render
-                // resolution separate from the window size.
                 auto color_format = engine.main_color_format();
                 auto depth_format = engine.main_depth_format();
                 auto resolution   = engine.main_resolution();
-                if (ImGui::EnumCombo("Color Format", &color_format) +
-                    ImGui::EnumCombo("Depth Format", &depth_format) +
-                    ImGui::SliderInt2("Main Resolution", &resolution.width, 1, 4096))
-                {
+
+                bool do_respec = false;
+                do_respec |= ImGui::EnumCombo("Color Format", &color_format);
+                do_respec |= ImGui::EnumCombo("Depth Format", &depth_format);
+                ImGui::Checkbox("Fit Window", &engine.fit_window_size);
+                ImGui::BeginDisabled(engine.fit_window_size);
+                do_respec |= ImGui::SliderInt2("Main Resolution", &resolution.width, 16, 4096);
+                ImGui::EndDisabled();
+                if (do_respec)
                     engine.respec_main_target(resolution, color_format, depth_format);
-                }
 
                 ImGui::EndMenu();
             }

@@ -37,6 +37,9 @@ void RenderEngine::render(
     const Region2I main_viewport   = { {}, main_resolution() };
     const Region2I window_viewport = { {}, window_resolution };
 
+    if (fit_window_size)
+        _main_target._respec(window_resolution, main_color_format(), main_depth_format());
+
     // Update camera.
     // TODO: Orthographic has no notion of aspect_ratio.
     // TODO: Should this be done after precompute? As precompute can change what's active.
