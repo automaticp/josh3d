@@ -377,15 +377,11 @@ void DemoScene::configure_input()
             }
         });
 
-    // EWW: Do this somewhere else.
-    window.framebufferSizeEvent.setCallback(
-        [this](glfw::Window&, int w, int h)
-        {
-            globals::window_size.set_to({ w, h });
-            // EWW: This is somewhat dumb.
-            auto& r = runtime.renderer;
-            r.respec_main_target({ w, h }, r.main_color_format(), r.main_depth_format());
-        });
+    window.framebufferSizeEvent.setCallback([](glfw::Window&, int w, int h)
+    {
+        // EWW: Do this somewhere else.
+        globals::window_size.set_to({ w, h });
+    });
 }
 
 void DemoScene::init_registry()

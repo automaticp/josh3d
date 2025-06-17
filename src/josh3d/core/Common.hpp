@@ -1,5 +1,6 @@
 #pragma once
 #include "Scalars.hpp"
+#include <array>
 #include <boost/any/basic_any.hpp>
 #include <boost/any/unique_any.hpp>
 #include <boost/container/small_vector.hpp>
@@ -115,6 +116,12 @@ template<
 >
 using SmallVector = boost::container::small_vector<T, SBOElemCountV, AllocatorT, OptionsT>;
 
+template<
+    typename T,
+    usize    N
+>
+using Array = std::array<T, N>;
+
 // NOTE: Alignment is suggestive. If alignment of a type is stricter, it will be lifted to heap.
 template<
     usize SBOSizeV = 3 * sizeof(void*),
@@ -150,12 +157,16 @@ constexpr auto make_span(auto&&... args)
 template<typename T>
 auto as_bytes(const Span<T>& span) noexcept
     -> Span<byte>
-{ return { (byte*)span.data(), span.size_bytes() }; }
+{
+    return { (byte*)span.data(), span.size_bytes() };
+}
 
 template<typename T> requires std::is_const_v<T>
 auto as_bytes(const Span<T>& span) noexcept
     -> Span<const byte>
-{ return { (const byte*)span.data(), span.size_bytes() }; }
+{
+    return { (const byte*)span.data(), span.size_bytes() };
+}
 
 template<std::ranges::contiguous_range R>
 auto to_span(R&& r) noexcept

@@ -109,6 +109,9 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(CascadedShadowMapping)
 JOSH3D_SIMPLE_STAGE_HOOK_BODY(DeferredGeometry)
 {
     ImGui::Checkbox("Backface Culling", &stage.backface_culling);
+    ImGui::EnumListBox("Strategy", &stage.strategy);
+    if (stage.strategy == josh::DeferredGeometry::Strategy::BatchedMDI)
+        ImGui::Text("Max Batch Size: %u", stage.max_batch_size());
 }
 
 JOSH3D_SIMPLE_STAGE_HOOK_BODY(DeferredShading)

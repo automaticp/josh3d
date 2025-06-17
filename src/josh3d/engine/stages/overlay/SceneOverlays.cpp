@@ -2,6 +2,7 @@
 #include "AABB.hpp"
 #include "BoundingSphere.hpp"
 #include "Components.hpp"
+#include "DrawHelpers.hpp"
 #include "ECS.hpp"
 #include "GLAPICore.hpp"
 #include "GLProgram.hpp"

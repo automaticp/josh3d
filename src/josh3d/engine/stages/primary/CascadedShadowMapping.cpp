@@ -2,6 +2,7 @@
 #include "Active.hpp"
 #include "Camera.hpp"
 #include "Components.hpp"
+#include "DrawHelpers.hpp"
 #include "ECS.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLAPICore.hpp"
@@ -14,6 +15,7 @@
 #include "Ranges.hpp"
 #include "RenderEngine.hpp"
 #include "StaticMesh.hpp"
+#include "UploadBuffer.hpp"
 #include "VertexStatic.hpp"
 #include "ViewFrustum.hpp"
 #include "AlphaTested.hpp"
@@ -464,16 +466,18 @@ Assumes that projection and view uniforms are already set.
 */
 void multidraw_opaque_meshes(
     RawProgram<>                        sp,
-    BindToken<Binding::DrawFramebuffer> bound_fbo,
+    BindToken<Binding::DrawFramebuffer> bfb,
     const MeshRegistry&                 mesh_registry,
     const Registry&                     registry,
     std::ranges::input_range auto&&     entities,
-    UploadBuffer<mat4>&                 world_mats)
+    UploadBuffer<mat4>&                 world_mats,
+    UploadBuffer<MDICommand>&           mdi_buffer)
 {
     const auto* storage = mesh_registry.storage_for<VertexStatic>();
     assert(storage);
 
     const BindGuard bsp = sp.use();
+    const BindGuard bva = storage->vertex_array().bind();
 
     auto get_mesh_id   = [&](Entity e) -> decltype(auto) { return registry.get<StaticMesh>(e).lods.cur(); };
     auto get_world_mat = [&](Entity e) -> decltype(auto) { return registry.get<MTransform>(e).model();  };
@@ -483,7 +487,11 @@ void multidraw_opaque_meshes(
     world_mats.bind_to_ssbo_index(0);
 
     // Draw all at once.
-    multidraw_from_storage(*storage, bsp, bound_fbo, entities | transform(get_mesh_id));
+    //
+    // NOTE: Mesa gl_DrawID is still broken for direct multidraw.
+    // Use MDI to avoid issues.
+    multidraw_indirect_from_storage(*storage, bva, bsp, bfb,
+        entities | transform(get_mesh_id), mdi_buffer);
 }
 
 /*
@@ -650,15 +658,10 @@ void CascadedShadowMapping::draw_with_culling_per_cascade(
 
         if (multidraw_opaque)
         {
-            // FIXME: Somehow, we are getting some odd glitches here that are
-            // not even reproduced in renderdoc. Meaning glitchy frame
-            // does not have the same glitches after capture. Driver bug?
-            //
-            // They also magically disappear when specifically *front* face
-            // culling is enabled...
             const RawProgram<> sp = sp_per_cascade_opaque_multidraw_.get();
             set_common_uniforms(sp);
-            multidraw_opaque_meshes(sp, bfb, engine.meshes(), registry, drawstate.draw_list_opaque, drawstate.world_mats_opaque);
+            multidraw_opaque_meshes(sp, bfb, engine.meshes(), registry,
+                drawstate.draw_list_opaque, drawstate.world_mats_opaque, mdi_buffer_);
         }
         else
         {

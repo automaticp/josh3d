@@ -1,5 +1,7 @@
 #include "SkinnedGeometry.hpp"
 #include "DefaultTextures.hpp"
+#include "DrawHelpers.hpp"
+#include "GLAPIBinding.hpp"
 #include "GLAPICore.hpp"
 #include "Materials.hpp"
 #include "MeshStorage.hpp"
@@ -32,39 +34,36 @@ void SkinnedGeometry::operator()(
 
     glapi::set_viewport({ {}, gbuffer->resolution() });
 
+    // FIXME: Negative filtering. Replace with Opaque tag or Not<AlphaTested> flag.
+
     auto view_opaque  = registry.view<Visible, MTransform, SkinnedMe2h, Pose>(entt::exclude<AlphaTested>);
     auto view_atested = registry.view<Visible, MTransform, SkinnedMe2h, Pose, AlphaTested>();
 
+    const Array<u32, 3> default_units = {
+        globals::default_diffuse_texture().id(),
+        globals::default_specular_texture().id(),
+        globals::default_normal_texture().id(),
+    };
+
     const auto apply_materials = [&](Entity e, RawProgram<> sp, Location shininess_loc)
     {
-        if (auto* mat_d = registry.try_get<MaterialDiffuse>(e))
+        auto units     = default_units;
+        auto shininess = 128.f;
+
+        if (auto* mat = registry.try_get<MaterialDiffuse>(e))
+            units[0] = mat->texture->id();
+
+        if (auto* mat = registry.try_get<MaterialSpecular>(e))
         {
-            mat_d->texture->bind_to_texture_unit(0);
-        }
-        else
-        {
-            globals::default_diffuse_texture().bind_to_texture_unit(0);
+            units[1]  = mat->texture->id();
+            shininess = mat->shininess;
         }
 
-        if (auto* mat_s = registry.try_get<MaterialSpecular>(e))
-        {
-            mat_s->texture->bind_to_texture_unit(1);
-            sp.uniform(shininess_loc, mat_s->shininess);
-        }
-        else
-        {
-            globals::default_specular_texture().bind_to_texture_unit(1);
-            sp.uniform(shininess_loc, 128.f);
-        }
+        if (auto* mat = registry.try_get<MaterialNormal>(e))
+            units[2] = mat->texture->id();
 
-        if (auto* mat_n = registry.try_get<MaterialNormal>(e))
-        {
-            mat_n->texture->bind_to_texture_unit(2);
-        }
-        else
-        {
-            globals::default_normal_texture().bind_to_texture_unit(2);
-        }
+        sp.uniform(shininess_loc, shininess);
+        glapi::bind_texture_units(units);
     };
 
     auto draw_from_view = [&](RawProgram<> sp, auto view)
@@ -98,10 +97,8 @@ void SkinnedGeometry::operator()(
 
     // Not Alpha-Tested. Opaque.
     // Can be backface culled.
-    if (backface_culling)
-        glapi::enable(Capability::FaceCulling);
-    else
-        glapi::disable(Capability::FaceCulling);
+    if (backface_culling) glapi::enable(Capability::FaceCulling);
+    else                  glapi::disable(Capability::FaceCulling);
 
     draw_from_view(sp_opaque.get(), view_opaque);
 

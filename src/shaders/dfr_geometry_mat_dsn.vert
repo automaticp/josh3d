@@ -26,9 +26,7 @@ void main() {
 
     vec3 T = normalize(normal_model * in_tangent);
     vec3 N = normalize(normal_model * in_normal);
-
     T = normalize(T - dot(T, N) * N);
-
     vec3 B = cross(N, T);
 
     TBN = mat3(T, B, N);

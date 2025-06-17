@@ -42,7 +42,7 @@ struct TextureInspector
             ImGui::TableSetupColumn("Size");
             ImGui::TableHeadersRow();
 
-            for (const auto mip_id : irange(header.num_mips))
+            for (const usize mip_id : irange(header.num_mips))
             {
                 const auto& mip = file.mip_span(mip_id);
                 ImGui::TableNextRow();

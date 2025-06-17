@@ -1,22 +1,21 @@
 #pragma once
 #include "CategoryCasts.hpp"
-#include "GLAPICommonTypes.hpp"
+#include "Common.hpp"
 #include "GLAPICore.hpp"
 #include "GLAttributeTraits.hpp"
 #include "GLBuffers.hpp"
 #include "GLMutability.hpp"
 #include "GLObjects.hpp"
-#include "GLScalars.hpp"
 #include "GLVertexArray.hpp"
+#include "Ranges.hpp"
+#include "Scalars.hpp"
 #include "detail/StrongScalar.hpp"
 #include <glbinding/gl/types.h>
 #include <range/v3/view/enumerate.hpp>
 #include <algorithm>
 #include <cassert>
-#include <cstdint>
 #include <iterator>
 #include <ranges>
-#include <span>
 
 
 namespace josh {
@@ -25,82 +24,61 @@ namespace josh {
 template<specializes_attribute_traits VertexT>
 class MeshStorage;
 
-
 template<typename VertexT = void>
 struct MeshID;
 
-
 template<typename VertexT>
-struct MeshID {
+struct MeshID
+{
     using vertex_type = VertexT;
-    uint64_t value{}; // TODO: Could be 32-bit.
+    u64 value = {};
 
     operator MeshID<void>() const noexcept;
 };
-
 
 /*
 Type-erased MeshID.
 */
 template<>
-struct MeshID<void> {
+struct MeshID<void>
+{
     using vertex_type = void;
-    uint64_t value{};
+    u64 value = {};
 
     template<typename VertexT>
     auto as() const noexcept -> MeshID<VertexT> { return { value }; }
 };
 
-
 template<typename VertexT>
-MeshID<VertexT>::operator MeshID<void>() const noexcept {
+MeshID<VertexT>::operator MeshID<void>() const noexcept
+{
     return { value };
 }
 
-
-// Convinience for batched draws.
-//
-// Prepares draw parameters for a multidraw call and
-// executes it for each MeshID in the specified range.
-template<typename VertexT>
-void multidraw_from_storage(
-    const MeshStorage<VertexT>&         storage,
-    BindToken<Binding::Program>         bound_program,
-    BindToken<Binding::DrawFramebuffer> bound_fbo,
-    std::ranges::input_range auto&&     mesh_ids);
-
-
-template<typename VertexT>
-void draw_one_from_storage(
-    const MeshStorage<VertexT>&         storage,
-    BindToken<Binding::VertexArray>     bound_vao,
-    BindToken<Binding::Program>         bound_program,
-    BindToken<Binding::DrawFramebuffer> bound_fbo,
-    MeshID<VertexT>                     mesh_id);
-
-
-struct MeshPlacement {
-    GLsizeiptr offset_bytes;
-    GLsizei    count;
-    GLint      basevert;
+struct MeshPlacement
+{
+    usize offset_bytes;
+    i32sz count;
+    i32   basevert;
 };
-
 
 /*
 BufferRanges describing spans of vertex and element data
 in the MeshStorage's VBO and EBO for a given MeshID.
 */
-struct MeshBufferRanges {
+struct MeshBufferRanges
+{
     BufferRange verts;
     BufferRange elems;
 };
 
 
 template<specializes_attribute_traits VertexT>
-class MeshStorage {
+class MeshStorage
+{
 public:
     using vertex_type = VertexT;
-    using index_type  = GLuint;
+    using index_type  = u32;
     using id_type     = MeshID<vertex_type>;
 
     constexpr auto primitive_type() const noexcept -> Primitive   { return Primitive::Triangles; }
@@ -109,28 +87,32 @@ public:
     MeshStorage();
 
     void query(
-        std::span<const id_type> ids,
-        std::span<GLsizeiptr>    out_byte_offsets,
-        std::span<GLsizei>       out_counts,
-        std::span<GLint>         out_baseverts) const;
+        Span<const id_type> ids,
+        Span<usize>         out_byte_offsets,
+        Span<i32sz>         out_counts,
+        Span<i32>           out_baseverts) const;
 
     [[nodiscard]]
     auto query_one(id_type id) const
         -> MeshPlacement;
 
+    [[nodiscard]]
+    auto query_one_indirect(id_type id) const
+        -> DrawElementsIndirectCommand;
+
     // TODO:
-    void query_indirect(
-        std::span<const id_type>               ids,
-        std::span<DrawElementsIndirectCommand> out_commands) const;
+    void _query_indirect(
+        Span<const id_type>               ids,
+        Span<DrawElementsIndirectCommand> out_commands) const;
 
     void query_range(
-        std::ranges::input_range         auto&& ids,
-        std::output_iterator<GLsizeiptr> auto&& out_byte_offsets,
-        std::output_iterator<GLsizei>    auto&& out_counts,
-        std::output_iterator<GLint>      auto&& out_baseverts) const;
+        std::ranges::input_range    auto&& ids,
+        std::output_iterator<usize> auto&& out_byte_offsets,
+        std::output_iterator<i32sz> auto&& out_counts,
+        std::output_iterator<i32>   auto&& out_baseverts) const;
 
     // TODO:
-    void query_range_indirect(
+    void _query_range_indirect(
         std::ranges::input_range                          auto&& ids,
         std::output_iterator<DrawElementsIndirectCommand> auto&& out_commands) const;
 
@@ -179,70 +161,71 @@ public:
         return ebo_;
     }
 
-
     // Planned, but not trivial:
     //
     //   void remove(MeshID id);
     //   void compactify();
     //
 
-
 private:
     UniqueVertexArray         vao_;
     UniqueBuffer<vertex_type> vbo_;
-    NumElems                  vbo_size_ = 0; // Since allocations are amortized, size differs from capacity.
-    NumElems                  vbo_cap_  = 0;
+    usize                     vbo_size_ = 0; // Since allocations are amortized, size differs from capacity.
+    usize                     vbo_cap_  = 0;
     UniqueBuffer<index_type>  ebo_;
-    NumElems                  ebo_size_ = 0;
-    NumElems                  ebo_cap_  = 0;
+    usize                     ebo_size_ = 0;
+    usize                     ebo_cap_  = 0;
     double                    amortization_factor_ = 1.5;
 
     void reattach_vbo();
     void reattach_ebo();
 
-    struct MeshInfo {
+    struct MeshInfo
+    {
         MeshBufferRanges ranges;
         MeshPlacement    placement;
     };
 
-    std::vector<MeshInfo> table_;
+    Vector<MeshInfo> table_;
 
-    auto lookup_mesh(id_type id) const noexcept -> const MeshInfo& {
-        assert(size_t(id.value) < table_.size());
-        return table_[size_t(id.value)];
+    auto lookup_mesh(id_type id) const noexcept
+        -> const MeshInfo&
+    {
+        assert(uindex(id.value) < table_.size());
+        return table_[uindex(id.value)];
     }
 };
 
 
-
-
 template<specializes_attribute_traits VertexT>
-MeshStorage<VertexT>::MeshStorage() {
-    const AttributeIndex first_attrib{ 0 };
-    const GLsizeiptr num_attribs = vao_->specify_custom_attributes<vertex_type>(first_attrib);
+MeshStorage<VertexT>::MeshStorage()
+{
+    const AttributeIndex first_attrib = { 0 };
+    const usize num_attribs = vao_->specify_custom_attributes<vertex_type>(first_attrib);
 
-    for (AttributeIndex attrib_id{ 0 }; attrib_id < num_attribs; ++attrib_id) {
+    for (AttributeIndex attrib_id = 0; attrib_id < num_attribs; ++attrib_id)
+    {
         vao_->enable_attribute(attrib_id);
-        const VertexBufferSlot slot{ 0 }; // All the vertex data goes through the first buffer slot.
+        // NOTE: All the vertex data goes through the first buffer slot.
+        const VertexBufferSlot slot = 0;
         vao_->associate_attribute_with_buffer_slot(attrib_id, slot);
     }
 }
 
-
 template<specializes_attribute_traits VertexT>
-void MeshStorage<VertexT>::reattach_vbo() {
-    const VertexBufferSlot slot  { 0 };
-    const OffsetBytes      offset{ 0 };
-    const StrideBytes      stride{ sizeof(vertex_type) };
-    vao_->attach_vertex_buffer(slot, vbo_, offset, stride);
+void MeshStorage<VertexT>::reattach_vbo()
+{
+    const VertexBufferSlot slot         = 0;
+    const usize            offset_bytes = 0;
+    const usize            stride_bytes = sizeof(vertex_type);
+    vao_->attach_vertex_buffer(slot, vbo_, offset_bytes, stride_bytes);
 }
 
-
 template<specializes_attribute_traits VertexT>
-void MeshStorage<VertexT>::reattach_ebo() {
+void MeshStorage<VertexT>::reattach_ebo()
+{
     vao_->attach_element_buffer(ebo_);
 }
-
 
 template<specializes_attribute_traits VertexT>
 [[nodiscard]]
@@ -251,13 +234,14 @@ auto MeshStorage<VertexT>::insert(
     std::ranges::sized_range auto&& indices)
         -> id_type
 {
-    const StoragePolicies policies{
+    const StoragePolicies policies = {
         .mode        = StorageMode::StaticServer,
         .mapping     = PermittedMapping::ReadWrite,
         .persistence = PermittedPersistence::NotPersistent,
     };
 
-    struct AppendResult {
+    struct AppendResult
+    {
         BufferRange appended_range;
         bool        was_resized;
     };
@@ -265,19 +249,20 @@ auto MeshStorage<VertexT>::insert(
     auto append_to_buffer = [&, this]<typename T>(
         auto&&           input_range,
         UniqueBuffer<T>& buf,
-        NumElems&        buf_size,
-        NumElems&        buf_cap)
+        usize&           buf_size,
+        usize&           buf_cap)
             -> AppendResult
     {
-        const NumElems old_cap      = buf_cap;
-        const NumElems old_size     = buf_size;
-        const NumElems added_size   = std::ranges::ssize(input_range);
-        const NumElems desired_size = old_size + added_size;
-        const bool     needs_resize = desired_size > old_cap;
+        const usize old_cap      = buf_cap;
+        const usize old_size     = buf_size;
+        const usize added_size   = std::ranges::ssize(input_range);
+        const usize desired_size = old_size + added_size;
+        const bool  needs_resize = desired_size > old_cap;
 
-        if (needs_resize) {
-            const NumElems amortized_size = GLsizeiptr(double(old_cap) * amortization_factor_);
-            const NumElems new_size       = std::max(amortized_size, desired_size);
+        if (needs_resize)
+        {
+            const usize amortized_size = usize(double(old_cap) * amortization_factor_);
+            const usize new_size       = std::max(amortized_size, desired_size);
 
             UniqueBuffer<T> new_buf;
             new_buf->allocate_storage(new_size, policies);
@@ -287,20 +272,22 @@ auto MeshStorage<VertexT>::insert(
             buf_cap  = new_size;
         }
 
-        const BufferRange appended_range{ .offset = old_size.value, .count = added_size };
-        const MappingWritePolicies policies{
-            .previous_contents = PreviousContents::InvalidateMappedRange, // Is there a difference? We're accessing new memory anyway.
+        const BufferRange appended_range = {
+            .offset = old_size,
+            .count  = added_size
+        };
+        const MappingWritePolicies policies = {
+            // Is there a difference? We're accessing new memory anyway.
+            .previous_contents = PreviousContents::InvalidateMappedRange,
         };
 
-        const std::span mapped = buf->map_range_for_write(appended_range, policies);
-        do {
-            std::ranges::copy(input_range, mapped.begin());
-        } while (!buf->unmap_current());
+        const auto mapped = buf->map_range_for_write(appended_range, policies);
+        do std::ranges::copy(input_range, mapped.begin());
+        while (!buf->unmap_current());
         buf_size = desired_size;
 
         return { appended_range, needs_resize };
     };
-
 
     // Append to the VBO.
     const auto [vbo_range, vbo_resized] =
@@ -310,17 +297,15 @@ auto MeshStorage<VertexT>::insert(
     const auto [ebo_range, ebo_resized] =
         append_to_buffer(FORWARD(indices), ebo_, ebo_size_, ebo_cap_);
 
-
-    if (vbo_resized) { reattach_vbo(); }
-    if (ebo_resized) { reattach_ebo(); }
-
+    if (vbo_resized) reattach_vbo();
+    if (ebo_resized) reattach_ebo();
 
     // Finally, push back the info about the struct into the lookup table and return the MeshID.
 
-    const MeshPlacement mesh_placement{
-        .offset_bytes = GLsizeiptr(ebo_range.offset * sizeof(index_type)),
-        .count        = GLsizei   (ebo_range.count),
-        .basevert     = GLint     (vbo_range.offset),
+    const MeshPlacement mesh_placement = {
+        .offset_bytes = usize(ebo_range.offset * sizeof(index_type)),
+        .count        = i32sz(ebo_range.count),
+        .basevert     = i32  (vbo_range.offset),
     };
 
     const auto new_id = MeshID<vertex_type>(table_.size());
@@ -332,19 +317,15 @@ auto MeshStorage<VertexT>::insert(
     return new_id;
 }
 
-
 template<specializes_attribute_traits VertexT>
 [[nodiscard]]
 auto MeshStorage<VertexT>::insert(
     std::ranges::sized_range auto&& verts)
         -> id_type
 {
-    using std::views::iota;
-    const NumElems num_verts = std::ranges::ssize(verts);
-    auto indices = iota(index_type{}, num_verts);
-    return insert(FORWARD(verts), indices);
+    const usize num_verts = std::ranges::ssize(verts);
+    return insert(FORWARD(verts), irange<u32>(num_verts));
 }
-
 
 template<specializes_attribute_traits VertexT>
 [[nodiscard]]
@@ -353,13 +334,16 @@ auto MeshStorage<VertexT>::insert_buffer(
     RawBuffer<index_type,  GLConst> indices)
         -> id_type
 {
-    const StoragePolicies policies{
+    // FIXME: Wait, didn't I see this code already?
+
+    const StoragePolicies policies = {
         .mode        = StorageMode::StaticServer,
         .mapping     = PermittedMapping::ReadWrite,
         .persistence = PermittedPersistence::NotPersistent,
     };
 
-    struct AppendResult {
+    struct AppendResult
+    {
         BufferRange appended_range;
         bool        was_resized;
     };
@@ -367,19 +351,19 @@ auto MeshStorage<VertexT>::insert_buffer(
     auto append_to_buffer = [&, this]<typename T>(
         RawBuffer<T, GLConst> src_buf,
         UniqueBuffer<T>&      buf,
-        NumElems&             buf_size,
-        NumElems&             buf_cap)
+        usize&                buf_size,
+        usize&                buf_cap)
             -> AppendResult
     {
-        const NumElems old_cap      = buf_cap;
-        const NumElems old_size     = buf_size;
-        const NumElems added_size   = src_buf.get_num_elements();
-        const NumElems desired_size = old_size + added_size;
-        const bool     needs_resize = desired_size > old_cap;
+        const usize old_cap      = buf_cap;
+        const usize old_size     = buf_size;
+        const usize added_size   = src_buf.get_num_elements();
+        const usize desired_size = old_size + added_size;
+        const bool  needs_resize = desired_size > old_cap;
 
         if (needs_resize) {
-            const NumElems amortized_cap = GLsizeiptr(double(old_cap) * amortization_factor_);
-            const NumElems new_cap       = std::max(amortized_cap, desired_size);
+            const usize amortized_cap = usize(double(old_cap) * amortization_factor_);
+            const usize new_cap       = std::max(amortized_cap, desired_size);
 
             UniqueBuffer<T> new_buf;
             new_buf->allocate_storage(new_cap, policies);
@@ -389,9 +373,13 @@ auto MeshStorage<VertexT>::insert_buffer(
             buf_cap  = new_cap;
         }
 
-        const OffsetElems src_offset = 0;
-        const OffsetElems dst_offset = old_size.value;
-        const BufferRange appended_range{ .offset = dst_offset, .count = added_size };
+        const usize src_offset = 0;
+        const usize dst_offset = old_size;
+
+        const BufferRange appended_range = {
+            .offset = dst_offset,
+            .count  = added_size
+        };
 
         // Do a server-side copy instead of mapping anything.
         src_buf.copy_data_to(buf.get(), added_size, src_offset, dst_offset);
@@ -399,7 +387,6 @@ auto MeshStorage<VertexT>::insert_buffer(
 
         return { appended_range, needs_resize };
     };
-
 
     // Append to the VBO.
     const auto [vbo_range, vbo_resized] =
@@ -409,17 +396,15 @@ auto MeshStorage<VertexT>::insert_buffer(
     const auto [ebo_range, ebo_resized] =
         append_to_buffer(indices, ebo_, ebo_size_, ebo_cap_);
 
-
-    if (vbo_resized) { reattach_vbo(); }
-    if (ebo_resized) { reattach_ebo(); }
-
+    if (vbo_resized) reattach_vbo();
+    if (ebo_resized) reattach_ebo();
 
     // Finally, push back the info about the struct into the lookup table and return the MeshID.
 
-    const MeshPlacement mesh_placement{
-        .offset_bytes = GLsizeiptr(ebo_range.offset * sizeof(index_type)),
-        .count        = GLsizei   (ebo_range.count),
-        .basevert     = GLint     (vbo_range.offset),
+    const MeshPlacement mesh_placement = {
+        .offset_bytes = usize(ebo_range.offset * sizeof(index_type)),
+        .count        = i32sz(ebo_range.count),
+        .basevert     = i32  (vbo_range.offset),
     };
 
     const auto new_id = MeshID<vertex_type>(table_.size());
@@ -431,30 +416,25 @@ auto MeshStorage<VertexT>::insert_buffer(
     return new_id;
 }
 
-
-
-
 template<specializes_attribute_traits VertexT>
 void MeshStorage<VertexT>::query(
-    std::span<const id_type> ids,
-    std::span<GLsizeiptr>    out_offsets_bytes,
-    std::span<GLsizei>       out_counts,
-    std::span<GLint>         out_baseverts) const
+    Span<const id_type> ids,
+    Span<usize>         out_offsets_bytes,
+    Span<i32sz>         out_counts,
+    Span<i32>           out_baseverts) const
 {
     assert(ids.size() == out_offsets_bytes.size());
     assert(ids.size() == out_counts.size());
     assert(ids.size() == out_baseverts.size());
 
-    using ranges::views::enumerate;
-    for (const auto [i, mesh_id] : enumerate(ids)) {
-        const MeshPlacement& placement = lookup_mesh(mesh_id).placement;
-
-        out_offsets_bytes[i] = placement.offset_bytes;
-        out_counts       [i] = placement.count;
-        out_baseverts    [i] = placement.basevert;
+    for (const auto [i, mesh_id] : enumerate(ids))
+    {
+        const MeshPlacement& mp = lookup_mesh(mesh_id).placement;
+        out_offsets_bytes[i] = mp.offset_bytes;
+        out_counts       [i] = mp.count;
+        out_baseverts    [i] = mp.basevert;
     }
 }
-
 
 template<specializes_attribute_traits VertexT>
 auto MeshStorage<VertexT>::query_one(id_type id) const
@@ -463,106 +443,43 @@ auto MeshStorage<VertexT>::query_one(id_type id) const
     return lookup_mesh(id).placement;
 }
 
+template<specializes_attribute_traits VertexT>
+auto MeshStorage<VertexT>::query_one_indirect(id_type id) const
+    -> DrawElementsIndirectCommand
+{
+    const MeshPlacement mp = lookup_mesh(id).placement;
+    return {
+        .element_count  = u32(mp.count),
+        .instance_count = 1,
+        // NOTE: The MDI form expects offset in the *number* of elements.
+        // Just another win for consistency in this wonderful API!
+        .element_offset = u32(mp.offset_bytes / sizeof(u32)),
+        .base_vertex    = mp.basevert,
+        .base_instance  = 0,
+    };
+}
 
 template<specializes_attribute_traits VertexT>
 void MeshStorage<VertexT>::query_range(
-    std::ranges::input_range         auto&& ids,
-    std::output_iterator<GLsizeiptr> auto&& out_offsets_bytes,
-    std::output_iterator<GLsizei>    auto&& out_counts,
-    std::output_iterator<GLint>      auto&& out_baseverts) const
+    std::ranges::input_range    auto&& ids,
+    std::output_iterator<usize> auto&& out_offsets_bytes,
+    std::output_iterator<i32sz> auto&& out_counts,
+    std::output_iterator<i32>   auto&& out_baseverts) const
 {
-    for (const id_type mesh_id : ids) {
-        const MeshPlacement placement = lookup_mesh(mesh_id).placement;
-
-        *out_offsets_bytes++ = placement.offset_bytes;
-        *out_counts++        = placement.count;
-        *out_baseverts++     = placement.basevert;
+    for (const id_type mesh_id : ids)
+    {
+        const MeshPlacement mp = lookup_mesh(mesh_id).placement;
+        *out_offsets_bytes++ = mp.offset_bytes;
+        *out_counts++        = mp.count;
+        *out_baseverts++     = mp.basevert;
     }
 }
-
 
 template<specializes_attribute_traits VertexT>
 auto MeshStorage<VertexT>::buffer_ranges(id_type id) const noexcept
     -> MeshBufferRanges
 {
     return lookup_mesh(id).ranges;
-}
-
-
-
-
-namespace detail {
-
-
-struct MDScratch {
-    std::vector<GLsizeiptr> offsets_bytes;
-    std::vector<GLsizei>    counts;
-    std::vector<GLint>      baseverts;
-};
-
-
-inline auto get_thread_local_multidraw_scratch()
-    -> MDScratch&
-{
-    thread_local MDScratch md;
-    md.offsets_bytes.clear();
-    md.counts       .clear();
-    md.baseverts    .clear();
-    return md;
-}
-
-
-} // namespace detail
-
-
-template<typename VertexT>
-void multidraw_from_storage(
-    const MeshStorage<VertexT>&         storage,
-    BindToken<Binding::Program>         bound_program,
-    BindToken<Binding::DrawFramebuffer> bound_fbo,
-    std::ranges::input_range auto&&     mesh_ids)
-{
-    detail::MDScratch& md = detail::get_thread_local_multidraw_scratch();
-    storage.query_range(
-        mesh_ids,
-        std::back_inserter(md.offsets_bytes),
-        std::back_inserter(md.counts),
-        std::back_inserter(md.baseverts)
-    );
-    BindGuard bound_vao = storage.vertex_array().bind();
-    glapi::multidraw_elements_basevertex(
-        bound_vao,
-        bound_program,
-        bound_fbo,
-        storage.primitive_type(),
-        storage.element_type(),
-        md.offsets_bytes,
-        md.counts,
-        md.baseverts
-    );
-}
-
-
-template<typename VertexT>
-void draw_one_from_storage(
-    const MeshStorage<VertexT>&         storage,
-    BindToken<Binding::VertexArray>     bound_vao,
-    BindToken<Binding::Program>         bound_program,
-    BindToken<Binding::DrawFramebuffer> bound_fbo,
-    MeshID<VertexT>                     mesh_id)
-{
-    assert(storage.vertex_array().id() == bound_vao.id());
-    const MeshPlacement p = storage.query_one(mesh_id);
-    glapi::draw_elements_basevertex(
-        bound_vao,
-        bound_program,
-        bound_fbo,
-        storage.primitive_type(),
-        storage.element_type(),
-        p.offset_bytes,
-        p.count,
-        p.basevert
-    );
 }
 
 

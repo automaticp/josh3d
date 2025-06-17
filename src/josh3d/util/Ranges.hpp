@@ -1,7 +1,9 @@
 #pragma once
+#include "Scalars.hpp"
 #include <range/v3/view/enumerate.hpp> // IWYU pragma: export
 #include <range/v3/view/zip.hpp>       // IWYU pragma: export
 #include <ranges>                      // IWYU pragma: export
+#include <type_traits>
 
 
 /*
@@ -22,8 +24,9 @@ Similar to `views::iota()`, but actually compiles the first time around.
 
 Analogous to Python's `range(beg, end)`, represents a half-open index range: `[beg, end)`.
 */
-constexpr auto irange(size_t beg, size_t end) noexcept
-    -> std::ranges::iota_view<size_t, size_t>
+template<typename T = usize>
+constexpr auto irange(std::type_identity_t<T> beg, T end) noexcept
+    -> std::ranges::iota_view<T, T>
 {
     return std::views::iota(beg, end);
 }
@@ -37,8 +40,9 @@ Hence the name difference.
 
 Analogous to Python's `range(n)`, represents a half-open index range: `[0, n)`.
 */
-constexpr auto irange(size_t n) noexcept
-    -> std::ranges::iota_view<size_t, size_t>
+template<typename T = usize>
+constexpr auto irange(T n) noexcept
+    -> std::ranges::iota_view<T, T>
 {
     return irange(0, n);
 }

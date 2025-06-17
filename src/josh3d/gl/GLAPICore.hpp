@@ -293,7 +293,6 @@ inline void dispatch_compute(
 } // namespace glapi
 
 
-// For exposition only.
 struct DrawArraysIndirectCommand {
     GLuint vertex_count;
     GLuint instance_count;
@@ -302,17 +301,15 @@ struct DrawArraysIndirectCommand {
 };
 
 
-// For exposition only.
 struct DrawElementsIndirectCommand {
     GLuint element_count;
     GLuint instance_count;
     GLuint element_offset;
-    GLuint base_vertex;
+    GLint  base_vertex;
     GLuint base_instance;
 };
 
 
-// For exposition only.
 struct DispatchIndirectCommand {
     GLuint num_groups_x;
     GLuint num_groups_y;
@@ -346,11 +343,33 @@ inline void _draw_elements_indirect() noexcept {
     // gl::glDrawElementsIndirect()
 }
 
-inline void _multidraw_elements_indirect() noexcept {
-    // gl::glMultiDrawElementsIndirect()
+inline void multidraw_elements_indirect(
+    BindToken<Binding::VertexArray>        bound_vertex_array     [[maybe_unused]],
+    BindToken<Binding::Program>            bound_program          [[maybe_unused]],
+    BindToken<Binding::DrawFramebuffer>    bound_draw_framebuffer [[maybe_unused]],
+    BindToken<Binding::DrawIndirectBuffer> bound_indirect_buffer  [[maybe_unused]],
+    Primitive                              primitive,
+    ElementType                            type,
+    GLsizei                                draw_count,
+    GLsizeiptr                             indirect_buffer_offset_bytes,
+    GLsizei                                indirect_buffer_stride_bytes)
+{
+    assert(bound_program.id()          == queries::bound_id(Binding::Program));
+    assert(bound_draw_framebuffer.id() == queries::bound_id(Binding::DrawFramebuffer));
+    assert(bound_vertex_array.id()     == queries::bound_id(Binding::VertexArray));
+    assert(bound_indirect_buffer.id()  == queries::bound_id(Binding::DrawIndirectBuffer));
+    using offset_t = const void*;
+    gl::glMultiDrawElementsIndirect(
+        enum_cast<GLenum>(primitive),
+        enum_cast<GLenum>(type),
+        offset_t(indirect_buffer_offset_bytes), // NOLINT
+        draw_count,
+        indirect_buffer_stride_bytes
+    );
 }
 
-inline void _multidraw_elements_indirect_count() noexcept {
+inline void _multidraw_elements_indirect_count() noexcept
+{
     // gl::glMultiDrawElementsIndirectCount()
 }
 

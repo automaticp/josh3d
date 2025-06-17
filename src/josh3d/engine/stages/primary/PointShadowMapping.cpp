@@ -4,6 +4,7 @@
 #include "MeshRegistry.hpp"
 #include "MeshStorage.hpp"
 #include "StaticMesh.hpp"
+#include "DrawHelpers.hpp"
 #include "UniformTraits.hpp"
 #include "BoundingSphere.hpp"
 #include "VertexStatic.hpp"

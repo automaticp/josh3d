@@ -129,7 +129,7 @@ class [[nodiscard]] Usage
     , public detail::UsageRC<RefCountT>
 {
 public:
-    explicit Usage() = default;
+    Usage() = default;
 
     Usage(T value, RefCountT& refcount)
         : detail::UsageValue<T>     { MOVE(value) }

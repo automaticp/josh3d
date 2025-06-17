@@ -7,6 +7,7 @@
 #define INSTANCE_TRANSFORMS_SSBO_BINDING 0
 #endif
 
+// EWW: Why does this exist?
 
 layout (std140, binding = INSTANCE_TRANSFORMS_SSBO_BINDING) restrict readonly
 buffer InstanceTransforms {

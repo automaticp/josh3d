@@ -5,6 +5,7 @@
 #include "GLScalars.hpp"
 #include <concepts>
 #include <glbinding/gl/enum.h>
+#include <glbinding/gl/functions.h>
 #include <tuple>
 #include <utility>
 
@@ -192,7 +193,15 @@ template<std::convertible_to<GLuint> ...UInt>
 void unbind_samplers_from_units(UInt... index) noexcept { (unbind_sampler_from_unit(index), ...); }
 
 
-
+/*
+Wraps `glBindTextures()`.
+*/
+namespace glapi {
+inline void bind_texture_units(std::span<const GLuint> textures, GLuint first = 0)
+{
+    gl::glBindTextures(first, GLsizei(textures.size()), textures.data());
+}
+} // namespace glapi
 
 
 // For cross-conext visibility updates.

@@ -1,4 +1,5 @@
 #pragma once
+#include "DrawHelpers.hpp"
 #include "ECS.hpp"
 #include "EnumUtils.hpp"
 #include "GLObjects.hpp"
@@ -124,6 +125,7 @@ struct CascadedShadowMapping
 
     // Use MeshStorage and MultiDrawElements for opaque meshes.
     // TODO: Only works for PerCascadeCulling right now.
+    // TODO: We should support multidraw for alpha-tested too.
     bool multidraw_opaque = false;
 
     // Limited in [1, max_cascades()].
@@ -194,6 +196,8 @@ private:
     ShaderToken sp_per_cascade_no_alpha_ = shader_pool().get({
         .vert = VPath("src/shaders/depth_map.vert"),
         .frag = VPath("src/shaders/depth_map.frag")});
+
+    UploadBuffer<MDICommand> mdi_buffer_;
 
     ShaderToken sp_per_cascade_opaque_multidraw_ = shader_pool().get({
         .vert = VPath("src/shaders/depth_map_multidraw.vert"),

@@ -370,7 +370,7 @@ auto AssimpSceneRepr::from_scene(
         });
         auto& textype2mattextureids = material.textype2mattextureids;
 
-        for (const auto type_idx : irange(AI_TEXTURE_TYPE_MAX))
+        for (const auto type_idx : irange<i32>(AI_TEXTURE_TYPE_MAX))
         {
             const auto type = aiTextureType(type_idx);
             const auto num_textures = ai_material->GetTextureCount(type);
