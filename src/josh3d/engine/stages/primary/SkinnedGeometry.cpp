@@ -87,8 +87,8 @@ void SkinnedGeometry::operator()(
 
             apply_materials(entity, sp, shininess_loc);
 
-            skinning_mats_.restage(pose.skinning_mats);
-            skinning_mats_.bind_to_ssbo_index(0);
+            _skinning_mats.restage(pose.skinning_mats);
+            _skinning_mats.bind_to_ssbo_index(0);
 
             // TODO: Could batch if had SkinStorage.
             draw_one_from_storage(*mesh_storage, bva, bsp, bfb, skinned_mesh.lods.cur());
@@ -100,12 +100,12 @@ void SkinnedGeometry::operator()(
     if (backface_culling) glapi::enable(Capability::FaceCulling);
     else                  glapi::disable(Capability::FaceCulling);
 
-    draw_from_view(sp_opaque.get(), view_opaque);
+    draw_from_view(_sp_opaque.get(), view_opaque);
 
     // Alpha-Tested.
     // No backface culling even if requested.
     glapi::disable(Capability::FaceCulling);
-    draw_from_view(sp_atested.get(), view_atested);
+    draw_from_view(_sp_atested.get(), view_atested);
 }
 
 

@@ -34,12 +34,12 @@ struct DeferredGeometry
     void _draw_single(RenderEnginePrimaryInterface& engine);
 
     ShaderToken _sp_single_opaque = shader_pool().get({
-        .vert = VPath("src/shaders/dfr_geometry_mat_dsn.vert"),
-        .frag = VPath("src/shaders/dfr_geometry_mat_dsn.frag")});
+        .vert = VPath("src/shaders/dfrg_static_dsn.vert"),
+        .frag = VPath("src/shaders/dfrg_static_dsn.frag")});
 
     ShaderToken _sp_single_atested = shader_pool().get({
-        .vert = VPath("src/shaders/dfr_geometry_mat_dsn.vert"),
-        .frag = VPath("src/shaders/dfr_geometry_mat_dsn.frag")},
+        .vert = VPath("src/shaders/dfrg_static_dsn.vert"),
+        .frag = VPath("src/shaders/dfrg_static_dsn.frag")},
         ProgramDefines()
             .define("ENABLE_ALPHA_TESTING", 1));
 
@@ -59,14 +59,14 @@ struct DeferredGeometry
     void _draw_batched(RenderEnginePrimaryInterface& engine);
 
     ShaderToken _sp_batched_opaque = shader_pool().get({
-        .vert = VPath("src/shaders/dfr_geometry_dsn_batched.vert"),
-        .frag = VPath("src/shaders/dfr_geometry_dsn_batched.frag")},
+        .vert = VPath("src/shaders/dfrg_static_dsn_batched.vert"),
+        .frag = VPath("src/shaders/dfrg_static_dsn_batched.frag")},
         ProgramDefines()
             .define("MAX_TEXTURE_UNITS", max_frag_texture_units()));
 
     ShaderToken _sp_batched_atested = shader_pool().get({
-        .vert = VPath("src/shaders/dfr_geometry_dsn_batched.vert"),
-        .frag = VPath("src/shaders/dfr_geometry_dsn_batched.frag")},
+        .vert = VPath("src/shaders/dfrg_static_dsn_batched.vert"),
+        .frag = VPath("src/shaders/dfrg_static_dsn_batched.frag")},
         ProgramDefines()
             .define("MAX_TEXTURE_UNITS", max_frag_texture_units())
             .define("ENABLE_ALPHA_TESTING", 1));

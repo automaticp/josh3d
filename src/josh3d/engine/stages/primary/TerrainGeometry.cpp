@@ -20,7 +20,7 @@ void TerrainGeometry::operator()(
 
     if (not gbuffer) return;
 
-    const RawProgram<> sp = sp_;
+    const RawProgram<> sp = _sp;
 
     glapi::set_viewport({ {}, gbuffer->resolution() });
 

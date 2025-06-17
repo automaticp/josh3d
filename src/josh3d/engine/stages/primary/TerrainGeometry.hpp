@@ -11,10 +11,9 @@ struct TerrainGeometry
 {
     void operator()(RenderEnginePrimaryInterface& engine);
 
-private:
-    ShaderToken sp_ = shader_pool().get({
-        .vert = VPath("src/shaders/dfr_geometry_terrain.vert"),
-        .frag = VPath("src/shaders/dfr_geometry_terrain.frag")});
+    ShaderToken _sp = shader_pool().get({
+        .vert = VPath("src/shaders/dfrg_terrain.vert"),
+        .frag = VPath("src/shaders/dfrg_terrain.frag")});
 };
 
 
