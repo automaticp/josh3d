@@ -18,13 +18,7 @@
 
 JOSH3D_SIMPLE_STAGE_HOOK_BODY(CascadedShadowMapping)
 {
-    using Strategy = target_stage_type::Strategy;
-
-    ImGui::EnumListBox("Strategy", &stage.strategy, 2);
-
-    ImGui::BeginDisabled(stage.strategy != Strategy::PerCascadeCulling);
-    ImGui::Checkbox("MultiDraw Opaque", &stage.multidraw_opaque);
-    ImGui::EndDisabled();
+    ImGui::EnumListBox("Strategy", &stage.strategy);
 
     auto num_cascades    = stage.num_cascades();
     auto side_resolution = stage.side_resolution();
@@ -76,29 +70,29 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(CascadedShadowMapping)
         ImGui::TableSetupColumn("Solid");
         ImGui::TableSetupColumn("Alpha-Tested");
         ImGui::TableHeadersRow();
-        usize total_draws_noat = 0;
-        usize total_draws_at   = 0;
+        usize total_draws_opaque  = 0;
+        usize total_draws_atested = 0;
         for (const uindex i : irange(views.size()))
         {
-            const usize draws_at     = drawstates[i].draw_list_at    .size();
-            const usize draws_opaque = drawstates[i].draw_list_opaque.size();
+            const usize draws_atested = drawstates[i].drawlist_atested.size();
+            const usize draws_opaque  = drawstates[i].drawlist_opaque.size();
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("%zu", i);
             ImGui::TableSetColumnIndex(1);
             ImGui::Text("%zu", draws_opaque);
             ImGui::TableSetColumnIndex(2);
-            ImGui::Text("%zu", draws_at);
-            total_draws_at   += draws_at;
-            total_draws_noat += draws_opaque;
+            ImGui::Text("%zu", draws_atested);
+            total_draws_atested += draws_atested;
+            total_draws_opaque  += draws_opaque;
         }
         ImGui::TableNextRow(ImGuiTableRowFlags_Headers);
         ImGui::TableSetColumnIndex(0);
         ImGui::TextUnformatted("Total");
         ImGui::TableSetColumnIndex(1);
-        ImGui::Text("%zu", total_draws_noat);
+        ImGui::Text("%zu", total_draws_opaque);
         ImGui::TableSetColumnIndex(2);
-        ImGui::Text("%zu", total_draws_at);
+        ImGui::Text("%zu", total_draws_atested);
 
         ImGui::EndTable();
         ImGui::TreePop();

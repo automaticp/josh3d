@@ -1,5 +1,4 @@
 #pragma once
-#include "CategoryCasts.hpp"
 #include "Common.hpp"
 #include "CommonConcepts.hpp"
 #include "GLAPIBinding.hpp"
@@ -50,7 +49,7 @@ public:
     auto stage(std::ranges::range auto&& r) -> BufferRange;
 
     // Stage a single element by appending to the existing storage. Effectively push_back().
-    auto stage_one(T&& value) -> BufferRange;
+    auto stage_one(const T& value) -> BufferRange;
 
     // Obtain a readonly view to the staged storage.
     auto view_staged() const noexcept -> Span<const T> { return staged_; }
@@ -128,11 +127,11 @@ auto UploadBuffer<T>::stage(std::ranges::range auto&& r)
 }
 
 template<trivially_copyable T>
-auto UploadBuffer<T>::stage_one(T&& value)
+auto UploadBuffer<T>::stage_one(const T& value)
     -> BufferRange
 {
     const auto old_end = OffsetElems(num_staged());
-    staged_.push_back(FORWARD(value));
+    staged_.push_back(value);
 
     was_desynced();
 

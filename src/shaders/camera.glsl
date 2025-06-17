@@ -3,7 +3,8 @@
 // #version 430 core
 
 
-struct Camera {
+struct Camera
+{
     vec3  position_ws;
     float z_near;
     float z_far;

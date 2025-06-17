@@ -1,5 +1,6 @@
 #pragma once
 #include "AABB.hpp"
+#include "DrawHelpers.hpp"
 #include "EnumUtils.hpp"
 #include "GLAPICore.hpp"
 #include "GPULayout.hpp"
@@ -61,13 +62,13 @@ struct DeferredGeometry
         .vert = VPath("src/shaders/dfr_geometry_dsn_batched.vert"),
         .frag = VPath("src/shaders/dfr_geometry_dsn_batched.frag")},
         ProgramDefines()
-            .define("MAX_TEXTURE_UNITS", _max_texture_units()));
+            .define("MAX_TEXTURE_UNITS", max_frag_texture_units()));
 
     ShaderToken _sp_batched_atested = shader_pool().get({
         .vert = VPath("src/shaders/dfr_geometry_dsn_batched.vert"),
         .frag = VPath("src/shaders/dfr_geometry_dsn_batched.frag")},
         ProgramDefines()
-            .define("MAX_TEXTURE_UNITS", _max_texture_units())
+            .define("MAX_TEXTURE_UNITS", max_frag_texture_units())
             .define("ENABLE_ALPHA_TESTING", 1));
 };
 JOSH3D_DEFINE_ENUM_EXTRAS(DeferredGeometry::Strategy, DrawPerMesh, BatchedMDI);

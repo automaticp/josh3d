@@ -3,6 +3,7 @@
 #include "ECS.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLAPICore.hpp"
+#include "GLAPILimits.hpp"
 #include "Materials.hpp"
 #include "MeshStorage.hpp"
 #include "Ranges.hpp"
@@ -55,6 +56,15 @@ inline auto build_irange_tls_array(usize n)
     -> Span<const i32>
 {
     return build_irange_tls_array(0, n);
+}
+
+/*
+Common when doing non-bindless batching.
+*/
+inline auto max_frag_texture_units()
+    -> i32
+{
+    return glapi::limits::get(glapi::LimitI::MaxFragTextureUnits);
 }
 
 /*

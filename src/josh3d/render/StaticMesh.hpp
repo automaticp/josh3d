@@ -1,18 +1,20 @@
 #pragma once
 #include "MeshStorage.hpp"
 #include "Resource.hpp"
+#include "Scalars.hpp"
 #include "VertexStatic.hpp"
 #include "LODPack.hpp"
-#include <cstdint>
 
 
 namespace josh {
 
+using StaticMeshID = MeshID<VertexStatic>;
 
-struct StaticMesh {
-    LODPack<MeshID<VertexStatic>, 8> lods;
-    ResourceUsage                    usage;   // One usage for all MeshIDs.
-    uintptr_t                        aba_tag{};
+struct StaticMesh
+{
+    LODPack<StaticMeshID, 8> lods;
+    ResourceUsage            usage; // One usage for all MeshIDs.
+    uintptr                  aba_tag = {};
 };
 
 

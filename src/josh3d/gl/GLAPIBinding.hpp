@@ -269,6 +269,10 @@ Which is more verbose, so do this instead.
 
 enum class TextureTarget : GLuint;
 
+
+// FIXME: What the hell is this mess?
+
+
 // These are the mixin types that can call `bind()`, `use()`, etc.
 // We befriend them and not the final RawObject types, as friendship isn't transitive like that.
 namespace detail {
@@ -276,7 +280,9 @@ template<typename> struct BufferDSAInterface_Bind;
 template<typename, typename> struct TypedBufferDSAInterface;
 template<typename> struct VertexArrayDSAInterface_Bind;
 template<typename> struct ProgramDSAInterface_Use;
-template<typename> struct FramebufferDSAInterface_Bind;
+namespace framebuffer_api{
+template<typename> struct Bind;
+} // namespace framebuffer_api
 template<typename, TextureTarget> struct TextureDSAInterface_Bind_ToImageUnit;
 template<typename, TextureTarget> struct TextureDSAInterface_Bind_ToImageUnitLayered;
 template<typename, TextureTarget> struct TextureDSAInterface_Bind_ToTextureUnit;
@@ -294,8 +300,8 @@ JOSH3D_DEFINE_BIND_TOKEN(PixelPackBuffer,        template<typename> friend struc
 JOSH3D_DEFINE_BIND_TOKEN(PixelUnpackBuffer,      template<typename> friend struct detail::BufferDSAInterface_Bind;)
 JOSH3D_DEFINE_BIND_TOKEN(VertexArray,            template<typename> friend struct detail::VertexArrayDSAInterface_Bind;)
 JOSH3D_DEFINE_BIND_TOKEN(Program,                template<typename> friend struct detail::ProgramDSAInterface_Use;)
-JOSH3D_DEFINE_BIND_TOKEN(ReadFramebuffer,        template<typename> friend struct detail::FramebufferDSAInterface_Bind;)
-JOSH3D_DEFINE_BIND_TOKEN(DrawFramebuffer,        template<typename> friend struct detail::FramebufferDSAInterface_Bind;)
+JOSH3D_DEFINE_BIND_TOKEN(ReadFramebuffer,        template<typename> friend struct detail::framebuffer_api::Bind;)
+JOSH3D_DEFINE_BIND_TOKEN(DrawFramebuffer,        template<typename> friend struct detail::framebuffer_api::Bind;)
 
 JOSH3D_DEFINE_BIND_TOKEN_INDEXED(UniformBuffer,           JOSH3D_SINGLE_ARG(template<typename> friend struct detail::BufferDSAInterface_Bind; template<typename, typename> friend struct detail::TypedBufferDSAInterface;))
 JOSH3D_DEFINE_BIND_TOKEN_INDEXED(ShaderStorageBuffer,     JOSH3D_SINGLE_ARG(template<typename> friend struct detail::BufferDSAInterface_Bind; template<typename, typename> friend struct detail::TypedBufferDSAInterface;))

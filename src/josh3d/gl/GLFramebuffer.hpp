@@ -24,14 +24,15 @@
 namespace josh {
 
 
-enum class BlitFilter : GLuint {
+enum class BlitFilter : GLuint
+{
     Nearest = GLuint(gl::GL_NEAREST),
     Linear  = GLuint(gl::GL_LINEAR),
 };
 JOSH3D_DEFINE_ENUM_EXTRAS(BlitFilter, Nearest, Linear);
 
-
-enum class FramebufferStatus : GLuint {
+enum class FramebufferStatus : GLuint
+{
     Complete                    = GLuint(gl::GL_FRAMEBUFFER_COMPLETE),
     Undefined                   = GLuint(gl::GL_FRAMEBUFFER_UNDEFINED),
     Unsupported                 = GLuint(gl::GL_FRAMEBUFFER_UNSUPPORTED),
@@ -43,14 +44,14 @@ enum class FramebufferStatus : GLuint {
     IncompleteLayerTargets      = GLuint(gl::GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS),
 };
 
-
 /*
 Monoscopic contexts include only left buffers, and stereoscopic contexts include both
 left and right buffers. Likewise, single-buffered contexts include only front buffers, and
 double-buffered contexts include both front and back buffers.
 The context is selected at GL initialization.
 */
-enum class DefaultFramebufferBufferSet : GLuint {
+enum class DefaultFramebufferBufferSet : GLuint
+{
     FrontLeft    = GLuint(gl::GL_FRONT_LEFT),
     FrontRight   = GLuint(gl::GL_FRONT_RIGHT),
     BackLeft     = GLuint(gl::GL_BACK_LEFT),
@@ -62,20 +63,13 @@ enum class DefaultFramebufferBufferSet : GLuint {
     FrontAndBack = GLuint(gl::GL_FRONT_AND_BACK),
 };
 
-
-enum class DefaultFramebufferBuffer : GLuint {
+enum class DefaultFramebufferBuffer : GLuint
+{
     FrontLeft  = GLuint(gl::GL_FRONT_LEFT),
     FrontRight = GLuint(gl::GL_FRONT_RIGHT),
     BackLeft   = GLuint(gl::GL_BACK_LEFT),
     BackRight  = GLuint(gl::GL_BACK_RIGHT),
 };
-
-
-
-
-
-
-
 
 template<mutability_tag MutT>
 class RawFramebuffer;
@@ -85,15 +79,15 @@ class RawDefaultFramebuffer;
 
 
 namespace detail {
-
+namespace framebuffer_api {
 
 template<typename CRTP>
-struct FramebufferDSAInterface_Bind {
+struct Bind
+{
 private:
     GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
     using mt = mutability_traits<CRTP>;
 public:
-
     // Wraps `glBindFramebuffer` with `target = GL_READ_FRAMEBUFFER`.
     [[nodiscard("BindTokens have to be provided to an API call that expects bound state.")]]
     auto bind_read() const noexcept
@@ -112,19 +106,15 @@ public:
         gl::glBindFramebuffer(gl::GL_DRAW_FRAMEBUFFER, self_id());
         return { self_id() };
     }
-
 };
 
-
-
-
 template<typename CRTP>
-struct FramebufferDSAInterface_Common {
+struct Common
+{
 private:
     GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
     using mt = mutability_traits<CRTP>;
 public:
-
     // Wraps `glBlitNamedFramebuffer`.
     void blit_to(
         RawFramebuffer<GLMutable> dst,
@@ -141,51 +131,65 @@ public:
         BufferMask                       buffers,
         BlitFilter                       filter) const noexcept;
 
+    // Wraps `glClearNamedFramebufferfv` with `buffer = GL_DEPTH`.
+    void clear_depth(GLfloat value) const noexcept
+        requires mt::is_mutable
+    {
+        gl::glClearNamedFramebufferfv(
+            self_id(),
+            gl::GL_DEPTH, // Buffer.
+            0,            // Must be 0.
+            &value        // "Color"
+        );
+    }
+
+    // TODO:
+    void _clear_color();
 
     // Wraps `glCheckNamedFramebufferStatus` with `target = GL_DRAW_FRAMEBUFFER`.
-    FramebufferStatus get_status_for_draw() const noexcept {
+    auto get_status_for_draw() const noexcept
+        -> FramebufferStatus
+    {
         return enum_cast<FramebufferStatus>(
-            gl::glCheckNamedFramebufferStatus(self_id(), gl::GL_DRAW_FRAMEBUFFER)
-        );
+            gl::glCheckNamedFramebufferStatus(self_id(), gl::GL_DRAW_FRAMEBUFFER));
     }
 
     // Wraps `glCheckNamedFramebufferStatus` with `target = GL_READ_FRAMEBUFFER`
-    FramebufferStatus get_status_for_read() const noexcept {
+    auto get_status_for_read() const noexcept
+        -> FramebufferStatus
+    {
         return enum_cast<FramebufferStatus>(
-            gl::glCheckNamedFramebufferStatus(self_id(), gl::GL_READ_FRAMEBUFFER)
-        );
+            gl::glCheckNamedFramebufferStatus(self_id(), gl::GL_READ_FRAMEBUFFER));
     }
 
     // Wraps `glCheckNamedFramebufferStatus` with `target = GL_DRAW_FRAMEBUFFER`.
-    bool is_complete_for_draw() const noexcept {
+    auto is_complete_for_draw() const noexcept
+        -> bool
+    {
         return get_status_for_draw() == FramebufferStatus::Complete;
     }
 
     // Wraps `glCheckNamedFramebufferStatus` with `target = GL_READ_FRAMEBUFFER`
-    bool is_complete_for_read() const noexcept {
+    auto is_complete_for_read() const noexcept
+        -> bool
+    {
         return get_status_for_read() == FramebufferStatus::Complete;
     }
-
 };
 
-
-
-
 template<typename CRTP>
-struct FramebufferDSAInterface_Attachments {
+struct Attachments
+{
 private:
     GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
     using mt = mutability_traits<CRTP>;
 public:
-
     // Wraps `glNamedFramebufferDrawBuffer` with `buf = GL_COLOR_ATTACHMENT0 + attachment_index`.
     void specify_single_color_buffer_for_draw(GLuint attachment_index) const noexcept
         requires mt::is_mutable
     {
         assert(self_id() != 0);
-        gl::glNamedFramebufferDrawBuffer(
-            self_id(), GLenum{ GLuint(gl::GL_COLOR_ATTACHMENT0) + attachment_index }
-        );
+        gl::glNamedFramebufferDrawBuffer(self_id(), GLenum{ GLuint(gl::GL_COLOR_ATTACHMENT0) + attachment_index });
     }
 
     // Wraps `glNamedFramebufferDrawBuffers` with `bufs[i] = GL_COLOR_ATTACHMENT0 + attachment_indices[i]`.
@@ -205,9 +209,7 @@ public:
         requires mt::is_mutable
     {
         assert(self_id() != 0);
-        gl::glNamedFramebufferDrawBuffers(
-            self_id(), attachment_constants.size(), attachment_constants.data()
-        );
+        gl::glNamedFramebufferDrawBuffers(self_id(), attachment_constants.size(), attachment_constants.data());
     }
 
     // Wraps `glNamedFramebufferDrawBuffer` with `buf = GL_NONE`.
@@ -218,31 +220,26 @@ public:
         gl::glNamedFramebufferDrawBuffer(self_id(), gl::GL_NONE);
     }
 
-
-
-
     // Wraps `glNamedFramebufferReadBuffer` with `src = GL_COLOR_ATTACHMENT0 + attachment_index`.
-    void specify_color_buffer_for_read(GLuint attachment_index) const noexcept {
+    void specify_color_buffer_for_read(GLuint attachment_index) const noexcept
+    {
         assert(self_id() != 0);
         assert(attachment_index < glapi::limits::max_color_attachments());
-        gl::glNamedFramebufferReadBuffer(
-            self_id(), GLenum{ GLuint(gl::GL_COLOR_ATTACHMENT0) + attachment_index }
-        );
+        gl::glNamedFramebufferReadBuffer(self_id(), GLenum{ GLuint(gl::GL_COLOR_ATTACHMENT0) + attachment_index });
     }
 
     // Wraps `glNamedFramebufferReadBuffer` with `src = GL_NONE`.
-    void disable_all_color_buffers_for_read() const noexcept {
+    void disable_all_color_buffers_for_read() const noexcept
+    {
         assert(self_id() == 0);
         gl::glNamedFramebufferReadBuffer(self_id(), gl::GL_NONE);
     }
 
 
-
-
     // Wraps `glNamedFramebufferTexture` with `attachment = GL_COLOR_ATTACHMENT0 + attachment_index`.
     template<of_kind<GLKind::Texture> TextureT>
         requires
-            mutability_traits<TextureT>::is_mutable &&
+            mutability_traits<TextureT>::is_mutable and
             texture_traits<TextureT>::has_lod
     void attach_texture_to_color_buffer(
         const TextureT& texture,
@@ -281,8 +278,6 @@ public:
     }
 
 
-
-
     // Wraps `glNamedFramebufferTexture` with `attachment = GL_DEPTH_ATTACHMENT`.
     template<of_kind<GLKind::Texture> TextureT>
         requires
@@ -321,8 +316,6 @@ public:
     }
 
 
-
-
     // Wraps `glNamedFramebufferTexture` with `attachment = GL_STENCIL_ATTACHMENT`.
     template<of_kind<GLKind::Texture> TextureT>
         requires
@@ -359,8 +352,6 @@ public:
             0
         );
     }
-
-
 
 
     // Wraps `glNamedFramebufferTextureLayer` with `attachment = GL_COLOR_ATTACHMENT0 + attachment_index`.
@@ -387,7 +378,6 @@ public:
         );
     }
 
-
     // Wraps `glNamedFramebufferTextureLayer` with `attachment = GL_COLOR_ATTACHMENT0 + attachment_index`.
     template<of_kind<GLKind::Texture> TextureT>
         requires
@@ -410,8 +400,6 @@ public:
             layer
         );
     }
-
-
 
 
     // Wraps `glNamedFramebufferTextureLayer` with `attachment = GL_DEPTH_ATTACHMENT`.
@@ -456,8 +444,6 @@ public:
             layer
         );
     }
-
-
 
 
     // Wraps `glNamedFramebufferTextureLayer` with `attachment = GL_STENCIL_ATTACHMENT`.
@@ -510,8 +496,6 @@ public:
     void _attach_renderbuffer_to_stencil_buffer() const noexcept {}
 
 
-
-
     // Wraps `glNamedFramebufferTexture` with `attachment = GL_COLOR_ATTACHMENT0 + attachment_index` and `texture = 0`.
     void detach_color_buffer(GLuint attachment_index) const noexcept
         requires mt::is_mutable
@@ -540,19 +524,15 @@ public:
     }
 
     // Also: get_attachemnt_type, etc.
-
 };
 
-
-
-
 template<typename CRTP>
-struct DefaultFramebufferDSAInterface_Attachments {
+struct DefaultAttachments
+{
 private:
     GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
     using mt = mutability_traits<CRTP>;
 public:
-
     // Wraps `glNamedFramebufferDrawBuffer` with `buf = attachment_set`.
     void specify_default_buffer_set_for_draw(DefaultFramebufferBufferSet attachment_set) const noexcept
         requires mt::is_mutable
@@ -592,7 +572,6 @@ public:
     }
 
 
-
     // Wraps `glNamedFramebufferReadBuffer` with `src = attachment_buffer`.
     void specify_default_buffer_for_read(DefaultFramebufferBuffer attachment_buffer) const noexcept
         requires mt::is_mutable
@@ -608,36 +587,26 @@ public:
         assert(self_id() == 0);
         gl::glNamedFramebufferReadBuffer(self_id(), gl::GL_NONE);
     }
-
-
 };
 
 
-
+template<typename CRTP>
+struct Framebuffer
+    : Common<CRTP>
+    , Bind<CRTP>
+    , Attachments<CRTP>
+{};
 
 template<typename CRTP>
-struct FramebufferDSAInterface
-    : FramebufferDSAInterface_Common<CRTP>
-    , FramebufferDSAInterface_Bind<CRTP>
-    , FramebufferDSAInterface_Attachments<CRTP>
+struct DefaultFramebuffer
+    : Common<CRTP>
+    , Bind<CRTP>
+    , DefaultAttachments<CRTP>
 {};
 
 
-template<typename CRTP>
-struct DefaultFramebufferDSAInterface
-    : FramebufferDSAInterface_Common<CRTP>
-    , FramebufferDSAInterface_Bind<CRTP>
-    , DefaultFramebufferDSAInterface_Attachments<CRTP>
-{};
-
-
-
+} // namespace framebuffer_api
 } // namespace detail
-
-
-
-
-
 
 
 
@@ -645,7 +614,7 @@ struct DefaultFramebufferDSAInterface
 template<mutability_tag MutT = GLMutable>
 class RawFramebuffer
     : public detail::RawGLHandle<MutT>
-    , public detail::FramebufferDSAInterface<RawFramebuffer<MutT>>
+    , public detail::framebuffer_api::Framebuffer<RawFramebuffer<MutT>>
 {
 public:
     static constexpr GLKind kind_type = GLKind::Framebuffer;
@@ -654,12 +623,10 @@ public:
 };
 
 
-
-
 template<mutability_tag MutT = GLMutable>
 class RawDefaultFramebuffer
     : public detail::RawGLHandle<MutT>
-    , public detail::DefaultFramebufferDSAInterface<RawDefaultFramebuffer<MutT>>
+    , public detail::framebuffer_api::DefaultFramebuffer<RawDefaultFramebuffer<MutT>>
 {
 public:
     static constexpr GLKind kind_type = GLKind::DefaultFramebuffer;
@@ -669,10 +636,8 @@ public:
 };
 
 
-
-
 template<typename CRTP>
-inline void detail::FramebufferDSAInterface_Common<CRTP>::blit_to(
+inline void detail::framebuffer_api::Common<CRTP>::blit_to(
     RawFramebuffer<GLMutable> dst,
     const Region2I&           src_region,
     const Region2I&           dst_region,
@@ -696,7 +661,7 @@ inline void detail::FramebufferDSAInterface_Common<CRTP>::blit_to(
 
 
 template<typename CRTP>
-inline void detail::FramebufferDSAInterface_Common<CRTP>::blit_to(
+inline void detail::framebuffer_api::Common<CRTP>::blit_to(
     RawDefaultFramebuffer<GLMutable> dst [[maybe_unused]],
     const Region2I&                  src_region,
     const Region2I&                  dst_region,

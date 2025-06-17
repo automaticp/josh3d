@@ -1,6 +1,7 @@
 #include "CascadedShadowMapping.hpp"
 #include "Active.hpp"
 #include "Camera.hpp"
+#include "Common.hpp"
 #include "Components.hpp"
 #include "DrawHelpers.hpp"
 #include "ECS.hpp"
@@ -14,6 +15,7 @@
 #include "MeshStorage.hpp"
 #include "Ranges.hpp"
 #include "RenderEngine.hpp"
+#include "Scalars.hpp"
 #include "StaticMesh.hpp"
 #include "UploadBuffer.hpp"
 #include "VertexStatic.hpp"
@@ -40,7 +42,7 @@ CascadedShadowMapping::CascadedShadowMapping(
     i32 num_desired_cascades)
 {
     assert(side_resolution > 0);
-    const i32 num_cascades = allowed_num_cascades(num_desired_cascades);
+    const i32 num_cascades = _allowed_num_cascades(num_desired_cascades);
     cascades.maps._resize({ side_resolution, side_resolution }, num_cascades);
 }
 
@@ -61,10 +63,10 @@ void CascadedShadowMapping::resize_maps(
     i32 num_desired_cascades)
 {
     assert(side_resolution > 0);
-    cascades.maps._resize({ side_resolution, side_resolution }, allowed_num_cascades(num_desired_cascades));
+    cascades.maps._resize({ side_resolution, side_resolution }, _allowed_num_cascades(num_desired_cascades));
 }
 
-auto CascadedShadowMapping::allowed_num_cascades(i32 desired_num) const noexcept
+auto CascadedShadowMapping::_allowed_num_cascades(i32 desired_num) const noexcept
     -> i32
 {
     return std::clamp(desired_num, 1, max_cascades());
@@ -281,8 +283,8 @@ void cull_per_cascade(
     // Reset all lists first.
     for (auto& drawstate : drawstates)
     {
-        drawstate.draw_list_at     .clear();
-        drawstate.draw_list_opaque .clear();
+        drawstate.drawlist_atested     .clear();
+        drawstate.drawlist_opaque .clear();
     }
 
     /*
@@ -328,7 +330,7 @@ void cull_per_cascade(
             max(min(extents.x, extents.y), min(max(extents.x, extents.y), extents.z));
 
         // TODO: Is there really not a better way?
-        using memptr_type = decltype(&CascadeDrawState::draw_list_at);
+        using memptr_type = decltype(&CascadeDrawState::drawlist_atested);
 
         auto test_cascades_and_output_into = [&](memptr_type out_list_mptr)
         {
@@ -344,6 +346,7 @@ void cull_per_cascade(
             {
                 const auto& view      = views     [i];
                 auto&       drawstate = drawstates[i];
+                auto&       drawlist  = drawstate.*out_list_mptr;
 
                 if (view.tx_scale.x > median_extent)
                     break; // Too small, discard.
@@ -353,19 +356,19 @@ void cull_per_cascade(
 
                 if (is_fully_inside_of(aabb, padded_frustum))
                 {
-                    (drawstate.*out_list_mptr).emplace_back(entity);
+                    drawlist.emplace_back(entity);
                     break;
                 }
 
                 if (not is_fully_outside_of(aabb, full_frustum))
-                    (drawstate.*out_list_mptr).emplace_back(entity);
+                    drawlist.emplace_back(entity);
             }
         };
 
         if (has_tag<AlphaTested>(handle) and has_component<MaterialDiffuse>(handle))
-            test_cascades_and_output_into(&CascadeDrawState::draw_list_at);
+            test_cascades_and_output_into(&CascadeDrawState::drawlist_atested);
         else
-            test_cascades_and_output_into(&CascadeDrawState::draw_list_opaque);
+            test_cascades_and_output_into(&CascadeDrawState::drawlist_opaque);
     }
 }
 
@@ -377,52 +380,52 @@ void CascadedShadowMapping::operator()(
 {
     const auto& registry = engine.registry();
 
-    // Check if the scene's directional light has shadow-casting enabled.
-    if (const CHandle dlight = get_active<DirectionalLight, MTransform, ShadowCasting>(registry))
+    const CHandle dlight = get_active<DirectionalLight, ShadowCasting, MTransform>(registry);
+    const CHandle cam    = get_active<Camera, MTransform>(registry);
+
+    if (not dlight) return;
+    if (not cam)    return;
+
+    const vec3 light_dir     = decompose_rotation(dlight.get<MTransform>()) * -Z;
+    const auto cam_mtf       = cam.get<MTransform>();
+    const vec3 cam_position  = cam_mtf.decompose_position();
+    const auto frustum_world = cam.get<Camera>().view_frustum_as_quads().transformed(cam_mtf.model());
+
+    fit_cascade_views_to_camera(
+        cascades.views,
+        num_cascades(),
+        cascades.maps.resolution(),
+        cam_position,
+        frustum_world,
+        light_dir,
+        split_log_weight,
+        split_bias,
+        support_cascade_blending,
+        blend_size_inner_tx
+    );
+
+    // Resize drawstates if necessary.
+    cascades.drawstates.resize(num_cascades());
+
+    // Do the shadowmapping pass.
+    if (strategy == Strategy::SinglepassGS)
     {
-        // Update cascade views.
-        if (const CHandle cam = get_active<Camera, MTransform>(registry))
-        {
-            // TODO: As everywhere else, use MTf and decompose orientation.
-            const vec3 light_dir     = decompose_rotation(dlight.get<MTransform>()) * -Z;
-            const auto cam_mtf       = cam.get<MTransform>();
-            const vec3 cam_position  = cam_mtf.decompose_position();
-            const auto frustum_world = cam.get<Camera>().view_frustum_as_quads().transformed(cam_mtf.model());
-
-            fit_cascade_views_to_camera(
-                cascades.views,
-                num_cascades(),
-                cascades.maps.resolution(),
-                cam_position,
-                frustum_world,
-                light_dir,
-                split_log_weight,
-                split_bias,
-                support_cascade_blending,
-                blend_size_inner_tx
-            );
-        }
-
-        // Resize drawstates if necessary.
-        cascades.drawstates.resize(num_cascades());
-
-        // Do the shadowmapping pass.
-        if (strategy == Strategy::SinglepassGS)
-        {
-            cascades.draw_lists_active = false;
-            draw_all_cascades_with_geometry_shader(engine);
-        }
-        else if (strategy == Strategy::PerCascadeCulling)
-        {
-            cascades.draw_lists_active = true;
-            cull_per_cascade(cascades.views, cascades.drawstates, registry);
-            draw_with_culling_per_cascade(engine);
-        }
-
-        // Pass-through other params.
-        cascades.blend_possible          = support_cascade_blending;
-        cascades.blend_max_size_inner_tx = blend_size_inner_tx;
+        cascades.draw_lists_active = false;
+        _draw_all_cascades_with_geometry_shader(engine);
     }
+
+    if (strategy == Strategy::PerCascadeCulling or
+        strategy == Strategy::PerCascadeCullingMDI)
+    {
+        cascades.draw_lists_active = true;
+        cull_per_cascade(cascades.views, cascades.drawstates, registry);
+        // NOTE: Will select single or MDI based on the enum value.
+        _draw_with_culling_per_cascade(engine);
+    }
+
+    // Pass-through other params.
+    cascades.blend_possible          = support_cascade_blending;
+    cascades.blend_max_size_inner_tx = blend_size_inner_tx;
 
     engine.belt().put_ref(cascades);
 }
@@ -458,6 +461,119 @@ void draw_opaque_meshes(
     }
 }
 
+/*
+Requires that each entity in `entities` has MTransform, StaticMesh and MaterialDiffuse.
+Also, it most likely has to be tagged AlphaTested.
+
+Assumes that projection and view uniforms are already set.
+*/
+void draw_atested_meshes(
+    RawProgram<>                        sp,
+    BindToken<Binding::DrawFramebuffer> bound_fbo,
+    const MeshRegistry&                 mesh_registry,
+    const Registry&                     registry,
+    std::ranges::input_range auto&&     entities)
+{
+    const auto* storage = mesh_registry.storage_for<VertexStatic>();
+    assert(storage);
+
+    const BindGuard bsp = sp.use();
+    const BindGuard bva = storage->vertex_array().bind();
+
+    sp.uniform("material.diffuse", 0);
+
+    const Location model_loc = sp.get_uniform_location("model");
+
+    for (const Entity entity : entities)
+    {
+        auto [mtf, mesh, diffuse] = registry.get<MTransform, StaticMesh, MaterialDiffuse>(entity);
+        diffuse.texture->bind_to_texture_unit(0);
+        sp.uniform(model_loc, mtf.model());
+        draw_one_from_storage(*storage, bva, bsp, bound_fbo, mesh.lods.cur());
+    }
+}
+
+
+} // namespace
+
+
+void CascadedShadowMapping::_draw_all_cascades_with_geometry_shader(
+    RenderEnginePrimaryInterface& engine)
+{
+    const auto& registry      = engine.registry();
+    const auto& mesh_registry = engine.meshes();
+    auto& maps = cascades.maps;
+
+    // No following calls are valid for empty cascades array.
+    // The framebuffer would be incomplete. This should be accounted for before.
+    assert(num_cascades() > 0);
+
+    glapi::set_viewport({ {}, maps.resolution() });
+    glapi::enable(Capability::DepthTesting);
+
+    _fbo->attach_texture_to_depth_buffer(maps.textures());
+    const BindGuard bfb = _fbo->bind_draw();
+
+    glapi::clear_depth_buffer(bfb, 1.f);
+
+    const auto set_common_uniforms = [&](RawProgram<> sp)
+    {
+        const auto num_cascades = GLsizei(this->num_cascades()); // These conversions are incredible.
+
+        const Location proj_loc = sp.get_uniform_location("projections");
+        const Location view_loc = sp.get_uniform_location("views");
+
+        for (GLsizei cascade_id = 0; cascade_id < num_cascades; ++cascade_id)
+        {
+            sp.uniform(Location{ proj_loc + cascade_id }, cascades.views[cascade_id].proj_mat);
+            sp.uniform(Location{ view_loc + cascade_id }, cascades.views[cascade_id].view_mat);
+        }
+        sp.uniform("num_cascades", num_cascades);
+    };
+
+    // SinglepassGS - Opaque.
+    {
+        const RawProgram<> sp = _sp_opaque_singlepass_gs.get();
+
+        if (enable_face_culling)
+        {
+            glapi::enable(Capability::FaceCulling);
+            glapi::set_face_culling_target(enum_cast<Faces>(faces_to_cull));
+        }
+        else
+        {
+            glapi::disable(Capability::FaceCulling);
+        }
+
+        set_common_uniforms(sp);
+
+        // You could have no AT requested, or you could have an AT flag,
+        // but no diffuse material to sample from. Both ignore Alpha-Testing.
+
+        // TODO: This are negative filters. Negative filters are *not* fast.
+        auto no_alpha           = registry.view<MTransform, StaticMesh>(entt::exclude<AlphaTested>);
+        auto with_at_no_diffuse = registry.view<MTransform, StaticMesh, AlphaTested>(entt::exclude<MaterialDiffuse>);
+        draw_opaque_meshes(sp, bfb, mesh_registry, registry, no_alpha);
+        draw_opaque_meshes(sp, bfb, mesh_registry, registry, with_at_no_diffuse);
+    }
+
+    // SinglepassGS - Alpha
+    {
+        const RawProgram<> sp = _sp_atested_singlepass_gs.get();
+
+        glapi::set_face_culling_target(Faces::Back);
+        glapi::disable(Capability::FaceCulling);
+
+        set_common_uniforms(sp);
+
+        auto with_alpha = registry.view<MTransform, StaticMesh, AlphaTested>();
+        draw_atested_meshes(sp, bfb, mesh_registry, registry, with_alpha);
+    }
+}
+
+
+
+namespace {
 
 /*
 Requires that each entity in `entities` has MTransform and StaticMesh.
@@ -493,19 +609,19 @@ void multidraw_opaque_meshes(
     multidraw_indirect_from_storage(*storage, bva, bsp, bfb,
         entities | transform(get_mesh_id), mdi_buffer);
 }
-
 /*
-Requires that each entity in `entities` has MTransform, StaticMesh and MaterialDiffuse.
-Also, it most likely has to be tagged AlphaTested.
+Requires that each entity in `entities` has MaterialDiffuse, MTransform and StaticMesh.
 
 Assumes that projection and view uniforms are already set.
 */
- void draw_alpha_tested_meshes(
+void multidraw_atested_meshes(
     RawProgram<>                        sp,
-    BindToken<Binding::DrawFramebuffer> bound_fbo,
+    BindToken<Binding::DrawFramebuffer> bfb,
     const MeshRegistry&                 mesh_registry,
     const Registry&                     registry,
-    std::ranges::input_range auto&&     entities)
+    std::ranges::input_range auto&&     entities,
+    UploadBuffer<mat4>&                 instance_data,
+    UploadBuffer<MDICommand>&           mdi_buffer)
 {
     const auto* storage = mesh_registry.storage_for<VertexStatic>();
     assert(storage);
@@ -513,97 +629,53 @@ Assumes that projection and view uniforms are already set.
     const BindGuard bsp = sp.use();
     const BindGuard bva = storage->vertex_array().bind();
 
-    sp.uniform("material.diffuse", 0);
+    const usize num_units  = max_frag_texture_units();
+    const usize batch_size = max_frag_texture_units();
 
-    const Location model_loc = sp.get_uniform_location("model");
+    const Span<const i32> samplers = build_irange_tls_array(num_units);
+    sp.set_uniform_intv(sp.get_uniform_location("samplers"), i32(samplers.size()), samplers.data());
 
-    for (const Entity entity : entities)
+    thread_local Vector<u32>          tex_units; tex_units.clear();
+    thread_local Vector<StaticMeshID> mesh_ids;  mesh_ids.clear();
+
+    // NOTE: Not clearing instance data between draws since we want
+    // to preserve "history", will track and bind subranges instead.
+    instance_data.clear();
+    usize  batch_offset = 0;
+    uindex draw_id      = 0;
+
+    const auto push_instance = [&](Entity e)
     {
-        auto [mtf, mesh, diffuse] = registry.get<MTransform, StaticMesh, MaterialDiffuse>(entity);
-        diffuse.texture->bind_to_texture_unit(0);
-        sp.uniform(model_loc, mtf.model());
-        draw_one_from_storage(*storage, bva, bsp, bound_fbo, mesh.lods.cur());
+        instance_data.stage_one(registry.get<MTransform>(e).model());
+        tex_units    .push_back(registry.get<MaterialDiffuse>(e).texture->id());
+        mesh_ids     .push_back(registry.get<StaticMesh>(e).lods.cur());
+    };
+
+    const auto draw_staged_and_reset = [&]()
+    {
+        glapi::bind_texture_units(tex_units);
+        instance_data.bind_range_to_ssbo_index({ .offset=batch_offset, .count=draw_id }, 0);
+
+        multidraw_indirect_from_storage(*storage, bva, bsp, bfb, mesh_ids, mdi_buffer);
+
+        mesh_ids.clear();
+        batch_offset += draw_id;
+        draw_id       = 0;
+    };
+
+    for (const Entity e : entities)
+    {
+        push_instance(e);
+        if (++draw_id >= batch_size)
+            draw_staged_and_reset();
     }
+    if (draw_id) draw_staged_and_reset();
 }
 
 } // namespace
 
 
-void CascadedShadowMapping::draw_all_cascades_with_geometry_shader(
-    RenderEnginePrimaryInterface& engine)
-{
-    const auto& registry      = engine.registry();
-    const auto& mesh_registry = engine.meshes();
-    auto& maps = cascades.maps;
-
-    // No following calls are valid for empty cascades array.
-    // The framebuffer would be incomplete. This should be accounted for before.
-    assert(num_cascades() > 0);
-
-    glapi::set_viewport({ {}, maps.resolution() });
-    glapi::enable(Capability::DepthTesting);
-
-    fbo_->attach_texture_to_depth_buffer(maps.textures());
-    const BindGuard bfb = fbo_->bind_draw();
-
-    glapi::clear_depth_buffer(bfb, 1.f);
-
-    auto set_common_uniforms = [&](RawProgram<> sp)
-    {
-        const auto num_cascades = GLsizei(this->num_cascades()); // These conversions are incredible.
-
-        const Location proj_loc = sp.get_uniform_location("projections");
-        const Location view_loc = sp.get_uniform_location("views");
-
-        for (GLsizei cascade_id = 0; cascade_id < num_cascades; ++cascade_id)
-        {
-            sp.uniform(Location{ proj_loc + cascade_id }, cascades.views[cascade_id].proj_mat);
-            sp.uniform(Location{ view_loc + cascade_id }, cascades.views[cascade_id].view_mat);
-        }
-        sp.uniform("num_cascades", num_cascades);
-    };
-
-    // SinglepassGS - Opaque.
-    {
-        const RawProgram<> sp = sp_singlepass_gs_no_alpha_.get();
-
-        if (enable_face_culling)
-        {
-            glapi::enable(Capability::FaceCulling);
-            glapi::set_face_culling_target(enum_cast<Faces>(faces_to_cull));
-        }
-        else
-        {
-            glapi::disable(Capability::FaceCulling);
-        }
-
-        set_common_uniforms(sp);
-
-        // You could have no AT requested, or you could have an AT flag,
-        // but no diffuse material to sample from. Both ignore Alpha-Testing.
-
-        // TODO: This are negative filters. Negative filters are *not* fast.
-        auto no_alpha           = registry.view<MTransform, StaticMesh>(entt::exclude<AlphaTested>);
-        auto with_at_no_diffuse = registry.view<MTransform, StaticMesh, AlphaTested>(entt::exclude<MaterialDiffuse>);
-        draw_opaque_meshes(sp, bfb, mesh_registry, registry, no_alpha);
-        draw_opaque_meshes(sp, bfb, mesh_registry, registry, with_at_no_diffuse);
-    }
-
-    // SinglepassGS - Alpha
-    {
-        const RawProgram<> sp = sp_singlepass_gs_with_alpha_.get();
-
-        glapi::set_face_culling_target(Faces::Back);
-        glapi::disable(Capability::FaceCulling);
-
-        set_common_uniforms(sp);
-
-        auto with_alpha = registry.view<MTransform, StaticMesh, AlphaTested>();
-        draw_alpha_tested_meshes(sp, bfb, mesh_registry, registry, with_alpha);
-    }
-}
-
-void CascadedShadowMapping::draw_with_culling_per_cascade(
+void CascadedShadowMapping::_draw_with_culling_per_cascade(
     RenderEnginePrimaryInterface& engine)
 {
     const auto& registry      = engine.registry();
@@ -615,35 +687,29 @@ void CascadedShadowMapping::draw_with_culling_per_cascade(
     assert(num_cascades() > 0);
 
     // FIXME: Just clear the texture? No?
-    fbo_->attach_texture_to_depth_buffer(cascades.maps.textures());
-    // TODO: Should be part of the Framebuffer interface and exposed through RenderTarget.
+    //
     // This is much faster than clearing each layer one-by-one. Don't do that.
-    const float clear_depth{ 1.f };
-    gl::glClearNamedFramebufferfv(
-        fbo_->id(),
-        gl::GL_DEPTH, // Buffer.
-        0,            // Must be 0.
-        &clear_depth  // "Color"
-    );
+    _fbo->attach_texture_to_depth_buffer(cascades.maps.textures());
+    _fbo->clear_depth(1.f);
 
     glapi::set_viewport({ {}, maps.resolution() });
     glapi::enable(Capability::DepthTesting);
 
-    for (const uindex cascade_id : irange(num_cascades()))
+    for (const uindex cascade_idx : irange(num_cascades()))
     {
-        const Layer cascade_layer = GLint(cascade_id);
-        const auto& view          = cascades.views[cascade_id];
-        auto&       drawstate     = cascades.drawstates[cascade_id];
+        const Layer cascade_layer = i32(cascade_idx);
+        const auto& view          = cascades.views[cascade_idx];
+        auto&       drawstate     = cascades.drawstates[cascade_idx];
 
-        auto set_common_uniforms = [&](RawProgram<> sp)
+        const auto set_common_uniforms = [&](RawProgram<> sp)
         {
             sp.uniform("projection", view.proj_mat);
             sp.uniform("view",       view.view_mat);
         };
 
         // Attach layer-by-layer.
-        fbo_->attach_texture_layer_to_depth_buffer(maps.textures(), cascade_layer);
-        const BindGuard bfb = fbo_->bind_draw();
+        _fbo->attach_texture_layer_to_depth_buffer(maps.textures(), cascade_layer);
+        const BindGuard bfb = _fbo->bind_draw();
 
         // Draw opaque.
         if (enable_face_culling)
@@ -656,30 +722,37 @@ void CascadedShadowMapping::draw_with_culling_per_cascade(
             glapi::disable(Capability::FaceCulling);
         }
 
-        if (multidraw_opaque)
+        if (strategy == Strategy::PerCascadeCulling)
         {
-            const RawProgram<> sp = sp_per_cascade_opaque_multidraw_.get();
+            const RawProgram<> sp = _sp_opaque_per_cascade;
             set_common_uniforms(sp);
-            multidraw_opaque_meshes(sp, bfb, engine.meshes(), registry,
-                drawstate.draw_list_opaque, drawstate.world_mats_opaque, mdi_buffer_);
+            draw_opaque_meshes(sp, bfb, mesh_registry, registry, drawstate.drawlist_opaque);
         }
-        else
+        else if (strategy == Strategy::PerCascadeCullingMDI)
         {
-            const RawProgram<> sp = sp_per_cascade_no_alpha_.get();
+            const RawProgram<> sp = _sp_opaque_mdi;
             set_common_uniforms(sp);
-            draw_opaque_meshes(sp, bfb, mesh_registry, registry, drawstate.draw_list_opaque);
+            multidraw_opaque_meshes(sp, bfb, mesh_registry, registry,
+                drawstate.drawlist_opaque, drawstate.world_mats_opaque, _mdi_buffer);
         }
 
-        // Draw alpha-tested. One-by-one.
+        // Draw AlphaTested.
         glapi::set_face_culling_target(Faces::Back);
         glapi::disable(Capability::FaceCulling);
+        if (strategy == Strategy::PerCascadeCulling)
         {
-            const RawProgram<> sp = sp_per_cascade_with_alpha_.get();
+            const RawProgram<> sp = _sp_atested_per_cascade;
             set_common_uniforms(sp);
-            draw_alpha_tested_meshes(sp, bfb, mesh_registry, registry, drawstate.draw_list_at);
+            draw_atested_meshes(sp, bfb, mesh_registry, registry, drawstate.drawlist_atested);
+        }
+        else if (strategy == Strategy::PerCascadeCullingMDI)
+        {
+            const RawProgram<> sp = _sp_atested_mdi;
+            set_common_uniforms(sp);
+            multidraw_atested_meshes(sp, bfb, mesh_registry, registry,
+                drawstate.drawlist_atested, drawstate.world_mats_atested, _mdi_buffer);
         }
     }
-
 }
 
 

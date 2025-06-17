@@ -4,17 +4,18 @@
 layout (location = 0) in vec3 in_pos;
 layout (location = 2) in vec2 in_uv;
 
-uniform mat4 projection;
-uniform mat4 view;
 uniform mat4 model;
 
-out vec2 uv;
+out Interface
+{
+    vec2 uv;
+} out_;
 
 
 void main()
 {
-    uv = in_uv;
-    gl_Position = projection * view * model * vec4(in_pos, 1.0);
+    out_.uv     = in_uv;
+    gl_Position = model * vec4(in_pos, 1.0);
 }
 
 
@@ -22,14 +23,12 @@ void main()
 
 layout (location = 0) in vec3 in_pos;
 
-uniform mat4 projection;
-uniform mat4 view;
 uniform mat4 model;
 
 
 void main()
 {
-    gl_Position = projection * view * model * vec4(in_pos, 1.0);
+    gl_Position = model * vec4(in_pos, 1.0);
 }
 
 

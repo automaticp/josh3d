@@ -62,9 +62,10 @@ NOTE: It's convinient to keep this accessible as output for others to look at.
 */
 struct CascadeDrawState
 {
-    Vector<Entity>     draw_list_at;      // Alpha-tested.
-    Vector<Entity>     draw_list_opaque;
-    UploadBuffer<mat4> world_mats_opaque; // Filled out if multidraw is enabled.
+    Vector<Entity>     drawlist_atested;   // Alpha-tested.
+    Vector<Entity>     drawlist_opaque;    //
+    UploadBuffer<mat4> world_mats_atested; // Filled out if multidraw is enabled.
+    UploadBuffer<mat4> world_mats_opaque;  // "
 };
 
 struct CascadeMaps
@@ -117,16 +118,12 @@ struct CascadedShadowMapping
 {
     enum class Strategy
     {
-        SinglepassGS,
-        PerCascadeCulling
+        SinglepassGS,         // Yeah, let's just duplicate all geometry 5 times, that'll work well.
+        PerCascadeCulling,    // Cull per cascade, keeping the total number of drawcalls semi-stable.
+        PerCascadeCullingMDI, // Cull per cascade and batch draws with MDI. This is faster, imagine.
     };
 
     Strategy strategy = Strategy::PerCascadeCulling;
-
-    // Use MeshStorage and MultiDrawElements for opaque meshes.
-    // TODO: Only works for PerCascadeCulling right now.
-    // TODO: We should support multidraw for alpha-tested too.
-    bool multidraw_opaque = false;
 
     // Limited in [1, max_cascades()].
     auto num_cascades() const noexcept -> i32;
@@ -163,47 +160,55 @@ struct CascadedShadowMapping
     // Primary output of this stage.
     Cascades cascades;
 
-private:
-    UniqueFramebuffer fbo_;
 
-    auto allowed_num_cascades(i32 desired_num) const noexcept -> i32;
+    UniqueFramebuffer _fbo;
 
-    void draw_all_cascades_with_geometry_shader(RenderEnginePrimaryInterface& engine);
+    auto _allowed_num_cascades(i32 desired_num) const noexcept -> i32;
 
-    ShaderToken sp_singlepass_gs_with_alpha_ = shader_pool().get({
-        .vert = VPath("src/shaders/depth_map_cascade.vert"),
-        .geom = VPath("src/shaders/depth_map_cascade.geom"),
-        .frag = VPath("src/shaders/depth_map_cascade.frag")},
+    void _draw_all_cascades_with_geometry_shader(RenderEnginePrimaryInterface& engine);
+
+    ShaderToken _sp_opaque_singlepass_gs = shader_pool().get({
+        .vert = VPath("src/shaders/csm_singlepass.vert"),
+        .geom = VPath("src/shaders/csm_singlepass.geom"),
+        .frag = VPath("src/shaders/csm_singlepass.frag")},
         ProgramDefines()
-            .define("MAX_VERTICES", 3ull * max_cascades())
+            .define("MAX_VERTICES", 3 * max_cascades()));
+
+    ShaderToken _sp_atested_singlepass_gs = shader_pool().get({
+        .vert = VPath("src/shaders/csm_singlepass.vert"),
+        .geom = VPath("src/shaders/csm_singlepass.geom"),
+        .frag = VPath("src/shaders/csm_singlepass.frag")},
+        ProgramDefines()
+            .define("MAX_VERTICES", 3 * max_cascades())
             .define("ENABLE_ALPHA_TESTING", 1));
 
-    ShaderToken sp_singlepass_gs_no_alpha_ = shader_pool().get({
-        .vert = VPath("src/shaders/depth_map_cascade.vert"),
-        .geom = VPath("src/shaders/depth_map_cascade.geom"),
-        .frag = VPath("src/shaders/depth_map_cascade.frag")},
-        ProgramDefines()
-            .define("MAX_VERTICES", 3ull * max_cascades()));
 
-    void draw_with_culling_per_cascade(RenderEnginePrimaryInterface& engine);
+    void _draw_with_culling_per_cascade(RenderEnginePrimaryInterface& engine);
 
-    ShaderToken sp_per_cascade_with_alpha_ = shader_pool().get({
+    ShaderToken _sp_opaque_per_cascade = shader_pool().get({
+        .vert = VPath("src/shaders/depth_map.vert"),
+        .frag = VPath("src/shaders/depth_map.frag")});
+
+    ShaderToken _sp_atested_per_cascade = shader_pool().get({
         .vert = VPath("src/shaders/depth_map.vert"),
         .frag = VPath("src/shaders/depth_map.frag")},
         ProgramDefines()
             .define("ENABLE_ALPHA_TESTING", 1));
 
-    ShaderToken sp_per_cascade_no_alpha_ = shader_pool().get({
-        .vert = VPath("src/shaders/depth_map.vert"),
-        .frag = VPath("src/shaders/depth_map.frag")});
 
-    UploadBuffer<MDICommand> mdi_buffer_;
+    UploadBuffer<MDICommand> _mdi_buffer;
 
-    ShaderToken sp_per_cascade_opaque_multidraw_ = shader_pool().get({
-        .vert = VPath("src/shaders/depth_map_multidraw.vert"),
-        .frag = VPath("src/shaders/depth_map.frag")});
+    ShaderToken _sp_opaque_mdi = shader_pool().get({
+        .vert = VPath("src/shaders/csm_opaque_mdi.vert"),
+        .frag = VPath("src/shaders/csm_opaque_mdi.frag")});
+
+    ShaderToken _sp_atested_mdi = shader_pool().get({
+        .vert = VPath("src/shaders/csm_atested_mdi.vert"),
+        .frag = VPath("src/shaders/csm_atested_mdi.frag")},
+        ProgramDefines()
+            .define("MAX_TEXTURE_UNITS", max_frag_texture_units()));
 };
-JOSH3D_DEFINE_ENUM_EXTRAS(CascadedShadowMapping::Strategy, SinglepassGS, PerCascadeCulling);
+JOSH3D_DEFINE_ENUM_EXTRAS(CascadedShadowMapping::Strategy, SinglepassGS, PerCascadeCulling, PerCascadeCullingMDI);
 
 
 } // namespace josh

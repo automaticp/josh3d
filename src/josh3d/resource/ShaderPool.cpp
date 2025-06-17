@@ -7,6 +7,7 @@
 #include "GLShaders.hpp"
 #include "ObjectLifecycle.hpp"
 #include "ReadFile.hpp"
+#include "RuntimeError.hpp"
 #include "SceneGraph.hpp"
 #include "ShaderBuilder.hpp"
 #include "ShaderSource.hpp"
@@ -315,7 +316,12 @@ auto make_any_shader(ShaderTarget target)
             shader_obj->compile();
             if (!shader_obj->has_compiled_successfully()) {
                 throw error::ShaderCompilationFailure(
-                    file_path.string() + '\n' + shader_obj->get_info_log(),
+                    fmt::format(
+                        "{}\n{}\n{}",
+                        file_path.string(),
+                        shader_obj->get_info_log(),
+                        source.text_view()
+                    ),
                     target
                 );
             }
