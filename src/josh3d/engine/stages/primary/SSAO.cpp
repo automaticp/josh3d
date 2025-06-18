@@ -1,5 +1,6 @@
 #include "SSAO.hpp"
 #include "GLAPIBinding.hpp"
+#include "GLAPICore.hpp"
 #include "GLPixelPackTraits.hpp"
 #include "GLProgram.hpp"
 #include "GLTextures.hpp"
@@ -57,15 +58,10 @@ void SSAO::operator()(RenderEnginePrimaryInterface& engine)
 
     const Extent2I noise_resolution = noise_texture_resolution();
 
-    // This is inverse of "noise scale" from learnopengl.
-    // This is the size of a noise texture in uv coordinates of the screen
-    // assuming the size of a pixel is the same for both.
-    //
-    // FIXME: Why not use the target_resolution and drop the assumption
-    // (which does not even hold btw).
-    const vec2 noise_size = {
-        float(noise_resolution.width)  / float(source_resolution.width),
-        float(noise_resolution.height) / float(source_resolution.height),
+    // Noise->Occlusion CoB such that `uv_noise = noise_scale * uv_occlusion`.
+    const vec2 noise_scale = {
+        float(target_resolution.width)  / float(noise_resolution.width),
+        float(target_resolution.height) / float(noise_resolution.height),
     };
 
     glapi::set_viewport({ {}, target_resolution });
@@ -79,20 +75,21 @@ void SSAO::operator()(RenderEnginePrimaryInterface& engine)
         sp.uniform("tex_noise",   2);
         sp.uniform("radius",      radius);
         sp.uniform("bias",        bias);
-        sp.uniform("noise_size",  noise_size);
+        sp.uniform("noise_scale", noise_scale);
         sp.uniform("noise_mode",  to_underlying(noise_mode));
 
         const BindGuard bsp = sp.use();
 
         const MultibindGuard bound_state = {
             gbuffer->depth_texture().  bind_to_texture_unit(0),
-            _target_sampler->          bind_to_texture_unit(0),
+            _depth_sampler->           bind_to_texture_unit(0),
             gbuffer->normals_texture().bind_to_texture_unit(1),
-            _target_sampler->          bind_to_texture_unit(1),
+            _normals_sampler->         bind_to_texture_unit(1),
             _noise_texture->           bind_to_texture_unit(2),
             _kernel.                   bind_to_ssbo_index(0),
             engine.                    bind_camera_ubo(),
         };
+        unbind_sampler_from_unit(2); // Use internal noise texture sampler;
 
         _fbo->attach_texture_to_color_buffer(aobuffers._back().texture, 0);
         const BindGuard bfb = _fbo->bind_draw();
@@ -112,7 +109,7 @@ void SSAO::operator()(RenderEnginePrimaryInterface& engine)
 
         const MultibindGuard bound_state = {
             aobuffers._front().texture->bind_to_texture_unit(0),
-            _target_sampler           ->bind_to_texture_unit(0),
+            _blur_sampler->             bind_to_texture_unit(0),
         };
 
         _fbo->attach_texture_to_color_buffer(aobuffers._back().texture, 0);
@@ -137,10 +134,10 @@ void SSAO::operator()(RenderEnginePrimaryInterface& engine)
         const BindGuard bsp  = sp.use();
 
         const MultibindGuard bound_state = {
-            _blur_kernel             .bind_to_ssbo_index(0),
-            _target_sampler         ->bind_to_texture_unit(0),
-            gbuffer->depth_texture() .bind_to_texture_unit(1),
-            _target_sampler         ->bind_to_texture_unit(1),
+            _blur_kernel.            bind_to_ssbo_index(0),
+            _blur_sampler->          bind_to_texture_unit(0),
+            gbuffer->depth_texture().bind_to_texture_unit(1),
+            _depth_sampler->         bind_to_texture_unit(1),
         };
 
         for (const uindex _ : irange(num_blur_passes))
@@ -228,7 +225,7 @@ void SSAO::regenerate_noise_texture(Extent2I resolution)
         _noise_texture->allocate_storage(resolution, InternalFormat::RGB16F);
         // TODO: I wonder if setting filtering to linear and offseting differently
         // each repeat will produce better results?
-        _noise_texture->set_sampler_min_mag_filters(MinFilter::Nearest, MagFilter::Nearest);
+        _noise_texture->set_sampler_min_mag_filters(MinFilter::Linear, MagFilter::Linear);
         _noise_texture->set_sampler_wrap_all(Wrap::Repeat);
     }
 

@@ -1,4 +1,5 @@
 #pragma once
+#include "Common.hpp"
 #include "CommonConcepts.hpp"
 #include "GLAPICommonTypes.hpp"
 #include "GLMutability.hpp"
@@ -239,9 +240,74 @@ inline constexpr NumLevels max_num_levels(const Size3I& resolution) noexcept {
 */
 
 
-// Inserts a fence in the command queue and returns a new managed FenceSync object.
+/*
+Inserts a fence in the command queue and returns a new managed FenceSync object.
+*/
 [[nodiscard]]
-inline auto create_fence() -> UniqueFenceSync { return {}; }
+inline auto create_fence()
+    -> UniqueFenceSync
+{
+    return {};
+}
 
+/*
+NOTE: Defaults replicate GL defaults as per the spec (Table 23.18).
+*/
+struct SamplerParams
+{
+    MinFilter      min_filter     = MinFilter::NearestMipmapLinear;
+    MagFilter      mag_filter     = MagFilter::Linear;
+    Wrap           wrap_s         = Wrap::Repeat;
+    Wrap           wrap_t         = Wrap::Repeat;
+    Wrap           wrap_r         = Wrap::Repeat;
+    Optional<Wrap> wrap_all       = {}; // Will override other wrap_* params if specified.
+    RGBAF          border_color   = {};
+    float          min_lod        = -1000.0f;
+    float          max_lod        = 1000.0f;
+    float          lod_bias       = 0.0f;
+    float          max_anisotropy = 1.0f;
+    bool           compare_ref_depth_to_texture = false;
+    CompareOp      compare_func   = CompareOp::LEqual;
+};
+
+inline auto create_sampler(const SamplerParams& params)
+    -> UniqueSampler
+{
+    // NOTE: Trying to reduce driver chatter by only calling the api
+    // when values differ from the defaults. No idea if it helps...
+    constexpr SamplerParams defaults = {};
+    UniqueSampler s;
+#define SET_PARAM(PName)                \
+    if (params.PName != defaults.PName) \
+        s->set_##PName(params.PName)
+
+    SET_PARAM(min_filter);
+    SET_PARAM(mag_filter);
+    if (params.wrap_all)
+    {
+        s->set_wrap_all(*params.wrap_all);
+    }
+    else
+    {
+        SET_PARAM(wrap_s);
+        SET_PARAM(wrap_t);
+        SET_PARAM(wrap_r);
+    }
+    if (params.border_color.r != defaults.border_color.r or
+        params.border_color.g != defaults.border_color.g or
+        params.border_color.b != defaults.border_color.b or
+        params.border_color.a != defaults.border_color.a)
+    {
+        s->set_border_color_float(params.border_color);
+    }
+    SET_PARAM(min_lod);
+    SET_PARAM(max_lod);
+    SET_PARAM(lod_bias);
+    SET_PARAM(max_anisotropy);
+    SET_PARAM(compare_ref_depth_to_texture);
+    SET_PARAM(compare_func);
+#undef SET_PARAM
+    return s;
+}
 
 } // namespace josh

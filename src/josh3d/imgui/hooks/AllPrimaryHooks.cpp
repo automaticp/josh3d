@@ -217,4 +217,53 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(SSAO)
             stage.regenerate_noise_texture(noise_resolution);
         }
     }
+
+    if (ImGui::TreeNode("Debug"))
+    {
+        DEFER(ImGui::TreePop());
+        const auto sampler = [](const char* name, RawSampler<> sampler)
+        {
+            ImGui::PushID(name);
+            DEFER(ImGui::PopID());
+            ImGui::SeparatorText(name);
+            {
+                MinFilter minfilter = sampler.get_min_filter();
+                MagFilter magfilter = sampler.get_mag_filter();
+                Wrap      wrap      = sampler.get_wrap_s();
+                bool changed = false;
+                changed |= ImGui::EnumCombo("Min Filter", &minfilter);
+                changed |= ImGui::EnumCombo("Mag Filter", &magfilter);
+                changed |= ImGui::EnumCombo("Wrap",       &wrap);
+                if (changed)
+                {
+                    sampler.set_min_mag_filters(minfilter, magfilter);
+                    sampler.set_wrap_all(wrap);
+                }
+            }
+        };
+        const auto texture = [](const char* name, RawTexture2D<> texture)
+        {
+            ImGui::PushID(name);
+            DEFER(ImGui::PopID());
+            ImGui::SeparatorText(name);
+            {
+                MinFilter minfilter = texture.get_sampler_min_filter();
+                MagFilter magfilter = texture.get_sampler_mag_filter();
+                Wrap      wrap      = texture.get_sampler_wrap_s();
+                bool changed = false;
+                changed |= ImGui::EnumCombo("Min Filter", &minfilter);
+                changed |= ImGui::EnumCombo("Mag Filter", &magfilter);
+                changed |= ImGui::EnumCombo("Wrap",       &wrap);
+                if (changed)
+                {
+                    texture.set_sampler_min_mag_filters(minfilter, magfilter);
+                    texture.set_sampler_wrap_all(wrap);
+                }
+            }
+        };
+        sampler("Depth Sampler",   stage._depth_sampler);
+        sampler("Normals Sampler", stage._normals_sampler);
+        sampler("Blur Sampler",    stage._blur_sampler);
+        texture("Noise Texture",   stage._noise_texture);
+    }
 }

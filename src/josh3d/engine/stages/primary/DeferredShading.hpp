@@ -1,4 +1,5 @@
 #pragma once
+#include "GLObjectHelpers.hpp"
 #include "stages/primary/CascadedShadowMapping.hpp"
 #include "GLAPICommonTypes.hpp"
 #include "GLObjects.hpp"
@@ -50,42 +51,45 @@ private:
     UploadBuffer<PointLightBoundedGPU> plights_no_shadow_buf_;
     UploadBuffer<CascadeViewGPU>       csm_views_buf_;
 
-    UniqueSampler target_sampler_ = eval%[]{
-        UniqueSampler s;
-        s->set_min_mag_filters(MinFilter::Nearest, MagFilter::Nearest);
-        s->set_wrap_all(Wrap::ClampToEdge);
-        return s;
-    };
-
-    UniqueSampler csm_sampler_ = eval%[]{
-        UniqueSampler s;
-        s->set_min_mag_filters(MinFilter::Linear, MagFilter::Linear);
-        s->set_border_color_float({ .r=1.f });
-        s->set_wrap_all(Wrap::ClampToBorder);
-        // Enable shadow sampling with built-in 2x2 PCF
-        s->set_compare_ref_depth_to_texture(true);
-        // Comparison: result = ref OPERATOR texture
-        // This will return "how much this fragment is lit" from 0 to 1.
-        // If you want "how much it's in shadow", use (1.0 - result).
-        // Or set the comparison func to Greater.
-        s->set_compare_func(CompareOp::Less);
-        return s;
-    };
-
-    UniqueSampler psm_sampler_ = eval%[]{
-        UniqueSampler s;
-        s->set_min_mag_filters(MinFilter::Linear, MagFilter::Linear);
-        s->set_wrap_all(Wrap::ClampToEdge);
-        s->set_compare_ref_depth_to_texture(true);
-        s->set_compare_func(CompareOp::Less);
-        return s;
-    };
-
     void update_point_light_buffers(const Registry& registry);
     void update_cascade_buffer(const Cascades& csm);
 
     void draw_singlepass(RenderEnginePrimaryInterface& engine);
     void draw_multipass (RenderEnginePrimaryInterface& engine);
+
+        UniqueSampler _target_sampler = create_sampler({
+        .min_filter = MinFilter::Nearest,
+        .mag_filter = MagFilter::Nearest,
+        .wrap_all   = Wrap::ClampToEdge,
+    });
+
+    UniqueSampler _ao_sampler = create_sampler({
+        .min_filter = MinFilter::Linear,
+        .mag_filter = MagFilter::Linear,
+        .wrap_all   = Wrap::ClampToEdge,
+    });
+
+    UniqueSampler _csm_sampler = create_sampler({
+        .min_filter   = MinFilter::Linear,
+        .mag_filter   = MagFilter::Linear,
+        .wrap_all     = Wrap::ClampToBorder,
+        .border_color = { .r=1.f },
+         // Enable shadow sampling with built-in 2x2 PCF
+        .compare_ref_depth_to_texture = true,
+        // Comparison: result = ref OPERATOR texture
+        // This will return "how much this fragment is lit" from 0 to 1.
+        // If you want "how much it's in shadow", use (1.0 - result).
+        // Or set the comparison func to Greater.
+        .compare_func = CompareOp::Less,
+    });
+
+    UniqueSampler _psm_sampler = create_sampler({
+        .min_filter   = MinFilter::Linear,
+        .mag_filter   = MagFilter::Linear,
+        .wrap_all     = Wrap::ClampToEdge,
+        .compare_ref_depth_to_texture = true,
+        .compare_func = CompareOp::Less,
+    });
 
     ShaderToken sp_singlepass_ = shader_pool().get({
         .vert = VPath("src/shaders/dfr_shading.vert"),

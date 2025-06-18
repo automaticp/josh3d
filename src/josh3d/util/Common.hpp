@@ -27,6 +27,8 @@ namespace josh {
 
 /*
 I have a 2-hour long lecture about why std::byte was a mistake.
+
+TODO: Move to Scalars.hpp.
 */
 using byte = unsigned char;
 using ubyte = unsigned char;

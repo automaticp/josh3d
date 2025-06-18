@@ -1,6 +1,7 @@
 #pragma once
 #include "EnumUtils.hpp"
 #include "GLAPICommonTypes.hpp"
+#include "GLObjectHelpers.hpp"
 #include "GLObjects.hpp"
 #include "GLTextures.hpp"
 #include "Region.hpp"
@@ -54,20 +55,21 @@ inline void AOBuffers::_resize(Extent2I new_resolution)
 }
 
 /*
-FIXME: The aliasing is pretty bad when sampling at fractional resolution:
-- "Dark" aliased edges around objects at ~same occlusion level with large depth-delta.
-- "Bright" aliased edges next at hi->lo occlusion depth-discontinuous edges.
+TODO: Aliasing at fractional resolutions is still a PITA. Differient filtering
+options have their own downside and no perfect solution. We might try blurring
+at screen resolution, but it's super expensive. Figure something out.
 
-FIXME: The diagonal line of doom haunts me when using noise texture as the source.
-I don't remember what's causing it. Sampler state? Divergent texture() calls?
-Maybe I never figured it out?
+TODO: We likely want determenistic a RNG for seed serialization.
 */
 struct SSAO
 {
-    bool  enable_sampling    = true;  // Switch to false if you want to skip the whole stage.
-    float radius             = 0.2f;  // Sampling kernel radius in world units.
-    float bias               = 0.01f; // Can't wait to do another reciever plane bias...
-    float resolution_divisor = 2.f;   // Used to scale the Occlusion buffer resolution compared to screen size.
+    // Switch to false if you want to skip the whole stage.
+    bool  enable_sampling    = true;
+    // Used to scale the Occlusion buffer resolution compared to screen size.
+    float resolution_divisor = 2.f;
+    // Sampling kernel radius in world units.
+    float radius             = 0.2f;
+    float bias               = 0.01f;
 
     auto kernel_size() const noexcept -> usize { return _kernel.num_staged(); }
     // Minimum allowed angle between the surface and each kernel vector.
@@ -76,25 +78,32 @@ struct SSAO
 
     enum class NoiseMode
     {
-        SampledFromTexture, // Has tiling artifacts, lower resolution is easier to filter.
-        GeneratedInShader,  // Using basic PCG. Quite noisy and unstable. Needs aggressive filtering.
+        SampledFromTexture,   // Has tiling artifacts, but is much easier to filter.
+        GeneratedInShaderPCG, // Seeded from screen coordinates. Very unstable - needs aggressive filtering. Not recommended.
     };
 
     NoiseMode noise_mode = NoiseMode::SampledFromTexture;
 
+    // Lower resolutions are easier to filter with a blur pass.
+    // The sweet-spot is somewhere between 2x2 and 4x4.
+    // YMMV depending on the current resolution_divisor and limb_size.
     auto noise_texture_resolution() -> Extent2I { return _noise_texture->get_resolution(); }
     void regenerate_noise_texture(Extent2I resolution);
 
     enum class BlurMode
     {
-        Box,       // Very naive box blur.
+        Box,       // Very dumb 5x5 box blur. Expect severe "halo" artifacts. But cheap as beer.
         Bilateral, // Bilateral (depth-aware) gaussian blur.
     };
 
     BlurMode blur_mode       = BlurMode::Bilateral;
-    float    depth_limit     = 0.15f; // World-space depth difference limit for Bilateral blur. Should be close to radius.
-    usize    num_blur_passes = 1;     // Only for Bilateral blur. Values above 1 are not recommended due to performance reasons.
-
+    // World-space depth difference limit for Bilateral blur. Should be close to radius.
+    float    depth_limit     = 0.15f;
+    // Only for Bilateral blur. Values above 1 *can* erase much wider artifacts
+    // (this is referred to as blur's "aggressiveness"), but are not recommended due to
+    // the severe performance impact it has. Try lowering the noise texture resolution instead.
+    usize    num_blur_passes = 1;
+    // For an NxN kernel, limb size L = (N - 1) / 2.
     auto blur_kernel_limb_size() const noexcept -> usize;
     // Blur kernel limb size of 0 effectively disables the blur.
     void resize_blur_kernel(usize limb_size);
@@ -102,14 +111,14 @@ struct SSAO
     SSAO(
         usize    kernel_size              = 9,
         float    deflection_rad           = glm::radians(5.0f),
-        Extent2I noise_texture_resolution = { 4, 4 },
+        Extent2I noise_texture_resolution = { 3, 3 },
         usize    blur_kernel_limb_size    = 2);
 
     void operator()(RenderEnginePrimaryInterface& engine);
 
     AOBuffers aobuffers;
 
-private:
+
     UniqueFramebuffer _fbo;
 
     // NOTE: We use vec4 to avoid issues with alignment in std430,
@@ -119,12 +128,31 @@ private:
 
     UniqueTexture2D _noise_texture;
 
-    UniqueSampler _target_sampler = eval%[]{
-        UniqueSampler s;
-        s->set_min_mag_filters(MinFilter::Linear, MagFilter::Linear);
-        s->set_wrap_all(Wrap::ClampToEdge);
-        return s;
-    };
+    UniqueSampler _depth_sampler = create_sampler({
+        // Somehow, setting this to Linear and the mag_filter
+        // to Nearest summons the "triangle of doom". Still no idea why.
+        // Something is very wrong here, and that kind of artifact
+        // should not happen period.
+        .min_filter = MinFilter::Linear,
+        // Required to be linear to avoid various artifacts at high z.
+        // At the same time, the upclose geometry has less aliasing
+        // when this is nearest. Go figure.
+        .mag_filter = MagFilter::Linear,
+        .wrap_all   = Wrap::ClampToEdge,
+    });
+
+    UniqueSampler _normals_sampler = create_sampler({
+        // NOTE: Linear is best against aliasing here.
+        .min_filter = MinFilter::Linear,
+        .mag_filter = MagFilter::Linear,
+        .wrap_all   = Wrap::ClampToEdge,
+    });
+
+    UniqueSampler _blur_sampler = create_sampler({
+        .min_filter = MinFilter::Linear,
+        .mag_filter = MagFilter::Linear,
+        .wrap_all   = Wrap::ClampToEdge,
+    });
 
     ShaderToken _sp_sampling = shader_pool().get({
         .vert = VPath("src/shaders/screen_quad.vert"),
@@ -140,7 +168,7 @@ private:
         .vert = VPath("src/shaders/screen_quad.vert"),
         .frag = VPath("src/shaders/ssao_blur_bilateral.frag")});
 };
-JOSH3D_DEFINE_ENUM_EXTRAS(SSAO::NoiseMode, GeneratedInShader, SampledFromTexture);
+JOSH3D_DEFINE_ENUM_EXTRAS(SSAO::NoiseMode, GeneratedInShaderPCG, SampledFromTexture);
 JOSH3D_DEFINE_ENUM_EXTRAS(SSAO::BlurMode, Box, Bilateral);
 
 

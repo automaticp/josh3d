@@ -15,7 +15,10 @@ buffer KernelSamplesBlock
 uniform sampler2D tex_depth;
 uniform sampler2D tex_normals;
 uniform sampler2D tex_noise;
-uniform vec2      noise_size; // Ex. vec2(0.1, 0.1) for a 16x16 texture on a 160x160 screen
+// Effectively, N2O CoB, where N and O are Noise and Occlusion buffer UV spaces respectively.
+// Note that the occlusion buffer resolution is usually a fraction of the screen resolution,
+// so we can't just derive this value from the resolution ratio of the textures above.
+uniform vec2      noise_scale;
 
 uniform float radius;
 uniform float bias;
@@ -80,7 +83,7 @@ vec4 get_frag_pos_vs(vec2 uv)
 
 vec3 get_frag_normal_vs(vec2 uv)
 {
-    const vec3 frag_normal_ws = texture(tex_normals, uv).xyz;
+    const vec3 frag_normal_ws = textureLod(tex_normals, uv, 0).xyz;
     return normalize(camera.normal_view * frag_normal_ws);
 }
 
@@ -95,8 +98,7 @@ mat3 get_random_tbn_matrix(vec3 normal)
 vec3 generate_random_vector()
 {
     uint random_id = uint(gl_FragCoord.y) << 16 | uint(gl_FragCoord.x);
-    // FIXME:
-    // We commit a sin here where we actually take
+    // FIXME: We commit a sin here where we actually take
     // a box-distributed vector, might be not that bad...
     float x = random_gamma(pcg32(random_id)) * 2.0 - 1.0;
     float y = random_gamma(pcg32(random_id)) * 2.0 - 1.0;
@@ -106,7 +108,7 @@ vec3 generate_random_vector()
 
 vec3 sample_random_vector()
 {
-    return texture(tex_noise, uv / noise_size).xyz;
+    return textureLod(tex_noise, uv * noise_scale, 0).xyz;
 }
 
 vec3 get_random_vector()

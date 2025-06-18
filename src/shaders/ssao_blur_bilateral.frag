@@ -59,10 +59,6 @@ void main()
         const float depth_delta  = abs(center_depth - depth);
         const float depth_factor = 1.0 - smoothstep(0.0, 1.0, depth_delta / depth_limit);
 
-        // HMM: Could this help?
-        // [0, 1], smaller if we are closer to center.
-        // const float offset_factor = 1.0 - abs(offset.x * offset.y) / 4.0;
-
         const float weight = kernel_weight * depth_factor;
 
         norm            += weight;

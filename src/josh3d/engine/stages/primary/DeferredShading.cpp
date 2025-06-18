@@ -109,10 +109,10 @@ void DeferredShading::draw_singlepass(
         gbuffer->normals_texture() .bind_to_texture_unit(1),
         gbuffer->albedo_texture()  .bind_to_texture_unit(2),
         gbuffer->specular_texture().bind_to_texture_unit(3),
-        target_sampler_->bind_to_texture_unit(0),
-        target_sampler_->bind_to_texture_unit(1),
-        target_sampler_->bind_to_texture_unit(2),
-        target_sampler_->bind_to_texture_unit(3),
+        _target_sampler->bind_to_texture_unit(0),
+        _target_sampler->bind_to_texture_unit(1),
+        _target_sampler->bind_to_texture_unit(2),
+        _target_sampler->bind_to_texture_unit(3),
     };
 
     sp.uniform("gbuffer.tex_depth",    0);
@@ -124,7 +124,7 @@ void DeferredShading::draw_singlepass(
     if (aobuffers)
     {
         aobuffers->occlusion_texture().bind_to_texture_unit(5);
-        auto _ = target_sampler_->bind_to_texture_unit(5);
+        auto _ = _ao_sampler->bind_to_texture_unit(5);
         sp.uniform("tex_ambient_occlusion",   5);
         sp.uniform("use_ambient_occlusion",   use_ambient_occlusion);
         sp.uniform("ambient_occlusion_power", ambient_occlusion_power);
@@ -150,7 +150,7 @@ void DeferredShading::draw_singlepass(
 
     // Directional shadows.
     cascades->maps.textures().bind_to_texture_unit(4);
-    const BindGuard bound_csm_sampler = csm_sampler_->bind_to_texture_unit(4);
+    const BindGuard bound_csm_sampler = _csm_sampler->bind_to_texture_unit(4);
     sp.uniform("csm_maps",                       4);
     sp.uniform("csm_params.base_bias_tx",        dir_params.base_bias_tx);
     const float blend_size_best_tx =
@@ -167,7 +167,7 @@ void DeferredShading::draw_singlepass(
 
     // Point light shadows.
     point_shadows->maps.cubemaps().bind_to_texture_unit(6);
-    BindGuard bound_psm_sampler = psm_sampler_->bind_to_texture_unit(6);
+    BindGuard bound_psm_sampler = _psm_sampler->bind_to_texture_unit(6);
     sp.uniform("psm_maps",               6);
     sp.uniform("psm_params.bias_bounds", point_params.bias_bounds);
     sp.uniform("psm_params.pcf_extent",  point_params.pcf_extent);
@@ -244,10 +244,10 @@ void DeferredShading::draw_multipass(
         gbuffer->normals_texture() .bind_to_texture_unit(1),
         gbuffer->albedo_texture()  .bind_to_texture_unit(2),
         gbuffer->specular_texture().bind_to_texture_unit(3),
-        target_sampler_->bind_to_texture_unit(0),
-        target_sampler_->bind_to_texture_unit(1),
-        target_sampler_->bind_to_texture_unit(2),
-        target_sampler_->bind_to_texture_unit(3),
+        _target_sampler->bind_to_texture_unit(0),
+        _target_sampler->bind_to_texture_unit(1),
+        _target_sampler->bind_to_texture_unit(2),
+        _target_sampler->bind_to_texture_unit(3),
     };
 
     const auto set_gbuffer_uniforms = [&](RawProgram<> sp)
@@ -275,7 +275,7 @@ void DeferredShading::draw_multipass(
         if (aobuffers)
         {
             aobuffers->occlusion_texture().bind_to_texture_unit(4);
-            const BindGuard bound_sampler = target_sampler_->bind_to_texture_unit(4);
+            const BindGuard bound_sampler = _ao_sampler->bind_to_texture_unit(4);
             sp.uniform("use_ambient_occlusion",    use_ambient_occlusion);
             sp.uniform("tex_ambient_occlusion",    4);
             sp.uniform("ambient_occlusion_power",  ambient_occlusion_power);
@@ -295,7 +295,7 @@ void DeferredShading::draw_multipass(
 
         // CSM.
         cascades->maps.textures().bind_to_texture_unit(5);
-        BindGuard bound_csm_sampler = csm_sampler_->bind_to_texture_unit(5);
+        BindGuard bound_csm_sampler = _csm_sampler->bind_to_texture_unit(5);
         sp.uniform("csm_maps",                       5);
         sp.uniform("csm_params.base_bias_tx",        dir_params.base_bias_tx);
         const float blend_size_best_tx =
@@ -380,7 +380,7 @@ void DeferredShading::draw_multipass(
 
         // Point Shadows.
         point_shadows->maps.cubemaps().bind_to_texture_unit(4);
-        const BindGuard bound_psm_sampler = psm_sampler_->bind_to_texture_unit(4);
+        const BindGuard bound_psm_sampler = _psm_sampler->bind_to_texture_unit(4);
         sp.uniform("psm_maps",               4);
         sp.uniform("psm_params.bias_bounds", point_params.bias_bounds);
         sp.uniform("psm_params.pcf_extent",  point_params.pcf_extent);
