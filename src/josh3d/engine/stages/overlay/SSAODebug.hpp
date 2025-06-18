@@ -14,9 +14,9 @@ struct SSAODebug
 {
     enum class OverlayMode : i32
     {
-        None    = 0,
-        Noisy   = 1,
-        Blurred = 2,
+        None,
+        Backbuffer,
+        Occlusion,
     };
 
     OverlayMode mode = OverlayMode::None;
@@ -25,10 +25,10 @@ struct SSAODebug
 
 private:
     ShaderToken sp_ = shader_pool().get({
-        .vert = VPath("src/shaders/postprocess.vert"),
+        .vert = VPath("src/shaders/screen_quad.vert"),
         .frag = VPath("src/shaders/ovl_ssao_debug.frag")});
 };
-JOSH3D_DEFINE_ENUM_EXTRAS(SSAODebug::OverlayMode, None, Noisy, Blurred);
+JOSH3D_DEFINE_ENUM_EXTRAS(SSAODebug::OverlayMode, None, Backbuffer, Occlusion);
 
 
 inline void SSAODebug::operator()(
@@ -41,12 +41,12 @@ inline void SSAODebug::operator()(
 
     const auto sp = sp_.get();
 
-    aobuffers->noisy_texture()  .bind_to_texture_unit(0);
-    aobuffers->blurred_texture().bind_to_texture_unit(1);
+    aobuffers->backbuffer_texture().bind_to_texture_unit(0);
+    aobuffers->occlusion_texture() .bind_to_texture_unit(1);
 
-    sp.uniform("mode",                to_underlying(mode));
-    sp.uniform("tex_noisy_occlusion", 0);
-    sp.uniform("tex_occlusion",       1);
+    sp.uniform("mode",           to_underlying(mode));
+    sp.uniform("tex_backbuffer", 0);
+    sp.uniform("tex_occlusion",  1);
 
     const BindGuard bsp = sp.use();
 

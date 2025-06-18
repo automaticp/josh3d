@@ -123,7 +123,7 @@ void DeferredShading::draw_singlepass(
     // AO.
     if (aobuffers)
     {
-        aobuffers->blurred_texture().bind_to_texture_unit(5);
+        aobuffers->occlusion_texture().bind_to_texture_unit(5);
         auto _ = target_sampler_->bind_to_texture_unit(5);
         sp.uniform("tex_ambient_occlusion",   5);
         sp.uniform("use_ambient_occlusion",   use_ambient_occlusion);
@@ -274,7 +274,7 @@ void DeferredShading::draw_multipass(
         // Ambient Occlusion.
         if (aobuffers)
         {
-            aobuffers->blurred_texture().bind_to_texture_unit(4);
+            aobuffers->occlusion_texture().bind_to_texture_unit(4);
             const BindGuard bound_sampler = target_sampler_->bind_to_texture_unit(4);
             sp.uniform("use_ambient_occlusion",    use_ambient_occlusion);
             sp.uniform("tex_ambient_occlusion",    4);

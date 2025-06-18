@@ -1,9 +1,11 @@
 #include "SSAO.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLPixelPackTraits.hpp"
+#include "GLProgram.hpp"
 #include "GLTextures.hpp"
 #include "Geometry.hpp"
 #include "ImageData.hpp"
+#include "MathExtras.hpp"
 #include "Region.hpp"
 #include "stages/primary/GBufferStorage.hpp"
 #include <range/v3/view/generate_n.hpp>
@@ -29,10 +31,15 @@ auto scaled_resolution(const Extent2I& resolution, float divisor) noexcept
 } // namespace
 
 
-SSAO::SSAO(usize kernel_size, float deflection_rad, Extent2I noise_texture_resolution)
+SSAO::SSAO(
+    usize    kernel_size,
+    float    deflection_rad,
+    Extent2I noise_texture_resolution,
+    usize    blur_kernel_limb_size)
 {
     regenerate_kernel(kernel_size, deflection_rad);
     regenerate_noise_texture(noise_texture_resolution);
+    resize_blur_kernel(blur_kernel_limb_size);
 }
 
 void SSAO::operator()(RenderEnginePrimaryInterface& engine)
@@ -53,6 +60,9 @@ void SSAO::operator()(RenderEnginePrimaryInterface& engine)
     // This is inverse of "noise scale" from learnopengl.
     // This is the size of a noise texture in uv coordinates of the screen
     // assuming the size of a pixel is the same for both.
+    //
+    // FIXME: Why not use the target_resolution and drop the assumption
+    // (which does not even hold btw).
     const vec2 noise_size = {
         float(noise_resolution.width)  / float(source_resolution.width),
         float(noise_resolution.height) / float(source_resolution.height),
@@ -62,16 +72,7 @@ void SSAO::operator()(RenderEnginePrimaryInterface& engine)
 
     // Sampling pass.
     {
-        const RawProgram<> sp  = sp_sampling_;
-        const MultibindGuard bound_state = {
-            gbuffer->depth_texture().  bind_to_texture_unit(0),
-            target_sampler_->          bind_to_texture_unit(0),
-            gbuffer->normals_texture().bind_to_texture_unit(1),
-            target_sampler_->          bind_to_texture_unit(1),
-            noise_texture_->           bind_to_texture_unit(2),
-            kernel_.                   bind_to_ssbo_index(0),
-            engine.                    bind_camera_ubo(),
-        };
+        const RawProgram<> sp = _sp_sampling;
 
         sp.uniform("tex_depth",   0);
         sp.uniform("tex_normals", 1);
@@ -82,26 +83,81 @@ void SSAO::operator()(RenderEnginePrimaryInterface& engine)
         sp.uniform("noise_mode",  to_underlying(noise_mode));
 
         const BindGuard bsp = sp.use();
-        const BindGuard bfb = aobuffers._fbo_noisy->bind_draw();
 
+        const MultibindGuard bound_state = {
+            gbuffer->depth_texture().  bind_to_texture_unit(0),
+            _target_sampler->          bind_to_texture_unit(0),
+            gbuffer->normals_texture().bind_to_texture_unit(1),
+            _target_sampler->          bind_to_texture_unit(1),
+            _noise_texture->           bind_to_texture_unit(2),
+            _kernel.                   bind_to_ssbo_index(0),
+            engine.                    bind_camera_ubo(),
+        };
+
+        _fbo->attach_texture_to_color_buffer(aobuffers._back().texture, 0);
+        const BindGuard bfb = _fbo->bind_draw();
         glapi::clear_color_buffer(bfb, 0, RGBAF{ .r=0.f });
+
         engine.primitives().quad_mesh().draw(bsp, bfb);
+        aobuffers._swap();
     }
 
     // Blur pass.
+    if (blur_mode == BlurMode::Box)
     {
-        const RawProgram<> sp = sp_blur_;
+        const RawProgram<> sp = _sp_blur_box;
         sp.uniform("noisy_occlusion", 0);
 
+        const BindGuard bsp = sp.use();
+
         const MultibindGuard bound_state = {
-            aobuffers.noisy_texture().bind_to_texture_unit(0),
-            target_sampler_->         bind_to_texture_unit(0),
+            aobuffers._front().texture->bind_to_texture_unit(0),
+            _target_sampler           ->bind_to_texture_unit(0),
         };
 
-        const BindGuard bsp = sp.use();
-        const BindGuard bfb = aobuffers._fbo_blurred->bind_draw();
+        _fbo->attach_texture_to_color_buffer(aobuffers._back().texture, 0);
+        const BindGuard bfb = _fbo->bind_draw();
 
         engine.primitives().quad_mesh().draw(bsp, bfb);
+        aobuffers._swap();
+    }
+
+    if (blur_mode == BlurMode::Bilateral and
+        // NOTE: We can skip the enitre blur pass
+        // if the blur kernel size is 1 (limb is 0).
+        blur_kernel_limb_size() > 0 and
+        num_blur_passes > 0)
+    {
+        const RawProgram<> sp = _sp_blur_bilateral;
+        sp.uniform("noisy_occlusion", 0);
+        sp.uniform("depth",           1);
+        sp.uniform("depth_limit",     depth_limit);
+
+        const BindGuard bcam = engine.bind_camera_ubo();
+        const BindGuard bsp  = sp.use();
+
+        const MultibindGuard bound_state = {
+            _blur_kernel             .bind_to_ssbo_index(0),
+            _target_sampler         ->bind_to_texture_unit(0),
+            gbuffer->depth_texture() .bind_to_texture_unit(1),
+            _target_sampler         ->bind_to_texture_unit(1),
+        };
+
+        for (const uindex _ : irange(num_blur_passes))
+        {
+            // Gaussian two-pass blur.
+            for (const i32 blur_dim : { 0, 1 })
+            {
+                sp.uniform("blur_dim", blur_dim);
+
+                aobuffers._front().texture->bind_to_texture_unit(0);
+                _fbo->attach_texture_to_color_buffer(aobuffers._back().texture, 0);
+
+                const BindGuard bfb = _fbo->bind_draw();
+                engine.primitives().quad_mesh().draw(bsp, bfb);
+                aobuffers._swap();
+            }
+        }
     }
 
     engine.belt().put_ref(aobuffers);
@@ -151,8 +207,8 @@ void SSAO::regenerate_kernel(usize n, float deflection_rad)
         return { vec, 0 };
     };
 
-    kernel_.restage(ranges::views::generate_n(hemispherical_vec, n));
-    deflection_rad_ = deflection_rad;
+    _kernel.restage(ranges::views::generate_n(hemispherical_vec, n));
+    _deflection_rad = deflection_rad;
 }
 
 void SSAO::regenerate_noise_texture(Extent2I resolution)
@@ -166,18 +222,44 @@ void SSAO::regenerate_noise_texture(Extent2I resolution)
     ImageData<float> imdata = { Extent2S(resolution), 3 }; // "image" of vec3's
     std::ranges::generate(imdata, gamma_fn);
 
-    if (noise_texture_->get_resolution() != resolution)
+    if (_noise_texture->get_resolution() != resolution)
     {
-        noise_texture_ = {};
-        noise_texture_->allocate_storage(resolution, InternalFormat::RGB16F);
+        _noise_texture = {};
+        _noise_texture->allocate_storage(resolution, InternalFormat::RGB16F);
         // TODO: I wonder if setting filtering to linear and offseting differently
         // each repeat will produce better results?
-        noise_texture_->set_sampler_min_mag_filters(MinFilter::Nearest, MagFilter::Nearest);
-        noise_texture_->set_sampler_wrap_all(Wrap::Repeat);
+        _noise_texture->set_sampler_min_mag_filters(MinFilter::Nearest, MagFilter::Nearest);
+        _noise_texture->set_sampler_wrap_all(Wrap::Repeat);
     }
 
-    noise_texture_->upload_image_region({ {}, resolution }, PixelDataFormat::RGB, PixelDataType::Float, imdata.data());
+    _noise_texture->upload_image_region({ {}, resolution }, PixelDataFormat::RGB, PixelDataType::Float, imdata.data());
 }
 
+auto SSAO::blur_kernel_limb_size() const noexcept
+    -> usize
+{
+    const usize n = _blur_kernel.num_staged();
+    if (not n) return 0;
+    return (n - 1) / 2;
+}
+
+void SSAO::resize_blur_kernel(usize limb_size)
+{
+    if (blur_kernel_limb_size() != limb_size)
+    {
+        if (limb_size == 0)
+        {
+            _blur_kernel.clear();
+            _blur_kernel.stage_one(1.f);
+        }
+        else
+        {
+            const usize kernel_size = 2 * limb_size + 1;
+            const float range       = float(limb_size);
+            _blur_kernel.restage(
+                generator_of_binned_gaussian_no_tails(-range, range, kernel_size));
+        }
+    }
+}
 
 } // namespace josh

@@ -2,16 +2,13 @@
 #include "GLAPIBinding.hpp"
 #include "GLObjects.hpp"
 #include "GLTextures.hpp"
+#include "MathExtras.hpp"
 #include "Scalars.hpp"
 #include "ShaderPool.hpp"
 #include "UniformTraits.hpp"
 #include "RenderEngine.hpp"
-#include "Region.hpp"
-#include <range/v3/view/generate_n.hpp>
 #include <cmath>
 #include <cassert>
-#include <ranges>
-
 
 
 namespace josh {
@@ -79,47 +76,6 @@ void GaussianBloom::operator()(
     }
 }
 
-namespace {
-
-auto gaussian_cdf(float x) noexcept
-    -> float
-{
-    return (1.f + std::erf(x / std::numbers::sqrt2_v<float>)) / 2.f;
-}
-
-/*
-Uniformly bins the normal distribution from x0 to x1.
-Does not preserve the sum as the tails are not accounted for.
-Accounting for tails can make them biased during sampling.
-Does not normalize the resulting bins.
-*/
-auto generate_binned_gaussian_no_tails(
-    float from,
-    float to,
-    usize n_bins) noexcept
-        -> std::ranges::input_range auto
-{
-    assert(to > from);
-
-    const float step = (to - from) / float(n_bins);
-    float current_x    = from;
-    float previous_cdf = gaussian_cdf(from);
-
-    return ranges::views::generate_n(
-        [=]() mutable {
-            current_x += step;
-            const float current_cdf = gaussian_cdf(current_x);
-            const float diff = current_cdf - previous_cdf;
-            previous_cdf = current_cdf;
-            return diff;
-        },
-        n_bins
-    );
-}
-
-} // namespace
-
-
 auto GaussianBloom::kernel_limb_size() const noexcept
     -> usize
 {
@@ -135,7 +91,7 @@ void GaussianBloom::resize_kernel(usize limb_size, float range)
         range != kernel_range_)
     {
         kernel_range_ = range;
-        kernel_weights_.restage(generate_binned_gaussian_no_tails(-range, range, new_n));
+        kernel_weights_.restage(generator_of_binned_gaussian_no_tails(-range, range, new_n));
     }
 }
 

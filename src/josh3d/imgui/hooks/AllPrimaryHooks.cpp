@@ -192,14 +192,29 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(SSAO)
     ImGui::SliderFloat("Bias", &stage.bias,
         0.0001f, 100.f, "%.4f", ImGuiSliderFlags_Logarithmic);
 
+    using BlurMode = target_stage_type::BlurMode;
+    ImGui::EnumListBox("Blur Mode", &stage.blur_mode);
+
+    if (stage.blur_mode == BlurMode::Bilateral)
+    {
+        ImGui::SliderFloat("Blur Depth Limit", &stage.depth_limit,
+            0.001f, 1000.f, "%.3f", ImGuiSliderFlags_Logarithmic);
+        auto limb_size = stage.blur_kernel_limb_size();
+        if (ImGui::SliderScalar("Blur Kernel Limb Size", &limb_size, 0, 16))
+            stage.resize_blur_kernel(limb_size);
+        ImGui::SliderScalar("Num Blur Passes", &stage.num_blur_passes, 0, 8);
+    }
+
+    using NoiseMode = target_stage_type::NoiseMode;
     ImGui::EnumListBox("Noise Mode", &stage.noise_mode, 0);
 
-    ImGui::BeginDisabled(stage.noise_mode != SSAONoiseMode::SampledFromTexture);
-    Extent2I noise_resolution = stage.noise_texture_resolution();
-    if (ImGui::SliderInt2("Noise Size", &noise_resolution.width, 1, 128) +
-        ImGui::Button("Regenerate Noise Texture"))
+    if (stage.noise_mode == NoiseMode::SampledFromTexture)
     {
-        stage.regenerate_noise_texture(noise_resolution);
+        Extent2I noise_resolution = stage.noise_texture_resolution();
+        if (ImGui::SliderInt2("Noise Size", &noise_resolution.width, 1, 128) +
+            ImGui::Button("Regenerate Noise Texture"))
+        {
+            stage.regenerate_noise_texture(noise_resolution);
+        }
     }
-    ImGui::EndDisabled();
 }
