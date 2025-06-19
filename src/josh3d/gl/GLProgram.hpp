@@ -20,10 +20,8 @@
 namespace josh {
 
 
-
-
-
-enum class ProgramResource : GLuint {
+enum class ProgramResource : GLuint
+{
     Uniform                         = GLuint(gl::GL_UNIFORM),
     Input                           = GLuint(gl::GL_PROGRAM_INPUT),
     Output                          = GLuint(gl::GL_PROGRAM_OUTPUT),
@@ -34,10 +32,6 @@ enum class ProgramResource : GLuint {
     FragmentSubroutineUniform       = GLuint(gl::GL_FRAGMENT_SUBROUTINE_UNIFORM),
     ComputeSubroutineUniform        = GLuint(gl::GL_COMPUTE_SUBROUTINE_UNIFORM),
 };
-
-
-
-
 
 
 namespace detail {
@@ -273,16 +267,13 @@ private:
     GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
     using mt = mutability_traits<CRTP>;
 public:
-
     // Wraps `glUseProgram`.
     [[nodiscard("BindTokens have to be provided to an API call that expects bound state.")]]
-    auto use() const noexcept
+    auto use() const
         -> BindToken<Binding::Program>
     {
-        gl::glUseProgram(self_id());
-        return { self_id() };
+        return glapi::bind_to_context<Binding::Program>(self_id());
     }
-
 };
 
 

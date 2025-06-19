@@ -472,8 +472,7 @@ public:
     auto bind() const noexcept
         -> BindToken<Binding::VertexArray>
     {
-        gl::glBindVertexArray(self_id());
-        return { self_id() };
+        return glapi::bind_to_context<Binding::VertexArray>(self_id());
     }
 };
 

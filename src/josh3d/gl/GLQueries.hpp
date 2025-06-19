@@ -1,6 +1,7 @@
 #pragma once
 #include "GLAPI.hpp"
-#include "GLAPIQueries.hpp"
+#include "GLAPIBinding.hpp"
+#include "GLAPITargets.hpp"
 #include "GLBuffers.hpp"
 #include "GLKind.hpp"
 #include "GLScalars.hpp"
@@ -18,32 +19,6 @@
 
 
 namespace josh {
-
-
-enum class QueryTarget : GLuint {
-    TimeElapsed                        = GLuint(gl::GL_TIME_ELAPSED),
-    Timestamp                          = GLuint(gl::GL_TIMESTAMP),
-    SamplesPassed                      = GLuint(gl::GL_SAMPLES_PASSED),
-    AnySamplesPassed                   = GLuint(gl::GL_ANY_SAMPLES_PASSED),
-    AnySamplesPassedConservative       = GLuint(gl::GL_ANY_SAMPLES_PASSED_CONSERVATIVE),
-    PrimitivesGenerated                = GLuint(gl::GL_PRIMITIVES_GENERATED),
-    VerticesSubmitted                  = GLuint(gl::GL_VERTICES_SUBMITTED),
-    PrimitivesSubmitted                = GLuint(gl::GL_PRIMITIVES_SUBMITTED),
-    VertexShaderInvocations            = GLuint(gl::GL_VERTEX_SHADER_INVOCATIONS),
-    TessControlShaderPatches           = GLuint(gl::GL_TESS_CONTROL_SHADER_PATCHES),
-    TessEvaluationShaderInvocations    = GLuint(gl::GL_TESS_EVALUATION_SHADER_INVOCATIONS),
-    GeometryShaderInvocations          = GLuint(gl::GL_GEOMETRY_SHADER_INVOCATIONS),
-    GeometryShaderPrimitivesEmitted    = GLuint(gl::GL_GEOMETRY_SHADER_PRIMITIVES_EMITTED),
-    ClippingInputPrimitives            = GLuint(gl::GL_CLIPPING_INPUT_PRIMITIVES),
-    ClippingOutputPrimitives           = GLuint(gl::GL_CLIPPING_OUTPUT_PRIMITIVES),
-    FragmentShaderInvocations          = GLuint(gl::GL_FRAGMENT_SHADER_INVOCATIONS),
-    ComputeShaderInvocations           = GLuint(gl::GL_COMPUTE_SHADER_INVOCATIONS),
-    TransformFeedbackPrimitivesWritten = GLuint(gl::GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN),
-    TransformFeedbackOverflow          = GLuint(gl::GL_TRANSFORM_FEEDBACK_OVERFLOW),
-    TransformFeedbackStreamOverflow    = GLuint(gl::GL_TRANSFORM_FEEDBACK_STREAM_OVERFLOW),
-};
-
-
 
 
 
@@ -90,7 +65,7 @@ public:
     auto result() const noexcept
         -> result_type
     {
-        assert(glapi::queries::bound_id(Binding::QueryBuffer) == 0);
+        assert(glapi::get_bound_id(Binding::QueryBuffer) == 0);
         if constexpr (std::same_as<result_type, GLuint64>) {
             GLuint64 result;
             gl::glGetQueryObjectui64v(self_id(), gl::GL_QUERY_RESULT, &result);

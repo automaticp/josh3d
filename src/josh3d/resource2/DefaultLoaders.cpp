@@ -92,8 +92,8 @@ auto upload_lods(
 {
     for (const auto [i, staged] : zip(lod_ids, staged_lods))
     {
-        make_available<Binding::ArrayBuffer>       (staged.verts->id());
-        make_available<Binding::ElementArrayBuffer>(staged.elems->id());
+        glapi::make_available<Binding::ArrayBuffer>       (staged.verts->id());
+        glapi::make_available<Binding::ElementArrayBuffer>(staged.elems->id());
         lod_pack.lods[i] = storage.insert_buffer(staged.verts->template as_typed<VertexT>(), staged.elems);
     }
 };

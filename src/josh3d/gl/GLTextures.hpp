@@ -3,6 +3,7 @@
 #include "DecayToRaw.hpp"
 #include "GLAPI.hpp"
 #include "GLAPIBinding.hpp"
+#include "GLAPITargets.hpp"
 #include "GLBuffers.hpp"
 #include "GLAPICommonTypes.hpp"
 #include "GLKind.hpp"
@@ -16,179 +17,31 @@
 #include "detail/MagicConstructorsMacro.hpp"
 #include "detail/RawGLHandle.hpp"
 #include "detail/StaticAssertFalseMacro.hpp"
-#include "detail/StrongScalar.hpp"
-#include <cstddef>
 #include <glbinding/gl/boolean.h>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
 #include <glbinding/gl/types.h>
+#include <cstddef>
 #include <type_traits>
 #include <span>
 #include <utility>
 
 
+// TODO: Cleanup. Haha...
 namespace josh {
 
 
-
-
-/*
-Since each texture target is a distinct type on-construction
-for DSA style, we use the texutre target as a reflection enum.
-
-Names are Uppercase to match Type capitalization. Helps in macros.
-*/
-enum class TextureTarget : GLuint {
-    Texture1D        = GLuint(gl::GL_TEXTURE_1D),
-    Texture1DArray   = GLuint(gl::GL_TEXTURE_1D_ARRAY),
-    Texture2D        = GLuint(gl::GL_TEXTURE_2D),
-    Texture2DArray   = GLuint(gl::GL_TEXTURE_2D_ARRAY),
-    Texture2DMS      = GLuint(gl::GL_TEXTURE_2D_MULTISAMPLE),
-    Texture2DMSArray = GLuint(gl::GL_TEXTURE_2D_MULTISAMPLE_ARRAY),
-    Texture3D        = GLuint(gl::GL_TEXTURE_3D),
-    Cubemap          = GLuint(gl::GL_TEXTURE_CUBE_MAP),
-    CubemapArray     = GLuint(gl::GL_TEXTURE_CUBE_MAP_ARRAY),
-    TextureRectangle = GLuint(gl::GL_TEXTURE_RECTANGLE),
-    TextureBuffer    = GLuint(gl::GL_TEXTURE_BUFFER),
-};
-
-
-
-
-
-
-
-enum class Swizzle : GLuint {
-    Red   = GLuint(gl::GL_RED),
-    Green = GLuint(gl::GL_GREEN),
-    Blue  = GLuint(gl::GL_BLUE),
-    Alpha = GLuint(gl::GL_ALPHA),
-    Zero  = GLuint(gl::GL_ZERO),
-    One   = GLuint(gl::GL_ONE),
-};
-JOSH3D_DEFINE_ENUM_EXTRAS(Swizzle, Red, Green, Blue, Alpha, Zero, One);
-
-
-struct SwizzleRGBA {
-    Swizzle r{ Swizzle::Red   };
-    Swizzle g{ Swizzle::Green };
-    Swizzle b{ Swizzle::Blue  };
-    Swizzle a{ Swizzle::Alpha };
-
-    // Constructs a SwizzleRGBA with all channel slots set to `s`.
-    constexpr static auto all(Swizzle s) noexcept
-        -> SwizzleRGBA
-    {
-        return { s, s, s, s };
-    }
-
-    // Returns the number of channel slots that are not Zero or One. Up to 4.
-    constexpr auto num_nonconst() const noexcept
-        -> size_t
-    {
-        auto nonconst = [](Swizzle s)
-            -> bool
-        {
-            return (s != Swizzle::Zero) and (s != Swizzle::One);
-        };
-        return
-            nonconst(r) +
-            nonconst(g) +
-            nonconst(b) +
-            nonconst(a);
-    }
-
-    // Returns the number of unique nonconst target channels referenced by this `SwizzleRGBA`. Up to 4.
-    // For example, the number of unique nonconst target channels in `SwizzleRGBA{ Red, Red, Zero, Blue }`
-    // is 2, and in `SwizzleRGBA{ Red, Zero, One, Red }` is 1.
-    constexpr auto num_unique_nonconst() const noexcept
-        -> size_t
-    {
-        bool nonconst[4] = {};
-        auto mark = [&](Swizzle s)
-        {
-            switch (s)
-            {
-                case Swizzle::Red:   nonconst[0] = true; break;
-                case Swizzle::Green: nonconst[1] = true; break;
-                case Swizzle::Blue:  nonconst[2] = true; break;
-                case Swizzle::Alpha: nonconst[3] = true; break;
-                default: break;
-            }
-        };
-        mark(r);
-        mark(g);
-        mark(b);
-        mark(a);
-        return
-            nonconst[0] +
-            nonconst[1] +
-            nonconst[2] +
-            nonconst[3];
-    }
-
-    constexpr auto operator==(const SwizzleRGBA&) const noexcept -> bool = default;
-};
-
-
-enum class DepthStencilTarget : GLuint {
+enum class DepthStencilTarget : GLuint
+{
     DepthComponent = GLuint(gl::GL_DEPTH_COMPONENT),
     StencilIndex   = GLuint(gl::GL_STENCIL_INDEX),
 };
 
-
-
-
-
-
-
-/*
-Strong integer type meant to be used at the call-site to disambiguate
-integer paramters of certail funtions.
-
-Compare weak integers:
-    `fbo.attach_texture_layer_to_color_buffer(tex, 3, 1, 0);`
-
-To using strong integer types:
-    `fbo.attach_texture_layer_to_color_buffer(tex, Layer{ 3 }, 1, MipLevel{ 0 });`
-
-*/
-JOSH3D_DEFINE_STRONG_SCALAR(Layer, GLint);
-
-
-/*
-Strong integer type meant to be used at the call-site to disambiguate
-integer paramters of certail funtions.
-
-Compare weak integers:
-    `fbo.attach_texture_layer_to_color_buffer(tex, 3, 1, 0);`
-
-To using strong integer types:
-    `fbo.attach_texture_layer_to_color_buffer(tex, Layer{ 3 }, 1, MipLevel{ 0 });`
-
-*/
-JOSH3D_DEFINE_STRONG_SCALAR(MipLevel,  GLint);
-JOSH3D_DEFINE_STRONG_SCALAR(NumLevels, GLsizei);
-
-
-
-
-/*
-"[8.8] samples represents a request for a desired minimum number of samples.
-Since different implementations may support different sample counts for multi-
-sampled textures, the actual number of samples allocated for the texture image is
-implementation-dependent. However, the resulting value for TEXTURE_SAMPLES
-is guaranteed to be greater than or equal to samples and no more than the next
-larger sample count supported by the implementation."
-*/
-JOSH3D_DEFINE_STRONG_SCALAR(NumSamples, GLsizei);
-
-
-enum struct SampleLocations : bool {
+enum class SampleLocations : bool
+{
     NotFixed = false,
     Fixed    = true,
 };
-
 
 
 /*
@@ -448,7 +301,8 @@ JOSH3D_DECLARE_ENUM_AS_SUPERSET(InternalFormat, BufferTextureInternalFormat)
 // TODO: RenderableFormat, and use it for attachments
 
 
-enum class PixelComponent {
+enum class PixelComponent
+{
     Red,
     Green,
     Blue,
@@ -457,9 +311,11 @@ enum class PixelComponent {
     Stencil,
     SharedExponent,
 };
+JOSH3D_DEFINE_ENUM_EXTRAS(PixelComponent,
+    Red, Green, Blue, Alpha, Depth, Stencil, SharedExponent);
 
-
-enum class PixelComponentType : GLuint {
+enum class PixelComponentType : GLuint
+{
     None            = GLuint(gl::GL_NONE),
     SNorm           = GLuint(gl::GL_SIGNED_NORMALIZED),
     UNorm           = GLuint(gl::GL_UNSIGNED_NORMALIZED),
@@ -467,10 +323,8 @@ enum class PixelComponentType : GLuint {
     Integer         = GLuint(gl::GL_INT),
     UnsignedInteger = GLuint(gl::GL_UNSIGNED_INT)
 };
-
-
-
-
+JOSH3D_DEFINE_ENUM_EXTRAS(PixelComponentType,
+    None, SNorm, UNorm, Float, Integer, UnsignedInteger);
 
 
 namespace detail {
@@ -1813,22 +1667,10 @@ struct TextureDSAInterface_Bind_ToTextureUnit {
     JOSH3D_TEXTURE_MIXIN_HEADER
 
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
-    auto bind_to_texture_unit(GLuint unit_index) const noexcept {
-        gl::glBindTextureUnit(unit_index, self_id());
-        if constexpr      (TargetV == TextureTarget::Texture1D)        { return BindToken<BindingIndexed::Texture1D>       { self_id(), unit_index }; }
-        else if constexpr (TargetV == TextureTarget::Texture1DArray)   { return BindToken<BindingIndexed::Texture1DArray>  { self_id(), unit_index }; }
-        else if constexpr (TargetV == TextureTarget::Texture2D)        { return BindToken<BindingIndexed::Texture2D>       { self_id(), unit_index }; }
-        else if constexpr (TargetV == TextureTarget::Texture2DArray)   { return BindToken<BindingIndexed::Texture2DArray>  { self_id(), unit_index }; }
-        else if constexpr (TargetV == TextureTarget::Texture2DMS)      { return BindToken<BindingIndexed::Texture2DMS>     { self_id(), unit_index }; }
-        else if constexpr (TargetV == TextureTarget::Texture2DMSArray) { return BindToken<BindingIndexed::Texture2DMSArray>{ self_id(), unit_index }; }
-        else if constexpr (TargetV == TextureTarget::Texture3D)        { return BindToken<BindingIndexed::Texture3D>       { self_id(), unit_index }; }
-        else if constexpr (TargetV == TextureTarget::Cubemap)          { return BindToken<BindingIndexed::Cubemap>         { self_id(), unit_index }; }
-        else if constexpr (TargetV == TextureTarget::CubemapArray)     { return BindToken<BindingIndexed::CubemapArray>    { self_id(), unit_index }; }
-        else if constexpr (TargetV == TextureTarget::TextureBuffer)    { return BindToken<BindingIndexed::BufferTexture>   { self_id(), unit_index }; }
-        else if constexpr (TargetV == TextureTarget::TextureRectangle) { return BindToken<BindingIndexed::TextureRectangle>{ self_id(), unit_index }; }
-        else { JOSH3D_STATIC_ASSERT_FALSE(CRTP); }
+    auto bind_to_texture_unit(GLuint unit_index) const noexcept
+    {
+        return glapi::bind_to_context<target_binding_indexed(TargetV)>(unit_index, self_id());
     }
-
 };
 
 
@@ -1841,19 +1683,17 @@ private:
     [[nodiscard]]
     auto bind_to_image_unit_impl(
         GLuint index, ImageUnitFormat format, GLenum access, GLint level) const noexcept
-            -> BindToken<BindingIndexed::ImageUnit>
+            -> BindToken<BindingI::ImageUnit>
     {
-        gl::glBindImageTexture(
-            index, self_id(), level, gl::GL_TRUE, 0, access, enum_cast<GLenum>(format)
-        );
-        return { self_id(), index };
+        gl::glBindImageTexture(index, self_id(), level, gl::GL_TRUE, 0, access, enum_cast<GLenum>(format));
+        return BindToken<BindingI::ImageUnit>::from_index_and_id(index, self_id());
     }
 public:
 
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
     auto bind_to_readonly_image_unit(
         ImageUnitFormat format, GLuint unit_index, MipLevel level = MipLevel{ 0 }) const noexcept
-            -> BindToken<BindingIndexed::ImageUnit>
+            -> BindToken<BindingI::ImageUnit>
                 requires tt::has_lod
     {
         return bind_to_image_unit_impl(unit_index, format, gl::GL_READ_ONLY, level);
@@ -1862,7 +1702,7 @@ public:
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
     auto bind_to_readonly_image_unit(
         ImageUnitFormat format, GLuint unit_index) const noexcept
-            -> BindToken<BindingIndexed::ImageUnit>
+            -> BindToken<BindingI::ImageUnit>
                 requires (!tt::has_lod)
     {
         return bind_to_image_unit_impl(unit_index, format, gl::GL_READ_ONLY, 0);
@@ -1874,7 +1714,7 @@ public:
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
     auto bind_to_writeonly_image_unit(
         ImageUnitFormat format, GLuint unit_index, MipLevel level = MipLevel{ 0 }) const noexcept
-            -> BindToken<BindingIndexed::ImageUnit>
+            -> BindToken<BindingI::ImageUnit>
                 requires mt::is_mutable && tt::has_lod
     {
         return bind_to_image_unit_impl(unit_index, format, gl::GL_WRITE_ONLY, level);
@@ -1883,7 +1723,7 @@ public:
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
     auto bind_to_writeonly_image_unit(
         ImageUnitFormat format, GLuint unit_index) const noexcept
-            -> BindToken<BindingIndexed::ImageUnit>
+            -> BindToken<BindingI::ImageUnit>
                 requires mt::is_mutable && (!tt::has_lod)
     {
         return bind_to_image_unit_impl(unit_index, format, gl::GL_WRITE_ONLY, 0);
@@ -1895,7 +1735,7 @@ public:
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
     auto bind_to_readwrite_image_unit(
         ImageUnitFormat format, GLuint unit_index, MipLevel level = MipLevel{ 0 }) const noexcept
-            -> BindToken<BindingIndexed::ImageUnit>
+            -> BindToken<BindingI::ImageUnit>
                 requires mt::is_mutable && tt::has_lod
     {
         return bind_to_image_unit_impl(unit_index, format, gl::GL_READ_WRITE, level);
@@ -1904,7 +1744,7 @@ public:
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
     auto bind_to_readwrite_image_unit(
         ImageUnitFormat format, GLuint unit_index) const noexcept
-            -> BindToken<BindingIndexed::ImageUnit>
+            -> BindToken<BindingI::ImageUnit>
                 requires mt::is_mutable && (!tt::has_lod)
     {
         return bind_to_image_unit_impl(unit_index, format, gl::GL_READ_WRITE, 0);
@@ -1922,19 +1762,17 @@ private:
     [[nodiscard]]
     auto bind_layer_to_image_unit_impl(
         GLuint index, ImageUnitFormat format, GLenum access, GLint layer, GLint level) const noexcept
-            -> BindToken<BindingIndexed::ImageUnit>
+            -> BindToken<BindingI::ImageUnit>
     {
-        gl::glBindImageTexture(
-            index, self_id(), level, gl::GL_FALSE, layer, access, enum_cast<GLenum>(format)
-        );
-        return { self_id(), index };
+        gl::glBindImageTexture(index, self_id(), level, gl::GL_FALSE, layer, access, enum_cast<GLenum>(format));
+        return BindToken<BindingI::ImageUnit>::from_index_and_id(index, self_id());
     }
 public:
 
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
     auto bind_layer_to_readonly_image_unit(
         Layer layer, ImageUnitFormat format, GLuint unit_index, MipLevel level = MipLevel{ 0 }) const noexcept
-            -> BindToken<BindingIndexed::ImageUnit>
+            -> BindToken<BindingI::ImageUnit>
                 requires tt::is_layered && tt::has_lod
     {
         return bind_layer_to_image_unit_impl(unit_index, format, gl::GL_READ_ONLY, layer, level);
@@ -1943,7 +1781,7 @@ public:
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
     auto bind_layer_to_readonly_image_unit(
         Layer layer, ImageUnitFormat format, GLuint unit_index) const noexcept
-            -> BindToken<BindingIndexed::ImageUnit>
+            -> BindToken<BindingI::ImageUnit>
                 requires tt::is_layered && (!tt::has_lod)
     {
         return bind_layer_to_image_unit_impl(unit_index, format, gl::GL_READ_ONLY, layer, 0);
@@ -1955,7 +1793,7 @@ public:
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
     auto bind_layer_to_writeonly_image_unit(
         Layer layer, ImageUnitFormat format, GLuint unit_index, MipLevel level = MipLevel{ 0 }) const noexcept
-            -> BindToken<BindingIndexed::ImageUnit>
+            -> BindToken<BindingI::ImageUnit>
                 requires mt::is_mutable && tt::is_layered && tt::has_lod
     {
         return bind_layer_to_image_unit_impl(unit_index, format, gl::GL_WRITE_ONLY, layer, level);
@@ -1964,7 +1802,7 @@ public:
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
     auto bind_layer_to_writeonly_image_unit(
         Layer layer, ImageUnitFormat format, GLuint unit_index) const noexcept
-            -> BindToken<BindingIndexed::ImageUnit>
+            -> BindToken<BindingI::ImageUnit>
                 requires mt::is_mutable && tt::is_layered && (!tt::has_lod)
     {
         return bind_layer_to_image_unit_impl(unit_index, format, gl::GL_WRITE_ONLY, layer, 0);
@@ -1976,7 +1814,7 @@ public:
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
     auto bind_layer_to_readwrite_image_unit(
         Layer layer, ImageUnitFormat format, GLuint unit_index, MipLevel level = MipLevel{ 0 }) const noexcept
-            -> BindToken<BindingIndexed::ImageUnit>
+            -> BindToken<BindingI::ImageUnit>
                 requires mt::is_mutable && tt::is_layered && tt::has_lod
     {
         return bind_layer_to_image_unit_impl(unit_index, format, gl::GL_READ_WRITE, layer, level);
@@ -1985,7 +1823,7 @@ public:
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
     auto bind_layer_to_readwrite_image_unit(
         Layer layer, ImageUnitFormat format, GLuint unit_index) const noexcept
-            -> BindToken<BindingIndexed::ImageUnit>
+            -> BindToken<BindingI::ImageUnit>
                 requires mt::is_mutable && tt::is_layered && (!tt::has_lod)
     {
         return bind_layer_to_image_unit_impl(unit_index, format, gl::GL_READ_WRITE, layer, 0);

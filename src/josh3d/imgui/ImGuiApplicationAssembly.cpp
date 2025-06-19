@@ -18,7 +18,6 @@
 #include "Ranges.hpp"
 #include "RenderEngine.hpp"
 #include "Region.hpp"
-#include "ScopeExit.hpp"
 #include "Transform.hpp"
 #include "VPath.hpp"
 #include "VirtualFilesystem.hpp"
@@ -128,7 +127,7 @@ void display_asset_manager_debug(AssetManager& asset_manager)
     if (last_texture_job && last_texture_job->is_ready()) {
         try {
             texture_asset = move_out(last_texture_job).get_result();
-            make_available<Binding::Texture2D>(texture_asset->texture->id());
+            glapi::make_available<Binding::Texture2D>(texture_asset->texture->id());
             last_error = {};
         } catch (const std::exception& e) {
             last_error = e.what();
@@ -139,11 +138,11 @@ void display_asset_manager_debug(AssetManager& asset_manager)
             model_asset = move_out(last_model_job).get_result();
             for (auto& mesh : model_asset->meshes) {
                 visit([&]<typename T>(T& mesh_asset) {
-                    if (auto* asset = try_get(mesh_asset.diffuse )) { make_available<Binding::Texture2D>(asset->texture->id()); }
-                    if (auto* asset = try_get(mesh_asset.specular)) { make_available<Binding::Texture2D>(asset->texture->id()); }
-                    if (auto* asset = try_get(mesh_asset.normal  )) { make_available<Binding::Texture2D>(asset->texture->id()); }
-                    make_available<Binding::ArrayBuffer>       (mesh_asset.vertices->id());
-                    make_available<Binding::ElementArrayBuffer>(mesh_asset.indices->id() );
+                    if (auto* asset = try_get(mesh_asset.diffuse )) { glapi::make_available<Binding::Texture2D>(asset->texture->id()); }
+                    if (auto* asset = try_get(mesh_asset.specular)) { glapi::make_available<Binding::Texture2D>(asset->texture->id()); }
+                    if (auto* asset = try_get(mesh_asset.normal  )) { glapi::make_available<Binding::Texture2D>(asset->texture->id()); }
+                    glapi::make_available<Binding::ArrayBuffer>       (mesh_asset.vertices->id());
+                    glapi::make_available<Binding::ElementArrayBuffer>(mesh_asset.indices->id() );
                 }, mesh);
             }
         } catch (const std::exception& e) {

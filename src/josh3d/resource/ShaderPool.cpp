@@ -1,5 +1,8 @@
 #include "ShaderPool.hpp"
+#include "CategoryCasts.hpp"
+#include "Common.hpp"
 #include "Components.hpp"
+#include "ContainerUtils.hpp"
 #include "Filesystem.hpp"
 #include "GLMutability.hpp"
 #include "GLObjects.hpp"
@@ -8,6 +11,7 @@
 #include "ObjectLifecycle.hpp"
 #include "ReadFile.hpp"
 #include "RuntimeError.hpp"
+#include "Scalars.hpp"
 #include "SceneGraph.hpp"
 #include "ShaderBuilder.hpp"
 #include "ShaderSource.hpp"
@@ -75,7 +79,6 @@ to maintain strict invariants in a system that was not
 build for that (ECS).
 */
 
-
 using ProgramID       = entt::entity;
 using PrimaryID       = entt::entity;
 using SecondaryID     = entt::entity;
@@ -83,7 +86,7 @@ using FileID          = entt::entity; // Any file, primary or secondary.
 using ProgramOrFileID = entt::entity;
 using Registry        = entt::registry;
 using Handle          = entt::handle;
-using CHandle     = entt::const_handle;
+using CHandle         = entt::const_handle;
 
 
 struct MarkedForReload {};
@@ -93,13 +96,15 @@ struct MarkedForReload {};
 Used to automatically watch/unwatch files when this component is created/destroyed.
 The on_construct()/on_destroy() callbacks are installed in the ShaderPoolImpl constructor.
 */
-struct WatchedFile {
+struct WatchedFile
+{
     ShaderWatcher* watcher;
 };
 
 
-struct ProgramName  {
-    std::string str;
+struct ProgramName
+{
+    String str;
 
     static auto from_filenames(const ProgramFiles& files)
         -> ProgramName
@@ -116,6 +121,8 @@ struct ProgramName  {
         // given that we know lengths of all strings ahead of time.
         std::stringstream ss;
 
+        // Ex. "##vert:path/to/shader.vert##frag:path/to/shader.frag#define ENABLE_BLAH 1"
+        // Note that the defines are *per-program*, not per each individual shader.
         #define APPEND_PATH(type) \
             if (files.type) { ss << "##" #type ":" << files.type->path(); }
 
@@ -128,29 +135,36 @@ struct ProgramName  {
 
         #undef APPEND_PATH
 
-        for (const auto& define : defines.values) {
+        for (const auto& define : defines.values)
             ss << define;
-        }
 
-        return { std::move(ss).str() };
+        return { MOVE(ss).str() };
     }
 
-    constexpr auto operator<=>(const ProgramName&) const = default;
-
+    constexpr auto operator==(const ProgramName&) const noexcept -> bool = default;
+    constexpr auto operator<=>(const ProgramName&) const noexcept = default;
 };
+// TODO: Why do I have to provide this if I have a specialization below?
+auto hash_value(const ProgramName& name) noexcept
+    -> usize
+{
+    return boost::hash_value(name.str);
+}
 } // namespace josh
 template<>
-struct std::hash<josh::ProgramName> {
-    auto operator()(const josh::ProgramName& name) const noexcept {
-        return std::hash<std::string>{}(name.str);
+struct std::hash<josh::ProgramName>
+{
+    auto operator()(const josh::ProgramName& name) const noexcept
+        -> size_t
+    {
+        return std::hash<josh::String>{}(name.str);
     }
 };
 namespace josh {
 
 
-
-
-class ShaderPoolImpl {
+class ShaderPoolImpl
+{
 public:
     friend ShaderToken;
     ShaderPoolImpl();
@@ -163,61 +177,58 @@ public:
     void force_reload();
 
 private:
-    ShaderWatcher                              watcher_; // I'm a watcher.
-    Registry                                   registry_;
-    std::unordered_map<ProgramName, ProgramID> program_map_;
+    ShaderWatcher                   watcher_; // I'm a watcher.
+    Registry                        registry_;
+    HashMap<ProgramName, ProgramID> program_map_;
     void sweep_reload_marked();
 };
 
+namespace {
 
-
-
-static void start_watching(Registry& registry, FileID entity) {
-    const CHandle handle{ registry, entity };
+void start_watching(Registry& registry, FileID entity)
+{
+    const CHandle handle = { registry, entity };
     assert(has_component<File>(handle));
     const File& file = handle.get<File>();
     handle.get<WatchedFile>().watcher->watch(to_integral(entity), file);
 }
 
-
-static void stop_watching(Registry& registry, FileID entity) {
-    const CHandle handle{ registry, entity };
+void stop_watching(Registry& registry, FileID entity)
+{
+    const CHandle handle = { registry, entity };
     handle.get<WatchedFile>().watcher->stop_watching(to_integral(entity));
 }
 
+} // namespace
 
-ShaderPoolImpl::ShaderPoolImpl() {
+ShaderPoolImpl::ShaderPoolImpl()
+{
     registry_.on_construct<WatchedFile>().connect<&start_watching>();
     registry_.on_destroy  <WatchedFile>().connect<&stop_watching> ();
 }
 
 
-
-
 namespace {
 
-
 /*
-This is the intermediate state used for loading,
-but it also somewhat resembles the structure
-as it appears later in the registry.
+This is the intermediate state used for loading, but it also
+somewhat resembles the structure as it appears later in the registry.
 */
 
-
-struct PrimaryDesc {
+struct PrimaryDesc
+{
     File                     file;
     std::unordered_set<File> included;
 };
 
-
-struct ProgramDesc {
+struct ProgramDesc
+{
     ProgramDefines                                defines;
     std::unordered_map<ShaderTarget, PrimaryDesc> primaries;
 };
 
-
-// Type-per-shader was a mistake.
-using AnyShader = std::variant<
+// FIXME: Type-per-shader was a mistake.
+using AnyShader = Variant<
     UniqueVertexShader,
     UniqueTessControlShader,
     UniqueTessEvaluationShader,
@@ -226,11 +237,11 @@ using AnyShader = std::variant<
     UniqueComputeShader
 >;
 
-
 auto make_any_shader(ShaderTarget target)
     -> AnyShader
 {
-    switch (target) {
+    switch (target)
+    {
         using enum ShaderTarget;
         case VertexShader:         return UniqueVertexShader();
         case TessControlShader:    return UniqueTessControlShader();
@@ -238,7 +249,7 @@ auto make_any_shader(ShaderTarget target)
         case GeometryShader:       return UniqueGeometryShader();
         case FragmentShader:       return UniqueFragmentShader();
         case ComputeShader:        return UniqueComputeShader();
-        default: std::terminate();
+        default: panic("Unexpected ShaderTarget.");
     }
 }
 

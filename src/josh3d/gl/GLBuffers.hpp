@@ -2,6 +2,7 @@
 #include "CommonConcepts.hpp" // IWYU pragma: keep
 #include "GLAPI.hpp"
 #include "GLAPIBinding.hpp"
+#include "GLAPITargets.hpp"
 #include "GLAPICommonTypes.hpp"
 #include "GLKind.hpp"
 #include "GLScalars.hpp"
@@ -9,7 +10,6 @@
 #include "EnumUtils.hpp"
 #include "detail/MagicConstructorsMacro.hpp"
 #include "detail/RawGLHandle.hpp"
-#include "detail/StaticAssertFalseMacro.hpp"
 #include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
@@ -19,17 +19,16 @@
 
 namespace josh {
 
-
-
 template<trivially_copyable T, mutability_tag MutT>
 class RawBuffer;
+
 template<mutability_tag MutT>
 class RawUntypedBuffer;
 
 
-
-
-struct BufferRange {
+// TODO: Move to common types.
+struct BufferRange
+{
     OffsetElems offset;
     NumElems    count;
 };
@@ -153,37 +152,6 @@ struct MappingPolicies {
 
 
 
-enum class BufferTarget : GLuint {
-    // VertexArray      = GLuint(gl::GL_ARRAY_BUFFER),
-    // ElementArray     = GLuint(gl::GL_ELEMENT_ARRAY_BUFFER),
-    DispatchIndirect = GLuint(gl::GL_DISPATCH_INDIRECT_BUFFER),
-    DrawIndirect     = GLuint(gl::GL_DRAW_INDIRECT_BUFFER),
-    Parameter        = GLuint(gl::GL_PARAMETER_BUFFER),
-    PixelPack        = GLuint(gl::GL_PIXEL_PACK_BUFFER),
-    PixelUnpack      = GLuint(gl::GL_PIXEL_UNPACK_BUFFER),
-    // Texture          = GLuint(gl::GL_TEXTURE_BUFFER),
-    // QUERY target is redundant in presence of `glGetQueryBufferObjectui64v`.
-    // Query            = GLuint(gl::GL_QUERY_BUFFER),
-    // COPY_READ/WRITE targets are redundant in presence of DSA copy commands.
-    // CopyRead         = GLuint(gl::GL_COPY_READ_BUFFER),
-    // CopyWrite        = GLuint(gl::GL_COPY_WRITE_BUFFER),
-};
-
-
-enum class BufferTargetIndexed : GLuint {
-    ShaderStorage     = GLuint(gl::GL_SHADER_STORAGE_BUFFER),
-    Uniform           = GLuint(gl::GL_UNIFORM_BUFFER),
-    TransformFeedback = GLuint(gl::GL_TRANSFORM_FEEDBACK_BUFFER),
-    AtomicCounter     = GLuint(gl::GL_ATOMIC_COUNTER_BUFFER),
-};
-
-
-
-
-
-
-
-
 
 namespace detail {
 
@@ -282,28 +250,18 @@ public:
     // Wraps `glBindBuffer`.
     template<BufferTarget TargetV>
     [[nodiscard("BindTokens have to be provided to an API call that expects bound state.")]]
-    auto bind() const noexcept {
-        gl::glBindBuffer(enum_cast<GLenum>(TargetV), self_id());
-        if constexpr      (TargetV == BufferTarget::DispatchIndirect) { return BindToken<Binding::DispatchIndirectBuffer>{ self_id() }; }
-        else if constexpr (TargetV == BufferTarget::DrawIndirect)     { return BindToken<Binding::DrawIndirectBuffer>    { self_id() }; }
-        else if constexpr (TargetV == BufferTarget::Parameter)        { return BindToken<Binding::ParameterBuffer>       { self_id() }; }
-        else if constexpr (TargetV == BufferTarget::PixelPack)        { return BindToken<Binding::PixelPackBuffer>       { self_id() }; }
-        else if constexpr (TargetV == BufferTarget::PixelUnpack)      { return BindToken<Binding::PixelUnpackBuffer>     { self_id() }; }
-        else { JOSH3D_STATIC_ASSERT_FALSE(CRTP); }
+    auto bind() const
+    {
+        return glapi::bind_to_context<target_binding(TargetV)>(self_id());
     }
 
     // Wraps `glBindBufferBase`.
-    template<BufferTargetIndexed TargetV>
+    template<BufferTargetI TargetV>
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
-    auto bind_to_index(GLuint index) const noexcept {
-        gl::glBindBufferBase(enum_cast<GLenum>(TargetV), index, self_id());
-        if constexpr      (TargetV == BufferTargetIndexed::Uniform)           { return BindToken<BindingIndexed::UniformBuffer>          { self_id(), index }; }
-        else if constexpr (TargetV == BufferTargetIndexed::ShaderStorage)     { return BindToken<BindingIndexed::ShaderStorageBuffer>    { self_id(), index }; }
-        else if constexpr (TargetV == BufferTargetIndexed::TransformFeedback) { return BindToken<BindingIndexed::TransformFeedbackBuffer>{ self_id(), index }; }
-        else if constexpr (TargetV == BufferTargetIndexed::AtomicCounter)     { return BindToken<BindingIndexed::AtomicCounterBuffer>    { self_id(), index }; }
-        else { JOSH3D_STATIC_ASSERT_FALSE(CRTP); }
+    auto bind_to_index(GLuint index) const noexcept
+    {
+        return glapi::bind_to_context<target_binding_indexed(TargetV)>(index, self_id());
     }
-
 };
 
 
@@ -579,7 +537,7 @@ public:
     // Binding Subranges.
 
     // Wraps `glBindBufferRange`.
-    template<BufferTargetIndexed TargetV>
+    template<BufferTargetI TargetV>
     auto bind_range_to_index(
         OffsetElems elem_offset,
         NumElems    elem_count,
@@ -591,11 +549,7 @@ public:
             elem_offset.value * sizeof(T),
             elem_count.value  * sizeof(T)
         );
-        if constexpr      (TargetV == BufferTargetIndexed::Uniform)           { return BindToken<BindingIndexed::UniformBuffer>          { self_id(), index }; }
-        else if constexpr (TargetV == BufferTargetIndexed::ShaderStorage)     { return BindToken<BindingIndexed::ShaderStorageBuffer>    { self_id(), index }; }
-        else if constexpr (TargetV == BufferTargetIndexed::TransformFeedback) { return BindToken<BindingIndexed::TransformFeedbackBuffer>{ self_id(), index }; }
-        else if constexpr (TargetV == BufferTargetIndexed::AtomicCounter)     { return BindToken<BindingIndexed::AtomicCounterBuffer>    { self_id(), index }; }
-        else { JOSH3D_STATIC_ASSERT_FALSE(CRTP); }
+        return BindToken<target_binding_indexed(TargetV)>::from_index_and_id(index, self_id());
     }
 
 

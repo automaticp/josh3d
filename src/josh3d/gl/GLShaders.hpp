@@ -1,5 +1,7 @@
 #pragma once
+#include "EnumUtils.hpp"
 #include "GLAPI.hpp"
+#include "GLAPITargets.hpp"
 #include "GLKind.hpp"
 #include "GLScalars.hpp"
 #include "GLMutability.hpp"
@@ -13,33 +15,25 @@
 #include <span>
 
 
-
-
 namespace josh {
-
-
-enum class ShaderTarget : GLuint {
-    ComputeShader        = GLuint(gl::GL_COMPUTE_SHADER),
-    VertexShader         = GLuint(gl::GL_VERTEX_SHADER),
-    TessControlShader    = GLuint(gl::GL_TESS_CONTROL_SHADER),
-    TessEvaluationShader = GLuint(gl::GL_TESS_EVALUATION_SHADER),
-    GeometryShader       = GLuint(gl::GL_GEOMETRY_SHADER),
-    FragmentShader       = GLuint(gl::GL_FRAGMENT_SHADER),
-};
-
-
-
-
-
 namespace detail {
+namespace shader_api {
 
-
-template<typename CRTP, ShaderTarget TargetV>
-struct ShaderDSAInterface {
+template<typename CRTP>
+struct Shader
+{
 private:
     GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
     using mutability = mutability_traits<CRTP>::mutability;
 public:
+    // Wraps glGetShaderiv` with `pname = GL_SHADER_TYPE`.
+    auto get_target_type() const
+        -> ShaderTarget
+    {
+        GLenum type; gl::glGetShaderiv(self_id(), gl::GL_SHADER_TYPE, &type);
+        return enum_cast<ShaderTarget>(type);
+    }
+
     // Wraps `glShaderSource` with `count = 1`.
     //
     // OpenGL copies the shader source code strings when `glShaderSource` is called, so an application
@@ -80,18 +74,15 @@ public:
     // Overload for specifying a collection of source strings, reasonably unsafe...
     void set_sources(
         std::span<const GLchar*> source_strings,
-        std::span<const GLint>   lengths) const noexcept
+        std::span<const GLint>   lengths) const
             requires gl_mutable<mutability>
     {
         assert(source_strings.size() == lengths.size());
-        gl::glShaderSource(
-            self_id(), source_strings.size(), source_strings.data(), lengths.data()
-        );
+        gl::glShaderSource(self_id(), source_strings.size(), source_strings.data(), lengths.data());
     }
 
-
     // Wraps `glCompileShader`.
-    void compile() const noexcept
+    void compile() const
         requires gl_mutable<mutability>
     {
         gl::glCompileShader(self_id());
@@ -99,7 +90,9 @@ public:
 
 
     // Wraps `glGetShaderiv` with `pname = GL_COMPILE_STATUS`.
-    bool has_compiled_successfully() const noexcept {
+    auto has_compiled_successfully() const
+        -> bool
+    {
         GLboolean is_success;
         gl::glGetShaderiv(self_id(), gl::GL_COMPILE_STATUS, &is_success);
         return is_success == gl::GL_TRUE;
@@ -112,7 +105,9 @@ public:
     // Otherwise, shader is flagged for deletion and will be deleted when it is no longer
     // attached to any program object. If an object is flagged for deletion, its boolean
     // status bit `GL_DELETE_STATUS` is set to true.
-    bool is_flagged_for_deletion() const noexcept {
+    auto is_flagged_for_deletion() const
+        -> bool
+    {
         GLboolean is_flagged;
         gl::glGetShaderiv(self_id(), gl::GL_DELETE_STATUS, &is_flagged);
         return is_flagged == gl::GL_TRUE;
@@ -123,19 +118,17 @@ public:
     // The information log for a shader object is a string that may contain
     // diagnostic messages, warning messages, and other information about the last compile operation.
     // When a shader object is created, its information log will be a string of length 0.
-    auto get_info_log() const noexcept
+    auto get_info_log() const
         -> std::string
     {
         GLint length_with_null_terminator;
         gl::glGetShaderiv(self_id(), gl::GL_INFO_LOG_LENGTH, &length_with_null_terminator);
-        if (length_with_null_terminator <= 0) {
+        if (length_with_null_terminator <= 0)
             return {};
-        }
+
         std::string log;
-        log.resize(static_cast<std::string::size_type>(length_with_null_terminator - 1));
-        gl::glGetShaderInfoLog(
-            self_id(), length_with_null_terminator, nullptr, log.data()
-        );
+        log.resize(size_t(length_with_null_terminator - 1));
+        gl::glGetShaderInfoLog(self_id(), length_with_null_terminator, nullptr, log.data());
         return log;
     }
 
@@ -143,38 +136,44 @@ public:
     //
     // Returns the concatenation of the source code strings
     // provided in a previous call to `set_source` (aka `glShaderSource`).
-    auto get_source() const noexcept
+    auto get_source() const
         -> std::string
     {
         GLint length_with_null_terminator;
         gl::glGetShaderiv(self_id(), gl::GL_SHADER_SOURCE_LENGTH, &length_with_null_terminator);
-        if (length_with_null_terminator <= 0) {
+        if (length_with_null_terminator <= 0)
             return {};
-        }
+
         std::string source;
-        source.resize(static_cast<std::string::size_type>(length_with_null_terminator - 1));
-        gl::glGetShaderSource(
-            self_id(), length_with_null_terminator, nullptr, source.data()
-        );
+        source.resize(size_t(length_with_null_terminator - 1));
+        gl::glGetShaderSource(self_id(), length_with_null_terminator, nullptr, source.data());
         return source;
     }
 };
 
 
-
+} // namespace shader_api
 } // namespace detail
 
 
+template<mutability_tag MutT = GLMutable>
+struct RawShader
+    : detail::RawGLHandle<MutT>
+    , detail::shader_api::Shader<RawShader<MutT>>
+{
+    static constexpr GLKind kind_type = GLKind::Shader;
+    JOSH3D_MAGIC_CONSTRUCTORS_2(RawShader, mutability_traits<RawShader>, detail::RawGLHandle<MutT>)
+};
 
 
-
-
-
+/*
+FIXME: Class-per-type was a mistake.
+*/
 #define JOSH3D_GENERATE_DSA_SHADER_CLASSES(Name)                                                    \
 template<mutability_tag MutT = GLMutable>                                                           \
 class Raw##Name                                                                                     \
     : public detail::RawGLHandle<MutT>                                                              \
-    , public detail::ShaderDSAInterface<Raw##Name<MutT>, ShaderTarget::Name>                        \
+    , public detail::shader_api::Shader<Raw##Name<MutT>>                                            \
 {                                                                                                   \
 public:                                                                                             \
     static constexpr GLKind       kind_type   = GLKind::Shader;                                     \

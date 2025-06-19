@@ -65,8 +65,8 @@ void emplace_model_asset_into(
                 using vertex_type = T::vertex_type;
 
                 // Bind to make assets available in this thread.
-                make_available<Binding::ArrayBuffer>       (mesh_asset.vertices->id());
-                make_available<Binding::ElementArrayBuffer>(mesh_asset.indices->id() );
+                glapi::make_available<Binding::ArrayBuffer>       (mesh_asset.vertices->id());
+                glapi::make_available<Binding::ElementArrayBuffer>(mesh_asset.indices->id() );
 
 
                 if constexpr (std::same_as<T, SharedMeshAsset>) {
@@ -100,7 +100,7 @@ void emplace_model_asset_into(
                 mesh_handle.emplace<Transform>();
 
                 if (auto* mat_diffuse = try_get(mesh_asset.diffuse)) {
-                    make_available<Binding::Texture2D>(mat_diffuse->texture->id());
+                    glapi::make_available<Binding::Texture2D>(mat_diffuse->texture->id());
                     mesh_handle.emplace<MaterialDiffuse>(mat_diffuse->texture, ResourceUsage());
 
                     // We check if the alpha channel even exitsts in the texture,
@@ -114,12 +114,12 @@ void emplace_model_asset_into(
                 }
 
                 if (auto* mat_specular = try_get(mesh_asset.specular)) {
-                    make_available<Binding::Texture2D>(mat_specular->texture->id());
+                    glapi::make_available<Binding::Texture2D>(mat_specular->texture->id());
                     mesh_handle.emplace<MaterialSpecular>(mat_specular->texture, ResourceUsage(), 128.f);
                 }
 
                 if (auto* mat_normal = try_get(mesh_asset.normal)) {
-                    make_available<Binding::Texture2D>(mat_normal->texture->id());
+                    glapi::make_available<Binding::Texture2D>(mat_normal->texture->id());
                     mesh_handle.emplace<MaterialNormal>(mat_normal->texture, ResourceUsage());
                 }
 

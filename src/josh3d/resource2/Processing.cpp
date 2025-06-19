@@ -336,8 +336,8 @@ auto upload_mesh(
 
     co_await async.completion_context.until_ready_on(async.local_context, create_fence());
 
-    make_available<Binding::ArrayBuffer>       (verts_staging->id());
-    make_available<Binding::ElementArrayBuffer>(elems_staging->id());
+    glapi::make_available<Binding::ArrayBuffer>       (verts_staging->id());
+    glapi::make_available<Binding::ElementArrayBuffer>(elems_staging->id());
 
     auto& mesh_storage = mesh_registry.ensure_storage_for<VertexT>();
 

@@ -44,7 +44,7 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(SceneOverlays)
         ImGui::Checkbox("Show Highlight", &params.show_overlay);
         ImGui::ColorEdit4("Outline", value_ptr(params.outline_color), ImGuiColorEditFlags_DisplayHSV);
         ImGui::ColorEdit4("Fill", value_ptr(params.inner_fill_color), ImGuiColorEditFlags_DisplayHSV);
-        auto [min, max] = glapi::limits::aliased_line_width_range();
+        auto [min, max] = glapi::get_limit(LimitRF::AliasedLineWidthRange);
         ImGui::SliderFloat("Outline Width", &params.outline_width, min, max / 2.f, "%.0f", ImGuiSliderFlags_Logarithmic);
     }
 
@@ -54,7 +54,7 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(SceneOverlays)
         ImGui::Checkbox("Show Bounding Volumes", &params.show_volumes);
         ImGui::Checkbox("Selected Only##BV", &params.selected_only);
         ImGui::ColorEdit3("Color##BV", value_ptr(params.line_color), ImGuiColorEditFlags_DisplayHSV);
-        auto [min, max] = glapi::limits::aliased_line_width_range();
+        auto [min, max] = glapi::get_limit(LimitRF::AliasedLineWidthRange);
         ImGui::SliderFloat("Line Width##BV", &params.line_width, min, max, "%.0f", ImGuiSliderFlags_Logarithmic);
     }
 
@@ -68,7 +68,7 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(SceneOverlays)
         ImGui::Checkbox("Use AABB Midpoints", &params.use_aabb_midpoints);
         ImGui::SliderFloat("Dash Size##RL", &params.dash_size, 0.f, 1.f, "%.3f", ImGuiSliderFlags_Logarithmic);
         ImGui::ColorEdit4("Color##RL", value_ptr(params.line_color), ImGuiColorEditFlags_DisplayHSV);
-        auto [min, max] = glapi::limits::aliased_line_width_range();
+        auto [min, max] = glapi::get_limit(LimitRF::AliasedLineWidthRange);
         ImGui::SliderFloat("Line Width##RL", &params.line_width, min, max, "%.0f", ImGuiSliderFlags_Logarithmic);
     }
 
@@ -80,7 +80,7 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(SceneOverlays)
         ImGui::SliderFloat("Joint Scale", &params.joint_scale, 0.f, 1.f, "%.2f", ImGuiSliderFlags_Logarithmic);
         ImGui::ColorEdit3("Joint Color", value_ptr(params.joint_color), ImGuiColorEditFlags_DisplayHSV);
         ImGui::SliderFloat("Bone Dash Size##RL", &params.bone_dash_size, 0.f, 1.f, "%.3f", ImGuiSliderFlags_Logarithmic);
-        auto [min, max] = glapi::limits::aliased_line_width_range();
+        auto [min, max] = glapi::get_limit(LimitRF::AliasedLineWidthRange);
         ImGui::SliderFloat("Bone Width##SK", &params.bone_width, min, max, "%.0f", ImGuiSliderFlags_Logarithmic);
         ImGui::ColorEdit4("Bone Color##SK", value_ptr(params.bone_color), ImGuiColorEditFlags_DisplayHSV);
     }

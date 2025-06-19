@@ -2,8 +2,6 @@
 #include "DecayToRaw.hpp"
 #include "GLAPI.hpp"
 #include "GLAPIBinding.hpp"
-#include "GLAPILimits.hpp"
-#include "GLAPICommonTypes.hpp"
 #include "GLKind.hpp"
 #include "GLScalars.hpp"
 #include "GLMutability.hpp"
@@ -19,10 +17,16 @@
 #include <span>
 
 
-
-
 namespace josh {
 
+
+enum class BufferMask : GLuint
+{
+    ColorBit   = GLuint(gl::ClearBufferMask::GL_COLOR_BUFFER_BIT),
+    DepthBit   = GLuint(gl::ClearBufferMask::GL_DEPTH_BUFFER_BIT),
+    StencilBit = GLuint(gl::ClearBufferMask::GL_STENCIL_BUFFER_BIT),
+};
+JOSH3D_DEFINE_ENUM_BITSET_OPERATORS(BufferMask);
 
 enum class BlitFilter : GLuint
 {
@@ -43,12 +47,22 @@ enum class FramebufferStatus : GLuint
     IncompleteMultisample       = GLuint(gl::GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE),
     IncompleteLayerTargets      = GLuint(gl::GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS),
 };
+JOSH3D_DEFINE_ENUM_EXTRAS(FramebufferStatus,
+    Complete,
+    Undefined,
+    Unsupported,
+    IncompleteAttachment,
+    IncompleteMissingAttachment,
+    IncompleteDrawBuffer,
+    IncompleteReadBuffer,
+    IncompleteMultisample,
+    IncompleteLayerTargets);
 
 /*
-Monoscopic contexts include only left buffers, and stereoscopic contexts include both
+"Monoscopic contexts include only left buffers, and stereoscopic contexts include both
 left and right buffers. Likewise, single-buffered contexts include only front buffers, and
 double-buffered contexts include both front and back buffers.
-The context is selected at GL initialization.
+The context is selected at GL initialization."
 */
 enum class DefaultFramebufferBufferSet : GLuint
 {
@@ -62,6 +76,16 @@ enum class DefaultFramebufferBufferSet : GLuint
     Right        = GLuint(gl::GL_RIGHT),
     FrontAndBack = GLuint(gl::GL_FRONT_AND_BACK),
 };
+JOSH3D_DEFINE_ENUM_EXTRAS(DefaultFramebufferBufferSet,
+    FrontLeft,
+    FrontRight,
+    BackLeft,
+    BackRight,
+    Front,
+    Back,
+    Left,
+    Right,
+    FrontAndBack);
 
 enum class DefaultFramebufferBuffer : GLuint
 {
@@ -70,6 +94,11 @@ enum class DefaultFramebufferBuffer : GLuint
     BackLeft   = GLuint(gl::GL_BACK_LEFT),
     BackRight  = GLuint(gl::GL_BACK_RIGHT),
 };
+JOSH3D_DEFINE_ENUM_EXTRAS(DefaultFramebufferBuffer,
+    FrontLeft,
+    FrontRight,
+    BackLeft,
+    BackRight);
 
 template<mutability_tag MutT>
 class RawFramebuffer;
@@ -90,21 +119,19 @@ private:
 public:
     // Wraps `glBindFramebuffer` with `target = GL_READ_FRAMEBUFFER`.
     [[nodiscard("BindTokens have to be provided to an API call that expects bound state.")]]
-    auto bind_read() const noexcept
+    auto bind_read() const
         -> BindToken<Binding::ReadFramebuffer>
     {
-        gl::glBindFramebuffer(gl::GL_READ_FRAMEBUFFER, self_id());
-        return { self_id() };
+        return glapi::bind_to_context<Binding::ReadFramebuffer>(self_id());
     }
 
     // Wraps `glBindFramebuffer` with `target = GL_DRAW_FRAMEBUFFER`.
     [[nodiscard("BindTokens have to be provided to an API call that expects bound state.")]]
-    auto bind_draw() const noexcept
+    auto bind_draw() const
         -> BindToken<Binding::DrawFramebuffer>
             requires mt::is_mutable
     {
-        gl::glBindFramebuffer(gl::GL_DRAW_FRAMEBUFFER, self_id());
-        return { self_id() };
+        return glapi::bind_to_context<Binding::DrawFramebuffer>(self_id());
     }
 };
 
@@ -224,7 +251,6 @@ public:
     void specify_color_buffer_for_read(GLuint attachment_index) const noexcept
     {
         assert(self_id() != 0);
-        assert(attachment_index < glapi::limits::max_color_attachments());
         gl::glNamedFramebufferReadBuffer(self_id(), GLenum{ GLuint(gl::GL_COLOR_ATTACHMENT0) + attachment_index });
     }
 
@@ -248,7 +274,6 @@ public:
             requires mt::is_mutable
     {
         assert(self_id() != 0);
-        assert(attachment_index < glapi::limits::max_color_attachments());
         gl::glNamedFramebufferTexture(
             self_id(),
             GLenum{ GLuint(gl::GL_COLOR_ATTACHMENT0) + attachment_index },
@@ -268,7 +293,6 @@ public:
             requires mt::is_mutable
     {
         assert(self_id() != 0);
-        assert(attachment_index < glapi::limits::max_color_attachments());
         gl::glNamedFramebufferTexture(
             self_id(),
             GLenum{ GLuint(gl::GL_COLOR_ATTACHMENT0) + attachment_index },
@@ -368,7 +392,6 @@ public:
             requires mt::is_mutable
     {
         assert(self_id() != 0);
-        assert(attachment_index < glapi::limits::max_color_attachments());
         gl::glNamedFramebufferTextureLayer(
             self_id(),
             GLenum{ GLuint(gl::GL_COLOR_ATTACHMENT0) + attachment_index },
@@ -391,7 +414,6 @@ public:
             requires mt::is_mutable
     {
         assert(self_id() != 0);
-        assert(attachment_index < glapi::limits::max_color_attachments());
         gl::glNamedFramebufferTextureLayer(
             self_id(),
             GLenum{ GLuint(gl::GL_COLOR_ATTACHMENT0) + attachment_index },
@@ -501,8 +523,7 @@ public:
         requires mt::is_mutable
     {
         gl::glNamedFramebufferTexture(
-            self_id(), GLenum{ GLuint(gl::GL_COLOR_ATTACHMENT0) + attachment_index }, 0, 0
-        );
+            self_id(), GLenum{ GLuint(gl::GL_COLOR_ATTACHMENT0) + attachment_index }, 0, 0);
     }
 
     // Wraps `glNamedFramebufferTexture` with `attachment = GL_DEPTH_ATTACHMENT` and `texture = 0`.
@@ -658,7 +679,6 @@ inline void detail::framebuffer_api::Common<CRTP>::blit_to(
         enum_cast<GLenum>(filter)
     );
 }
-
 
 template<typename CRTP>
 inline void detail::framebuffer_api::Common<CRTP>::blit_to(

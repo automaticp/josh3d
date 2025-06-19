@@ -442,7 +442,7 @@ auto await_resource_and_unpack_pending_mesh(
         {
             const auto& job = scene.get<TextureViewJob>(material->color_id);
 
-            make_available<Binding::Texture2D>(job.get_result()->id());
+            glapi::make_available<Binding::Texture2D>(job.get_result()->id());
 
             insert_component<MaterialDiffuse>(dst_handle, {
                 .texture = job.get_result(),
@@ -460,7 +460,7 @@ auto await_resource_and_unpack_pending_mesh(
         {
             const auto& job = scene.get<TextureViewJob>(material->normal_id);
 
-            make_available<Binding::Texture2D>(job.get_result()->id());
+            glapi::make_available<Binding::Texture2D>(job.get_result()->id());
 
             insert_component<MaterialNormal>(dst_handle, {
                 .texture = job.get_result(),
@@ -477,7 +477,7 @@ auto await_resource_and_unpack_pending_mesh(
             // data. This isn't even the right "specular" anyway...
             auto& texture = job.get_result();
 
-            make_available<Binding::Texture2D>(job.get_result()->id());
+            glapi::make_available<Binding::Texture2D>(job.get_result()->id());
 
             using enum Swizzle;
             const SwizzleRGBA swizzle      = { Alpha, Zero, Zero, Zero };

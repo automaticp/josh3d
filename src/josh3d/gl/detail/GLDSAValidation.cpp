@@ -182,7 +182,7 @@ void texture_operations() {
 
     auto _ [[maybe_unused]] = max_num_levels({ 4096, 4096, 4096 }).value;
     // n.value;
-    allocate_texture<TextureTarget::Texture3D>(Size3I{ 0, 0, 0 }, InternalFormat::RGBA, NumLevels{ 7 });
+    auto _1 = allocate_texture<TextureTarget::Texture3D>(Size3I{ 0, 0, 0 }, InternalFormat::RGBA, NumLevels{ 7 });
 
 
 }

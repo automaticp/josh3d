@@ -89,7 +89,7 @@ void SSAO::operator()(RenderEnginePrimaryInterface& engine)
             _kernel.                   bind_to_ssbo_index(0),
             engine.                    bind_camera_ubo(),
         };
-        unbind_sampler_from_unit(2); // Use internal noise texture sampler;
+        glapi::unbind_sampler_from_unit(2); // Use internal noise texture sampler;
 
         _fbo->attach_texture_to_color_buffer(aobuffers._back().texture, 0);
         const BindGuard bfb = _fbo->bind_draw();

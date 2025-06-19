@@ -240,7 +240,7 @@ struct RenderEngineCommonInterface
     auto bind_camera_ubo(u32 index = 0) const noexcept
         -> BindToken<BindingIndexed::UniformBuffer>
     {
-        return _engine.camera_ubo_->bind_to_index<BufferTargetIndexed::Uniform>(index);
+        return _engine.camera_ubo_->bind_to_index<BufferTargetI::Uniform>(index);
     }
 
     RenderEngine&       _engine;

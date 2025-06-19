@@ -1,13 +1,17 @@
 #pragma once
+#include "Common.hpp"
 #include "Filesystem.hpp"
 #include "GLMutability.hpp"
 #include "GLProgram.hpp"
 #include <entt/entity/fwd.hpp>
 #include <memory>
-#include <optional>
-#include <unordered_set>
 
 
+/*
+TODO: Shaders *really* want to be a resource, but in the current
+implementation they are their own thing entirely. Hey, at least
+they support hot reloading.
+*/
 namespace josh {
 
 
@@ -15,21 +19,26 @@ class ShaderPool;
 class ShaderPoolImpl;
 
 
-// Returns a thread_local `ShaderPool`.
-//
-// Must be accessed after creating `GlobalContext` in the same thread,
-// or by calling `init_thread_local_shader_pool()` and subsequently
-// `clear_thread_local_shader_pool()` before destroying OpenGL context.
+/*
+Returns a thread_local `ShaderPool`.
+
+Must be accessed after creating `GlobalContext` in the same thread,
+or by calling `init_thread_local_shader_pool()` and subsequently
+`clear_thread_local_shader_pool()` before destroying OpenGL context.
+*/
 auto shader_pool() -> ShaderPool&;
 void init_thread_local_shader_pool();
 void clear_thread_local_shader_pool();
 
-
-
-
-class ShaderToken {
+/*
+TODO: We should probably have a `shader_pool().get(token)`
+interface instead of the current `token.get()`.
+The latter is "more convenient" but it hides the "immediate"
+nature of tokens and deviates from how we treat other ID handles.
+*/
+class ShaderToken
+{
 public:
-
     auto get()       noexcept -> RawProgram<GLMutable>;
     auto get() const noexcept -> RawProgram<GLConst>;
 
@@ -48,40 +57,89 @@ private:
 };
 
 
-
-
-struct ProgramDefines {
-    std::unordered_set<std::string> values;
+struct ProgramDefines
+{
+    HashSet<String> values;
 
     auto define(const char* name, auto&& value) -> ProgramDefines&;
 };
 
-
 auto ProgramDefines::define(const char* name, auto&& value)
     -> ProgramDefines&
 {
-    std::stringstream ss;
-    ss << "#define " << name << ' ' << value;
-    values.emplace(std::move(ss).str());
+    values.emplace(fmt::format("#define {} {}", name, value));
     return *this;
 }
 
+/*
+TODO: Remove `File`. Use `Path`.
 
-struct ProgramFiles {
-    std::optional<File> vert{};
-    std::optional<File> geom{};
-    std::optional<File> tesc{};
-    std::optional<File> tese{};
-    std::optional<File> frag{};
-    std::optional<File> comp{};
+HMM: This could support a nicer way of specifying defines
+right in the struct itself, so that:
+    shader_pool().create({
+        .vert = "path/to/shader.vert",
+        .frag = "path/to/shader.frag",
+        .defines = {
+            { "ENABLE_BLAH",        1 },
+            { "CAMERA_UBO_BINDING", 2 },
+        },
+    });
+is possible in some way. The `defines` would likely have to be
+some nonsense, either an Tuple<Pair<String, ...T>> with CTAD
+(not sure if it works with aggregates), or the RHS of each
+entry would be a Variant of sorts.
+
+HMM: Shader defines are pretty much "import metadata"...
+*/
+struct ProgramFiles
+{
+    Optional<File> vert{};
+    Optional<File> geom{};
+    Optional<File> tesc{};
+    Optional<File> tese{};
+    Optional<File> frag{};
+    Optional<File> comp{};
 };
 
+/*
+TODO: Below works actually, so maybe just integrate it?
+*/
+#if 0
+struct ProgramSpec
+{
+    Optional<Path> vert = nullopt;
+    Optional<Path> geom = nullopt;
+    Optional<Path> tesc = nullopt;
+    Optional<Path> tese = nullopt;
+    Optional<Path> frag = nullopt;
+    Optional<Path> comp = nullopt;
+    using DefineValue = Variant<i32, i64, u32, u64, String>;
+    HashMap<String, DefineValue>
+                   defines = {};
+};
+
+inline const auto example = ProgramSpec{
+    .vert = "path/to/shader.vert",
+    .frag = "path/to/shader.frag",
+    .defines = {
+        { "ENABLE_BLAH",        1 },
+        { "CAMERA_UBO_BINDING", 2 },
+    },
+};
+#endif
 
 
-
-class ShaderPool {
+/*
+FIXME: It's primarily the file watcher that needs pimpl.
+In hindsight, the watcher has nothing to do with the pool itself.
+And the "hot reloading" of the pool is simply about being able to do
+    `shader_pool().reload(shader_token)`
+And when and which shader is decided by the watcher or another
+hot-reloader system. So the current organization is pretty useless.
+*/
+class ShaderPool
+{
 public:
-
     // Get or create a shader program associated with the specified
     // set of `program_files`, and return a `ShaderToken` connected to it.
     [[nodiscard]] auto get(const ProgramFiles& program_files) -> ShaderToken;
@@ -100,7 +158,7 @@ public:
     // Forcefully reload and recompile all shaders connected to the pool.
     // Alternative for when hot-reloading is not available.
     //
-    // WARN: Very slow, don't call every frame.
+    // WARNING: Very slow, don't call every frame.
     void force_reload();
 
     ShaderPool();
@@ -109,8 +167,6 @@ public:
 private:
     std::unique_ptr<ShaderPoolImpl> pimpl_;
 };
-
-
 
 
 } // namespace josh

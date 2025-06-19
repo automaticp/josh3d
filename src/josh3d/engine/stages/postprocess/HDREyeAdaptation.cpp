@@ -26,7 +26,7 @@ void HDREyeAdaptation::operator()(RenderEnginePostprocessInterface& engine)
 
         _update_intermediate_buffer(engine.main_resolution());
 
-        intermediate_buf_->bind_to_index<BufferTargetIndexed::ShaderStorage>(0);
+        intermediate_buf_->bind_to_index<BufferTargetI::ShaderStorage>(0);
 
         // Do a first block extraction reduce pass.
         {
@@ -46,8 +46,8 @@ void HDREyeAdaptation::operator()(RenderEnginePostprocessInterface& engine)
                 return num / denom + bool(num % denom);
             };
 
-            value_bufs_.current()->bind_to_index<BufferTargetIndexed::ShaderStorage>(1); // Read
-            value_bufs_.next()   ->bind_to_index<BufferTargetIndexed::ShaderStorage>(2); // Write
+            value_bufs_.current()->bind_to_index<BufferTargetI::ShaderStorage>(1); // Read
+            value_bufs_.next()   ->bind_to_index<BufferTargetI::ShaderStorage>(2); // Write
 
             const float fold_weight = adaptation_rate * engine.frame_timer().delta<float>();
 
@@ -84,7 +84,7 @@ void HDREyeAdaptation::operator()(RenderEnginePostprocessInterface& engine)
     {
         const auto sp = sp_tonemap_.get();
 
-        value_bufs_.current()->bind_to_index<BufferTargetIndexed::ShaderStorage>(1);
+        value_bufs_.current()->bind_to_index<BufferTargetI::ShaderStorage>(1);
         sp.uniform("color",           0);
         sp.uniform("value_range",     value_range);
         sp.uniform("exposure_factor", exposure_factor);

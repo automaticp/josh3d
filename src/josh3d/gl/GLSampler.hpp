@@ -25,15 +25,12 @@ private:
     GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); } \
     using mt = mutability_traits<CRTP>;
 public:
-
     [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
     auto bind_to_texture_unit(GLuint unit_index) const noexcept
-        -> BindToken<BindingIndexed::Sampler>
+        -> BindToken<BindingI::Sampler>
     {
-        gl::glBindSampler(unit_index, self_id());
-        return { self_id(), unit_index };
+        return glapi::bind_to_context<BindingI::Sampler>(unit_index, self_id());
     }
-
 };
 
 

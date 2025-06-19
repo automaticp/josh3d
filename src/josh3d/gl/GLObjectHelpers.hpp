@@ -1,4 +1,5 @@
 #pragma once
+#include "CategoryCasts.hpp"
 #include "Common.hpp"
 #include "CommonConcepts.hpp"
 #include "GLAPICommonTypes.hpp"
@@ -20,7 +21,7 @@ namespace josh {
 template<typename T>
 auto allocate_buffer(
     NumElems               num_elements,
-    const StoragePolicies& policies = {}) noexcept
+    const StoragePolicies& policies = {})
         -> UniqueBuffer<std::remove_const_t<T>>
 {
     UniqueBuffer<T> buffer;
@@ -28,11 +29,10 @@ auto allocate_buffer(
     return buffer;
 }
 
-
 template<typename T>
 auto specify_buffer(
     std::span<T>           src_buf,
-    const StoragePolicies& policies = {}) noexcept
+    const StoragePolicies& policies = {})
         -> UniqueBuffer<std::remove_const_t<T>>
 {
     UniqueBuffer<std::remove_const_t<T>> buffer;
@@ -40,20 +40,19 @@ auto specify_buffer(
     return buffer;
 }
 
-
-
-
 template<typename T>
-UniqueBuffer<T> allocate_buffer_like(RawBuffer<T, GLConst> buffer) noexcept {
+auto allocate_buffer_like(RawBuffer<T, GLConst> buffer)
+    -> UniqueBuffer<T>
+{
     const StoragePolicies policies = buffer.get_storage_policies();
     const NumElems num_elements    = buffer.get_num_elements();
-
     return allocate_buffer<T>(num_elements, policies);
 }
 
-
 template<typename T>
-UniqueBuffer<T> copy_buffer(RawBuffer<T, GLConst> buffer) noexcept {
+auto copy_buffer(RawBuffer<T, GLConst> buffer)
+    -> UniqueBuffer<T>
+{
     const StoragePolicies policies = buffer.get_storage_policies();
     const NumElems num_elements    = buffer.get_num_elements();
 
@@ -64,12 +63,11 @@ UniqueBuffer<T> copy_buffer(RawBuffer<T, GLConst> buffer) noexcept {
 }
 
 
-
-
 namespace detail {
 
 template<typename T>
-void replace_buffer_like(UniqueBuffer<T>& buffer, NumElems elem_count) noexcept {
+void replace_buffer_like(UniqueBuffer<T>& buffer, NumElems elem_count)
+{
     const StoragePolicies policies = buffer->get_storage_policies();
     buffer = UniqueBuffer<T>();
     buffer->allocate_storage(elem_count, policies);
@@ -78,25 +76,35 @@ void replace_buffer_like(UniqueBuffer<T>& buffer, NumElems elem_count) noexcept 
 } // namespace detail
 
 
-// Contents and buffer object "name" are invalidated on resize.
-// `policies` are passed into the allocation call if resize happens.
-// Returns true if resize occurred, false otherwise.
+/*
+Contents and buffer object "name" are invalidated on resize.
+`policies` are passed into the allocation call if resize happens.
+
+Returns true if resize occurred, false otherwise.
+*/
 template<trivially_copyable T>
-bool resize_to_fit(
+auto resize_to_fit(
     UniqueBuffer<T>&       buffer,
     NumElems               new_elem_count,
-    const StoragePolicies& policies = {}) noexcept
+    const StoragePolicies& policies = {})
+        -> bool
 {
     const NumElems old_elem_count = buffer->get_num_elements();
 
-    if (new_elem_count != old_elem_count) {
-        if (old_elem_count == 0) {
+    if (new_elem_count != old_elem_count)
+    {
+        if (old_elem_count == 0)
+        {
             // That means the buffer does not have a storage allocated yet.
             // Allocate one with the provided policies.
             buffer->allocate_storage(new_elem_count, policies);
-        } else if (new_elem_count == 0) {
-            buffer = {}; // Policies are dropped here.
-        } else {
+        }
+        else if (new_elem_count == 0)
+        {
+            buffer = {}; // NOTE: Policies are dropped here.
+        }
+        else
+        {
             buffer = {};
             buffer->allocate_storage(new_elem_count, policies);
         }
@@ -105,49 +113,54 @@ bool resize_to_fit(
     return false;
 }
 
-
 template<trivially_copyable T>
-bool expand_to_fit(
+auto expand_to_fit(
     UniqueBuffer<T>&       buffer,
     NumElems               desired_elem_count,
-    const StoragePolicies& policies = {}) noexcept
+    const StoragePolicies& policies = {})
+        -> bool
 {
     const NumElems old_elem_count = buffer->get_num_elements();
 
-    if (desired_elem_count > old_elem_count) {
-        if (old_elem_count != 0) {
+    if (desired_elem_count > old_elem_count)
+    {
+        if (old_elem_count != 0)
             buffer = {};
-        }
+
         buffer->allocate_storage(desired_elem_count, policies);
         return true;
     }
     return false;
 }
 
-
-// Returns the new number of elements.
+/*
+Returns the new number of elements.
+*/
 template<trivially_copyable T>
 auto expand_to_fit_amortized(
     UniqueBuffer<T>&       buffer,
     NumElems               desired_elem_count,
     const StoragePolicies& policies = {},
-    double                 amortization_factor = 1.5) noexcept
+    double                 amortization_factor = 1.5)
         -> NumElems
 {
     assert(amortization_factor >= 1.0);
     const NumElems old_elem_count = buffer->get_num_elements();
 
-    if (desired_elem_count > old_elem_count) {
+    if (desired_elem_count > old_elem_count)
+    {
         const NumElems amortized_count = GLsizeiptr(double(old_elem_count) * amortization_factor);
+
         // If the desired size is below the amortized size, then we are good
         // to allocate the amortized size.
         //
         // However, if the desired size exceeds the amortized size, then
         // we allocate exactly the desired size instead.
         const NumElems new_elem_count = std::max(amortized_count, desired_elem_count);
-        if (old_elem_count != 0) {
+
+        if (old_elem_count != 0)
             buffer = {};
-        }
+
         buffer->allocate_storage(new_elem_count, policies);
         return new_elem_count;
     }
@@ -155,40 +168,44 @@ auto expand_to_fit_amortized(
 }
 
 
-
-
-
 template<TextureTarget TargetV, typename ...Args>
-auto allocate_texture(Args&&... args) noexcept {
+[[nodiscard]]
+auto allocate_texture(Args&&... args)
+{
+    // WTF?
     using UniqueTextureType = GLUnique<typename detail::texture_target_raw_mutable_type<TargetV>::type>;
     UniqueTextureType texture;
-    texture->allocate_storage(std::forward<Args>(args)...);
+    texture->allocate_storage(FORWARD(args)...);
     return texture;
 }
 
-
-// A small utility for calculating a maximum number of mip levels for a given resolution,
-// such that the last level in the chain would be exactly 1x1 pixels.
-inline constexpr NumLevels max_num_levels(const Size1I& resolution) noexcept {
-    auto width_levels  = GLsizei(1u + std::countr_zero(std::bit_floor(GLuint(resolution.width))));
+/*
+A small utility for calculating a maximum number of mip levels for a given resolution,
+such that the last level in the chain would be exactly 1x1 pixels.
+*/
+inline constexpr auto max_num_levels(const Size1I& resolution)
+    -> NumLevels
+{
+    const auto width_levels = GLsizei(1u + std::countr_zero(std::bit_floor(GLuint(resolution.width))));
     return NumLevels{ width_levels };
 }
 
-inline constexpr NumLevels max_num_levels(const Size2I& resolution) noexcept {
-    auto width_levels  = GLsizei(1u + std::countr_zero(std::bit_floor(GLuint(resolution.width))));
-    auto height_levels = GLsizei(1u + std::countr_zero(std::bit_floor(GLuint(resolution.height))));
+inline constexpr auto max_num_levels(const Size2I& resolution)
+    -> NumLevels
+{
+    const auto width_levels  = GLsizei(1u + std::countr_zero(std::bit_floor(GLuint(resolution.width))));
+    const auto height_levels = GLsizei(1u + std::countr_zero(std::bit_floor(GLuint(resolution.height))));
     return NumLevels{ std::max(width_levels, height_levels) };
 }
 
-inline constexpr NumLevels max_num_levels(const Size3I& resolution) noexcept {
+inline constexpr auto max_num_levels(const Size3I& resolution)
+    -> NumLevels
+{
     auto width_levels  = GLsizei(1u + std::countr_zero(std::bit_floor(GLuint(resolution.width))));
     auto height_levels = GLsizei(1u + std::countr_zero(std::bit_floor(GLuint(resolution.height))));
     auto depth_levels  = GLsizei(1u + std::countr_zero(std::bit_floor(GLuint(resolution.depth))));
-    return NumLevels{ std::max(std::max(width_levels, height_levels), depth_levels) };
+    return NumLevels{ std::max({ width_levels, height_levels, depth_levels }) };
 }
-
-
-
 
 
 /*
@@ -209,7 +226,7 @@ inline constexpr NumLevels max_num_levels(const Size3I& resolution) noexcept {
 */
 
 /*
-    // Overload for `Texture[1|2]DArray`, `CubemapArray`.
+    // Overload for `Texstd::maxture[1|2]DArray`, `CubemapArray`.
     void allocate_storage(
         const tt::resolution_type& resolution,
         GLsizei                    num_array_elements,
@@ -277,6 +294,7 @@ inline auto create_sampler(const SamplerParams& params)
     // when values differ from the defaults. No idea if it helps...
     constexpr SamplerParams defaults = {};
     UniqueSampler s;
+
 #define SET_PARAM(PName)                \
     if (params.PName != defaults.PName) \
         s->set_##PName(params.PName)
@@ -306,7 +324,9 @@ inline auto create_sampler(const SamplerParams& params)
     SET_PARAM(max_anisotropy);
     SET_PARAM(compare_ref_depth_to_texture);
     SET_PARAM(compare_func);
+
 #undef SET_PARAM
+
     return s;
 }
 

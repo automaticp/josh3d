@@ -1,5 +1,6 @@
 #pragma once
 #include "GLAPI.hpp"
+#include "GLAPITargets.hpp"
 #include "GLKind.hpp"
 #include "GLScalars.hpp"
 #include "GLMutability.hpp"
@@ -31,8 +32,8 @@ class RawFenceSync
     : public detail::RawGLHandle<MutT, gl::GLsync>
 {
 public:
-    static constexpr GLKind kind_type   = GLKind::FenceSync;
-    static constexpr GLenum target_type = gl::GL_SYNC_GPU_COMMANDS_COMPLETE;
+    static constexpr auto kind_type   = GLKind::FenceSync;
+    static constexpr auto target_type = FenceSyncTarget::GPUCommandsComplete;
     JOSH3D_MAGIC_CONSTRUCTORS_2(RawFenceSync, mutability_traits<RawFenceSync>, JOSH3D_SINGLE_ARG(detail::RawGLHandle<MutT, gl::GLsync>))
 
     using nanoseconds = std::chrono::duration<GLuint64, std::nano>;

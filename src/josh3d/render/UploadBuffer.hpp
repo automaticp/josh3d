@@ -166,13 +166,13 @@ auto UploadBuffer<T>::bind_to_ssbo_index(u32 index)
         // We want to only bind the range that covers staged data,
         // even if amortized allocation might've left the buffer larger.
         const BufferRange range = { OffsetElems{ 0 }, num_staged() };
-        return buffer_->template bind_range_to_index<BufferTargetIndexed::ShaderStorage>(range.offset, range.count, index);
+        return buffer_->template bind_range_to_index<BufferTargetI::ShaderStorage>(range.offset, range.count, index);
     }
     else /* nothing to bind, unbind the storage */
     {
         // TODO: This is scuffed and should not be done like this.
         // The gl layer must be fixed instead to support BindTokens on unbind.
-        return RawBuffer<T, GLMutable>::from_id(0).template bind_to_index<BufferTargetIndexed::ShaderStorage>(index);
+        return RawBuffer<T, GLMutable>::from_id(0).template bind_to_index<BufferTargetI::ShaderStorage>(index);
     }
 }
 
@@ -185,11 +185,11 @@ auto UploadBuffer<T>::bind_range_to_ssbo_index(const BufferRange& range, u32 ind
 
     if (range.count)
     {
-        return buffer_->template bind_range_to_index<BufferTargetIndexed::ShaderStorage>(range.offset, range.count, index);
+        return buffer_->template bind_range_to_index<BufferTargetI::ShaderStorage>(range.offset, range.count, index);
     }
     else
     {
-        return RawBuffer<T, GLMutable>::from_id(0).template bind_to_index<BufferTargetIndexed::ShaderStorage>(index);
+        return RawBuffer<T, GLMutable>::from_id(0).template bind_to_index<BufferTargetI::ShaderStorage>(index);
     }
 }
 

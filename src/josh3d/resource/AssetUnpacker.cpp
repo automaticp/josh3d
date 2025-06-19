@@ -126,7 +126,7 @@ void AssetUnpacker::unpack_one_retired(Handle& handle) {
         handle.erase<Retired<SkyboxJob>>();
         SharedCubemapAsset asset = retired.get_result(); // Can rethrow the exception here.
         handle.emplace_or_replace<AssetPath>(MOVE(asset.path));
-        make_available<Binding::Cubemap>(asset.cubemap->id());
+        glapi::make_available<Binding::Cubemap>(asset.cubemap->id());
         handle.emplace_or_replace<Skybox>(MOVE(asset.cubemap));
 
         // TODO: Is this the right place to handle this?

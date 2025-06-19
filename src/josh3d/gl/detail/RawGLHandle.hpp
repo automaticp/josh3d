@@ -1,5 +1,5 @@
 #pragma once
-#include "CommonConcepts.hpp" // IWYU pragma: keep
+#include "CommonConcepts.hpp"
 #include "GLScalars.hpp"
 #include "GLMutability.hpp"
 #include <utility>
@@ -15,6 +15,9 @@ The base class of all OpenGL handles. Represents a fully opaque
 handle that has no knowledge of its type or allocation method.
 
 Models a raw `void*` or `const void*` depending on mutability.
+
+FIXME: Why does *this* have mutability semantics???
+This should just be a simple integer that auto-resets to 0 on move.
 */
 template<mutability_tag MutT, typename IdType = GLuint>
 class RawGLHandle {
@@ -80,20 +83,19 @@ public:
 };
 
 
-
-// Use this to indicate that a type is a Raw Handle type.
-// TODO: Incomplete and shaky, might be worth rethinking.
+/*
+Use this to indicate that a type is a Raw Handle type.
+TODO: Incomplete and shaky, might be worth rethinking.
+TODO: enable_raw_handle<T> trait?
+*/
 template<typename RawHandleT>
-concept has_basic_raw_handle_semantics = requires(std::remove_cvref_t<RawHandleT> raw) {
+concept has_basic_raw_handle_semantics = requires(std::remove_cvref_t<RawHandleT> raw)
+{
     // Can return or be converted to the object id.
     { raw.id() }                              -> same_as_remove_cvref<typename RawHandleT::id_type>;
     { std::as_const(raw).id() }               -> same_as_remove_cvref<typename RawHandleT::id_type>;
     { static_cast<RawHandleT::id_type>(raw) } -> same_as_remove_cvref<typename RawHandleT::id_type>;
 };
-
-
-
-
 
 
 } // namespace detail

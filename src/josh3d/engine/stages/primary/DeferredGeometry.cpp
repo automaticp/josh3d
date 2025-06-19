@@ -226,7 +226,7 @@ void DeferredGeometry::_draw_batched(RenderEnginePrimaryInterface& engine)
 auto DeferredGeometry::_max_texture_units() const noexcept
     -> u32
 {
-    return glapi::limits::get(glapi::LimitI::MaxFragTextureUnits);
+    return glapi::get_limit(LimitI::MaxFragTextureUnits);
 }
 
 auto DeferredGeometry::max_batch_size() const noexcept
