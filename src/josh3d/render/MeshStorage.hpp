@@ -68,8 +68,8 @@ in the MeshStorage's VBO and EBO for a given MeshID.
 */
 struct MeshBufferRanges
 {
-    BufferRange verts;
-    BufferRange elems;
+    ElemRange verts;
+    ElemRange elems;
 };
 
 
@@ -242,7 +242,7 @@ auto MeshStorage<VertexT>::insert(
 
     struct AppendResult
     {
-        BufferRange appended_range;
+        ElemRange appended_range;
         bool        was_resized;
     };
 
@@ -272,7 +272,7 @@ auto MeshStorage<VertexT>::insert(
             buf_cap  = new_size;
         }
 
-        const BufferRange appended_range = {
+        const ElemRange appended_range = {
             .offset = old_size,
             .count  = added_size
         };
@@ -344,7 +344,7 @@ auto MeshStorage<VertexT>::insert_buffer(
 
     struct AppendResult
     {
-        BufferRange appended_range;
+        ElemRange appended_range;
         bool        was_resized;
     };
 
@@ -376,7 +376,7 @@ auto MeshStorage<VertexT>::insert_buffer(
         const usize src_offset = 0;
         const usize dst_offset = old_size;
 
-        const BufferRange appended_range = {
+        const ElemRange appended_range = {
             .offset = dst_offset,
             .count  = added_size
         };

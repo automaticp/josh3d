@@ -51,7 +51,8 @@ constants listed in tables 8.12-8.13, as one of the generic compressed internal
 format symbolic constants listed in table 8.14, or as one of the specific compressed
 internal format symbolic constants (if listed in table 8.14)."
 */
-enum class InternalFormat : GLuint {
+enum class InternalFormat : GLuint
+{
     // Base Internal Formats.
     Red            = GLuint(gl::GL_RED),
     RG             = GLuint(gl::GL_RG),
@@ -174,7 +175,8 @@ enum class InternalFormat : GLuint {
 };
 
 
-enum class CompressedInternalFormat : GLuint {
+enum class CompressedInternalFormat : GLuint
+{
     Compressed_Red_RGTC1                  = GLuint(gl::GL_COMPRESSED_RED_RGTC1),
     Compressed_Red_RGTC1_SNorm            = GLuint(gl::GL_COMPRESSED_SIGNED_RED_RGTC1),
     Compressed_RG_RGTC2                   = GLuint(gl::GL_COMPRESSED_RG_RGTC2),
@@ -204,11 +206,11 @@ enum class CompressedInternalFormat : GLuint {
     Compressed_SRGBA_S3TC_DXT3_EXT        = GLuint(gl::GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT),
     Compressed_SRGBA_S3TC_DXT5_EXT        = GLuint(gl::GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT),
 };
-
 JOSH3D_DECLARE_ENUM_AS_SUPERSET(InternalFormat, CompressedInternalFormat)
 
 
-enum class ImageUnitFormat : GLuint {
+enum class ImageUnitFormat : GLuint
+{
     RGBA32F        = GLuint(gl::GL_RGBA32F),        // rgba32f
     RGBA16F        = GLuint(gl::GL_RGBA16F),        // rgba16f
     RG32F          = GLuint(gl::GL_RG32F),          // rg32f
@@ -249,18 +251,19 @@ enum class ImageUnitFormat : GLuint {
     R16_SNorm      = GLuint(gl::GL_R16_SNORM),      // r16_snorm
     R8_SNorm       = GLuint(gl::GL_R8_SNORM),       // r8_snorm
 };
-
 JOSH3D_DECLARE_ENUM_AS_SUPERSET(InternalFormat, ImageUnitFormat)
 
 
-enum class ImageUnitFormatCompatibility : GLuint {
+enum class ImageUnitFormatCompatibility : GLuint
+{
     None    = GLuint(gl::GL_NONE),
     BySize  = GLuint(gl::GL_IMAGE_FORMAT_COMPATIBILITY_BY_SIZE),
     ByClass = GLuint(gl::GL_IMAGE_FORMAT_COMPATIBILITY_BY_CLASS),
 };
 
 
-enum class BufferTextureInternalFormat : GLuint {
+enum class BufferTextureInternalFormat : GLuint
+{
     R8       = GLuint(gl::GL_R8),
     R16      = GLuint(gl::GL_R16),
     R16F     = GLuint(gl::GL_R16F),
@@ -409,7 +412,8 @@ template<> struct texture_region_dims_traits<2> { using offset_type = Offset2I; 
 template<> struct texture_region_dims_traits<3> { using offset_type = Offset3I; using extent_type = Extent3I; using region_type = Region3I; };
 
 
-template<TextureTarget TargetV> struct texture_region_traits {
+template<TextureTarget TargetV> struct texture_region_traits
+{
     using offset_type = texture_region_dims_traits<texture_region_dims<TargetV>::value>::offset_type;
     using extent_type = texture_region_dims_traits<texture_region_dims<TargetV>::value>::extent_type;
     using region_type = texture_region_dims_traits<texture_region_dims<TargetV>::value>::region_type;
@@ -417,22 +421,13 @@ template<TextureTarget TargetV> struct texture_region_traits {
 };
 
 
-
-
-
-
-
-
-
-
 } // namespace detail
 
 
 
-
 template<TextureTarget TargetV>
-struct texture_target_traits {
-
+struct texture_target_traits
+{
     /*
     True dimensionality of the texture data, ignoring composition into arrays and cubemaps.
 
@@ -440,7 +435,6 @@ struct texture_target_traits {
     */
     using resolution_type                        = detail::texture_resolution<TargetV>::type;
     static constexpr GLsizeiptr resolution_ndims = detail::texture_resolution_dims<TargetV>::value;
-
 
     /*
     Extent type defines the size used in operations that have to "index into" a Region
@@ -482,7 +476,6 @@ struct texture_target_traits {
     */
     static constexpr GLsizeiptr region_ndims = detail::texture_region_dims<TargetV>::value;
 
-
     /*
     Arrays.
     */
@@ -508,7 +501,6 @@ struct texture_target_traits {
     */
     static constexpr bool is_layered        = detail::is_layered<TargetV>::value;
 
-
     /*
     InternalFormats of these texture types can be one of the compressed formats.
     */
@@ -518,32 +510,27 @@ struct texture_target_traits {
 };
 
 
-
-
 template<typename RawTextureH>
 struct texture_traits : texture_target_traits<RawTextureH::target_type> {};
 
 
 
 
-
-
-
-
-
-
-
-
-// Below we compose Mixins of a final texture interface based on the texture traits.
-// We choose to do it this way because:
-//  1. We can conditionally disable parts of the interface with conditional_mixin_t;
-//  2. It is easier to implement them in isolation.
+/*
+Below we compose Mixins of a final texture interface based on the texture traits.
+We choose to do it this way because:
+ 1. We can conditionally disable parts of the interface with conditional_mixin_t;
+ 2. It is easier to implement them in isolation.
+*/
 namespace detail {
+namespace texture_api {
 
 
-// This is inserted in every mixin type at the top.
-// Saves some redundant lines that accumulate over ~30 mixin types.
-// Assumes template parameters of `typename CRTP` and `TextureTarget TargetV`.
+/*
+This is inserted in every mixin type at the top.
+Saves some redundant lines that accumulate over ~30 mixin types.
+Assumes template parameters of `typename CRTP` and `TextureTarget TargetV`.
+*/
 #define JOSH3D_TEXTURE_MIXIN_HEADER                                                  \
 private:                                                                             \
     GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); } \
@@ -554,55 +541,17 @@ private:                                                                        
 public:
 
 
-
-
-
-
-
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_Queries_ResolutionAndExtent {
+struct Queries_ResolutionAndExtent
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
-private:
-    GLsizei get_size_1d_impl(GLint level) const noexcept {
-        GLint width;
-        gl::glGetTextureLevelParameteriv(self_id(), level, gl::GL_TEXTURE_WIDTH,  &width);
-        return width;
-    }
-    Size2I get_size_2d_impl(GLint level) const noexcept {
-        GLint width, height;
-        gl::glGetTextureLevelParameteriv(self_id(), level, gl::GL_TEXTURE_WIDTH,  &width);
-        gl::glGetTextureLevelParameteriv(self_id(), level, gl::GL_TEXTURE_HEIGHT, &height);
-        return { width, height };
-    }
-    Size3I get_size_3d_impl(GLint level) const noexcept {
-        GLint width, height, depth;
-        gl::glGetTextureLevelParameteriv(self_id(), level, gl::GL_TEXTURE_WIDTH,  &width);
-        gl::glGetTextureLevelParameteriv(self_id(), level, gl::GL_TEXTURE_HEIGHT, &height);
-        gl::glGetTextureLevelParameteriv(self_id(), level, gl::GL_TEXTURE_DEPTH,  &depth);
-        return { width, height, depth };
-    }
-private:
-    auto get_resolution_impl(MipLevel level) const noexcept
-        -> tt::resolution_type
-    {
-        if constexpr (tt::resolution_ndims == 1) {
-            return get_size_1d_impl(level);
-        } else if constexpr (tt::resolution_ndims == 2) {
-            return get_size_2d_impl(level);
-        } else if constexpr (tt::resolution_ndims == 3) {
-            return get_size_3d_impl(level);
-        } else { JOSH3D_STATIC_ASSERT_FALSE(tt); }
-    }
-public:
 
     // Wraps `glGetTextureLevelParameteriv` with `pname = GL_TEXTURE_[WIDTH|HEIGHT|DEPTH]`.
     auto get_resolution(MipLevel level = MipLevel{ 0 }) const noexcept
         -> tt::resolution_type
             requires tt::has_lod
     {
-        return get_resolution_impl(level);
+        return _get_resolution(level);
     }
 
     // Wraps `glGetTextureLevelParameteriv` with `pname = GL_TEXTURE_[WIDTH|HEIGHT|DEPTH]` and `level = 0`.
@@ -610,29 +559,8 @@ public:
         -> tt::resolution_type
             requires (!tt::has_lod)
     {
-        return get_resolution_impl(MipLevel{ 0 });
+        return _get_resolution(MipLevel{ 0 });
     }
-
-
-
-
-private:
-    auto get_extent_impl(MipLevel level) const noexcept
-        -> tt::extent_type
-    {
-        if constexpr        (tt::region_ndims == 1) {
-            return get_size_1d_impl(level);
-        } else if constexpr (tt::region_ndims == 2) {
-            return get_size_2d_impl(level);
-        } else if constexpr (tt::region_ndims == 3) {
-            if constexpr (TargetV == TextureTarget::Cubemap) {
-                return { get_size_2d_impl(level), 6 };
-            } else {
-                return get_size_3d_impl(level);
-            }
-        } else { JOSH3D_STATIC_ASSERT_FALSE(tt); }
-    }
-public:
 
     // Wraps `glGetTextureLevelParameteriv` with `pname = GL_TEXTURE_[WIDTH|HEIGHT|DEPTH]`.
     //
@@ -651,7 +579,7 @@ public:
         -> tt::extent_type
             requires tt::has_lod
     {
-        return get_extent_impl(level);
+        return _get_extent(level);
     }
 
     // Wraps `glGetTextureLevelParameteriv` with `pname = GL_TEXTURE_[WIDTH|HEIGHT|DEPTH]` and `level = 0`.
@@ -663,16 +591,61 @@ public:
         -> tt::extent_type
             requires (!tt::has_lod)
     {
-        return get_extent_impl(MipLevel{ 0 });
+        return _get_extent(MipLevel{ 0 });
     }
 
+private:
+    auto _get_size_1d(GLint level) const -> GLsizei
+    {
+        GLint width;
+        gl::glGetTextureLevelParameteriv(self_id(), level, gl::GL_TEXTURE_WIDTH,  &width);
+        return width;
+    }
+    auto _get_size_2d(GLint level) const -> Size2I
+    {
+        GLint width, height;
+        gl::glGetTextureLevelParameteriv(self_id(), level, gl::GL_TEXTURE_WIDTH,  &width);
+        gl::glGetTextureLevelParameteriv(self_id(), level, gl::GL_TEXTURE_HEIGHT, &height);
+        return { width, height };
+    }
+    auto _get_size_3d(GLint level) const -> Size3I
+    {
+        GLint width, height, depth;
+        gl::glGetTextureLevelParameteriv(self_id(), level, gl::GL_TEXTURE_WIDTH,  &width);
+        gl::glGetTextureLevelParameteriv(self_id(), level, gl::GL_TEXTURE_HEIGHT, &height);
+        gl::glGetTextureLevelParameteriv(self_id(), level, gl::GL_TEXTURE_DEPTH,  &depth);
+        return { width, height, depth };
+    }
+
+    auto _get_resolution(MipLevel level) const noexcept
+        -> tt::resolution_type
+    {
+        if constexpr      (tt::resolution_ndims == 1) return _get_size_1d(level);
+        else if constexpr (tt::resolution_ndims == 2) return _get_size_2d(level);
+        else if constexpr (tt::resolution_ndims == 3) return _get_size_3d(level);
+        else JOSH3D_STATIC_ASSERT_FALSE(tt);
+    }
+
+    auto _get_extent(MipLevel level) const noexcept
+        -> tt::extent_type
+    {
+        if constexpr      (tt::region_ndims == 1) return _get_size_1d(level);
+        else if constexpr (tt::region_ndims == 2) return _get_size_2d(level);
+        else if constexpr (tt::region_ndims == 3)
+        {
+            if constexpr (TargetV == TextureTarget::Cubemap)
+                return { _get_size_2d(level), 6 };
+            else
+                return _get_size_3d(level);
+        }
+        else JOSH3D_STATIC_ASSERT_FALSE(tt);
+    }
 };
 
 
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_Queries_ViewLike_NumLayers {
+struct Queries_ViewLike_NumLayers
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
 
     // Wraps `glGetTextureParameteriv` with `pname = GL_TEXTURE_VIEW_NUM_LAYERS`.
@@ -688,10 +661,9 @@ struct TextureDSAInterface_Queries_ViewLike_NumLayers {
 };
 
 
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_Queries_ViewLike_MinLayer {
+struct Queries_ViewLike_MinLayer
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
 
     auto get_min_view_layer() const noexcept
@@ -705,10 +677,9 @@ struct TextureDSAInterface_Queries_ViewLike_MinLayer {
 };
 
 
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_Queries_ViewLike_Levels {
+struct Queries_ViewLike_Levels
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
 
     auto get_num_storage_levels() const noexcept
@@ -738,14 +709,11 @@ struct TextureDSAInterface_Queries_ViewLike_Levels {
 };
 
 
-
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_Queries_ViewLike
+struct Queries_ViewLike
     : conditional_mixin_t<
         texture_target_traits<TargetV>::is_layered,
-        TextureDSAInterface_Queries_ViewLike_NumLayers<CRTP, TargetV>
+        Queries_ViewLike_NumLayers<CRTP, TargetV>
     >
     // Makes sense to support this for any texture type that can view a layered texture.
     , conditional_mixin_t<
@@ -753,28 +721,31 @@ struct TextureDSAInterface_Queries_ViewLike
         TargetV == TextureTarget::Texture1D ||
         TargetV == TextureTarget::Texture2D ||
         TargetV == TextureTarget::Texture2DMS,
-        TextureDSAInterface_Queries_ViewLike_MinLayer<CRTP, TargetV>
+        Queries_ViewLike_MinLayer<CRTP, TargetV>
     >
     // You can't view LOD texture with non-LOD texture and vice-versa.
     , conditional_mixin_t<
         texture_target_traits<TargetV>::has_lod,
-        TextureDSAInterface_Queries_ViewLike_Levels<CRTP, TargetV>
+        Queries_ViewLike_Levels<CRTP, TargetV>
     >
 {};
 
 
-
-
-
-
-
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_Queries_NumArrayElements {
+struct Queries_NumArrayElements
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
+
+    // Wraps `glGetTextureLevelParameteriv` with `pname = GL_TEXTURE_[HEIGHT|DEPTH]` and `level = 0`.
+    auto get_num_array_elements() const noexcept
+        -> GLsizei
+            requires tt::is_array
+    {
+        return _get_num_array_elements(MipLevel{ 0 });
+    }
+
 private:
-    auto get_num_array_elements_impl(MipLevel level) const noexcept
+    auto _get_num_array_elements(MipLevel level) const noexcept
         -> GLsizei
             requires tt::is_array
     {
@@ -794,24 +765,12 @@ private:
             return depth / 6;
         }
     }
-public:
-
-    // Wraps `glGetTextureLevelParameteriv` with `pname = GL_TEXTURE_[HEIGHT|DEPTH]` and `level = 0`.
-    auto get_num_array_elements() const noexcept
-        -> GLsizei
-            requires tt::is_array
-    {
-        return get_num_array_elements_impl(MipLevel{ 0 });
-    }
-
 };
 
 
-
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_Queries_MultisampleParams {
+struct Queries_MultisampleParams
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
 
     // Wraps `glGetTextureLevelParameteriv` with `pname = GL_TEXTURE_SAMPLES` and `level = 0`.
@@ -837,10 +796,9 @@ struct TextureDSAInterface_Queries_MultisampleParams {
 };
 
 
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_Queries_InternalFormat {
+struct Queries_InternalFormat
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
 
     // Wraps `glGetTextureLevelParameteriv` with `pname = GL_TEXTURE_INTERNAL_FORMAT` and `level = 0`.
@@ -866,14 +824,9 @@ struct TextureDSAInterface_Queries_InternalFormat {
 };
 
 
-
-
-
-
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_Queries_ImageFormatCompatibility {
+struct Queries_ImageFormatCompatibility
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
 
     auto get_image_unit_format_compatibility() const noexcept
@@ -887,17 +840,13 @@ struct TextureDSAInterface_Queries_ImageFormatCompatibility {
 };
 
 
-
-
-
-
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_Queries_Compressed {
+struct Queries_Compressed
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
 
-    bool is_compressed() const noexcept {
+    auto is_compressed() const -> bool
+    {
         GLboolean compressed;
         gl::glGetTextureLevelParameteriv(self_id(), 0, gl::GL_TEXTURE_COMPRESSED, &compressed);
         return bool(compressed);
@@ -924,38 +873,28 @@ struct TextureDSAInterface_Queries_Compressed {
 };
 
 
-
-
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_Queries_BufferTexture {
+struct Queries_BufferTexture
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
-private:
-    // TODO: Is this actually supported though?
-    GLuint get_attached_buffer_impl() const noexcept {
-        GLenum buf; // enum because that's unsigned int.
-        gl::glGetTextureLevelParameteriv(self_id(), 0, gl::GL_TEXTURE_BUFFER_DATA_STORE_BINDING, &buf);
-        return enum_cast<GLuint>(buf);
-    }
-public:
 
-    bool has_buffer_attached() const noexcept {
-        return bool(get_attached_buffer_impl());
+    auto has_buffer_attached() const -> bool
+    {
+        return bool(_get_attached_buffer());
     }
 
     auto get_attached_buffer() const noexcept
         -> RawUntypedBuffer<GLMutable>
             requires mt::is_mutable
     {
-        return RawUntypedBuffer<GLMutable>::from_id(get_attached_buffer_impl());
+        return RawUntypedBuffer<GLMutable>::from_id(_get_attached_buffer());
     }
 
     auto get_attached_buffer() const noexcept
         -> RawUntypedBuffer<GLConst>
             requires mt::is_const
     {
-        return RawUntypedBuffer<GLConst>::from_id(get_attached_buffer_impl());
+        return RawUntypedBuffer<GLConst>::from_id(_get_attached_buffer());
     }
 
     auto get_attached_buffer_size_bytes() const noexcept
@@ -974,16 +913,20 @@ public:
         return GLintptr(offset);
     }
 
-
+private:
+    // TODO: Is this actually supported though?
+    auto _get_attached_buffer() const -> GLuint
+    {
+        GLenum buf; // enum because that's unsigned int.
+        gl::glGetTextureLevelParameteriv(self_id(), 0, gl::GL_TEXTURE_BUFFER_DATA_STORE_BINDING, &buf);
+        return enum_cast<GLuint>(buf);
+    }
 };
 
 
-
-
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_Queries_ComponentSizeType {
+struct Queries_ComponentSizeType
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
 
     // TODO: Is this in bits?
@@ -1034,52 +977,35 @@ struct TextureDSAInterface_Queries_ComponentSizeType {
 };
 
 
-
-
-
-
-
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_Queries
-    : TextureDSAInterface_Queries_ResolutionAndExtent<CRTP, TargetV>
-    , TextureDSAInterface_Queries_InternalFormat<CRTP, TargetV>
-    , TextureDSAInterface_Queries_ComponentSizeType<CRTP, TargetV>
-    , TextureDSAInterface_Queries_ViewLike<CRTP, TargetV>
+struct Queries
+    : Queries_ResolutionAndExtent<CRTP, TargetV>
+    , Queries_InternalFormat<CRTP, TargetV>
+    , Queries_ComponentSizeType<CRTP, TargetV>
+    , Queries_ViewLike<CRTP, TargetV>
     , conditional_mixin_t<
         texture_target_traits<TargetV>::is_array,
-        TextureDSAInterface_Queries_NumArrayElements<CRTP, TargetV>
+        Queries_NumArrayElements<CRTP, TargetV>
     >
     , conditional_mixin_t<
         texture_target_traits<TargetV>::is_multisample,
-        TextureDSAInterface_Queries_MultisampleParams<CRTP, TargetV>
+        Queries_MultisampleParams<CRTP, TargetV>
     >
-    , TextureDSAInterface_Queries_ImageFormatCompatibility<CRTP, TargetV>
+    , Queries_ImageFormatCompatibility<CRTP, TargetV>
     , conditional_mixin_t<
         texture_target_traits<TargetV>::supports_compressed_internal_format,
-        TextureDSAInterface_Queries_Compressed<CRTP, TargetV>
+        Queries_Compressed<CRTP, TargetV>
     >
     , conditional_mixin_t<
         TargetV == TextureTarget::TextureBuffer,
-        TextureDSAInterface_Queries_BufferTexture<CRTP, TargetV>
+        Queries_BufferTexture<CRTP, TargetV>
     >
 {};
 
 
-
-
-
-
-
-
-
-
-
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_SamplerParameters_CompareMode {
+struct SamplerParameters_CompareMode
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
 
     // Compare Func.
@@ -1126,7 +1052,8 @@ struct TextureDSAInterface_SamplerParameters_CompareMode {
 
 
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_SamplerParameters_LOD {
+struct SamplerParameters_LOD
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
 
     // LOD Bias.
@@ -1215,10 +1142,9 @@ struct TextureDSAInterface_SamplerParameters_LOD {
 };
 
 
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_SamplerParameters_MinMagFilters {
+struct SamplerParameters_MinMagFilters
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
 
     // Min/Mag Filters.
@@ -1292,10 +1218,9 @@ struct TextureDSAInterface_SamplerParameters_MinMagFilters {
 };
 
 
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_SamplerParameters_BorderColor {
+struct SamplerParameters_BorderColor
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
 
     // Wraps `glTextureParameterfv` with `pname = GL_TEXTURE_BORDER_COLOR`.
@@ -1422,10 +1347,9 @@ struct TextureDSAInterface_SamplerParameters_BorderColor {
 };
 
 
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_SamplerParameters_Wrap {
+struct SamplerParameters_Wrap
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
 
     // Wrap.
@@ -1498,36 +1422,22 @@ struct TextureDSAInterface_SamplerParameters_Wrap {
 };
 
 
-
-
-
-
-
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_SamplerParameters
-    : TextureDSAInterface_SamplerParameters_CompareMode<CRTP, TargetV>
+struct SamplerParameters
+    : SamplerParameters_CompareMode<CRTP, TargetV>
     , conditional_mixin_t<
         texture_target_traits<TargetV>::has_lod,
-        TextureDSAInterface_SamplerParameters_LOD<CRTP, TargetV>
+        SamplerParameters_LOD<CRTP, TargetV>
     >
-    , TextureDSAInterface_SamplerParameters_MinMagFilters<CRTP, TargetV>
-    , TextureDSAInterface_SamplerParameters_BorderColor<CRTP, TargetV>
-    , TextureDSAInterface_SamplerParameters_Wrap<CRTP, TargetV>
+    , SamplerParameters_MinMagFilters<CRTP, TargetV>
+    , SamplerParameters_BorderColor<CRTP, TargetV>
+    , SamplerParameters_Wrap<CRTP, TargetV>
 {};
 
 
-
-
-
-
-
-
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_TextureParameters_Swizzle {
+struct TextureParameters_Swizzle
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
 
     void set_swizzle_rgba(
@@ -1563,10 +1473,9 @@ struct TextureDSAInterface_TextureParameters_Swizzle {
 };
 
 
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_TextureParameters_BaseAndMaxLevels {
+struct TextureParameters_BaseAndMaxLevels
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
 
     void set_base_level(MipLevel level) const noexcept
@@ -1582,7 +1491,6 @@ struct TextureDSAInterface_TextureParameters_BaseAndMaxLevels {
         gl::glGetTextureParameteriv(self_id(), gl::GL_TEXTURE_BASE_LEVEL, &level);
         return MipLevel{ level };
     }
-
 
     void set_max_level(MipLevel max_level) const noexcept
         requires mt::is_mutable
@@ -1601,10 +1509,9 @@ struct TextureDSAInterface_TextureParameters_BaseAndMaxLevels {
 };
 
 
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_TextureParameters_StencilTexturing {
+struct TextureParameters_StencilTexturing
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
 
     void set_depth_stencil_sampling_target(DepthStencilTarget target_to_sample) const noexcept
@@ -1624,71 +1531,40 @@ struct TextureDSAInterface_TextureParameters_StencilTexturing {
         );
         return enum_cast<DepthStencilTarget>(target);
     }
-
 };
 
 
-
-
-
-
-
-
-
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_TextureParameters
-    : TextureDSAInterface_TextureParameters_Swizzle<CRTP, TargetV>
+struct TextureParameters
+    : TextureParameters_Swizzle<CRTP, TargetV>
     , conditional_mixin_t<
         texture_target_traits<TargetV>::has_lod,
-        TextureDSAInterface_TextureParameters_BaseAndMaxLevels<CRTP, TargetV>
+        TextureParameters_BaseAndMaxLevels<CRTP, TargetV>
     >
     , conditional_mixin_t<
         TargetV != TextureTarget::TextureBuffer,
-        TextureDSAInterface_TextureParameters_StencilTexturing<CRTP, TargetV>
+        TextureParameters_StencilTexturing<CRTP, TargetV>
     >
- {};
-
-
-
-
-
-
-
-
-
-
-
+{};
 
 
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_Bind_ToTextureUnit {
+struct Bind_ToTextureUnit
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
 
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
-    auto bind_to_texture_unit(GLuint unit_index) const noexcept
+    auto bind_to_texture_unit(GLuint unit_index) const
     {
         return glapi::bind_to_context<target_binding_indexed(TargetV)>(unit_index, self_id());
     }
 };
 
 
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_Bind_ToImageUnit {
+struct Bind_ToImageUnit
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
-private:
-    [[nodiscard]]
-    auto bind_to_image_unit_impl(
-        GLuint index, ImageUnitFormat format, GLenum access, GLint level) const noexcept
-            -> BindToken<BindingI::ImageUnit>
-    {
-        gl::glBindImageTexture(index, self_id(), level, gl::GL_TRUE, 0, access, enum_cast<GLenum>(format));
-        return BindToken<BindingI::ImageUnit>::from_index_and_id(index, self_id());
-    }
-public:
 
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
     auto bind_to_readonly_image_unit(
@@ -1696,7 +1572,7 @@ public:
             -> BindToken<BindingI::ImageUnit>
                 requires tt::has_lod
     {
-        return bind_to_image_unit_impl(unit_index, format, gl::GL_READ_ONLY, level);
+        return _bind_to_image_unit(unit_index, format, gl::GL_READ_ONLY, level);
     }
 
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
@@ -1705,11 +1581,8 @@ public:
             -> BindToken<BindingI::ImageUnit>
                 requires (!tt::has_lod)
     {
-        return bind_to_image_unit_impl(unit_index, format, gl::GL_READ_ONLY, 0);
+        return _bind_to_image_unit(unit_index, format, gl::GL_READ_ONLY, 0);
     }
-
-
-
 
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
     auto bind_to_writeonly_image_unit(
@@ -1717,7 +1590,7 @@ public:
             -> BindToken<BindingI::ImageUnit>
                 requires mt::is_mutable && tt::has_lod
     {
-        return bind_to_image_unit_impl(unit_index, format, gl::GL_WRITE_ONLY, level);
+        return _bind_to_image_unit(unit_index, format, gl::GL_WRITE_ONLY, level);
     }
 
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
@@ -1726,11 +1599,8 @@ public:
             -> BindToken<BindingI::ImageUnit>
                 requires mt::is_mutable && (!tt::has_lod)
     {
-        return bind_to_image_unit_impl(unit_index, format, gl::GL_WRITE_ONLY, 0);
+        return _bind_to_image_unit(unit_index, format, gl::GL_WRITE_ONLY, 0);
     }
-
-
-
 
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
     auto bind_to_readwrite_image_unit(
@@ -1738,7 +1608,7 @@ public:
             -> BindToken<BindingI::ImageUnit>
                 requires mt::is_mutable && tt::has_lod
     {
-        return bind_to_image_unit_impl(unit_index, format, gl::GL_READ_WRITE, level);
+        return _bind_to_image_unit(unit_index, format, gl::GL_READ_WRITE, level);
     }
 
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
@@ -1747,27 +1617,25 @@ public:
             -> BindToken<BindingI::ImageUnit>
                 requires mt::is_mutable && (!tt::has_lod)
     {
-        return bind_to_image_unit_impl(unit_index, format, gl::GL_READ_WRITE, 0);
+        return _bind_to_image_unit(unit_index, format, gl::GL_READ_WRITE, 0);
     }
 
+private:
+
+    [[nodiscard]] auto _bind_to_image_unit(
+        GLuint index, ImageUnitFormat format, GLenum access, GLint level) const noexcept
+            -> BindToken<BindingI::ImageUnit>
+    {
+        gl::glBindImageTexture(index, self_id(), level, gl::GL_TRUE, 0, access, enum_cast<GLenum>(format));
+        return BindToken<BindingI::ImageUnit>::from_index_and_id(index, self_id());
+    }
 };
 
 
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_Bind_ToImageUnitLayered {
+struct Bind_ToImageUnitLayered
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
-private:
-    [[nodiscard]]
-    auto bind_layer_to_image_unit_impl(
-        GLuint index, ImageUnitFormat format, GLenum access, GLint layer, GLint level) const noexcept
-            -> BindToken<BindingI::ImageUnit>
-    {
-        gl::glBindImageTexture(index, self_id(), level, gl::GL_FALSE, layer, access, enum_cast<GLenum>(format));
-        return BindToken<BindingI::ImageUnit>::from_index_and_id(index, self_id());
-    }
-public:
 
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
     auto bind_layer_to_readonly_image_unit(
@@ -1775,7 +1643,7 @@ public:
             -> BindToken<BindingI::ImageUnit>
                 requires tt::is_layered && tt::has_lod
     {
-        return bind_layer_to_image_unit_impl(unit_index, format, gl::GL_READ_ONLY, layer, level);
+        return _bind_layer_to_image_unit(unit_index, format, gl::GL_READ_ONLY, layer, level);
     }
 
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
@@ -1784,11 +1652,8 @@ public:
             -> BindToken<BindingI::ImageUnit>
                 requires tt::is_layered && (!tt::has_lod)
     {
-        return bind_layer_to_image_unit_impl(unit_index, format, gl::GL_READ_ONLY, layer, 0);
+        return _bind_layer_to_image_unit(unit_index, format, gl::GL_READ_ONLY, layer, 0);
     }
-
-
-
 
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
     auto bind_layer_to_writeonly_image_unit(
@@ -1796,7 +1661,7 @@ public:
             -> BindToken<BindingI::ImageUnit>
                 requires mt::is_mutable && tt::is_layered && tt::has_lod
     {
-        return bind_layer_to_image_unit_impl(unit_index, format, gl::GL_WRITE_ONLY, layer, level);
+        return _bind_layer_to_image_unit(unit_index, format, gl::GL_WRITE_ONLY, layer, level);
     }
 
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
@@ -1805,11 +1670,8 @@ public:
             -> BindToken<BindingI::ImageUnit>
                 requires mt::is_mutable && tt::is_layered && (!tt::has_lod)
     {
-        return bind_layer_to_image_unit_impl(unit_index, format, gl::GL_WRITE_ONLY, layer, 0);
+        return _bind_layer_to_image_unit(unit_index, format, gl::GL_WRITE_ONLY, layer, 0);
     }
-
-
-
 
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
     auto bind_layer_to_readwrite_image_unit(
@@ -1817,7 +1679,7 @@ public:
             -> BindToken<BindingI::ImageUnit>
                 requires mt::is_mutable && tt::is_layered && tt::has_lod
     {
-        return bind_layer_to_image_unit_impl(unit_index, format, gl::GL_READ_WRITE, layer, level);
+        return _bind_layer_to_image_unit(unit_index, format, gl::GL_READ_WRITE, layer, level);
     }
 
     // [[nodiscard("Discarding bound state is error-prone. Consider using BindGuard to automate unbinding.")]]
@@ -1826,35 +1688,35 @@ public:
             -> BindToken<BindingI::ImageUnit>
                 requires mt::is_mutable && tt::is_layered && (!tt::has_lod)
     {
-        return bind_layer_to_image_unit_impl(unit_index, format, gl::GL_READ_WRITE, layer, 0);
+        return _bind_layer_to_image_unit(unit_index, format, gl::GL_READ_WRITE, layer, 0);
     }
 
+private:
+
+    [[nodiscard]] auto _bind_layer_to_image_unit(
+        GLuint index, ImageUnitFormat format, GLenum access, GLint layer, GLint level) const noexcept
+            -> BindToken<BindingI::ImageUnit>
+    {
+        gl::glBindImageTexture(index, self_id(), level, gl::GL_FALSE, layer, access, enum_cast<GLenum>(format));
+        return BindToken<BindingI::ImageUnit>::from_index_and_id(index, self_id());
+    }
 };
 
 
-
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_Bind
-    : TextureDSAInterface_Bind_ToTextureUnit<CRTP, TargetV>
-    , TextureDSAInterface_Bind_ToImageUnit<CRTP, TargetV>
+struct Bind
+    : Bind_ToTextureUnit<CRTP, TargetV>
+    , Bind_ToImageUnit<CRTP, TargetV>
     , conditional_mixin_t<
         texture_target_traits<TargetV>::is_layered,
-        TextureDSAInterface_Bind_ToImageUnitLayered<CRTP, TargetV>
+        Bind_ToImageUnitLayered<CRTP, TargetV>
     >
 {};
 
 
-
-
-
-
-
-
 inline void texture_storage_1d(
     GLuint id, const Size1I& size,
-    InternalFormat internal_format, GLsizei levels) noexcept
+    InternalFormat internal_format, GLsizei levels)
 {
     gl::glTextureStorage1D(
         id, levels, enum_cast<GLenum>(internal_format), size
@@ -1863,7 +1725,7 @@ inline void texture_storage_1d(
 
 inline void texture_storage_2d(
     GLuint id, const Size2I& size,
-    InternalFormat internal_format, GLsizei levels) noexcept
+    InternalFormat internal_format, GLsizei levels)
 {
     gl::glTextureStorage2D(
         id, levels, enum_cast<GLenum>(internal_format), size.width, size.height
@@ -1873,7 +1735,7 @@ inline void texture_storage_2d(
 inline void texture_storage_2d_ms(
     GLuint id, const Size2I& size,
     InternalFormat internal_format,
-    NumSamples num_samples, SampleLocations sample_locations) noexcept
+    NumSamples num_samples, SampleLocations sample_locations)
 {
     gl::glTextureStorage2DMultisample(
         id, num_samples, enum_cast<GLenum>(internal_format),
@@ -1883,7 +1745,7 @@ inline void texture_storage_2d_ms(
 
 inline void texture_storage_3d(
     GLuint id, const Size3I& size,
-    InternalFormat internal_format, GLsizei levels) noexcept
+    InternalFormat internal_format, GLsizei levels)
 {
     gl::glTextureStorage3D(
         id, levels, enum_cast<GLenum>(internal_format), size.width, size.height, size.depth
@@ -1893,7 +1755,7 @@ inline void texture_storage_3d(
 inline void texture_storage_3d_ms(
     GLuint id, const Size3I& size,
     InternalFormat internal_format,
-    NumSamples num_samples, SampleLocations sample_locations) noexcept
+    NumSamples num_samples, SampleLocations sample_locations)
 {
     gl::glTextureStorage3DMultisample(
         id, num_samples, enum_cast<GLenum>(internal_format),
@@ -1902,20 +1764,16 @@ inline void texture_storage_3d_ms(
 }
 
 
-
-
-
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_AllocateStorage {
+struct AllocateStorage
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
 
     // Overload for `Texture[1|2|3]D`, `Cubemap`.
     void allocate_storage(
         const tt::resolution_type& resolution,
         InternalFormat             internal_format,
-        NumLevels                  num_levels = NumLevels{ 1 }) const noexcept
+        NumLevels                  num_levels = NumLevels{ 1 }) const
             requires mt::is_mutable && tt::has_lod && (!tt::is_array)
     {
         if constexpr (tt::resolution_ndims == 1) {
@@ -1927,12 +1785,10 @@ struct TextureDSAInterface_AllocateStorage {
         } else { JOSH3D_STATIC_ASSERT_FALSE(tt); }
     }
 
-
-
     // Overload for `TextureRectangle`.
     void allocate_storage(
         const tt::resolution_type& resolution,
-        InternalFormat             internal_format) const noexcept
+        InternalFormat             internal_format) const
             requires mt::is_mutable && (!tt::has_lod) && (!tt::is_array) && (!tt::is_multisample)
     {
         if constexpr (tt::resolution_ndims == 1) {
@@ -1947,7 +1803,7 @@ struct TextureDSAInterface_AllocateStorage {
         const tt::resolution_type& resolution,
         GLsizei                    num_array_elements,
         InternalFormat             internal_format,
-        NumLevels                  num_levels = NumLevels{ 1 }) const noexcept
+        NumLevels                  num_levels = NumLevels{ 1 }) const
             requires mt::is_mutable && tt::has_lod && tt::is_array
     {
         if constexpr (tt::resolution_ndims == 1) {
@@ -1966,7 +1822,7 @@ struct TextureDSAInterface_AllocateStorage {
         const tt::resolution_type& resolution,
         InternalFormat             internal_format,
         NumSamples                 num_samples      = NumSamples{ 1 },
-        SampleLocations            sample_locations = SampleLocations::NotFixed) const noexcept
+        SampleLocations            sample_locations = SampleLocations::NotFixed) const
             requires mt::is_mutable && tt::is_multisample && (!tt::is_array)
     {
         if constexpr (tt::resolution_ndims == 2) {
@@ -1980,7 +1836,7 @@ struct TextureDSAInterface_AllocateStorage {
         GLsizei                    num_array_elements,
         InternalFormat             internal_format,
         NumSamples                 num_samples      = NumSamples{ 1 },
-        SampleLocations            sample_locations = SampleLocations::NotFixed) const noexcept
+        SampleLocations            sample_locations = SampleLocations::NotFixed) const
             requires mt::is_mutable && tt::is_multisample && tt::is_array
     {
         if constexpr (tt::resolution_ndims == 2) {
@@ -1992,14 +1848,9 @@ struct TextureDSAInterface_AllocateStorage {
 };
 
 
-
-
-
-
-
 inline void texture_sub_image_1d(
     GLuint id, const Index1I& offset, const Size1I& size,
-    PixelDataFormat format, PixelDataType type, const void* data, GLint mip_level) noexcept
+    PixelDataFormat format, PixelDataType type, const void* data, GLint mip_level)
 {
     gl::glTextureSubImage1D(
         id, mip_level, offset, size,
@@ -2009,7 +1860,7 @@ inline void texture_sub_image_1d(
 
 inline void texture_sub_image_2d(
     GLuint id, const Index2I& offset, const Size2I& size,
-    PixelDataFormat format, PixelDataType type, const void* data, GLint mip_level) noexcept
+    PixelDataFormat format, PixelDataType type, const void* data, GLint mip_level)
 {
     gl::glTextureSubImage2D(
         id, mip_level, offset.x, offset.y, size.width, size.height,
@@ -2019,7 +1870,7 @@ inline void texture_sub_image_2d(
 
 inline void texture_sub_image_3d(
     GLuint id, const Index3I& offset, const Size3I& size,
-    PixelDataFormat format, PixelDataType type, const void* data, GLint mip_level) noexcept
+    PixelDataFormat format, PixelDataType type, const void* data, GLint mip_level)
 {
     gl::glTextureSubImage3D(
         id, mip_level, offset.x, offset.y, offset.z,
@@ -2029,24 +1880,18 @@ inline void texture_sub_image_3d(
 }
 
 
-
-
-inline GLenum best_unpack_format(
-    GLenum target, GLenum internal_format) noexcept
+inline auto best_unpack_format(GLenum target, GLenum internal_format) -> GLenum
 {
     GLint format;
-    gl::glGetInternalformativ(
-        target, internal_format,
-        gl::GL_TEXTURE_IMAGE_FORMAT,
-        1, &format
-    );
+    gl::glGetInternalformativ(target, internal_format,
+        gl::GL_TEXTURE_IMAGE_FORMAT, 1, &format);
     return static_cast<GLenum>(format);
 }
 
-inline GLenum best_unpack_type(
-    GLenum target, GLenum internal_format) noexcept
+inline auto best_unpack_type(GLenum target, GLenum internal_format) -> GLenum
 {
-    switch (internal_format) {
+    switch (internal_format)
+    {
         using enum GLenum;
         // * swearing *
         case GL_DEPTH24_STENCIL8:
@@ -2055,28 +1900,63 @@ inline GLenum best_unpack_type(
             return GL_FLOAT_32_UNSIGNED_INT_24_8_REV;
         default:
             GLint type;
-            gl::glGetInternalformativ(
-                target, internal_format,
-                gl::GL_TEXTURE_IMAGE_TYPE,
-                1, &type
-            );
+            gl::glGetInternalformativ(target, internal_format,
+                gl::GL_TEXTURE_IMAGE_TYPE, 1, &type);
             return static_cast<GLenum>(type);
     }
 }
 
 
-
-
-
-
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_ImageOperations_Upload {
+struct ImageOperations_Upload
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
+
+    void upload_image_region(
+        const tt::region_type& region,
+        PixelDataFormat        format,
+        PixelDataType          type,
+        const void*            data,
+        MipLevel               level = MipLevel{ 0 }) const noexcept
+            requires mt::is_mutable && tt::has_lod
+    {
+        _upload_image_region(region, format, type, data, level);
+    }
+
+    void upload_image_region(
+        const tt::region_type& region,
+        PixelDataFormat        format,
+        PixelDataType          type,
+        const void*            data) const noexcept
+            requires mt::is_mutable && (!tt::has_lod)
+    {
+        _upload_image_region(region, format, type, data, MipLevel{ 0 });
+    }
+
+    template<specifies_pixel_pack_traits PixelT>
+    void upload_image_region(
+        const tt::region_type& region,
+        const PixelT*          data,
+        MipLevel               level = MipLevel{ 0 }) const noexcept
+            requires mt::is_mutable && tt::has_lod
+    {
+        using pptr = pixel_pack_traits<PixelT>;
+        _upload_image_region(region, pptr::format, pptr::type, data, level);
+    }
+
+    template<specifies_pixel_pack_traits PixelT>
+    void upload_image_region(
+        const tt::region_type& region,
+        const PixelT*          data) const noexcept
+            requires mt::is_mutable && (!tt::has_lod)
+    {
+        using pptr = pixel_pack_traits<PixelT>;
+        _upload_image_region(region, pptr::format, pptr::type, data, MipLevel{ 0 });
+    }
+
 private:
 
-    void upload_image_region_impl(
+    void _upload_image_region(
         const tt::region_type& region,
         PixelDataFormat        format,
         PixelDataType          type,
@@ -2092,62 +1972,62 @@ private:
             texture_sub_image_3d(self_id(), region.offset, region.extent, format, type, data, mip_level);
         } else { JOSH3D_STATIC_ASSERT_FALSE(tt); }
     }
-
-public:
-
-    void upload_image_region(
-        const tt::region_type& region,
-        PixelDataFormat        format,
-        PixelDataType          type,
-        const void*            data,
-        MipLevel               level = MipLevel{ 0 }) const noexcept
-            requires mt::is_mutable && tt::has_lod
-    {
-        upload_image_region_impl(region, format, type, data, level);
-    }
-
-    void upload_image_region(
-        const tt::region_type& region,
-        PixelDataFormat        format,
-        PixelDataType          type,
-        const void*            data) const noexcept
-            requires mt::is_mutable && (!tt::has_lod)
-    {
-        upload_image_region_impl(region, format, type, data, MipLevel{ 0 });
-    }
-
-    template<specifies_pixel_pack_traits PixelT>
-    void upload_image_region(
-        const tt::region_type& region,
-        const PixelT*          data,
-        MipLevel               level = MipLevel{ 0 }) const noexcept
-            requires mt::is_mutable && tt::has_lod
-    {
-        using pptr = pixel_pack_traits<PixelT>;
-        upload_image_region_impl(region, pptr::format, pptr::type, data, level);
-    }
-
-    template<specifies_pixel_pack_traits PixelT>
-    void upload_image_region(
-        const tt::region_type& region,
-        const PixelT*          data) const noexcept
-            requires mt::is_mutable && (!tt::has_lod)
-    {
-        using pptr = pixel_pack_traits<PixelT>;
-        upload_image_region_impl(region, pptr::format, pptr::type, data, MipLevel{ 0 });
-    }
-
 };
 
 
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_ImageOperations_Download {
+struct ImageOperations_Download
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
-private:
+
     template<typename T>
-    void download_image_region_into_impl(
+    void download_image_region_into(
+        const tt::region_type& region,
+        PixelDataFormat        format,
+        PixelDataType          type,
+        std::span<T>           dst_buf,
+        MipLevel               level = MipLevel{ 0 }) const noexcept
+            requires tt::has_lod
+    {
+        _download_image_region_into(region, format, type, dst_buf, level);
+    }
+
+    template<typename T>
+    void download_image_region_into(
+        const tt::region_type& region,
+        PixelDataFormat        format,
+        PixelDataType          type,
+        std::span<T>           dst_buf) const noexcept
+            requires (!tt::has_lod)
+    {
+        _download_image_region_into(region, format, type, dst_buf, MipLevel{ 0 });
+    }
+
+    template<specifies_pixel_pack_traits PixelT>
+    void download_image_region_into(
+        const tt::region_type& region,
+        std::span<PixelT>      dst_buf,
+        MipLevel               level = MipLevel{ 0 }) const noexcept
+            requires tt::has_lod
+    {
+        using pptr = pixel_pack_traits<PixelT>;
+        _download_image_region_into(region, pptr::format, pptr::type, dst_buf, level);
+    }
+
+    template<specifies_pixel_pack_traits PixelT>
+    void download_image_region_into(
+        const tt::region_type& region,
+        std::span<PixelT>      dst_buf) const noexcept
+            requires (!tt::has_lod)
+    {
+        using pptr = pixel_pack_traits<PixelT>;
+        _download_image_region_into(region, pptr::format, pptr::type, dst_buf, MipLevel{ 0 });
+    }
+
+private:
+
+    template<typename T>
+    void _download_image_region_into(
         const tt::region_type& region,
         PixelDataFormat        format,
         PixelDataType          type,
@@ -2174,62 +2054,137 @@ private:
         else if constexpr (tt::region_ndims == 3) { download({ offset       }, { extent       }); }
         else { JOSH3D_STATIC_ASSERT_FALSE(tt); }
     }
-
-public:
-    template<typename T>
-    void download_image_region_into(
-        const tt::region_type& region,
-        PixelDataFormat        format,
-        PixelDataType          type,
-        std::span<T>           dst_buf,
-        MipLevel               level = MipLevel{ 0 }) const noexcept
-            requires tt::has_lod
-    {
-        download_image_region_into_impl(region, format, type, dst_buf, level);
-    }
-
-    template<typename T>
-    void download_image_region_into(
-        const tt::region_type& region,
-        PixelDataFormat        format,
-        PixelDataType          type,
-        std::span<T>           dst_buf) const noexcept
-            requires (!tt::has_lod)
-    {
-        download_image_region_into_impl(region, format, type, dst_buf, MipLevel{ 0 });
-    }
-
-    template<specifies_pixel_pack_traits PixelT>
-    void download_image_region_into(
-        const tt::region_type& region,
-        std::span<PixelT>      dst_buf,
-        MipLevel               level = MipLevel{ 0 }) const noexcept
-            requires tt::has_lod
-    {
-        using pptr = pixel_pack_traits<PixelT>;
-        download_image_region_into_impl(region, pptr::format, pptr::type, dst_buf, level);
-    }
-
-    template<specifies_pixel_pack_traits PixelT>
-    void download_image_region_into(
-        const tt::region_type& region,
-        std::span<PixelT>      dst_buf) const noexcept
-            requires (!tt::has_lod)
-    {
-        using pptr = pixel_pack_traits<PixelT>;
-        download_image_region_into_impl(region, pptr::format, pptr::type, dst_buf, MipLevel{ 0 });
-    }
-
 };
 
 
+/*
+This is needed when copying from higher to lower dimensionality textures.
+
+For example, if the src is Texture3D and dst is Texture2D, then
+the extent_type is restricted to Extent2I, because copying full 3 dimensions
+does not make sense when the destination is 2D.
+*/
+template<TextureTarget SrcTargetV, typename DstTextureT>
+struct common_extent
+{
+    using src_tt = texture_target_traits<SrcTargetV>;
+    using dst_tt = texture_traits<DstTextureT>;
+    using type = std::conditional_t<
+        src_tt::region_ndims <= dst_tt::region_ndims,
+        typename src_tt::extent_type,
+        typename dst_tt::extent_type
+    >;
+};
+template<TextureTarget SrcTargetV, typename DstTextureT>
+using common_extent_t = common_extent<SrcTargetV, DstTextureT>::type;
 
 
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_ImageOperations_Copy {
+struct ImageOperations_Copy
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
-private:
 
+    /*
+    Compatible internal formats for copying between compressed and
+    uncompressed internal formats with CopyImageSubData.
+    Formats with the same block size can be copied between each other.
+
+    - 128-bit blocks:
+    Uncompressed:
+    -- RGBA32UI,
+    -- RGBA32I,
+    -- RGBA32F.
+    Compatible Compressed:
+    -- COMPRESSED_RG_RGTC2,
+    -- COMPRESSED_SIGNED_RG_RGTC2,
+    -- COMPRESSED_RGBA_BPTC_UNORM,
+    -- COMPRESSED_SRGB_ALPHA_BPTC_UNORM,
+    -- COMPRESSED_RGB_BPTC_SIGNED_FLOAT,
+    -- COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT.
+
+    - 64-bit blocks:
+    Uncompressed:
+    -- RGBA16F,
+    -- RG32F,
+    -- RGBA16UI,
+    -- RG32UI,
+    -- RGBA16I,
+    -- RG32I,
+    -- RGBA16,
+    -- RGBA16_SNORM.
+    Compatible Compressed:
+    -- COMPRESSED_RED_RGTC1,
+    -- COMPRESSED_SIGNED_RED_RGTC1.
+    */
+
+    template<typename DstTextureT>
+        requires
+            mutability_traits<DstTextureT>::is_mutable &&
+            texture_traits<DstTextureT>::has_lod &&
+            (of_kind<DstTextureT, GLKind::Texture> || of_kind<DstTextureT, GLKind::Renderbuffer>)
+    void copy_image_region_to(
+        const tt::offset_type&                          src_offset,
+        const common_extent_t<TargetV, DstTextureT>&    src_extent,
+        const DstTextureT&                              dst_texture,
+        const texture_traits<DstTextureT>::offset_type& dst_offset,
+        MipLevel                                        src_level = MipLevel{ 0 },
+        MipLevel                                        dst_level = MipLevel{ 0 }) const noexcept
+            requires tt::has_lod
+    {
+        _copy_image_region_to<DstTextureT>(src_offset, src_extent, dst_texture, dst_offset, src_level, dst_level);
+    }
+
+    // Src LOD, Dst No LOD.
+    template<typename DstTextureT>
+        requires
+            mutability_traits<DstTextureT>::is_mutable &&
+            (!texture_traits<DstTextureT>::has_lod) &&
+            (of_kind<DstTextureT, GLKind::Texture> || of_kind<DstTextureT, GLKind::Renderbuffer>)
+    void copy_image_region_to(
+        const tt::offset_type&                          src_offset,
+        const common_extent_t<TargetV, DstTextureT>&    src_extent,
+        const DstTextureT&                              dst_texture,
+        const texture_traits<DstTextureT>::offset_type& dst_offset,
+        MipLevel                                        src_level = MipLevel{ 0 }) const noexcept
+            requires tt::has_lod
+    {
+        _copy_image_region_to<DstTextureT>(src_offset, src_extent, dst_texture, dst_offset, src_level, MipLevel{ 0 });
+    }
+
+    // Src No LOD, Dst LOD.
+    template<typename DstTextureT>
+        requires
+            mutability_traits<DstTextureT>::is_mutable &&
+            texture_traits<DstTextureT>::has_lod &&
+            (of_kind<DstTextureT, GLKind::Texture> || of_kind<DstTextureT, GLKind::Renderbuffer>)
+    void copy_image_region_to(
+        const tt::offset_type&                          src_offset,
+        const common_extent_t<TargetV, DstTextureT>&    src_extent,
+        const DstTextureT&                              dst_texture,
+        const texture_traits<DstTextureT>::offset_type& dst_offset,
+        MipLevel                                        dst_level = MipLevel{ 0 }) const noexcept
+            requires (!tt::has_lod)
+    {
+        _copy_image_region_to<DstTextureT>(src_offset, src_extent, dst_texture, dst_offset, MipLevel{ 0 }, dst_level);
+    }
+
+    // Src No LOD, Dst No LOD.
+    template<typename DstTextureT>
+        requires
+            mutability_traits<DstTextureT>::is_mutable &&
+            (!texture_traits<DstTextureT>::has_lod) &&
+            (of_kind<DstTextureT, GLKind::Texture> || of_kind<DstTextureT, GLKind::Renderbuffer>)
+    void copy_image_region_to(
+        const tt::offset_type&                          src_offset,
+        const common_extent_t<TargetV, DstTextureT>&    src_extent,
+        const DstTextureT&                              dst_texture,
+        const texture_traits<DstTextureT>::offset_type& dst_offset) const noexcept
+            requires (!tt::has_lod)
+    {
+        _copy_image_region_to<DstTextureT>(src_offset, src_extent, dst_texture, dst_offset, MipLevel{ 0 }, MipLevel{ 0 });
+    }
+
+private:
     // The interpretation of the name depends on the value of the corresponding target parameter.
     // If target is GL_RENDERBUFFER, the name is interpreted as the name of a renderbuffer object.
     // If the target parameter is a texture target, the name is interpreted as a texture object.
@@ -2238,7 +2193,7 @@ private:
         requires
             mutability_traits<DstTextureT>::is_mutable &&
             (of_kind<DstTextureT, GLKind::Texture> || of_kind<DstTextureT, GLKind::Renderbuffer>)
-    void copy_image_region_to_impl(
+    void _copy_image_region_to(
         const tt::offset_type&                          src_offset,
         // We  restrict the dimensionality of the souce *Extent* type,
         // for cases where src_ndims > dst_ndims.
@@ -2290,128 +2245,97 @@ private:
         else if constexpr (sdims == 3 && ddims == 3) { copy({ sof       }, { sex       }, { dof       }); }
         else { JOSH3D_STATIC_ASSERT_FALSE(tt); }
     }
-
-public:
-
-    /*
-    Compatible internal formats for copying between compressed and
-    uncompressed internal formats with CopyImageSubData.
-    Formats with the same block size can be copied between each other.
-
-    - 128-bit blocks:
-    Uncompressed:
-    -- RGBA32UI,
-    -- RGBA32I,
-    -- RGBA32F.
-    Compatible Compressed:
-    -- COMPRESSED_RG_RGTC2,
-    -- COMPRESSED_SIGNED_RG_RGTC2,
-    -- COMPRESSED_RGBA_BPTC_UNORM,
-    -- COMPRESSED_SRGB_ALPHA_BPTC_UNORM,
-    -- COMPRESSED_RGB_BPTC_SIGNED_FLOAT,
-    -- COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT.
-
-    - 64-bit blocks:
-    Uncompressed:
-    -- RGBA16F,
-    -- RG32F,
-    -- RGBA16UI,
-    -- RG32UI,
-    -- RGBA16I,
-    -- RG32I,
-    -- RGBA16,
-    -- RGBA16_SNORM.
-    Compatible Compressed:
-    -- COMPRESSED_RED_RGTC1,
-    -- COMPRESSED_SIGNED_RED_RGTC1.
-    */
-
-
-    template<typename DstTextureT>
-        requires
-            mutability_traits<DstTextureT>::is_mutable &&
-            texture_traits<DstTextureT>::has_lod &&
-            (of_kind<DstTextureT, GLKind::Texture> || of_kind<DstTextureT, GLKind::Renderbuffer>)
-    void copy_image_region_to(
-        const tt::offset_type&                          src_offset,
-        const std::conditional_t<(std::cmp_less_equal(tt::region_ndims, texture_traits<DstTextureT>::region_ndims)),
-            typename tt::extent_type, typename texture_traits<DstTextureT>::extent_type>&
-                                                        src_extent,
-        const DstTextureT&                              dst_texture,
-        const texture_traits<DstTextureT>::offset_type& dst_offset,
-        MipLevel                                        src_level = MipLevel{ 0 },
-        MipLevel                                        dst_level = MipLevel{ 0 }) const noexcept
-            requires tt::has_lod
-    {
-        copy_image_region_to_impl<DstTextureT>(src_offset, src_extent, dst_texture, dst_offset, src_level, dst_level);
-    }
-
-    // Src LOD, Dst No LOD.
-    template<typename DstTextureT>
-        requires
-            mutability_traits<DstTextureT>::is_mutable &&
-            (!texture_traits<DstTextureT>::has_lod) &&
-            (of_kind<DstTextureT, GLKind::Texture> || of_kind<DstTextureT, GLKind::Renderbuffer>)
-    void copy_image_region_to(
-        const tt::offset_type&                          src_offset,
-        const std::conditional_t<(std::cmp_less_equal(tt::region_ndims, texture_traits<DstTextureT>::region_ndims)),
-            typename tt::extent_type, typename texture_traits<DstTextureT>::extent_type>&
-                                                        src_extent,
-        const DstTextureT&                              dst_texture,
-        const texture_traits<DstTextureT>::offset_type& dst_offset,
-        MipLevel                                        src_level = MipLevel{ 0 }) const noexcept
-            requires tt::has_lod
-    {
-        copy_image_region_to_impl<DstTextureT>(src_offset, src_extent, dst_texture, dst_offset, src_level, MipLevel{ 0 });
-    }
-
-    // Src No LOD, Dst LOD.
-    template<typename DstTextureT>
-        requires
-            mutability_traits<DstTextureT>::is_mutable &&
-            texture_traits<DstTextureT>::has_lod &&
-            (of_kind<DstTextureT, GLKind::Texture> || of_kind<DstTextureT, GLKind::Renderbuffer>)
-    void copy_image_region_to(
-        const tt::offset_type&                          src_offset,
-        const std::conditional_t<(std::cmp_less_equal(tt::region_ndims, texture_traits<DstTextureT>::region_ndims)),
-            typename tt::extent_type, typename texture_traits<DstTextureT>::extent_type>&
-                                                        src_extent,
-        const DstTextureT&                              dst_texture,
-        const texture_traits<DstTextureT>::offset_type& dst_offset,
-        MipLevel                                        dst_level = MipLevel{ 0 }) const noexcept
-            requires (!tt::has_lod)
-    {
-        copy_image_region_to_impl<DstTextureT>(src_offset, src_extent, dst_texture, dst_offset, MipLevel{ 0 }, dst_level);
-    }
-
-    // Src No LOD, Dst No LOD.
-    template<typename DstTextureT>
-        requires
-            mutability_traits<DstTextureT>::is_mutable &&
-            (!texture_traits<DstTextureT>::has_lod) &&
-            (of_kind<DstTextureT, GLKind::Texture> || of_kind<DstTextureT, GLKind::Renderbuffer>)
-    void copy_image_region_to(
-        const tt::offset_type&                          src_offset,
-        const std::conditional_t<(std::cmp_less_equal(tt::region_ndims, texture_traits<DstTextureT>::region_ndims)),
-            typename tt::extent_type, typename texture_traits<DstTextureT>::extent_type>&
-                                                        src_extent,
-        const DstTextureT&                              dst_texture,
-        const texture_traits<DstTextureT>::offset_type& dst_offset) const noexcept
-            requires (!tt::has_lod)
-    {
-        copy_image_region_to_impl<DstTextureT>(src_offset, src_extent, dst_texture, dst_offset, MipLevel{ 0 }, MipLevel{ 0 });
-    }
-
 };
 
 
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_ImageOperations_Fill {
+struct ImageOperations_Fill
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
+
+    void fill_image(
+        PixelDataFormat        format,
+        PixelDataType          type,
+        const void*            data,
+        MipLevel               level = MipLevel{ 0 }) const noexcept
+            requires mt::is_mutable && tt::has_lod
+    {
+        _fill_image(format, type, data, level);
+    }
+
+    void fill_image(
+        PixelDataFormat        format,
+        PixelDataType          type,
+        const void*            data) const noexcept
+            requires mt::is_mutable && (!tt::has_lod)
+    {
+        _fill_image(format, type, data, MipLevel{ 0 });
+    }
+
+    template<specifies_pixel_pack_traits PixelT>
+    void fill_image(
+        const PixelT& pixel_value,
+        MipLevel      level = MipLevel{ 0 }) const noexcept
+            requires mt::is_mutable && tt::has_lod
+    {
+        using pptr = pixel_pack_traits<PixelT>;
+        _fill_image(pptr::format, pptr::type, &pixel_value, level);
+    }
+
+    template<specifies_pixel_pack_traits PixelT>
+    void fill_image(
+        const PixelT& pixel_value) const noexcept
+            requires mt::is_mutable && (!tt::has_lod)
+    {
+        using pptr = pixel_pack_traits<PixelT>;
+        _fill_image(pptr::format, pptr::type, &pixel_value, MipLevel{ 0 });
+    }
+
+    void fill_image_region(
+        const tt::region_type& region,
+        PixelDataFormat        format,
+        PixelDataType          type,
+        const void*            data,
+        MipLevel               level = MipLevel{ 0 }) const noexcept
+            requires mt::is_mutable && tt::has_lod
+    {
+        _fill_image_region(region, format, type, data, level);
+    }
+
+    void fill_image_region(
+        const tt::region_type& region,
+        PixelDataFormat        format,
+        PixelDataType          type,
+        const void*            data) const noexcept
+            requires mt::is_mutable && (!tt::has_lod)
+    {
+        _fill_image_region(region, format, type, data, MipLevel{ 0 });
+    }
+
+    template<specifies_pixel_pack_traits PixelT>
+    void fill_image_region(
+        const tt::region_type& region,
+        const PixelT&          pixel_value,
+        MipLevel               level = MipLevel{ 0 }) const noexcept
+            requires mt::is_mutable && tt::has_lod
+    {
+        using pptr = pixel_pack_traits<PixelT>;
+        _fill_image_region(region, pptr::format, pptr::type, &pixel_value, level);
+    }
+
+    template<specifies_pixel_pack_traits PixelT>
+    void fill_image_region(
+        const tt::region_type& region,
+        const PixelT&          pixel_value) const noexcept
+            requires mt::is_mutable && (!tt::has_lod)
+    {
+        using pptr = pixel_pack_traits<PixelT>;
+        _fill_image_region(region, pptr::format, pptr::type, &pixel_value, MipLevel{ 0 });
+    }
+
 private:
-    void fill_image_impl(
+
+    void _fill_image(
         PixelDataFormat        format,
         PixelDataType          type,
         const void*            data,
@@ -2422,53 +2346,8 @@ private:
             enum_cast<GLenum>(format), enum_cast<GLenum>(type), data
         );
     }
-public:
 
-    void fill_image(
-        PixelDataFormat        format,
-        PixelDataType          type,
-        const void*            data,
-        MipLevel               level = MipLevel{ 0 }) const noexcept
-            requires mt::is_mutable && tt::has_lod
-    {
-        fill_image_impl(format, type, data, level);
-    }
-
-    void fill_image(
-        PixelDataFormat        format,
-        PixelDataType          type,
-        const void*            data) const noexcept
-            requires mt::is_mutable && (!tt::has_lod)
-    {
-        fill_image_impl(format, type, data, MipLevel{ 0 });
-    }
-
-    template<specifies_pixel_pack_traits PixelT>
-    void fill_image(
-        const PixelT& pixel_value,
-        MipLevel      level = MipLevel{ 0 }) const noexcept
-            requires mt::is_mutable && tt::has_lod
-    {
-        using pptr = pixel_pack_traits<PixelT>;
-        fill_image_impl(pptr::format, pptr::type, &pixel_value, level);
-    }
-
-    template<specifies_pixel_pack_traits PixelT>
-    void fill_image(
-        const PixelT& pixel_value) const noexcept
-            requires mt::is_mutable && (!tt::has_lod)
-    {
-        using pptr = pixel_pack_traits<PixelT>;
-        fill_image_impl(pptr::format, pptr::type, &pixel_value, MipLevel{ 0 });
-    }
-
-
-
-
-
-
-private:
-    void fill_image_region_impl(
+    void _fill_image_region(
         const tt::region_type& region,
         PixelDataFormat        format,
         PixelDataType          type,
@@ -2493,91 +2372,58 @@ private:
         else if constexpr (tt::region_ndims == 3) { fill({ offset       }, { extent       }); }
         else { JOSH3D_STATIC_ASSERT_FALSE(tt); }
     }
-public:
-
-    void fill_image_region(
-        const tt::region_type& region,
-        PixelDataFormat        format,
-        PixelDataType          type,
-        const void*            data,
-        MipLevel               level = MipLevel{ 0 }) const noexcept
-            requires mt::is_mutable && tt::has_lod
-    {
-        fill_image_region_impl(region, format, type, data, level);
-    }
-
-    void fill_image_region(
-        const tt::region_type& region,
-        PixelDataFormat        format,
-        PixelDataType          type,
-        const void*            data) const noexcept
-            requires mt::is_mutable && (!tt::has_lod)
-    {
-        fill_image_region_impl(region, format, type, data, MipLevel{ 0 });
-    }
-
-    template<specifies_pixel_pack_traits PixelT>
-    void fill_image_region(
-        const tt::region_type& region,
-        const PixelT&          pixel_value,
-        MipLevel               level = MipLevel{ 0 }) const noexcept
-            requires mt::is_mutable && tt::has_lod
-    {
-        using pptr = pixel_pack_traits<PixelT>;
-        fill_image_region_impl(region, pptr::format, pptr::type, &pixel_value, level);
-    }
-
-    template<specifies_pixel_pack_traits PixelT>
-    void fill_image_region(
-        const tt::region_type& region,
-        const PixelT&          pixel_value) const noexcept
-            requires mt::is_mutable && (!tt::has_lod)
-    {
-        using pptr = pixel_pack_traits<PixelT>;
-        fill_image_region_impl(region, pptr::format, pptr::type, &pixel_value, MipLevel{ 0 });
-    }
-
 };
 
 
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_ImageOperations_Clear {
+struct ImageOperations_Clear
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
+
+    void clear_image(MipLevel level = MipLevel{ 0 }) const
+        requires mt::is_mutable && tt::has_lod
+    {
+        _clear_image(level);
+    }
+
+    void clear_image() const
+        requires mt::is_mutable && (!tt::has_lod)
+    {
+        _clear_image(MipLevel{ 0 });
+    }
+
+    void clear_image_region(
+        const tt::region_type& region,
+        MipLevel               level = MipLevel{ 0 }) const
+            requires mt::is_mutable && tt::has_lod
+    {
+        _clear_image_region(region, level);
+    }
+
+    void clear_image_region(
+        const tt::region_type& region) const
+            requires mt::is_mutable && (!tt::has_lod)
+    {
+        _clear_image_region(region, MipLevel{ 0 });
+    }
+
 private:
-    void clear_image_impl(MipLevel level) const noexcept {
+
+    void _clear_image(MipLevel level) const
+    {
         // This is one of those functions that requires you to specify *correct* type and format
         // even though there's no data to unpack and the pointer is NULL. Insane.
+        //
+        // HMM: Wouldn't this suggest that there must exist a better DSA version of this?
         InternalFormat internal_format = as_self().get_internal_format(level);
         GLenum format = best_unpack_format(enum_cast<GLenum>(TargetV), enum_cast<GLenum>(internal_format));
         GLenum type   = best_unpack_type  (enum_cast<GLenum>(TargetV), enum_cast<GLenum>(internal_format));
-        gl::glClearTexImage(
-            self_id(), level,
-            format, type, nullptr
-        );
-    }
-public:
-
-    void clear_image(MipLevel level = MipLevel{ 0 }) const noexcept
-        requires mt::is_mutable && tt::has_lod
-    {
-        clear_image_impl(level);
+        gl::glClearTexImage(self_id(), level, format, type, nullptr);
     }
 
-    void clear_image() const noexcept
-        requires mt::is_mutable && (!tt::has_lod)
-    {
-        clear_image_impl(MipLevel{ 0 });
-    }
-
-
-
-
-private:
-    void clear_image_region_impl(
+    void _clear_image_region(
         const tt::region_type& region,
-        MipLevel               level) const noexcept
+        MipLevel               level) const
     {
         // This is one of those functions that requires you to specify *correct* type and format
         // even though there's no data to unpack and the pointer is NULL. Insane.
@@ -2602,51 +2448,28 @@ private:
         else if constexpr (tt::region_ndims == 3) { clear({ offset       }, { extent       }); }
         else { JOSH3D_STATIC_ASSERT_FALSE(tt); }
     }
-public:
-
-    void clear_image_region(
-        const tt::region_type& region,
-        MipLevel               level = MipLevel{ 0 }) const noexcept
-            requires mt::is_mutable && tt::has_lod
-    {
-        clear_image_region_impl(region, level);
-    }
-
-    void clear_image_region(
-        const tt::region_type& region) const noexcept
-            requires mt::is_mutable && (!tt::has_lod)
-    {
-        clear_image_region_impl(region, MipLevel{ 0 });
-    }
-
 };
 
 
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_ImageOperations_Invalidate {
+struct ImageOperations_Invalidate
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
 
-    void invalidate_image(MipLevel level = MipLevel{ 0 }) const noexcept
-        requires mt::is_mutable && tt::has_lod
+    void invalidate_image(MipLevel level = MipLevel{ 0 }) const requires mt::is_mutable and tt::has_lod
     {
         gl::glInvalidateTexImage(self_id(), level);
     }
 
-    void invalidate_image() const noexcept
-        requires mt::is_mutable && (!tt::has_lod)
+    void invalidate_image() const requires mt::is_mutable and (not tt::has_lod)
     {
         gl::glInvalidateTexImage(self_id(), MipLevel{ 0 });
     }
 
-
-
-
 private:
-    void invalidate_image_region_impl(
+    void _invalidate_image_region(
         const tt::region_type& region,
-        MipLevel               level) const noexcept
+        MipLevel               level) const
     {
         auto invalidate = [&, this] (
             const Index3I& offset,
@@ -2671,50 +2494,43 @@ public:
         MipLevel               level = MipLevel{ 0 }) const noexcept
             requires mt::is_mutable && tt::has_lod
     {
-        invalidate_image_region_impl(region, level);
+        _invalidate_image_region(region, level);
     }
 
     void invalidate_image_region(
         const tt::region_type& region) const noexcept
             requires mt::is_mutable && (!tt::has_lod)
     {
-        invalidate_image_region_impl(region, MipLevel{ 0 });
+        _invalidate_image_region(region, MipLevel{ 0 });
     }
 
 };
 
 
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_ImageOperations_UploadCompressed {
+struct ImageOperations_UploadCompressed
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
 
     // TODO:
     void _upload_compressed_image_region() const noexcept {}
-
 };
 
 
-
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_ImageOperations_DownloadCompressed {
+struct ImageOperations_DownloadCompressed
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
 
     // TODO:
     // void _download_compressed_image_into() const noexcept {}
     void _download_compressed_image_region_into() const noexcept {}
-
 };
 
 
-
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_ImageOperations_UploadFromReadFramebuffer {
+struct ImageOperations_UploadFromReadFramebuffer
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
 
     // TODO:
@@ -2723,14 +2539,11 @@ struct TextureDSAInterface_ImageOperations_UploadFromReadFramebuffer {
     {
         // gl::glCopyTextureSubImage*
     }
-
 };
 
-
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_ImageOperations_GenerateMipmaps {
+struct ImageOperations_GenerateMipmaps
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
 
     // Wraps `glGenerateTextureMipmap`.
@@ -2739,13 +2552,12 @@ struct TextureDSAInterface_ImageOperations_GenerateMipmaps {
     {
         gl::glGenerateTextureMipmap(self_id());
     }
-
 };
 
 
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_ImageOperations_AttachBuffer {
+struct ImageOperations_AttachBuffer
+{
     JOSH3D_TEXTURE_MIXIN_HEADER
 
     template<of_kind<GLKind::Buffer> BufferT>
@@ -2753,133 +2565,116 @@ struct TextureDSAInterface_ImageOperations_AttachBuffer {
         // A mutable texture can always read/write to the buffer using server-side commands.
         requires mutability_traits<BufferT>::is_mutable
     void attach_buffer(
-        const BufferT& buffer, BufferTextureInternalFormat internal_format) const noexcept
+        const BufferT& buffer, BufferTextureInternalFormat internal_format) const
             requires mt::is_mutable
     {
         gl::glTextureBuffer(self_id(), enum_cast<GLenum>(internal_format), decay_to_raw(buffer).id());
     }
 
-    void _attach_buffer_range() const noexcept {
+    void _attach_buffer_range() const
+    {
         // gl::glTextureBufferRange
     }
-
 };
 
 
-
-
-
-
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface_ImageOperations
+struct ImageOperations
     : conditional_mixin_t<
         TargetV != TextureTarget::TextureBuffer && !texture_target_traits<TargetV>::is_multisample,
-        TextureDSAInterface_ImageOperations_Upload<CRTP, TargetV>
+        ImageOperations_Upload<CRTP, TargetV>
     >
     , conditional_mixin_t<
         texture_target_traits<TargetV>::supports_compressed_internal_format,
-        TextureDSAInterface_ImageOperations_UploadCompressed<CRTP, TargetV>
+        ImageOperations_UploadCompressed<CRTP, TargetV>
     >
     , conditional_mixin_t<
         TargetV != TextureTarget::TextureBuffer && !texture_target_traits<TargetV>::is_multisample,
-        TextureDSAInterface_ImageOperations_UploadFromReadFramebuffer<CRTP, TargetV>
+        ImageOperations_UploadFromReadFramebuffer<CRTP, TargetV>
     >
     , conditional_mixin_t<
         TargetV != TextureTarget::TextureBuffer && !texture_target_traits<TargetV>::is_multisample,
-        TextureDSAInterface_ImageOperations_Download<CRTP, TargetV>
+        ImageOperations_Download<CRTP, TargetV>
     >
     , conditional_mixin_t<
         texture_target_traits<TargetV>::supports_compressed_internal_format,
-        TextureDSAInterface_ImageOperations_DownloadCompressed<CRTP, TargetV>
+        ImageOperations_DownloadCompressed<CRTP, TargetV>
     >
     , conditional_mixin_t<
         TargetV != TextureTarget::TextureBuffer,
-        TextureDSAInterface_ImageOperations_Copy<CRTP, TargetV>
+        ImageOperations_Copy<CRTP, TargetV>
     >
     , conditional_mixin_t<
         TargetV != TextureTarget::TextureBuffer,
-        TextureDSAInterface_ImageOperations_Fill<CRTP, TargetV>
+        ImageOperations_Fill<CRTP, TargetV>
     >
     , conditional_mixin_t<
         TargetV != TextureTarget::TextureBuffer,
-        TextureDSAInterface_ImageOperations_Clear<CRTP, TargetV>
+        ImageOperations_Clear<CRTP, TargetV>
     >
     // Apparently, invalidating Buffer Textures is fine.
-    , TextureDSAInterface_ImageOperations_Invalidate<CRTP, TargetV>
+    , ImageOperations_Invalidate<CRTP, TargetV>
     , conditional_mixin_t<
         texture_target_traits<TargetV>::has_lod,
-        TextureDSAInterface_ImageOperations_GenerateMipmaps<CRTP, TargetV>
+        ImageOperations_GenerateMipmaps<CRTP, TargetV>
     >
     , conditional_mixin_t<
         TargetV == TextureTarget::TextureBuffer,
-        TextureDSAInterface_ImageOperations_AttachBuffer<CRTP, TargetV>
+        ImageOperations_AttachBuffer<CRTP, TargetV>
     >
 {};
 
 
-
-
-
-
-
-
-
-
-
-
 template<typename CRTP, TextureTarget TargetV>
-struct TextureDSAInterface
-    : TextureDSAInterface_TextureParameters<CRTP, TargetV>
-    , TextureDSAInterface_Queries<CRTP, TargetV>
-    , TextureDSAInterface_Bind<CRTP, TargetV>
+struct Texture
+    : TextureParameters<CRTP, TargetV>
+    , Queries<CRTP, TargetV>
+    , Bind<CRTP, TargetV>
     , conditional_mixin_t<
         TargetV != TextureTarget::TextureBuffer && !texture_target_traits<TargetV>::is_multisample,
-        TextureDSAInterface_SamplerParameters<CRTP, TargetV>
+        SamplerParameters<CRTP, TargetV>
     >
     , conditional_mixin_t<
         TargetV != TextureTarget::TextureBuffer,
-        TextureDSAInterface_AllocateStorage<CRTP, TargetV>
+        AllocateStorage<CRTP, TargetV>
     >
-    , TextureDSAInterface_ImageOperations<CRTP, TargetV>
+    , ImageOperations<CRTP, TargetV>
 {};
 
 
 
 #undef JOSH3D_TEXTURE_MIXIN_HEADER
 
+} // namespace texture_api
 } // namespace detail
-
-
-
 
 
 namespace detail {
 
-// Strange hack to access in Helpers.
+/*
+Strange hack used ObjectHelpers.
+FIXME: Is this really needed?
+*/
 template<TextureTarget TargetV>
 struct texture_target_raw_mutable_type;
 
 } // namespace detail
 
 
-
-
-#define JOSH3D_GENERATE_DSA_TEXTURE_CLASSES(Name)                                                             \
-    template<mutability_tag MutT = GLMutable>                                                                 \
-    class Raw##Name                                                                                           \
-        : public detail::RawGLHandle<MutT>                                                                    \
-        , public detail::TextureDSAInterface<Raw##Name<MutT>, TextureTarget::Name>                            \
-    {                                                                                                         \
-    public:                                                                                                   \
-        static constexpr GLKind        kind_type   = GLKind::Texture;                                         \
-        static constexpr TextureTarget target_type = TextureTarget::Name;                                     \
-        JOSH3D_MAGIC_CONSTRUCTORS_2(Raw##Name, mutability_traits<Raw##Name<MutT>>, detail::RawGLHandle<MutT>) \
-    };                                                                                                        \
-    template<> struct detail::texture_target_raw_mutable_type<TextureTarget::Name> {                          \
-        using type = Raw##Name<GLMutable>;                                                                    \
-    };                                                                                                        \
+#define JOSH3D_GENERATE_DSA_TEXTURE_CLASSES(Name)                                                         \
+    template<mutability_tag MutT = GLMutable>                                                             \
+    class Raw##Name                                                                                       \
+        : public detail::RawGLHandle<>                                                                    \
+        , public detail::texture_api::Texture<Raw##Name<MutT>, TextureTarget::Name>                       \
+    {                                                                                                     \
+    public:                                                                                               \
+        static constexpr auto kind_type   = GLKind::Texture;                                              \
+        static constexpr auto target_type = TextureTarget::Name;                                          \
+        JOSH3D_MAGIC_CONSTRUCTORS_2(Raw##Name, mutability_traits<Raw##Name<MutT>>, detail::RawGLHandle<>) \
+    };                                                                                                    \
+    template<> struct detail::texture_target_raw_mutable_type<TextureTarget::Name> {                      \
+        using type = Raw##Name<GLMutable>;                                                                \
+    };                                                                                                    \
     static_assert(sizeof(Raw##Name<GLMutable>) == sizeof(Raw##Name<GLConst>));
 
 JOSH3D_GENERATE_DSA_TEXTURE_CLASSES(Texture1D)

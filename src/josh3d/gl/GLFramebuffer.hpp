@@ -5,11 +5,12 @@
 #include "GLKind.hpp"
 #include "GLScalars.hpp"
 #include "GLMutability.hpp"
+#include "GLTextures.hpp"
 #include "EnumUtils.hpp"
 #include "Region.hpp"
 #include "detail/MagicConstructorsMacro.hpp"
 #include "detail/RawGLHandle.hpp"
-#include "GLTextures.hpp"
+#include "detail/MixinHeaderMacro.hpp"
 #include <glbinding/gl/bitfield.h>
 #include <glbinding/gl/enum.h>
 #include <glbinding/gl/functions.h>
@@ -110,45 +111,41 @@ class RawDefaultFramebuffer;
 namespace detail {
 namespace framebuffer_api {
 
+
 template<typename CRTP>
 struct Bind
 {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-public:
+    JOSH3D_MIXIN_HEADER
+
     // Wraps `glBindFramebuffer` with `target = GL_READ_FRAMEBUFFER`.
     [[nodiscard("BindTokens have to be provided to an API call that expects bound state.")]]
-    auto bind_read() const
-        -> BindToken<Binding::ReadFramebuffer>
+    auto bind_read() const -> BindToken<Binding::ReadFramebuffer>
     {
         return glapi::bind_to_context<Binding::ReadFramebuffer>(self_id());
     }
 
     // Wraps `glBindFramebuffer` with `target = GL_DRAW_FRAMEBUFFER`.
     [[nodiscard("BindTokens have to be provided to an API call that expects bound state.")]]
-    auto bind_draw() const
-        -> BindToken<Binding::DrawFramebuffer>
-            requires mt::is_mutable
+    auto bind_draw() const -> BindToken<Binding::DrawFramebuffer>
+        requires mt::is_mutable
     {
         return glapi::bind_to_context<Binding::DrawFramebuffer>(self_id());
     }
 };
 
+
 template<typename CRTP>
 struct Common
 {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-public:
+    JOSH3D_MIXIN_HEADER
+
     // Wraps `glBlitNamedFramebuffer`.
     void blit_to(
         RawFramebuffer<GLMutable> dst,
         const Region2I&           src_region,
         const Region2I&           dst_region,
         BufferMask                buffers,
-        BlitFilter                filter) const noexcept;
+        BlitFilter                filter) const;
 
     // Wraps `glBlitNamedFramebuffer`.
     void blit_to(
@@ -156,64 +153,83 @@ public:
         const Region2I&                  src_region,
         const Region2I&                  dst_region,
         BufferMask                       buffers,
-        BlitFilter                       filter) const noexcept;
+        BlitFilter                       filter) const;
 
     // Wraps `glClearNamedFramebufferfv` with `buffer = GL_DEPTH`.
-    void clear_depth(GLfloat value) const noexcept
-        requires mt::is_mutable
+    void clear_depth(GLfloat value) const requires mt::is_mutable
     {
-        gl::glClearNamedFramebufferfv(
-            self_id(),
-            gl::GL_DEPTH, // Buffer.
-            0,            // Must be 0.
-            &value        // "Color"
-        );
+        gl::glClearNamedFramebufferfv(self_id(), gl::GL_DEPTH, 0, &value);
     }
 
-    // TODO:
-    void _clear_color();
+    // Wraps `glClearNamedFramebufferiv` with `buffer = GL_STENCIL`.
+    void clear_stencil(GLint value) const requires mt::is_mutable
+    {
+        gl::glClearNamedFramebufferiv(self_id(), gl::GL_STENCIL, 0, &value);
+    }
+
+    // Wraps `glClearNamedFramebufferfi` with `buffer = GL_DEPTH_STENCIL`.
+    void clear_depth_stencil(GLfloat depth, GLint stencil) const requires mt::is_mutable
+    {
+        gl::glClearNamedFramebufferfi(self_id(), gl::GL_DEPTH_STENCIL, 0, depth, stencil);
+    }
+
+    // Wraps `glClearNamedFramebufferfv` with `buffer = GL_DEPTH`.
+    void clear_color(GLint buffer_index, const RGBAF& color = {}) const requires mt::is_mutable
+    {
+        gl::glClearNamedFramebufferfv(self_id(), gl::GL_COLOR, buffer_index, &color.r);
+    }
+
+    // Wraps `glClearNamedFramebufferiv` with `buffer = GL_COLOR`.
+    //
+    // TODO: The "int/uint" naming is not consistent with other places.
+    void clear_color_int(GLint buffer_index, const RGBAI& color = {}) const requires mt::is_mutable
+    {
+        gl::glClearNamedFramebufferiv(self_id(), gl::GL_COLOR, buffer_index, &color.r);
+    }
+
+    // Wraps `glClearNamedFramebufferuiv` with `buffer = GL_COLOR`.
+    //
+    // TODO: The "int/uint" naming is not consistent with other places.
+    void clear_color_uint(GLint buffer_index, const RGBAUI& color = {}) const requires mt::is_mutable
+    {
+        gl::glClearNamedFramebufferuiv(self_id(), gl::GL_COLOR, buffer_index, &color.r);
+    }
 
     // Wraps `glCheckNamedFramebufferStatus` with `target = GL_DRAW_FRAMEBUFFER`.
-    auto get_status_for_draw() const noexcept
-        -> FramebufferStatus
+    auto get_status_for_draw() const -> FramebufferStatus
     {
         return enum_cast<FramebufferStatus>(
             gl::glCheckNamedFramebufferStatus(self_id(), gl::GL_DRAW_FRAMEBUFFER));
     }
 
     // Wraps `glCheckNamedFramebufferStatus` with `target = GL_READ_FRAMEBUFFER`
-    auto get_status_for_read() const noexcept
-        -> FramebufferStatus
+    auto get_status_for_read() const -> FramebufferStatus
     {
         return enum_cast<FramebufferStatus>(
             gl::glCheckNamedFramebufferStatus(self_id(), gl::GL_READ_FRAMEBUFFER));
     }
 
     // Wraps `glCheckNamedFramebufferStatus` with `target = GL_DRAW_FRAMEBUFFER`.
-    auto is_complete_for_draw() const noexcept
-        -> bool
+    auto is_complete_for_draw() const -> bool
     {
         return get_status_for_draw() == FramebufferStatus::Complete;
     }
 
     // Wraps `glCheckNamedFramebufferStatus` with `target = GL_READ_FRAMEBUFFER`
-    auto is_complete_for_read() const noexcept
-        -> bool
+    auto is_complete_for_read() const -> bool
     {
         return get_status_for_read() == FramebufferStatus::Complete;
     }
 };
 
+
 template<typename CRTP>
 struct Attachments
 {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-public:
+    JOSH3D_MIXIN_HEADER
+
     // Wraps `glNamedFramebufferDrawBuffer` with `buf = GL_COLOR_ATTACHMENT0 + attachment_index`.
-    void specify_single_color_buffer_for_draw(GLuint attachment_index) const noexcept
-        requires mt::is_mutable
+    void specify_single_color_buffer_for_draw(GLuint attachment_index) const requires mt::is_mutable
     {
         assert(self_id() != 0);
         gl::glNamedFramebufferDrawBuffer(self_id(), GLenum{ GLuint(gl::GL_COLOR_ATTACHMENT0) + attachment_index });
@@ -221,8 +237,7 @@ public:
 
     // Wraps `glNamedFramebufferDrawBuffers` with `bufs[i] = GL_COLOR_ATTACHMENT0 + attachment_indices[i]`.
     template<std::convertible_to<GLuint> ...UIntT>
-    void specify_color_buffers_for_draw(UIntT... attachment_indices) const noexcept
-        requires mt::is_mutable
+    void specify_color_buffers_for_draw(UIntT... attachment_indices) const requires mt::is_mutable
     {
         assert(self_id() != 0);
         constexpr auto bufs_size = sizeof...(UIntT);
@@ -232,30 +247,28 @@ public:
 
     // Wraps `glNamedFramebufferDrawBuffers` with `bufs = attachment_constants.data()`.
     // Overload for runtime-sized arrays. You have to pick the right GLenums yourself.
-    void specify_color_buffers_for_draw(std::span<const GLenum> attachment_constants) const noexcept
-        requires mt::is_mutable
+    void specify_color_buffers_for_draw(std::span<const GLenum> attachment_constants) const requires mt::is_mutable
     {
         assert(self_id() != 0);
         gl::glNamedFramebufferDrawBuffers(self_id(), attachment_constants.size(), attachment_constants.data());
     }
 
     // Wraps `glNamedFramebufferDrawBuffer` with `buf = GL_NONE`.
-    void disable_all_color_buffers_for_draw() const noexcept
-        requires mt::is_mutable
+    void disable_all_color_buffers_for_draw() const requires mt::is_mutable
     {
         assert(self_id() == 0);
         gl::glNamedFramebufferDrawBuffer(self_id(), gl::GL_NONE);
     }
 
     // Wraps `glNamedFramebufferReadBuffer` with `src = GL_COLOR_ATTACHMENT0 + attachment_index`.
-    void specify_color_buffer_for_read(GLuint attachment_index) const noexcept
+    void specify_color_buffer_for_read(GLuint attachment_index) const
     {
         assert(self_id() != 0);
         gl::glNamedFramebufferReadBuffer(self_id(), GLenum{ GLuint(gl::GL_COLOR_ATTACHMENT0) + attachment_index });
     }
 
     // Wraps `glNamedFramebufferReadBuffer` with `src = GL_NONE`.
-    void disable_all_color_buffers_for_read() const noexcept
+    void disable_all_color_buffers_for_read() const
     {
         assert(self_id() == 0);
         gl::glNamedFramebufferReadBuffer(self_id(), gl::GL_NONE);
@@ -270,8 +283,7 @@ public:
     void attach_texture_to_color_buffer(
         const TextureT& texture,
         GLuint          attachment_index,
-        MipLevel        mip_level = MipLevel{ 0 }) const noexcept
-            requires mt::is_mutable
+        MipLevel        mip_level = MipLevel{ 0 }) const requires mt::is_mutable
     {
         assert(self_id() != 0);
         gl::glNamedFramebufferTexture(
@@ -289,7 +301,7 @@ public:
             (!texture_traits<TextureT>::has_lod)
     void attach_texture_to_color_buffer(
         const TextureT& texture,
-        GLuint          attachment_index) const noexcept
+        GLuint          attachment_index) const
             requires mt::is_mutable
     {
         assert(self_id() != 0);
@@ -305,12 +317,11 @@ public:
     // Wraps `glNamedFramebufferTexture` with `attachment = GL_DEPTH_ATTACHMENT`.
     template<of_kind<GLKind::Texture> TextureT>
         requires
-            mutability_traits<TextureT>::is_mutable &&
+            mutability_traits<TextureT>::is_mutable and
             texture_traits<TextureT>::has_lod
     void attach_texture_to_depth_buffer(
         const TextureT& texture,
-        MipLevel        mip_level = MipLevel{ 0 }) const noexcept
-            requires mt::is_mutable
+        MipLevel        mip_level = MipLevel{ 0 }) const requires mt::is_mutable
     {
         assert(self_id() != 0);
         gl::glNamedFramebufferTexture(
@@ -324,11 +335,10 @@ public:
     // Wraps `glNamedFramebufferTexture` with `attachment = GL_DEPTH_ATTACHMENT`.
     template<of_kind<GLKind::Texture> TextureT>
         requires
-            mutability_traits<TextureT>::is_mutable &&
-            (!texture_traits<TextureT>::has_lod)
+            mutability_traits<TextureT>::is_mutable and
+            (not texture_traits<TextureT>::has_lod)
     void attach_texture_to_depth_buffer(
-        const TextureT& texture) const noexcept
-            requires mt::is_mutable
+        const TextureT& texture) const requires mt::is_mutable
     {
         assert(self_id() != 0);
         gl::glNamedFramebufferTexture(
@@ -343,12 +353,11 @@ public:
     // Wraps `glNamedFramebufferTexture` with `attachment = GL_STENCIL_ATTACHMENT`.
     template<of_kind<GLKind::Texture> TextureT>
         requires
-            mutability_traits<TextureT>::is_mutable &&
+            mutability_traits<TextureT>::is_mutable and
             texture_traits<TextureT>::has_lod
     void attach_texture_to_stencil_buffer(
         const TextureT& texture,
-        MipLevel        mip_level = MipLevel{ 0 }) const noexcept
-            requires mt::is_mutable
+        MipLevel        mip_level = MipLevel{ 0 }) const requires mt::is_mutable
     {
         assert(self_id() != 0);
         gl::glNamedFramebufferTexture(
@@ -362,11 +371,9 @@ public:
     // Wraps `glNamedFramebufferTexture` with `attachment = GL_STENCIL_ATTACHMENT`.
     template<of_kind<GLKind::Texture> TextureT>
         requires
-            mutability_traits<TextureT>::is_mutable &&
-            (!texture_traits<TextureT>::has_lod)
-    void attach_texture_to_stencil_buffer(
-        const TextureT& texture) const noexcept
-            requires mt::is_mutable
+            mutability_traits<TextureT>::is_mutable and
+            (not texture_traits<TextureT>::has_lod)
+    void attach_texture_to_stencil_buffer(const TextureT& texture) const requires mt::is_mutable
     {
         assert(self_id() != 0);
         gl::glNamedFramebufferTexture(
@@ -381,14 +388,14 @@ public:
     // Wraps `glNamedFramebufferTextureLayer` with `attachment = GL_COLOR_ATTACHMENT0 + attachment_index`.
     template<of_kind<GLKind::Texture> TextureT>
         requires
-            mutability_traits<TextureT>::is_mutable &&
-            texture_traits<TextureT>::has_lod &&
+            mutability_traits<TextureT>::is_mutable and
+            texture_traits<TextureT>::has_lod and
             texture_traits<TextureT>::is_layered
     void attach_texture_layer_to_color_buffer(
         const TextureT& texture,
         Layer           layer,
         GLuint          attachment_index,
-        MipLevel        mip_level = MipLevel{ 0 }) const noexcept
+        MipLevel        mip_level = MipLevel{ 0 }) const
             requires mt::is_mutable
     {
         assert(self_id() != 0);
@@ -404,13 +411,13 @@ public:
     // Wraps `glNamedFramebufferTextureLayer` with `attachment = GL_COLOR_ATTACHMENT0 + attachment_index`.
     template<of_kind<GLKind::Texture> TextureT>
         requires
-            mutability_traits<TextureT>::is_mutable &&
-            (!texture_traits<TextureT>::has_lod) &&
+            mutability_traits<TextureT>::is_mutable and
+            (not texture_traits<TextureT>::has_lod) and
             texture_traits<TextureT>::is_layered
     void attach_texture_layer_to_color_buffer(
         const TextureT& texture,
         Layer           layer,
-        GLuint          attachment_index) const noexcept
+        GLuint          attachment_index) const
             requires mt::is_mutable
     {
         assert(self_id() != 0);
@@ -427,13 +434,13 @@ public:
     // Wraps `glNamedFramebufferTextureLayer` with `attachment = GL_DEPTH_ATTACHMENT`.
     template<of_kind<GLKind::Texture> TextureT>
         requires
-            mutability_traits<TextureT>::is_mutable &&
-            texture_traits<TextureT>::has_lod &&
+            mutability_traits<TextureT>::is_mutable and
+            texture_traits<TextureT>::has_lod and
             texture_traits<TextureT>::is_layered
     void attach_texture_layer_to_depth_buffer(
         const TextureT& texture,
         Layer           layer,
-        MipLevel        mip_level = MipLevel{ 0 }) const noexcept
+        MipLevel        mip_level = MipLevel{ 0 }) const
             requires mt::is_mutable
     {
         assert(self_id() != 0);
@@ -449,12 +456,12 @@ public:
     // Wraps `glNamedFramebufferTextureLayer` with `attachment = GL_DEPTH_ATTACHMENT`.
     template<of_kind<GLKind::Texture> TextureT>
         requires
-            mutability_traits<TextureT>::is_mutable &&
-            (!texture_traits<TextureT>::has_lod) &&
+            mutability_traits<TextureT>::is_mutable and
+            (not texture_traits<TextureT>::has_lod) and
             texture_traits<TextureT>::is_layered
     void attach_texture_layer_to_depth_buffer(
         const TextureT& texture,
-        Layer           layer) const noexcept
+        Layer           layer) const
             requires mt::is_mutable
     {
         assert(self_id() != 0);
@@ -471,13 +478,13 @@ public:
     // Wraps `glNamedFramebufferTextureLayer` with `attachment = GL_STENCIL_ATTACHMENT`.
     template<of_kind<GLKind::Texture> TextureT>
         requires
-            mutability_traits<TextureT>::is_mutable &&
-            texture_traits<TextureT>::has_lod &&
+            mutability_traits<TextureT>::is_mutable and
+            texture_traits<TextureT>::has_lod and
             texture_traits<TextureT>::is_layered
     void attach_texture_layer_to_stencil_buffer(
         const TextureT& texture,
         Layer           layer,
-        MipLevel        mip_level = MipLevel{ 0 }) const noexcept
+        MipLevel        mip_level = MipLevel{ 0 }) const
             requires mt::is_mutable
     {
         assert(self_id() != 0);
@@ -493,12 +500,12 @@ public:
     // Wraps `glNamedFramebufferTextureLayer` with `attachment = GL_STENCIL_ATTACHMENT`.
     template<of_kind<GLKind::Texture> TextureT>
         requires
-            mutability_traits<TextureT>::is_mutable &&
-            (!texture_traits<TextureT>::has_lod) &&
+            mutability_traits<TextureT>::is_mutable and
+            (not texture_traits<TextureT>::has_lod) and
             texture_traits<TextureT>::is_layered
     void attach_texture_layer_to_stencil_buffer(
         const TextureT& texture,
-        Layer           layer) const noexcept
+        Layer           layer) const
             requires mt::is_mutable
     {
         assert(self_id() != 0);
@@ -513,22 +520,20 @@ public:
 
 
     // TODO:
-    void _attach_renderbuffer_to_color_buffer() const noexcept {}
-    void _attach_renderbuffer_to_depth_buffer() const noexcept {}
-    void _attach_renderbuffer_to_stencil_buffer() const noexcept {}
+    void _attach_renderbuffer_to_color_buffer() const {}
+    void _attach_renderbuffer_to_depth_buffer() const {}
+    void _attach_renderbuffer_to_stencil_buffer() const {}
 
 
     // Wraps `glNamedFramebufferTexture` with `attachment = GL_COLOR_ATTACHMENT0 + attachment_index` and `texture = 0`.
-    void detach_color_buffer(GLuint attachment_index) const noexcept
-        requires mt::is_mutable
+    void detach_color_buffer(GLuint attachment_index) const requires mt::is_mutable
     {
         gl::glNamedFramebufferTexture(
             self_id(), GLenum{ GLuint(gl::GL_COLOR_ATTACHMENT0) + attachment_index }, 0, 0);
     }
 
     // Wraps `glNamedFramebufferTexture` with `attachment = GL_DEPTH_ATTACHMENT` and `texture = 0`.
-    void detach_depth_buffer() const noexcept
-        requires mt::is_mutable
+    void detach_depth_buffer() const requires mt::is_mutable
     {
         gl::glNamedFramebufferTexture(
             self_id(), gl::GL_DEPTH_ATTACHMENT, 0, 0
@@ -536,8 +541,7 @@ public:
     }
 
     // Wraps `glNamedFramebufferTexture` with `attachment = GL_DEPTH_ATTACHMENT` and `texture = 0`.
-    void detach_stencil_buffer() const noexcept
-        requires mt::is_mutable
+    void detach_stencil_buffer() const requires mt::is_mutable
     {
         gl::glNamedFramebufferTexture(
             self_id(), gl::GL_STENCIL_ATTACHMENT, 0, 0
@@ -547,16 +551,14 @@ public:
     // Also: get_attachemnt_type, etc.
 };
 
+
 template<typename CRTP>
 struct DefaultAttachments
 {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mt = mutability_traits<CRTP>;
-public:
+    JOSH3D_MIXIN_HEADER
+
     // Wraps `glNamedFramebufferDrawBuffer` with `buf = attachment_set`.
-    void specify_default_buffer_set_for_draw(DefaultFramebufferBufferSet attachment_set) const noexcept
-        requires mt::is_mutable
+    void specify_default_buffer_set_for_draw(DefaultFramebufferBufferSet attachment_set) const requires mt::is_mutable
     {
         assert(self_id() == 0);
         gl::glNamedFramebufferDrawBuffer(self_id(), enum_cast<GLenum>(attachment_set));
@@ -564,8 +566,7 @@ public:
 
     // Wraps `glNamedFramebufferDrawBuffers` with `bufs[i] = attachment_buffers[i]`.
     template<std::same_as<DefaultFramebufferBuffer> ...DefaultFramebufferBufferT>
-    void specify_default_buffers_for_draw(DefaultFramebufferBufferT... attachment_buffers) const noexcept
-        requires mt::is_mutable
+    void specify_default_buffers_for_draw(DefaultFramebufferBufferT... attachment_buffers) const requires mt::is_mutable
     {
         assert(self_id() == 0);
         constexpr auto bufs_size = sizeof...(DefaultFramebufferBufferT);
@@ -575,8 +576,7 @@ public:
 
     // Wraps `glNamedFramebufferDrawBuffers` with `bufs = attachment_constants.data()`.
     // Overload for runtime-sized arrays. You have to pick the right GLenums yourself.
-    void specify_default_buffers_for_draw(std::span<const GLenum> attachment_constants) const noexcept
-        requires mt::is_mutable
+    void specify_default_buffers_for_draw(std::span<const GLenum> attachment_constants) const requires mt::is_mutable
     {
         assert(self_id() != 0);
         gl::glNamedFramebufferDrawBuffers(
@@ -585,8 +585,7 @@ public:
     }
 
     // Wraps `glNamedFramebufferDrawBuffer` with `buf = GL_NONE`.
-    void disable_all_default_buffers_for_draw() const noexcept
-        requires mt::is_mutable
+    void disable_all_default_buffers_for_draw() const requires mt::is_mutable
     {
         assert(self_id() == 0);
         gl::glNamedFramebufferDrawBuffer(self_id(), gl::GL_NONE);
@@ -594,16 +593,14 @@ public:
 
 
     // Wraps `glNamedFramebufferReadBuffer` with `src = attachment_buffer`.
-    void specify_default_buffer_for_read(DefaultFramebufferBuffer attachment_buffer) const noexcept
-        requires mt::is_mutable
+    void specify_default_buffer_for_read(DefaultFramebufferBuffer attachment_buffer) const requires mt::is_mutable
     {
         assert(self_id() == 0);
         gl::glNamedFramebufferReadBuffer(self_id(), enum_cast<GLenum>(attachment_buffer));
     }
 
     // Wraps `glNamedFramebufferReadBuffer` with `src = GL_NONE`.
-    void disable_all_default_buffers_for_read() const noexcept
-        requires mt::is_mutable
+    void disable_all_default_buffers_for_read() const requires mt::is_mutable
     {
         assert(self_id() == 0);
         gl::glNamedFramebufferReadBuffer(self_id(), gl::GL_NONE);
@@ -631,29 +628,28 @@ struct DefaultFramebuffer
 
 
 
-
 template<mutability_tag MutT = GLMutable>
 class RawFramebuffer
-    : public detail::RawGLHandle<MutT>
+    : public detail::RawGLHandle<>
     , public detail::framebuffer_api::Framebuffer<RawFramebuffer<MutT>>
 {
 public:
-    static constexpr GLKind kind_type = GLKind::Framebuffer;
-    JOSH3D_MAGIC_CONSTRUCTORS_2(RawFramebuffer, mutability_traits<RawFramebuffer>, detail::RawGLHandle<MutT>)
-
+    static constexpr auto kind_type = GLKind::Framebuffer;
+    JOSH3D_MAGIC_CONSTRUCTORS_2(RawFramebuffer, mutability_traits<RawFramebuffer>, detail::RawGLHandle<>)
 };
 
 
 template<mutability_tag MutT = GLMutable>
 class RawDefaultFramebuffer
-    : public detail::RawGLHandle<MutT>
+    : public detail::RawGLHandle<>
     , public detail::framebuffer_api::DefaultFramebuffer<RawDefaultFramebuffer<MutT>>
 {
 public:
-    static constexpr GLKind kind_type = GLKind::DefaultFramebuffer;
-    JOSH3D_MAGIC_CONSTRUCTORS_CONVERSION(RawDefaultFramebuffer, mutability_traits<RawDefaultFramebuffer>, detail::RawGLHandle<MutT>)
+    // NOTE: This kind cannot be allocated.
+    static constexpr auto kind_type = GLKind::DefaultFramebuffer;
+    JOSH3D_MAGIC_CONSTRUCTORS_CONVERSION(RawDefaultFramebuffer, mutability_traits<RawDefaultFramebuffer>, detail::RawGLHandle<>)
     // Can only be 0.
-    RawDefaultFramebuffer() noexcept : detail::RawGLHandle<MutT>{ 0 } {}
+    RawDefaultFramebuffer() noexcept : detail::RawGLHandle<>{ 0 } {}
 };
 
 
@@ -663,7 +659,7 @@ inline void detail::framebuffer_api::Common<CRTP>::blit_to(
     const Region2I&           src_region,
     const Region2I&           dst_region,
     BufferMask                buffers,
-    BlitFilter                filter) const noexcept
+    BlitFilter                filter) const
 {
     const Offset2I& src_offset     = src_region.offset;
     const Offset2I& dst_offset     = dst_region.offset;
@@ -686,13 +682,10 @@ inline void detail::framebuffer_api::Common<CRTP>::blit_to(
     const Region2I&                  src_region,
     const Region2I&                  dst_region,
     BufferMask                       buffers,
-    BlitFilter                       filter) const noexcept
+    BlitFilter                       filter) const
 {
-    blit_to(
-        RawFramebuffer<GLMutable>::from_id(0),
-        src_region, dst_region,
-        buffers, filter
-    );
+    blit_to(RawFramebuffer<GLMutable>::from_id(0),
+        src_region, dst_region, buffers, filter);
 }
 
 

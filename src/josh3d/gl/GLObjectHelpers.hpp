@@ -9,7 +9,6 @@
 #include "GLTextures.hpp"
 #include "DecayToRaw.hpp" // IWYU pragma: export
 #include "Region.hpp"
-#include <glbinding/gl/types.h>
 #include <algorithm>
 #include <bit>
 #include <type_traits>

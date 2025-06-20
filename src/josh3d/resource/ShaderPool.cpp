@@ -243,12 +243,12 @@ auto make_any_shader(ShaderTarget target)
     switch (target)
     {
         using enum ShaderTarget;
-        case VertexShader:         return UniqueVertexShader();
-        case TessControlShader:    return UniqueTessControlShader();
-        case TessEvaluationShader: return UniqueTessEvaluationShader();
-        case GeometryShader:       return UniqueGeometryShader();
-        case FragmentShader:       return UniqueFragmentShader();
-        case ComputeShader:        return UniqueComputeShader();
+        case Vertex:         return UniqueVertexShader();
+        case TessControl:    return UniqueTessControlShader();
+        case TessEvaluation: return UniqueTessEvaluationShader();
+        case Geometry:       return UniqueGeometryShader();
+        case Fragment:       return UniqueFragmentShader();
+        case Compute:        return UniqueComputeShader();
         default: panic("Unexpected ShaderTarget.");
     }
 }
@@ -395,12 +395,12 @@ auto ShaderPoolImpl::get(const ProgramFiles& files, const ProgramDefines& define
 
     ProgramDesc program_desc{ .defines = defines, .primaries = {} };
 
-    if (files.vert) { program_desc.primaries.emplace(ShaderTarget::VertexShader,         PrimaryDesc{ .file = *files.vert, .included = {} }); }
-    if (files.tesc) { program_desc.primaries.emplace(ShaderTarget::TessControlShader,    PrimaryDesc{ .file = *files.tesc, .included = {} }); }
-    if (files.tese) { program_desc.primaries.emplace(ShaderTarget::TessEvaluationShader, PrimaryDesc{ .file = *files.tese, .included = {} }); }
-    if (files.geom) { program_desc.primaries.emplace(ShaderTarget::GeometryShader,       PrimaryDesc{ .file = *files.geom, .included = {} }); }
-    if (files.frag) { program_desc.primaries.emplace(ShaderTarget::FragmentShader,       PrimaryDesc{ .file = *files.frag, .included = {} }); }
-    if (files.comp) { program_desc.primaries.emplace(ShaderTarget::ComputeShader,        PrimaryDesc{ .file = *files.comp, .included = {} }); }
+    if (files.vert) { program_desc.primaries.emplace(ShaderTarget::Vertex,         PrimaryDesc{ .file = *files.vert, .included = {} }); }
+    if (files.tesc) { program_desc.primaries.emplace(ShaderTarget::TessControl,    PrimaryDesc{ .file = *files.tesc, .included = {} }); }
+    if (files.tese) { program_desc.primaries.emplace(ShaderTarget::TessEvaluation, PrimaryDesc{ .file = *files.tese, .included = {} }); }
+    if (files.geom) { program_desc.primaries.emplace(ShaderTarget::Geometry,       PrimaryDesc{ .file = *files.geom, .included = {} }); }
+    if (files.frag) { program_desc.primaries.emplace(ShaderTarget::Fragment,       PrimaryDesc{ .file = *files.frag, .included = {} }); }
+    if (files.comp) { program_desc.primaries.emplace(ShaderTarget::Compute,        PrimaryDesc{ .file = *files.comp, .included = {} }); }
 
     UniqueProgram new_program_obj = load_and_compile_program(program_desc);
 

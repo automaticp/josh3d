@@ -43,13 +43,13 @@ public:
     auto num_staged() const noexcept -> NumElems { return NumElems{ staged_.size() }; }
 
     // Clear staged storage and stage new data.
-    auto restage(std::ranges::range auto&& r) -> BufferRange;
+    auto restage(std::ranges::range auto&& r) -> ElemRange;
 
     // Stage new data by appending to the existing staged storage.
-    auto stage(std::ranges::range auto&& r) -> BufferRange;
+    auto stage(std::ranges::range auto&& r) -> ElemRange;
 
     // Stage a single element by appending to the existing storage. Effectively push_back().
-    auto stage_one(const T& value) -> BufferRange;
+    auto stage_one(const T& value) -> ElemRange;
 
     // Obtain a readonly view to the staged storage.
     auto view_staged() const noexcept -> Span<const T> { return staged_; }
@@ -62,11 +62,11 @@ public:
 
     // Commit staged data to the GPU and bind the buffer to the `index`.
     auto bind_to_ssbo_index(u32 index)
-        -> BindToken<BindingIndexed::ShaderStorageBuffer>;
+        -> BindToken<BindingI::ShaderStorageBuffer>;
 
     // Commit staged data to the GPU and bind the buffer `range` to the `index`.
-    auto bind_range_to_ssbo_index(const BufferRange& range, u32 index)
-        -> BindToken<BindingIndexed::ShaderStorageBuffer>;
+    auto bind_range_to_ssbo_index(const ElemRange& range, u32 index)
+        -> BindToken<BindingI::ShaderStorageBuffer>;
 
     // Commit staged data to the GPU and bind as the indirect draw buffer.
     auto bind_to_indirect_draw()
@@ -98,7 +98,7 @@ void UploadBuffer<T>::clear()
 
 template<trivially_copyable T>
 auto UploadBuffer<T>::restage(std::ranges::range auto&& r)
-    -> BufferRange
+    -> ElemRange
 {
     clear();
 
@@ -113,7 +113,7 @@ auto UploadBuffer<T>::restage(std::ranges::range auto&& r)
 
 template<trivially_copyable T>
 auto UploadBuffer<T>::stage(std::ranges::range auto&& r)
-    -> BufferRange
+    -> ElemRange
 {
     const auto old_end = OffsetElems(num_staged());
     std::ranges::copy(r, std::back_inserter(staged_));
@@ -128,7 +128,7 @@ auto UploadBuffer<T>::stage(std::ranges::range auto&& r)
 
 template<trivially_copyable T>
 auto UploadBuffer<T>::stage_one(const T& value)
-    -> BufferRange
+    -> ElemRange
 {
     const auto old_end = OffsetElems(num_staged());
     staged_.push_back(value);
@@ -157,7 +157,7 @@ void UploadBuffer<T>::ensure_synced()
 
 template<trivially_copyable T>
 auto UploadBuffer<T>::bind_to_ssbo_index(u32 index)
-    -> BindToken<BindingIndexed::ShaderStorageBuffer>
+    -> BindToken<BindingI::ShaderStorageBuffer>
 {
     ensure_synced();
 
@@ -165,7 +165,7 @@ auto UploadBuffer<T>::bind_to_ssbo_index(u32 index)
     {
         // We want to only bind the range that covers staged data,
         // even if amortized allocation might've left the buffer larger.
-        const BufferRange range = { OffsetElems{ 0 }, num_staged() };
+        const ElemRange range = { OffsetElems{ 0 }, num_staged() };
         return buffer_->template bind_range_to_index<BufferTargetI::ShaderStorage>(range.offset, range.count, index);
     }
     else /* nothing to bind, unbind the storage */
@@ -177,8 +177,8 @@ auto UploadBuffer<T>::bind_to_ssbo_index(u32 index)
 }
 
 template<trivially_copyable T>
-auto UploadBuffer<T>::bind_range_to_ssbo_index(const BufferRange& range, u32 index)
-    -> BindToken<BindingIndexed::ShaderStorageBuffer>
+auto UploadBuffer<T>::bind_range_to_ssbo_index(const ElemRange& range, u32 index)
+    -> BindToken<BindingI::ShaderStorageBuffer>
 {
     ensure_synced();
     assert(range.offset + range.count <= num_staged());

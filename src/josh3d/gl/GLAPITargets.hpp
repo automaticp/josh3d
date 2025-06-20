@@ -81,20 +81,20 @@ TODO: Why not just call them "Compute", "Vertex", etc? Was it because of macros?
 */
 enum class ShaderTarget : GLuint
 {
-    ComputeShader        = GLuint(gl::GL_COMPUTE_SHADER),
-    VertexShader         = GLuint(gl::GL_VERTEX_SHADER),
-    TessControlShader    = GLuint(gl::GL_TESS_CONTROL_SHADER),
-    TessEvaluationShader = GLuint(gl::GL_TESS_EVALUATION_SHADER),
-    GeometryShader       = GLuint(gl::GL_GEOMETRY_SHADER),
-    FragmentShader       = GLuint(gl::GL_FRAGMENT_SHADER),
+    Compute        = GLuint(gl::GL_COMPUTE_SHADER),
+    Vertex         = GLuint(gl::GL_VERTEX_SHADER),
+    TessControl    = GLuint(gl::GL_TESS_CONTROL_SHADER),
+    TessEvaluation = GLuint(gl::GL_TESS_EVALUATION_SHADER),
+    Geometry       = GLuint(gl::GL_GEOMETRY_SHADER),
+    Fragment       = GLuint(gl::GL_FRAGMENT_SHADER),
 };
 JOSH3D_DEFINE_ENUM_EXTRAS(ShaderTarget,
-    ComputeShader,
-    VertexShader,
-    TessControlShader,
-    TessEvaluationShader,
-    GeometryShader,
-    FragmentShader);
+    Compute,
+    Vertex,
+    TessControl,
+    TessEvaluation,
+    Geometry,
+    Fragment);
 
 enum class QueryTarget : GLuint
 {

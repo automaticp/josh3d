@@ -1,15 +1,13 @@
 #pragma once
+#include "GLAPI.hpp"
+#include "GLAPITargets.hpp"
+#include "GLScalars.hpp"
+#include "detail/GLAPIGet.hpp"
 #include "CommonConcepts.hpp"
 #include "CommonMacros.hpp"
 #include "ContainerUtils.hpp"
 #include "EnumUtils.hpp"
-#include "GLAPI.hpp"
-#include "GLAPITargets.hpp"
-#include "GLScalars.hpp"
 #include "Semantics.hpp"
-#include "detail/GLAPIGet.hpp"
-#include <glbinding/gl/enum.h>
-#include <glbinding/gl/functions.h>
 
 
 namespace josh {
@@ -104,7 +102,7 @@ JOSH3D_DEFINE_ENUM_EXTRAS(Binding,
 /*
 Indexed binding slots.
 */
-enum class BindingIndexed : GLuint
+enum class BindingI : GLuint
 {
     TransformFeedbackBuffer = GLuint(gl::GL_TRANSFORM_FEEDBACK_BUFFER_BINDING),
     UniformBuffer           = GLuint(gl::GL_UNIFORM_BUFFER_BINDING),
@@ -124,7 +122,7 @@ enum class BindingIndexed : GLuint
     CubemapArray            = GLuint(gl::GL_TEXTURE_BINDING_CUBE_MAP_ARRAY),
     Sampler                 = GLuint(gl::GL_SAMPLER_BINDING),
 };
-JOSH3D_DEFINE_ENUM_EXTRAS(BindingIndexed,
+JOSH3D_DEFINE_ENUM_EXTRAS(BindingI,
     TransformFeedbackBuffer,
     UniformBuffer,
     ShaderStorageBuffer,
@@ -143,8 +141,6 @@ JOSH3D_DEFINE_ENUM_EXTRAS(BindingIndexed,
     CubemapArray,
     Sampler);
 
-// TODO: Rename for brevity.
-using BindingI = BindingIndexed;
 
 namespace glapi {
 

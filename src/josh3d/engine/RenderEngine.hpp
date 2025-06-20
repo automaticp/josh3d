@@ -238,7 +238,7 @@ struct RenderEngineCommonInterface
     auto frame_timer()       const noexcept -> const FrameTimer& { return _frame_timer;    }
 
     auto bind_camera_ubo(u32 index = 0) const noexcept
-        -> BindToken<BindingIndexed::UniformBuffer>
+        -> BindToken<BindingI::UniformBuffer>
     {
         return _engine.camera_ubo_->bind_to_index<BufferTargetI::Uniform>(index);
     }

@@ -25,5 +25,4 @@ using gl::GLchar, gl::GLbyte, gl::GLubyte;
 using gl::GLshort, gl::GLushort;
 using gl::GLintptr, gl::GLsizeiptr;
 
-
 } // namespace josh

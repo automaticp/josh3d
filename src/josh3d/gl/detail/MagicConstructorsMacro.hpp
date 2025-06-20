@@ -1,14 +1,13 @@
 #pragma once
-#include "GLMutability.hpp" // IWYU pragma: keep
-#include "CommonMacros.hpp" // IWYU pragma: keep
-#include <utility>          // IWYU pragma: keep
-
+#include "GLMutability.hpp"  // IWYU pragma: keep
+#include "CategoryCasts.hpp" // IWYY pragma: keep
+#include "CommonMacros.hpp"  // IWYU pragma: keep
+#include <utility>           // IWYU pragma: keep
 
 
 /*
 This defines a set of constructors and assignment operators
-that define the core semantics of RawKindHandle and RawObject(Handle)
-types.
+that define the core semantics of RawObject types.
 
 This enables:
 - Explicit construction from GLuint;
@@ -21,13 +20,8 @@ instead of pulling the base constructors with:
 because pulling the base constructors enables conversions between
 unrelated types. For example, RawTexture2D and RawTexture2DMS become
 directly interconvertible because they share a base c-tor:
-    RawTextureHandle(const RawTextureHandle&);
-
-What's worse, is that even completely unrelated "kinds" become
-interconvertible through the common RawGLHandle base, so you can cast
-RawTexture2D to RawVBO through
     RawGLHandle(const RawGLHandle&);
-constructor, which is completely unacceptable and makes no sense.
+which is completely unacceptable and makes no sense.
 
 So pulling the base c-tor and inheriting semantics from the
 RawGLHandle base is not going to work, and instead we need
@@ -83,40 +77,37 @@ macro that does exactly that. Wonderful.
     = delete;
 
 
-
-
-
-#define JOSH3D_MAGIC_CONSTRUCTORS_CONVERSION(Self, MT, Parent)                                                              \
-    Self(const Self&) noexcept            = default;                                                                        \
-    Self(Self&&) noexcept                 = default;                                                                        \
-    Self& operator=(const Self&) noexcept = default;                                                                        \
-    Self& operator=(Self&&) noexcept      = default;                                                                        \
-                                                                                                                            \
-    Self(const MT::mutable_type& other) noexcept requires gl_const<typename MT::mutability> : Parent{ other } {}            \
-    Self(MT::mutable_type&& other) noexcept      requires gl_const<typename MT::mutability> : Parent{ std::move(other) } {} \
-    Self& operator=(const MT::mutable_type& other) noexcept requires gl_const<typename MT::mutability> {                    \
-        Parent::operator=(other);                                                                                           \
-        return *this;                                                                                                       \
-    }                                                                                                                       \
-    Self& operator=(MT::mutable_type&& other) noexcept      requires gl_const<typename MT::mutability> {                    \
-        Parent::operator=(std::move(other));                                                                                \
-        return *this;                                                                                                       \
-    }                                                                                                                       \
-    Self(const MT::const_type&) noexcept            requires gl_mutable<typename MT::mutability> = delete;                  \
-    Self(MT::const_type&&) noexcept                 requires gl_mutable<typename MT::mutability> = delete;                  \
-    Self& operator=(const MT::const_type&) noexcept requires gl_mutable<typename MT::mutability> = delete;                  \
+#define JOSH3D_MAGIC_CONSTRUCTORS_CONVERSION(Self, MT, Parent)                                                         \
+    Self(const Self&) noexcept            = default;                                                                   \
+    Self(Self&&) noexcept                 = default;                                                                   \
+    Self& operator=(const Self&) noexcept = default;                                                                   \
+    Self& operator=(Self&&) noexcept      = default;                                                                   \
+                                                                                                                       \
+    Self(const MT::mutable_type& other) noexcept requires gl_const<typename MT::mutability> : Parent{ other } {}       \
+    Self(MT::mutable_type&& other) noexcept      requires gl_const<typename MT::mutability> : Parent{ MOVE(other) } {} \
+    Self& operator=(const MT::mutable_type& other) noexcept requires gl_const<typename MT::mutability>                 \
+    {                                                                                                                  \
+        Parent::operator=(other);                                                                                      \
+        return *this;                                                                                                  \
+    }                                                                                                                  \
+    Self& operator=(MT::mutable_type&& other) noexcept requires gl_const<typename MT::mutability>                      \
+    {                                                                                                                  \
+        Parent::operator=(std::move(other));                                                                           \
+        return *this;                                                                                                  \
+    }                                                                                                                  \
+    Self(const MT::const_type&) noexcept            requires gl_mutable<typename MT::mutability> = delete;             \
+    Self(MT::const_type&&) noexcept                 requires gl_mutable<typename MT::mutability> = delete;             \
+    Self& operator=(const MT::const_type&) noexcept requires gl_mutable<typename MT::mutability> = delete;             \
     Self& operator=(MT::const_type&&) noexcept      requires gl_mutable<typename MT::mutability> = delete;
 
 
-#define JOSH3D_MAGIC_CONSTRUCTORS_FROM_ID(Self, Parent)                       \
-private:                                                                      \
-    explicit Self(Parent::id_type id) noexcept : Parent{ id } {}              \
-public:                                                                       \
-    Self() noexcept : Parent({}) {}                                           \
-    using id_type = Parent::id_type;                                          \
-    static constexpr Self from_id(id_type id) noexcept { return Self{ id }; } \
-
-
+#define JOSH3D_MAGIC_CONSTRUCTORS_FROM_ID(Self, Parent)                               \
+private:                                                                              \
+    explicit Self(Parent::id_type id) noexcept : Parent{ id } {}                      \
+public:                                                                               \
+    Self() noexcept : Parent({}) {}                                                   \
+    using id_type = Parent::id_type;                                                  \
+    static constexpr auto from_id(id_type id) noexcept -> Self { return Self{ id }; } \
 
 
 /*
@@ -125,7 +116,7 @@ that have extra template arguments besides mutability.
 
 Self   - Name of the template type as within the class body, without the template arguments.
 MT     - mutability_traits of the type. Equivalent to mutability_traits<Self> within class body.
-Parent - parent type to delegate construction to. Most likely is RawGLHandle<MutT>.
+Parent - parent type to delegate construction to. Most likely is RawGLHandle.
 */
 #define JOSH3D_MAGIC_CONSTRUCTORS_2(Self, MT, Parent)                                                               \
     JOSH3D_MAGIC_CONSTRUCTORS_FROM_ID(JOSH3D_SINGLE_ARG(Self), JOSH3D_SINGLE_ARG(Parent))                           \

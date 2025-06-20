@@ -94,6 +94,24 @@ JOSH3D_DEFINE_STRONG_SCALAR(OffsetBytes, GLsizeiptr);
 JOSH3D_DEFINE_STRONG_SCALAR(OffsetElems, GLsizeiptr);
 JOSH3D_DEFINE_STRONG_SCALAR(NumElems,    GLsizeiptr);
 
+struct ElemRange
+{
+    OffsetElems offset;
+    NumElems    count;
+};
+
+/*
+TODO: Is this used anywhere? Is this acceptable vocabulary?
+*/
+#if 0
+JOSH3D_DEFINE_STRONG_SCALAR(NumBytes,    GLsizeiptr);
+struct ByteRange
+{
+    OffsetBytes byte_offset;
+    NumBytes    byte_count;
+}
+#endif
+
 /*
 Texture and sampler vocabulary.
 */

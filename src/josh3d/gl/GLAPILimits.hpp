@@ -4,8 +4,6 @@
 #include "GLAPICommonTypes.hpp"
 #include "GLScalars.hpp"
 #include "detail/GLAPIGet.hpp"
-#include <glbinding/gl/enum.h>
-#include <glbinding/gl/types.h>
 
 
 /*
@@ -104,28 +102,4 @@ inline auto get_limit(LimitRF limit)
 }
 
 } // namespace glapi
-
-namespace limits {
-
-// TODO: Deprecate.
-// Returns a pair of values indicating the range of widths supported for aliased lines. See glLineWidth.
-[[deprecated]]
-inline auto aliased_line_width_range() noexcept
-    -> RangeF
-{
-    return glapi::get_limit(LimitRF::AliasedLineWidthRange);
-}
-
-[[deprecated]]
-inline auto max_color_attachments() noexcept
-    -> GLuint
-{
-    GLint result;
-    gl::glGetIntegerv(gl::GL_MAX_COLOR_ATTACHMENTS, &result);
-    return GLuint(result);
-}
-
-
-
-} // namespace limits
-} // namespace josh::glapi
+} // namespace josh

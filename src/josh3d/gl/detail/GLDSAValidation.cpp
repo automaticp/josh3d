@@ -41,7 +41,7 @@ void buffer_operations() noexcept {
         PreviousContents::InvalidateMappedRange,
         Persistence::NotPersistent
     };
-    const BufferRange range{ OffsetElems{ 0 }, NumElems{ 1 } };
+    const ElemRange range{ OffsetElems{ 0 }, NumElems{ 1 } };
     auto mapped = buf->map_range_for_write(range, policies);
 
     do {

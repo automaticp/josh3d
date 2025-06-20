@@ -76,24 +76,24 @@ public:
         return *this;
     }
 
-    ShaderBuilder& load_frag(const File& file) { return load_shader(file, ShaderTarget::FragmentShader);       }
-    ShaderBuilder& load_vert(const File& file) { return load_shader(file, ShaderTarget::VertexShader);         }
-    ShaderBuilder& load_geom(const File& file) { return load_shader(file, ShaderTarget::GeometryShader);       }
-    ShaderBuilder& load_comp(const File& file) { return load_shader(file, ShaderTarget::ComputeShader);        }
-    ShaderBuilder& load_tesc(const File& file) { return load_shader(file, ShaderTarget::TessControlShader);    }
-    ShaderBuilder& load_tese(const File& file) { return load_shader(file, ShaderTarget::TessEvaluationShader); }
+    ShaderBuilder& load_frag(const File& file) { return load_shader(file, ShaderTarget::Fragment);       }
+    ShaderBuilder& load_vert(const File& file) { return load_shader(file, ShaderTarget::Vertex);         }
+    ShaderBuilder& load_geom(const File& file) { return load_shader(file, ShaderTarget::Geometry);       }
+    ShaderBuilder& load_comp(const File& file) { return load_shader(file, ShaderTarget::Compute);        }
+    ShaderBuilder& load_tesc(const File& file) { return load_shader(file, ShaderTarget::TessControl);    }
+    ShaderBuilder& load_tese(const File& file) { return load_shader(file, ShaderTarget::TessEvaluation); }
 
     ShaderBuilder& add_shader(const ShaderSource& source, ShaderTarget type) {
         shaders_.emplace_back(source, type);
         return *this;
     }
 
-    ShaderBuilder& add_frag(const ShaderSource& source) { return add_shader(source, ShaderTarget::FragmentShader);       }
-    ShaderBuilder& add_vert(const ShaderSource& source) { return add_shader(source, ShaderTarget::VertexShader);         }
-    ShaderBuilder& add_geom(const ShaderSource& source) { return add_shader(source, ShaderTarget::GeometryShader);       }
-    ShaderBuilder& add_comp(const ShaderSource& source) { return add_shader(source, ShaderTarget::ComputeShader);        }
-    ShaderBuilder& add_tesc(const ShaderSource& source) { return add_shader(source, ShaderTarget::TessControlShader);    }
-    ShaderBuilder& add_tese(const ShaderSource& source) { return add_shader(source, ShaderTarget::TessEvaluationShader); }
+    ShaderBuilder& add_frag(const ShaderSource& source) { return add_shader(source, ShaderTarget::Fragment);       }
+    ShaderBuilder& add_vert(const ShaderSource& source) { return add_shader(source, ShaderTarget::Vertex);         }
+    ShaderBuilder& add_geom(const ShaderSource& source) { return add_shader(source, ShaderTarget::Geometry);       }
+    ShaderBuilder& add_comp(const ShaderSource& source) { return add_shader(source, ShaderTarget::Compute);        }
+    ShaderBuilder& add_tesc(const ShaderSource& source) { return add_shader(source, ShaderTarget::TessControl);    }
+    ShaderBuilder& add_tese(const ShaderSource& source) { return add_shader(source, ShaderTarget::TessEvaluation); }
 
 
 
@@ -173,12 +173,12 @@ inline auto ShaderBuilder::get()
 
         switch (shader.type) {
             using enum ShaderTarget;
-            case VertexShader:         compile_and_attach(UniqueVertexShader(),         shader); break;
-            case FragmentShader:       compile_and_attach(UniqueFragmentShader(),       shader); break;
-            case GeometryShader:       compile_and_attach(UniqueGeometryShader(),       shader); break;
-            case ComputeShader:        compile_and_attach(UniqueComputeShader(),        shader); break;
-            case TessControlShader:    compile_and_attach(UniqueTessControlShader(),    shader); break;
-            case TessEvaluationShader: compile_and_attach(UniqueTessEvaluationShader(), shader); break;
+            case Vertex:         compile_and_attach(UniqueVertexShader(),         shader); break;
+            case Fragment:       compile_and_attach(UniqueFragmentShader(),       shader); break;
+            case Geometry:       compile_and_attach(UniqueGeometryShader(),       shader); break;
+            case Compute:        compile_and_attach(UniqueComputeShader(),        shader); break;
+            case TessControl:    compile_and_attach(UniqueTessControlShader(),    shader); break;
+            case TessEvaluation: compile_and_attach(UniqueTessEvaluationShader(), shader); break;
             default:
                 assert(false);
         }

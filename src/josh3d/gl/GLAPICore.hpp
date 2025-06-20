@@ -11,10 +11,6 @@
 #include "GLPixelPackTraits.hpp"
 #include "detail/GLAPIGet.hpp"
 #include <chrono>
-#include <glbinding/gl/bitfield.h>
-#include <glbinding/gl/enum.h>
-#include <glbinding/gl/functions.h>
-#include <glbinding/gl/types.h>
 #include <cassert>
 #include <span>
 
