@@ -149,7 +149,7 @@ public:
     [[nodiscard]] auto get(const ProgramFiles& program_files, const ProgramDefines& defines) -> ShaderToken;
 
     // Whether hot reloading is supported.
-    bool supports_hot_reload() const noexcept;
+    auto supports_hot_reload() const noexcept -> bool;
 
     // Lazily reload and recompile modified shaders and it's users only.
     // Will throw if hot reloading is not supported.

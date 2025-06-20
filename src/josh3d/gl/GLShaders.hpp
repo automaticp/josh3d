@@ -148,11 +148,11 @@ struct Shader
 
 template<mutability_tag MutT = GLMutable>
 struct RawShader
-    : detail::RawGLHandle<MutT>
+    : detail::RawGLHandle<>
     , detail::shader_api::Shader<RawShader<MutT>>
 {
     static constexpr auto kind_type = GLKind::Shader;
-    JOSH3D_MAGIC_CONSTRUCTORS_2(RawShader, mutability_traits<RawShader>, detail::RawGLHandle<MutT>)
+    JOSH3D_MAGIC_CONSTRUCTORS_2(RawShader, mutability_traits<RawShader>, detail::RawGLHandle<>)
 };
 
 
