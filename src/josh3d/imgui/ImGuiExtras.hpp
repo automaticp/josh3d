@@ -17,6 +17,17 @@ so all imgui calls are qualified in case we'll change the namespace later.
 */
 namespace ImGui {
 
+template<std::integral T> requires (sizeof(T) == sizeof(void*))
+void PushID(T value)
+{
+    ImGui::PushID(reinterpret_cast<const void*>(value));
+}
+
+template<josh::enumeration E>
+void PushID(E e)
+{
+    ImGui::PushID(josh::to_underlying(e));
+}
 
 /*
 Wrapper of ImGui::Image that flips the image UVs
@@ -26,7 +37,7 @@ inline void ImageGL(
     ImTextureID   image_id,
     const ImVec2& size,
     const ImVec4& tint_color = { 1.0f, 1.0f, 1.0f, 1.0f },
-    const ImVec4& border_color = { 1.0f, 1.0f, 1.0f, 1.0f }) noexcept
+    const ImVec4& border_color = { 1.0f, 1.0f, 1.0f, 1.0f })
 {
     const ImVec4 bg_color = { 0, 0, 0, 0 };
     ImGui::PushStyleColor(ImGuiCol_Border, border_color); // NOTE: Workaround to preserve the old behavior.

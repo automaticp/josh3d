@@ -1,5 +1,6 @@
 #pragma once
 #include "Math.hpp"
+#include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/quaternion_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/ext.hpp>
@@ -159,8 +160,7 @@ use plain Transform in other cases.
 */
 struct MTransform
 {
-    MTransform() = default;
-
+    MTransform() : _mat{ glm::identity<mat4>() } {}
     explicit(false) MTransform(const mat4& model) : _mat{ model } {}
 
     // Aka. world->local change-of-basis.

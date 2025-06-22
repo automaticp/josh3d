@@ -18,6 +18,7 @@
 #include "Ranges.hpp"
 #include "RenderEngine.hpp"
 #include "Region.hpp"
+#include "SkeletonStorage.hpp"
 #include "Transform.hpp"
 #include "VPath.hpp"
 #include "VirtualFilesystem.hpp"
@@ -500,6 +501,40 @@ void ImGuiApplicationAssembly::_display_debug()
             }
         }
         ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("Skeletons"))
+    {
+        DEFER(ImGui::TreePop());
+
+        if (ImGui::TreeNode("Land"))
+        {
+            DEFER(ImGui::TreePop());
+
+            ImGui::TextUnformatted("Occupied:");
+            for (const auto& range : runtime.skeleton_storage._land.view_occupied())
+                ImGui::Text("[%zu, %zu]", range.base, range.end());
+
+            ImGui::TextUnformatted("Empty:");
+            for (const auto& range : runtime.skeleton_storage._land.view_empty())
+                ImGui::Text("[%zu, %zu)", range.base, range.end());
+        }
+
+        SkeletonID to_remove = { u64(-1) };
+        for (const auto& [id, entry] : runtime.skeleton_storage._table)
+        {
+            ImGui::PushID(id.value); DEFER(ImGui::PopID());
+            if (ImGui::Button("x"))
+                to_remove = id;
+            ImGui::SameLine();
+            ImGui::Text("[%zu] %s [%zu, %zu)",
+                id.value, entry.name.c_str(), entry.range.base, entry.range.end());
+        }
+
+        if (to_remove != SkeletonID{ u64(-1) })
+        {
+            runtime.skeleton_storage.remove(to_remove);
+        }
     }
 }
 

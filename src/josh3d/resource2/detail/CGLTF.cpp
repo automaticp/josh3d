@@ -790,6 +790,7 @@ auto to_external_scene(const cgltf_data& gltf, Path _base_dir)
             scene.emplace<JointNode>(joint.node_id, skin_id);
         }
 
+        _skin2skin_id.emplace(&_skin, skin_id);
     } // for (_skin) (hihi)
 
 

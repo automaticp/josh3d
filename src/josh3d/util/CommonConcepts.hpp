@@ -12,6 +12,12 @@ namespace josh {
 template<typename...>
 constexpr bool false_v = false;
 
+/*
+Disables template argument deduction on a given argument.
+*/
+template<typename T>
+using not_deduced = std::type_identity_t<T>;
+
 
 template<typename T>
 concept not_void = !std::same_as<T, void>;
@@ -77,7 +83,8 @@ template<typename CallableT, typename Signature>
 struct signature_test;
 
 template<typename CallableT, typename RetT, typename ...ArgTs>
-struct signature_test<CallableT, RetT(ArgTs...)> {
+struct signature_test<CallableT, RetT(ArgTs...)>
+{
     static constexpr bool is_invocable = std::is_invocable_v<CallableT, ArgTs...>;
     static constexpr bool is_same_return_type = std::is_same_v<std::invoke_result_t<CallableT, ArgTs...>, RetT>;
 };
