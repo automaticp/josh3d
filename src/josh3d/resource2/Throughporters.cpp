@@ -223,7 +223,7 @@ auto await_skeleton_then_pack_and_insert_animation(
         .duration    = duration,
         .keyframes   = {}, // Will fill next.
         .name        = animation.name,
-        .skeleton_id = {}, // Will fill after the skeleton is ready.
+        .skeleton_id = nullid, // Will fill after the skeleton is ready.
     };
 
     const auto& skin       = scene.get<esr::Skin>(animation.skin_id);

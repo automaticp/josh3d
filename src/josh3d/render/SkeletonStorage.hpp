@@ -1,28 +1,18 @@
 #pragma once
-#include "CategoryCasts.hpp"
 #include "Common.hpp"
+#include "KitchenSink.hpp"
 #include "ContainerUtils.hpp"
+#include "ID.hpp"
 #include "Land.hpp"
 #include "Ranges.hpp"
 #include "Scalars.hpp"
 #include "Skeleton.hpp"
-#include <boost/container_hash/hash.hpp>
 #include <cassert>
 
 
 namespace josh {
 
-struct SkeletonID
-{
-    u64 value;
-    constexpr bool operator==(const SkeletonID&) const noexcept = default;
-};
-
-inline auto hash_value(SkeletonID id) noexcept
-    -> usize
-{
-    return boost::hash_value(id.value);
-}
+JOSH3D_DERIVE_TYPE(SkeletonID, IDBase<SkeletonID>);
 
 /*
 Quick and dirty "place to put the skeletons into".
@@ -109,7 +99,7 @@ struct SkeletonStorage
         LandRange<> range;
     };
 
-    SkeletonID                 _last_id = {};
+    u64                        _last_id = 0;
     HashMap<SkeletonID, Entry> _table;
     // This is where we use the Land to store the inv_bind
     // and parent_idx in separate vectors (SoA style).
@@ -117,7 +107,7 @@ struct SkeletonStorage
     Vector<u32>                _parent_idxs;
     Land<>                     _land = {};
 
-    auto _new_id() noexcept -> SkeletonID { return { _last_id.value++ }; }
+    auto _new_id() noexcept -> SkeletonID { return SkeletonID{ _last_id++ }; }
     void _resize(usize new_size)
     {
         // HMM: What's really annoying about the vector is that the elements
