@@ -15,6 +15,7 @@
 #include "ImGuiSelected.hpp"
 #include "ImGuizmoGizmos.hpp"
 #include "Camera.hpp"
+#include "Logging.hpp"
 #include "Materials.hpp"
 #include "Ranges.hpp"
 #include "RenderEngine.hpp"
@@ -417,7 +418,7 @@ void ImGuiApplicationAssembly::_draw_widgets()
         if (show_log_window)
         {
             if (ImGui::Begin("Logs"))
-                ImGui::TextUnformatted(_log_sink.view());
+                _display_logs();
             ImGui::End();
         }
     }
@@ -537,6 +538,46 @@ void ImGuiApplicationAssembly::_display_debug()
             runtime.skeleton_storage.remove(to_remove);
         }
     }
+}
+
+void ImGuiApplicationAssembly::_display_logs()
+{
+    thread_local bool can_snap   = true;
+    thread_local bool force_snap = false;
+
+    // NOTE: Have to call outside of the popup, else
+    // it will be the scroll of the popup itsel.
+    thread_local float prev_max_scroll = {};
+    const float        cur_scroll = ImGui::GetScrollY();
+    const float        max_scroll = ImGui::GetScrollMaxY();
+
+    // HMM: There's no way this is the canonical way to detect a click over a window.
+    if (ImGui::IsWindowHovered() and ImGui::IsMouseReleased(ImGuiMouseButton_Right))
+        ImGui::OpenPopup("Logs Settings");
+    if (ImGui::BeginPopup("Logs Settings"))
+    {
+        DEFER(ImGui::EndPopup());
+        ImGui::Checkbox("Can Snap", &can_snap);
+        ImGui::Checkbox("Force Snap", &force_snap);
+
+        if (ImGui::Button("Dump Text"))
+            logstream() << "Hello, Friend!\n";
+
+        ImGui::Text("Scroll [Cur: %.3f, Max: %.3f]", cur_scroll, max_scroll);
+    }
+
+    // NOTE: SetScroll*() has a 1 frame delay. Calling SetNextWindowScroll()
+    // before Begin() can help avoid that. See the note in the "imgui.h".
+    const bool do_snap =
+        force_snap or
+        (can_snap and (cur_scroll == prev_max_scroll));
+
+    ImGui::TextUnformatted(_log_sink.view());
+
+    if (do_snap)
+        ImGui::SetScrollY(ImGui::GetScrollMaxY());
+
+    prev_max_scroll = max_scroll;
 }
 
 } // namespace josh

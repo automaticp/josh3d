@@ -180,7 +180,8 @@ Discard/destroy any movable type by creating a scope, moving
 the object there and closing the scope right after.
  */
 template<forwarded_as_rvalue T>
-void discard(T&& object) noexcept(std::is_nothrow_move_constructible_v<std::decay_t<T>>) {
+void discard(T&& object) noexcept(std::is_nothrow_move_constructible_v<std::decay_t<T>>)
+{
     auto _ = static_cast<std::remove_reference_t<T>&&>(object);
 }
 

@@ -102,6 +102,7 @@ struct ImGuiApplicationAssembly
 
     void _display_frame_graph();
     void _display_debug();
+    void _display_logs();
 };
 
 

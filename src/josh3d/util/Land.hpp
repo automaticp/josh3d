@@ -60,40 +60,6 @@ struct LandRange
     constexpr auto operator==(const LandRange&) const noexcept -> bool = default;
 };
 
-template<typename B, typename S>
-constexpr auto LandRange<B, S>::view() const noexcept
-    -> std::ranges::view auto
-{
-    // HMM: Not sure if this works, or works well...
-    constexpr bool pointer_like = requires {
-        std::ranges::subrange(base, base + size);
-    };
-    constexpr bool index_like = requires {
-        // NOTE: Using views::iota instead of irange since
-        // iota does not require evaluating `base + size`
-        // which could be not defined for certain types
-        // of fancy integers.
-        std::views::iota(base, size);
-    };
-    if constexpr (pointer_like)
-    {
-        return std::ranges::subrange(base, base + size);
-    }
-    else if constexpr (index_like)
-    {
-        return std::views::iota(base, size);
-    }
-}
-
-template<typename B, typename S>
-constexpr auto LandRange<B, S>::subrange_of(std::ranges::random_access_range auto&& r) const noexcept
-    -> std::ranges::random_access_range auto
-{
-    const auto beg = std::ranges::begin(r) + base;
-    const auto end = beg + size;
-    return std::ranges::subrange(beg, end);
-}
-
 } // namespace josh
 template<typename B, typename S>
 struct std::hash<josh::LandRange<B, S>>
@@ -203,7 +169,7 @@ struct Land
     // Returns the base of the whole land - the leftmost position
     // that the land occupies.
     //
-    // NOTE: Currenlty this is does not change after initialization
+    // TODO: Currenlty this does not change after initialization
     // and we cannot expand "backwards". This functionality is a bit niche,
     // but there's really no reason for this limitation.
     auto base() const noexcept -> base_type { return _land_range.base; }
@@ -254,6 +220,41 @@ struct Land
     void _unoccupy(decltype(_full_by_base)::iterator it);
 };
 
+
+template<typename B, typename S>
+constexpr auto LandRange<B, S>::view() const noexcept
+    -> std::ranges::view auto
+{
+    // HMM: Not sure if this works, or works well...
+    constexpr bool pointer_like = requires {
+        std::ranges::subrange(base, base + size);
+    };
+    constexpr bool index_like = requires {
+        // NOTE: Using views::iota instead of irange since
+        // iota does not require evaluating `base + size`
+        // which could be not defined for certain types
+        // of fancy integers.
+        std::views::iota(base, size);
+    };
+    if constexpr (pointer_like)
+    {
+        return std::ranges::subrange(base, base + size);
+    }
+    else if constexpr (index_like)
+    {
+        return std::views::iota(base, size);
+    }
+}
+
+template<typename B, typename S>
+constexpr auto LandRange<B, S>::subrange_of(
+    std::ranges::random_access_range auto&& r) const noexcept
+        -> std::ranges::random_access_range auto
+{
+    const auto beg = std::ranges::begin(r) + base;
+    const auto end = beg + size;
+    return std::ranges::subrange(beg, end);
+}
 
 template<typename B, typename S>
 Land<B, S>::Land(range_type initial_range)
