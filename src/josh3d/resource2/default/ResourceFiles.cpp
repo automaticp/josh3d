@@ -1,4 +1,4 @@
-#include "DefaultResourceFiles.hpp"
+#include "ResourceFiles.hpp"
 #include "Common.hpp"
 #include "FileMapping.hpp"
 #include "CategoryCasts.hpp"

@@ -4,7 +4,7 @@
 #include "ImGuiExtras.hpp"
 #include "Common.hpp"
 #include "Coroutines.hpp"
-#include "DefaultResources.hpp"
+#include "default/Resources.hpp"
 #include "Logging.hpp"
 #include "ObjectLifecycle.hpp"
 #include "Processing.hpp"

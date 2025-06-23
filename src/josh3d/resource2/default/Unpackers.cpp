@@ -1,4 +1,4 @@
-#include "DefaultResources.hpp"
+#include "Resources.hpp"
 #include "Common.hpp"
 #include "Components.hpp"
 #include "CoroCore.hpp"

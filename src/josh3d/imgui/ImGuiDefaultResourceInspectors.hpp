@@ -1,7 +1,7 @@
 #pragma once
 #include "ContainerUtils.hpp"
-#include "DefaultResourceFiles.hpp"
-#include "DefaultResources.hpp"
+#include "default/ResourceFiles.hpp"
+#include "default/Resources.hpp"
 #include "FileMapping.hpp"
 #include "ImGuiHelpers.hpp"
 #include "ImGuiExtras.hpp"

@@ -2,8 +2,8 @@
 #include "Scalars.hpp"
 #include "EnumUtils.hpp"
 #include "FileMapping.hpp"
-#include "ResourceFiles.hpp"
-#include "DefaultResources.hpp"
+#include "../ResourceFiles.hpp"
+#include "Resources.hpp"
 #include "VertexSkinned.hpp"
 
 

@@ -1,7 +1,7 @@
 #include "AssimpCommon.hpp"
 #include "AssetImporter.hpp"
 #include "Coroutines.hpp"
-#include "DefaultResources.hpp"
+#include "default/Resources.hpp"
 #include "ResourceDatabase.hpp"
 #include "UUID.hpp"
 #include <assimp/types.h>

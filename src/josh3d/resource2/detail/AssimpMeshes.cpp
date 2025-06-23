@@ -3,7 +3,7 @@
 #include "Asset.hpp"
 #include "AssetImporter.hpp"
 #include "CoroCore.hpp"
-#include "DefaultResourceFiles.hpp"
+#include "default/ResourceFiles.hpp"
 #include "VertexStatic.hpp"
 #include "VertexSkinned.hpp"
 #include <assimp/mesh.h>

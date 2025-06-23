@@ -1,6 +1,6 @@
 #include "Common.hpp"
-#include "DefaultResourceFiles.hpp"
-#include "DefaultResources.hpp"
+#include "ResourceFiles.hpp"
+#include "Resources.hpp"
 #include "GLAPICore.hpp"
 #include "GLObjects.hpp"
 #include "GLPixelPackTraits.hpp"

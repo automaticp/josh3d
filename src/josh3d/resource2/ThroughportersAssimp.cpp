@@ -34,6 +34,10 @@
 #include <iterator>
 
 
+/*
+TODO: This all needs to be converted to produce ExternalScene instead.
+It is not that different from AssimpSceneRepr.
+*/
 namespace josh {
 namespace {
 

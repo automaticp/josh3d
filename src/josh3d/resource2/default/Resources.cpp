@@ -1,4 +1,4 @@
-#include "DefaultResources.hpp"
+#include "Resources.hpp"
 #include "AssetImporter.hpp"
 #include "ResourceInfo.hpp"
 #include "ResourceLoader.hpp"

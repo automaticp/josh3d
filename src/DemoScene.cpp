@@ -4,7 +4,7 @@
 #include "AssetUnpacker.hpp"
 #include "AsyncCradle.hpp"
 #include "ContainerUtils.hpp"
-#include "DefaultResources.hpp"
+#include "default/Resources.hpp"
 #include "GLPixelPackTraits.hpp"
 #include "GLTextures.hpp"
 #include "ImGuiDefaultResourceInspectors.hpp"

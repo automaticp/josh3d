@@ -65,12 +65,10 @@ public:
     void register_unpacker(UnpackerF&& f);
 
     template<ResourceType TypeV, typename DestinationT>
-    auto unpack(UUID uuid, DestinationT destination)
-        -> Job<>;
+    auto unpack(UUID uuid, DestinationT destination) -> Job<>;
 
     template<typename DestinationT>
-    auto unpack_any(UUID uuid, DestinationT destination)
-        -> Job<>;
+    auto unpack_any(UUID uuid, DestinationT destination) -> Job<>;
 
 private:
     friend ResourceUnpackerContext;
@@ -85,8 +83,7 @@ private:
 
     dtable_type dispatch_table_;
 
-    auto _unpack(const key_type& key, UUID uuid, AnyRef destination)
-        -> Job<>;
+    auto _unpack(const key_type& key, UUID uuid, AnyRef destination) -> Job<>;
 };
 
 class ResourceUnpackerContext
@@ -107,11 +104,8 @@ public:
     // This is because they do not have respective unpackers defined for their subtasks
     // and would simply fail otherwise.
     [[nodiscard]]
-    auto child_context() const noexcept
-        -> ResourceUnpackerContext
-    {
-        return { self_ };
-    }
+    auto child_context() const noexcept -> ResourceUnpackerContext { return { self_ }; }
+
 private:
     friend ResourceUnpacker;
     ResourceUnpackerContext(ResourceUnpacker& self)
@@ -121,6 +115,7 @@ private:
     ResourceUnpacker& self_;
     SingleTaskGuard   task_guard_;
 };
+
 
 template<ResourceType TypeV, typename DestinationT,
     of_signature<Job<>(ResourceUnpackerContext, UUID, DestinationT)> UnpackerF>
