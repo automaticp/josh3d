@@ -1,29 +1,16 @@
 #pragma once
-#include "RuntimeError.hpp"
+#include "Common.hpp"
+#include "Errors.hpp"
 #include "Filesystem.hpp"
 
 
+/*
+Wow, what an amazing header...
+*/
 namespace josh {
-namespace error {
 
+JOSH3D_DERIVE_EXCEPTION(FileReadingError, RuntimeError);
 
-class FileReadingError final : public RuntimeError {
-public:
-    static constexpr auto prefix = "Cannot Read File: ";
-    Path path;
-    FileReadingError(Path path)
-        : RuntimeError(prefix, path)
-        , path{ std::move(path) }
-    {}
-};
-
-
-} // namespace error
-using error::FileReadingError;
-
-
-auto read_file(const File& file)
-    -> std::string;
-
+auto read_file(const File& file) -> String;
 
 } // namespace josh

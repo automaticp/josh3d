@@ -6,7 +6,7 @@
 #include "ContainerUtils.hpp"
 #include "MutexPool.hpp"
 #include "ResourceInfo.hpp"
-#include "RuntimeError.hpp"
+#include "Errors.hpp"
 #include "Scalars.hpp"
 #include "UUID.hpp"
 #include <fmt/core.h>

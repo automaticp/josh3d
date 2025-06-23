@@ -1,5 +1,5 @@
 #include "ShaderWatcher.hpp"
-#include "RuntimeError.hpp"
+#include "Errors.hpp"
 #include "ThreadName.hpp"
 #include <ranges>
 
@@ -19,7 +19,7 @@ ShaderWatcherLinux::INotifyInstance::INotifyInstance()
     : fd_{ inotify_init() }
 {
     if (fd_ == -1) {
-        throw error::RuntimeError("inotify_init() failed when trying to setup ShaderWatcher.");
+        throw RuntimeError("inotify_init() failed when trying to setup ShaderWatcher.");
     }
 }
 

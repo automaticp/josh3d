@@ -1,5 +1,6 @@
 #pragma once
-#include "RuntimeError.hpp"
+#include "Errors.hpp"
+#include "KitchenSink.hpp"
 #include <compare>
 #include <filesystem>
 #include <optional>
@@ -10,84 +11,22 @@ namespace josh {
 
 
 using Path = std::filesystem::path;
-class File;
-class Directory;
+class File;      // TODO: DELETE THIS
+class Directory; // AND THIS
 
-
-namespace error {
-
-
-class FilesystemError : public RuntimeError {
-public:
-    static constexpr auto prefix = "Filesystem Error: ";
-    FilesystemError(std::string msg)
-        : FilesystemError(prefix, std::move(msg))
-    {}
-protected:
-    FilesystemError(const char* prefix, std::string msg)
-        : RuntimeError(prefix, std::move(msg))
-    {}
-};
-
-
-
-
-class DirectoryDoesNotExist : public FilesystemError {
-public:
-    static constexpr auto prefix = "Directory Does Not Exist: ";
-    Path path;
-    DirectoryDoesNotExist(Path path)
-        : DirectoryDoesNotExist(prefix, std::move(path))
-    {}
-protected:
-    DirectoryDoesNotExist(const char* prefix, Path path)
-        : FilesystemError(prefix, path)
-        , path{ std::move(path) }
-    {}
-};
-
-
-class NotADirectory final : public DirectoryDoesNotExist {
-public:
-    static constexpr auto prefix = "Not A Directory: ";
-    NotADirectory(Path path)
-        : DirectoryDoesNotExist(prefix, std::move(path))
-    {}
-};
-
-
-
-
-class FileDoesNotExist : public FilesystemError {
-public:
-    static constexpr auto prefix = "File Does Not Exist: ";
-    Path path;
-    FileDoesNotExist(Path path)
-        : FileDoesNotExist(prefix, std::move(path))
-    {}
-protected:
-    FileDoesNotExist(const char* prefix, Path path)
-        : FilesystemError(prefix, path)
-        , path{ std::move(path) }
-    {}
-};
-
-
-class NotAFile final : public FileDoesNotExist {
-public:
-    static constexpr auto prefix = "Not A File: ";
-    NotAFile(Path path)
-        : FileDoesNotExist(prefix, std::move(path))
-    {}
-};
-
-
-
-} // namespace error
-
+/*
+EWW: Do we need so many different exception types?
+*/
+JOSH3D_DERIVE_EXCEPTION(FilesystemError,       RuntimeError);
+JOSH3D_DERIVE_EXCEPTION(DirectoryDoesNotExist, FilesystemError);
+JOSH3D_DERIVE_EXCEPTION(NotADirectory,         DirectoryDoesNotExist);
+JOSH3D_DERIVE_EXCEPTION(FileDoesNotExist,      FilesystemError);
+JOSH3D_DERIVE_EXCEPTION(NotAFile,              FileDoesNotExist);
 
 
 /*
+FIXME: Stuff below sounds nice, but is just plain dumb and wrong.
+
 Directory and File classes are wrappers around std::filesystem::directory_entry
 that validate the entry to be either a directory or a file *at construction time*.
 
@@ -102,11 +41,11 @@ in order to preserve more context of the failure.
 
 For example, assume that we want to read a file:
 
-std::string read_file(const File& file) {
-
+std::string read_file(const File& file)
+{
     std::ifstream ifs{ file.path() };
 
-    if (!ifs) throw error::FileReadingFailure("Cannot read file: " + file.path());
+    if (!ifs) throw FileReadingFailure("Cannot read file: " + file.path());
 
     std::string contents = ...
     return contents;
@@ -136,11 +75,11 @@ public:
         : file_{ path }
     {
         if (!file_.exists()) {
-            throw error::FileDoesNotExist(file_.path());
+            throw FileDoesNotExist(file_.path());
         }
 
         if (!file_.is_regular_file()) {
-            throw error::NotAFile(file_.path());
+            throw NotAFile(file_.path());
         }
     }
 
@@ -196,11 +135,11 @@ public:
         : directory_{ path }
     {
         if (!directory_.exists()) {
-            throw error::DirectoryDoesNotExist(directory_.path());
+            throw DirectoryDoesNotExist(directory_.path());
         }
 
         if (!directory_.is_directory()) {
-            throw error::NotADirectory(directory_.path());
+            throw NotADirectory(directory_.path());
         }
     }
 

@@ -187,7 +187,7 @@ auto import_scene_async(
 
     const aiScene* ai_scene = ai_importer.ReadFile(path, flags);
 
-    if (!ai_scene) { throw error::AssetFileImportFailure(path, ai_importer.GetErrorString()); }
+    if (!ai_scene) { throw AssetFileImportFailure(ai_importer.GetErrorString(), { path }); }
 
     const auto ai_meshes    = make_span(ai_scene->mMeshes,     ai_scene->mNumMeshes   ); // Order: Meshes.
     const auto ai_materials = make_span(ai_scene->mMaterials,  ai_scene->mNumMaterials); // Order: Materials.

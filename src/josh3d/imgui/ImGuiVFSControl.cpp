@@ -6,7 +6,7 @@
 #include "VirtualFilesystem.hpp"
 #include "VPath.hpp"
 #include "ImGuiHelpers.hpp"
-#include "RuntimeError.hpp"
+#include "Errors.hpp"
 #include <imgui.h>
 #include <imgui_stdlib.h>
 
@@ -84,7 +84,7 @@ void add_new_root_widget(ImGuiVFSControl& self, VirtualFilesystem& vfs)
             self._exception_str = {};
             vfs.roots().push_front(Directory(self._new_root));
         }
-        catch (const error::RuntimeError& err)
+        catch (const RuntimeError& err)
         {
             self._exception_str = err.what();
         }
@@ -118,7 +118,7 @@ void debug_resolve_widget(ImGuiVFSControl& self, VirtualFilesystem& vfs)
             {
                 self._last_resolved_entry = vfs.resolve_file(VPath(self._test_vpath)).path();
             }
-            catch (const error::RuntimeError& err)
+            catch (const RuntimeError& err)
             {
                 self._exception_str = err.what();
             }
@@ -131,7 +131,7 @@ void debug_resolve_widget(ImGuiVFSControl& self, VirtualFilesystem& vfs)
             {
                 self._last_resolved_entry = vfs.resolve_directory(VPath(self._test_vpath)).path();
             }
-            catch (const error::RuntimeError& err)
+            catch (const RuntimeError& err)
             {
                 self._exception_str = err.what();
             }

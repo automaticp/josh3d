@@ -4,7 +4,7 @@
 #include "Elements.hpp"
 #include "EnumUtils.hpp"
 #include "ExternalScene.hpp"
-#include "RuntimeError.hpp"
+#include "Errors.hpp"
 #include "Transform.hpp"
 #include <cgltf.h>
 

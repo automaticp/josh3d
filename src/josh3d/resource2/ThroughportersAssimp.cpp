@@ -64,7 +64,7 @@ auto image_intent_internal_format(ImageIntent intent, size_t num_channels)
                 case 4: return InternalFormat::RGBA8;
             }
     }
-    throw_fmt<error::AssetLoadingError>("No InternalFormat for ImageIntent {} and {} channels.", enum_string(intent), num_channels);
+    throw_fmt<AssetError>("No InternalFormat for ImageIntent {} and {} channels.", enum_string(intent), num_channels);
 }
 
 auto pixel_data_format(size_t num_channels)
@@ -77,7 +77,7 @@ auto pixel_data_format(size_t num_channels)
         case 3: return PixelDataFormat::RGB;
         case 4: return PixelDataFormat::RGBA;
     }
-    throw_fmt<error::AssetLoadingError>("No PixelDataFormat for {} channels.", num_channels);
+    throw_fmt<AssetError>("No PixelDataFormat for {} channels.", num_channels);
 }
 
 auto load_texture(
@@ -294,7 +294,7 @@ auto throughport_scene(
     const bool is_obj = (path.extension() == ".obj");
     const bool height_as_normals = is_obj;
 
-    if (!ai_scene) throw AssetFileImportFailure(path, ai_importer.GetErrorString());
+    if (!ai_scene) throw AssetFileImportFailure(ai_importer.GetErrorString(), { path });
 
     auto alloc = asr::allocator<>();
     auto scene = AssimpSceneRepr::from_scene(*ai_scene, alloc);

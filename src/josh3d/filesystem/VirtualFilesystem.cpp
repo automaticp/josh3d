@@ -1,8 +1,9 @@
 #include "Filesystem.hpp"
 #include "VirtualFilesystem.hpp"
+#include "KitchenSink.hpp"
+#include "VFSRoots.hpp"
 #include "VPath.hpp"
 #include <filesystem>
-#include <functional>
 #include <optional>
 #include <utility>
 
@@ -12,13 +13,12 @@ using namespace josh::filesystem_literals;
 namespace josh {
 
 
-VirtualFilesystem& vfs() noexcept {
-    thread_local VirtualFilesystem vfs{
-        std::invoke([]() -> VFSRoots {
-            VFSRoots roots;
-            roots.push_front("./"_directory);
-            return roots;
-        })
+VirtualFilesystem& vfs() noexcept
+{
+    thread_local VirtualFilesystem vfs = eval%[]() -> VFSRoots {
+        VFSRoots roots;
+        roots.push_front("./"_directory);
+        return roots;
     };
     return vfs;
 }
@@ -93,7 +93,7 @@ auto VirtualFilesystem::resolve_path(const VPath& vpath) const
     if (auto maybe_path = try_resolve_path(vpath)) {
         return std::move(*maybe_path);
     } else {
-        throw error::UnresolvedVirtualPath(vpath.path());
+        throw UnresolvedVirtualPath(vpath.path(), { vpath.path() });
     }
 }
 
@@ -104,7 +104,7 @@ auto VirtualFilesystem::resolve_file(const VPath& vpath) const
     if (auto maybe_file = try_resolve_file(vpath)) {
         return std::move(maybe_file.value());
     } else {
-        throw error::UnresolvedVirtualPath(vpath.path());
+        throw UnresolvedVirtualPath(vpath.path(), { vpath.path() });
     }
 }
 
@@ -115,7 +115,7 @@ auto VirtualFilesystem::resolve_directory(const VPath& vpath) const
     if (auto maybe_dir = try_resolve_directory(vpath)) {
         return std::move(maybe_dir.value());
     } else {
-        throw error::UnresolvedVirtualPath(vpath.path());
+        throw UnresolvedVirtualPath(vpath.path(), { vpath.path() });
     }
 }
 

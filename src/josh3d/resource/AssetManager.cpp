@@ -452,10 +452,10 @@ auto get_static_mesh_data(const aiMesh& mesh)
     auto tangents   = std::span(mesh.mTangents,         mesh.mNumVertices);
     auto bitangents = std::span(mesh.mBitangents,       mesh.mNumVertices);
 
-    if (!normals.data())    { throw error::AssetContentsParsingError("Mesh data does not contain Normals.");    }
-    if (!uvs.data())        { throw error::AssetContentsParsingError("Mesh data does not contain UVs.");        }
-    if (!tangents.data())   { throw error::AssetContentsParsingError("Mesh data does not contain Tangents.");   }
-    if (!bitangents.data()) { throw error::AssetContentsParsingError("Mesh data does not contain Bitangents."); }
+    if (!normals.data())    { throw AssetContentsParsingError("Mesh data does not contain Normals.");    }
+    if (!uvs.data())        { throw AssetContentsParsingError("Mesh data does not contain UVs.");        }
+    if (!tangents.data())   { throw AssetContentsParsingError("Mesh data does not contain Tangents.");   }
+    if (!bitangents.data()) { throw AssetContentsParsingError("Mesh data does not contain Bitangents."); }
 
     std::vector<VertexStatic> vertex_data;
     vertex_data.reserve(verts.size());
@@ -555,11 +555,11 @@ auto get_skinned_mesh_data(
     auto tangents   = std::span(mesh.mTangents,         mesh.mNumVertices);
     auto bones      = std::span(mesh.mBones,            mesh.mNumBones   );
 
-    if (!normals.data())    { throw error::AssetContentsParsingError("Mesh data does not contain Normals.");    }
-    if (!uvs.data())        { throw error::AssetContentsParsingError("Mesh data does not contain UVs.");        }
-    if (!tangents.data())   { throw error::AssetContentsParsingError("Mesh data does not contain Tangents.");   }
-    if (!bones.data())      { throw error::AssetContentsParsingError("Mesh data does not contain Bones.");      }
-    if (bones.size() > 255) { throw error::AssetContentsParsingError("Armature has too many Bones (>255).");    }
+    if (!normals.data())    { throw AssetContentsParsingError("Mesh data does not contain Normals.");    }
+    if (!uvs.data())        { throw AssetContentsParsingError("Mesh data does not contain UVs.");        }
+    if (!tangents.data())   { throw AssetContentsParsingError("Mesh data does not contain Tangents.");   }
+    if (!bones.data())      { throw AssetContentsParsingError("Mesh data does not contain Bones.");      }
+    if (bones.size() > 255) { throw AssetContentsParsingError("Armature has too many Bones (>255).");    }
 
 
     using glm::uvec4;
@@ -754,7 +754,7 @@ auto AssetManager::load_model(AssetPath path)
 
         const aiScene* ai_scene = importer.ReadFile(path.entry(), flags);
 
-        if (!ai_scene) { throw error::AssetFileImportFailure(path.entry(), importer.GetErrorString()); }
+        if (!ai_scene) { throw AssetFileImportFailure(importer.GetErrorString(), { path.entry() }); }
 
         const size_t num_meshes    = ai_scene->mNumMeshes;
         const size_t num_materials = ai_scene->mNumMaterials;

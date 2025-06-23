@@ -1,31 +1,15 @@
 #pragma once
-#include "CommonConcepts.hpp" // IWYU pragma: keep
+#include "CategoryCasts.hpp"
+#include "CommonConcepts.hpp"
+#include "Errors.hpp"
 #include "Filesystem.hpp"
 #include "VirtualFilesystemError.hpp"
 #include <compare>
 
 
-
-
 namespace josh {
 
-namespace error {
-
-class VirtualPathIsNotRelative final : public VirtualFilesystemError {
-public:
-    static constexpr auto prefix = "Virtual Path Is Not Relative: ";
-    Path path;
-    VirtualPathIsNotRelative(Path path)
-        : VirtualFilesystemError(prefix, path)
-        , path{ std::move(path) }
-    {}
-};
-
-
-} // namespace error
-
-
-
+JOSH3D_DERIVE_EXCEPTION_EX(VirtualPathIsNotRelative, VirtualFilesystemError, { Path path; });
 
 /*
 VPath (VirtualPath) is a wrapper around Path that represents path a that:
@@ -35,25 +19,19 @@ VPath (VirtualPath) is a wrapper around Path that represents path a that:
 
 It is not, and does not have to be referring to an existing entry at the point of construction.
 */
-class VPath {
-private:
-    Path vpath_;
-    friend class VirtualFilesystem;
-
+class VPath
+{
 public:
     template<typename ...Args>
         requires not_move_or_copy_constructor_of<VPath, Args...>
     explicit VPath(Args&&... fs_path_args)
-        : vpath_{ std::forward<Args>(fs_path_args)... }
+        : vpath_{ FORWARD(fs_path_args)... }
     {
-        if (vpath_.is_absolute()) {
-            throw error::VirtualPathIsNotRelative(vpath_);
-        }
+        if (vpath_.is_absolute())
+            throw VirtualPathIsNotRelative({}, { vpath_ });
     }
 
-    const Path& path() const noexcept {
-        return vpath_;
-    }
+    auto path() const noexcept -> const Path& { return vpath_; }
 
     // Will decay to File through the thread_local VFS.
     operator File() const noexcept(false);
@@ -61,24 +39,22 @@ public:
     // Will decay to Directory through the thread_local VFS.
     operator Directory() const noexcept(false);
 
-
     bool operator==(const VPath& other) const noexcept = default;
     std::strong_ordering operator<=>(const VPath& other) const noexcept = default;
+
+private:
+    Path vpath_;
+    friend class VirtualFilesystem;
 };
-
-
 
 
 namespace filesystem_literals {
 
-inline VPath operator""_vpath(const char* str, size_t size) {
+inline auto operator""_vpath(const char* str, size_t size)
+    -> VPath
+{
     return VPath{ str, str + size };
 }
 
 } // namespace filesystem_literals
-
-
-
-
-
 } // namespace josh

@@ -1,8 +1,7 @@
 #pragma once
 #include "Common.hpp"
-#include "CategoryCasts.hpp"
 #include "Resource.hpp"
-#include "RuntimeError.hpp"
+#include "Errors.hpp"
 #include "Math.hpp"
 #include "Scalars.hpp"
 #include "UUID.hpp"
@@ -13,6 +12,12 @@ Common vocabulary for resource files.
 */
 namespace josh {
 
+/*
+Contents of a resource file make no sense.
+*/
+JOSH3D_DERIVE_EXCEPTION(InvalidResourceFile, RuntimeError);
+
+
 template<usize N>
 using FileTypeHS = FixedHashedString<N>;
 using FileType   = HashedID;
@@ -20,12 +25,14 @@ using FileType   = HashedID;
 /*
 First bytes of each non-inline binary resource file.
 
-TODO: We probably want to store FileType and Version too.
-
 ImHex Pattern:
 
-struct Preamble {
+struct Preamble
+{
     char _magic[4];
+    u32  file_type;
+    u16  version;
+    u16  _reserved;
     u32  resource_type;
     u8   self_uuid[16];
 };
@@ -53,7 +60,8 @@ Not guaranteed to be null-terminated.
 
 ImHex Pattern:
 
-struct ResourceName {
+struct ResourceName
+{
     u8     len;
     char   name[len];
     padding[63 - len];
@@ -79,24 +87,6 @@ struct ResourceName
     auto view() const noexcept -> StrView;
     operator StrView() const noexcept { return view(); }
 };
-
-namespace error {
-/*
-Contents of a resource file make no sense.
-*/
-class InvalidResourceFile : public RuntimeError {
-public:
-    static constexpr auto prefix = "Invalid Resource File: ";
-    InvalidResourceFile(String msg)
-        : InvalidResourceFile(prefix, MOVE(msg))
-    {}
-protected:
-    InvalidResourceFile(const char* prefix, String msg)
-        : RuntimeError(prefix, MOVE(msg))
-    {}
-};
-} // namespace error
-using error::InvalidResourceFile;
 
 
 } // namespace josh

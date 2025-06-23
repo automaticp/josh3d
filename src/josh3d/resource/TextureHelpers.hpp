@@ -11,32 +11,16 @@
 #include "Filesystem.hpp"
 #include "MallocSupport.hpp"
 #include "Pixels.hpp"
-#include "RuntimeError.hpp"
+#include "Errors.hpp"
 #include "Region.hpp"
 #include "PixelPackTraits.hpp"
 #include "CubemapData.hpp"
 #include <glbinding/gl/enum.h>
-#include <string>
 
 
 namespace josh {
 
-
-namespace error {
-
-class ImageReadingError final : public RuntimeError {
-public:
-    static constexpr auto prefix = "Cannot Read Image: ";
-    Path path;
-    ImageReadingError(Path path, std::string reason)
-        : RuntimeError(prefix,
-            path.native() + "; Reason: " + std::move(reason))
-        , path{ std::move(path) }
-    {}
-};
-
-} // namespace error
-
+JOSH3D_DERIVE_EXCEPTION_EX(ImageReadingError, RuntimeError, { Path path; });
 
 
 template<typename ChannelT>

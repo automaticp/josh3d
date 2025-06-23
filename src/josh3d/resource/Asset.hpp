@@ -1,6 +1,7 @@
 #pragma once
 #include "AABB.hpp"
 #include "EnumUtils.hpp"
+#include "Errors.hpp"
 #include "Filesystem.hpp"
 #include "GLBuffers.hpp"
 #include "GLMutability.hpp"
@@ -276,63 +277,12 @@ struct Asset<AssetKind::Cubemap, MutT> {
     JOSH3D_ASSET_CONVERSION_OP(AssetKind::Cubemap, path, intent, cubemap)
 };
 
-
-
-
 #undef JOSH3D_ASSET_CONVERSION_OP
 
 
-
-
-namespace error {
-
-
-class AssetLoadingError : public RuntimeError {
-public:
-    static constexpr auto prefix = "Asset Loading Error: ";
-    AssetLoadingError(std::string msg)
-        : AssetLoadingError(prefix, MOVE(msg))
-    {}
-protected:
-    AssetLoadingError(const char* prefix, std::string msg)
-        : RuntimeError(prefix, MOVE(msg))
-    {}
-};
-
-
-class AssetFileImportFailure : public AssetLoadingError {
-public:
-    static constexpr auto prefix = "Asset File Import Failure: ";
-    Path path;
-    AssetFileImportFailure(Path path, std::string error_string)
-        : AssetFileImportFailure(prefix, MOVE(path), MOVE(error_string))
-    {}
-protected:
-    AssetFileImportFailure(const char* prefix, Path path, std::string error_string)
-        : AssetLoadingError(prefix, MOVE(error_string))
-        , path{ MOVE(path) }
-    {}
-};
-
-
-class AssetContentsParsingError : public AssetLoadingError {
-public:
-    static constexpr auto prefix = "Asset Contents Parsing Error: ";
-    AssetContentsParsingError(std::string msg)
-        : AssetContentsParsingError(prefix, MOVE(msg))
-    {}
-protected:
-    AssetContentsParsingError(const char* prefix, std::string msg)
-        : AssetLoadingError(prefix, MOVE(msg))
-    {}
-};
-
-
-} // namespace error
-using error::AssetFileImportFailure;
-using error::AssetFileImportFailure;
-using error::AssetContentsParsingError;
-
+JOSH3D_DERIVE_EXCEPTION   (AssetError,                RuntimeError);
+JOSH3D_DERIVE_EXCEPTION_EX(AssetFileImportFailure,    AssetError, { Path path; });
+JOSH3D_DERIVE_EXCEPTION   (AssetContentsParsingError, AssetError);
 
 
 } // namespace josh

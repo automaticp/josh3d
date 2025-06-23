@@ -28,8 +28,8 @@ auto ShaderBuilder::get()
 
         if (not shader_obj->has_compiled_successfully())
             throw ShaderCompilationFailure(
-                shader.path.string() + '\n' + shader_obj->get_info_log(),
-                shader.type);
+                shader.path.string(),
+                { shader_obj->get_info_log(), shader.type });
 
         sp->attach_shader(shader_obj);
     }
@@ -37,7 +37,7 @@ auto ShaderBuilder::get()
     sp->link();
 
     if (not sp->has_linked_successfully())
-        throw ProgramLinkingFailure(sp->get_info_log());
+        throw ProgramLinkingFailure({}, { sp->get_info_log() });
 
     return sp;
 }
@@ -60,7 +60,7 @@ void ShaderBuilder::UnevaluatedShader::resolve_includes()
     if (path.empty())
     {
         if (Optional include_dir = ShaderSource::find_include_directive(source))
-            throw IncludeResolutionFailure(include_dir->quoted_path.to_string());
+            throw IncludeResolutionFailure({}, { .include_name=include_dir->quoted_path.to_string() });
         else
             return;
     }

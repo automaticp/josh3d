@@ -305,9 +305,10 @@ Throws if the compilation/linking failed for any reason.
 
         if (not shader_obj->has_compiled_successfully())
         {
-            throw error::ShaderCompilationFailure(
-                fmt::format("{}\n{}\n{}", file_path.string(), shader_obj->get_info_log(), source.text_view()),
-                target);
+            auto info_log = shader_obj->get_info_log();
+            throw ShaderCompilationFailure(
+                fmt::format("{}\n{}\n{}", file_path.string(), info_log, source.text_view()),
+                { info_log, target });
         }
 
         program_obj->attach_shader(shader_obj);
@@ -321,7 +322,8 @@ Throws if the compilation/linking failed for any reason.
     if (not program_obj->has_linked_successfully())
     {
         // TODO: This should display more info.
-        throw error::ProgramLinkingFailure(program_obj->get_info_log());
+        auto info_log = program_obj->get_info_log();
+        throw ProgramLinkingFailure(info_log, { info_log });
     }
 
     return program_obj;

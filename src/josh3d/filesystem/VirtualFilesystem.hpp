@@ -1,4 +1,5 @@
 #pragma once
+#include "Errors.hpp"
 #include "Filesystem.hpp"
 #include "VirtualFilesystemError.hpp"
 #include "VFSRoots.hpp"
@@ -7,30 +8,15 @@
 
 namespace josh {
 
-
 class VPath;
+class VirtualFilesystem;
 
+JOSH3D_DERIVE_EXCEPTION_EX(UnresolvedVirtualPath, VirtualFilesystemError, { Path path; });
 
-namespace error {
-
-
-class UnresolvedVirtualPath final : public VirtualFilesystemError {
-public:
-    static constexpr auto prefix = "Unresolved Virtual Path: ";
-    Path path;
-    UnresolvedVirtualPath(Path path)
-        : VirtualFilesystemError(prefix, path)
-        , path{ std::move(path) }
-    {}
-};
-
-
-} // namespace error
-
-
-
-// Point of access to a global (thread_local) VFS.
-class VirtualFilesystem& vfs() noexcept;
+/*
+Point of access to a global (thread_local) VFS.
+*/
+auto vfs() noexcept -> VirtualFilesystem&;
 
 
 /*
@@ -137,7 +123,7 @@ public:
     // Throwing path resolution. Matches VPath against the
     // roots in contained order until a valid path is found.
     //
-    // Throws `error::UnresolvedVirtualPath` on failure.
+    // Throws `UnresolvedVirtualPath` on failure.
     [[nodiscard]] auto resolve_path(const VPath& vpath) const
         -> Path;
 
@@ -155,7 +141,7 @@ public:
     // Throwing file resolution. Matches VPath against the
     // roots in contained order until a valid file is found.
     //
-    // Throws `error::UnresolvedVirtualPath` on failure.
+    // Throws `UnresolvedVirtualPath` on failure.
     [[nodiscard]] auto resolve_file(const VPath& vpath) const
         -> File;
 
@@ -173,7 +159,7 @@ public:
     // Throwing directory resolution. Matches VPath against the
     // roots in contained order until a valid directory is found.
     //
-    // Throws `error::UnresolvedVirtualPath` on failure.
+    // Throws `UnresolvedVirtualPath` on failure.
     [[nodiscard]] auto resolve_directory(const VPath& vpath) const
         -> Directory;
 };

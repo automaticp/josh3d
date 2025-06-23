@@ -2,68 +2,18 @@
 #include "CategoryCasts.hpp"
 #include "Common.hpp"
 #include "Filesystem.hpp"
+#include "GLAPITargets.hpp"
 #include "GLObjects.hpp"
 #include "ReadFile.hpp"
-#include "RuntimeError.hpp"
+#include "Errors.hpp"
 #include "ShaderSource.hpp"
-#include <string>
-#include <utility>
 
 
 namespace josh {
-namespace error {
 
-/*
-FIXME: I hate the current error conventions.
-*/
-class ShaderCompilationFailure final : public RuntimeError
-{
-public:
-    static constexpr auto prefix = "Failed to Compile Shader: ";
-
-    std::string  info_log;
-    ShaderTarget shader_type;
-
-    ShaderCompilationFailure(
-        std::string  info_log,
-        ShaderTarget shader_type)
-        : RuntimeError(prefix, info_log)
-        , info_log   { std::move(info_log) }
-        , shader_type{ shader_type         }
-    {}
-};
-
-class IncludeResolutionFailure final : public RuntimeError
-{
-public:
-    static constexpr auto prefix = "Failed to Resolve Include: ";
-
-    std::string include_name;
-
-    IncludeResolutionFailure(std::string include_name)
-        : RuntimeError(prefix, include_name)
-        , include_name{ std::move(include_name) }
-    {}
-};
-
-class ProgramLinkingFailure final : public RuntimeError
-{
-public:
-    static constexpr auto prefix = "Failed to Link Program: ";
-
-    std::string info_log;
-
-    ProgramLinkingFailure(std::string info_log)
-        : RuntimeError(prefix, info_log)
-        , info_log   { std::move(info_log) }
-    {}
-};
-
-} // namespace error
-using error::ShaderCompilationFailure;
-using error::IncludeResolutionFailure;
-using error::ProgramLinkingFailure;
-
+JOSH3D_DERIVE_EXCEPTION_EX(ShaderCompilationFailure, RuntimeError, { String info_log; ShaderTarget target; });
+JOSH3D_DERIVE_EXCEPTION_EX(IncludeResolutionFailure, RuntimeError, { String include_name; });
+JOSH3D_DERIVE_EXCEPTION_EX(ProgramLinkingFailure,    RuntimeError, { String info_log; });
 
 /*
 NOTE: This is not used much anymore and is kept more as a reference, I think.

@@ -19,7 +19,7 @@
 #include "Resource.hpp"
 #include "ResourceFiles.hpp"
 #include "ResourceLoader.hpp"
-#include "RuntimeError.hpp"
+#include "Errors.hpp"
 #include "Scalars.hpp"
 #include "SkeletalAnimation.hpp"
 #include "UUID.hpp"

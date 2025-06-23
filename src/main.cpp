@@ -91,7 +91,7 @@ auto main(int argc, const char* argv[])
             for (auto&& vroot : vroot_strigns)
                 josh::vfs().roots().push_front(josh::Directory(std::move(vroot)));
         }
-        catch (const josh::error::DirectoryDoesNotExist& e)
+        catch (const josh::DirectoryDoesNotExist& e)
         {
             std::cerr << e.what() << "\n";
             return 1;

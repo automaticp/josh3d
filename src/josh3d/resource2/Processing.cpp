@@ -6,7 +6,7 @@
 #include "ImageData.hpp"
 #include "MeshRegistry.hpp"
 #include "Ranges.hpp"
-#include "RuntimeError.hpp"
+#include "Errors.hpp"
 #include "MallocSupport.hpp"
 #include <glm/ext.hpp>
 #include <stb_image.h>

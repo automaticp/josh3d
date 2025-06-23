@@ -10,7 +10,7 @@
 #include "CoroCore.hpp"
 #include "GLObjectHelpers.hpp"
 #include "GLTextures.hpp"
-#include "RuntimeError.hpp"
+#include "Errors.hpp"
 #include "Scalars.hpp"
 #include "detail/AssimpCommon.hpp"
 #include "detail/SPNG.hpp"

@@ -23,7 +23,7 @@
 #include "MeshStorage.hpp"
 #include "Name.hpp"
 #include "Processing.hpp"
-#include "RuntimeError.hpp"
+#include "Errors.hpp"
 #include "SceneGraph.hpp"
 #include "SkeletalAnimation.hpp"
 #include "SkeletonStorage.hpp"

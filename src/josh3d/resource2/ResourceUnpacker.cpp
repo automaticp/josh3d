@@ -1,6 +1,6 @@
 #include "ResourceUnpacker.hpp"
 #include "ResourceInfo.hpp"
-#include "RuntimeError.hpp"
+#include "Errors.hpp"
 
 
 namespace josh {
