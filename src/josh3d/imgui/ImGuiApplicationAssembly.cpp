@@ -26,6 +26,7 @@
 #include "VPath.hpp"
 #include "VirtualFilesystem.hpp"
 #include "glfwpp/window.h"
+#include <cinttypes>
 #include <fmt/core.h>
 #include <glbinding/gl/boolean.h>
 #include <imgui.h>
@@ -577,10 +578,13 @@ void ImGuiApplicationAssembly::_display_debug()
             }
         };
 
-        table("LimitB",  LimitB{},  [](GLboolean v) { ImGui::Text("%i", i32(v));                 });
-        table("LimitI",  LimitI{},  [](i32 v)       { ImGui::Text("%i", v);                      });
-        table("LimitF",  LimitF{},  [](float v)     { ImGui::Text("%.3f", v);                    });
-        table("LimitRF", LimitRF{}, [](RangeF v)    { ImGui::Text("[%.3f, %.3f]", v.min, v.max); });
+        table("LimitB",   LimitB{},   [](GLboolean v)       { ImGui::Text("%i", i32(v));                     });
+        table("LimitI",   LimitI{},   [](i32 v)             { ImGui::Text("%i", v);                          });
+        table("LimitI64", LimitI64{}, [](i64 v)             { ImGui::Text("%" PRIi64, v);                    });
+        table("Limit3I",  Limit3I{},  [](Array<i32, 3> v)   { ImGui::Text("(%i, %i, %i)", v[0], v[1], v[2]); });
+        table("LimitF",   LimitF{},   [](float v)           { ImGui::Text("%.3f", v);                        });
+        table("Limit2F",  Limit2F{},  [](Array<float, 2> v) { ImGui::Text("(%.3f, %.3f)", v[0], v[1]);       });
+        table("LimitRF",  LimitRF{},  [](RangeF v)          { ImGui::Text("[%.3f, %.3f]", v.min, v.max);     });
     }
 }
 

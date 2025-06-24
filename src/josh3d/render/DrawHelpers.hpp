@@ -64,7 +64,7 @@ Common when doing non-bindless batching.
 inline auto max_frag_texture_units()
     -> i32
 {
-    return glapi::get_limit(LimitI::MaxFragTextureUnits);
+    return glapi::get_limit(LimitI::MaxFragmentTextureImageUnits);
 }
 
 /*

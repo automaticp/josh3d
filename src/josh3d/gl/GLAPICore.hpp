@@ -19,6 +19,42 @@ namespace josh {
 
 
 /*
+SECTION: Errors [2.3.1].
+*/
+enum class Error : GLuint
+{
+    NoError                     = GLint(gl::GL_NO_ERROR),
+    ContextLost                 = GLint(gl::GL_CONTEXT_LOST),
+    InvalidEnum                 = GLint(gl::GL_INVALID_ENUM),
+    InvalidValue                = GLint(gl::GL_INVALID_VALUE),
+    InvalidOperation            = GLint(gl::GL_INVALID_OPERATION),
+    InvalidFramebufferOperation = GLint(gl::GL_INVALID_FRAMEBUFFER_OPERATION),
+    OutOfMemory                 = GLint(gl::GL_OUT_OF_MEMORY),
+    StackOverflow               = GLint(gl::GL_STACK_OVERFLOW),
+    StackUnderflow              = GLint(gl::GL_STACK_UNDERFLOW),
+};
+JOSH3D_DEFINE_ENUM_EXTRAS(Error,
+    NoError,
+    ContextLost,
+    InvalidEnum,
+    InvalidValue,
+    InvalidOperation,
+    InvalidFramebufferOperation,
+    OutOfMemory,
+    StackOverflow,
+    StackUnderflow);
+
+namespace glapi {
+
+inline auto get_error() -> Error
+{
+    return enum_cast<Error>(gl::glGetError());
+}
+
+} // namespace glapi
+
+
+/*
 SECTION: Queries.
 */
 namespace glapi {
