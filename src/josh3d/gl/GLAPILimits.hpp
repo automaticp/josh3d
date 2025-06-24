@@ -94,6 +94,12 @@ inline auto get_limit(LimitI limit)
     return detail::get_integer(enum_cast<GLenum>(limit));
 }
 
+inline auto get_limit(LimitF limit)
+    -> GLfloat
+{
+    return detail::get_float(enum_cast<GLenum>(limit));
+}
+
 inline auto get_limit(LimitRF limit)
     -> RangeF
 {

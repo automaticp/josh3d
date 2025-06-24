@@ -7,6 +7,7 @@
 #include "ContainerUtils.hpp"
 #include "FrameTimer.hpp"
 #include "GLAPIBinding.hpp"
+#include "GLAPILimits.hpp"
 #include "ID.hpp"
 #include "ImGuiExtras.hpp"
 #include "ImGuiHelpers.hpp"
@@ -26,6 +27,7 @@
 #include "VirtualFilesystem.hpp"
 #include "glfwpp/window.h"
 #include <fmt/core.h>
+#include <glbinding/gl/boolean.h>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <imgui_stdlib.h>
@@ -537,6 +539,48 @@ void ImGuiApplicationAssembly::_display_debug()
         {
             runtime.skeleton_storage.remove(to_remove);
         }
+    }
+
+    // HMM: This might be worth moving elsewhere.
+    if (ImGui::TreeNode("GL API Limits"))
+    {
+        DEFER(ImGui::TreePop());
+
+        const auto table_flags =
+            ImGuiTableFlags_Borders     |
+            ImGuiTableFlags_Resizable   |
+            ImGuiTableFlags_Reorderable |
+            ImGuiTableFlags_Hideable    |
+            ImGuiTableFlags_SizingStretchProp |
+            ImGuiTableFlags_HighlightHoveredColumn;
+
+        const auto table = [](const char* name, auto enum_, auto&& value_func)
+        {
+            if (ImGui::TreeNode(name))
+            {
+                DEFER(ImGui::TreePop());
+                if (ImGui::BeginTable(name, 2, table_flags))
+                {
+                    DEFER(ImGui::EndTable());
+                    ImGui::TableSetupColumn("Name");
+                    ImGui::TableSetupColumn("Value");
+                    ImGui::TableHeadersRow();
+                    for (auto e : enum_iter(enum_))
+                    {
+                        ImGui::TableNextRow();
+                        ImGui::TableNextColumn();
+                        ImGui::TextUnformatted(enum_string(e));
+                        ImGui::TableNextColumn();
+                        value_func(glapi::get_limit(e));
+                    }
+                }
+            }
+        };
+
+        table("LimitB",  LimitB{},  [](GLboolean v) { ImGui::Text("%i", i32(v));                 });
+        table("LimitI",  LimitI{},  [](i32 v)       { ImGui::Text("%i", v);                      });
+        table("LimitF",  LimitF{},  [](float v)     { ImGui::Text("%.3f", v);                    });
+        table("LimitRF", LimitRF{}, [](RangeF v)    { ImGui::Text("[%.3f, %.3f]", v.min, v.max); });
     }
 }
 
