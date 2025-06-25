@@ -1,57 +1,22 @@
-
-
 # Main interface target of josh3d.
 add_library(josh3d INTERFACE)
 add_library(josh3d::josh3d ALIAS josh3d)
 
-# Optional ASAN target.
-if (JOSH3D_BUILD_WITH_ASAN)
-    add_library(josh3d-asan INTERFACE)
-    if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-        target_compile_options(josh3d-asan INTERFACE "-fsanitize=address")
-        target_link_options   (josh3d-asan INTERFACE "-fsanitize=address")
-    elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-        target_compile_options(josh3d-asan INTERFACE "/fsanitize=address")
-        target_link_options   (josh3d-asan INTERFACE "/fsanitize=address")
-    else()
-        message(WARNING "Unknown AddressSanitizer support for C++ compiler: ${CMAKE_CXX_COMPILER_ID}.")
-        message(WARNING "\"-fsanitize=address\" flag will be passed to the compiler anyway. This might break the build.")
-        target_compile_options(josh3d-asan INTERFACE "-fsanitize=address")
-        target_link_options   (josh3d-asan INTERFACE "-fsanitize=address")
-    endif()
-endif()
-
-# Optional TSAN target
-if (JOSH3D_BUILD_WITH_TSAN)
-    add_library(josh3d-tsan INTERFACE)
-    if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-        target_compile_options(josh3d-tsan INTERFACE "-fsanitize=thread")
-        target_link_options   (josh3d-tsan INTERFACE "-fsanitize=thread")
-    else()
-        message(WARNING "Unknown ThreadSanitizer support for C++ compiler: ${CMAKE_CXX_COMPILER_ID}.")
-        message(WARNING "\"-fsanitize=thread\" flag will be passed to the compiler anyway. This might break the build.")
-        target_compile_options(josh3d-tsan INTERFACE "-fsanitize=thread")
-        target_link_options   (josh3d-tsan INTERFACE "-fsanitize=thread")
-    endif()
-endif()
-
-
-
 
 set(SUBTARGETS
-    core
-    data
-    engine
-    filesystem
-    gl
-    imgui
-    input
-    layout
-    render
-    resource
-    resource2
-    scene
-    util
+    util       # Library-like utilities that hold no association with the engine.
+    filesystem # Filesystem-related utilities. Should probably be in utils.
+    layout     # Shared vocabulary between gl and other modules. Should probably not exist.
+    gl         # OpenGL wrapper.
+    core       # Core basic vocabulary of the engine itself.
+    data       # Data-heavy vocabulary used by various modules.
+    scene      # Scene representation vocabulary and algorithms.
+    render     # Rendering-related components and datatypes.
+    resource   # Old resource loading.
+    resource2  # New resource (importing/loading/unpacking) setup.
+    engine     # The heavy engine components: runtime, rendering pipeline, etc.
+    imgui      # The editor-like GUI layer built on top of the engine.
+    input      # Input handling related things. Very old and dumb.
 )
 
 
@@ -88,22 +53,16 @@ function(make_subtarget SUBTARGET)
 endfunction()
 
 
-
-
-
 foreach(SUBTARGET IN ITEMS ${SUBTARGETS})
     make_subtarget(${SUBTARGET})
     target_link_libraries(josh3d INTERFACE josh3d-${SUBTARGET})
 endforeach()
 
 
-
-
 # Resolve internal dependencies.
 # (Using short names, prefixes each subtarget with "josh3d-")
-
-
 function(subtarget_link_internal SUBTARGET)
+
     set(ACCESS_MODS PUBLIC PRIVATE INTERFACE)
     cmake_parse_arguments(ARG "" "" "${ACCESS_MODS}" ${ARGN})
 
@@ -133,10 +92,7 @@ subtarget_link_internal(layout)
 subtarget_link_internal(util)
 
 
-
-
-# Common external dependencies.
-set(common_external_deps
+set(COMMON_EXTERNAL_DEPS
     Boost::container
     Boost::unordered
     Boost::iostreams
@@ -154,17 +110,21 @@ set(common_external_deps
     range-v3::concepts
 )
 
+if (TRACY_ENABLE)
+    list(APPEND COMMON_EXTERNAL_DEPS Tracy::TracyClient)
+endif()
+
 
 function(subtarget_link_common_external_deps SUBTARGET)
 
-    get_target_property(target_type josh3d-${SUBTARGET} TYPE)
-    if (target_type STREQUAL "INTERFACE_LIBRARY")
+    get_target_property(TARGET_TYPE josh3d-${SUBTARGET} TYPE)
+    if (TARGET_TYPE STREQUAL "INTERFACE_LIBRARY")
         set(VISIBILITY INTERFACE)
     else()
         set(VISIBILITY PUBLIC)
     endif()
 
-    target_link_libraries(josh3d-${SUBTARGET} ${VISIBILITY} ${common_external_deps})
+    target_link_libraries(josh3d-${SUBTARGET} ${VISIBILITY} ${COMMON_EXTERNAL_DEPS})
 
 endfunction()
 
@@ -174,14 +134,44 @@ foreach(SUBTARGET IN ITEMS ${SUBTARGETS})
 endforeach()
 
 
-target_link_libraries(josh3d-data     PRIVATE   ctre::ctre)
-target_link_libraries(josh3d-engine   PUBLIC    glfwpp::glfwpp EnTT::EnTT)
-target_link_libraries(josh3d-gl       PUBLIC    glbinding::glbinding glbinding::glbinding-aux)
-target_link_libraries(josh3d-imgui    PUBLIC    imgui::imgui imguizmo::imguizmo PRIVATE glfwpp::glfwpp)
-target_link_libraries(josh3d-resource PUBLIC    assimp::assimp #[[ should be private ]] PRIVATE cgltf::cgltf spng::spng_static stb::stb nlohmann_json::nlohmann_json)
+target_link_libraries(josh3d-data      PRIVATE  ctre::ctre)
+target_link_libraries(josh3d-engine    PUBLIC   glfwpp::glfwpp EnTT::EnTT)
+target_link_libraries(josh3d-gl        PUBLIC   glbinding::glbinding glbinding::glbinding-aux)
+target_link_libraries(josh3d-imgui     PUBLIC   imgui::imgui imguizmo::imguizmo PRIVATE glfwpp::glfwpp)
+target_link_libraries(josh3d-resource  PUBLIC   assimp::assimp #[[ should be private ]] PRIVATE cgltf::cgltf spng::spng_static stb::stb nlohmann_json::nlohmann_json)
 target_link_libraries(josh3d-resource2 PRIVATE  assimp::assimp cgltf::cgltf spng::spng_static stb::stb nlohmann_json::nlohmann_json)
 # target_link_libraries(josh3d-render)
 # target_link_libraries(josh3d-layout)
-target_link_libraries(josh3d-scene    PUBLIC    EnTT::EnTT)
-target_link_libraries(josh3d-core     PUBLIC    glfwpp::glfwpp)
+target_link_libraries(josh3d-scene     PUBLIC   EnTT::EnTT)
+target_link_libraries(josh3d-core      PUBLIC   glfwpp::glfwpp)
 # target_link_libraries(josh3d-util)
+
+
+if (JOSH3D_BUILD_WITH_ASAN)
+    add_library(josh3d-asan INTERFACE)
+    if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+        target_compile_options(josh3d-asan INTERFACE "-fsanitize=address")
+        target_link_options   (josh3d-asan INTERFACE "-fsanitize=address")
+    elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+        target_compile_options(josh3d-asan INTERFACE "/fsanitize=address")
+        target_link_options   (josh3d-asan INTERFACE "/fsanitize=address")
+    else()
+        message(WARNING "Unknown AddressSanitizer support for C++ compiler: ${CMAKE_CXX_COMPILER_ID}.")
+        message(WARNING "\"-fsanitize=address\" flag will be passed to the compiler anyway. This might break the build.")
+        target_compile_options(josh3d-asan INTERFACE "-fsanitize=address")
+        target_link_options   (josh3d-asan INTERFACE "-fsanitize=address")
+    endif()
+endif()
+
+if (JOSH3D_BUILD_WITH_TSAN)
+    add_library(josh3d-tsan INTERFACE)
+    if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+        target_compile_options(josh3d-tsan INTERFACE "-fsanitize=thread")
+        target_link_options   (josh3d-tsan INTERFACE "-fsanitize=thread")
+    else()
+        message(WARNING "Unknown ThreadSanitizer support for C++ compiler: ${CMAKE_CXX_COMPILER_ID}.")
+        message(WARNING "\"-fsanitize=thread\" flag will be passed to the compiler anyway. This might break the build.")
+        target_compile_options(josh3d-tsan INTERFACE "-fsanitize=thread")
+        target_link_options   (josh3d-tsan INTERFACE "-fsanitize=thread")
+    endif()
+endif()

@@ -30,3 +30,8 @@ target_sources(imguizmo PRIVATE ${IMGUIZMO_DIR}/ImGuizmo.cpp)
 target_include_directories(imguizmo PUBLIC ${IMGUIZMO_DIR})
 target_link_libraries(imguizmo PUBLIC imgui::imgui)
 add_library(imguizmo::imguizmo ALIAS imguizmo)
+
+# === tracy ===
+# Targets:
+#   Tracy::TracyClient
+add_subdirectory(${CMAKE_SOURCE_DIR}/external/tracy SYSTEM)

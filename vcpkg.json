@@ -13,6 +13,8 @@
         "boost-interprocess",
         "boost-uuid",
         "boost-type-index",
+        "boost-predef",
+        "boost-preprocessor",
         "fmt",
         "doctest",
         "cxxopts",

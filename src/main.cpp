@@ -6,6 +6,7 @@
 #include "ThreadName.hpp"
 #include "VirtualFilesystem.hpp"
 #include "WindowSizeCache.hpp"
+#include "Tracy.hpp"
 #include <glbinding/gl/gl.h>
 #include <glbinding/glbinding.h>
 #include <glfwpp/glfwpp.h>
@@ -151,6 +152,7 @@ auto main(int argc, const char* argv[])
 
     while (!application.is_done())
     {
+        FrameMark;
         application.execute_frame();
         tee_ostream.flush(); // Does not auto flush, do it manually every frame.
     }
