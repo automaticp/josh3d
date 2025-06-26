@@ -25,11 +25,8 @@
 #include "Transform.hpp"
 #include "UniformTraits.hpp"
 #include "ShadowCasting.hpp"
+#include "Tracy.hpp"
 #include <algorithm>
-#include <entt/entity/fwd.hpp>
-#include <glbinding-aux/Meta.h>
-#include <glbinding/gl/bitfield.h>
-#include <glbinding/gl/functions.h>
 #include <ranges>
 #include <span>
 
@@ -94,6 +91,7 @@ void fit_cascade_views_to_camera(
     bool                 pad_inner_cascades,
     float                padding_tx)
 {
+    ZoneScoped;
     // WARN: This is still heavily WIP.
 
     // TODO: There's still clipping for the largest cascade.
@@ -276,6 +274,7 @@ void cull_per_cascade(
     Span<CascadeDrawState>  drawstates,
     const Registry&         registry)
 {
+    ZS;
     assert(views.size() != 0);
     assert(views.size() == drawstates.size());
     const usize num_cascades = views.size();
@@ -378,6 +377,7 @@ void cull_per_cascade(
 void CascadedShadowMapping::operator()(
     RenderEnginePrimaryInterface& engine)
 {
+    ZSCGPUN("CSM");
     const auto& registry = engine.registry();
 
     const CHandle dlight = get_active<DirectionalLight, ShadowCasting, MTransform>(registry);

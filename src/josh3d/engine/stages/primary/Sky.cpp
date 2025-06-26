@@ -14,17 +14,16 @@
 #include "LightCasters.hpp"
 #include "RenderEngine.hpp"
 #include "Skybox.hpp"
-#include <glbinding/gl/functions.h>
-#include <glbinding/gl/gl.h>
+#include "Tracy.hpp"
 #include <glm/geometric.hpp>
 #include <glm/matrix.hpp>
-
 
 namespace josh {
 
 
 void Sky::operator()(RenderEnginePrimaryInterface& engine)
 {
+    ZSCGPUN("Sky");
     if (sky_type == SkyType::None) return;
 
     glapi::disable(Capability::FaceCulling);

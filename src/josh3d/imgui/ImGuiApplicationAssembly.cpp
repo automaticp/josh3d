@@ -22,13 +22,13 @@
 #include "RenderEngine.hpp"
 #include "Region.hpp"
 #include "SkeletonStorage.hpp"
+#include "Tracy.hpp"
 #include "Transform.hpp"
 #include "VPath.hpp"
 #include "VirtualFilesystem.hpp"
 #include "glfwpp/window.h"
 #include <cinttypes>
 #include <fmt/core.h>
-#include <glbinding/gl/boolean.h>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <imgui_stdlib.h>
@@ -68,6 +68,7 @@ auto ImGuiApplicationAssembly::get_io_wants() const noexcept
 
 void ImGuiApplicationAssembly::new_frame(const FrameTimer& frame_timer)
 {
+    ZS;
     const float dt = frame_timer.delta<float>();
     _avg_frame_timer.update(dt);
 
@@ -429,6 +430,7 @@ void ImGuiApplicationAssembly::_draw_widgets()
 
 void ImGuiApplicationAssembly::display()
 {
+    ZoneScoped;
     _draw_widgets();
     if (const auto camera = get_active<Camera, MTransform>(runtime.registry))
     {

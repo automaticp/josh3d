@@ -15,10 +15,9 @@
 #include "LightCasters.hpp"
 #include "Visible.hpp"
 #include "ECS.hpp"
-#include <glbinding/gl/bitfield.h>
-#include <glbinding/gl/functions.h>
-#include <glm/fwd.hpp>
+#include "Tracy.hpp"
 #include <glm/gtc/constants.hpp>
+#include <tracy/Tracy.hpp>
 
 
 namespace josh {
@@ -34,6 +33,7 @@ PointShadowMapping::PointShadowMapping(i32 side_resolution)
 void PointShadowMapping::operator()(
     RenderEnginePrimaryInterface& engine)
 {
+    ZSCGPUN("PSM");
     prepare_point_shadows(engine.registry());
 
     map_point_shadows(engine);
@@ -44,6 +44,7 @@ void PointShadowMapping::operator()(
 void PointShadowMapping::prepare_point_shadows(
     const Registry& registry)
 {
+    ZS;
     auto plights_with_shadow =
         registry.view<Visible, ShadowCasting, PointLight, MTransform, BoundingSphere>();
 
@@ -101,6 +102,8 @@ void PointShadowMapping::prepare_point_shadows(
 void PointShadowMapping::map_point_shadows(
     RenderEnginePrimaryInterface& engine)
 {
+    ZoneScoped;
+
     const auto& registry = engine.registry();
     const auto& mesh_registry = engine.meshes();
     auto& maps = point_shadows.maps;

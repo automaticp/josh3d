@@ -3,10 +3,9 @@
 #include "RenderEngine.hpp"
 #include "ShaderPool.hpp"
 #include "VPath.hpp"
+#include "Tracy.hpp"
 #include <entt/fwd.hpp>
 #include <glbinding/gl/gl.h>
-
-
 
 
 namespace josh {
@@ -32,6 +31,7 @@ private:
 inline void GammaCorrection::operator()(
     RenderEnginePostprocessInterface& engine)
 {
+    ZSCGPUN("GammaCorrection");
     const auto sp = sp_.get();
     engine.screen_color().bind_to_texture_unit(0);
     sp.uniform("color", 0);

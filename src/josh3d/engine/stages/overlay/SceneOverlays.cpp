@@ -18,6 +18,7 @@
 #include "SceneGraph.hpp"
 #include "Transform.hpp"
 #include "Selected.hpp"
+#include "Tracy.hpp"
 #include <entt/entity/fwd.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <range/v3/view/drop.hpp>
@@ -32,6 +33,7 @@ namespace josh {
 void SceneOverlays::operator()(
     RenderEngineOverlayInterface& engine)
 {
+    ZSCGPUN("SceneOverlays");
     draw_selected_highlight(engine);
     draw_bounding_volumes  (engine);
     draw_scene_graph_lines (engine);

@@ -7,6 +7,7 @@
 #include "ShaderPool.hpp"
 #include "UniformTraits.hpp"
 #include "RenderEngine.hpp"
+#include "Tracy.hpp"
 #include <cmath>
 #include <cassert>
 
@@ -22,6 +23,7 @@ GaussianBloom::GaussianBloom(usize kernel_limb_size, float kernel_range)
 void GaussianBloom::operator()(
     RenderEnginePostprocessInterface& engine)
 {
+    ZSCGPUN("GaussianBloom");
     if (not use_bloom) return;
 
     target._resize(engine.main_resolution());

@@ -1,17 +1,11 @@
 #pragma once
+#include "stages/primary/IDBufferStorage.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLObjects.hpp"
 #include "GLTextures.hpp"
 #include "Region.hpp"
 #include "RenderEngine.hpp"
-#include "stages/primary/IDBufferStorage.hpp"
-#include <glbinding/gl/enum.h>
-#include <glbinding/gl/functions.h>
-#include <glbinding/gl/gl.h>
-#include <entt/entity/fwd.hpp>
-#include <glbinding/gl/types.h>
-
-
+#include "Tracy.hpp"
 
 
 namespace josh {
@@ -109,6 +103,7 @@ struct GBufferStorage
 inline void GBufferStorage::operator()(
     RenderEnginePrimaryInterface& engine)
 {
+    ZSCGPUN("GBufferStorage");
     gbuffer._resize(engine.main_resolution());
     gbuffer._reset_depth(engine.main_depth_texture());
     if (auto* idbuffer = engine.belt().try_get<IDBuffer>())

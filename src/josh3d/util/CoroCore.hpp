@@ -1,6 +1,8 @@
 #pragma once
 #include "CategoryCasts.hpp"
 #include "CommonConcepts.hpp"
+#include "Errors.hpp"
+#include "Scalars.hpp"
 #include "ScopeExit.hpp"
 #include "ContainerUtils.hpp"
 #include "Ranges.hpp"
@@ -8,7 +10,6 @@
 #include <cassert>
 #include <concepts>
 #include <coroutine>
-#include <cstddef>
 #include <exception>
 #include <ranges>
 #include <type_traits>
@@ -20,22 +21,21 @@ namespace josh {
 
 template<typename T>
 concept await_suspend_return_type =
-    any_of<T, void, bool> ||
+    any_of<T, void, bool> or
     specialization_of<T, std::coroutine_handle>;
 
-
 template<typename T, typename ResultT = void, typename PromiseT = void>
-concept awaiter = requires(T awaiter, std::coroutine_handle<PromiseT> coroutine) {
+concept awaiter = requires(T awaiter, std::coroutine_handle<PromiseT> coroutine)
+{
     { awaiter.await_ready()            } -> std::convertible_to<bool>;
     { awaiter.await_suspend(coroutine) } -> await_suspend_return_type;
     { awaiter.await_resume()           } -> std::same_as<ResultT>;
 };
 
-
 template<typename T, typename ResultT = void, typename PromiseT = void>
 concept awaitable =
-    awaiter<T, ResultT, PromiseT> ||
-    requires(T awaitable) { { awaitable.operator co_await() } -> awaiter<ResultT, PromiseT>; } ||
+    awaiter<T, ResultT, PromiseT> or
+    requires(T awaitable) { { awaitable.operator co_await() } -> awaiter<ResultT, PromiseT>; } or
     requires(T awaitable) { { operator co_await(awaitable)  } -> awaiter<ResultT, PromiseT>; };
 
 
@@ -47,7 +47,8 @@ originally had emplace in its interface.
 TODO: The emplace()-like function should be indirected through a trait.
 */
 template<typename T>
-concept executor = requires(T executor) {
+concept executor = requires(T executor)
+{
     { executor.emplace([](){}) };
 };
 
@@ -60,18 +61,23 @@ template<executor E>
 auto reschedule_to(E& executor)
     -> awaiter<void> auto
 {
-    struct Awaiter {
+    struct Awaiter
+    {
         E& executor;
         auto await_ready() const noexcept -> bool { return false; }
-        void await_suspend(std::coroutine_handle<> h) {
+        void await_suspend(std::coroutine_handle<> h)
+        {
             auto resumer = [h] { h.resume(); };
 
             using result_type =
                 decltype([&]() -> decltype(auto) { return executor.emplace(MOVE(resumer)); }());
 
-            if constexpr (std::is_void_v<result_type>) {
+            if constexpr (std::is_void_v<result_type>)
+            {
                 executor.emplace(MOVE(resumer));
-            } else {
+            }
+            else
+            {
                 discard(executor.emplace(MOVE(resumer)));
             }
         }
@@ -81,22 +87,24 @@ auto reschedule_to(E& executor)
 }
 
 
-
 template<typename T>
 struct readyable_traits;
 
 
 namespace detail {
 template<typename T>
-concept has_member_is_ready = requires(T v) {
+concept has_member_is_ready = requires(T v)
+{
     { v.is_ready() } -> std::convertible_to<bool>;
 };
 template<typename T>
-concept has_adl_is_ready = requires(T v) {
+concept has_adl_is_ready = requires(T v)
+{
     { is_ready(v) } -> std::convertible_to<bool>;
 };
 template<typename T>
-concept specializes_readyable_traits = requires(T v) {
+concept specializes_readyable_traits = requires(T v)
+{
     { readyable_traits<T>::is_ready(v) } -> std::convertible_to<bool>;
 };
 } // namespace detail
@@ -118,7 +126,8 @@ namespace cpo {
 /*
 Niebloid cpo thing for `is_ready(r)`.
 */
-constexpr struct is_ready_fn {
+constexpr struct is_ready_fn
+{
     template<readyable R_>
     auto operator()(R_&& readyable) const
         -> bool
@@ -143,7 +152,8 @@ template<of_signature<bool()> F>
 constexpr auto as_readyable(F&& f) noexcept
     -> readyable auto
 {
-    struct ReadyableAdaptor {
+    struct ReadyableAdaptor
+    {
         F func;
         constexpr auto is_ready() const { return func(); }
     };
@@ -181,17 +191,19 @@ auto if_not_ready(T&& readyable, std::coroutine_handle<PromiseT>* out_suspended 
     -> awaiter<bool> auto
 {
     using cpo::is_ready;
-    struct Awaiter {
+    struct Awaiter
+    {
         T                                readyable;
         std::coroutine_handle<PromiseT>* out_suspended;
+
         auto await_ready() const noexcept -> bool { return is_ready(readyable); }
         auto await_suspend(std::coroutine_handle<PromiseT> h) const noexcept
             -> bool
         {
             const bool suspend = not is_ready(readyable);
-            if (suspend && out_suspended) {
+            if (suspend and out_suspended)
                 *out_suspended = h;
-            }
+
             return suspend;
         }
         auto await_resume() const noexcept -> bool { return is_ready(readyable); }
@@ -208,8 +220,10 @@ Can be useful to get a unique identifier for each coroutine.
 inline auto peek_coroutine_address()
     -> awaiter<void*> auto
 {
-    struct Awaiter {
+    struct Awaiter
+    {
         void* result;
+
         auto await_ready() const noexcept -> bool { return false; }
         auto await_suspend(std::coroutine_handle<> h) noexcept
             -> bool
@@ -230,14 +244,16 @@ namespace detail {
 // to "weave" state and control flow through the already-complicated
 // coroutines API. This is the true inversion of control horror.
 
-struct WhenAllState {
+struct WhenAllState
+{
     std::coroutine_handle<> parent_coroutine;
-    std::atomic<size_t>     num_remaining;
+    std::atomic<usize>      num_remaining;
     std::exception_ptr      exception = nullptr;
     std::atomic_flag        exception_is_set = false;
 };
 
-struct CompletionNotifier {
+struct CompletionNotifier
+{
     struct promise_type;
     using handle_type = std::coroutine_handle<promise_type>;
 
@@ -245,7 +261,8 @@ struct CompletionNotifier {
     // It will deal with itself from within the final suspend.
     handle_type handle;
 
-    struct promise_type {
+    struct promise_type
+    {
         WhenAllState* state = nullptr;
 
         auto get_return_object() -> CompletionNotifier { return { handle_type::from_promise(*this) }; }
@@ -258,11 +275,14 @@ struct CompletionNotifier {
         //
         // NOTE: This is done here instead of doing it in the actual completion coroutine
         // body because that trips up ASan in some wierd way. Or maybe it was a real bug?
-        void unhandled_exception() noexcept {
+        void unhandled_exception() noexcept
+        {
             assert(state);
             const bool already_set =
                 state->exception_is_set.test_and_set(std::memory_order_acq_rel);
-            if (not already_set) {
+
+            if (not already_set)
+            {
                 assert(not state->exception);
                 state->exception = std::current_exception();
             }
@@ -278,8 +298,10 @@ struct CompletionNotifier {
         auto final_suspend() const noexcept
             -> awaiter<void> auto
         {
-            struct FinalAwaiter {
+            struct FinalAwaiter
+            {
                 WhenAllState* state;
+
                 auto await_ready() const noexcept -> bool { return false; }
                 auto await_suspend(std::coroutine_handle<> self) const noexcept
                     -> std::coroutine_handle<>
@@ -289,11 +311,10 @@ struct CompletionNotifier {
 
                     ON_SCOPE_EXIT([&]{ self.destroy(); });
 
-                    if (state->num_remaining.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+                    if (state->num_remaining.fetch_sub(1, std::memory_order_acq_rel) == 1)
                         return state->parent_coroutine;
-                    } else {
-                        return std::noop_coroutine();
-                    }
+
+                    return std::noop_coroutine();
                 }
                 // NOTE: Doing nothing on unhandled exception. Our job is only to wait,
                 // not propagate the exception. The calling side will later inspect the
@@ -320,7 +341,8 @@ auto until_all_ready(R&& awaitables)
     -> awaitable<void> auto
 {
     using detail::WhenAllState, detail::CompletionNotifier;
-    struct WhenAllReadyAwaitable {
+    struct WhenAllReadyAwaitable
+    {
         // NOTE: The state must be stored in the parent coroutine.
         // Therefore it is stuffed into the awaitable itself.
         WhenAllState state;
@@ -329,7 +351,8 @@ auto until_all_ready(R&& awaitables)
         auto operator co_await()
             -> awaiter<void> auto
         {
-            struct Awaiter {
+            struct Awaiter
+            {
                 WhenAllReadyAwaitable& self;
                 // NOTE: Need to suspend to set the parent coroutine first.
                 // Can only resume early if the range is empty.
@@ -350,19 +373,23 @@ auto until_all_ready(R&& awaitables)
                     };
 
                     // Loop over all but last. The last will have control transferred to it instead.
-                    const size_t last = std::ranges::size(self.awaitables) - 1;
-                    for (auto [i, awaitable] : enumerate(self.awaitables)) {
+                    const uindex last = std::ranges::size(self.awaitables) - 1;
+                    for (auto [i, awaitable] : enumerate(self.awaitables))
+                    {
                         CompletionNotifier continuation = attach_continuation(awaitable);
                         // We have to sneak-in the state pointer into the promise.
                         // This is why the CompletionNotifier suspends initially.
                         continuation.handle.promise().state = &self.state;
-                        if (i != last) {
+                        if (i != last)
+                        {
                             continuation.handle.resume();
-                        } else /* last */ {
+                        }
+                        else /* last */
+                        {
                             return continuation.handle;
                         }
                     }
-                    safe_unreachable();
+                    panic();
                 }
                 void await_resume() const noexcept {}
             };
@@ -396,15 +423,18 @@ auto until_all_succeed(R&& awaitables)
     -> awaitable<void> auto
 {
     using detail::WhenAllState, detail::CompletionNotifier;
-    struct WhenAllSucceedAwaitable {
+    struct WhenAllSucceedAwaitable
+    {
         WhenAllState       state;
         R                  awaitables;
 
         auto operator co_await()
             -> awaiter<void> auto
         {
-            struct Awaiter {
+            struct Awaiter
+            {
                 WhenAllSucceedAwaitable& self;
+
                 auto await_ready() noexcept
                     -> bool
                 {
@@ -421,21 +451,26 @@ auto until_all_succeed(R&& awaitables)
                         co_await awaitable;
                     };
 
-                    const size_t last = std::ranges::size(self.awaitables) - 1;
-                    for (auto [i, awaitable] : enumerate(self.awaitables)) {
+                    const uindex last = std::ranges::size(self.awaitables) - 1;
+                    for (auto [i, awaitable] : enumerate(self.awaitables))
+                    {
                         CompletionNotifier continuation = attach_continuation(awaitable);
                         // We have to sneak-in the state pointer into the promise.
                         // This is why the CompletionNotifier suspends initially.
                         continuation.handle.promise().state = &self.state;
-                        if (i != last) {
+                        if (i != last)
+                        {
                             continuation.handle.resume();
-                        } else /* last */ {
+                        }
+                        else /* last */
+                        {
                             return continuation.handle;
                         }
                     }
-                    safe_unreachable();
+                    panic();
                 }
-                void await_resume() const {
+                void await_resume() const
+                {
                     // NOTE: This is the main difference between until_all_ready() and until_all_succeed().
                     if (self.state.exception) std::rethrow_exception(self.state.exception);
                 }
@@ -451,14 +486,12 @@ auto until_all_succeed(R&& awaitables)
         },
         .awaitables = FORWARD(awaitables)
     };
-
 }
 
 
-
-
 template<typename PromiseT = void>
-class unique_coroutine_handle {
+class unique_coroutine_handle
+{
 public:
     unique_coroutine_handle(std::coroutine_handle<PromiseT> handle) noexcept
         : handle_{ handle }
@@ -473,7 +506,6 @@ public:
 
     operator unique_coroutine_handle<>() && noexcept { return { std::exchange(handle_, nullptr) }; }
 
-
     unique_coroutine_handle(const unique_coroutine_handle&)           = delete;
     unique_coroutine_handle operator=(const unique_coroutine_handle&) = delete;
 
@@ -481,7 +513,8 @@ public:
         : handle_{ std::exchange(other.handle_, nullptr) }
     {}
 
-    unique_coroutine_handle& operator=(unique_coroutine_handle&& other) noexcept {
+    unique_coroutine_handle& operator=(unique_coroutine_handle&& other) noexcept
+    {
         if (handle_) handle_.destroy();
         handle_ = std::exchange(other.handle_, nullptr);
         return *this;
@@ -495,10 +528,9 @@ private:
 };
 
 
-
-
 template<typename PromiseT = void>
-class shared_coroutine_handle {
+class shared_coroutine_handle
+{
 public:
     shared_coroutine_handle(std::coroutine_handle<PromiseT> handle) noexcept
         : handle_  { handle               }
@@ -514,11 +546,13 @@ public:
     bool only_owner()        const noexcept { return refcount_ && refcount_->load(std::memory_order_acquire); }
     auto use_count_hint()    const noexcept { return refcount_ ? refcount_->load(std::memory_order_relaxed) : 0; }
 
-    operator shared_coroutine_handle<>() && noexcept {
+    operator shared_coroutine_handle<>() && noexcept
+    {
         return { std::exchange(handle_, nullptr) };
     }
 
-    operator shared_coroutine_handle<>() const& noexcept {
+    operator shared_coroutine_handle<>() const& noexcept
+    {
         acquire_ownership();
         return { handle_, refcount_, shared_coroutine_handle<>::PrivateKey{} };
     }
@@ -546,7 +580,8 @@ public:
     auto operator=(const shared_coroutine_handle& other) noexcept
         -> shared_coroutine_handle&
     {
-        if (this != &other) {
+        if (this != &other)
+        {
             release_ownership();
             handle_   = other.handle_;
             refcount_ = other.refcount_;
@@ -579,10 +614,10 @@ public:
     ~shared_coroutine_handle() noexcept { release_ownership(); }
 
 private:
-    using refcount_type = std::atomic<size_t>;
+    using refcount_type = std::atomic<usize>;
 
     std::coroutine_handle<PromiseT> handle_;
-    refcount_type*           refcount_;
+    refcount_type*                  refcount_;
 
     struct PrivateKey {};
 
@@ -598,14 +633,15 @@ private:
         , refcount_{ new refcount_type(1) }
     {}
 
-    void acquire_ownership() const noexcept {
-        if (refcount_) {
+    void acquire_ownership() const noexcept
+    {
+        if (refcount_)
             refcount_->fetch_add(1, std::memory_order_relaxed);
-        }
     }
 
-    void release_ownership() noexcept {
-        if (refcount_ &&
+    void release_ownership() noexcept
+    {
+        if (refcount_ and
             refcount_->fetch_sub(1, std::memory_order_acq_rel) == 1)
         {
             delete refcount_;
@@ -614,8 +650,10 @@ private:
         }
     }
 
-    void destroy_handle() noexcept {
-        if (handle_) { handle_.destroy(); }
+    void destroy_handle() noexcept
+    {
+        if (handle_)
+            handle_.destroy();
     }
 };
 

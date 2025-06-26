@@ -13,6 +13,7 @@
 #include "AlphaTested.hpp"
 #include "Visible.hpp"
 #include "ECS.hpp"
+#include "Tracy.hpp"
 
 
 namespace josh {
@@ -21,6 +22,7 @@ namespace josh {
 void SkinnedGeometry::operator()(
     RenderEnginePrimaryInterface& engine)
 {
+    ZSCGPUN("SkinnedGeometry");
     const auto& registry     = engine.registry();
     const auto* mesh_storage = engine.meshes().storage_for<VertexSkinned>();
     auto*       gbuffer      = engine.belt().try_get<GBuffer>();

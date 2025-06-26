@@ -3,6 +3,7 @@
 #include "GLTextures.hpp"
 #include "RenderEngine.hpp"
 #include "Region.hpp"
+#include "Tracy.hpp"
 
 
 namespace josh {
@@ -49,6 +50,7 @@ struct IDBufferStorage
 inline void IDBufferStorage::operator()(
     RenderEnginePrimaryInterface& engine)
 {
+    ZSCGPUN("IDBufferStorage");
     idbuffer._resize(engine.main_resolution());
 
     const BindGuard bfbo = idbuffer.bind_draw();

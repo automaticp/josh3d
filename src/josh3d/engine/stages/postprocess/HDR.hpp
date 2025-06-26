@@ -4,6 +4,7 @@
 #include "RenderEngine.hpp"
 #include "ShaderPool.hpp"
 #include "VPath.hpp"
+#include "Tracy.hpp"
 
 
 namespace josh {
@@ -27,6 +28,7 @@ private:
 inline void HDR::operator()(
     RenderEnginePostprocessInterface& engine)
 {
+    ZSCGPUN("HDR");
     const auto sp = sp_.get();
     engine.screen_color().bind_to_texture_unit(0);
 

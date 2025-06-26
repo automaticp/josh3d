@@ -4,6 +4,7 @@
 #include "AssetUnpacker.hpp"
 #include "AsyncCradle.hpp"
 #include "ContainerUtils.hpp"
+#include "Tracy.hpp"
 #include "default/Resources.hpp"
 #include "GLPixelPackTraits.hpp"
 #include "GLTextures.hpp"
@@ -77,6 +78,7 @@ auto DemoScene::is_done() const noexcept
 
 void DemoScene::execute_frame()
 {
+    ZS;
     josh::globals::frame_timer.update();
 
     render();
@@ -87,10 +89,12 @@ void DemoScene::execute_frame()
     update();
 
     window.swapBuffers();
+    TracyGpuCollect;
 }
 
 void DemoScene::process_input()
 {
+    ZoneScoped;
     if (const auto camera = get_active<Camera, Transform>(runtime.registry))
     {
         _input_freecam.update(
@@ -103,6 +107,7 @@ void DemoScene::process_input()
 
 void DemoScene::update()
 {
+    ZoneScoped;
     update_input_blocker_from_imgui_io_state();
 
     runtime.async_cradle.local_context.flush_nonblocking();
@@ -149,6 +154,7 @@ void DemoScene::update()
 
 void DemoScene::render()
 {
+    ZS;
     _imgui.new_frame(globals::frame_timer);
 
     runtime.renderer.render(

@@ -3,6 +3,7 @@
 #include "RenderEngine.hpp"
 #include "LightCasters.hpp"
 #include "BoundingSphere.hpp"
+#include "Tracy.hpp"
 #include <glm/common.hpp>
 
 
@@ -31,6 +32,7 @@ JOSH3D_DEFINE_ENUM_EXTRAS(PointLightSetup::Strategy, FixedRadius, RadiosityThres
 inline void PointLightSetup::operator()(
     RenderEnginePrecomputeInterface& engine)
 {
+    ZSN("PointLightSetup");
     auto& registry = engine.registry();
 
     /*

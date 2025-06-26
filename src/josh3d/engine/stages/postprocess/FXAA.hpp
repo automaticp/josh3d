@@ -3,6 +3,7 @@
 #include "RenderEngine.hpp"
 #include "ShaderPool.hpp"
 #include "VPath.hpp"
+#include "Tracy.hpp"
 
 
 namespace josh {
@@ -28,6 +29,7 @@ private:
 inline void FXAA::operator()(
     RenderEnginePostprocessInterface& engine)
 {
+    ZSCGPUN("FXAA");
     if (not use_fxaa) return;
 
     const auto sp = sp_.get();

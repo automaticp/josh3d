@@ -5,6 +5,7 @@
 #include "GLProgram.hpp"
 #include "ReadbackBuffer.hpp"
 #include "UniformTraits.hpp"
+#include "Tracy.hpp"
 
 
 namespace josh {
@@ -17,6 +18,7 @@ HDREyeAdaptation::HDREyeAdaptation(float initial_screen_value)
 
 void HDREyeAdaptation::operator()(RenderEnginePostprocessInterface& engine)
 {
+    ZSCGPUN("HDREyeAdaptation");
     engine.screen_color().bind_to_texture_unit(0);
 
     if (use_adaptation)

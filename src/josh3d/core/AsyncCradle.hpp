@@ -33,8 +33,8 @@ struct AsyncCradle
         usize               loading_pool_size,
         const glfw::Window& main_window
     )
-        : task_pool         (task_pool_size)
-        , loading_pool      (loading_pool_size)
+        : task_pool         (task_pool_size, "task pool")
+        , loading_pool      (loading_pool_size, "load pool")
         , completion_context()
         , offscreen_context (main_window)
         , task_counter      ()

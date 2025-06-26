@@ -14,6 +14,7 @@
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/matrix.hpp>
 #include <chrono>
+#include <tracy/Tracy.hpp>
 
 
 namespace josh {
@@ -34,6 +35,7 @@ void RenderEngine::render(
     const Extent2I&     window_resolution,
     const FrameTimer&   frame_timer)
 {
+    ZoneScoped;
     const Region2I main_viewport   = { {}, main_resolution() };
     const Region2I window_viewport = { {}, window_resolution };
 
@@ -68,6 +70,7 @@ void RenderEngine::render(
         auto            interface,
         const Region2I* viewport = nullptr)
     {
+        ZoneScoped;
         if (capture_stage_timings)
         {
             for (auto& stage : stages)
@@ -185,6 +188,7 @@ void RenderEngine::update_camera_data(
     float       z_near,
     float       z_far) noexcept
 {
+    ZoneScoped;
     const mat4 projview     = proj * view;
     const mat4 inv_view     = inverse(view);
     const mat3 normal_view  = transpose(inv_view);

@@ -2,6 +2,7 @@
 #include "Transform.hpp"
 #include "SceneGraph.hpp"
 #include "ECS.hpp"
+#include "Tracy.hpp"
 
 
 namespace josh {
@@ -31,6 +32,7 @@ void resolve_transforms_recursive(
 void TransformResolution::operator()(
     RenderEnginePrecomputeInterface& engine)
 {
+    ZSN("TransformResolution");
     auto& registry = engine.registry();
 
     // TODO: Two quirks, that are somewhat contradictory:

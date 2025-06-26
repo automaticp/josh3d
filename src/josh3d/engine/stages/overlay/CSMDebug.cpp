@@ -6,6 +6,7 @@
 #include "LightCasters.hpp"
 #include "Ranges.hpp"
 #include "Transform.hpp"
+#include "Tracy.hpp"
 #include "stages/primary/GBufferStorage.hpp"
 
 
@@ -15,6 +16,7 @@ namespace josh {
 void CSMDebug::operator()(
     RenderEngineOverlayInterface& engine)
 {
+    ZSCGPUN("CSMDebug");
     switch (mode)
     {
         case OverlayMode::None:  return;

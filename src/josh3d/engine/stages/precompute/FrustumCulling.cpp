@@ -9,6 +9,7 @@
 #include "Transform.hpp"
 #include "ViewFrustum.hpp"
 #include "Visible.hpp"
+#include "Tracy.hpp"
 #include <utility>
 
 
@@ -19,6 +20,7 @@ void cull_from_bounding_spheres(
     Registry&            registry,
     const FrustumPlanes& frustum_world)
 {
+    ZS;
     auto cullable = std::as_const(registry).view<BoundingSphere>();
 
     for (auto [entity, bounding_sphere] : cullable.each())
@@ -37,6 +39,7 @@ void cull_from_aabbs(
     Registry&            registry,
     const FrustumPlanes& frustum_world)
 {
+    ZS;
     auto cullable = std::as_const(registry).view<AABB>();
 
     for (auto [entity, aabb] : cullable.each())
@@ -57,6 +60,7 @@ void cull_from_aabbs(
 void FrustumCulling::operator()(
     RenderEnginePrecomputeInterface& engine)
 {
+    ZSN("FrustumCulling");
     if (const auto camera = get_active<Camera, MTransform>(engine.registry()))
     {
         engine.registry().clear<Visible>();

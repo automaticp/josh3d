@@ -8,6 +8,7 @@
 #include "Mesh.hpp"
 #include "Region.hpp"
 #include "RenderEngine.hpp"
+#include "Tracy.hpp"
 
 
 namespace josh {
@@ -16,6 +17,7 @@ namespace josh {
 void BloomAW::operator()(
     RenderEnginePostprocessInterface& engine)
 {
+    ZSCGPUN("BloomAW");
     if (not enable_bloom) return;
 
     // NOTE: Taking half-resolution as the base MIP.

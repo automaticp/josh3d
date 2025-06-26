@@ -19,12 +19,11 @@
 #include "ShadowCasting.hpp"
 #include "RenderEngine.hpp"
 #include "Visible.hpp"
-#include <entt/entity/fwd.hpp>
-#include <entt/entity/registry.hpp>
-#include <glbinding/gl/gl.h>
+#include "Tracy.hpp"
 #include <range/v3/all.hpp>
 #include <range/v3/view/map.hpp>
 #include <ranges>
+#include <tracy/Tracy.hpp>
 
 
 
@@ -74,6 +73,7 @@ auto get_active_dlight_or_default(const Registry& registry)
 void DeferredShading::operator()(
     RenderEnginePrimaryInterface& engine)
 {
+    ZSCGPUN("DeferredShading");
     if (auto* csm = engine.belt().try_get<Cascades>())
         update_cascade_buffer(*csm);
 
@@ -392,11 +392,13 @@ void DeferredShading::draw_multipass(
 
 void DeferredShading::update_cascade_buffer(const Cascades& csm)
 {
+    ZoneScoped;
     csm_views_buf_.restage(csm.views | transform(CascadeViewGPU::create_from));
 }
 
 void DeferredShading::update_point_light_buffers(const Registry& registry)
 {
+    ZoneScoped;
     // TODO: Uhh, how do I know that the order of lights in the view is the same as the
     // order of shadow cubemaps in `input_psm_->maps`?
     auto plights_with_shadow_view = registry.view<Visible, ShadowCasting, PointLight, MTransform, BoundingSphere>();

@@ -16,6 +16,7 @@
 #include "Transform.hpp"
 #include "DefaultTextures.hpp"
 #include "Visible.hpp"
+#include "Tracy.hpp"
 
 
 namespace josh {
@@ -24,6 +25,7 @@ namespace josh {
 void DeferredGeometry::operator()(
     RenderEnginePrimaryInterface& engine)
 {
+    ZSCGPUN("StaticGeometry");
     switch (strategy)
     {
         case Strategy::DrawPerMesh: return _draw_single(engine);

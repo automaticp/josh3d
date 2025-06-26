@@ -1,4 +1,5 @@
 #include "SSAO.hpp"
+#include "stages/primary/GBufferStorage.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLAPICore.hpp"
 #include "GLPixelPackTraits.hpp"
@@ -8,7 +9,7 @@
 #include "ImageData.hpp"
 #include "MathExtras.hpp"
 #include "Region.hpp"
-#include "stages/primary/GBufferStorage.hpp"
+#include "Tracy.hpp"
 #include <range/v3/view/generate_n.hpp>
 #include <random>
 
@@ -45,6 +46,7 @@ SSAO::SSAO(
 
 void SSAO::operator()(RenderEnginePrimaryInterface& engine)
 {
+    ZSCGPUN("SSAO");
     if (not enable_sampling) return;
 
     const auto* gbuffer = engine.belt().try_get<GBuffer>();

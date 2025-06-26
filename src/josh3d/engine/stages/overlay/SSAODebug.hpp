@@ -5,6 +5,7 @@
 #include "RenderEngine.hpp"
 #include "EnumUtils.hpp"
 #include "VPath.hpp"
+#include "Tracy.hpp"
 
 
 namespace josh {
@@ -34,6 +35,7 @@ JOSH3D_DEFINE_ENUM_EXTRAS(SSAODebug::OverlayMode, None, Backbuffer, Occlusion);
 inline void SSAODebug::operator()(
     RenderEngineOverlayInterface& engine)
 {
+    ZSCGPUN("SSAODebug");
     if (mode == OverlayMode::None) return;
 
     const auto* aobuffers = engine.belt().try_get<AOBuffers>();

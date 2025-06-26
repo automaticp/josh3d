@@ -4,6 +4,7 @@
 #include "RenderEngine.hpp"
 #include "ShaderPool.hpp"
 #include "UniformTraits.hpp"
+#include "Tracy.hpp"
 
 
 namespace josh {
@@ -12,6 +13,7 @@ namespace josh {
 void Fog::operator()(
     RenderEnginePostprocessInterface& engine)
 {
+    ZSCGPUN("Fog");
     switch (fog_type)
     {
         using enum FogType;

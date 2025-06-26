@@ -6,6 +6,7 @@
 #include "RenderEngine.hpp"
 #include "Transform.hpp"
 #include "TerrainChunk.hpp"
+#include "Tracy.hpp"
 #include <entt/entt.hpp>
 
 
@@ -15,6 +16,7 @@ namespace josh {
 void TerrainGeometry::operator()(
     RenderEnginePrimaryInterface& engine)
 {
+    ZSCGPUN("TerrainGeometry");
     const auto& registry = engine.registry();
     auto*       gbuffer  = engine.belt().try_get<GBuffer>();
 

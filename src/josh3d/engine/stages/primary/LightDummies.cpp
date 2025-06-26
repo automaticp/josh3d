@@ -1,4 +1,5 @@
 #include "LightDummies.hpp"
+#include "stages/primary/IDBufferStorage.hpp"
 #include "ECS.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLAPICore.hpp"
@@ -11,15 +12,14 @@
 #include "RenderEngine.hpp"
 #include "UploadBuffer.hpp"
 #include "Mesh.hpp"
-#include "stages/primary/IDBufferStorage.hpp"
-#include <glbinding/gl/functions.h>
-#include <ranges>
+#include "Tracy.hpp"
 
 
 namespace josh {
 
 void LightDummies::operator()(RenderEnginePrimaryInterface& engine)
 {
+    ZSCGPUN("LightDummies");
     if (not display) return;
 
     _relink_attachments(engine);
@@ -52,6 +52,7 @@ void LightDummies::operator()(RenderEnginePrimaryInterface& engine)
 
 void LightDummies::_restage_plight_params(const Registry& registry)
 {
+    ZS;
     auto plight_params_view =
         registry.view<PointLight, MTransform>().each() |
         transform([this](auto tuple)

@@ -8,6 +8,7 @@
 #include "RenderEngine.hpp"
 #include "GLScalars.hpp"
 #include "VPath.hpp"
+#include <tracy/Tracy.hpp>
 
 
 namespace josh {
@@ -49,6 +50,7 @@ JOSH3D_DEFINE_ENUM_EXTRAS(GBufferDebug::OverlayMode, None, Albedo, Specular, Pos
 inline void GBufferDebug::operator()(
     RenderEngineOverlayInterface& engine)
 {
+    ZSCGPUN("GBufferDebug");
     if (mode == OverlayMode::None) return;
 
     auto* gbuffer = engine.belt().try_get<GBuffer>();

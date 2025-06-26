@@ -3,6 +3,7 @@
 #include "Common.hpp"
 #include "Future.hpp"
 #include "ThreadName.hpp"
+#include "Tracy.hpp"
 #include <glfwpp/window.h>
 #include <exception>
 
@@ -23,7 +24,10 @@ OffscreenContext::OffscreenContext(const glfw::Window& shared_with)
 
             glfw::Window window{ 1, 1, "Offscreen Context", nullptr, &shared_with };
 
+            TracyGpuContext;
+            TracyGpuContextName("offscreen ctx", 13);
             set_current_thread_name("offscreen ctx");
+
             startup_latch_.arrive_and_wait();
 
             offscreen_thread_loop(std::move(stoken), window);

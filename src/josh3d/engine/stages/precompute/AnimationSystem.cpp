@@ -4,6 +4,7 @@
 #include "SkeletalAnimation.hpp"
 #include "SkinnedMesh.hpp"
 #include "Transform.hpp"
+#include "Tracy.hpp"
 
 
 namespace josh {
@@ -12,6 +13,7 @@ namespace josh {
 void AnimationSystem::operator()(
     RenderEnginePrecomputeInterface& engine)
 {
+    ZSN("AnimationSystem");
     auto& registry = engine.registry();
 
     for (auto [e, skinned_mesh, playing]

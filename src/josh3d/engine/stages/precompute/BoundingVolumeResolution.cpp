@@ -4,6 +4,7 @@
 #include "BoundingSphere.hpp"
 #include "AABB.hpp"
 #include "ECS.hpp"
+#include "Tracy.hpp"
 
 
 namespace josh {
@@ -12,6 +13,7 @@ namespace josh {
 void BoundingVolumeResolution::operator()(
     RenderEnginePrecomputeInterface& engine)
 {
+    ZSN("BVResolution");
     auto& registry = engine.registry();
 
     for (const auto [entity, local_aabb, mtf] :

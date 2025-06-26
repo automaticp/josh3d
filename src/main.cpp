@@ -116,6 +116,9 @@ auto main(int argc, const char* argv[])
 
     glbinding::initialize(glfwGetProcAddress);
 
+    TracyGpuContext;
+    TracyGpuContextName("main", 4);
+
     josh::globals::RAIIContext globals_context;
     josh::globals::window_size.track(window);
 
