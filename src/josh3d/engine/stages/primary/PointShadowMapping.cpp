@@ -31,14 +31,14 @@ PointShadowMapping::PointShadowMapping(i32 side_resolution)
 }
 
 void PointShadowMapping::operator()(
-    RenderEnginePrimaryInterface& engine)
+    PrimaryContext context)
 {
     ZSCGPUN("PSM");
-    prepare_point_shadows(engine.registry());
+    prepare_point_shadows(context.registry());
 
-    map_point_shadows(engine);
+    map_point_shadows(context);
 
-    engine.belt().put_ref(point_shadows);
+    context.belt().put_ref(point_shadows);
 }
 
 void PointShadowMapping::prepare_point_shadows(
@@ -100,12 +100,12 @@ void PointShadowMapping::prepare_point_shadows(
 }
 
 void PointShadowMapping::map_point_shadows(
-    RenderEnginePrimaryInterface& engine)
+    PrimaryContext context)
 {
     ZoneScoped;
 
-    const auto& registry = engine.registry();
-    const auto& mesh_registry = engine.meshes();
+    const auto& registry = context.registry();
+    const auto& mesh_registry = context.mesh_registry();
     auto& maps = point_shadows.maps;
 
     if (maps.num_cubes() == 0)

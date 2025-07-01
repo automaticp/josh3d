@@ -14,7 +14,7 @@
 #include "MeshRegistry.hpp"
 #include "MeshStorage.hpp"
 #include "Ranges.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "Scalars.hpp"
 #include "StaticMesh.hpp"
 #include "UploadBuffer.hpp"
@@ -375,10 +375,10 @@ void cull_per_cascade(
 
 
 void CascadedShadowMapping::operator()(
-    RenderEnginePrimaryInterface& engine)
+    PrimaryContext context)
 {
     ZSCGPUN("CSM");
-    const auto& registry = engine.registry();
+    const auto& registry = context.registry();
 
     const CHandle dlight = get_active<DirectionalLight, ShadowCasting, MTransform>(registry);
     const CHandle cam    = get_active<Camera, MTransform>(registry);
@@ -411,7 +411,7 @@ void CascadedShadowMapping::operator()(
     if (strategy == Strategy::SinglepassGS)
     {
         cascades.draw_lists_active = false;
-        _draw_all_cascades_with_geometry_shader(engine);
+        _draw_all_cascades_with_geometry_shader(context);
     }
 
     if (strategy == Strategy::PerCascadeCulling or
@@ -420,14 +420,14 @@ void CascadedShadowMapping::operator()(
         cascades.draw_lists_active = true;
         cull_per_cascade(cascades.views, cascades.drawstates, registry);
         // NOTE: Will select single or MDI based on the enum value.
-        _draw_with_culling_per_cascade(engine);
+        _draw_with_culling_per_cascade(context);
     }
 
     // Pass-through other params.
     cascades.blend_possible          = support_cascade_blending;
     cascades.blend_max_size_inner_tx = blend_size_inner_tx;
 
-    engine.belt().put_ref(cascades);
+    context.belt().put_ref(cascades);
 }
 
 
@@ -498,10 +498,10 @@ void draw_atested_meshes(
 
 
 void CascadedShadowMapping::_draw_all_cascades_with_geometry_shader(
-    RenderEnginePrimaryInterface& engine)
+    PrimaryContext context)
 {
-    const auto& registry      = engine.registry();
-    const auto& mesh_registry = engine.meshes();
+    const auto& registry      = context.registry();
+    const auto& mesh_registry = context.mesh_registry();
     auto& maps = cascades.maps;
 
     // No following calls are valid for empty cascades array.
@@ -676,10 +676,10 @@ void multidraw_atested_meshes(
 
 
 void CascadedShadowMapping::_draw_with_culling_per_cascade(
-    RenderEnginePrimaryInterface& engine)
+    PrimaryContext context)
 {
-    const auto& registry      = engine.registry();
-    const auto& mesh_registry = engine.meshes();
+    const auto& registry      = context.registry();
+    const auto& mesh_registry = context.mesh_registry();
     auto& maps = cascades.maps;
 
     // No following calls are valid for empty cascades array.

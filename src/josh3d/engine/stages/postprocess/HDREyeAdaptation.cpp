@@ -16,17 +16,17 @@ HDREyeAdaptation::HDREyeAdaptation(float initial_screen_value)
     set_screen_value(initial_screen_value);
 }
 
-void HDREyeAdaptation::operator()(RenderEnginePostprocessInterface& engine)
+void HDREyeAdaptation::operator()(PostprocessContext context)
 {
     ZSCGPUN("HDREyeAdaptation");
-    engine.screen_color().bind_to_texture_unit(0);
+    context.main_front_color_texture().bind_to_texture_unit(0);
 
     if (use_adaptation)
     {
         if (read_back_exposure)
             _pull_late_exposure();
 
-        _update_intermediate_buffer(engine.main_resolution());
+        _update_intermediate_buffer(context.main_resolution());
 
         intermediate_buf_->bind_to_index<BufferTargetI::ShaderStorage>(0);
 
@@ -51,7 +51,7 @@ void HDREyeAdaptation::operator()(RenderEnginePostprocessInterface& engine)
             value_bufs_.current()->bind_to_index<BufferTargetI::ShaderStorage>(1); // Read
             value_bufs_.next()   ->bind_to_index<BufferTargetI::ShaderStorage>(2); // Write
 
-            const float fold_weight = adaptation_rate * engine.frame_timer().delta<float>();
+            const float fold_weight = adaptation_rate * context.frame_timer().delta<float>();
 
             sp.uniform("mean_fold_weight", fold_weight);
             sp.uniform("block_size",       GLuint(block_size));
@@ -93,7 +93,7 @@ void HDREyeAdaptation::operator()(RenderEnginePostprocessInterface& engine)
 
         const BindGuard bsp = sp.use();
         glapi::memory_barrier(BarrierMask::ShaderStorageBit);
-        engine.draw(bsp);
+        context.draw_quad_and_swap(bsp);
     }
 
     if (use_adaptation)
@@ -106,7 +106,7 @@ void HDREyeAdaptation::operator()(RenderEnginePostprocessInterface& engine)
             // output, since it is likely to be used by the following frame.
             // We also push a value, not a reference, to avoid lifetime issues
             // in case *this* stage disappears between this and the next frames.
-            engine.belt().put(exposure, 1);
+            context.belt().put(exposure, 1);
         }
     }
 }

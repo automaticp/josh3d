@@ -9,7 +9,7 @@
 #include "Transform.hpp"
 #include "UniformTraits.hpp"
 #include "LightCasters.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "UploadBuffer.hpp"
 #include "Mesh.hpp"
 #include "Tracy.hpp"
@@ -17,27 +17,27 @@
 
 namespace josh {
 
-void LightDummies::operator()(RenderEnginePrimaryInterface& engine)
+void LightDummies::operator()(PrimaryContext context)
 {
     ZSCGPUN("LightDummies");
     if (not display) return;
 
-    _relink_attachments(engine);
-    _restage_plight_params(engine.registry());
+    _relink_attachments(context);
+    _restage_plight_params(context.registry());
 
     const auto num_plights = GLsizei(_plight_params.num_staged());
 
     if (num_plights)
     {
-        const BindGuard bound_camera_ubo      = engine.bind_camera_ubo();
+        const BindGuard bound_camera_ubo      = context.bind_camera_ubo();
         const BindGuard bound_instance_buffer = _plight_params.bind_to_ssbo_index(0);
 
-        const Mesh&     mesh = engine.primitives().sphere_mesh();
+        const Mesh&     mesh = context.primitives().sphere_mesh();
         const BindGuard bsp = _sp.get().use();
         const BindGuard bfb = _fbo->bind_draw();
         const BindGuard bva = mesh.vertex_array().bind();
 
-        glapi::set_viewport({ {}, engine.main_resolution() });
+        glapi::set_viewport({ {}, context.main_resolution() });
 
         glapi::draw_elements_instanced(
             bva, bsp, bfb,
@@ -76,14 +76,14 @@ void LightDummies::_restage_plight_params(const Registry& registry)
     _plight_params.restage(plight_params_view);
 }
 
-void LightDummies::_relink_attachments(RenderEnginePrimaryInterface& engine)
+void LightDummies::_relink_attachments(PrimaryContext context)
 {
     // TODO: Should be able to query the current attachment, no?
     // We just attach every frame for now. Whatever.
 
-    _fbo->attach_texture_to_depth_buffer(engine.main_depth_texture());
-    _fbo->attach_texture_to_color_buffer(engine.main_color_texture(), 0);
-    if (auto* idbuffer = engine.belt().try_get<IDBuffer>())
+    _fbo->attach_texture_to_depth_buffer(context.main_depth_texture());
+    _fbo->attach_texture_to_color_buffer(context.main_back_color_texture(), 0);
+    if (auto* idbuffer = context.belt().try_get<IDBuffer>())
     {
         _fbo->attach_texture_to_color_buffer(idbuffer->object_id_texture(), 1);
         // TODO: This should probably be wrapped differently or

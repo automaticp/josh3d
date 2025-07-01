@@ -4,7 +4,7 @@
 #include "GLObjects.hpp"
 #include "GLTextures.hpp"
 #include "Region.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "Tracy.hpp"
 
 
@@ -94,19 +94,19 @@ Place it before any other stages that draw into the GBuffer.
 */
 struct GBufferStorage
 {
-    void operator()(RenderEnginePrimaryInterface& engine);
+    void operator()(PrimaryContext context);
 
     GBuffer gbuffer;
 };
 
 
 inline void GBufferStorage::operator()(
-    RenderEnginePrimaryInterface& engine)
+    PrimaryContext context)
 {
     ZSCGPUN("GBufferStorage");
-    gbuffer._resize(engine.main_resolution());
-    gbuffer._reset_depth(engine.main_depth_texture());
-    if (auto* idbuffer = engine.belt().try_get<IDBuffer>())
+    gbuffer._resize(context.main_resolution());
+    gbuffer._reset_depth(context.main_depth_texture());
+    if (auto* idbuffer = context.belt().try_get<IDBuffer>())
         gbuffer._reset_object_id(idbuffer->object_id_texture());
 
     const BindGuard bfbo = gbuffer.bind_draw();
@@ -115,7 +115,7 @@ inline void GBufferStorage::operator()(
     glapi::clear_color_buffer(bfbo, GBuffer::slot_albedo,   RGBAF{ 0.f, 0.f, 0.f });
     glapi::clear_color_buffer(bfbo, GBuffer::slot_specular, RGBAF{ 0.f });
 
-    engine.belt().put_ref(gbuffer);
+    context.belt().put_ref(gbuffer);
 }
 
 

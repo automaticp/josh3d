@@ -6,7 +6,7 @@
 #include "GLObjects.hpp"
 #include "UploadBuffer.hpp"
 #include "stages/primary/CascadedShadowMapping.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "VPath.hpp"
 
 
@@ -32,11 +32,11 @@ struct CSMDebug
     auto current_cascade_idx() const noexcept -> uindex { return last_cascade_idx_; }
     void select_cascade(uindex desired_cascade_idx) { desired_cascade_idx_ = desired_cascade_idx; }
 
-    void operator()(RenderEngineOverlayInterface& engine);
+    void operator()(OverlayContext context);
 
 private:
-    void draw_views_overlay(RenderEngineOverlayInterface& engine);
-    void draw_maps_overlay (RenderEngineOverlayInterface& engine);
+    void draw_views_overlay(OverlayContext context);
+    void draw_maps_overlay (OverlayContext context);
 
     // What a pain...
     uindex desired_cascade_idx_ = 0;

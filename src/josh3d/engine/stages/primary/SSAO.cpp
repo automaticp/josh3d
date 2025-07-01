@@ -44,12 +44,12 @@ SSAO::SSAO(
     resize_blur_kernel(blur_kernel_limb_size);
 }
 
-void SSAO::operator()(RenderEnginePrimaryInterface& engine)
+void SSAO::operator()(PrimaryContext context)
 {
     ZSCGPUN("SSAO");
     if (not enable_sampling) return;
 
-    const auto* gbuffer = engine.belt().try_get<GBuffer>();
+    const auto* gbuffer = context.belt().try_get<GBuffer>();
 
     if (not gbuffer) return;
 
@@ -89,7 +89,7 @@ void SSAO::operator()(RenderEnginePrimaryInterface& engine)
             _normals_sampler->         bind_to_texture_unit(1),
             _noise_texture->           bind_to_texture_unit(2),
             _kernel.                   bind_to_ssbo_index(0),
-            engine.                    bind_camera_ubo(),
+            context.                    bind_camera_ubo(),
         };
         glapi::unbind_sampler_from_unit(2); // Use internal noise texture sampler;
 
@@ -97,7 +97,7 @@ void SSAO::operator()(RenderEnginePrimaryInterface& engine)
         const BindGuard bfb = _fbo->bind_draw();
         glapi::clear_color_buffer(bfb, 0, RGBAF{ .r=0.f });
 
-        engine.primitives().quad_mesh().draw(bsp, bfb);
+        context.primitives().quad_mesh().draw(bsp, bfb);
         aobuffers._swap();
     }
 
@@ -117,7 +117,7 @@ void SSAO::operator()(RenderEnginePrimaryInterface& engine)
         _fbo->attach_texture_to_color_buffer(aobuffers._back().texture, 0);
         const BindGuard bfb = _fbo->bind_draw();
 
-        engine.primitives().quad_mesh().draw(bsp, bfb);
+        context.primitives().quad_mesh().draw(bsp, bfb);
         aobuffers._swap();
     }
 
@@ -132,7 +132,7 @@ void SSAO::operator()(RenderEnginePrimaryInterface& engine)
         sp.uniform("depth",           1);
         sp.uniform("depth_limit",     depth_limit);
 
-        const BindGuard bcam = engine.bind_camera_ubo();
+        const BindGuard bcam = context.bind_camera_ubo();
         const BindGuard bsp  = sp.use();
 
         const MultibindGuard bound_state = {
@@ -153,13 +153,13 @@ void SSAO::operator()(RenderEnginePrimaryInterface& engine)
                 _fbo->attach_texture_to_color_buffer(aobuffers._back().texture, 0);
 
                 const BindGuard bfb = _fbo->bind_draw();
-                engine.primitives().quad_mesh().draw(bsp, bfb);
+                context.primitives().quad_mesh().draw(bsp, bfb);
                 aobuffers._swap();
             }
         }
     }
 
-    engine.belt().put_ref(aobuffers);
+    context.belt().put_ref(aobuffers);
 }
 
 void SSAO::regenerate_kernel(usize n, float deflection_rad)

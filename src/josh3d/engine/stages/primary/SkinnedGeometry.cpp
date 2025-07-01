@@ -5,7 +5,7 @@
 #include "GLAPICore.hpp"
 #include "Materials.hpp"
 #include "MeshStorage.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "UniformTraits.hpp"
 #include "SkinnedMesh.hpp"
 #include "VertexSkinned.hpp"
@@ -20,18 +20,18 @@ namespace josh {
 
 
 void SkinnedGeometry::operator()(
-    RenderEnginePrimaryInterface& engine)
+    PrimaryContext context)
 {
     ZSCGPUN("SkinnedGeometry");
-    const auto& registry     = engine.registry();
-    const auto* mesh_storage = engine.meshes().storage_for<VertexSkinned>();
-    auto*       gbuffer      = engine.belt().try_get<GBuffer>();
+    const auto& registry     = context.registry();
+    const auto* mesh_storage = context.mesh_registry().storage_for<VertexSkinned>();
+    auto*       gbuffer      = context.belt().try_get<GBuffer>();
 
     if (not mesh_storage) return;
     if (not gbuffer)      return;
 
     const BindGuard bva  = mesh_storage->vertex_array().bind();
-    const BindGuard bcam = engine.bind_camera_ubo();
+    const BindGuard bcam = context.bind_camera_ubo();
     const BindGuard bfb  = gbuffer->bind_draw();
 
     glapi::set_viewport({ {}, gbuffer->resolution() });

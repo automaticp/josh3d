@@ -1,5 +1,5 @@
 #pragma once
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "ShaderPool.hpp"
 #include "VPath.hpp"
 
@@ -9,7 +9,7 @@ namespace josh {
 
 struct TerrainGeometry
 {
-    void operator()(RenderEnginePrimaryInterface& engine);
+    void operator()(PrimaryContext context);
 
     ShaderToken _sp = shader_pool().get({
         .vert = VPath("src/shaders/dfrg_terrain.vert"),

@@ -12,6 +12,9 @@ namespace josh {
 template<typename...>
 constexpr bool false_v = false;
 
+template<typename T>
+concept arithmetic = std::is_arithmetic_v<T>;
+
 /*
 Disables template argument deduction on a given argument.
 */

@@ -4,7 +4,7 @@
 #include "GLObjects.hpp"
 #include "GLTextures.hpp"
 #include "MeshRegistry.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "ShaderPool.hpp"
 #include "VPath.hpp"
 
@@ -69,14 +69,14 @@ struct PointShadowMapping
 
     PointShadowMapping(i32 side_resolution = 1024);
 
-    void operator()(RenderEnginePrimaryInterface& engine);
+    void operator()(PrimaryContext context);
 
     PointShadows point_shadows;
 
 private:
     UniqueFramebuffer fbo_;
 
-    void map_point_shadows(RenderEnginePrimaryInterface& engine);
+    void map_point_shadows(PrimaryContext context);
 
     void prepare_point_shadows(const Registry& registry);
 

@@ -10,7 +10,7 @@
 #include "Mesh.hpp"
 #include "MeshStorage.hpp"
 #include "Ranges.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "SkinnedMesh.hpp"
 #include "StaticMesh.hpp"
 #include "TerrainChunk.hpp"
@@ -31,27 +31,27 @@ namespace josh {
 
 
 void SceneOverlays::operator()(
-    RenderEngineOverlayInterface& engine)
+    OverlayContext context)
 {
     ZSCGPUN("SceneOverlays");
-    draw_selected_highlight(engine);
-    draw_bounding_volumes  (engine);
-    draw_scene_graph_lines (engine);
-    draw_skeleton          (engine);
+    draw_selected_highlight(context);
+    draw_bounding_volumes  (context);
+    draw_scene_graph_lines (context);
+    draw_skeleton          (context);
 }
 
 void SceneOverlays::draw_selected_highlight(
-    RenderEngineOverlayInterface& engine)
+    OverlayContext context)
 {
-    const auto& registry = engine.registry();
+    const auto& registry = context.registry();
     const auto& params   = selected_highlight_params;
 
     if (not params.show_overlay) return;
     if (registry.view<Selected>().empty()) return;
 
-    const BindGuard bcam = engine.bind_camera_ubo();
+    const BindGuard bcam = context.bind_camera_ubo();
 
-    engine.draw([&, this](auto bfb)
+    context.bind_default_and([&, this](auto bfb)
     {
         glapi::disable(Capability::DepthTesting);
         glapi::enable(Capability::StencilTesting);
@@ -128,7 +128,7 @@ void SceneOverlays::draw_selected_highlight(
                         const RawProgram<> sp        = sp_static;
                         const Location     model_loc = model_static_loc;
 
-                        const auto& storage = *engine.meshes().storage_for<VertexStatic>();
+                        const auto& storage = *context.mesh_registry().storage_for<VertexStatic>();
 
                         const BindGuard bva = storage.vertex_array().bind();
                         const BindGuard bsp = sp.use();
@@ -152,7 +152,7 @@ void SceneOverlays::draw_selected_highlight(
                             const auto [plight, mtf] = registry.get<PointLight, MTransform>(entity);
                             // TODO: This probably won't work that well...
                             sp.uniform(model_loc, mtf.model());
-                            engine.primitives().sphere_mesh().draw(bsp, bfb);
+                            context.primitives().sphere_mesh().draw(bsp, bfb);
                         }
                     }
 
@@ -163,7 +163,7 @@ void SceneOverlays::draw_selected_highlight(
 
                         const BindGuard bsp = sp.use();
 
-                        const auto& storage = *engine.meshes().storage_for<VertexSkinned>();
+                        const auto& storage = *context.mesh_registry().storage_for<VertexSkinned>();
                         const BindGuard bva = storage.vertex_array().bind();
 
                         for (const Entity entity : drawlist_skinned_meshes)
@@ -255,7 +255,7 @@ void SceneOverlays::draw_selected_highlight(
                 StencilOp::Keep  // spass->dpass
             );
             sp.uniform("color", params.outline_color);
-            engine.primitives().quad_mesh().draw(bsp, bfb);
+            context.primitives().quad_mesh().draw(bsp, bfb);
 
             // Inner Fill.
             glapi::set_stencil_test_condition(Mask{ 0xFF }, 0, CompareOp::Equal);
@@ -265,19 +265,19 @@ void SceneOverlays::draw_selected_highlight(
                 StencilOp::Keep  // spass->dpass
             );
             sp.uniform("color", params.inner_fill_color);
-            engine.primitives().quad_mesh().draw(bsp, bfb);
+            context.primitives().quad_mesh().draw(bsp, bfb);
         }
 
         glapi::disable(Capability::Blending);
         glapi::disable(Capability::StencilTesting);
         glapi::enable(Capability::DepthTesting);
-    }); // engine.draw(...)
+    }); // context.draw(...)
 }
 
 void SceneOverlays::draw_bounding_volumes(
-    RenderEngineOverlayInterface& engine)
+    OverlayContext context)
 {
-    const auto& registry = engine.registry();
+    const auto& registry = context.registry();
     const auto& params   = bounding_volumes_params;
 
     if (not params.show_volumes) return;
@@ -289,12 +289,12 @@ void SceneOverlays::draw_bounding_volumes(
     glapi::set_polygon_rasterization_mode(PolygonRasterization::Line);
     glapi::set_line_width(params.line_width);
 
-    const BindGuard bcam = engine.bind_camera_ubo();
+    const BindGuard bcam = context.bind_camera_ubo();
     sp.uniform("color", params.line_color);
 
     const BindGuard bsp = sp.use();
 
-    engine.draw([&](auto bfb)
+    context.bind_default_and([&](auto bfb)
     {
         const Location model_loc = sp.get_uniform_location("model");
 
@@ -304,7 +304,7 @@ void SceneOverlays::draw_bounding_volumes(
         {
             const mat4 world_mat = glm::translate(aabb.midpoint()) * glm::scale(aabb.extents() / 2);
             sp.uniform(model_loc, world_mat);
-            engine.primitives().box_mesh().draw(bsp, bfb);
+            context.primitives().box_mesh().draw(bsp, bfb);
         };
 
         const auto draw_sphere = [&] (
@@ -313,7 +313,7 @@ void SceneOverlays::draw_bounding_volumes(
         {
             const mat4 world_mat = glm::translate(sphere.position) * glm::scale(vec3(sphere.radius));
             sp.uniform(model_loc, world_mat);
-            engine.primitives().sphere_mesh().draw(bsp, bfb);
+            context.primitives().sphere_mesh().draw(bsp, bfb);
         };
 
         if (params.selected_only)
@@ -333,9 +333,9 @@ void SceneOverlays::draw_bounding_volumes(
 }
 
 void SceneOverlays::draw_scene_graph_lines(
-    RenderEngineOverlayInterface& engine)
+    OverlayContext context)
 {
-    const auto& registry = engine.registry();
+    const auto& registry = context.registry();
     const auto& params   = scene_graph_lines_params;
 
     if (not params.show_lines) return;
@@ -388,7 +388,7 @@ void SceneOverlays::draw_scene_graph_lines(
 
     const RawProgram<> sp = sp_scene_graph_lines_;
 
-    const BindGuard bound_cam   = engine.bind_camera_ubo();
+    const BindGuard bound_cam   = context.bind_camera_ubo();
     const BindGuard bound_lines = lines_buf_.bind_to_ssbo_index(0);
 
     sp.uniform("color",     params.line_color);
@@ -401,7 +401,7 @@ void SceneOverlays::draw_scene_graph_lines(
     glapi::enable(Capability::Blending);
     glapi::set_line_width(params.line_width);
 
-    engine.draw([&](auto bfb)
+    context.bind_default_and([&](auto bfb)
     {
         glapi::draw_arrays(bva, bsp, bfb, Primitive::Lines, 0, 2 * lines_buf_.num_staged());
     });
@@ -411,9 +411,9 @@ void SceneOverlays::draw_scene_graph_lines(
 }
 
 void SceneOverlays::draw_skeleton(
-    RenderEngineOverlayInterface& engine)
+    OverlayContext context)
 {
-    const auto& registry = engine.registry();
+    const auto& registry = context.registry();
     const auto& params   = skeleton_params;
 
     if (not params.show_skeleton) return;
@@ -429,7 +429,7 @@ void SceneOverlays::draw_skeleton(
     The bone transforms are another story, however...
     */
 
-    const BindGuard bcam = engine.bind_camera_ubo();
+    const BindGuard bcam = context.bind_camera_ubo();
 
     // TODO: Can't properly depth-test, since we want to draw bone
     // and joint primitives both on-top *and* with depth testing.
@@ -437,7 +437,7 @@ void SceneOverlays::draw_skeleton(
     // to reexpress the geometry analytically in the fragment shader.
     glapi::disable(Capability::DepthTesting);
 
-    engine.draw([&](auto bfb)
+    context.bind_default_and([&](auto bfb)
     {
         // Draw bones.
         {
@@ -485,7 +485,7 @@ void SceneOverlays::draw_skeleton(
 
         // Draw joints.
         {
-            const Mesh& sphere = engine.primitives().sphere_mesh();
+            const Mesh& sphere = context.primitives().sphere_mesh();
             const RawProgram<> sp = sp_skeleton_.get();
 
             sp.uniform("color", params.joint_color);
@@ -523,7 +523,7 @@ void SceneOverlays::draw_skeleton(
             else
                 registry.view<Pose, MTransform>().each(draw_joints);
         }
-    }); // engine.draw(...)
+    }); // context.draw(...)
 
     glapi::disable(Capability::DepthTesting);
 }

@@ -4,17 +4,15 @@
 #include "GLAPICore.hpp"
 #include "GLFramebuffer.hpp"
 #include "GLObjects.hpp"
-#include "MeshRegistry.hpp"
-#include "RenderStage.hpp"
+#include "PerfHarness.hpp"
+#include "Pipeline.hpp"
+#include "Runtime.hpp"
 #include "Skeleton.hpp"
+#include "StageContext.hpp"
 #include "Transform.hpp"
-#include <entt/entt.hpp>
-#include <glbinding/gl/enum.h>
-#include <glbinding/gl/gl.h>
+#include "Tracy.hpp"
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/matrix.hpp>
-#include <chrono>
-#include <tracy/Tracy.hpp>
 
 
 namespace josh {
@@ -29,13 +27,11 @@ RenderEngine::RenderEngine(
 }
 
 void RenderEngine::render(
-    Registry&           registry,
-    const MeshRegistry& mesh_registry,
-    const Primitives&   primitives,
+    Runtime&            runtime,
     const Extent2I&     window_resolution,
     const FrameTimer&   frame_timer)
 {
-    ZoneScoped;
+    ZS;
     const Region2I main_viewport   = { {}, main_resolution() };
     const Region2I window_viewport = { {}, window_resolution };
 
@@ -49,7 +45,7 @@ void RenderEngine::render(
     //
     // FIXME: The camera should likely be passed to render() directly. Let the user figure
     // out which camera to use. We'll just build the matrices and a UBO from it.
-    if (const Handle handle = get_active<Camera>(registry))
+    if (const Handle handle = get_active<Camera>(runtime.registry))
     {
         Camera& camera = handle.get<Camera>();
         auto params = camera.get_params();
@@ -62,68 +58,54 @@ void RenderEngine::render(
         if (auto* mtf = handle.try_get<MTransform>())
             view = inverse(mtf->model()); // model is W2C, view is C2W.
 
-        update_camera_data(view, camera.projection_mat(), params.z_near, params.z_far);
+        _update_camera_data(view, camera.projection_mat(), params.z_near, params.z_far);
     }
 
+    StageContext::CommonState common_state = {
+        .engine            = *this,
+        .runtime           = runtime,
+        .primitives        = runtime.primitives,
+        .frame_timer       = frame_timer,
+        .window_resolution = window_resolution,
+    };
+
     auto execute_stages = [&](
-        auto&           stages,
-        auto            interface,
+        auto&           stage_keys,
         const Region2I* viewport = nullptr)
     {
-        ZoneScoped;
-        if (capture_stage_timings)
+        ZSN("execute_stages");
+
+        for (auto& key : stage_keys)
         {
-            for (auto& stage : stages)
-            {
-                stage._gpu_timer.resolve_available_time_queries();
+            if (viewport)
+                glapi::set_viewport(*viewport);
 
-                stage._cpu_timer.averaging_interval = stage_timing_averaging_interval_s;
-                stage._gpu_timer.set_averaging_interval(stage_timing_averaging_interval_s);
+            Pipeline::StoredStage* stored = pipeline.try_get(key);
+            assert(stored);
 
-                UniqueQueryTimeElapsed tquery;
-                tquery->begin_query();
+            PerfHarness* perf_harness = runtime.perf_assembly.try_get(key);
 
-                auto t0 = std::chrono::steady_clock::now();
+            StageContext::PerStageState stage_state = {
+                .perf_harness = perf_harness,
+            };
 
-                if (viewport) glapi::set_viewport(*viewport);
+            const StageContext context = { common_state, stage_state };
 
-                stage.get()(interface);
+            if (perf_harness)
+                perf_harness->start_frame();
 
-                auto t1 = std::chrono::steady_clock::now();
-                stage._cpu_timer.update(std::chrono::duration<float>(t1 - t0).count(), frame_timer.delta<float>());
+            (stored->stage)(context);
 
-                tquery->end_query();
-                stage._gpu_timer.emplace_new_time_query(MOVE(tquery), frame_timer.delta<float>());
-            }
-        }
-        else
-        {
-            for (auto& stage : stages)
-            {
-                if (viewport) glapi::set_viewport(*viewport);
-                stage.get()(interface);
-            }
+            if (perf_harness)
+                perf_harness->end_frame();
         }
     };
-
-    const RenderEngineCommonInterface interface_common = {
-        ._engine            = *this,
-        ._registry          = registry,
-        ._mesh_registry     = mesh_registry,
-        ._primitives        = primitives,
-        ._frame_timer       = frame_timer,
-        ._window_resolution = window_resolution,
-    };
-    const RenderEnginePrecomputeInterface  interface_precompute  = { interface_common };
-    const RenderEnginePrimaryInterface     interface_primary     = { interface_common };
-    const RenderEnginePostprocessInterface interface_postprocess = { interface_common };
-    const RenderEngineOverlayInterface     interface_overlay     = { interface_common };
 
     // Sweep the belt. This removes all *stale* items from the previous frame.
     belt.sweep();
 
     // Precompute.
-    execute_stages(precompute_, interface_precompute);
+    execute_stages(pipeline._precompute);
 
     // Primary.
     {
@@ -133,13 +115,13 @@ void RenderEngine::render(
 
     // To swapchain backbuffer.
     glapi::enable(Capability::DepthTesting);
-    execute_stages(primary_, interface_primary, &main_viewport);
+    execute_stages(pipeline._primary, &main_viewport);
     glapi::disable(Capability::DepthTesting);
 
     // Postprocess.
     _main_target._swap();
     // To swapchain (swap each draw).
-    execute_stages(postprocess_, interface_postprocess, &main_viewport);
+    execute_stages(pipeline._postprocess, &main_viewport);
 
     // Blit front to default (opt. sRGB)
     if (enable_srgb_conversion) glapi::enable(Capability::SRGBConversion);
@@ -149,7 +131,7 @@ void RenderEngine::render(
     // default fbo. Linear filtering does not work, and mismatched
     // resolutions completely break overlays.
     _main_target._front().fbo->blit_to(
-        default_fbo_,
+        _default_fbo,
         { {}, main_resolution() }, // Internal rendering resolution.
         { {}, window_resolution }, // This is technically window size and can technically differ, technically.
         BufferMask::ColorBit | BufferMask::DepthBit,
@@ -177,12 +159,12 @@ void RenderEngine::render(
     // might be reasonable just as the assumption about stable registry.
 
     // Overlay.
-    execute_stages(overlay_, interface_overlay, &window_viewport);
+    execute_stages(pipeline._overlay, &window_viewport);
 
     // Present.
 }
 
-void RenderEngine::update_camera_data(
+void RenderEngine::_update_camera_data(
     const mat4& view,
     const mat4& proj,
     float       z_near,
@@ -196,7 +178,7 @@ void RenderEngine::update_camera_data(
     const mat4 inv_projview = inverse(projview);
     const vec3 position_ws  = inv_view[3];
 
-    camera_data_ = CameraDataGPU{
+    _camera_data = CameraDataGPU{
         .position_ws  = position_ws,
         .z_near       = z_near,
         .z_far        = z_far,
@@ -209,7 +191,7 @@ void RenderEngine::update_camera_data(
         .inv_projview = inv_projview
     };
 
-    camera_ubo_->upload_data({ &camera_data_, 1 });
+    _camera_ubo->upload_data({ &_camera_data, 1 });
 }
 
 void RenderEngine::respec_main_target(Extent2I resolution, HDRFormat color_iformat, DSFormat depth_iformat)

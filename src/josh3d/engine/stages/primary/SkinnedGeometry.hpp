@@ -1,10 +1,9 @@
 #pragma once
 #include "Math.hpp"
 #include "UploadBuffer.hpp"
-#include "RenderStage.hpp"
+#include "StageContext.hpp"
 #include "ShaderPool.hpp"
 #include "VPath.hpp"
-
 
 
 namespace josh {
@@ -14,7 +13,7 @@ struct SkinnedGeometry
 {
     bool backface_culling = true;
 
-    void operator()(RenderEnginePrimaryInterface&);
+    void operator()(PrimaryContext);
 
 
     // FIXME: There should be a pool of poses uploaded by the

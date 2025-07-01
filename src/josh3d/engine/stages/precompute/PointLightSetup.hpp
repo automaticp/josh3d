@@ -1,6 +1,6 @@
 #pragma once
 #include "EnumUtils.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "LightCasters.hpp"
 #include "BoundingSphere.hpp"
 #include "Tracy.hpp"
@@ -24,16 +24,16 @@ struct PointLightSetup
     float bounding_radius     = 10.0f;
     float radiosity_threshold = 0.005f;
 
-    void operator()(RenderEnginePrecomputeInterface& engine);
+    void operator()(PrecomputeContext context);
 };
 JOSH3D_DEFINE_ENUM_EXTRAS(PointLightSetup::Strategy, FixedRadius, RadiosityThreshold);
 
 
 inline void PointLightSetup::operator()(
-    RenderEnginePrecomputeInterface& engine)
+    PrecomputeContext context)
 {
     ZSN("PointLightSetup");
-    auto& registry = engine.registry();
+    auto& registry = context.mutable_registry();
 
     /*
     For a perfect point light, spectral radiosity transmitted by a spherical

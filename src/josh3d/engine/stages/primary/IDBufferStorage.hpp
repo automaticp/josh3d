@@ -1,7 +1,7 @@
 #pragma once
 #include "GLObjects.hpp"
 #include "GLTextures.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "Region.hpp"
 #include "Tracy.hpp"
 
@@ -41,17 +41,17 @@ Place it before any other stages that draw into the IDBuffer.
 */
 struct IDBufferStorage
 {
-    void operator()(RenderEnginePrimaryInterface& engine);
+    void operator()(PrimaryContext context);
 
     IDBuffer idbuffer;
 };
 
 
 inline void IDBufferStorage::operator()(
-    RenderEnginePrimaryInterface& engine)
+    PrimaryContext context)
 {
     ZSCGPUN("IDBufferStorage");
-    idbuffer._resize(engine.main_resolution());
+    idbuffer._resize(context.main_resolution());
 
     const BindGuard bfbo = idbuffer.bind_draw();
 
@@ -59,7 +59,7 @@ inline void IDBufferStorage::operator()(
     constexpr auto null_color = to_underlying(nullent);
     glapi::clear_color_buffer(bfbo, 0, RGBAUI{ .r=null_color });
 
-    engine.belt().put_ref(idbuffer);
+    context.belt().put_ref(idbuffer);
 }
 
 

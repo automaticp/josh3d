@@ -2,7 +2,7 @@
 #include "ECS.hpp"
 #include "GLObjects.hpp"
 #include "ShaderPool.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "UploadBuffer.hpp"
 #include "VPath.hpp"
 
@@ -16,7 +16,7 @@ struct LightDummies
     float light_scale     = 0.1f;
     bool  attenuate_color = true;
 
-    void operator()(RenderEnginePrimaryInterface& engine);
+    void operator()(PrimaryContext context);
 
     struct PLightParamsGPU
     {
@@ -30,7 +30,7 @@ struct LightDummies
     UniqueFramebuffer             _fbo;
 
     void _restage_plight_params(const Registry& registry);
-    void _relink_attachments(RenderEnginePrimaryInterface& engine);
+    void _relink_attachments(PrimaryContext context);
 
     ShaderToken _sp = shader_pool().get({
         .vert = VPath("src/shaders/light_dummies_point.vert"),

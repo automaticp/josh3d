@@ -6,7 +6,7 @@
 #include "Scalars.hpp"
 #include "ShaderPool.hpp"
 #include "UniformTraits.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "Tracy.hpp"
 #include <cmath>
 #include <cassert>
@@ -21,12 +21,12 @@ GaussianBloom::GaussianBloom(usize kernel_limb_size, float kernel_range)
 }
 
 void GaussianBloom::operator()(
-    RenderEnginePostprocessInterface& engine)
+    PostprocessContext context)
 {
     ZSCGPUN("GaussianBloom");
     if (not use_bloom) return;
 
-    target._resize(engine.main_resolution());
+    target._resize(context.main_resolution());
 
     const MultibindGuard bound_samplers = {
         sampler_->bind_to_texture_unit(0),
@@ -36,12 +36,12 @@ void GaussianBloom::operator()(
     // Extract.
     {
         const auto sp = sp_extract_.get();
-        engine.screen_color().bind_to_texture_unit(0);
+        context.main_front_color_texture().bind_to_texture_unit(0);
         sp.uniform("screen_color",     0);
         sp.uniform("threshold_bounds", threshold_bounds);
         const BindGuard bsp = sp.use();
         const BindGuard bfb = target._back().fbo->bind_draw();
-        engine.primitives().quad_mesh().draw(bsp, bfb);
+        context.primitives().quad_mesh().draw(bsp, bfb);
         target._swap();
     }
 
@@ -60,7 +60,7 @@ void GaussianBloom::operator()(
             target._front().texture->bind_to_texture_unit(0);
             sp.uniform("blur_horizontally", bool(i % 2));
             const BindGuard bfb = target._back().fbo->bind_draw();
-            engine.primitives().quad_mesh().draw(bsp, bfb);
+            context.primitives().quad_mesh().draw(bsp, bfb);
             target._swap();
         }
     }
@@ -69,12 +69,12 @@ void GaussianBloom::operator()(
     // TODO: Why is this a separate shader and not just using blend mode?
     {
         const auto sp = sp_blend_.get();
-        engine.screen_color().bind_to_texture_unit(0);
+        context.main_front_color_texture().bind_to_texture_unit(0);
         target._front().texture->bind_to_texture_unit(1);
         sp.uniform("screen_color", 0);
         sp.uniform("bloom_color",  1);
         const BindGuard bsp = sp.use();
-        engine.draw(bsp);
+        context.draw_quad_and_swap(bsp);
     }
 }
 

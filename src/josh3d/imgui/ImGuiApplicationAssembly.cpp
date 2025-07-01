@@ -22,6 +22,7 @@
 #include "RenderEngine.hpp"
 #include "Region.hpp"
 #include "SkeletonStorage.hpp"
+#include "Time.hpp"
 #include "Tracy.hpp"
 #include "Transform.hpp"
 #include "VPath.hpp"
@@ -288,13 +289,17 @@ void ImGuiApplicationAssembly::_draw_widgets()
             if (ImGui::BeginMenu("Engine"))
             {
                 auto& engine = runtime.renderer;
-                ImGui::Checkbox("RGB -> sRGB",    &engine.enable_srgb_conversion);
-                ImGui::Checkbox("GPU/CPU Timers", &engine.capture_stage_timings );
+                ImGui::Checkbox("RGB -> sRGB", &engine.enable_srgb_conversion);
 
-                ImGui::BeginDisabled(not engine.capture_stage_timings);
-                ImGui::SliderFloat("Timing Interval, s", &engine.stage_timing_averaging_interval_s,
-                    0.001f, 5.f, "%.3f", ImGuiSliderFlags_Logarithmic);
-                ImGui::EndDisabled();
+                // TODO: Reintroduce a way to pause measurements once that's supported.
+
+                // TODO: DurationSlider()/DurationDrag()?
+                auto interval = runtime.perf_assembly.flush_interval.to_seconds<float>();
+                if (ImGui::SliderFloat("Timing Interval, s", &interval,
+                    0.001f, 5.f, "%.3f", ImGuiSliderFlags_Logarithmic))
+                {
+                    runtime.perf_assembly.flush_interval = TimeDeltaNS::from_seconds(interval);
+                }
 
                 auto color_format = engine.main_color_format();
                 auto depth_format = engine.main_depth_format();

@@ -3,7 +3,7 @@
 #include "AssetManager.hpp"
 #include "AssetUnpacker.hpp"
 #include "AsyncCradle.hpp"
-#include "ContainerUtils.hpp"
+#include "PerfHarness.hpp"
 #include "Tracy.hpp"
 #include "default/Resources.hpp"
 #include "GLPixelPackTraits.hpp"
@@ -79,14 +79,28 @@ auto DemoScene::is_done() const noexcept
 void DemoScene::execute_frame()
 {
     ZS;
+    // FIXME: Stop using globals for a simple timer.
     josh::globals::frame_timer.update();
-
-    render();
+    const auto dt = TimeDeltaNS::from_seconds(josh::globals::frame_timer.delta());
 
     glfw::pollEvents();
     process_input();
 
     update();
+
+    _imgui.new_frame(globals::frame_timer);
+
+    runtime.renderer.render(
+        runtime,
+        globals::window_size.size(),
+        globals::frame_timer);
+
+    // NOTE: Using dt of the previous frame, but that's okay since we
+    // don't measure it, we only use it to decide when to flush averages.
+    runtime.perf_assembly.collect_all(dt);
+
+    // NOTE: Running this after perf_assembly has collected everything.
+    _imgui.display();
 
     window.swapBuffers();
     TracyGpuCollect;
@@ -94,7 +108,7 @@ void DemoScene::execute_frame()
 
 void DemoScene::process_input()
 {
-    ZoneScoped;
+    ZS;
     if (const auto camera = get_active<Camera, Transform>(runtime.registry))
     {
         _input_freecam.update(
@@ -107,7 +121,7 @@ void DemoScene::process_input()
 
 void DemoScene::update()
 {
-    ZoneScoped;
+    ZS;
     update_input_blocker_from_imgui_io_state();
 
     runtime.async_cradle.local_context.flush_nonblocking();
@@ -152,22 +166,6 @@ void DemoScene::update()
         shader_pool().hot_reload();
 }
 
-void DemoScene::render()
-{
-    ZS;
-    _imgui.new_frame(globals::frame_timer);
-
-    runtime.renderer.render(
-        runtime.registry,
-        runtime.mesh_registry,
-        runtime.primitives,
-        globals::window_size.size(),
-        globals::frame_timer
-    );
-
-    _imgui.display();
-}
-
 DemoScene::DemoScene(
     glfw::Window&  window,
     josh::Runtime& runtime
@@ -177,49 +175,66 @@ DemoScene::DemoScene(
     , _input(window, _input_blocker)
     , _imgui(window, runtime)
 {
-    auto& renderer = runtime.renderer;
+    auto& renderer      = runtime.renderer;
+    auto& pipeline      = renderer.pipeline;
+    auto& perf_assembly = runtime.perf_assembly;
 
-    renderer.add_next_precompute_stage ("Point Light Setup",         PointLightSetup());
-    renderer.add_next_precompute_stage ("Transfrom Resolution",      TransformResolution());
-    renderer.add_next_precompute_stage ("BV Resolution",             BoundingVolumeResolution());
-    renderer.add_next_precompute_stage ("Frustum Culling",           FrustumCulling());
-    renderer.add_next_precompute_stage ("Skinning",                  AnimationSystem());
-    renderer.add_next_primary_stage    ("Point Shadow Mapping",      PointShadowMapping());
-    renderer.add_next_primary_stage    ("Cascaded Shadow Mapping",   CascadedShadowMapping());
-    renderer.add_next_primary_stage    ("IDBuffer",                  IDBufferStorage());
-    renderer.add_next_primary_stage    ("GBuffer",                   GBufferStorage());
-    renderer.add_next_primary_stage    ("Static Geometry",           DeferredGeometry());
-    renderer.add_next_primary_stage    ("Skinned Geometry",          SkinnedGeometry());
-    renderer.add_next_primary_stage    ("Terrain Geometry",          TerrainGeometry());
-    renderer.add_next_primary_stage    ("SSAO",                      SSAO());
-    renderer.add_next_primary_stage    ("Deferred Shading",          DeferredShading());
-    renderer.add_next_primary_stage    ("Light Dummies",             LightDummies());
-    renderer.add_next_primary_stage    ("Sky",                       Sky());
-    renderer.add_next_postprocess_stage("Fog",                       Fog());
-    renderer.add_next_postprocess_stage("BloomAW",                   BloomAW());
-    renderer.add_next_postprocess_stage("HDR Eye Adaptation",        HDREyeAdaptation());
-    renderer.add_next_postprocess_stage("FXAA",                      FXAA());
-    renderer.add_next_overlay_stage    ("GBuffer Debug",             GBufferDebug());
-    renderer.add_next_overlay_stage    ("CSM Debug",                 CSMDebug());
-    renderer.add_next_overlay_stage    ("SSAO Debug",                SSAODebug());
-    renderer.add_next_overlay_stage    ("Scene Overlays",            SceneOverlays());
+    // TODO: Make PerfAssembly work.
 
-    _imgui.stage_hooks.add_hook(imguihooks::PointLightSetup());
-    _imgui.stage_hooks.add_hook(imguihooks::PointShadowMapping());
-    _imgui.stage_hooks.add_hook(imguihooks::CascadedShadowMapping());
-    _imgui.stage_hooks.add_hook(imguihooks::DeferredGeometry());
-    _imgui.stage_hooks.add_hook(imguihooks::SSAO());
-    _imgui.stage_hooks.add_hook(imguihooks::DeferredShading());
-    _imgui.stage_hooks.add_hook(imguihooks::LightDummies());
-    _imgui.stage_hooks.add_hook(imguihooks::Sky());
-    _imgui.stage_hooks.add_hook(imguihooks::Fog());
-    _imgui.stage_hooks.add_hook(imguihooks::BloomAW());
-    _imgui.stage_hooks.add_hook(imguihooks::HDREyeAdaptation());
-    _imgui.stage_hooks.add_hook(imguihooks::FXAA());
-    _imgui.stage_hooks.add_hook(imguihooks::GBufferDebug());
-    _imgui.stage_hooks.add_hook(imguihooks::CSMDebug());
-    _imgui.stage_hooks.add_hook(imguihooks::SSAODebug());
-    _imgui.stage_hooks.add_hook(imguihooks::SceneOverlays());
+#define ADD_STAGE(Kind, Type)               \
+    pipeline.push(StageKind::Kind, Type()); \
+    perf_assembly.instrument({ .type=type_id<Type>() }, GPUTiming::Enabled)
+
+    ADD_STAGE(Precompute,  PointLightSetup         );
+    ADD_STAGE(Precompute,  TransformResolution     );
+    ADD_STAGE(Precompute,  BoundingVolumeResolution);
+    ADD_STAGE(Precompute,  FrustumCulling          );
+    ADD_STAGE(Precompute,  AnimationSystem         );
+    ADD_STAGE(Primary,     PointShadowMapping      );
+    ADD_STAGE(Primary,     CascadedShadowMapping   );
+    ADD_STAGE(Primary,     IDBufferStorage         );
+    ADD_STAGE(Primary,     GBufferStorage          );
+    ADD_STAGE(Primary,     DeferredGeometry        );
+    ADD_STAGE(Primary,     SkinnedGeometry         );
+    ADD_STAGE(Primary,     TerrainGeometry         );
+    ADD_STAGE(Primary,     SSAO                    );
+    ADD_STAGE(Primary,     DeferredShading         );
+    ADD_STAGE(Primary,     LightDummies            );
+    ADD_STAGE(Primary,     Sky                     );
+    ADD_STAGE(Postprocess, Fog                     );
+    ADD_STAGE(Postprocess, BloomAW                 );
+    ADD_STAGE(Postprocess, HDREyeAdaptation        );
+    ADD_STAGE(Postprocess, FXAA                    );
+    ADD_STAGE(Overlay,     GBufferDebug            );
+    ADD_STAGE(Overlay,     CSMDebug                );
+    ADD_STAGE(Overlay,     SSAODebug               );
+    ADD_STAGE(Overlay,     SceneOverlays           );
+
+#undef ADD_STAGE
+
+    // FIXME: This won't work with the new setup, I think?
+
+#define HOOK_STAGE(Type) \
+    _imgui.stage_hooks.add_hook(imguihooks::Type());
+
+    HOOK_STAGE(PointLightSetup      );
+    HOOK_STAGE(PointShadowMapping   );
+    HOOK_STAGE(CascadedShadowMapping);
+    HOOK_STAGE(DeferredGeometry     );
+    HOOK_STAGE(SSAO                 );
+    HOOK_STAGE(DeferredShading      );
+    HOOK_STAGE(LightDummies         );
+    HOOK_STAGE(Sky                  );
+    HOOK_STAGE(Fog                  );
+    HOOK_STAGE(BloomAW              );
+    HOOK_STAGE(HDREyeAdaptation     );
+    HOOK_STAGE(FXAA                 );
+    HOOK_STAGE(GBufferDebug         );
+    HOOK_STAGE(CSMDebug             );
+    HOOK_STAGE(SSAODebug            );
+    HOOK_STAGE(SceneOverlays        );
+
+#undef HOOK_STAGE
 
     configure_input();
     register_default_resource_info   (resource_info());

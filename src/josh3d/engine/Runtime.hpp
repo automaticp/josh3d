@@ -6,6 +6,7 @@
 #include "AsyncCradle.hpp"
 #include "ECS.hpp"
 #include "MeshRegistry.hpp"
+#include "PerfAssembly.hpp"
 #include "Primitives.hpp"
 #include "RenderEngine.hpp"
 #include "ResourceDatabase.hpp"
@@ -72,8 +73,11 @@ struct Runtime
     // The primary registry used as a main scene representation.
     Registry         registry;
 
-    // A collection of rendering stages with some extra fluff on top.
+    // A pipeline of rendering stages with some extra fluff on top.
     RenderEngine     renderer;
+
+    // A collection of performance counters for systems and pipeline stages.
+    PerfAssembly     perf_assembly;
 };
 
 

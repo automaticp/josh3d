@@ -1,4 +1,5 @@
 #pragma once
+#include "NumericLimits.hpp"
 #include "Scalars.hpp"
 #include "CommonConcepts.hpp"
 #include "CategoryCasts.hpp"
@@ -65,6 +66,54 @@ This comes up a lot when dealing with packs.
 
 
 /*
+Get the smallest unsigned type that can represent an index up to size of N.
+*/
+template<usize N> struct smallest_uindex;
+template<usize N> requires (N > 0                    and N - 1 <= usize(vmax<u8>))  struct smallest_uindex<N> { using type = u8;  };
+template<usize N> requires (N > 1 + usize(vmax<u8>)  and N - 1 <= usize(vmax<u16>)) struct smallest_uindex<N> { using type = u16; };
+template<usize N> requires (N > 1 + usize(vmax<u16>) and N - 1 <= usize(vmax<u32>)) struct smallest_uindex<N> { using type = u32; };
+template<usize N> requires (N > 1 + usize(vmax<u32>) and N - 1 <= usize(vmax<u64>)) struct smallest_uindex<N> { using type = u64; };
+template<usize N> using smallest_uindex_t = smallest_uindex<N>::type;
+
+
+/*
+Create a new *unique* type by deriving from an existing one.
+
+For most uses, JOSH3D_DERIVE_TYPE() is recommended instead,
+but this can be used to avoid the closing brace and define
+additional member funcitions for the derived type.
+
+JOSH3D_DERIVE_TYPE_EX() is similar, but screws with linters
+that cannot handle having one brace inside a macro.
+
+WARNING: You should not add non-static data members.
+*/
+#define JOSH3D_DERIVED_TYPE_BODY(Name, ...)               \
+    using Base = __VA_ARGS__;                             \
+    using Base::Base;                                     \
+    template<same_as_remove_cvref<Base> B>                \
+    requires std::copy_constructible<std::decay_t<B>>     \
+    Name(const B& base) : Base{ base } {}                 \
+    template<same_as_remove_cvref<Base> B>                \
+    requires std::move_constructible<std::decay_t<B>> and \
+        not_move_or_copy_constructor_of<Name, B>          \
+    Name(B&& base) noexcept : Base{ MOVE(base) } {}       \
+
+/*
+Create a new *unique* type by deriving from an existing one.
+
+Unlike JOSH3D_DERIVE_TYPE() this does not force a closing brace
+at the end, which lets you extend the derived type with additional
+member functions.
+
+WARNING: You should not add non-static data members.
+*/
+#define JOSH3D_DERIVE_TYPE_EX(Name, ...)                      \
+    struct Name : __VA_ARGS__                                 \
+    {                                                         \
+        JOSH3D_DERIVED_TYPE_BODY(Name, __VA_ARGS__)
+
+/*
 Create a new *unique* type by deriving from an existing one.
 
 Not every HashMap<UUID, Path> is a ResourceFileTable,
@@ -72,18 +121,8 @@ but every ResourceFileTable is a HashMap<UUID, Path>.
 
 NOTE: Might not get every semantic detail right 100%.
 */
-#define JOSH3D_DERIVE_TYPE(Name, ...)                         \
-    struct Name : __VA_ARGS__                                 \
-    {                                                         \
-        using Base = __VA_ARGS__;                             \
-        using Base::Base;                                     \
-        template<same_as_remove_cvref<Base> B>                \
-        requires std::copy_constructible<std::decay_t<B>>     \
-        Name(const B& base) : Base{ base } {}                 \
-        template<same_as_remove_cvref<Base> B>                \
-        requires std::move_constructible<std::decay_t<B>> and \
-            not_move_or_copy_constructor_of<Name, B>          \
-        Name(B&& base) noexcept : Base{ MOVE(base) } {}       \
+#define JOSH3D_DERIVE_TYPE(Name, ...)        \
+    JOSH3D_DERIVE_TYPE_EX(Name, __VA_ARGS__) \
     }
 
 

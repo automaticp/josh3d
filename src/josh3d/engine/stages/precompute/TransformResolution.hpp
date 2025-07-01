@@ -1,5 +1,5 @@
 #pragma once
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 
 
 namespace josh {
@@ -19,7 +19,7 @@ existence of MTransforms is just part of the contract in displaying the entities
 */
 struct TransformResolution
 {
-    void operator()(RenderEnginePrecomputeInterface& engine);
+    void operator()(PrecomputeContext context);
 };
 
 

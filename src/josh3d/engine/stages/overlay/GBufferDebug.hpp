@@ -5,7 +5,7 @@
 #include "GLObjects.hpp"
 #include "ShaderPool.hpp"
 #include "EnumUtils.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "GLScalars.hpp"
 #include "VPath.hpp"
 #include <tracy/Tracy.hpp>
@@ -31,7 +31,7 @@ struct GBufferDebug
 
     OverlayMode mode = OverlayMode::None;
 
-    void operator()(RenderEngineOverlayInterface& engine);
+    void operator()(OverlayContext context);
 
 private:
     UniqueSampler integer_sampler_ = []{
@@ -48,16 +48,16 @@ JOSH3D_DEFINE_ENUM_EXTRAS(GBufferDebug::OverlayMode, None, Albedo, Specular, Pos
 
 
 inline void GBufferDebug::operator()(
-    RenderEngineOverlayInterface& engine)
+    OverlayContext context)
 {
     ZSCGPUN("GBufferDebug");
     if (mode == OverlayMode::None) return;
 
-    auto* gbuffer = engine.belt().try_get<GBuffer>();
+    auto* gbuffer = context.belt().try_get<GBuffer>();
 
     if (not gbuffer) return;
 
-    const BindGuard bcam = engine.bind_camera_ubo();
+    const BindGuard bcam = context.bind_camera_ubo();
 
     gbuffer->depth_texture()    .bind_to_texture_unit(0);
     gbuffer->normals_texture()  .bind_to_texture_unit(1);
@@ -78,7 +78,7 @@ inline void GBufferDebug::operator()(
 
     const BindGuard bsp = sp.use();
 
-    engine.draw_fullscreen_quad(bsp);
+    context.draw_quad_to_default(bsp);
 }
 
 

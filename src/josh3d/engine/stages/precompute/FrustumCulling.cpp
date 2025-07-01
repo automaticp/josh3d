@@ -4,7 +4,7 @@
 #include "ECS.hpp"
 #include "GeometryCollision.hpp"
 #include "Tags.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "BoundingSphere.hpp"
 #include "Transform.hpp"
 #include "ViewFrustum.hpp"
@@ -58,18 +58,19 @@ void cull_from_aabbs(
 
 
 void FrustumCulling::operator()(
-    RenderEnginePrecomputeInterface& engine)
+    PrecomputeContext context)
 {
     ZSN("FrustumCulling");
-    if (const auto camera = get_active<Camera, MTransform>(engine.registry()))
+    auto& registry = context.mutable_registry();
+    if (const auto camera = get_active<Camera, MTransform>(registry))
     {
-        engine.registry().clear<Visible>();
+        registry.clear<Visible>();
 
         const auto frustum_local = camera.get<Camera>().view_frustum_as_planes();
         const auto frustum_world = frustum_local.transformed(camera.get<MTransform>().model());
 
-        cull_from_bounding_spheres(engine.registry(), frustum_world);
-        cull_from_aabbs           (engine.registry(), frustum_world);
+        cull_from_bounding_spheres(registry, frustum_world);
+        cull_from_aabbs           (registry, frustum_world);
     }
 }
 

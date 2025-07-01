@@ -12,7 +12,7 @@
 #include "Transform.hpp"
 #include "UniformTraits.hpp"
 #include "LightCasters.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "Skybox.hpp"
 #include "Tracy.hpp"
 #include <glm/geometric.hpp>
@@ -21,7 +21,7 @@
 namespace josh {
 
 
-void Sky::operator()(RenderEnginePrimaryInterface& engine)
+void Sky::operator()(PrimaryContext context)
 {
     ZSCGPUN("Sky");
     if (sky_type == SkyType::None) return;
@@ -29,14 +29,14 @@ void Sky::operator()(RenderEnginePrimaryInterface& engine)
     glapi::disable(Capability::FaceCulling);
     glapi::set_depth_mask(false); // Disables writes to depth buffer.
     glapi::set_depth_test_condition(CompareOp::LEqual);
-    glapi::set_viewport({ {}, engine.main_resolution() });
+    glapi::set_viewport({ {}, context.main_resolution() });
 
     switch (sky_type)
     {
         using enum SkyType;
-        case Debug:      draw_debug_skybox  (engine);                    break;
-        case Skybox:     draw_skybox        (engine, engine.registry()); break;
-        case Procedural: draw_procedural_sky(engine, engine.registry()); break;
+        case Debug:      draw_debug_skybox  (context);                    break;
+        case Skybox:     draw_skybox        (context, context.registry()); break;
+        case Procedural: draw_procedural_sky(context, context.registry()); break;
         case None: break;
     }
 
@@ -45,53 +45,53 @@ void Sky::operator()(RenderEnginePrimaryInterface& engine)
 }
 
 void Sky::draw_debug_skybox(
-    RenderEnginePrimaryInterface& engine)
+    PrimaryContext context)
 {
     debug_skybox_cubemap_->bind_to_texture_unit(0);
 
-    const BindGuard bcam = engine.bind_camera_ubo();
+    const BindGuard bcam = context.bind_camera_ubo();
     const RawProgram<> sp = sp_skybox_.get();
 
     sp.uniform("cubemap", 0);
 
     const BindGuard bsp = sp.use();
-    engine.draw([&](auto bfb)
+    context.bind_back_and([&](auto bfb)
     {
-        engine.primitives().box_mesh().draw(bsp, bfb);
+        context.primitives().box_mesh().draw(bsp, bfb);
     });
 }
 
 void Sky::draw_skybox(
-    RenderEnginePrimaryInterface& engine,
+    PrimaryContext context,
     const Registry&               registry)
 {
     if (const CHandle skybox_handle = get_active<Skybox>(registry))
     {
         skybox_handle.get<Skybox>().cubemap->bind_to_texture_unit(0);
 
-        const BindGuard bcam = engine.bind_camera_ubo();
+        const BindGuard bcam = context.bind_camera_ubo();
         const RawProgram<> sp = sp_skybox_;
 
         sp.uniform("cubemap", 0);
 
         const BindGuard bsp = sp.use();
-        engine.draw([&](auto bfb)
+        context.bind_back_and([&](auto bfb)
         {
-            engine.primitives().box_mesh().draw(bsp, bfb);
+            context.primitives().box_mesh().draw(bsp, bfb);
         });
     }
     else
     {
-        draw_procedural_sky(engine, registry); // Fallback.
+        draw_procedural_sky(context, registry); // Fallback.
     }
 }
 
 void Sky::draw_procedural_sky(
-    RenderEnginePrimaryInterface& engine,
+    PrimaryContext context,
     const Registry&               registry)
 {
     const RawProgram<> sp = sp_proc_;
-    const BindGuard bcam = engine.bind_camera_ubo();
+    const BindGuard bcam = context.bind_camera_ubo();
 
     if (const CHandle dlight = get_active<DirectionalLight, MTransform>(registry))
     {
@@ -99,7 +99,7 @@ void Sky::draw_procedural_sky(
             decompose_rotation(dlight.get<MTransform>()) * -Z;
 
         const vec3 light_dir_view_space =
-            glm::normalize(vec3{ engine.camera_data().view * vec4{ light_dir, 0.f } });
+            glm::normalize(vec3{ context.camera_data().view * vec4{ light_dir, 0.f } });
 
         sp.uniform("sun_size_rad",         glm::radians(procedural_sky_params.sun_size_deg));
         sp.uniform("light_dir_view_space", light_dir_view_space);
@@ -113,9 +113,9 @@ void Sky::draw_procedural_sky(
     sp.uniform("sky_color", procedural_sky_params.sky_color);
 
     const BindGuard bsp = sp.use();
-    engine.draw([&](auto bfb)
+    context.bind_back_and([&](auto bfb)
     {
-        engine.primitives().quad_mesh().draw(bsp, bfb);
+        context.primitives().quad_mesh().draw(bsp, bfb);
     });
 }
 

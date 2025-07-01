@@ -1,5 +1,5 @@
 #pragma once
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 
 
 namespace josh {
@@ -7,7 +7,7 @@ namespace josh {
 
 struct FrustumCulling
 {
-    void operator()(RenderEnginePrecomputeInterface& engine);
+    void operator()(PrecomputeContext context);
 };
 
 

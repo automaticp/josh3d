@@ -3,7 +3,7 @@
 #include "stages/primary/GBufferStorage.hpp"
 #include "GLProgram.hpp"
 #include "UniformTraits.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "Transform.hpp"
 #include "TerrainChunk.hpp"
 #include "Tracy.hpp"
@@ -14,11 +14,11 @@ namespace josh {
 
 
 void TerrainGeometry::operator()(
-    RenderEnginePrimaryInterface& engine)
+    PrimaryContext context)
 {
     ZSCGPUN("TerrainGeometry");
-    const auto& registry = engine.registry();
-    auto*       gbuffer  = engine.belt().try_get<GBuffer>();
+    const auto& registry = context.registry();
+    auto*       gbuffer  = context.belt().try_get<GBuffer>();
 
     if (not gbuffer) return;
 
@@ -26,7 +26,7 @@ void TerrainGeometry::operator()(
 
     glapi::set_viewport({ {}, gbuffer->resolution() });
 
-    const BindGuard bcam = engine.bind_camera_ubo();
+    const BindGuard bcam = context.bind_camera_ubo();
     const BindGuard bfb  = gbuffer->bind_draw();
     const BindGuard bsp  = sp.use();
 

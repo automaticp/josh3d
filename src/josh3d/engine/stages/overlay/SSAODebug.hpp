@@ -2,7 +2,7 @@
 #include "stages/primary/SSAO.hpp"
 #include "GLObjects.hpp"
 #include "GLTextures.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "EnumUtils.hpp"
 #include "VPath.hpp"
 #include "Tracy.hpp"
@@ -22,7 +22,7 @@ struct SSAODebug
 
     OverlayMode mode = OverlayMode::None;
 
-    void operator()(RenderEngineOverlayInterface& engine);
+    void operator()(OverlayContext context);
 
 private:
     ShaderToken sp_ = shader_pool().get({
@@ -33,12 +33,12 @@ JOSH3D_DEFINE_ENUM_EXTRAS(SSAODebug::OverlayMode, None, Backbuffer, Occlusion);
 
 
 inline void SSAODebug::operator()(
-    RenderEngineOverlayInterface& engine)
+    OverlayContext context)
 {
     ZSCGPUN("SSAODebug");
     if (mode == OverlayMode::None) return;
 
-    const auto* aobuffers = engine.belt().try_get<AOBuffers>();
+    const auto* aobuffers = context.belt().try_get<AOBuffers>();
     if (not aobuffers) return;
 
     const auto sp = sp_.get();
@@ -52,7 +52,7 @@ inline void SSAODebug::operator()(
 
     const BindGuard bsp = sp.use();
 
-    engine.draw_fullscreen_quad(bsp);
+    context.draw_quad_to_default(bsp);
 }
 
 

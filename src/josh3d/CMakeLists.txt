@@ -108,12 +108,8 @@ set(COMMON_EXTERNAL_DEPS
     fmt::fmt
     range-v3::range-v3
     range-v3::concepts
+    Tracy::TracyClient
 )
-
-if (TRACY_ENABLE)
-    list(APPEND COMMON_EXTERNAL_DEPS Tracy::TracyClient)
-endif()
-
 
 function(subtarget_link_common_external_deps SUBTARGET)
 

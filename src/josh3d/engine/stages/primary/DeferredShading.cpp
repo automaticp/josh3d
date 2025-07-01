@@ -17,7 +17,7 @@
 #include "stages/primary/GBufferStorage.hpp"
 #include "stages/primary/SSAO.hpp"
 #include "ShadowCasting.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "Visible.hpp"
 #include "Tracy.hpp"
 #include <range/v3/all.hpp>
@@ -71,35 +71,35 @@ auto get_active_dlight_or_default(const Registry& registry)
 
 
 void DeferredShading::operator()(
-    RenderEnginePrimaryInterface& engine)
+    PrimaryContext context)
 {
     ZSCGPUN("DeferredShading");
-    if (auto* csm = engine.belt().try_get<Cascades>())
+    if (auto* csm = context.belt().try_get<Cascades>())
         update_cascade_buffer(*csm);
 
-    update_point_light_buffers(engine.registry());
+    update_point_light_buffers(context.registry());
 
     switch (mode)
     {
-        case Mode::SinglePass: draw_singlepass(engine); break;
-        case Mode::MultiPass:  draw_multipass(engine); break;
+        case Mode::SinglePass: draw_singlepass(context); break;
+        case Mode::MultiPass:  draw_multipass(context); break;
     }
 }
 
 void DeferredShading::draw_singlepass(
-    RenderEnginePrimaryInterface& engine)
+    PrimaryContext context)
 {
-    const auto& registry  = engine.registry();
-    auto*       gbuffer   = engine.belt().try_get<GBuffer>();
-    auto*       point_shadows       = engine.belt().try_get<PointShadows>();
-    auto*       cascades  = engine.belt().try_get<Cascades>();
-    auto*       aobuffers = engine.belt().try_get<AOBuffers>();
+    const auto& registry  = context.registry();
+    auto*       gbuffer   = context.belt().try_get<GBuffer>();
+    auto*       point_shadows       = context.belt().try_get<PointShadows>();
+    auto*       cascades  = context.belt().try_get<Cascades>();
+    auto*       aobuffers = context.belt().try_get<AOBuffers>();
 
     if (not gbuffer) return;
     // TODO: Could these be optional?
     if (not point_shadows or not cascades) return;
 
-    const BindGuard bcam = engine.bind_camera_ubo();
+    const BindGuard bcam = context.bind_camera_ubo();
 
     const RawProgram<> sp = sp_singlepass_.get();
 
@@ -173,12 +173,12 @@ void DeferredShading::draw_singlepass(
     sp.uniform("psm_params.pcf_extent",  point_params.pcf_extent);
     sp.uniform("psm_params.pcf_offset",  point_params.pcf_offset);
 
-    glapi::set_viewport({ {}, engine.main_resolution() });
+    glapi::set_viewport({ {}, context.main_resolution() });
     glapi::disable(Capability::DepthTesting);
-    engine.draw([&](auto bfb)
+    context.bind_back_and([&](auto bfb)
     {
         const BindGuard bsp = sp.use();
-        engine.primitives().quad_mesh().draw(bsp, bfb);
+        context.primitives().quad_mesh().draw(bsp, bfb);
     });
     glapi::enable(Capability::DepthTesting);
 
@@ -224,21 +224,21 @@ Either way, I'm leaving this implementation here for now,
 so that it could be used as a stepping stone / testbed for other stuff.
 */
 void DeferredShading::draw_multipass(
-    RenderEnginePrimaryInterface& engine)
+    PrimaryContext context)
 {
-    const auto& registry      = engine.registry();
-    auto*       gbuffer       = engine.belt().try_get<GBuffer>();
-    auto*       point_shadows = engine.belt().try_get<PointShadows>();
-    auto*       cascades      = engine.belt().try_get<Cascades>();
-    auto*       aobuffers     = engine.belt().try_get<AOBuffers>();
+    const auto& registry      = context.registry();
+    auto*       gbuffer       = context.belt().try_get<GBuffer>();
+    auto*       point_shadows = context.belt().try_get<PointShadows>();
+    auto*       cascades      = context.belt().try_get<Cascades>();
+    auto*       aobuffers     = context.belt().try_get<AOBuffers>();
 
     if (not gbuffer) return;
     // TODO: Could these be optional?
     if (not point_shadows or not cascades) return;
 
-    glapi::set_viewport({ {}, engine.main_resolution() });
+    glapi::set_viewport({ {}, context.main_resolution() });
 
-    const BindGuard bcam = engine.bind_camera_ubo();
+    const BindGuard bcam = context.bind_camera_ubo();
     const MultibindGuard bound_gbuffer = {
         gbuffer->depth_texture()   .bind_to_texture_unit(0),
         gbuffer->normals_texture() .bind_to_texture_unit(1),
@@ -306,9 +306,9 @@ void DeferredShading::draw_multipass(
         csm_views_buf_.bind_to_ssbo_index(0);
 
         glapi::disable(Capability::DepthTesting);
-        engine.draw([&](auto bfb)
+        context.bind_back_and([&](auto bfb)
         {
-            engine.primitives().quad_mesh().draw(bsp, bfb);
+            context.primitives().quad_mesh().draw(bsp, bfb);
         });
         glapi::enable(Capability::DepthTesting);
     }
@@ -317,7 +317,7 @@ void DeferredShading::draw_multipass(
         usize instance_count,
         auto  bsp)
     {
-        engine.draw([&](auto bfb)
+        context.bind_back_and([&](auto bfb)
         {
             glapi::enable(Capability::DepthTesting);
             glapi::set_depth_test_condition(CompareOp::Greater);
@@ -330,7 +330,7 @@ void DeferredShading::draw_multipass(
             glapi::set_blend_factors(BlendFactor::One, BlendFactor::One);
 
 
-            const Mesh& mesh = engine.primitives().sphere_mesh();
+            const Mesh& mesh = context.primitives().sphere_mesh();
             const BindGuard bva = mesh.vertex_array().bind();
 
             glapi::draw_elements_instanced(

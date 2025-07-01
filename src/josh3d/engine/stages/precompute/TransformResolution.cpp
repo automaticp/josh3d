@@ -30,10 +30,10 @@ void resolve_transforms_recursive(
 
 
 void TransformResolution::operator()(
-    RenderEnginePrecomputeInterface& engine)
+    PrecomputeContext context)
 {
     ZSN("TransformResolution");
-    auto& registry = engine.registry();
+    auto& registry = context.mutable_registry();
 
     // TODO: Two quirks, that are somewhat contradictory:
     // 1. This only operates on the root nodes that *have* the Transform already.

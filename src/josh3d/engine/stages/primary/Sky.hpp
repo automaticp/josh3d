@@ -2,7 +2,7 @@
 #include "EnumUtils.hpp"
 #include "ShaderPool.hpp"
 #include "UniformTraits.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "VPath.hpp"
 #include "ECS.hpp"
 
@@ -29,7 +29,7 @@ struct Sky
     };
     ProceduralSkyParams procedural_sky_params = {};
 
-    void operator()(RenderEnginePrimaryInterface& engine);
+    void operator()(PrimaryContext context);
 
 private:
     // TODO: Surely there are better ways, right?
@@ -38,14 +38,14 @@ private:
     static auto load_debug_skybox() -> UniqueCubemap;
 
     void draw_debug_skybox(
-        RenderEnginePrimaryInterface& engine);
+        PrimaryContext context);
 
     void draw_skybox(
-        RenderEnginePrimaryInterface& engine,
+        PrimaryContext context,
         const Registry&               registry);
 
     void draw_procedural_sky(
-        RenderEnginePrimaryInterface& engine,
+        PrimaryContext context,
         const Registry&               registry);
 
     ShaderToken sp_skybox_ = shader_pool().get({

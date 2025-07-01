@@ -7,7 +7,7 @@
 #include "GLUniformTraits.hpp"
 #include "Mesh.hpp"
 #include "Region.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "Tracy.hpp"
 
 
@@ -15,13 +15,13 @@ namespace josh {
 
 
 void BloomAW::operator()(
-    RenderEnginePostprocessInterface& engine)
+    PostprocessContext context)
 {
     ZSCGPUN("BloomAW");
     if (not enable_bloom) return;
 
     // NOTE: Taking half-resolution as the base MIP.
-    const auto [w, h] = engine.main_resolution();
+    const auto [w, h] = context.main_resolution();
     _resize_texture({ w / 2, h / 2 });
 
     // Put an upper cap on the number of levels.
@@ -43,13 +43,13 @@ void BloomAW::operator()(
         // First downsample main texture to the bloom_texture_.
 
         // Sample from:
-        engine.screen_color().bind_to_texture_unit(0);
+        context.main_front_color_texture().bind_to_texture_unit(0);
 
         // Draw to:
         fbo_->attach_texture_to_color_buffer(bloom_texture_, 0);
         glapi::set_viewport({ {}, bloom_texture_->get_resolution() });
 
-        engine.primitives().quad_mesh().draw(bsp, bfb);
+        context.primitives().quad_mesh().draw(bsp, bfb);
 
         // Then progressively downsample further.
         bloom_texture_->bind_to_texture_unit(0); // Always bound, but we don't sample overlapping LODs.
@@ -78,9 +78,10 @@ void BloomAW::operator()(
 
             glapi::set_viewport({ {}, dst_resolution });
 
-            engine.primitives().quad_mesh().draw(bsp, bfb);
+            context.primitives().quad_mesh().draw(bsp, bfb);
         }
     }
+    context.perf_snap("downsample"_hs);
 
     // Upsample.
     {
@@ -114,13 +115,14 @@ void BloomAW::operator()(
 
             glapi::set_viewport({ {}, dst_resolution });
 
-            engine.primitives().quad_mesh().draw(bsp, bfb);
+            context.primitives().quad_mesh().draw(bsp, bfb);
         }
 
         fbo_->detach_color_buffer(0);
         glapi::set_blend_factors(BlendFactor::One, BlendFactor::OneMinusSrcAlpha);
         glapi::disable(Capability::Blending);
     }
+    context.perf_snap("upsample"_hs);
 
     // Apply to the main buffer.
     {
@@ -132,8 +134,8 @@ void BloomAW::operator()(
             sampler_       ->bind_to_texture_unit(1),
         };
 
-        engine.screen_color().bind_to_texture_unit(0);
-        bloom_texture_      ->bind_to_texture_unit(1);
+        context.main_front_color_texture().bind_to_texture_unit(0);
+        bloom_texture_->bind_to_texture_unit(1);
         bloom_texture_->set_base_level(0);
         bloom_texture_->set_max_level (0);
 
@@ -141,10 +143,11 @@ void BloomAW::operator()(
         sp.uniform("bloom_color",  1);
         sp.uniform("bloom_weight", bloom_weight);
 
-        glapi::set_viewport({ {}, engine.main_resolution() });
+        glapi::set_viewport({ {}, context.main_resolution() });
 
-        engine.draw(bsp);
+        context.draw_quad_and_swap(bsp);
     }
+    context.perf_snap("apply"_hs);
 }
 
 auto BloomAW::num_available_levels() const noexcept

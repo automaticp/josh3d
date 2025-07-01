@@ -5,6 +5,8 @@ option(JOSH3D_BUILD_TESTS     "Build tests"                                     
 option(JOSH3D_USE_PCH         "Use precompiled headers when building the library" ON )
 option(JOSH3D_BUILD_WITH_ASAN "Enable AddressSanitizer when building the library" OFF)
 option(JOSH3D_BUILD_WITH_TSAN "Enable ThreadSanitizer when building the library"  OFF)
+option(TRACY_ENABLE           "Enable tracy integration"                          OFF)
+option(TRACY_ON_DEMAND        "Only record data when connected to a server"       ON )
 
 include(external/BuildDeps.cmake) # Configure embedded dependencies.
 include(external/GetDeps.cmake)   # Find/Download external dependencies.

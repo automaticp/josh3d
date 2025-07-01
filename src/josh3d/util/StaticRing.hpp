@@ -1,7 +1,8 @@
 #pragma once
 #include "CategoryCasts.hpp"
+#include "Common.hpp"
+#include "KitchenSink.hpp"
 #include "Scalars.hpp"
-#include <array>
 
 
 namespace josh {
@@ -10,11 +11,11 @@ namespace josh {
 template<typename T, usize N>
 struct StaticRing
 {
-    std::array<T, N> storage;
+    Array<T, N> storage;
 
     constexpr StaticRing() = default;
 
-    constexpr StaticRing(std::array<T, N> elements) noexcept
+    constexpr StaticRing(Array<T, N> elements) noexcept
         : storage{ MOVE(elements) }
     {}
 
@@ -36,8 +37,12 @@ struct StaticRing
 
     constexpr auto size() const noexcept -> usize { return storage.size(); }
 
-    uindex _current = 0;
-    uindex _next    = 1;
+    using uindex_type = smallest_uindex_t<N>;
+
+    uindex_type _current = 0;
+    uindex_type _next    = 1;
+
+    static_assert(N > 1);
 };
 
 

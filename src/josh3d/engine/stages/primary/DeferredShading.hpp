@@ -44,7 +44,7 @@ struct DeferredShading
 
     float plight_fade_start_fraction = 0.75f; // [0, 1] in fraction of bounding radius.
 
-    void operator()(RenderEnginePrimaryInterface& engine);
+    void operator()(PrimaryContext context);
 
 private:
     UploadBuffer<PointLightBoundedGPU> plights_with_shadow_buf_;
@@ -54,8 +54,8 @@ private:
     void update_point_light_buffers(const Registry& registry);
     void update_cascade_buffer(const Cascades& csm);
 
-    void draw_singlepass(RenderEnginePrimaryInterface& engine);
-    void draw_multipass (RenderEnginePrimaryInterface& engine);
+    void draw_singlepass(PrimaryContext context);
+    void draw_multipass (PrimaryContext context);
 
         UniqueSampler _target_sampler = create_sampler({
         .min_filter = MinFilter::Nearest,

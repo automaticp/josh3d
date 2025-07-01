@@ -8,7 +8,7 @@
 #include "ShaderPool.hpp"
 #include "StaticRing.hpp"
 #include "UniformTraits.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "UploadBuffer.hpp"
 #include "VPath.hpp"
 #include <glm/trigonometric.hpp>
@@ -114,7 +114,7 @@ struct SSAO
         Extent2I noise_texture_resolution = { 3, 3 },
         usize    blur_kernel_limb_size    = 2);
 
-    void operator()(RenderEnginePrimaryInterface& engine);
+    void operator()(PrimaryContext context);
 
     AOBuffers aobuffers;
 

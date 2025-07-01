@@ -1,6 +1,6 @@
 #pragma once
 #include "GLObjects.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "ShaderPool.hpp"
 #include "UploadBuffer.hpp"
 #include "VPath.hpp"
@@ -48,10 +48,10 @@ struct SceneOverlays
         float bone_dash_size = 1.0f;
     } skeleton_params;
 
-    void operator()(RenderEngineOverlayInterface& engine);
+    void operator()(OverlayContext context);
 
 private:
-    void draw_selected_highlight(RenderEngineOverlayInterface& engine);
+    void draw_selected_highlight(OverlayContext context);
 
     ShaderToken sp_highlight_stencil_prep_ = shader_pool().get({
         .vert = VPath("src/shaders/basic_mesh.vert"),
@@ -66,14 +66,14 @@ private:
         .frag = VPath("src/shaders/ovl_selected_highlight.frag")});
 
 
-    void draw_bounding_volumes(RenderEngineOverlayInterface& engine);
+    void draw_bounding_volumes(OverlayContext context);
 
     ShaderToken sp_bounding_volumes_ = shader_pool().get({
         .vert = VPath("src/shaders/ovl_bounding_volumes.vert"),
         .frag = VPath("src/shaders/ovl_bounding_volumes.frag")});
 
 
-    void draw_scene_graph_lines(RenderEngineOverlayInterface& engine);
+    void draw_scene_graph_lines(OverlayContext context);
 
     struct LineGPU
     {
@@ -90,7 +90,7 @@ private:
         .frag = VPath("src/shaders/ovl_dashed_lines.frag")});
 
 
-    void draw_skeleton(RenderEngineOverlayInterface& engine);
+    void draw_skeleton(OverlayContext context);
 
     UploadBuffer<mat4>    joint_tfs_;
     UploadBuffer<LineGPU> bone_lines_buf_;

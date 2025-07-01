@@ -1,6 +1,6 @@
 #pragma once
 #include "EnumUtils.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "ShaderPool.hpp"
 #include "UniformTraits.hpp"
 #include "VPath.hpp"
@@ -58,11 +58,11 @@ struct Fog
     UniformFogParams    uniform_fog_params = {};
     BarometricFogParams barometric_fog_params = {};
 
-    void operator()(RenderEnginePostprocessInterface& engine);
+    void operator()(PostprocessContext context);
 
 private:
-    void draw_uniform_fog(RenderEnginePostprocessInterface& engine);
-    void draw_barometric_fog(RenderEnginePostprocessInterface& engine);
+    void draw_uniform_fog(PostprocessContext context);
+    void draw_barometric_fog(PostprocessContext context);
 
     ShaderToken sp_uniform_ = shader_pool().get({
         .vert = VPath("src/shaders/postprocess.vert"),

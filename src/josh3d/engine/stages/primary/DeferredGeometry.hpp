@@ -2,9 +2,8 @@
 #include "AABB.hpp"
 #include "DrawHelpers.hpp"
 #include "EnumUtils.hpp"
-#include "GLAPICore.hpp"
 #include "GPULayout.hpp"
-#include "RenderStage.hpp"
+#include "StageContext.hpp"
 #include "ShaderPool.hpp"
 #include "UploadBuffer.hpp"
 #include "VPath.hpp"
@@ -28,10 +27,10 @@ struct DeferredGeometry
     // Max number of meshes per multidraw in Batched mode.
     auto max_batch_size() const noexcept -> u32;
 
-    void operator()(RenderEnginePrimaryInterface& engine);
+    void operator()(PrimaryContext context);
 
 
-    void _draw_single(RenderEnginePrimaryInterface& engine);
+    void _draw_single(PrimaryContext context);
 
     ShaderToken _sp_single_opaque = shader_pool().get({
         .vert = VPath("src/shaders/dfrg_static_dsn.vert"),
@@ -56,7 +55,7 @@ struct DeferredGeometry
 
     // This limits the number of meshes in a single multidraw.
     auto _max_texture_units() const noexcept -> u32;
-    void _draw_batched(RenderEnginePrimaryInterface& engine);
+    void _draw_batched(PrimaryContext context);
 
     ShaderToken _sp_batched_opaque = shader_pool().get({
         .vert = VPath("src/shaders/dfrg_static_dsn_batched.vert"),

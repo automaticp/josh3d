@@ -6,7 +6,7 @@
 #include "GLTextures.hpp"
 #include "GPULayout.hpp"
 #include "Region.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "Scalars.hpp"
 #include "ShaderPool.hpp"
 #include "UploadBuffer.hpp"
@@ -155,7 +155,7 @@ struct CascadedShadowMapping
 
     CascadedShadowMapping(i32 side_resolution = 2048, i32 num_desired_cascades = 5);
 
-    void operator()(RenderEnginePrimaryInterface& engine);
+    void operator()(PrimaryContext context);
 
     // Primary output of this stage.
     Cascades cascades;
@@ -165,7 +165,7 @@ struct CascadedShadowMapping
 
     auto _allowed_num_cascades(i32 desired_num) const noexcept -> i32;
 
-    void _draw_all_cascades_with_geometry_shader(RenderEnginePrimaryInterface& engine);
+    void _draw_all_cascades_with_geometry_shader(PrimaryContext context);
 
     ShaderToken _sp_opaque_singlepass_gs = shader_pool().get({
         .vert = VPath("src/shaders/csm_singlepass.vert"),
@@ -183,7 +183,7 @@ struct CascadedShadowMapping
             .define("ENABLE_ALPHA_TESTING", 1));
 
 
-    void _draw_with_culling_per_cascade(RenderEnginePrimaryInterface& engine);
+    void _draw_with_culling_per_cascade(PrimaryContext context);
 
     ShaderToken _sp_opaque_per_cascade = shader_pool().get({
         .vert = VPath("src/shaders/depth_map.vert"),

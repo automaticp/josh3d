@@ -26,7 +26,6 @@ struct DemoScene
 
     void process_input();
     void update();
-    void render();
 
     auto get_log_sink() -> std::ostream& { return _imgui.get_log_sink(); }
 

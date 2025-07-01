@@ -1,6 +1,6 @@
 #include "AnimationSystem.hpp"
 #include "Components.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "SkeletalAnimation.hpp"
 #include "SkinnedMesh.hpp"
 #include "Transform.hpp"
@@ -11,10 +11,10 @@ namespace josh {
 
 
 void AnimationSystem::operator()(
-    RenderEnginePrecomputeInterface& engine)
+    PrecomputeContext context)
 {
     ZSN("AnimationSystem");
-    auto& registry = engine.registry();
+    auto& registry = context.mutable_registry();
 
     for (auto [e, skinned_mesh, playing]
         : registry.view<SkinnedMe2h, PlayingAnimation>().each())
@@ -25,7 +25,7 @@ void AnimationSystem::operator()(
         const auto& anim     = *playing.current_anim;
         const auto  time     = playing.current_time;
         const auto  duration = anim.duration;
-        const auto  dt       = engine.frame_timer().delta();
+        const auto  dt       = context.frame_timer().delta();
 
         /*
         Mesh space  - local space of the mesh (aka. model space);

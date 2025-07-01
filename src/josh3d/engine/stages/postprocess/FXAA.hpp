@@ -1,6 +1,6 @@
 #pragma once
 #include "GLObjects.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "ShaderPool.hpp"
 #include "VPath.hpp"
 #include "Tracy.hpp"
@@ -17,7 +17,7 @@ struct FXAA
     float absolute_contrast_threshold = 0.0312f; // gamma-dependant
     float relative_contrast_threshold = 0.125f;
 
-    void operator()(RenderEnginePostprocessInterface& engine);
+    void operator()(PostprocessContext context);
 
 private:
     ShaderToken sp_ = shader_pool().get({
@@ -27,14 +27,14 @@ private:
 
 
 inline void FXAA::operator()(
-    RenderEnginePostprocessInterface& engine)
+    PostprocessContext context)
 {
     ZSCGPUN("FXAA");
     if (not use_fxaa) return;
 
     const auto sp = sp_.get();
 
-    engine.screen_color().bind_to_texture_unit(0);
+    context.main_front_color_texture().bind_to_texture_unit(0);
 
     sp.uniform("color", 0);
     sp.uniform("gamma", gamma);
@@ -43,7 +43,7 @@ inline void FXAA::operator()(
 
     const BindGuard bsp = sp.use();
 
-    engine.draw(bsp);
+    context.draw_quad_and_swap(bsp);
 }
 
 

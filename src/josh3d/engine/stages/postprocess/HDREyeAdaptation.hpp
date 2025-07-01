@@ -3,7 +3,7 @@
 #include "GLObjectHelpers.hpp"
 #include "GLObjects.hpp"
 #include "ReadbackBuffer.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "RingBuffer.hpp"
 #include "Scalars.hpp"
 #include "ShaderPool.hpp"
@@ -50,7 +50,7 @@ struct HDREyeAdaptation
 
     HDREyeAdaptation(float initial_screen_value = 0.2f);
 
-    void operator()(RenderEnginePostprocessInterface& engine);
+    void operator()(PostprocessContext context);
 
     FrameExposure exposure; // Latest exposure from a few frames back.
 

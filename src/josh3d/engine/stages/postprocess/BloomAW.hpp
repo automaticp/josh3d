@@ -2,7 +2,7 @@
 #include "GLAPICommonTypes.hpp"
 #include "GLObjects.hpp"
 #include "Region.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "ShaderPool.hpp"
 #include "VPath.hpp"
 
@@ -27,7 +27,7 @@ struct BloomAW
 
     auto num_available_levels() const noexcept -> usize;
 
-    void operator()(RenderEnginePostprocessInterface& engine);
+    void operator()(PostprocessContext context);
 
 private:
     // RenderTarget is too much of a bother for this.

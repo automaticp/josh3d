@@ -12,7 +12,7 @@
 #include "Materials.hpp"
 #include "AlphaTested.hpp"
 #include "Transform.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "Transform.hpp"
 #include "DefaultTextures.hpp"
 #include "Visible.hpp"
@@ -23,26 +23,26 @@ namespace josh {
 
 
 void DeferredGeometry::operator()(
-    RenderEnginePrimaryInterface& engine)
+    PrimaryContext context)
 {
     ZSCGPUN("StaticGeometry");
     switch (strategy)
     {
-        case Strategy::DrawPerMesh: return _draw_single(engine);
-        case Strategy::BatchedMDI:     return _draw_batched(engine);
+        case Strategy::DrawPerMesh: return _draw_single(context);
+        case Strategy::BatchedMDI:     return _draw_batched(context);
     }
 }
 
-void DeferredGeometry::_draw_single(RenderEnginePrimaryInterface &engine)
+void DeferredGeometry::_draw_single(PrimaryContext context)
 {
-    const auto& registry = engine.registry();
-    const auto* mesh_storage = engine.meshes().storage_for<VertexStatic>();
-    auto*       gbuffer      = engine.belt().try_get<GBuffer>();
+    const auto& registry = context.registry();
+    const auto* mesh_storage = context.mesh_registry().storage_for<VertexStatic>();
+    auto*       gbuffer      = context.belt().try_get<GBuffer>();
 
     if (not mesh_storage) return;
     if (not gbuffer)      return;
 
-    const BindGuard bcam = engine.bind_camera_ubo();
+    const BindGuard bcam = context.bind_camera_ubo();
 
     // FIXME: Negative filtering.
 
@@ -120,16 +120,16 @@ void DeferredGeometry::_draw_single(RenderEnginePrimaryInterface &engine)
     draw(_sp_single_atested.get(), view_atested);
 }
 
-void DeferredGeometry::_draw_batched(RenderEnginePrimaryInterface& engine)
+void DeferredGeometry::_draw_batched(PrimaryContext context)
 {
-    const auto& registry     = engine.registry();
-    const auto* mesh_storage = engine.meshes().storage_for<VertexStatic>();
-    auto*       gbuffer      = engine.belt().try_get<GBuffer>();
+    const auto& registry     = context.registry();
+    const auto* mesh_storage = context.mesh_registry().storage_for<VertexStatic>();
+    auto*       gbuffer      = context.belt().try_get<GBuffer>();
 
     if (not mesh_storage) return;
     if (not gbuffer)      return;
 
-    const BindGuard bcam = engine.bind_camera_ubo();
+    const BindGuard bcam = context.bind_camera_ubo();
     const BindGuard bfb  = gbuffer->bind_draw();
     const BindGuard bva  = mesh_storage->vertex_array().bind();
 

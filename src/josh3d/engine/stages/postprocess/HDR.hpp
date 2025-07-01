@@ -1,7 +1,7 @@
 #pragma once
 #include "GLAPIBinding.hpp"
 #include "GLObjects.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "ShaderPool.hpp"
 #include "VPath.hpp"
 #include "Tracy.hpp"
@@ -16,7 +16,7 @@ struct HDR
     bool  use_exposure = true;
     float exposure     = 1.0f;
 
-    void operator()(RenderEnginePostprocessInterface& engine);
+    void operator()(PostprocessContext context);
 
 private:
     ShaderToken sp_ = shader_pool().get({
@@ -26,11 +26,11 @@ private:
 
 
 inline void HDR::operator()(
-    RenderEnginePostprocessInterface& engine)
+    PostprocessContext context)
 {
     ZSCGPUN("HDR");
     const auto sp = sp_.get();
-    engine.screen_color().bind_to_texture_unit(0);
+    context.main_front_color_texture().bind_to_texture_unit(0);
 
     sp.uniform("color",        0);
     sp.uniform("use_reinhard", use_reinhard);
@@ -39,7 +39,7 @@ inline void HDR::operator()(
 
     const BindGuard bsp = sp.use();
 
-    engine.draw(bsp);
+    context.draw_quad_and_swap(bsp);
 }
 
 

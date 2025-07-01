@@ -14,30 +14,30 @@ namespace josh {
 
 
 void CSMDebug::operator()(
-    RenderEngineOverlayInterface& engine)
+    OverlayContext context)
 {
     ZSCGPUN("CSMDebug");
     switch (mode)
     {
         case OverlayMode::None:  return;
-        case OverlayMode::Views: return draw_views_overlay(engine);
-        case OverlayMode::Maps:  return draw_maps_overlay(engine);
+        case OverlayMode::Views: return draw_views_overlay(context);
+        case OverlayMode::Maps:  return draw_maps_overlay(context);
     }
 }
 
 void CSMDebug::draw_views_overlay(
-    RenderEngineOverlayInterface& engine)
+    OverlayContext context)
 {
-    const auto& registry = engine.registry();
-    const auto* gbuffer  = engine.belt().try_get<GBuffer>();
-    const auto* cascades = engine.belt().try_get<Cascades>();
+    const auto& registry = context.registry();
+    const auto* gbuffer  = context.belt().try_get<GBuffer>();
+    const auto* cascades = context.belt().try_get<Cascades>();
 
     if (const CHandle dlight = get_active<DirectionalLight, MTransform>(registry))
     {
         const vec3 light_dir = decompose_rotation(dlight.get<MTransform>()) * -Z;
 
         const auto sp = sp_views_.get();
-        const BindGuard bcam = engine.bind_camera_ubo();
+        const BindGuard bcam = context.bind_camera_ubo();
 
         csm_views_buf_.restage(cascades->views | transform(CascadeViewGPU::create_from));
         csm_views_buf_.bind_to_ssbo_index(3);
@@ -54,15 +54,15 @@ void CSMDebug::draw_views_overlay(
         const BindGuard bsp = sp.use();
 
         glapi::disable(Capability::DepthTesting);
-        engine.draw_fullscreen_quad(bsp);
+        context.draw_quad_to_default(bsp);
         glapi::enable(Capability::DepthTesting);
     }
 }
 
 void CSMDebug::draw_maps_overlay(
-    RenderEngineOverlayInterface& engine)
+    OverlayContext context)
 {
-    const auto* cascades = engine.belt().try_get<Cascades>();
+    const auto* cascades = context.belt().try_get<Cascades>();
 
     if (not cascades) return;
 
@@ -79,7 +79,7 @@ void CSMDebug::draw_maps_overlay(
     const BindGuard bsp = sp.use();
 
     glapi::disable(Capability::DepthTesting);
-    engine.draw_fullscreen_quad(bsp);
+    context.draw_quad_to_default(bsp);
     glapi::enable(Capability::DepthTesting);
 }
 

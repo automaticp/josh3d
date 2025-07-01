@@ -6,7 +6,7 @@
 #include "ShaderPool.hpp"
 #include "StaticRing.hpp"
 #include "UniformTraits.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "Region.hpp"
 #include "UploadBuffer.hpp"
 #include "VPath.hpp"
@@ -71,7 +71,7 @@ struct GaussianBloom
 
     GaussianBloom(usize kernel_limb_size = 2, float kernel_range = 3.13f);
 
-    void operator()(RenderEnginePostprocessInterface& engine);
+    void operator()(PostprocessContext context);
 
     GaussianBloomTarget target;
 

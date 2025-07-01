@@ -1,5 +1,5 @@
 #include "BoundingVolumeResolution.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "Transform.hpp"
 #include "BoundingSphere.hpp"
 #include "AABB.hpp"
@@ -11,10 +11,10 @@ namespace josh {
 
 
 void BoundingVolumeResolution::operator()(
-    RenderEnginePrecomputeInterface& engine)
+    PrecomputeContext context)
 {
     ZSN("BVResolution");
-    auto& registry = engine.registry();
+    auto& registry = context.mutable_registry();
 
     for (const auto [entity, local_aabb, mtf] :
         registry.view<LocalAABB, MTransform>().each())

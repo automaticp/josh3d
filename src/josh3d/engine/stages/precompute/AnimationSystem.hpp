@@ -1,5 +1,5 @@
 #pragma once
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 
 
 namespace josh {
@@ -12,7 +12,7 @@ This must be reworked later.
 */
 struct AnimationSystem
 {
-    void operator()(RenderEnginePrecomputeInterface& engine);
+    void operator()(PrecomputeContext context);
 };
 
 
