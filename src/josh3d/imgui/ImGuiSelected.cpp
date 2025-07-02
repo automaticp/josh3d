@@ -5,7 +5,6 @@
 #include "ImGuiComponentWidgets.hpp"
 #include "LightCasters.hpp"
 #include "Materials.hpp"
-#include "Mesh.hpp"
 #include "SkinnedMesh.hpp"
 #include "Transform.hpp"
 #include "Selected.hpp"
@@ -36,12 +35,8 @@ void ImGuiSelected::display(UIContext& ui)
             if (auto* mtf = handle.try_get<MTransform>())
                 imgui::Matrix4x4DisplayWidget(mtf->model());
 
-        if (has_component<Mesh>(handle) or
-            has_component<SkinnedMesh>(handle) or
-            handle.any_of<MaterialDiffuse, MaterialNormal, MaterialSpecular>())
-        {
+        if (has_component<MaterialPhong>(handle))
             imgui::MaterialsWidget(handle);
-        }
 
         if (has_component<SkinnedMesh>(handle))
             imgui::AnimationsWidget(handle);

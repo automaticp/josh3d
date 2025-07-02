@@ -5,7 +5,6 @@
 #include "EnumUtils.hpp"
 #include "Filesystem.hpp"
 #include "GLAPICommonTypes.hpp"
-#include "GLTextures.hpp"
 #include "ImageProperties.hpp"
 #include "Scalars.hpp"
 #include "StringHash.hpp"

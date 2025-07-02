@@ -1,4 +1,5 @@
 #include "PointShadowMapping.hpp"
+#include "DefaultTextures.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLProgram.hpp"
 #include "MeshRegistry.hpp"
@@ -175,25 +176,17 @@ void PointShadowMapping::draw_all_world_geometry_no_alpha_test(
     const auto draw_from_view = [&](auto view)
     {
         const Location model_loc = sp.get_uniform_location("model");
-        for (const auto [entity, world_mtf, mesh] : view.each())
+        for (const auto [entity, mesh, world_mtf] : view.each())
         {
             sp.uniform(model_loc, world_mtf.model());
             draw_one_from_storage(*storage, bva, bsp, bfb, mesh.lods.cur());
         }
     };
 
-    // You could have no AT requested, or you could have an AT flag,
-    // but no diffuse material to sample from. Both ignore Alpha-Testing.
-
-    // FIXME: I don't like the above idea that much anymore. Do *one* thing.
-    // If it's tagged AlphaTested, then it *will* be alpha-tested.
-    // If you don't like that then fix whatever code incorrectly flags stuff as AT.
-
     // TODO: Opaque should be a tag assigned to all entities that do *not*
     // have AlphaTested or Transparent. Otherwise we are doing negative filtering.
 
-    draw_from_view(registry.view<MTransform, StaticMesh>(entt::exclude<AlphaTested>));
-    draw_from_view(registry.view<MTransform, StaticMesh, AlphaTested>(entt::exclude<MaterialDiffuse>));
+    draw_from_view(registry.view<StaticMesh, MTransform>(entt::exclude<AlphaTested>));
 }
 
 void PointShadowMapping::draw_all_world_geometry_with_alpha_test(
@@ -213,14 +206,17 @@ void PointShadowMapping::draw_all_world_geometry_with_alpha_test(
     const RawProgram<> sp = sp_with_alpha_;
     sp.uniform("material.diffuse", 0);
 
-    auto meshes_with_alpha_view =
-        registry.view<AlphaTested, StaticMesh, MaterialDiffuse, MTransform>();
+    auto meshes_with_alpha_view = registry.view<AlphaTested, StaticMesh, MTransform>();
 
     const Location model_loc = sp.get_uniform_location("model");
-    for (auto [entity, mesh, diffuse, world_mtf]
+    for (auto [e, mesh, world_mtf]
         : meshes_with_alpha_view.each())
     {
-        diffuse.texture->bind_to_texture_unit(0);
+        if (auto* mtl = registry.try_get<MaterialPhong>(e))
+            mtl->diffuse->bind_to_texture_unit(0);
+        else
+            globals::default_diffuse_texture().bind_to_texture_unit(0);
+
         sp.uniform(model_loc, world_mtf.model());
         draw_one_from_storage(*storage, bva, bsp, bfb, mesh.lods.cur());
     }

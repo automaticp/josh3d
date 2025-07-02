@@ -8,6 +8,7 @@
 
 namespace josh {
 
+using std::invocable;
 
 template<typename...>
 constexpr bool false_v = false;

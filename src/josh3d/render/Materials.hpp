@@ -1,6 +1,6 @@
 #pragma once
+#include "DefaultTextures.hpp"
 #include "GLObjects.hpp"
-#include "GLScalars.hpp"
 #include "Resource.hpp"
 #include "Scalars.hpp"
 
@@ -33,31 +33,29 @@ struct MaterialPhong
     uintptr              aba_tag = {};
 };
 
-
 /*
-Old material spec below. This will take a while to replace fully.
+Returns the material with textures set to global defaults,
+no usage, and possibly custom ABA tag.
+
+This is not done in the default init of the type itself as
+it depends on the global state being initialized.
 */
-struct MaterialDiffuse
+[[nodiscard]]
+inline auto make_default_material_phong(uintptr aba_tag = {})
+    -> MaterialPhong
 {
-    SharedConstTexture2D texture;
-    ResourceUsage        usage;
-    uintptr              aba_tag = {};
-};
-
-struct MaterialSpecular
-{
-    SharedConstTexture2D texture;
-    ResourceUsage        usage;
-    GLfloat              shininess = 128.f;
-    uintptr              aba_tag   = {};
-};
-
-struct MaterialNormal
-{
-    SharedConstTexture2D texture;
-    ResourceUsage        usage;
-    uintptr              aba_tag = {};
-};
+    // FIXME: I am not thrilled about forcefully sharing here
+    // even if the user code will likely discard these later.
+    // But for now, this is the simplest way to do it.
+    // We'll likely move on to the texture pool later anyway.
+    return {
+        .diffuse   = globals::share_default_diffuse_texture(),
+        .normal    = globals::share_default_normal_texture(),
+        .specular  = globals::share_default_specular_texture(),
+        .specpower = 128.f,
+        .aba_tag   = aba_tag,
+    };
+}
 
 
 } // namespace josh

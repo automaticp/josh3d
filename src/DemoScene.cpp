@@ -179,8 +179,6 @@ DemoScene::DemoScene(
     auto& pipeline      = renderer.pipeline;
     auto& perf_assembly = runtime.perf_assembly;
 
-    // TODO: Make PerfAssembly work.
-
 #define ADD_STAGE(Kind, Type)               \
     pipeline.push(StageKind::Kind, Type()); \
     perf_assembly.instrument({ .type=type_id<Type>() }, GPUTiming::Enabled)
@@ -211,8 +209,6 @@ DemoScene::DemoScene(
     ADD_STAGE(Overlay,     SceneOverlays           );
 
 #undef ADD_STAGE
-
-    // FIXME: This won't work with the new setup, I think?
 
 #define HOOK_STAGE(Type) \
     _imgui.stage_hooks.add_hook(imguihooks::Type());
@@ -423,7 +419,7 @@ void DemoScene::init_registry()
     using namespace josh::filesystem_literals;
 
     const auto      model_vpath = "data/models/shadow_scene/shadow_scene.obj"_vpath;
-    const AssetPath model_apath = { File(model_vpath),  {} };
+    const AssetPath model_apath = { File(model_vpath), {} };
 
     const Handle model_handle = create_handle(registry);
     model_handle.emplace<Transform>();

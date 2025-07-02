@@ -72,25 +72,23 @@ Overrides the values if the entity has the respective material components,
 otherwise, leaves the values as-is.
 
 `inout_ids` are GL texture ids and are ordered: diffuse, specular, normal.
+Beware, this order might be different from how it appears in other places.
 
-This is intended for the old material spec.
+NOTE: This was originally intended for the old material spec.
 */
 inline void override_material(
     CHandle        handle,
     Array<u32, 3>& inout_ids,
     float&         inout_specpower)
 {
-    if (auto* mat = handle.try_get<MaterialDiffuse>())
-        inout_ids[0] = mat->texture->id();
-
-    if (auto* mat = handle.try_get<MaterialSpecular>())
+    if (auto* mtl = handle.try_get<MaterialPhong>())
     {
-        inout_ids[1]    = mat->texture->id();
-        inout_specpower = mat->shininess;
+        inout_ids[0]    = mtl->diffuse->id();
+        inout_ids[1]    = mtl->specular->id();
+        inout_specpower = mtl->specpower;
+        inout_ids[2]    = mtl->normal->id();
+        return;
     }
-
-    if (auto* mat = handle.try_get<MaterialNormal>())
-        inout_ids[2] = mat->texture->id();
 }
 
 /*

@@ -1,3 +1,4 @@
+#include "DefaultTextures.hpp"
 #include "Resources.hpp"
 #include "Common.hpp"
 #include "Components.hpp"
@@ -154,14 +155,16 @@ auto unpack_skinned_mesh(
 
 namespace {
 
-// TODO: Can we make the code less repetetive?
-auto unpack_material_diffuse(
-    ResourceUnpackerContext& context,
-    UUID                     uuid,
-    Handle                   handle)
+auto unpack_material_texture(
+    ResourceUnpackerContext&                 context,
+    UUID                                     uuid,
+    Handle                                   handle,
+    uintptr                                  aba_tag,
+    decltype(&MaterialPhong::diffuse)        slot_mptr,
+    decltype(&MaterialPhong::diffuse_usage)  usage_slot_mptr,
+    invocable<Handle, MaterialPhong&> auto&& post_init)
         -> Job<>
 {
-    const auto aba_tag = uintptr(co_await peek_coroutine_address());
     const auto bail = [](){};
 
     ResourceEpoch epoch = null_epoch;
@@ -171,23 +174,31 @@ auto unpack_material_diffuse(
 
         co_await reschedule_to(context.local_context());
 
-        if (!handle.valid())
+        if (not handle.valid())
             co_return bail();
 
-        if (has_component<MaterialDiffuse>(handle))
-            co_return bail();
-
-        if (resource.texture->get_component_type<PixelComponent::Alpha>()
-            != PixelComponentType::None)
+        if (not has_component<MaterialPhong>(handle))
         {
-            set_tag<AlphaTested>(handle);
+            // NOTE: First to reach the handle initializes the whose component.
+            // NOTE: I don't care anymore, I'll just emplace all defaults here.
+            insert_component<MaterialPhong>(handle, {
+                .diffuse   = globals::share_default_diffuse_texture(),
+                .normal    = globals::share_default_normal_texture(),
+                .specular  = globals::share_default_specular_texture(),
+                .specpower = 128.f,
+                .aba_tag   = aba_tag, // The only non-default.
+            });
         }
 
-        insert_component<MaterialDiffuse>(handle, {
-            .texture = MOVE(resource.texture),
-            .usage   = MOVE(usage),
-            .aba_tag = aba_tag,
-        });
+        auto& mtl = handle.get<MaterialPhong>();
+
+        if (mtl.aba_tag != aba_tag)
+            co_return bail();
+
+        mtl.*slot_mptr       = MOVE(resource.texture);
+        mtl.*usage_slot_mptr = MOVE(usage);
+
+        post_init(handle, mtl);
     }
 
     while (epoch != final_epoch)
@@ -197,122 +208,18 @@ auto unpack_material_diffuse(
 
         co_await reschedule_to(context.local_context());
 
-        if (!handle.valid())
+        if (not handle.valid())
             co_return bail();
 
-        if (!has_component<MaterialDiffuse>(handle))
+        if (not has_component<MaterialPhong>(handle))
             co_return bail();
 
-        auto& component = handle.get<MaterialDiffuse>();
+        auto& mtl = handle.get<MaterialPhong>();
 
-        if (component.aba_tag != aba_tag)
+        if (mtl.aba_tag != aba_tag)
             co_return bail();
 
-        component.texture = MOVE(resource.texture);
-    }
-}
-
-auto unpack_material_normal(
-    ResourceUnpackerContext& context,
-    UUID                     uuid,
-    Handle                   handle)
-        -> Job<>
-{
-    const auto aba_tag = uintptr(co_await peek_coroutine_address());
-    const auto bail = [](){};
-
-    ResourceEpoch epoch = null_epoch;
-    {
-        auto [resource, usage] =
-            co_await context.resource_loader().get_resource<RT::Texture>(uuid, &epoch);
-
-        co_await reschedule_to(context.local_context());
-
-        if (!handle.valid())
-            co_return bail();
-
-        if (has_component<MaterialNormal>(handle))
-            co_return bail();
-
-        insert_component<MaterialNormal>(handle, {
-            .texture = MOVE(resource.texture),
-            .usage   = MOVE(usage),
-            .aba_tag = aba_tag,
-        });
-    }
-
-    while (epoch != final_epoch)
-    {
-        auto [resource, usage] =
-            co_await context.resource_loader().get_resource<RT::Texture>(uuid, &epoch);
-
-        co_await reschedule_to(context.local_context());
-
-        if (!handle.valid())
-            co_return bail();
-
-        if (!has_component<MaterialNormal>(handle))
-            co_return bail();
-
-        auto& component = handle.get<MaterialNormal>();
-
-        if (component.aba_tag != aba_tag)
-            co_return bail();
-
-        component.texture = MOVE(resource.texture);
-    }
-}
-
-auto unpack_material_specular(
-    ResourceUnpackerContext& context,
-    UUID                     uuid,
-    Handle                   handle,
-    float                    specpower)
-        -> Job<>
-{
-    const auto aba_tag = uintptr(co_await peek_coroutine_address());
-    const auto bail = [](){};
-
-    ResourceEpoch epoch = null_epoch;
-    {
-        auto [resource, usage] =
-            co_await context.resource_loader().get_resource<RT::Texture>(uuid, &epoch);
-
-        co_await reschedule_to(context.local_context());
-
-        if (!handle.valid())
-            co_return bail();
-
-        if (has_component<MaterialSpecular>(handle))
-            co_return bail();
-
-        insert_component<MaterialSpecular>(handle, {
-            .texture   = MOVE(resource.texture),
-            .usage     = MOVE(usage),
-            .shininess = specpower,
-            .aba_tag   = aba_tag,
-        });
-    }
-
-    while (epoch != final_epoch)
-    {
-        auto [resource, usage] =
-             co_await context.resource_loader().get_resource<RT::Texture>(uuid, &epoch);
-
-        co_await reschedule_to(context.local_context());
-
-        if (!handle.valid())
-            co_return bail();
-
-        if (!has_component<MaterialSpecular>(handle))
-            co_return bail();
-
-        auto& component = handle.get<MaterialSpecular>();
-
-        if (component.aba_tag != aba_tag)
-            co_return bail();
-
-        component.texture = MOVE(resource.texture);
+        mtl.*slot_mptr = MOVE(resource.texture);
     }
 }
 
@@ -324,18 +231,39 @@ auto unpack_material(
     Handle                  handle)
         -> Job<>
 {
+    const auto aba_tag = uintptr(co_await peek_coroutine_address());
     auto [material, usage] = co_await context.resource_loader().get_resource<RT::Material>(uuid);
+
+    // NOTE: Post-init functions. These are only invoked once per job.
+    const auto set_atested = [](Handle handle, MaterialPhong& mtl)
+    {
+        if (mtl.diffuse->get_component_type<PixelComponent::Alpha>()
+            != PixelComponentType::None)
+        {
+            set_tag<AlphaTested>(handle);
+        }
+    };
+
+    const auto set_specpower = [pw=material.specpower](Handle, MaterialPhong& mtl)
+    {
+        mtl.specpower = pw;
+    };
+
+    const auto no_op = [](auto&&...) {};
 
     StaticVector<Job<>, 3> jobs;
 
     if (not material.diffuse_uuid.is_nil())
-        jobs.emplace_back(unpack_material_diffuse(context, material.diffuse_uuid, handle));
+        jobs.push_back(unpack_material_texture(context, material.diffuse_uuid, handle, aba_tag,
+            &MaterialPhong::diffuse, &MaterialPhong::diffuse_usage, set_atested));
 
     if (not material.normal_uuid.is_nil())
-        jobs.emplace_back(unpack_material_normal(context, material.normal_uuid, handle));
+        jobs.push_back(unpack_material_texture(context, material.normal_uuid, handle, aba_tag,
+            &MaterialPhong::normal, &MaterialPhong::normal_usage, no_op));
 
     if (not material.specular_uuid.is_nil())
-        jobs.emplace_back(unpack_material_specular(context, material.specular_uuid, handle, material.specpower));
+        jobs.push_back(unpack_material_texture(context, material.specular_uuid, handle, aba_tag,
+            &MaterialPhong::specular, &MaterialPhong::specular_usage, set_specpower));
 
     co_await until_all_succeed(jobs);
 }

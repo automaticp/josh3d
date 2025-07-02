@@ -5,6 +5,9 @@
 #include "Skybox.hpp"
 
 
+/*
+TODO: Deprecate.
+*/
 namespace josh {
 
 

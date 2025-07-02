@@ -7,8 +7,8 @@
 #include "DefaultTextures.hpp"
 #include "ECS.hpp"
 #include "GLObjects.hpp"
+#include "GLTextures.hpp"
 #include "ImGuiExtras.hpp"
-#include "ImGuiHelpers.hpp"
 #include "LightCasters.hpp"
 #include "Mesh.hpp"
 #include "Materials.hpp"
@@ -255,7 +255,7 @@ inline void VPathWidget(josh::VPath* vpath) noexcept
     ImGui::Text("VPath: %s", vpath->path().c_str());
 }
 
-inline void MaterialsWidget(Handle mesh) noexcept
+inline void MaterialsWidget(Handle handle)
 {
     const float  text_height  = ImGui::GetTextLineHeight();
     const ImVec2 preview_size = { 4.f * text_height, 4.f * text_height };
@@ -265,12 +265,14 @@ inline void MaterialsWidget(Handle mesh) noexcept
     const ImVec4 empty_slot_color = { .8f, .8f, .2f, .8f };
     const ImVec4 empty_slot_tint  = { 1.f, 1.f, 1.f, .2f };
 
-    const auto material_widget = [&](
+    const auto slot_widget_base = [&](
         RawTexture2D<GLConst> texture,
-        const char*           name,
+        const char*           slot_name,
+        const char*           annotation,
         const char*           popup_str_id,
         const ImVec4&         frame_color,
-        const ImVec4&         tint_color)
+        const ImVec4&         tint_color,
+        auto&&                extra_func)
     {
         // NOTE: Have to do this in the new setup.
         ImGui::PushStyleVar(ImGuiStyleVar_ImageBorderSize, 1.0f);
@@ -280,7 +282,7 @@ inline void MaterialsWidget(Handle mesh) noexcept
         ImGui::ImageGL(tex_id, preview_size, tint_color, frame_color);
         // All hover and click tests below are for this image above ^.
 
-        const auto hover_widget = [&]
+        const auto hover_widget = [&]()
         {
             const Extent2I resolution = texture.get_resolution();
             const float    aspect     = resolution.aspect_ratio();
@@ -295,7 +297,11 @@ inline void MaterialsWidget(Handle mesh) noexcept
             };
 
             ImGui::ImageGL(tex_id, hovered_size, tex_tint, frame_color);
-            ImGui::Text("%s, %dx%d", name, resolution.width, resolution.height);
+            if (annotation) ImGui::Text("%dx%d, %s %s", resolution.width, resolution.height, slot_name, annotation);
+            else            ImGui::Text("%dx%d, %s",    resolution.width, resolution.height, slot_name);
+
+            // NOTE: The extra_func is invoked at the end of the hover widget.
+            extra_func();
         };
 
         auto bg_col = ImGui::GetStyleColorVec4(ImGuiCol_PopupBg);
@@ -308,6 +314,9 @@ inline void MaterialsWidget(Handle mesh) noexcept
         ImGui::PushStyleColor(ImGuiCol_PopupBg, bg_col);
         ImGui::PushStyleColor(ImGuiCol_Border,  border_col);
         DEFER(ImGui::PopStyleColor(2));
+
+        // TODO: This clickable pop-up could come in handy in other places.
+        // Can we make a generalization of this?
 
         // We want the popup to appear seamlessly, replacing the tooltip,
         // so we store the position of the tooltip window.
@@ -334,45 +343,50 @@ inline void MaterialsWidget(Handle mesh) noexcept
         }
     };
 
+    // Wrapper of above that handles default textures itself.
+    const auto slot_widget = [&](
+        RawTexture2D<GLConst> texture,
+        RawTexture2D<GLConst> default_texture,
+        const char*           slot_name,
+        auto&&                extra_func)
+    {
+        const bool is_default =
+            texture.id() == default_texture.id();
 
-    bool can_be_alpha_tested = false;
-    if (auto material = mesh.try_get<MaterialDiffuse>())
-    {
-        material_widget(material->texture, "Diffuse", "Diffuse Popup", tex_frame_color, tex_tint);
-        can_be_alpha_tested =
-            material->texture->get_component_type<PixelComponent::Alpha>() != PixelComponentType::None;
-    }
-    else
-    {
-        material_widget(globals::default_diffuse_texture(), "Diffuse (Default)", "Diffuse Popup", empty_slot_color, empty_slot_tint);
-    }
+        const ImVec4 frame_color = is_default ? empty_slot_color : tex_frame_color;
+        const ImVec4 tint        = is_default ? empty_slot_tint  : tex_tint;
 
-    if (auto material = mesh.try_get<MaterialSpecular>())
-    {
-        ImGui::SameLine();
-        material_widget(material->texture, "Specular", "Specular Popup", tex_frame_color, tex_tint);
-    }
-    else
-    {
-        ImGui::SameLine();
-        material_widget(globals::default_specular_texture(), "Specular (Default)", "Specular Popup", empty_slot_color, empty_slot_tint);
-    }
+        const char* annotation = is_default ? "(Default)" : nullptr;
 
-    if (auto material = mesh.try_get<MaterialNormal>())
-    {
-        ImGui::SameLine();
-        material_widget(material->texture, "Normal", "Normal Popup", tex_frame_color, tex_tint);
-    }
-    else
-    {
-        ImGui::SameLine();
-        material_widget(globals::default_normal_texture(), "Normal (Default)", "Normal Popup", empty_slot_color, empty_slot_tint);
-    }
+        // NOTE: Passing slot_name as popup_str_id. Do not name 2 slots the same way.
+        slot_widget_base(texture, slot_name, annotation, slot_name, frame_color, tint, FORWARD(extra_func));
+    };
 
-    if (can_be_alpha_tested)
+    if (auto mtl = handle.try_get<MaterialPhong>())
     {
+        slot_widget(mtl->diffuse, globals::default_diffuse_texture(), "Diffuse", []{});
+
+        // Extra specpower control for the specular slot.
+        const auto specpower_widget = [&]()
+        {
+            ImGui::DragFloat("Specpower", &mtl->specpower, 1.f, 0.1f, 8192.f, "%.2f", ImGuiSliderFlags_Logarithmic);
+        };
+
         ImGui::SameLine();
-        TagCheckbox<AlphaTested>("Alpha-Testing", mesh);
+        slot_widget(mtl->specular, globals::default_specular_texture(), "Specular", specpower_widget);
+
+        ImGui::SameLine();
+        slot_widget(mtl->normal, globals::default_normal_texture(), "Normals", []{});
+
+        const bool can_be_alpha_tested =
+            mtl->diffuse->get_component_type<PixelComponent::Alpha>() != PixelComponentType::None;
+
+        // HMM: Could be a diffuse widget extra instead, but will require more clicks to adjust.
+        if (can_be_alpha_tested)
+        {
+            ImGui::SameLine();
+            TagCheckbox<AlphaTested>("Alpha-Testing", handle);
+        }
     }
 }
 

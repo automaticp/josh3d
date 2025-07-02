@@ -13,7 +13,7 @@ using StaticMeshID = MeshID<VertexStatic>;
 struct StaticMesh
 {
     LODPack<StaticMeshID, 8> lods;
-    ResourceUsage            usage; // One usage for all MeshIDs.
+    ResourceUsage            usage   = {}; // One usage for all MeshIDs.
     uintptr                  aba_tag = {};
 };
 

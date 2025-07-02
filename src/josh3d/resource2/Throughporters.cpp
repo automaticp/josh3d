@@ -5,7 +5,6 @@
 #include "CommonConcepts.hpp"
 #include "CompletionContext.hpp"
 #include "Components.hpp"
-#include "ContainerUtils.hpp"
 #include "CoroCore.hpp"
 #include "Coroutines.hpp"
 #include "ECS.hpp"
@@ -15,6 +14,7 @@
 #include "GLObjectHelpers.hpp"
 #include "GLObjects.hpp"
 #include "GLTextures.hpp"
+#include "DefaultTextures.hpp"
 #include "ImageData.hpp"
 #include "ImageProperties.hpp"
 #include "LightCasters.hpp"
@@ -438,58 +438,65 @@ auto await_resource_and_unpack_pending_mesh(
         if (not dst_handle.valid())
             co_return;
 
-        if (material->color_id != esr::null_id)
-        {
-            const auto& job = scene.get<TextureViewJob>(material->color_id);
+        // NOTE: Ignoring double_sided for now. It is always double sided if AlphaTested.
+        // NOTE: Ignoring all of the "factors", material setup does not support them.
 
-            glapi::make_available<Binding::Texture2D>(job.get_result()->id());
+        if (material->alpha_method == esr::AlphaMethod::Test)
+            set_tag<AlphaTested>(dst_handle);
 
-            insert_component<MaterialDiffuse>(dst_handle, {
-                .texture = job.get_result(),
-                .usage   = ResourceUsage(),
-            });
+        auto diffuse = eval%[&]() -> SharedConstTexture2D {
+            if (material->color_id != esr::null_id)
+            {
+                SharedTexture2D texture = scene.get<TextureViewJob>(material->color_id).get_result();
+                glapi::make_available<Binding::Texture2D>(texture->id());
+                return texture;
+            }
+            return globals::share_default_diffuse_texture();
+        };
 
-            if (material->alpha_method == esr::AlphaMethod::Test)
-                set_tag<AlphaTested>(dst_handle);
+        auto normal = eval%[&]() -> SharedConstTexture2D {
+            if (material->normal_id != esr::null_id)
+            {
+                SharedTexture2D texture = scene.get<TextureViewJob>(material->normal_id).get_result();
+                glapi::make_available<Binding::Texture2D>(texture->id());
+                return texture;
+            }
+            return globals::share_default_normal_texture();
+        };
 
-            // NOTE: Ignoring double_sided for now. It is always double sided if AlphaTested.
-            // NOTE: Ignoring all of the "factors", material setup does not support them.
-        }
+        auto specular = eval%[&]() -> SharedConstTexture2D {
+            if (material->specular_id != esr::null_id)
+            {
+                SharedTexture2D texture = scene.get<TextureViewJob>(material->specular_id).get_result();
+                glapi::make_available<Binding::Texture2D>(texture->id());
 
-        if (material->normal_id != esr::null_id)
-        {
-            const auto& job = scene.get<TextureViewJob>(material->normal_id);
+                // FIXME: This is mutating an existing texture view.
+                // The shaders currently expect the Red channel to have
+                // data. This isn't even the right "specular" anyway...
 
-            glapi::make_available<Binding::Texture2D>(job.get_result()->id());
+                using enum Swizzle;
+                const SwizzleRGBA swizzle      = { Alpha, Zero, Zero, Zero };
+                const SwizzleRGBA full_swizzle = fold_swizzle(texture->get_swizzle_rgba(), swizzle);
+                texture->set_swizzle_rgba(full_swizzle);
 
-            insert_component<MaterialNormal>(dst_handle, {
-                .texture = job.get_result(),
-                .usage   = ResourceUsage(),
-            });
-        }
+                return texture;
+            }
+            else if (material->specular_color_id != esr::null_id)
+            {
+                // Falling-back to the specular "color" texture if it exists.
+                SharedTexture2D texture = scene.get<TextureViewJob>(material->specular_color_id).get_result();
+                glapi::make_available<Binding::Texture2D>(texture->id());
+                return texture;
+            }
+            return globals::share_default_specular_texture();
+        };
 
-        if (material->specular_id != esr::null_id)
-        {
-            const auto& job = scene.get<TextureViewJob>(material->specular_id);
-
-            // FIXME: This is mutating an existing texture view.
-            // The shaders currently expect the Red channel to have
-            // data. This isn't even the right "specular" anyway...
-            auto& texture = job.get_result();
-
-            glapi::make_available<Binding::Texture2D>(job.get_result()->id());
-
-            using enum Swizzle;
-            const SwizzleRGBA swizzle      = { Alpha, Zero, Zero, Zero };
-            const SwizzleRGBA full_swizzle = fold_swizzle(texture->get_swizzle_rgba(), swizzle);
-            texture->set_swizzle_rgba(full_swizzle);
-
-            insert_component<MaterialSpecular>(dst_handle, {
-                .texture   = job.get_result(),
-                .usage     = ResourceUsage(),
-                .shininess = 128.f, // Hahaha, still no idea where to get this.
-            });
-        }
+        insert_component<MaterialPhong>(dst_handle, {
+            .diffuse   = MOVE(diffuse),
+            .normal    = MOVE(normal),
+            .specular  = MOVE(specular),
+            .specpower = 128.f, // Haha, still no idea wherer to take this from.
+        });
     }
 }
 

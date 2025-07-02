@@ -3,6 +3,7 @@
 #include "Camera.hpp"
 #include "Common.hpp"
 #include "Components.hpp"
+#include "DefaultTextures.hpp"
 #include "DrawHelpers.hpp"
 #include "ECS.hpp"
 #include "GLAPIBinding.hpp"
@@ -331,7 +332,7 @@ void cull_per_cascade(
         // TODO: Is there really not a better way?
         using memptr_type = decltype(&CascadeDrawState::drawlist_atested);
 
-        auto test_cascades_and_output_into = [&](memptr_type out_list_mptr)
+        const auto test_cascades_and_output_into = [&](memptr_type out_list_mptr)
         {
             // We abuse the fact that the cascades are stored in order
             // from smallest to largest, where the outer cascades
@@ -364,7 +365,7 @@ void cull_per_cascade(
             }
         };
 
-        if (has_tag<AlphaTested>(handle) and has_component<MaterialDiffuse>(handle))
+        if (has_tag<AlphaTested>(handle) and has_component<MaterialPhong>(handle))
             test_cascades_and_output_into(&CascadeDrawState::drawlist_atested);
         else
             test_cascades_and_output_into(&CascadeDrawState::drawlist_opaque);
@@ -462,8 +463,8 @@ void draw_opaque_meshes(
 }
 
 /*
-Requires that each entity in `entities` has MTransform, StaticMesh and MaterialDiffuse.
-Also, it most likely has to be tagged AlphaTested.
+Requires that each entity in `entities` has MTransform and StaticMesh.
+Also, it most likely has to have MaterialPhong and be tagged AlphaTested.
 
 Assumes that projection and view uniforms are already set.
 */
@@ -486,8 +487,13 @@ void draw_atested_meshes(
 
     for (const Entity entity : entities)
     {
-        auto [mtf, mesh, diffuse] = registry.get<MTransform, StaticMesh, MaterialDiffuse>(entity);
-        diffuse.texture->bind_to_texture_unit(0);
+        auto [mtf, mesh] = registry.get<MTransform, StaticMesh>(entity);
+
+        if (auto* mtl = registry.try_get<MaterialPhong>(entity))
+            mtl->diffuse->bind_to_texture_unit(0);
+        else
+            globals::default_diffuse_texture().bind_to_texture_unit(0);
+
         sp.uniform(model_loc, mtf.model());
         draw_one_from_storage(*storage, bva, bsp, bound_fbo, mesh.lods.cur());
     }
@@ -551,10 +557,8 @@ void CascadedShadowMapping::_draw_all_cascades_with_geometry_shader(
         // but no diffuse material to sample from. Both ignore Alpha-Testing.
 
         // TODO: This are negative filters. Negative filters are *not* fast.
-        auto no_alpha           = registry.view<MTransform, StaticMesh>(entt::exclude<AlphaTested>);
-        auto with_at_no_diffuse = registry.view<MTransform, StaticMesh, AlphaTested>(entt::exclude<MaterialDiffuse>);
+        auto no_alpha = registry.view<MTransform, StaticMesh>(entt::exclude<AlphaTested>);
         draw_opaque_meshes(sp, bfb, mesh_registry, registry, no_alpha);
-        draw_opaque_meshes(sp, bfb, mesh_registry, registry, with_at_no_diffuse);
     }
 
     // SinglepassGS - Alpha
@@ -566,7 +570,7 @@ void CascadedShadowMapping::_draw_all_cascades_with_geometry_shader(
 
         set_common_uniforms(sp);
 
-        auto with_alpha = registry.view<MTransform, StaticMesh, AlphaTested>();
+        auto with_alpha = registry.view<AlphaTested, MTransform, StaticMesh>();
         draw_atested_meshes(sp, bfb, mesh_registry, registry, with_alpha);
     }
 }
@@ -610,7 +614,7 @@ void multidraw_opaque_meshes(
         entities | transform(get_mesh_id), mdi_buffer);
 }
 /*
-Requires that each entity in `entities` has MaterialDiffuse, MTransform and StaticMesh.
+Requires that each entity in `entities` has MaterialPhong, MTransform and StaticMesh.
 
 Assumes that projection and view uniforms are already set.
 */
@@ -647,7 +651,7 @@ void multidraw_atested_meshes(
     const auto push_instance = [&](Entity e)
     {
         instance_data.stage_one(registry.get<MTransform>(e).model());
-        tex_units    .push_back(registry.get<MaterialDiffuse>(e).texture->id());
+        tex_units    .push_back(registry.get<MaterialPhong>(e).diffuse->id());
         mesh_ids     .push_back(registry.get<StaticMesh>(e).lods.cur());
     };
 

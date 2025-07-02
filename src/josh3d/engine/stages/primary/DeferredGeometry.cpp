@@ -9,7 +9,6 @@
 #include "MeshStorage.hpp"
 #include "StaticMesh.hpp"
 #include "UniformTraits.hpp"
-#include "Materials.hpp"
 #include "AlphaTested.hpp"
 #include "Transform.hpp"
 #include "StageContext.hpp"
@@ -29,7 +28,7 @@ void DeferredGeometry::operator()(
     switch (strategy)
     {
         case Strategy::DrawPerMesh: return _draw_single(context);
-        case Strategy::BatchedMDI:     return _draw_batched(context);
+        case Strategy::BatchedMDI:  return _draw_batched(context);
     }
 }
 
@@ -49,7 +48,7 @@ void DeferredGeometry::_draw_single(PrimaryContext context)
     auto view_opaque  = registry.view<Visible, StaticMesh, MTransform>(entt::exclude<AlphaTested>);
     auto view_atested = registry.view<Visible, AlphaTested, StaticMesh, MTransform>();
 
-    const Array<u32, 3> default_units = {
+    const Array<u32, 3> default_ids = {
         globals::default_diffuse_texture().id(),
         globals::default_specular_texture().id(),
         globals::default_normal_texture().id(),
@@ -57,23 +56,12 @@ void DeferredGeometry::_draw_single(PrimaryContext context)
 
     const auto apply_materials = [&](Entity e, RawProgram<> sp, Location shininess_loc)
     {
-        auto units     = default_units;
-        auto shininess = 128.f;
+        auto tex_ids   = default_ids;
+        auto specpower = 128.f;
+        override_material({ registry, e }, tex_ids, specpower);
 
-        if (auto* mat = registry.try_get<MaterialDiffuse>(e))
-            units[0] = mat->texture->id();
-
-        if (auto* mat = registry.try_get<MaterialSpecular>(e))
-        {
-            units[1]  = mat->texture->id();
-            shininess = mat->shininess;
-        }
-
-        if (auto* mat = registry.try_get<MaterialNormal>(e))
-            units[2] = mat->texture->id();
-
-        sp.uniform(shininess_loc, shininess);
-        glapi::bind_texture_units(units);
+        sp.uniform(shininess_loc, specpower);
+        glapi::bind_texture_units(tex_ids);
     };
 
     glapi::set_viewport({ {}, gbuffer->resolution() });

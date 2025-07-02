@@ -1,7 +1,7 @@
 #pragma once
 #include "AABB.hpp"
-#include "ContainerUtils.hpp"
 #include "EnumUtils.hpp"
+#include "Errors.hpp"
 #include "Scalars.hpp"
 #include <cmath>
 #include <glm/gtc/packing.hpp>
@@ -169,7 +169,7 @@ struct convert_component_fn
     constexpr auto operator()(const from_type&) const
         -> to_type
     {
-        safe_unreachable("Unreachable: Component types are never convertible.");
+        panic("Unreachable: Component types are never convertible.");
     }
 };
 

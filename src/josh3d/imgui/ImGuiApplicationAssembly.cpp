@@ -5,6 +5,7 @@
 #include "AsyncCradle.hpp"
 #include "CategoryCasts.hpp"
 #include "ContainerUtils.hpp"
+#include "DefaultTextures.hpp"
 #include "FrameTimer.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLAPILimits.hpp"
@@ -506,10 +507,13 @@ void ImGuiApplicationAssembly::_display_debug()
 
         if (ImGui::Button("Convert All Diffuse"))
         {
-            for (auto [e, mtl] : runtime.registry.view<MaterialDiffuse>().each())
+            for (auto [e, mtl] : runtime.registry.view<MaterialPhong>().each())
             {
-                // NOTE: Effectively doing a GL const_cast.
-                RawTexture2D<>::from_id(mtl.texture->id()).set_swizzle_rgba(swizzle);
+                if (mtl.diffuse->id() != globals::default_diffuse_texture().id())
+                {
+                    // NOTE: Effectively doing a GL const_cast.
+                    RawTexture2D<>::from_id(mtl.diffuse->id()).set_swizzle_rgba(swizzle);
+                }
             }
         }
         ImGui::TreePop();
