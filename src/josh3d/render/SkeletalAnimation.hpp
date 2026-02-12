@@ -36,8 +36,8 @@ struct AnimationClip
     std::vector<JointKeyframes>     keyframes;
     std::shared_ptr<const Skeleton> skeleton; // Technically, not used anywhere here, but implicitly depends on it.
 
-    auto num_joints() const noexcept -> size_t { return skeleton->joints.size(); }
-    auto sample_at(size_t joint_idx, double time) const noexcept -> Transform;
+    auto num_joints() const noexcept -> usize { return skeleton->joints.size(); }
+    auto sample_at(usize joint_idx, double time) const noexcept -> Transform;
 };
 
 

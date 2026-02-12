@@ -23,8 +23,7 @@ NOTE: Trying to use the `Land` here to support removal.
 struct SkeletonStorage
 {
     [[nodiscard]]
-    auto insert(const Skeleton& skeleton)
-        -> SkeletonID
+    auto insert(const Skeleton& skeleton) -> SkeletonID
     {
         const usize size = skeleton.joints.size();
         assert(size <= Skeleton::max_joints);
@@ -58,8 +57,7 @@ struct SkeletonStorage
         Span<const u32>  parent_idxs;
     };
 
-    auto query(SkeletonID id) const noexcept
-        -> LookupResult
+    auto query(SkeletonID id) const noexcept -> LookupResult
     {
         if (const Entry* entry = try_find_value(_table, id))
         {
@@ -73,11 +71,9 @@ struct SkeletonStorage
     }
 
     // This is the part we couldn't have done without the Land.
-    auto remove(SkeletonID id)
-        -> bool
+    bool remove(SkeletonID id)
     {
-        if (auto it = _table.find(id);
-            it != _table.end())
+        if (auto it = _table.find(id); it != _table.end())
         {
             const Entry& entry = it->second;
 

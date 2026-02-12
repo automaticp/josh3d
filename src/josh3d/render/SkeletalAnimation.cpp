@@ -7,7 +7,7 @@
 namespace josh {
 
 
-auto AnimationClip::sample_at(size_t joint_idx, double time) const noexcept
+auto AnimationClip::sample_at(usize joint_idx, double time) const noexcept
     -> Transform
 {
     // 1. Find 2 nearest keyframes for each channel.
@@ -16,7 +16,8 @@ auto AnimationClip::sample_at(size_t joint_idx, double time) const noexcept
     // TODO: Should custom interpolation modes be supported per-keyframe?
     // TODO: Could the binary search be accelerated with a "hint" parameter?
 
-    auto interpolate = [&](auto&& range, double time, auto&& interp_func) {
+    auto interpolate = [&](auto&& range, double time, auto&& interp_func)
+    {
         using std::views::transform;
         auto get_time = [](const auto& sample) { return sample.time; };
         const auto [prev_idx, next_idx, s] = binary_search(range | transform(get_time), time);

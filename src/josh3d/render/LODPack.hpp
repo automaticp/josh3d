@@ -4,7 +4,13 @@
 
 namespace josh {
 
+/*
+TODO: What does this achieve though? Using this in components
+was a mistake, is there a better use of this? Maybe in MeshStorage
+as an implementation detail? But then why is it here?
 
+Currently some resource loading code depends on this, unfortunately.
+*/
 template<typename T, u8 MaxNumLODs>
 struct LODPack
 {

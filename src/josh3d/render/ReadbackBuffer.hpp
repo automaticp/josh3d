@@ -1,4 +1,5 @@
 #pragma once
+#include "CategoryCasts.hpp"
 #include "CommonConcepts.hpp"
 #include "GLAPICore.hpp"
 #include "GLBuffers.hpp"
@@ -38,21 +39,21 @@ but rather a CPU blocking on a forced flush. Not sure what to
 do about it right now.
 */
 template<trivially_copyable T>
-class ReadbackBuffer {
+class ReadbackBuffer
+{
 public:
     // Create a ReadbackBuffer from the data contents of the `other` buffer.
-    static auto fetch(RawBuffer<T, GLConst> other)
-        -> ReadbackBuffer<T>;
+    static auto fetch(RawBuffer<T, GLConst> other) -> ReadbackBuffer<T>;
 
     // Check if the data is available for a non-blocking read.
     bool is_available() const noexcept;
 
     // Number of times `is_available()` was called before it returned true.
     // Can be used as a rough measure of latency in number of frames.
-    auto times_queried_until_available() const noexcept -> size_t;
+    auto times_queried_until_available() const noexcept -> usize;
 
     // Size of the readbuck buffer.
-    auto num_elements() const noexcept -> size_t;
+    auto num_elements() const noexcept -> usize;
 
     // Read the buffer contents into the client-side memory.
     // Size of the `out_buf` should be large enough to fit `num_elements()`.
@@ -63,16 +64,14 @@ public:
 private:
     ReadbackBuffer(
         UniqueBuffer<T> buffer,
-        UniqueFenceSync fence
-    )
-        : buffer_{ std::move(buffer) }
-        , fence_ { std::move(fence)  }
+        UniqueFenceSync fence)
+        : buffer_{ MOVE(buffer) }
+        , fence_ { MOVE(fence)  }
     {}
 
-    UniqueBuffer<T>    buffer_;
-    UniqueFenceSync    fence_;
-    mutable size_t     num_queries_{ 0 };
-
+    UniqueBuffer<T>  buffer_;
+    UniqueFenceSync  fence_;
+    mutable usize    num_queries_ = 0;
 };
 
 
@@ -81,7 +80,7 @@ auto ReadbackBuffer<T>::fetch(RawBuffer<T, GLConst> other)
     -> ReadbackBuffer<T>
 {
     const NumElems num_elements = other.get_num_elements();
-    const StoragePolicies policies{
+    const StoragePolicies policies = {
         .mode        = StorageMode::StaticServer,
         .mapping     = PermittedMapping::Read,
         .persistence = PermittedPersistence::Persistent,
@@ -91,7 +90,7 @@ auto ReadbackBuffer<T>::fetch(RawBuffer<T, GLConst> other)
 
     // SynchronizeOnMap is needed to make sure the storage is actually allocated.
     // We will drop the mapped pointer here, and retrieve it later when reading the value.
-    const MappingReadPolicies mapping_policies{
+    const MappingReadPolicies mapping_policies = {
         .pending_ops = PendingOperations::SynchronizeOnMap,
         .persistence = Persistence::Persistent,
     };
@@ -111,12 +110,12 @@ auto ReadbackBuffer<T>::fetch(RawBuffer<T, GLConst> other)
     // as per profiling, as this forces a flush for the context.
     UniqueFenceSync fence;
 
-    return { std::move(readback), std::move(fence) };
+    return { MOVE(readback), MOVE(fence) };
 }
 
-
 template<trivially_copyable T>
-bool ReadbackBuffer<T>::is_available() const noexcept {
+bool ReadbackBuffer<T>::is_available() const noexcept
+{
     // NOTE: This has_signaled() call (which wraps glGetSynciv()),
     // is also particularly expensive and seems to translate to
     // __client_wait_sync() in the driver, which in turn triggers
@@ -125,45 +124,43 @@ bool ReadbackBuffer<T>::is_available() const noexcept {
     // The result turns out to be equivalent to:
     //   if (fence_->flush_and_wait_for(0) != TimeoutExpired) { ...
     //
-    if (fence_->has_signaled()) {
+    if (fence_->has_signaled())
+    {
         return true;
-    } else {
+    }
+    else
+    {
         ++num_queries_;
         return false;
     }
 }
 
-
 template<trivially_copyable T>
-auto ReadbackBuffer<T>::times_queried_until_available() const noexcept
-    -> size_t
+auto ReadbackBuffer<T>::times_queried_until_available() const noexcept -> usize
 {
     return num_queries_;
 }
 
-
 template<trivially_copyable T>
-auto ReadbackBuffer<T>::num_elements() const noexcept
-    -> size_t
+auto ReadbackBuffer<T>::num_elements() const noexcept -> usize
 {
     return buffer_->get_num_elements();
 }
 
-
 template<trivially_copyable T>
-void ReadbackBuffer<T>::get_data_into(std::span<T> out_buf) const noexcept {
+void ReadbackBuffer<T>::get_data_into(std::span<T> out_buf) const noexcept
+{
     assert(out_buf.size() >= buffer_->get_num_elements());
 
     const RawFenceSync<>::nanoseconds timeout{ 1'000'000 };
-    while (fence_->flush_and_wait_for(timeout) == SyncWaitResult::TimeoutExpired) {
+    while (fence_->flush_and_wait_for(timeout) == SyncWaitResult::TimeoutExpired)
+    {
         // Spin if not available.
     }
 
     auto mapped = buffer_->get_current_mapping_span_for_read();
     std::ranges::copy(mapped, out_buf.begin());
 }
-
-
 
 
 } // namespace josh

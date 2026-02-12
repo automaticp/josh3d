@@ -5,35 +5,39 @@
 
 /*
 GPU struct compatible definitions of light sources.
+
+TODO: This is usually part of the vocabulary between the submission pipeline
+and the shader layout, why is it defined in a centralized place?
 */
 namespace josh {
 
 
-struct AmbientLightGPU {
+struct AmbientLightGPU
+{
     alignas(std430::align_vec3) vec3 color;
 };
 
-
-struct DirectionalLightGPU {
+struct DirectionalLightGPU
+{
     alignas(std430::align_vec3) vec3 color;
     alignas(std430::align_vec3) vec3 direction;
 };
 
-
-struct PointLightGPU {
+struct PointLightGPU
+{
     alignas(std430::align_vec3) vec3 color;
     alignas(std430::align_vec3) vec3 position;
 };
 
-
-struct PointLightBoundedGPU {
+struct PointLightBoundedGPU
+{
     alignas(std430::align_vec3)  vec3  color;
     alignas(std430::align_vec3)  vec3  position;
     alignas(std430::align_float) float radius;
 };
 
-
-struct SpotLightGPU {
+struct SpotLightGPU
+{
     alignas(std430::align_vec3)  vec3  color;
     alignas(std430::align_vec3)  vec3  position;
     alignas(std430::align_vec3)  vec3  direction;

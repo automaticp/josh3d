@@ -61,8 +61,7 @@ inline auto build_irange_tls_array(usize n)
 /*
 Common when doing non-bindless batching.
 */
-inline auto max_frag_texture_units()
-    -> i32
+inline auto max_frag_texture_units() -> i32
 {
     return glapi::get_limit(LimitI::MaxFragmentTextureImageUnits);
 }
@@ -101,8 +100,7 @@ struct MDScratch
     Vector<i32>   baseverts;
 };
 
-inline auto multidraw_tls_scratch()
-    -> MDScratch&
+inline auto multidraw_tls_scratch() -> MDScratch&
 {
     thread_local MDScratch md;
     md.offsets_bytes.clear();
