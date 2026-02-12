@@ -6,14 +6,15 @@
 #define SKIN_MATRICES_SSBO_BINDING 0
 #endif
 
-
 layout (std430, binding = SKIN_MATRICES_SSBO_BINDING) restrict readonly
-buffer SkinMatricesBlock {
+buffer SkinMatricesBlock
+{
     mat4 skin_mats[];
 } _skmb;
 
 
-mat4 compute_skin_matrix(uvec4 joint_ids, vec4 joint_weights) {
+mat4 compute_skin_matrix(uvec4 joint_ids, vec4 joint_weights)
+{
     return
         joint_weights[0] * _skmb.skin_mats[joint_ids[0]] +
         joint_weights[1] * _skmb.skin_mats[joint_ids[1]] +

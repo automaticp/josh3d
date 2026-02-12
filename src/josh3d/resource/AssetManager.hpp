@@ -2,6 +2,7 @@
 #include "Asset.hpp"
 #include "AssetCache.hpp"
 #include "CompletionContext.hpp"
+#include "CoroCore.hpp"
 #include "Coroutines.hpp"
 #include "ThreadPool.hpp"
 #include "OffscreenContext.hpp"
@@ -87,8 +88,8 @@ void AssetManager::wait_until_ready(
     readyable auto&&         readyable,
     std::chrono::nanoseconds sleep_budget)
 {
-    using rt = readyable_traits<std::remove_cvref_t<decltype(readyable)>>;
-    while (!rt::is_ready(readyable)) {
+    using cpo::is_ready;
+    while (not is_ready(readyable)) {
         auto wake_up_point = std::chrono::steady_clock::now() + sleep_budget;
         update();
         std::this_thread::sleep_until(wake_up_point);

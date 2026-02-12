@@ -1,25 +1,27 @@
 #include "ShaderPool.hpp"
+#include "CategoryCasts.hpp"
+#include "Common.hpp"
 #include "Components.hpp"
+#include "ContainerUtils.hpp"
 #include "Filesystem.hpp"
 #include "GLMutability.hpp"
 #include "GLObjects.hpp"
 #include "GLProgram.hpp"
-#include "GLShaders.hpp"
 #include "ObjectLifecycle.hpp"
 #include "ReadFile.hpp"
+#include "Scalars.hpp"
 #include "SceneGraph.hpp"
 #include "ShaderBuilder.hpp"
 #include "ShaderSource.hpp"
 #include "Logging.hpp"
 #include "detail/ShaderWatcher.hpp"
-#include <entt/entity/fwd.hpp>
+#include <entt/entt.hpp>
 #include <cassert>
 #include <exception>
 #include <memory>
 #include <optional>
 #include <sstream>
 #include <utility>
-#include <variant>
 
 
 namespace josh {
@@ -74,7 +76,6 @@ to maintain strict invariants in a system that was not
 build for that (ECS).
 */
 
-
 using ProgramID       = entt::entity;
 using PrimaryID       = entt::entity;
 using SecondaryID     = entt::entity;
@@ -82,7 +83,7 @@ using FileID          = entt::entity; // Any file, primary or secondary.
 using ProgramOrFileID = entt::entity;
 using Registry        = entt::registry;
 using Handle          = entt::handle;
-using CHandle     = entt::const_handle;
+using CHandle         = entt::const_handle;
 
 
 struct MarkedForReload {};
@@ -92,13 +93,15 @@ struct MarkedForReload {};
 Used to automatically watch/unwatch files when this component is created/destroyed.
 The on_construct()/on_destroy() callbacks are installed in the ShaderPoolImpl constructor.
 */
-struct WatchedFile {
+struct WatchedFile
+{
     ShaderWatcher* watcher;
 };
 
 
-struct ProgramName  {
-    std::string str;
+struct ProgramName
+{
+    String str;
 
     static auto from_filenames(const ProgramFiles& files)
         -> ProgramName
@@ -115,6 +118,8 @@ struct ProgramName  {
         // given that we know lengths of all strings ahead of time.
         std::stringstream ss;
 
+        // Ex. "##vert:path/to/shader.vert##frag:path/to/shader.frag#define ENABLE_BLAH 1"
+        // Note that the defines are *per-program*, not per each individual shader.
         #define APPEND_PATH(type) \
             if (files.type) { ss << "##" #type ":" << files.type->path(); }
 
@@ -127,29 +132,36 @@ struct ProgramName  {
 
         #undef APPEND_PATH
 
-        for (const auto& define : defines.values) {
+        for (const auto& define : defines.values)
             ss << define;
-        }
 
-        return { std::move(ss).str() };
+        return { MOVE(ss).str() };
     }
 
-    constexpr auto operator<=>(const ProgramName&) const = default;
-
+    constexpr auto operator==(const ProgramName&) const noexcept -> bool = default;
+    constexpr auto operator<=>(const ProgramName&) const noexcept = default;
 };
+// TODO: Why do I have to provide this if I have a specialization below?
+auto hash_value(const ProgramName& name) noexcept
+    -> usize
+{
+    return boost::hash_value(name.str);
+}
 } // namespace josh
 template<>
-struct std::hash<josh::ProgramName> {
-    auto operator()(const josh::ProgramName& name) const noexcept {
-        return std::hash<std::string>{}(name.str);
+struct std::hash<josh::ProgramName>
+{
+    auto operator()(const josh::ProgramName& name) const noexcept
+        -> size_t
+    {
+        return std::hash<josh::String>{}(name.str);
     }
 };
 namespace josh {
 
 
-
-
-class ShaderPoolImpl {
+class ShaderPoolImpl
+{
 public:
     friend ShaderToken;
     ShaderPoolImpl();
@@ -162,101 +174,74 @@ public:
     void force_reload();
 
 private:
-    ShaderWatcher                              watcher_; // I'm a watcher.
-    Registry                                   registry_;
-    std::unordered_map<ProgramName, ProgramID> program_map_;
+    ShaderWatcher                   watcher_; // I'm a watcher.
+    Registry                        registry_;
+    HashMap<ProgramName, ProgramID> program_map_;
     void sweep_reload_marked();
 };
 
+namespace {
 
-
-
-static void start_watching(Registry& registry, FileID entity) {
-    const CHandle handle{ registry, entity };
+void start_watching(Registry& registry, FileID entity)
+{
+    const CHandle handle = { registry, entity };
     assert(has_component<File>(handle));
     const File& file = handle.get<File>();
     handle.get<WatchedFile>().watcher->watch(to_integral(entity), file);
 }
 
-
-static void stop_watching(Registry& registry, FileID entity) {
-    const CHandle handle{ registry, entity };
+void stop_watching(Registry& registry, FileID entity)
+{
+    const CHandle handle = { registry, entity };
     handle.get<WatchedFile>().watcher->stop_watching(to_integral(entity));
 }
 
+} // namespace
 
-ShaderPoolImpl::ShaderPoolImpl() {
+ShaderPoolImpl::ShaderPoolImpl()
+{
     registry_.on_construct<WatchedFile>().connect<&start_watching>();
     registry_.on_destroy  <WatchedFile>().connect<&stop_watching> ();
 }
 
 
-
-
 namespace {
 
-
 /*
-This is the intermediate state used for loading,
-but it also somewhat resembles the structure
-as it appears later in the registry.
+This is the intermediate state used for loading, but it also
+somewhat resembles the structure as it appears later in the registry.
 */
 
-
-struct PrimaryDesc {
+struct PrimaryDesc
+{
     File                     file;
     std::unordered_set<File> included;
 };
 
-
-struct ProgramDesc {
+struct ProgramDesc
+{
     ProgramDefines                                defines;
     std::unordered_map<ShaderTarget, PrimaryDesc> primaries;
 };
 
 
-// Type-per-shader was a mistake.
-using AnyShader = std::variant<
-    UniqueVertexShader,
-    UniqueTessControlShader,
-    UniqueTessEvaluationShader,
-    UniqueGeometryShader,
-    UniqueFragmentShader,
-    UniqueComputeShader
->;
+/*
+Expects the program description with the list of primiaries,
+but without includes. Will set the includes of the primaries
+after this call.
 
+Returns a compiled program and the updated list of
+includes for the primaries.
 
-auto make_any_shader(ShaderTarget target)
-    -> AnyShader
-{
-    switch (target) {
-        using enum ShaderTarget;
-        case VertexShader:         return UniqueVertexShader();
-        case TessControlShader:    return UniqueTessControlShader();
-        case TessEvaluationShader: return UniqueTessEvaluationShader();
-        case GeometryShader:       return UniqueGeometryShader();
-        case FragmentShader:       return UniqueFragmentShader();
-        case ComputeShader:        return UniqueComputeShader();
-        default: std::terminate();
-    }
-}
-
-
-// Expects the program description with the list of primiaries,
-// but without includes. Will set the includes of the primaries
-// after this call.
-//
-// Returns a compiled program and the updated list of
-// includes for the primaries.
-//
-// Throws if the compilation/linking failed for any reason.
+Throws if the compilation/linking failed for any reason.
+*/
 [[nodiscard]] auto load_and_compile_program(ProgramDesc& inout_program)
     -> UniqueProgram
 {
     UniqueProgram program_obj;
 
-
-    for (auto& [target, primary] : inout_program.primaries) {
+    for (auto& [target, primary] : inout_program.primaries)
+    {
         auto source = ShaderSource(read_file(primary.file));
 
         // Recipe to resolve includes:
@@ -278,69 +263,73 @@ auto make_any_shader(ShaderTarget target)
 
         primary.included.clear();
 
-        while (std::optional include_dir = ShaderSource::find_include_directive(source)) {
+        while (Optional include_drv = ShaderSource::find_include_directive(source))
+        {
+            const Path relative_path = include_drv->path.view();
+            File canonical_file = File(canonical(parent_dir / relative_path)); // Can fail.
 
-            const Path relative_path = include_dir->path.view();
-            File canonical_file = File(std::filesystem::canonical(parent_dir / relative_path)); // Can fail.
-
-            if (primary.included.contains(canonical_file)) {
+            if (primary.included.contains(canonical_file))
+            {
                 // Already included. Just erase the #include line.
-                source.remove_subrange(include_dir->full);
-            } else {
+                source.remove_subrange(include_drv->full);
+            }
+            else
+            {
                 ShaderSource included_contents{ read_file(canonical_file) }; // Can fail.
-                source.replace_subrange(include_dir->full, included_contents);
+                source.replace_subrange(include_drv->full, included_contents);
                 primary.included.emplace(std::move(canonical_file));
             }
         }
 
-
         // Now we need to define all the defines that we had prepared.
 
-        for (const std::string& define_str : inout_program.defines.values) {
-            // `define_str` is already a full "#define NAME value" directive.
-            if (std::optional version_dir = ShaderSource::find_version_directive(source)) {
-                source.insert_line_on_line_after(version_dir->full.begin(), define_str);
-            } else {
+        for (const String& define_str : inout_program.defines.values)
+        {
+            // NOTE: `define_str` is already a full "#define NAME value" directive.
+            if (Optional version_drv = ShaderSource::find_version_directive(source))
+            {
+                source.insert_line_on_line_after(version_drv->full.begin(), define_str);
+            }
+            else
+            {
                 source.insert_line_on_line_before(source.begin(), define_str);
             }
         }
 
-
         // Okay, cool, now we get to actually compile the shader from primary source.
 
-        AnyShader shader = make_any_shader(target);
+        auto shader_obj = UniqueShader(target);
 
-        auto compile_and_attach = [&](auto& shader_obj) {
-            shader_obj->set_source(source.text_view());
-            shader_obj->compile();
-            if (!shader_obj->has_compiled_successfully()) {
-                throw error::ShaderCompilationFailure(
-                    file_path.string() + '\n' + shader_obj->get_info_log(),
-                    target
-                );
-            }
-            program_obj->attach_shader(shader_obj);
-        };
+        shader_obj->set_source(source.text_view());
+        shader_obj->compile();
 
-        visit(compile_and_attach, shader);
+        if (not shader_obj->has_compiled_successfully())
+        {
+            auto info_log = shader_obj->get_info_log();
+            throw ShaderCompilationFailure(
+                fmt::format("{}\n{}\n{}", file_path.string(), info_log, source.text_view()),
+                { info_log, target });
+        }
 
-        // NOTE: `shader` is discarded here.
+        program_obj->attach_shader(shader_obj);
+
+        // NOTE: `shader_obj` is discarded here. This is okay, it's only marked
+        // for deletion by the API, but will persist until the program is destroyed.
     }
-
 
     program_obj->link();
 
-    if (!program_obj->has_linked_successfully()) {
-        throw error::ProgramLinkingFailure(program_obj->get_info_log());
+    if (not program_obj->has_linked_successfully())
+    {
+        // TODO: This should display more info.
+        auto info_log = program_obj->get_info_log();
+        throw ProgramLinkingFailure(info_log, { info_log });
     }
 
     return program_obj;
 }
 
-
 } // namespace
-
-
 
 
 auto ShaderPoolImpl::get(const ProgramFiles& files)
@@ -349,7 +338,6 @@ auto ShaderPoolImpl::get(const ProgramFiles& files)
     return get(files, {});
 }
 
-
 auto ShaderPoolImpl::get(const ProgramFiles& files, const ProgramDefines& defines)
     -> ShaderToken
 {
@@ -357,7 +345,8 @@ auto ShaderPoolImpl::get(const ProgramFiles& files, const ProgramDefines& define
 
     // Get from cache.
     auto it = program_map_.find(program_name);
-    if (it != program_map_.end()) {
+    if (it != program_map_.end())
+    {
         assert(registry_.valid(it->second));
         return ShaderToken(it->second, this);
     }
@@ -376,14 +365,14 @@ auto ShaderPoolImpl::get(const ProgramFiles& files, const ProgramDefines& define
 
     // Prepapre the program description.
 
-    ProgramDesc program_desc{ .defines = defines, .primaries = {} };
+    ProgramDesc program_desc = { .defines=defines, .primaries={} };
 
-    if (files.vert) { program_desc.primaries.emplace(ShaderTarget::VertexShader,         PrimaryDesc{ .file = *files.vert, .included = {} }); }
-    if (files.tesc) { program_desc.primaries.emplace(ShaderTarget::TessControlShader,    PrimaryDesc{ .file = *files.tesc, .included = {} }); }
-    if (files.tese) { program_desc.primaries.emplace(ShaderTarget::TessEvaluationShader, PrimaryDesc{ .file = *files.tese, .included = {} }); }
-    if (files.geom) { program_desc.primaries.emplace(ShaderTarget::GeometryShader,       PrimaryDesc{ .file = *files.geom, .included = {} }); }
-    if (files.frag) { program_desc.primaries.emplace(ShaderTarget::FragmentShader,       PrimaryDesc{ .file = *files.frag, .included = {} }); }
-    if (files.comp) { program_desc.primaries.emplace(ShaderTarget::ComputeShader,        PrimaryDesc{ .file = *files.comp, .included = {} }); }
+    if (files.vert) { program_desc.primaries.emplace(ShaderTarget::Vertex,         PrimaryDesc{ .file = *files.vert, .included = {} }); }
+    if (files.tesc) { program_desc.primaries.emplace(ShaderTarget::TessControl,    PrimaryDesc{ .file = *files.tesc, .included = {} }); }
+    if (files.tese) { program_desc.primaries.emplace(ShaderTarget::TessEvaluation, PrimaryDesc{ .file = *files.tese, .included = {} }); }
+    if (files.geom) { program_desc.primaries.emplace(ShaderTarget::Geometry,       PrimaryDesc{ .file = *files.geom, .included = {} }); }
+    if (files.frag) { program_desc.primaries.emplace(ShaderTarget::Fragment,       PrimaryDesc{ .file = *files.frag, .included = {} }); }
+    if (files.comp) { program_desc.primaries.emplace(ShaderTarget::Compute,        PrimaryDesc{ .file = *files.comp, .included = {} }); }
 
     UniqueProgram new_program_obj = load_and_compile_program(program_desc);
 
@@ -392,27 +381,28 @@ auto ShaderPoolImpl::get(const ProgramFiles& files, const ProgramDefines& define
     // into the registry, and install the watches.
 
     auto& registry = registry_;
-    const Handle new_program{ registry, registry.create() };
+    const Handle new_program = { registry, registry.create() };
 
-    new_program.emplace<ProgramName>(std::move(program_name));
+    new_program.emplace<ProgramName>(MOVE(program_name));
     new_program.emplace<ProgramDefines>(defines);
-    new_program.emplace<UniqueProgram>(std::move(new_program_obj));
+    new_program.emplace<UniqueProgram>(MOVE(new_program_obj));
 
-    for (const auto& [target, primary_desc] : program_desc.primaries) {
-        const Handle new_primary{ registry, registry.create() };
+    for (const auto& [target, primary_desc] : program_desc.primaries)
+    {
+        const Handle new_primary = { registry, registry.create() };
         attach_to_parent(new_primary, new_program.entity());
         new_primary.emplace<ShaderTarget>(target           );
         new_primary.emplace<File>        (primary_desc.file);
         new_primary.emplace<WatchedFile> (&watcher_        );
 
-        for (const File& secondary : primary_desc.included) {
-            const Handle new_secondary{ registry, registry.create() };
+        for (const File& secondary_file : primary_desc.included)
+        {
+            const Handle new_secondary = { registry, registry.create() };
             attach_to_parent(new_secondary, new_primary.entity());
-            new_secondary.emplace<File>       (secondary);
+            new_secondary.emplace<File>       (secondary_file);
             new_secondary.emplace<WatchedFile>(&watcher_);
         }
     }
-
 
     // Cache the program entity for this combination of stages/defines.
     //
@@ -422,53 +412,53 @@ auto ShaderPoolImpl::get(const ProgramFiles& files, const ProgramDefines& define
 
     program_map_.insert_or_assign(new_program.get<ProgramName>(), new_program.entity());
 
-
     return ShaderToken(new_program.entity(), this);
 }
 
-
-bool ShaderPoolImpl::supports_hot_reload() const noexcept {
+auto ShaderPoolImpl::supports_hot_reload() const noexcept
+    -> bool
+{
     return ShaderWatcher::actually_works;
 }
 
-
-
-void ShaderPoolImpl::sweep_reload_marked() {
+void ShaderPoolImpl::sweep_reload_marked()
+{
     auto& registry = registry_;
 
     // Sweep-reload each program independently.
     // We just drop the whole program and reload it again. This is much simpler.
-    for (const ProgramID program : registry.view<MarkedForReload>()) {
-        const Handle program_handle{ registry, program };
+    for (const ProgramID program : registry.view<MarkedForReload>())
+    {
+        const Handle program_handle = { registry, program };
 
         // First try reloading the whole program, and report if it failed.
 
-
         // Prepare the program description from existing structure.
 
-        ProgramDesc program_desc{
+        ProgramDesc program_desc = {
             .defines   = has_component<ProgramDefines>(program_handle) ? program_handle.get<ProgramDefines>() : ProgramDefines{},
             .primaries = {}
         };
 
         program_desc.primaries.reserve(program_handle.get<AsParent>().num_children);
 
-        for (const Handle primary : view_child_handles(program_handle)) {
-            program_desc.primaries.emplace(
-                primary.get<ShaderTarget>(),
-                PrimaryDesc{
-                    .file     = primary.get<File>(),
-                    .included = {}, // Reset, since we don't know what the new includes are.
-                }
-            );
+        for (const Handle primary : view_child_handles(program_handle))
+        {
+            program_desc.primaries.emplace(primary.get<ShaderTarget>(), PrimaryDesc{
+                .file     = primary.get<File>(),
+                .included = {}, // Reset, since we don't know what the new includes are.
+            });
         }
 
-        try {
+        try
+        {
             // Load/compile/link the new program. *This can easily fail*.
             // If it succeeds, we replace the current program object and
             // proceed to resetting the structure in the registry.
             program_handle.get<UniqueProgram>() = load_and_compile_program(program_desc);
-        } catch (const std::exception& e) {
+        }
+        catch (const std::exception& e)
+        {
             logstream() << "[SHADER RELOAD FAILED]: " << e.what() << '\n';
             // On failure just skip the iteration. Don't touch the registry or anything.
             continue;
@@ -487,47 +477,43 @@ void ShaderPoolImpl::sweep_reload_marked() {
         //  - Secondaries and their watches are created anew
         //
 
-        for (const Handle primary : view_child_handles(program_handle)) {
-            for (const Handle secondary : view_child_handles(primary)) {
+        for (const Handle primary : view_child_handles(program_handle))
+        {
+            for (const Handle secondary : view_child_handles(primary))
                 mark_for_destruction(secondary);
-            }
-            if (has_children(primary)) {
+
+            if (has_children(primary))
                 detach_all_children(primary);
-            }
         }
 
         // NOTE: Will automatically unwatch files on destruction.
         sweep_marked_for_destruction(registry);
 
-
         // Now recreate the secondaries again.
-
-        for (const Handle primary : view_child_handles(program_handle)) {
-            for (const File& secondary_file : program_desc.primaries.at(primary.get<ShaderTarget>()).included) {
-                const Handle new_secondary{ registry, registry.create() };
+        for (const Handle primary : view_child_handles(program_handle))
+        {
+            for (const File& secondary_file : program_desc.primaries.at(primary.get<ShaderTarget>()).included)
+            {
+                const Handle new_secondary = { registry, registry.create() };
                 attach_to_parent(new_secondary, primary.entity());
                 new_secondary.emplace<File>       (secondary_file);
                 new_secondary.emplace<WatchedFile>(&watcher_);
             }
         }
-
     }
-
 
     registry_.clear<MarkedForReload>();
 }
 
-
-
-
-void ShaderPoolImpl::hot_reload() {
-
+void ShaderPoolImpl::hot_reload()
+{
     // Mark roots of each tree for reload.
-    while (const std::optional<ShaderWatcher::FileID> modified = watcher_.get_next_modified()) {
+    while (const Optional<ShaderWatcher::FileID> modified = watcher_.get_next_modified())
+    {
         const FileID entity{ *modified };
         const Handle handle{ registry_, entity };
 
-        auto root = get_root_handle(handle);
+        Handle root = get_root_handle(handle);
 
         // Roots are always Programs.
         assert(has_component<UniqueProgram>(root));
@@ -539,22 +525,17 @@ void ShaderPoolImpl::hot_reload() {
     sweep_reload_marked();
 }
 
-
-void ShaderPoolImpl::force_reload() {
-
-    // Mark all roots for reload.
-    for (const auto program : registry_.view<UniqueProgram>()) {
-        const Handle handle{ registry_, program };
+void ShaderPoolImpl::force_reload()
+{
+    // Just mark all roots for reload and then sweep.
+    for (const auto program : registry_.view<UniqueProgram>())
+    {
+        const Handle handle = { registry_, program };
         handle.emplace_or_replace<MarkedForReload>();
     }
 
-    // Then sweep.
     sweep_reload_marked();
 }
-
-
-
-
 
 auto ShaderToken::get() const noexcept
     -> RawProgram<GLConst>
@@ -562,29 +543,24 @@ auto ShaderToken::get() const noexcept
     return pool_->registry_.get<UniqueProgram>(id_);
 }
 
-
 auto ShaderToken::get() noexcept
     -> RawProgram<GLMutable>
 {
     return pool_->registry_.get<UniqueProgram>(id_);
 }
 
-
-
-
-// Boring boilerplate for PIMPL.
-
+/*
+Boring boilerplate for PIMPL.
+*/
 
 ShaderPool::ShaderPool() : pimpl_{ std::make_unique<ShaderPoolImpl>() } {}
 ShaderPool::~ShaderPool() = default;
-
 
 auto ShaderPool::get(const ProgramFiles& program_files)
     -> ShaderToken
 {
     return pimpl_->get(program_files);
 }
-
 
 auto ShaderPool::get(
     const ProgramFiles&   program_files,
@@ -594,48 +570,42 @@ auto ShaderPool::get(
     return pimpl_->get(program_files, defines);
 }
 
-
-bool ShaderPool::supports_hot_reload() const noexcept {
+auto ShaderPool::supports_hot_reload() const noexcept
+    -> bool
+{
     return pimpl_->supports_hot_reload();
 }
 
+void ShaderPool::hot_reload()
+{
+    if (not supports_hot_reload())
+        panic("Hot-reloading is not supported.");
 
-void ShaderPool::hot_reload() {
-    if (!supports_hot_reload()) {
-        throw std::logic_error("Hot-reloading is not supported.");
-    }
     pimpl_->hot_reload();
 }
 
-
-void ShaderPool::force_reload() {
+void ShaderPool::force_reload()
+{
     pimpl_->force_reload();
 }
 
 
+thread_local Optional<ShaderPool> thread_local_shader_pool_;
 
-
-
-
-thread_local std::optional<ShaderPool> thread_local_shader_pool_;
-
-
-auto shader_pool()
-    -> ShaderPool&
+auto shader_pool() -> ShaderPool&
 {
     return thread_local_shader_pool_.value();
 }
 
-
-void init_thread_local_shader_pool() {
+void init_thread_local_shader_pool()
+{
     thread_local_shader_pool_.emplace();
 }
 
-
-void clear_thread_local_shader_pool() {
+void clear_thread_local_shader_pool()
+{
     thread_local_shader_pool_.reset();
 }
-
 
 
 } // namespace josh

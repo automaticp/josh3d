@@ -1,35 +1,23 @@
 #pragma once
+#include "Common.hpp"
 #include "Filesystem.hpp"
-#include <string>
+#include "UIContextFwd.hpp"
 
 
 namespace josh {
 
+/*
+NOTE: Currently the vfs is exposed through the global vfs()
+and is not available in the UIContext.
+*/
+struct ImGuiVFSControl
+{
+    void display(UIContext& ui);
 
-class VirtualFilesystem;
-
-
-class ImGuiVFSControl {
-private:
-    VirtualFilesystem& vfs_;
-
-    std::string new_root_;
-
-    std::string test_vpath_;
-    Path last_resolved_entry_;
-
-    std::string exception_str_;
-
-public:
-    ImGuiVFSControl(VirtualFilesystem& vfs) : vfs_{ vfs } {}
-
-    void display();
-
-private:
-    void roots_listbox_widget();
-    void add_new_root_widget();
-    void debug_resolve_widget();
-
+    String _new_root;
+    String _test_vpath;
+    Path   _last_resolved_entry;
+    String _exception_str;
 };
 
 

@@ -124,7 +124,7 @@ Mesh::Mesh(const MeshData<VertexT>& data)
 
 // I made a mess again...
 template<specializes_attribute_traits VertexT>
-inline Mesh Mesh::from_buffers(
+Mesh Mesh::from_buffers(
     SharedConstUntypedBuffer  verts_buf,
     SharedConstBuffer<GLuint> ebo)
 {

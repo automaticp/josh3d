@@ -1,47 +1,39 @@
 #pragma once
+#include "CategoryCasts.hpp"
+#include "Common.hpp"
+#include "Ranges.hpp"
+#include "Scalars.hpp"
 #include "ThreadsafeQueue.hpp"
 #include "Future.hpp"
 #include "UniqueFunction.hpp"
 #include <atomic>
 #include <concepts>
-#include <cstddef>
 #include <exception>
-#include <functional>
-#include <optional>
 #include <stop_token>
 #include <thread>
 #include <type_traits>
-#include <utility>
-#include <vector>
 #include <latch>
 
 
 namespace josh {
 
 
-
-/*
-"Do not write your own thread pool. Use an existing tasking system."
-
-    - Sean Parent
-
-"Also here's how to write a thread pool that has decent performance."
-
-    - Sean Parent, paraphrased
-
-And so I did...
-*/
-
-
 /*
 A simple task-stealing thread pool with a minimal interface.
+
+Based on Sean Parent's design from the talk "Better Code: Concurrency".
 */
-class ThreadPool {
+class ThreadPool
+{
 public:
-    // Initializes a thread pool with n_threads thread count. If the n_threads is not supplied,
+    // Initializes a thread pool with num_threads thread count. If the num_threads is not supplied,
     // uses a value returned by std::jthread::hardware_concurrency(), unless that value is 0,
-    // in which case n_threads is set to 1.
-    ThreadPool(size_t n_threads = default_thread_count());
+    // in which case num_threads is set to 1.
+    //
+    // Optional `pool_name` can be provided which will tag the pool workers with it.
+    // This is mostly used for debugging. The name should be short (<15 chars),
+    // it will be truncated if it does not fit.
+    ThreadPool(usize num_threads = default_thread_count(), String pool_name = {});
 
     // Submit a task and retrieve a Future to it.
     //
@@ -54,23 +46,21 @@ public:
     [[nodiscard]] auto emplace(Fun&& fun, Args&&... args)
         -> Future<std::invoke_result_t<Fun, Args...>>;
 
-    size_t n_threads() const noexcept { return n_threads_; }
+    auto num_threads() const noexcept -> usize { return num_threads_; }
 
-
-    static size_t default_thread_count() noexcept {
-        const size_t count{ std::jthread::hardware_concurrency() };
+    static auto default_thread_count() noexcept
+        -> usize
+    {
+        const usize count = std::jthread::hardware_concurrency();
         return count ? count : 1;
     }
 
-
 private:
     using task_type = UniqueFunction<void()>;
-
-    size_t n_threads_;
-
-    std::vector<ThreadsafeQueue<task_type>> per_thread_tasks_;
-
-    std::vector<std::jthread> threads_;
+    String                             pool_name_;
+    usize                              num_threads_;
+    Vector<ThreadsafeQueue<task_type>> per_thread_tasks_;
+    Vector<std::jthread>               threads_;
 
     // Synchronizes beginning of the execution until all threads are ready;
     // Permits reading of shared data within execution_loop (like threads_.size())
@@ -80,44 +70,20 @@ private:
 
     // Hints to where to emplace the next task. Updated with relaxed memory order.
     // No transaction concretely relies on the value read from this memory location.
-    std::atomic<size_t> last_emplaced_idx_;
+    std::atomic<usize> last_emplaced_idx_;
 
     // Number of times an emplace operation will loop-around all the task queues
     // trying to acquire a lock on one of them, until it settles on waiting on
     // one of the queues.
     // L(N) = min(max(512/N, 1), 64), where L is number of loops and N is number of threads (queues).
     // L(2) = 64; L(4) = 64; L(8) = 64; L(12) ~ 42; L(16) = 32; L(24) ~ 21; L(32) = 16; L(1024) = 1;
-    size_t emplace_loops_;
+    usize emplace_loops_;
 
-
-    void execution_loop(std::stop_token stoken, const size_t thread_idx);
-
-    std::optional<task_type> try_fetch_or_steal(size_t thread_idx);
-    void drain_queue_until_empty(size_t thread_idx);
+    void execution_loop(std::stop_token stoken, uindex thread_idx);
+    auto try_fetch_or_steal(uindex thread_idx) -> Optional<task_type>;
+    void drain_queue_until_empty(uindex thread_idx);
 
 };
-
-
-
-
-inline ThreadPool::ThreadPool(size_t n_threads)
-    : n_threads_    { n_threads }
-    , startup_latch_( n_threads + 1 )
-    , emplace_loops_{ std::min(std::max(size_t{ 512 / n_threads }, size_t{ 1 }), size_t{ 64 }) }
-{
-    per_thread_tasks_.resize(n_threads);
-
-    threads_.reserve(n_threads);
-    for (size_t i{ 0 }; i < n_threads; ++i) {
-        threads_.emplace_back(
-            [this, thread_idx=i](std::stop_token stoken) { execution_loop(stoken, thread_idx); }
-        );
-    }
-
-    startup_latch_.arrive_and_wait();
-}
-
-
 
 
 template<typename Fun, typename ...Args>
@@ -129,145 +95,58 @@ auto ThreadPool::emplace(Fun&& fun, Args&&... args)
     auto [future, promise] = make_future_promise_pair<result_type>();
 
     auto internal_task = // of signature void()
-        [promise=std::move(promise),
-        fun=std::forward<Fun>(fun),
-        ...args=std::forward<Args>(args)]() mutable
+        [promise=MOVE(promise),
+        fun=FORWARD(fun),
+        ...args=FORWARD(args)]() mutable
     {
-        try {
-            if constexpr (std::same_as<result_type, void>) {
-                std::invoke(std::forward<Fun>(fun), std::forward<Args>(args)...);
-                set_result(std::move(promise));
-            } else {
-                set_result(
-                    std::move(promise),
-                    std::invoke(std::forward<Fun>(fun), std::forward<Args>(args)...)
-                );
+        try
+        {
+            if constexpr (std::same_as<result_type, void>)
+            {
+                fun(FORWARD(args)...);
+                set_result(MOVE(promise));
             }
-        } catch (...) {
-            set_exception(std::move(promise), std::current_exception());
+            else
+            {
+                set_result(MOVE(promise), fun(FORWARD(args)...));
+            }
+        }
+        catch (...)
+        {
+            set_exception(MOVE(promise), std::current_exception());
         }
     };
 
     // Just a hint, relaxed should be fine (famous last words).
-    size_t last_idx{ last_emplaced_idx_.load(std::memory_order_relaxed) };
+    uindex last_idx = last_emplaced_idx_.load(std::memory_order_relaxed);
 
     // Loop around the queues emplace_loops_ times and try emplacing
     // the task in whichever is not currently locked.
-    bool was_emplaced;
-    for (size_t i{ 0 }; i < (n_threads() * emplace_loops_); ++i) {
-        last_idx = (last_idx + 1) % n_threads();
+    bool was_emplaced = false;
+    for (const uindex _ : irange(num_threads() * emplace_loops_))
+    {
+        last_idx = (last_idx + 1) % num_threads();
 
         was_emplaced =
-            per_thread_tasks_[last_idx].try_emplace(std::move(internal_task));
+            per_thread_tasks_[last_idx].try_emplace(MOVE(internal_task));
 
-        if (was_emplaced) {
+        if (was_emplaced)
+        {
             last_emplaced_idx_.store(last_idx, std::memory_order_relaxed);
             break;
         }
     }
 
     // If all queues were locked, just sit patiently and wait until one of them unlocks.
-    if (!was_emplaced) {
-        per_thread_tasks_[last_idx].emplace(std::move(internal_task));
+    if (!was_emplaced)
+    {
+        per_thread_tasks_[last_idx].emplace(MOVE(internal_task));
         last_emplaced_idx_.store(last_idx, std::memory_order_relaxed);
     }
 
-    return std::move(future);
+    // NOTE: Structured bindings do not auto-move here.
+    return MOVE(future);
 }
-
-
-
-
-inline void ThreadPool::execution_loop(
-    std::stop_token stoken, // NOLINT: performance-*
-    const size_t    thread_idx)
-{
-    startup_latch_.arrive_and_wait();
-
-    while (true) {
-
-        // A single loop-around across all task queues
-        // until a task fetch succedes or a loop ends.
-        std::optional<task_type> task = try_fetch_or_steal(thread_idx);
-
-        if (task.has_value()) {
-            std::invoke(task.value());
-        } else /* no task has been fetched or stolen */ {
-            // Sit in your queue until anything is pushed there.
-            task = per_thread_tasks_[thread_idx].wait_and_pop(stoken);
-
-            // Might still not have a valid task if stop was requested.
-            if (task.has_value()) {
-                std::invoke(task.value());
-            } else /* stop requested */ {
-                assert(stoken.stop_requested());
-                // Retrieve all the tasks from this thread's queue until it's empty;
-                // Will no longer do task stealing at this stage, but will finish
-                // all the submitted tasks nonetheless.
-                //
-                // Task stealing can be implemented at this stage as well, but it's
-                // a bit cumbersome to synchronize between all threads.
-                drain_queue_until_empty(thread_idx);
-                // Stop request happens only on termination of the ThreadPool itself
-                // so it's 'safe' to assume that no new tasks will be submitted after.
-                //
-                // Note that the threads are not guaranteed to go into this non-stealing
-                // mode right after a stop request. In fact, it's very likely most of
-                // them will still be able to steal the majority of tasks remaining
-                // before failing to fetch anything during a loop-around and falling through
-                // to this mode of operation.
-                break;
-            }
-        }
-    }
-
-}
-
-
-
-
-inline auto ThreadPool::try_fetch_or_steal(size_t thread_idx)
-    -> std::optional<task_type>
-{
-    std::optional<task_type> task{ std::nullopt };
-
-    for (size_t offset{ 0 }; offset < n_threads(); ++offset) {
-        const size_t idx{ (thread_idx + offset) % n_threads() };
-
-        task = per_thread_tasks_[idx].try_lock_and_try_pop();
-
-        if (task.has_value()) { break; }
-    }
-
-    return task;
-}
-
-
-
-
-inline void ThreadPool::drain_queue_until_empty(size_t thread_idx) {
-    std::optional<task_type> task;
-    while (true) {
-        task = per_thread_tasks_[thread_idx].try_pop();
-        if (task.has_value()) {
-            std::invoke(task.value());
-        } else {
-            break;
-        }
-    }
-}
-
-
-
-
-namespace globals {
-inline ThreadPool& thread_pool() noexcept {
-    static ThreadPool pool{};
-    return pool;
-}
-} // namespace globals
-
-
 
 
 } // namespace josh

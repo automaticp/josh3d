@@ -1,4 +1,5 @@
 #pragma once
+#include "CategoryCasts.hpp"
 #include "GLAPICommonTypes.hpp"
 #include "GLObjectHelpers.hpp"
 #include "GLPixelPackTraits.hpp"
@@ -10,32 +11,16 @@
 #include "Filesystem.hpp"
 #include "MallocSupport.hpp"
 #include "Pixels.hpp"
-#include "RuntimeError.hpp"
+#include "Errors.hpp"
 #include "Region.hpp"
 #include "PixelPackTraits.hpp"
 #include "CubemapData.hpp"
 #include <glbinding/gl/enum.h>
-#include <string>
 
 
 namespace josh {
 
-
-namespace error {
-
-class ImageReadingError final : public RuntimeError {
-public:
-    static constexpr auto prefix = "Cannot Read Image: ";
-    Path path;
-    ImageReadingError(Path path, std::string reason)
-        : RuntimeError(prefix,
-            path.native() + "; Reason: " + std::move(reason))
-        , path{ std::move(path) }
-    {}
-};
-
-} // namespace error
-
+JOSH3D_DERIVE_EXCEPTION_EX(ImageReadingError, RuntimeError, { Path path; });
 
 
 template<typename ChannelT>
@@ -171,11 +156,7 @@ template<typename ChannelT>
     detail::UntypedImageLoadResult<ChannelT> im =
         detail::load_image_from_file_impl<ChannelT>(file, min_channels, max_channels, flip_vertically);
 
-    return {
-        std::move(im.data),
-        im.resolution,
-        im.num_channels
-    };
+    return ImageData<ChannelT>::take_ownership(MOVE(im.data), im.resolution, im.num_channels);
 }
 
 

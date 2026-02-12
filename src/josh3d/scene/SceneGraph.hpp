@@ -1,11 +1,11 @@
 #pragma once
 #include "ChildListIterator.hpp"
-#include <cstddef>
 #include <entt/entity/component.hpp>
 #include <entt/entity/fwd.hpp>
 #include <entt/entity/handle.hpp>
 #include <entt/entity/registry.hpp>
 #include <entt/entity/entity.hpp>
+#include <cstddef>
 #include <cassert>
 #include <ranges>
 

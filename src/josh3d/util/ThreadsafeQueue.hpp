@@ -11,7 +11,6 @@
 namespace josh {
 
 
-
 template<typename T>
 class ThreadsafeQueue {
 private:

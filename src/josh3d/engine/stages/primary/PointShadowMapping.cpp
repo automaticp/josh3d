@@ -1,61 +1,53 @@
 #include "PointShadowMapping.hpp"
+#include "DefaultTextures.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLProgram.hpp"
-#include "GLTextures.hpp"
-#include "UniformTraits.hpp" // IWYU pragma: keep (traits)
+#include "MeshRegistry.hpp"
+#include "MeshStorage.hpp"
+#include "StaticMesh.hpp"
+#include "DrawHelpers.hpp"
+#include "UniformTraits.hpp"
 #include "BoundingSphere.hpp"
-#include "tags/ShadowCasting.hpp"
-#include "tags/AlphaTested.hpp"
+#include "VertexStatic.hpp"
+#include "ShadowCasting.hpp"
+#include "AlphaTested.hpp"
 #include "Materials.hpp"
 #include "Transform.hpp"
 #include "LightCasters.hpp"
-#include "Mesh.hpp"
-#include "tags/Visible.hpp"
-#include <glbinding/gl/bitfield.h>
-#include <glbinding/gl/functions.h>
-#include <glm/fwd.hpp>
+#include "Visible.hpp"
+#include "ECS.hpp"
+#include "Tracy.hpp"
 #include <glm/gtc/constants.hpp>
+#include <tracy/Tracy.hpp>
 
 
-namespace josh::stages::primary {
+namespace josh {
 
 
-PointShadowMapping::PointShadowMapping(const Size1I& side_resolution)
-    : side_resolution{ side_resolution }
-    , product_{ PointShadows{
-        .maps = {
-            { side_resolution, side_resolution }, 0, // TODO: How is this legal?
-            { InternalFormat::DepthComponent32F }
-        }
-    }}
-{}
-
-
-PointShadowMapping::PointShadowMapping()
-    : PointShadowMapping(Size1I{ 1024 })
-{}
-
-
-void PointShadowMapping::operator()(
-    RenderEnginePrimaryInterface& engine)
+PointShadowMapping::PointShadowMapping(i32 side_resolution)
 {
-    resize_cubemap_array_storage_if_needed(engine.registry());
-
-    map_point_shadows(engine);
-
-    // TODO: Wrong responisbility.
-    glapi::set_viewport({ {}, engine.main_resolution() });
+    // This will just set the maps._side_resolution.
+    // No storage will be allocated because of 0.
+    point_shadows.maps._resize(side_resolution, 0);
 }
 
-
-
-
-void PointShadowMapping::resize_cubemap_array_storage_if_needed(
-    const entt::registry& registry)
+void PointShadowMapping::operator()(
+    PrimaryContext context)
 {
+    ZSCGPUN("PSM");
+    prepare_point_shadows(context.registry());
 
+    map_point_shadows(context);
+
+    context.belt().put_ref(point_shadows);
+}
+
+void PointShadowMapping::prepare_point_shadows(
+    const Registry& registry)
+{
+    ZS;
     auto plights_with_shadow =
-        registry.view<ShadowCasting, PointLight>();
+        registry.view<Visible, ShadowCasting, PointLight, MTransform, BoundingSphere>();
 
     // This technically makes a redundant iteration over the view
     // because getting the size from a view is an O(n) operation.
@@ -70,173 +62,170 @@ void PointShadowMapping::resize_cubemap_array_storage_if_needed(
     // the number of cubemaps needed to be allocated. Given that
     // a single depth cubemap is actually really big in memory,
     // asking for more than you need is a truly bad idea.
+    //
+    // UPD: We also use this opportunity to populate the entities
+    // and views array in the output structure. It's even less useless now!
 
-    const auto calculate_view_size = [](auto view) -> size_t {
-        size_t count{ 0 };
-        for (auto _ [[maybe_unused]] : view) { ++count; }
-        return count;
-    };
+    i32 num_cubes = 0;
+    point_shadows.entities.clear();
+    point_shadows.views.clear();
+    for (const auto [e, plight, mtf, sphere] : plights_with_shadow.each())
+    {
+        // TODO: z_near is hardcoded, but could be scaled from point light radius instead?
+        const float z_near = 0.05f;
+        const float z_far  = sphere.radius;
 
-    GLsizei new_size = GLsizei(calculate_view_size(plights_with_shadow));
+        const mat4 proj =
+            glm::perspective(glm::half_pi<float>(), 1.0f, z_near, z_far);
 
-    const Size2I resolution{ side_resolution, side_resolution };
-    product_->maps.resize(resolution, new_size);
+        const vec3 pos = mtf.decompose_position();
+
+        point_shadows.views.push_back({
+            .z_near    = z_near,
+            .z_far     = z_far,
+            .proj_mat  = proj,
+            .view_mats = {
+                glm::lookAt(pos, pos + X, -Y),
+                glm::lookAt(pos, pos - X, -Y),
+                glm::lookAt(pos, pos + Y,  Z),
+                glm::lookAt(pos, pos - Y, -Z),
+                glm::lookAt(pos, pos + Z, -Y),
+                glm::lookAt(pos, pos - Z, -Y),
+            }
+        });
+        point_shadows.entities.push_back(e);
+        ++num_cubes;
+    }
+
+    point_shadows.maps._resize(side_resolution(), num_cubes);
 }
 
-
-
-
-
 void PointShadowMapping::map_point_shadows(
-    RenderEnginePrimaryInterface& engine)
+    PrimaryContext context)
 {
-    const auto& registry = engine.registry();
-    auto& maps = product_->maps;
+    ZoneScoped;
 
+    const auto& registry = context.registry();
+    const auto& mesh_registry = context.mesh_registry();
+    auto& maps = point_shadows.maps;
 
-    if (maps.num_array_elements() == 0) { return; }
-
-
+    if (maps.num_cubes() == 0)
+        return;
 
     glapi::set_viewport({ {}, maps.resolution() });
 
+    fbo_->attach_texture_to_depth_buffer(maps.cubemaps());
+    const BindGuard bfb = fbo_->bind_draw();
 
-    auto plights_with_shadows_view =
-        registry.view<PointLight, Visible, MTransform, BoundingSphere, ShadowCasting>();
+    glapi::clear_depth_buffer(bfb, 1.f);
 
-
-    auto bound_fbo = maps.bind_draw();
-
-    glapi::clear_depth_buffer(bound_fbo, 1.f);
-
-
-    auto set_per_light_uniforms = [&](
-        RawProgram<>      sp,
-        const glm::vec3&  pos,
-        GLint             cubemap_id,
-        float             z_near,
-        float             z_far)
+    const auto set_per_light_uniforms = [&](RawProgram<> sp, uindex cubemap_id)
     {
-        const glm::mat4 projection = glm::perspective(
-            glm::half_pi<float>(),
-            1.0f,
-            z_near,
-            z_far
-        );
+        const auto& view = point_shadows.views[cubemap_id];
 
-        constexpr glm::vec3 x{ 1.f, 0.f, 0.f };
-        constexpr glm::vec3 y{ 0.f, 1.f, 0.f };
-        constexpr glm::vec3 z{ 0.f, 0.f, 1.f };
+        // HMM: This could certainly be sent over UBO, but we are *far*
+        // from this being the primary bottleneck.
+        const Location views_loc = sp.get_uniform_location("views");
+        sp.set_uniform_mat4v(views_loc, 6, false, value_ptr(view.view_mats[0]));
 
-        const glm::mat4 views[6]{
-            glm::lookAt(pos, pos + x, -y),
-            glm::lookAt(pos, pos - x, -y),
-            glm::lookAt(pos, pos + y,  z),
-            glm::lookAt(pos, pos - y, -z),
-            glm::lookAt(pos, pos + z, -y),
-            glm::lookAt(pos, pos - z, -y),
-        };
-
-        Location views_loc = sp.get_uniform_location("views");
-        sp.set_uniform_mat4v(views_loc, 6, false, glm::value_ptr(views[0]));
-
-        sp.uniform("projection", projection);
-        sp.uniform("cubemap_id", cubemap_id);
-        sp.uniform("z_far",      z_far);
+        sp.uniform("projection", view.proj_mat);
+        sp.uniform("cubemap_id", i32(cubemap_id));
+        sp.uniform("z_far",      view.z_far);
     };
 
-
-    // z_near is hardcoded, but could be scaled from point light radius instead?
-    const float z_near = 0.05f;
-
-
+    // Alpha-tested.
     {
-        const RawProgram<> sp = sp_with_alpha_;
-        BindGuard bound_program = sp.use();
+        const RawProgram<> sp  = sp_with_alpha_;
+        const BindGuard    bsp = sp.use();
 
-        for (GLint cubemap_id{ 0 };
-            auto [_, plight, mtf, sphere] : plights_with_shadows_view.each())
+        for (const uindex cubemap_idx : irange(num_cubes()))
         {
-            set_per_light_uniforms(sp, mtf.decompose_position(), cubemap_id, z_near, sphere.radius);
-            draw_all_world_geometry_with_alpha_test(bound_program, bound_fbo, registry);
-
-            ++cubemap_id;
+            set_per_light_uniforms(sp, cubemap_idx);
+            draw_all_world_geometry_with_alpha_test(bsp, bfb, mesh_registry, registry);
         }
     }
 
-
+    // Opaque.
     {
-        const RawProgram<> sp = sp_no_alpha_;
-        BindGuard bound_program = sp.use();
+        const RawProgram<> sp  = sp_no_alpha_;
+        const BindGuard    bsp = sp.use();
 
-        for (GLint cubemap_id{ 0 };
-            auto [_, plight, mtf, sphere] : plights_with_shadows_view.each())
+        for (const uindex cubemap_idx : irange(num_cubes()))
         {
-            set_per_light_uniforms(sp, mtf.decompose_position(), cubemap_id, z_near, sphere.radius);
-            draw_all_world_geometry_no_alpha_test(bound_program, bound_fbo, registry);
-
-            ++cubemap_id;
+            set_per_light_uniforms(sp, cubemap_idx);
+            draw_all_world_geometry_no_alpha_test(bsp, bfb, mesh_registry, registry);
         }
     }
-
-
-    bound_fbo.unbind();
 }
-
-
-
 
 void PointShadowMapping::draw_all_world_geometry_no_alpha_test(
-    BindToken<Binding::Program>         bound_program,
-    BindToken<Binding::DrawFramebuffer> bound_fbo,
-    const entt::registry&               registry)
+    BindToken<Binding::Program>         bsp,
+    BindToken<Binding::DrawFramebuffer> bfb,
+    const MeshRegistry&                 mesh_registry,
+    const Registry&                     registry)
 {
     // Assumes that projection and view are already set.
+    const auto* storage = mesh_registry.storage_for<VertexStatic>();
+    if (not storage) return;
 
-    auto draw_from_view = [&](auto view) {
-        const RawProgram<> sp = sp_no_alpha_;
+    const BindGuard bva = storage->vertex_array().bind();
+
+    const RawProgram<> sp = sp_no_alpha_;
+
+    // TODO: Could easily multidraw this.
+    const auto draw_from_view = [&](auto view)
+    {
         const Location model_loc = sp.get_uniform_location("model");
-        for (auto [entity, world_mtf, mesh] : view.each()) {
+        for (const auto [entity, mesh, world_mtf] : view.each())
+        {
             sp.uniform(model_loc, world_mtf.model());
-            mesh.draw(bound_program, bound_fbo);
+            draw_one_from_storage(*storage, bva, bsp, bfb, mesh.lods.cur());
         }
     };
 
-    // You could have no AT requested, or you could have an AT flag,
-    // but no diffuse material to sample from.
-    //
-    // Both ignore Alpha-Testing.
+    // TODO: Opaque should be a tag assigned to all entities that do *not*
+    // have AlphaTested or Transparent. Otherwise we are doing negative filtering.
 
-    draw_from_view(registry.view<MTransform, Mesh>(entt::exclude<AlphaTested>));
-    draw_from_view(registry.view<MTransform, Mesh, AlphaTested>(entt::exclude<MaterialDiffuse>));
-
+    draw_from_view(registry.view<StaticMesh, MTransform>(entt::exclude<AlphaTested>));
 }
-
 
 void PointShadowMapping::draw_all_world_geometry_with_alpha_test(
-    BindToken<Binding::Program>         bound_program,
-    BindToken<Binding::DrawFramebuffer> bound_fbo,
-    const entt::registry&               registry)
+    BindToken<Binding::Program>         bsp,
+    BindToken<Binding::DrawFramebuffer> bfb,
+    const MeshRegistry&                 mesh_registry,
+    const Registry&                     registry)
 {
-    // Assumes that projection and view are already set.
-    const RawProgram<> sp = sp_with_alpha_;
 
+    // Assumes that projection and view are already set.
+    const auto* storage = mesh_registry.storage_for<VertexStatic>();
+    if (not storage) return;
+
+    const BindGuard bva = storage->vertex_array().bind();
+
+    // TODO: Could be a simple place to try batch-draws.
+    const RawProgram<> sp = sp_with_alpha_;
     sp.uniform("material.diffuse", 0);
 
-    auto meshes_with_alpha_view =
-        registry.view<MTransform, Mesh, MaterialDiffuse, AlphaTested>();
-
+    auto meshes_with_alpha_view = registry.view<AlphaTested, StaticMesh, MTransform>();
 
     const Location model_loc = sp.get_uniform_location("model");
-    for (auto [entity, world_mtf, mesh, diffuse]
+    for (auto [e, mesh, world_mtf]
         : meshes_with_alpha_view.each())
     {
-        diffuse.texture->bind_to_texture_unit(0);
-        sp.uniform(model_loc, world_mtf.model());
-        mesh.draw(bound_program, bound_fbo);
-    }
+        if (auto* mtl = registry.try_get<MaterialPhong>(e))
+            mtl->diffuse->bind_to_texture_unit(0);
+        else
+            globals::default_diffuse_texture().bind_to_texture_unit(0);
 
+        sp.uniform(model_loc, world_mtf.model());
+        draw_one_from_storage(*storage, bva, bsp, bfb, mesh.lods.cur());
+    }
+}
+
+void PointShadowMapping::resize_maps(i32 side_resolution)
+{
+    point_shadows.maps._resize(side_resolution, point_shadows.maps.num_cubes());
 }
 
 
-} // namespace josh::stages::primary
+} // namespace josh

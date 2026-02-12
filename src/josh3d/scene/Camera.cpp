@@ -1,4 +1,6 @@
 #include "Camera.hpp"
+#include <glm/glm.hpp>
+#include <glm/ext.hpp>
 
 
 namespace josh {
@@ -6,11 +8,11 @@ namespace josh {
 
 PerspectiveCamera::PerspectiveCamera(const Params& params) noexcept
     : Base{
-        ViewFrustumAsPlanes::make_local_perspective(
+        FrustumPlanes::make_local_perspective(
             params.fovy_rad, params.aspect_ratio,
             params.z_near,   params.z_far
         ),
-        ViewFrustumAsQuads::make_local_perspective(
+        FrustumQuads::make_local_perspective(
             params.fovy_rad, params.aspect_ratio,
             params.z_near,   params.z_far
         ),
@@ -43,11 +45,11 @@ auto PerspectiveCamera::projection_mat() const noexcept
 
 
 void PerspectiveCamera::update_frustum_representations() noexcept {
-    planes_local_frustum_ = ViewFrustumAsPlanes::make_local_perspective(
+    planes_local_frustum_ = FrustumPlanes::make_local_perspective(
         params_.fovy_rad, params_.aspect_ratio,
         params_.z_near,   params_.z_far
     );
-    quads_local_frustum_ = ViewFrustumAsQuads::make_local_perspective(
+    quads_local_frustum_ = FrustumQuads::make_local_perspective(
         params_.fovy_rad, params_.aspect_ratio,
         params_.z_near,   params_.z_far
     );
@@ -58,11 +60,11 @@ void PerspectiveCamera::update_frustum_representations() noexcept {
 
 OrthographicCamera::OrthographicCamera(const Params& params) noexcept
     : Base{
-        ViewFrustumAsPlanes::make_local_orthographic(
+        FrustumPlanes::make_local_orthographic(
             params.width,  params.height,
             params.z_near, params.z_far
         ),
-        ViewFrustumAsQuads::make_local_z_symmetric(
+        FrustumQuads::make_local_z_symmetric(
             params.width,  params.height,
             params.width,  params.height,
             params.z_near, params.z_far
@@ -95,11 +97,11 @@ auto OrthographicCamera::projection_mat() const noexcept
 
 
 void OrthographicCamera::update_frustum_representations() noexcept {
-    planes_local_frustum_ = ViewFrustumAsPlanes::make_local_orthographic(
+    planes_local_frustum_ = FrustumPlanes::make_local_orthographic(
         params_.width,  params_.height,
         params_.z_near, params_.z_far
     );
-    quads_local_frustum_ = ViewFrustumAsQuads::make_local_z_symmetric(
+    quads_local_frustum_ = FrustumQuads::make_local_z_symmetric(
         params_.width,  params_.height,
         params_.width,  params_.height,
         params_.z_near, params_.z_far

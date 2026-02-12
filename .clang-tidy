@@ -3,6 +3,7 @@ Checks: 'boost-*,
     bugprone-*,
     -bugprone-easily-swappable-parameters,
     -bugprone-unhandled-exception-at-new,
+    -bugprone-crtp-constructor-accessibility,
     clang-analyzer-*,
     concurrency-*,
     misc-*,
@@ -11,6 +12,7 @@ Checks: 'boost-*,
     -misc-const-correctness,
     -misc-unused-using-decls,
     -misc-use-anonymous-namespace,
+    -misc-use-internal-linkage,
     modernize-*,
     -modernize-use-trailing-return-type,
     -modernize-use-nodiscard,
@@ -19,10 +21,16 @@ Checks: 'boost-*,
     -modernize-concat-nested-namespaces,
     -modernize-use-auto,
     -modernize-raw-string-literal,
+    -modernize-use-designated-initializers,
+    -modernize-use-using,
+    -modernize-use-emplace,
+    -modernize-use-default-member-init,
     performance-*,
+    -performance-enum-size,
     portability-*'
 CheckOptions:
     performance-unnecessary-value-param.AllowedTypes:
-        '^josh::Raw;^std::stop_token'
-
+        'josh::Raw;std::stop_token;exception_ptr'
+SystemHeaders: false
 ...
+

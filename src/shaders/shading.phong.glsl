@@ -3,12 +3,12 @@
 #define SHADING_PHONG_GLSL
 
 
-struct PhongMaterial {
+struct PhongMaterial
+{
     vec3  albedo;
     float specular;
     float shininess;
 };
-
 
 vec3 phong_brdf(
     vec3          irradiance,
@@ -30,7 +30,6 @@ vec3 phong_brdf(
 
     return diffuse_contribution + specular_contribution;
 }
-
 
 /*
 This is not a distribution function per-se, since you can't

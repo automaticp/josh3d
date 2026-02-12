@@ -1,48 +1,96 @@
 #pragma once
+#include "ECS.hpp"
 #include "GLAPIBinding.hpp"
+#include "GLObjects.hpp"
 #include "GLTextures.hpp"
-#include "RenderEngine.hpp"
-#include "RenderTarget.hpp"
+#include "MeshRegistry.hpp"
+#include "StageContext.hpp"
 #include "ShaderPool.hpp"
-#include "SharedStorage.hpp"
 #include "VPath.hpp"
-#include <entt/entity/fwd.hpp>
-#include <glbinding/gl/enum.h>
-#include <unordered_map>
 
 
-namespace josh::stages::primary {
+namespace josh {
 
 
-class PointShadowMapping {
-public:
+struct PointShadowMaps
+{
+    auto resolution() const noexcept -> Extent2I { return { _side_resolution, _side_resolution }; }
+    auto num_cubes()  const noexcept -> i32      { return _cubemaps->get_num_array_elements(); }
+    auto cubemaps()   const noexcept -> RawCubemapArray<> { return _cubemaps; }
 
+    // HMM: Trying to save the bandwidth a little. Is this going to work well?
+    // We should test performance/quality difference between various formats.
+    static constexpr auto iformat = InternalFormat::DepthComponent16;
+
+    // NOTE: Have to store this separately since it's not uncommon for us
+    // to have 0 cubes, which means resetting the texture, where we would
+    // still like to preserve the resolution.
+    i32                _side_resolution = {};
+    UniqueCubemapArray _cubemaps;
+    void _resize(i32 side_resolution, i32 num_cubes);
+};
+
+inline void PointShadowMaps::_resize(i32 side_resolution, i32 num_cubes)
+{
+    assert(side_resolution > 0);
+    if (this->resolution().width != side_resolution or
+        this->num_cubes() != num_cubes)
+    {
+        _cubemaps        = {};
+        _side_resolution = side_resolution;
+        if (num_cubes > 0)
+            _cubemaps->allocate_storage({ side_resolution, side_resolution }, num_cubes, iformat);
+    }
+}
+
+struct PointShadowView
+{
+    float z_near;
+    float z_far;
+    mat4  proj_mat;
+    mat4  view_mats[6];
+};
+
+struct PointShadows
+{
+    PointShadowMaps         maps;
+    Vector<Entity>          entities; // List of source point light entities. Same order as maps and views.
+    Vector<PointShadowView> views;    // Same order as maps.
+};
+
+
+struct PointShadowMapping
+{
     // Only resolution N of one side is exposed. The actual cubemap face resolution is NxN.
-    Size1I side_resolution{ 1024 };
+    auto side_resolution() const noexcept -> i32 { return point_shadows.maps.resolution().width; }
+    // The number of cubemaps is controlled by the actual number of ShadowCasting lights.
+    auto num_cubes() const noexcept -> i32 { return point_shadows.maps.num_cubes(); }
+    void resize_maps(i32 side_resolution);
 
-    struct PointShadowInfo {
-        // size_t map_idx; // Index into the shadow cubemap array.
-    };
+    PointShadowMapping(i32 side_resolution = 1024);
 
-    struct PointShadows {
-        using Target = RenderTarget<ShareableAttachment<Renderable::CubemapArray>>;
-        Target maps;
+    void operator()(PrimaryContext context);
 
-        // TODO: I couldn't figure out how to store info about each shadowcasting point light...
-    };
-
-
-    PointShadowMapping();
-    PointShadowMapping(const Size1I& side_resolution);
-
-    void operator()(RenderEnginePrimaryInterface& engine);
-
-    auto share_output_view() const noexcept -> SharedView<PointShadows> { return product_.share_view(); }
-    auto view_output() const noexcept -> const PointShadows& { return *product_; }
-
+    PointShadows point_shadows;
 
 private:
-    SharedStorage<PointShadows> product_;
+    UniqueFramebuffer fbo_;
+
+    void map_point_shadows(PrimaryContext context);
+
+    void prepare_point_shadows(const Registry& registry);
+
+    void draw_all_world_geometry_with_alpha_test(
+        BindToken<Binding::Program>         bound_sp,
+        BindToken<Binding::DrawFramebuffer> bound_fbo,
+        const MeshRegistry&                 mesh_registry,
+        const Registry&                     registry);
+
+    void draw_all_world_geometry_no_alpha_test(
+        BindToken<Binding::Program>         bound_sp,
+        BindToken<Binding::DrawFramebuffer> bound_fbo,
+        const MeshRegistry&                 mesh_registry,
+        const Registry&                     registry);
 
     ShaderToken sp_with_alpha_ = shader_pool().get({
         .vert = VPath("src/shaders/depth_cubemap.vert"),
@@ -55,22 +103,6 @@ private:
         .vert = VPath("src/shaders/depth_cubemap.vert"),
         .geom = VPath("src/shaders/depth_cubemap_array.geom"),
         .frag = VPath("src/shaders/depth_cubemap.frag")});
-
-    void map_point_shadows(RenderEnginePrimaryInterface& engine);
-
-    void resize_cubemap_array_storage_if_needed(
-        const entt::registry& registry);
-
-    void draw_all_world_geometry_with_alpha_test(
-        BindToken<Binding::Program>         bound_program,
-        BindToken<Binding::DrawFramebuffer> bound_fbo,
-        const entt::registry&               registry);
-
-    void draw_all_world_geometry_no_alpha_test(
-        BindToken<Binding::Program>         bound_program,
-        BindToken<Binding::DrawFramebuffer> bound_fbo,
-        const entt::registry&               registry);
-
 };
 
 

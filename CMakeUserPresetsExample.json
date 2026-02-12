@@ -1,0 +1,126 @@
+{
+    "version": 5,
+    "configurePresets": [
+        {
+            "name": "_common",
+            "hidden": true,
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": true,
+                "CMAKE_C_FLAGS": "$env{C_FLAGS}",
+                "CMAKE_CXX_FLAGS": "$env{CXX_FLAGS}"
+            },
+            "environment": {}
+        },
+        {
+            "name": "_gcc",
+            "hidden": true,
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "gcc",
+                "CMAKE_CXX_COMPILER": "g++"
+            }
+        },
+        {
+            "name": "_clang",
+            "hidden": true,
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "clang",
+                "CMAKE_CXX_COMPILER": "clang++"
+            }
+        },
+        {
+            "name": "clang-debug",
+            "inherits": ["_common", "_clang"],
+            "binaryDir": "build-clang/Debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "clang-dev",
+            "inherits": ["_common", "_clang"],
+            "binaryDir": "build-clang/Dev",
+            "cacheVariables": {
+                "CMAKE_C_FLAGS": "$env{C_FLAGS} -O1",
+                "CMAKE_CXX_FLAGS": "$env{CXX_FLAGS} -O1",
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "clang-reldeb",
+            "inherits": ["_common", "_clang"],
+            "binaryDir": "build-clang/RelWithDebInfo",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+            },
+            "environment": {}
+        },
+        {
+            "name": "clang-release",
+            "inherits": ["_common", "_clang"],
+            "binaryDir": "build-clang/Release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            },
+            "environment": {}
+        },
+        {
+            "name": "gcc-debug",
+            "inherits": ["_common", "_gcc"],
+            "binaryDir": "build-gcc/Debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "gcc-dev",
+            "inherits": ["_common", "_gcc"],
+            "binaryDir": "build-gcc/Dev",
+            "cacheVariables": {
+                "CMAKE_C_FLAGS": "$env{C_FLAGS} -O1",
+                "CMAKE_CXX_FLAGS": "$env{CXX_FLAGS} -O1",
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "gcc-reldeb",
+            "inherits": ["_common", "_gcc"],
+            "binaryDir": "build-gcc/RelWithDebInfo",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+            },
+            "environment": {}
+        },
+        {
+            "name": "gcc-release",
+            "inherits": ["_common", "_gcc"],
+            "binaryDir": "build-gcc/Release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            },
+            "environment": {}
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "_common",
+            "hidden": true
+        },
+        {
+            "name": "_gcc",
+            "hidden": true
+        },
+        {
+            "name": "_clang",
+            "hidden": true
+        },
+        { "name": "clang-debug",   "configurePreset": "clang-debug",   "inherits": ["_common", "_clang"] },
+        { "name": "clang-dev",     "configurePreset": "clang-dev",     "inherits": ["_common", "_clang"] },
+        { "name": "clang-reldeb",  "configurePreset": "clang-reldeb",  "inherits": ["_common", "_clang"] },
+        { "name": "clang-release", "configurePreset": "clang-release", "inherits": ["_common", "_clang"] },
+        { "name": "gcc-debug",     "configurePreset": "gcc-debug",     "inherits": ["_common", "_gcc"]   },
+        { "name": "gcc-dev",       "configurePreset": "gcc-dev",       "inherits": ["_common", "_gcc"]   },
+        { "name": "gcc-reldeb",    "configurePreset": "gcc-reldeb",    "inherits": ["_common", "_gcc"]   },
+        { "name": "gcc-release",   "configurePreset": "gcc-release",   "inherits": ["_common", "_gcc"]   }
+    ]
+}

@@ -1,12 +1,14 @@
 #pragma once
 #include "GLAPI.hpp"
-#include "GLAPIQueries.hpp"
+#include "GLAPIBinding.hpp"
+#include "GLAPITargets.hpp"
 #include "GLBuffers.hpp"
 #include "GLKind.hpp"
 #include "GLScalars.hpp"
 #include "GLMutability.hpp"
 #include "EnumUtils.hpp"
 #include "detail/MagicConstructorsMacro.hpp"
+#include "detail/MixinHeaderMacro.hpp"
 #include "detail/RawGLHandle.hpp"
 #include "detail/ConditionalMixin.hpp"
 #include "detail/StaticAssertFalseMacro.hpp"
@@ -16,39 +18,9 @@
 #include <type_traits>
 
 
-
 namespace josh {
-
-
-enum class QueryTarget : GLuint {
-    TimeElapsed                        = GLuint(gl::GL_TIME_ELAPSED),
-    Timestamp                          = GLuint(gl::GL_TIMESTAMP),
-    SamplesPassed                      = GLuint(gl::GL_SAMPLES_PASSED),
-    AnySamplesPassed                   = GLuint(gl::GL_ANY_SAMPLES_PASSED),
-    AnySamplesPassedConservative       = GLuint(gl::GL_ANY_SAMPLES_PASSED_CONSERVATIVE),
-    PrimitivesGenerated                = GLuint(gl::GL_PRIMITIVES_GENERATED),
-    VerticesSubmitted                  = GLuint(gl::GL_VERTICES_SUBMITTED),
-    PrimitivesSubmitted                = GLuint(gl::GL_PRIMITIVES_SUBMITTED),
-    VertexShaderInvocations            = GLuint(gl::GL_VERTEX_SHADER_INVOCATIONS),
-    TessControlShaderPatches           = GLuint(gl::GL_TESS_CONTROL_SHADER_PATCHES),
-    TessEvaluationShaderInvocations    = GLuint(gl::GL_TESS_EVALUATION_SHADER_INVOCATIONS),
-    GeometryShaderInvocations          = GLuint(gl::GL_GEOMETRY_SHADER_INVOCATIONS),
-    GeometryShaderPrimitivesEmitted    = GLuint(gl::GL_GEOMETRY_SHADER_PRIMITIVES_EMITTED),
-    ClippingInputPrimitives            = GLuint(gl::GL_CLIPPING_INPUT_PRIMITIVES),
-    ClippingOutputPrimitives           = GLuint(gl::GL_CLIPPING_OUTPUT_PRIMITIVES),
-    FragmentShaderInvocations          = GLuint(gl::GL_FRAGMENT_SHADER_INVOCATIONS),
-    ComputeShaderInvocations           = GLuint(gl::GL_COMPUTE_SHADER_INVOCATIONS),
-    TransformFeedbackPrimitivesWritten = GLuint(gl::GL_TRANSFORM_FEEDBACK_PRIMITIVES_WRITTEN),
-    TransformFeedbackOverflow          = GLuint(gl::GL_TRANSFORM_FEEDBACK_OVERFLOW),
-    TransformFeedbackStreamOverflow    = GLuint(gl::GL_TRANSFORM_FEEDBACK_STREAM_OVERFLOW),
-};
-
-
-
-
-
-
 namespace detail {
+namespace query_api {
 
 
 template<QueryTarget TargetV> struct query_result        { using type = GLuint64; };
@@ -62,20 +34,19 @@ template<> struct is_query_indexed<QueryTarget::TransformFeedbackStreamOverflow>
 
 
 template<typename CRTP, QueryTarget TargetV>
-struct QueryDSAInterface_Common {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mutability = mutability_traits<CRTP>::mutability;
-public:
+struct Common
+{
+    JOSH3D_MIXIN_HEADER
 
     // Wraps `glGetQueryObject*` with `pname = GL_QUERY_RESULT_AVAILABLE`.
-    bool is_available() const noexcept {
+    auto is_available() const -> bool
+    {
         GLboolean is_available;
         gl::glGetQueryObjectiv(self_id(), gl::GL_QUERY_RESULT_AVAILABLE, &is_available);
         return bool(is_available);
     }
 
-    using result_type = query_result<TargetV>::type;
+    using query_result_type = query_result<TargetV>::type;
 
     // Wraps `glGetQueryObject*` with `pname = GL_QUERY_RESULT`.
     //
@@ -87,19 +58,23 @@ public:
     // If multiple queries are issued using the same query object id before calling `glGetQueryObject`,
     // the results of the most recent query will be returned. In this case, when issuing a new query,
     // the results of the previous query are discarded.
-    auto result() const noexcept
-        -> result_type
+    auto result() const -> query_result_type
     {
-        assert(glapi::queries::bound_id(Binding::QueryBuffer) == 0);
-        if constexpr (std::same_as<result_type, GLuint64>) {
+        assert(glapi::get_bound_id(Binding::QueryBuffer) == 0);
+        if constexpr (std::same_as<query_result_type, GLuint64>)
+        {
             GLuint64 result;
             gl::glGetQueryObjectui64v(self_id(), gl::GL_QUERY_RESULT, &result);
             return result;
-        } else if constexpr (std::same_as<result_type, std::chrono::nanoseconds>) {
+        }
+        else if constexpr (std::same_as<query_result_type, std::chrono::nanoseconds>)
+        {
             GLint64 result;
             gl::glGetQueryObjecti64v(self_id(), gl::GL_QUERY_RESULT, &result);
             return std::chrono::nanoseconds{ result };
-        } else { JOSH3D_STATIC_ASSERT_FALSE(result_type); }
+        }
+        else
+        { JOSH3D_STATIC_ASSERT_FALSE(query_result_type); }
     }
 
     // Wraps `glGetQueryBufferObjectui64v` with `pname = GL_QUERY_RESULT`.
@@ -107,25 +82,19 @@ public:
     // Requires the buffer storage of at least of 64 bits to be available at `elem_offset`.
     // Will write a 64-bit unsigned integer at `elem_offset`.
     template<typename T>
-    auto write_result_to_buffer(
-        RawBuffer<GLMutable, T> buffer, GLintptr elem_offset) const noexcept
+    void write_result_to_buffer(RawBuffer<GLMutable, T> buffer, GLintptr elem_offset) const
     {
         gl::glGetQueryBufferObjectui64v(
-            self_id(), buffer.id(), gl::GL_QUERY_RESULT, elem_offset * sizeof(T)
-        );
+            self_id(), buffer.id(), gl::GL_QUERY_RESULT, elem_offset * sizeof(T));
     }
-
 };
 
 
-
-
 template<typename CRTP>
-struct QueryDSAInterface_CapabilityOfTimestamp {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mutability = mutability_traits<CRTP>::mutability;
-public:
+struct CapabilityOfTimestamp
+{
+    JOSH3D_MIXIN_HEADER
+
     // Wraps `glQueryCounter`.
     //
     // When `glQueryCounter` is called, the GL records the current time into the corresponding
@@ -133,104 +102,89 @@ public:
     // the GL client and server state and the framebuffer have been fully realized. When
     // the time is recorded, the query result for that object is marked available.
     //
-    // See also `glapi::queries::current_time()`.
-    void record_time() const noexcept
-        requires gl_mutable<mutability>
+    // See also `glapi::get_current_time()`.
+    void record_time() const requires mt::is_mutable
     {
         gl::glQueryCounter(self_id(), enum_cast<GLenum>(QueryTarget::Timestamp));
     }
-
 };
 
 
 template<typename CRTP, QueryTarget TargetV>
-struct QueryDSAInterface_CapabilityOfBeginEnd {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mutability = mutability_traits<CRTP>::mutability;
-public:
+struct CapabilityOfBeginEnd
+{
+    JOSH3D_MIXIN_HEADER
+
     // Wraps `glBeginQuery`.
-    void begin_query() const noexcept
-        requires gl_mutable<mutability>
+    void begin_query() const requires mt::is_mutable
     {
         gl::glBeginQuery(enum_cast<GLenum>(TargetV), self_id());
     }
 
     // Wraps `glEndQuery`.
-    void end_query() const noexcept
-        requires gl_mutable<mutability>
+    void end_query() const requires mt::is_mutable
     {
         gl::glEndQuery(enum_cast<GLenum>(TargetV));
     }
-
 };
 
 
 template<typename CRTP, QueryTarget TargetV>
-struct QueryDSAInterface_CapabilityOfBeginEndIndexed {
-private:
-    GLuint self_id() const noexcept { return static_cast<const CRTP&>(*this).id(); }
-    using mutability = mutability_traits<CRTP>::mutability;
-public:
+struct CapabilityOfBeginEndIndexed
+{
+    JOSH3D_MIXIN_HEADER
 
     // Wraps `glBeginQueryIndexed`.
-    void begin_query_indexed(GLuint index) const noexcept
-        requires gl_mutable<mutability>
+    void begin_query_indexed(GLuint index) const requires mt::is_mutable
     {
         gl::glBeginQueryIndexed(enum_cast<GLenum>(TargetV), index, self_id());
     }
 
     // Wraps `glEndQueryIndexed`.
-    void end_query_indexed(GLuint index) const noexcept
-        requires gl_mutable<mutability>
+    void end_query_indexed(GLuint index) const requires mt::is_mutable
     {
         gl::glEndQueryIndexed(enum_cast<GLenum>(TargetV), index, self_id());
     }
-
 };
 
 
-
 template<typename CRTP, QueryTarget TargetV>
-struct QueryDSAInterface_PrimaryCapability
-    : QueryDSAInterface_CapabilityOfBeginEnd<CRTP, TargetV>
-    , josh::detail::conditional_mixin_t<is_query_indexed<TargetV>::value,
-        QueryDSAInterface_CapabilityOfBeginEndIndexed<CRTP, TargetV>>
+struct PrimaryCapability
+    : CapabilityOfBeginEnd<CRTP, TargetV>
+    , josh::detail::conditional_mixin_t<
+        is_query_indexed<TargetV>::value,
+        CapabilityOfBeginEndIndexed<CRTP, TargetV>
+    >
 {};
 
 template<typename CRTP>
-struct QueryDSAInterface_PrimaryCapability<CRTP, QueryTarget::Timestamp>
-    : QueryDSAInterface_CapabilityOfTimestamp<CRTP>
+struct PrimaryCapability<CRTP, QueryTarget::Timestamp>
+    : CapabilityOfTimestamp<CRTP>
 {};
-
-
-
 
 template<typename CRTP, QueryTarget TargetV>
-struct QueryDSAInterface
-    : QueryDSAInterface_Common<CRTP, TargetV>
-    , QueryDSAInterface_PrimaryCapability<CRTP, TargetV>
+struct Query
+    : Common<CRTP, TargetV>
+    , PrimaryCapability<CRTP, TargetV>
 {};
 
 
+} // namespace query_api
 } // namespace detail
 
 
 
-
-
-
-#define JOSH3D_GENERATE_DSA_QUERY_CLASSES(Name)                                                                   \
-    template<mutability_tag MutT = GLMutable>                                                                     \
-    class RawQuery##Name                                                                                          \
-        : public detail::RawGLHandle<MutT>                                                                        \
-        , public detail::QueryDSAInterface<RawQuery##Name<MutT>, QueryTarget::Name>                               \
-    {                                                                                                             \
-    public:                                                                                                       \
-        static constexpr GLKind      kind_type   = GLKind::Query;                                                 \
-        static constexpr QueryTarget target_type = QueryTarget::Name;                                             \
-        JOSH3D_MAGIC_CONSTRUCTORS_2(RawQuery##Name, mutability_traits<RawQuery##Name>, detail::RawGLHandle<MutT>) \
-    };                                                                                                            \
+#define JOSH3D_GENERATE_DSA_QUERY_CLASSES(Name)                                                               \
+    template<mutability_tag MutT = GLMutable>                                                                 \
+    class RawQuery##Name                                                                                      \
+        : public detail::RawGLHandle<>                                                                        \
+        , public detail::query_api::Query<RawQuery##Name<MutT>, QueryTarget::Name>                            \
+    {                                                                                                         \
+    public:                                                                                                   \
+        static constexpr auto kind_type   = GLKind::Query;                                                    \
+        static constexpr auto target_type = QueryTarget::Name;                                                \
+        JOSH3D_MAGIC_CONSTRUCTORS_2(RawQuery##Name, mutability_traits<RawQuery##Name>, detail::RawGLHandle<>) \
+    };                                                                                                        \
     static_assert(sizeof(RawQuery##Name<GLMutable>) == sizeof(RawQuery##Name<GLConst>));
 
 

@@ -28,7 +28,7 @@ auto load_image_from_file_impl(
     bool ok = stbi_info(file.path().c_str(), &width, &height, &num_channels_in_file);
 
     if (!ok) {
-        throw error::ImageReadingError(file.path(), stbi_failure_reason());
+        throw ImageReadingError(stbi_failure_reason(), { file.path() });
     }
 
     int desired_channels = std::clamp(num_channels_in_file, int(min_channels), int(max_channels));
@@ -52,7 +52,7 @@ auto load_image_from_file_impl(
     }
 
     if (!data) {
-        throw error::ImageReadingError(file.path(), stbi_failure_reason());
+        throw ImageReadingError(stbi_failure_reason(), { file.path() });
     }
 
     int num_channels = desired_channels == 0 ? num_channels_in_file : desired_channels;

@@ -12,12 +12,13 @@
 #include "ImageData.hpp"
 #include "MeshRegistry.hpp"
 #include "OffscreenContext.hpp"
+#include "ScopeExit.hpp"
 #include "SkeletalAnimation.hpp"
 #include "Skeleton.hpp"
 #include "TextureHelpers.hpp"
 #include "CategoryCasts.hpp"
 #include "ThreadPool.hpp"
-#include "VertexPNUTB.hpp"
+#include "VertexStatic.hpp"
 #include "Coroutines.hpp"
 #include "VertexSkinned.hpp"
 #include <assimp/BaseImporter.h>
@@ -28,8 +29,6 @@
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 #include <bits/ranges_algo.h>
-#include <boost/scope/defer.hpp>
-#include <boost/scope/scope_fail.hpp>
 #include <exception>
 #include <glm/ext.hpp>
 #include <glm/ext/matrix_transform.hpp>
@@ -187,8 +186,8 @@ auto AssetManager::load_texture(AssetPath path, ImageIntent intent)
     }
     // Otherwise we need to load and resolve it ourselves.
 
-    const auto on_exception = // Resolve the pending requests with the same exception.
-        boost::scope::scope_fail([&] { cache_.fail_and_resolve_pending<AssetKind::Texture>(path); });
+    // Resolve the pending requests with the same exception.
+    ON_SCOPE_FAIL([&]{ cache_.fail_and_resolve_pending<AssetKind::Texture>(path); });
 
 
     // Do the image loading/decompression with stb.
@@ -204,18 +203,18 @@ auto AssetManager::load_texture(AssetPath path, ImageIntent intent)
 
 
     // Reschedule to the offscreen gl context.
-    {
-        co_await reschedule_to(offscreen_context_);
-    }
+    co_await reschedule_to(offscreen_context_);
 
 
     // Upload image from the offscreen context.
     SharedTexture2D texture = create_material_texture_from_image_data(data, format, type, iformat);
 
-    glapi::flush();      // Flush the texture upload (hopefully).
-    discard(MOVE(data)); // In the meantime, don't need the data anymore, destroy it.
-    glapi::finish();     // Wait until commands complete.
-    // TODO: Could await on a FenceSync instead, but it's a bother to implement.
+    {
+        // NOTE: The fence is scoped so that it is guaranteed to be destroyed in the gpu context.
+        const auto fence = create_fence(); // Fence the upload command.
+        discard(MOVE(data)); // In the meantime, don't need the data anymore, destroy it.
+        co_await completion_context_.until_ready_on(offscreen_context_, fence); // Wait until commands complete.
+    }
 
 
     // Resolve from the offscreen context.
@@ -228,7 +227,7 @@ auto AssetManager::load_texture(AssetPath path, ImageIntent intent)
     // TODO: Might be worth resolving pending from a different executor,
     // since the offscreen context is a single thread and can get pretty busy.
     cache_.cache_and_resolve_pending(asset.path, asset);
-    co_return MOVE(asset);
+    co_return SharedTextureAsset(MOVE(asset));
 }
 
 
@@ -273,8 +272,7 @@ auto AssetManager::load_cubemap(AssetPath path, CubemapIntent intent)
         co_return move_out(asset);
     }
 
-    const auto on_exception =
-        boost::scope::scope_fail([&]{ cache_.fail_and_resolve_pending<AssetKind::Cubemap>(path); });
+    ON_SCOPE_FAIL([&]{ cache_.fail_and_resolve_pending<AssetKind::Cubemap>(path); });
 
 
     std::array<File, 6> files = parse_cubemap_json_for_files(File(path.entry()));
@@ -296,7 +294,7 @@ auto AssetManager::load_cubemap(AssetPath path, CubemapIntent intent)
 
 
     {
-        co_await completion_context_.until_all_ready(jobs);
+        co_await until_all_ready(jobs);
         co_await reschedule_to(offscreen_context_);
     }
 
@@ -332,10 +330,11 @@ auto AssetManager::load_cubemap(AssetPath path, CubemapIntent intent)
         std::terminate();
     }();
 
-    glapi::flush();
-    discard(MOVE(data));
-    glapi::finish();
-
+    {
+        const auto fence = create_fence();
+        discard(MOVE(data));
+        co_await completion_context_.until_ready_on(offscreen_context_, fence);
+    }
 
     StoredCubemapAsset asset{
         .path    = MOVE(path),
@@ -401,7 +400,7 @@ auto v2v(const aiVector3D& v) noexcept
 auto q2q(const aiQuaternion& q) noexcept
     -> quat
 {
-    return { q.w, q.x, q.y, q.z };
+    return quat::wxyz(q.w, q.x, q.y, q.z);
 }
 
 
@@ -429,8 +428,8 @@ auto m2m(const aiMatrix4x4& m) noexcept
 
 
 struct StaticMeshData {
-    std::vector<VertexPNUTB> verts;
-    std::vector<uint32_t>    indices;
+    std::vector<VertexStatic> verts;
+    std::vector<uint32_t>     indices;
 };
 
 
@@ -453,22 +452,21 @@ auto get_static_mesh_data(const aiMesh& mesh)
     auto tangents   = std::span(mesh.mTangents,         mesh.mNumVertices);
     auto bitangents = std::span(mesh.mBitangents,       mesh.mNumVertices);
 
-    if (!normals.data())    { throw error::AssetContentsParsingError("Mesh data does not contain Normals.");    }
-    if (!uvs.data())        { throw error::AssetContentsParsingError("Mesh data does not contain UVs.");        }
-    if (!tangents.data())   { throw error::AssetContentsParsingError("Mesh data does not contain Tangents.");   }
-    if (!bitangents.data()) { throw error::AssetContentsParsingError("Mesh data does not contain Bitangents."); }
+    if (!normals.data())    { throw AssetContentsParsingError("Mesh data does not contain Normals.");    }
+    if (!uvs.data())        { throw AssetContentsParsingError("Mesh data does not contain UVs.");        }
+    if (!tangents.data())   { throw AssetContentsParsingError("Mesh data does not contain Tangents.");   }
+    if (!bitangents.data()) { throw AssetContentsParsingError("Mesh data does not contain Bitangents."); }
 
-    std::vector<VertexPNUTB> vertex_data;
+    std::vector<VertexStatic> vertex_data;
     vertex_data.reserve(verts.size());
 
     for (size_t i{ 0 }; i < verts.size(); ++i) {
-        const VertexPNUTB vert{
-            .position  = v2v(verts     [i]),
-            .normal    = v2v(normals   [i]),
-            .uv        = v2v(uvs       [i]),
-            .tangent   = v2v(tangents  [i]),
-            .bitangent = v2v(bitangents[i]),
-        };
+        const VertexStatic vert = VertexStatic::pack(
+            v2v(verts     [i]),
+            v2v(uvs       [i]),
+            v2v(normals   [i]),
+            v2v(tangents  [i])
+        );
         vertex_data.emplace_back(vert);
     }
 
@@ -505,8 +503,8 @@ void populate_joints_preorder(
 
         const Joint root_joint = {
             // If the node is root, then the parent index is "incorrectly" set to 255.
-            .parent_id = Joint::no_parent,
             .inv_bind  = glm::identity<mat4>(),
+            .parent_idx = Joint::no_parent,
         };
 
         const size_t root_joint_id = 0;
@@ -527,8 +525,8 @@ void populate_joints_preorder(
         assert(joint_id < 255); // Safety of the conversion must be guaranteed by prior importer checks.
 
         const Joint joint{
-            .parent_id = uint8_t(parent_id),
             .inv_bind  = m2m(bone->mOffsetMatrix),
+            .parent_idx = uint8_t(parent_id),
         };
 
         joints.emplace_back(joint);
@@ -557,11 +555,11 @@ auto get_skinned_mesh_data(
     auto tangents   = std::span(mesh.mTangents,         mesh.mNumVertices);
     auto bones      = std::span(mesh.mBones,            mesh.mNumBones   );
 
-    if (!normals.data())    { throw error::AssetContentsParsingError("Mesh data does not contain Normals.");    }
-    if (!uvs.data())        { throw error::AssetContentsParsingError("Mesh data does not contain UVs.");        }
-    if (!tangents.data())   { throw error::AssetContentsParsingError("Mesh data does not contain Tangents.");   }
-    if (!bones.data())      { throw error::AssetContentsParsingError("Mesh data does not contain Bones.");      }
-    if (bones.size() > 255) { throw error::AssetContentsParsingError("Armature has too many Bones (>255).");    }
+    if (!normals.data())    { throw AssetContentsParsingError("Mesh data does not contain Normals.");    }
+    if (!uvs.data())        { throw AssetContentsParsingError("Mesh data does not contain UVs.");        }
+    if (!tangents.data())   { throw AssetContentsParsingError("Mesh data does not contain Tangents.");   }
+    if (!bones.data())      { throw AssetContentsParsingError("Mesh data does not contain Bones.");      }
+    if (bones.size() > 255) { throw AssetContentsParsingError("Armature has too many Bones (>255).");    }
 
 
     using glm::uvec4;
@@ -643,8 +641,7 @@ auto AssetManager::load_model(AssetPath path)
         co_return move_out(asset);
     }
 
-    const auto on_exception =
-        boost::scope::scope_fail([&] { cache_.fail_and_resolve_pending<AssetKind::Model>(path); });
+    ON_SCOPE_FAIL([&] { cache_.fail_and_resolve_pending<AssetKind::Model>(path); });
 
 
 
@@ -682,7 +679,7 @@ auto AssetManager::load_model(AssetPath path)
     // Need this to get the Job from TextureIndex, since Jobs are unordered.
     std::vector<TextureJobIndex>               texid2jobid;    // Order: Textures.
     std::unordered_map<AssetPath, TextureInfo> path2texinfo;   // Order: Texture Jobs.
-    std::vector<SharedJob<SharedTextureAsset>> texture_jobs;   // Order: Texture Jobs.
+    std::vector<Job<SharedTextureAsset>>       texture_jobs;   // Order: Texture Jobs.
     std::vector<SharedTextureAsset>            texture_assets; // Order: Texture Jobs.
 
     // This is the primary result of this job.
@@ -737,7 +734,7 @@ auto AssetManager::load_model(AssetPath path)
     // until the first suspension point. For that, we need to scope *it* and other scene-related variables.
     {
         thread_local Assimp::Importer importer;
-        BOOST_SCOPE_DEFER [&] { importer.FreeScene(); };
+        ON_SCOPE_EXIT([&]{ importer.FreeScene(); });
 
         // The flags are hardcoded, the following processing
         // relies on most of these flags being always set.
@@ -757,7 +754,7 @@ auto AssetManager::load_model(AssetPath path)
 
         const aiScene* ai_scene = importer.ReadFile(path.entry(), flags);
 
-        if (!ai_scene) { throw error::AssetFileImportFailure(path.entry(), importer.GetErrorString()); }
+        if (!ai_scene) { throw AssetFileImportFailure(importer.GetErrorString(), { path.entry() }); }
 
         const size_t num_meshes    = ai_scene->mNumMeshes;
         const size_t num_materials = ai_scene->mNumMaterials;
@@ -982,11 +979,11 @@ auto AssetManager::load_model(AssetPath path)
 
         const overloaded data_to_asset{
             [&](StaticMeshData& data) -> StoredMeshAsset {
-                const std::span<const VertexPNUTB> verts   = data.verts;
+                const std::span<const VertexStatic> verts   = data.verts;
                 const std::span<const GLuint>      indices = data.indices;
 
-                SharedBuffer<VertexPNUTB> verts_buf   = specify_buffer(verts,   { .mode = StorageMode::StaticServer });
-                SharedBuffer<GLuint>      indices_buf = specify_buffer(indices, { .mode = StorageMode::StaticServer });
+                SharedBuffer<VertexStatic> verts_buf   = specify_buffer(verts,   { .mode = StorageMode::StaticServer });
+                SharedBuffer<GLuint>       indices_buf = specify_buffer(indices, { .mode = StorageMode::StaticServer });
 
                 StoredMeshAsset mesh_asset{
                     .path     = MOVE(mesh_info.path),
@@ -1045,7 +1042,7 @@ auto AssetManager::load_model(AssetPath path)
     for (auto& mesh_asset : mesh_assets) {
         const overloaded insert_data_and_assign_mesh_id{
             [&](SharedMeshAsset& asset) {
-                MeshStorage<VertexPNUTB>& storage = mesh_registry_.ensure_storage_for<VertexPNUTB>();
+                MeshStorage<VertexStatic>& storage = mesh_registry_.ensure_storage_for<VertexStatic>();
                 asset.mesh_id = storage.insert_buffer(asset.vertices, asset.indices);
             },
             [&](SharedSkinnedMeshAsset& asset) {
@@ -1068,7 +1065,7 @@ auto AssetManager::load_model(AssetPath path)
     //   There, we *just somehow wait* until all of the subtasks
     //   are complete, and *only then* reschedule back to the thread pool.
     {
-        co_await completion_context_.until_all_ready(texture_jobs);
+        co_await until_all_ready(texture_jobs);
         co_await reschedule_to(thread_pool_);
     }
 

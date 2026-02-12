@@ -21,4 +21,12 @@ using CHandle  = entt::const_handle;
 using Registry = entt::registry;
 
 
+/*
+While entt::null *is* a cute emulation of nullptr, it sadly
+does not work well with template deduction where the actual
+entity type would be expected.
+*/
+constexpr auto nullent = Entity(entt::null);
+
+
 } // namespace josh

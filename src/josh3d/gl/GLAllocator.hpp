@@ -1,134 +1,87 @@
 #pragma once
 #include "CommonConcepts.hpp"
 #include "GLAPI.hpp"
+#include "GLAPITargets.hpp"
 #include "GLScalars.hpp"
 #include "GLKind.hpp"
-#include <glbinding/gl/functions.h>
+#include <concepts>
 
 
 namespace josh {
-
-
 namespace detail {
 
 
-struct TextureAllocator {
-    using request_arg_type = GLenum;
-    static GLuint request(GLenum target) noexcept {
-        GLuint id;
-        gl::glCreateTextures(target, 1, &id);
-        return id;
-    }
-    static void release(GLuint id) noexcept {
-        gl::glDeleteTextures(1, &id);
-    }
+struct TextureAllocator
+{
+    using request_arg_type = TextureTarget;
+    static auto request(request_arg_type target) -> GLuint { GLuint id; gl::glCreateTextures(enum_cast<GLenum>(target), 1, &id); return id; }
+    static void release(GLuint id) { gl::glDeleteTextures(1, &id); }
 };
 
-struct BufferAllocator {
+struct BufferAllocator
+{
     using request_arg_type = void;
-    static GLuint request() noexcept {
-        GLuint id;
-        gl::glCreateBuffers(1, &id);
-        return id;
-    }
-    static void release(GLuint id) noexcept {
-        gl::glDeleteBuffers(1, &id);
-    }
+    static auto request(request_arg_type) -> GLuint { GLuint id; gl::glCreateBuffers(1, &id); return id; }
+    static void release(GLuint id) { gl::glDeleteBuffers(1, &id); }
 };
 
-struct VertexArrayAllocator {
+struct VertexArrayAllocator
+{
     using request_arg_type = void;
-    static GLuint request() noexcept {
-        GLuint id;
-        gl::glCreateVertexArrays(1, &id);
-        return id;
-    }
-    static void release(GLuint id) noexcept {
-        gl::glDeleteVertexArrays(1, &id);
-    }
+    static auto request(request_arg_type) -> GLuint { GLuint id; gl::glCreateVertexArrays(1, &id); return id; }
+    static void release(GLuint id) { gl::glDeleteVertexArrays(1, &id); }
 };
 
-struct FramebufferAllocator {
+struct FramebufferAllocator
+{
     using request_arg_type = void;
-    static GLuint request() noexcept {
-        GLuint id;
-        gl::glCreateFramebuffers(1, &id);
-        return id;
-    }
-    static void release(GLuint id) noexcept {
-        gl::glDeleteFramebuffers(1, &id);
-    }
+    static auto request(request_arg_type) -> GLuint { GLuint id; gl::glCreateFramebuffers(1, &id); return id; }
+    static void release(GLuint id) { gl::glDeleteFramebuffers(1, &id); }
 };
 
-struct RenderbufferAllocator {
+struct RenderbufferAllocator
+{
     using request_arg_type = void;
-    static GLuint request() noexcept {
-        GLuint id;
-        gl::glCreateRenderbuffers(1, &id);
-        return id;
-    }
-    static void release(GLuint id) noexcept {
-        gl::glDeleteRenderbuffers(1, &id);
-    }
+    static auto request(request_arg_type) -> GLuint { GLuint id; gl::glCreateRenderbuffers(1, &id); return id; }
+    static void release(GLuint id) { gl::glDeleteRenderbuffers(1, &id); }
 };
 
-struct ShaderAllocator {
-    using request_arg_type = GLenum;
-    static GLuint request(GLenum shader_type) noexcept {
-        return gl::glCreateShader(shader_type);
-    }
-    static void release(GLuint id) noexcept {
-        gl::glDeleteShader(id);
-    }
+struct ShaderAllocator
+{
+    using request_arg_type = ShaderTarget;
+    static auto request(request_arg_type target) -> GLuint { return gl::glCreateShader(enum_cast<GLenum>(target)); }
+    static void release(GLuint id) { gl::glDeleteShader(id); }
 };
 
-struct ProgramAllocator {
+struct ProgramAllocator
+{
     using request_arg_type = void;
-    static GLuint request() noexcept {
-        return gl::glCreateProgram();
-    }
-    static void release(GLuint id) noexcept {
-        gl::glDeleteProgram(id);
-    }
+    static auto request(request_arg_type) -> GLuint { return gl::glCreateProgram(); }
+    static void release(GLuint id) { gl::glDeleteProgram(id); }
 };
 
-struct FenceSyncAllocator {
-    using request_arg_type = GLenum;
-    static gl::GLsync request(GLenum target) noexcept {
-        return gl::glFenceSync(target, {});
-    }
-    static void release(gl::GLsync id) noexcept {
-        gl::glDeleteSync(id);
-    }
+struct FenceSyncAllocator
+{
+    using request_arg_type = FenceSyncTarget;
+    static auto request(request_arg_type target) -> gl::GLsync { return gl::glFenceSync(enum_cast<GLenum>(target), {}); }
+    static void release(gl::GLsync id) { gl::glDeleteSync(id); }
 };
 
-struct QueryAllocator {
-    using request_arg_type = GLenum;
-    static GLuint request(GLenum target) noexcept {
-        GLuint id;
-        gl::glCreateQueries(target, 1, &id);
-        return id;
-    }
-    static void release(GLuint id) noexcept {
-        gl::glDeleteQueries(1, &id);
-    }
+struct QueryAllocator
+{
+    using request_arg_type = QueryTarget;
+    static auto request(request_arg_type target) -> GLuint { GLuint id; gl::glCreateQueries(enum_cast<GLenum>(target), 1, &id); return id; }
+    static void release(GLuint id) { gl::glDeleteQueries(1, &id); }
 };
 
-struct SamplerAllocator {
+struct SamplerAllocator
+{
     using request_arg_type = void;
-    static GLuint request() noexcept {
-        GLuint id;
-        gl::glCreateSamplers(1, &id);
-        return id;
-    }
-    static void release(GLuint id) noexcept {
-        gl::glDeleteSamplers(1, &id);
-    }
+    static auto request(request_arg_type) -> GLuint { GLuint id; gl::glCreateSamplers(1, &id); return id; }
+    static void release(GLuint id) { gl::glDeleteSamplers(1, &id); }
 };
-
 
 } // namespace detail
-
 
 
 /*
@@ -144,7 +97,6 @@ struct GLAllocator;
         : detail::Kind##Allocator             \
     {};
 
-
 JOSH3D_SPECIALIZE_DSA_ALLOCATOR(Texture)
 JOSH3D_SPECIALIZE_DSA_ALLOCATOR(Buffer)
 JOSH3D_SPECIALIZE_DSA_ALLOCATOR(VertexArray)
@@ -158,15 +110,12 @@ JOSH3D_SPECIALIZE_DSA_ALLOCATOR(Sampler)
 
 #undef JOSH3D_SPECIALIZE_DSA_ALLOCATOR
 
-
-
 template<typename RawH>
-concept supports_gl_allocator = requires {
-   requires same_as_remove_cvref<decltype(RawH::kind_type), GLKind>;
-   requires sizeof(GLAllocator<RawH::kind_type>) != 0;
+concept supports_gl_allocator = requires
+{
+    { RawH::kind_type } -> std::convertible_to<GLKind>;
+    typename GLAllocator<RawH::kind_type>;
 };
-
-
 
 
 } // namespace josh

@@ -1,8 +1,8 @@
 #pragma once
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 
 
-namespace josh::stages::precompute {
+namespace josh {
 
 
 /*
@@ -17,10 +17,10 @@ with the transforms chained from the root of the scene-graph.
 TODO: I'm not really sure if this should be a precompute stage, or
 existence of MTransforms is just part of the contract in displaying the entities.
 */
-class TransformResolution {
-public:
-    void operator()(RenderEnginePrecomputeInterface& engine);
+struct TransformResolution
+{
+    void operator()(PrecomputeContext context);
 };
 
 
-} // namespace josh::stages::precompute
+} // namespace josh

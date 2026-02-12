@@ -2,65 +2,61 @@
 #include "Active.hpp"
 #include "Asset.hpp"
 #include "AssetManager.hpp"
+#include "AsyncCradle.hpp"
 #include "CategoryCasts.hpp"
 #include "ContainerUtils.hpp"
+#include "DefaultTextures.hpp"
 #include "FrameTimer.hpp"
 #include "GLAPIBinding.hpp"
+#include "GLAPILimits.hpp"
+#include "ID.hpp"
+#include "ImGuiExtras.hpp"
 #include "ImGuiHelpers.hpp"
+#include "ImGuiResourceViewer.hpp"
 #include "ImGuiSceneList.hpp"
 #include "ImGuiSelected.hpp"
 #include "ImGuizmoGizmos.hpp"
 #include "Camera.hpp"
+#include "Logging.hpp"
+#include "Materials.hpp"
+#include "Ranges.hpp"
 #include "RenderEngine.hpp"
-#include "SceneImporter.hpp"
 #include "Region.hpp"
+#include "SkeletonStorage.hpp"
+#include "Time.hpp"
+#include "Tracy.hpp"
 #include "Transform.hpp"
 #include "VPath.hpp"
 #include "VirtualFilesystem.hpp"
-#include <exception>
+#include "glfwpp/window.h"
+#include <cinttypes>
+#include <fmt/core.h>
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <imgui_stdlib.h>
 #include <range/v3/view/enumerate.hpp>
+#include <exception>
 #include <cmath>
 #include <cstdio>
 #include <iterator>
-#include <optional>
-
-
 
 
 namespace josh {
 
 
 ImGuiApplicationAssembly::ImGuiApplicationAssembly(
-    glfw::Window&      window,
-    RenderEngine&      engine,
-    entt::registry&    registry,
-    AssetManager&      asset_manager,
-    AssetUnpacker&     asset_unpacker,
-    SceneImporter&     scene_importer,
-    VirtualFilesystem& vfs
+    glfw::Window& window,
+    Runtime&      runtime
 )
-    : window_         { window             }
-    , engine_         { engine             }
-    , registry_       { registry           }
-    , asset_manager_  { asset_manager      }
-    , asset_unpacker_ { asset_unpacker     }
-    , vfs_            { vfs                }
-    , context_        { window             }
-    , window_settings_{ window             }
-    , vfs_control_    { vfs                }
-    , stage_hooks_    { engine             }
-    , scene_list_     { registry, asset_manager, asset_unpacker, scene_importer }
-    , asset_browser_  { asset_manager      }
-    , selected_menu_  { registry           }
-    , gizmos_         { registry           }
+    : window(window)
+    , runtime(runtime)
+    , imgui_context(window)
 {}
 
-
-ImGuiIOWants ImGuiApplicationAssembly::get_io_wants() const noexcept {
+auto ImGuiApplicationAssembly::get_io_wants() const noexcept
+    -> ImGuiIOWants
+{
     auto& io = ImGui::GetIO();
-
     return {
         .capture_mouse     = io.WantCaptureMouse,
         .capture_mouse_unless_popup_close
@@ -72,57 +68,173 @@ ImGuiIOWants ImGuiApplicationAssembly::get_io_wants() const noexcept {
     };
 }
 
+void ImGuiApplicationAssembly::new_frame(const FrameTimer& frame_timer)
+{
+    ZS;
+    const float dt = frame_timer.delta<float>();
+    _avg_frame_timer.update(dt);
 
-void ImGuiApplicationAssembly::new_frame() {
-    // FIXME: Use external FrameTimer.
-    avg_frame_timer_.update(globals::frame_timer.delta<float>());
+    _frame_deltas.resize(_num_frames_plotted);
+    _frame_offset = (_frame_offset + 1) % int(_frame_deltas.size());
+    _frame_deltas.at(_frame_offset) = dt * 1.e3f; // Convert to ms.
 
-    std::snprintf(
-        fps_str_.data(), fps_str_.size() + 1,
-        fps_str_fmt_,
-        1.f / avg_frame_timer_.get_current_average()
-    );
+    std::snprintf(_fps_str.data(), _fps_str.size() + 1,
+        _fps_str_fmt, 1.f / _avg_frame_timer.get_current_average());
 
-    std::snprintf(
-        frametime_str_.data(), frametime_str_.size() + 1,
-        frametime_str_fmt_,
-        avg_frame_timer_.get_current_average() * 1.E3f // s -> ms
-    );
+    std::snprintf(_frametime_str.data(), _frametime_str.size() + 1,
+        _frametime_str_fmt, _avg_frame_timer.get_current_average() * 1.E3f); // s -> ms
 
-    std::snprintf(
-        gizmo_info_str_.data(), gizmo_info_str_.size() + 1,
-        gizmo_info_str_fmt_,
-        [this]() -> char {
-            switch (active_gizmo_space()) {
-                using enum GizmoSpace;
-                case World: return 'W';
-                case Local: return 'L';
-                default:    return ' ';
-            }
-        }(),
-        [this]() -> char {
-            switch (active_gizmo_operation()) {
-                using enum GizmoOperation;
-                case Translation: return 'T';
-                case Rotation:    return 'R';
-                case Scaling:     return 'S';
-                default:          return ' ';
-            }
-        }()
-    );
+    const char space_char = eval%[this]{
+        switch (gizmos.active_space)
+        {
+            using enum GizmoSpace;
+            case World: return 'W';
+            case Local: return 'L';
+            default:    return ' ';
+        }
+    };
 
-    context_.new_frame();
-    gizmos_.new_frame();
+    const char op_char = eval%[this]{
+        switch (gizmos.active_operation)
+        {
+            using enum GizmoOperation;
+            case Translation: return 'T';
+            case Rotation:    return 'R';
+            case Scaling:     return 'S';
+            default:          return ' ';
+        }
+    };
+
+    std::snprintf(_gizmo_info_str.data(), _gizmo_info_str.size() + 1,
+        _gizmo_info_str_fmt, space_char, op_char);
+
+    imgui_context.new_frame();
+    gizmos.new_frame();
 }
 
+namespace {
 
-void ImGuiApplicationAssembly::draw_widgets() {
+// TODO: Deprecate
+void display_asset_manager_debug(AssetManager& asset_manager)
+{
+    thread_local Optional<SharedTextureAsset>            texture_asset;
+    thread_local Optional<SharedJob<SharedTextureAsset>> last_texture_job;
+    thread_local String                                  texture_vpath;
 
+    thread_local Optional<SharedModelAsset>            model_asset;
+    thread_local Optional<SharedJob<SharedModelAsset>> last_model_job;
+    thread_local String                                model_vpath;
+
+    thread_local String last_error;
+
+    if (last_texture_job and not last_texture_job->is_ready())
+        ImGui::TextUnformatted("Loading Texture...");
+
+    if (last_model_job and not last_model_job->is_ready())
+        ImGui::TextUnformatted("Loading Model...");
+
+    if (last_texture_job && last_texture_job->is_ready()) {
+        try {
+            texture_asset = move_out(last_texture_job).get_result();
+            glapi::make_available<Binding::Texture2D>(texture_asset->texture->id());
+            last_error = {};
+        } catch (const std::exception& e) {
+            last_error = e.what();
+        }
+    }
+    if (last_model_job && last_model_job->is_ready()) {
+        try {
+            model_asset = move_out(last_model_job).get_result();
+            for (auto& mesh : model_asset->meshes) {
+                visit([&]<typename T>(T& mesh_asset) {
+                    if (auto* asset = try_get(mesh_asset.diffuse )) { glapi::make_available<Binding::Texture2D>(asset->texture->id()); }
+                    if (auto* asset = try_get(mesh_asset.specular)) { glapi::make_available<Binding::Texture2D>(asset->texture->id()); }
+                    if (auto* asset = try_get(mesh_asset.normal  )) { glapi::make_available<Binding::Texture2D>(asset->texture->id()); }
+                    glapi::make_available<Binding::ArrayBuffer>       (mesh_asset.vertices->id());
+                    glapi::make_available<Binding::ElementArrayBuffer>(mesh_asset.indices->id() );
+                }, mesh);
+            }
+        } catch (const std::exception& e) {
+            last_error = e.what();
+        }
+    }
+
+
+    if (texture_asset) {
+        ImGui::TextUnformatted(texture_asset->path.entry().c_str());
+        ImGui::ImageGL(texture_asset->texture->id(), { 480, 480 });
+    }
+    if (model_asset) {
+        ImGui::TextUnformatted(model_asset->path.entry().c_str());
+        for (auto& mesh : model_asset->meshes) {
+            size_t next_id{ 0 };
+            GLuint ids[3];
+            visit([&]<typename T>(T& mesh) {
+                ImGui::TextUnformatted(mesh.path.subpath().begin());
+                if (auto* asset = try_get(mesh.diffuse )) { ids[next_id++] = asset->texture->id(); }
+                if (auto* asset = try_get(mesh.specular)) { ids[next_id++] = asset->texture->id(); }
+                if (auto* asset = try_get(mesh.normal  )) { ids[next_id++] = asset->texture->id(); }
+            }, mesh);
+            const auto visible_ids = std::span(ids, next_id);
+            using ranges::views::enumerate;
+            for (auto [i, id] : enumerate(visible_ids)) {
+                ImGui::ImageGL(id, { 64, 64 });
+                if (i < visible_ids.size() - 1) { ImGui::SameLine(); }
+            }
+        }
+    }
+
+
+    auto load_texture_later = on_signal([&] {
+        try {
+            Path path = vfs().resolve_path(VPath(texture_vpath));
+            last_texture_job = asset_manager.load_texture({ MOVE(path) }, ImageIntent::Unknown);
+        } catch (const std::exception& e) {
+            last_error = e.what();
+        }
+    });
+    auto load_model_later = on_signal([&] {
+        try {
+            Path path = vfs().resolve_path(VPath(model_vpath));
+            last_model_job = asset_manager.load_model({ MOVE(path) });
+        } catch (const std::exception& e) {
+            last_error = e.what();
+        }
+    });
+
+
+    if (ImGui::InputText("VPath##Texture", &texture_vpath, ImGuiInputTextFlags_EnterReturnsTrue)) {
+        load_texture_later.set(true);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Load Texture")) {
+        load_texture_later.set(true);
+    }
+
+    if (ImGui::InputText("VPath##Model", &model_vpath, ImGuiInputTextFlags_EnterReturnsTrue)) {
+        load_model_later.set(true);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Load Model")) {
+        load_model_later.set(true);
+    }
+
+
+
+    if (!last_error.empty()) {
+        ImGui::TextUnformatted(last_error.c_str());
+    }
+}
+
+} // namespace
+
+void ImGuiApplicationAssembly::_draw_widgets()
+{
     // TODO: Keep active windows within docknodes across "hides".
-
     auto bg_col = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
     bg_col.w = 0.f;
     ImGui::PushStyleColor(ImGuiCol_WindowBg, bg_col);
+
     // FIXME: This is probably terribly broken in some way.
     // For the frames that reset the dockspace, this initialization
     // may be reset before OR after the widgets are drawn:
@@ -131,344 +243,212 @@ void ImGuiApplicationAssembly::draw_widgets() {
     // How it still works somewhat "correctly" after both,
     // is beyond me.
     const ImGuiID dockspace_id = 1; // TODO: Is this an arbitraty nonzero value? IDK after the API change.
-    ImGui::DockSpaceOverViewport(
-        dockspace_id,
-        ImGui::GetMainViewport(),
-        ImGuiDockNodeFlags_PassthruCentralNode
-    );
+    ImGui::DockSpaceOverViewport(dockspace_id, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
     ImGui::PopStyleColor();
 
-    // FIXME: Terrible, maybe will add "was resized" flag to WindowSizeCache instead.
-    static Extent2F old_size{ 0, 0 };
-    auto vport_size = ImGui::GetMainViewport()->Size;
-    Extent2F new_size = { vport_size.x, vport_size.y };
-    if (old_size != new_size) {
-        // Do the reset inplace, before the windows are submitted.
-        reset_dockspace(dockspace_id);
-        old_size = new_size;
-    }
-
-    if (!is_hidden()) {
-
-        auto reset_later = on_signal([&, this] { reset_dockspace(dockspace_id); });
-
-        auto bg_col = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
-        bg_col.w = background_alpha;
-        ImGui::PushStyleColor(ImGuiCol_WindowBg, bg_col);
-
-
-        if (ImGui::BeginMainMenuBar()) {
-            ImGui::TextUnformatted("Josh3D-Demo");
-
+    if (not hidden)
+    {
+        if (ImGui::BeginMainMenuBar())
+        {
+            ImGui::TextUnformatted("JoshEd");
             ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical);
 
-
-            if (ImGui::BeginMenu("Window")) {
-                window_settings_.display();
+            if (ImGui::BeginMenu("Window"))
+            {
+                window_settings.display(*this);
                 ImGui::EndMenu();
             }
 
-
-            if (ImGui::BeginMenu("ImGui")) {
-                ImGui::Checkbox("Render Engine", &show_engine_hooks );
-                ImGui::Checkbox("Scene",         &show_scene_list   );
-                ImGui::Checkbox("Selected",      &show_selected     );
-                ImGui::Checkbox("Assets",        &show_asset_browser);
-                ImGui::Checkbox("Demo Window",   &show_demo_window  );
-                ImGui::Checkbox("Asset Manager", &show_asset_manager);
+            if (ImGui::BeginMenu("ImGui"))
+            {
+                ImGui::Checkbox("Render Engine",  &show_engine_hooks   );
+                ImGui::Checkbox("Scene",          &show_scene_list     );
+                ImGui::Checkbox("Selected",       &show_selected       );
+                ImGui::Checkbox("Demo Window",    &show_demo_window    );
+                ImGui::Checkbox("Asset Manager",  &show_asset_manager  );
+                ImGui::Checkbox("Resource Files", &show_resource_viewer);
+                ImGui::Checkbox("Frame Graph",    &show_frame_graph    );
+                ImGui::Checkbox("Logs",           &show_log_window     );
+                ImGui::Checkbox("Debug",          &show_debug_window   );
 
                 ImGui::Separator();
 
-                ImGui::SliderFloat(
-                    "FPS Avg. Interval, s", &avg_frame_timer_.averaging_interval,
-                    0.001f, 5.f, "%.3f", ImGuiSliderFlags_Logarithmic
-                );
+                ImGui::SliderFloat("FPS Avg. Interval, s", &_avg_frame_timer.averaging_interval,
+                    0.001f, 5.f, "%.3f", ImGuiSliderFlags_Logarithmic);
 
                 ImGui::SliderFloat("Bg. Alpha", &background_alpha, 0.f, 1.f);
 
-                reset_later.set(ImGui::Button("Reset Dockspace"));
+                ImGui::Checkbox("Gizmo Debug Window", &gizmos.display_debug_window);
+                ImGui::EnumListBox("Gizmo Location", &gizmos.preferred_location);
 
-                ImGui::Checkbox("Gizmo Debug Window", &gizmos_.display_debug_window);
-
-                const char* gizmo_locations[] = {
-                    "Local Origin",
-                    "AABB Midpoint"
-                };
-
-                int location_id = to_underlying(gizmos_.preferred_location);
-                if (ImGui::ListBox("Gizmo Locaton", &location_id,
-                    gizmo_locations, std::size(gizmo_locations), 2))
-                {
-                    gizmos_.preferred_location = GizmoLocation{ location_id };
-                }
-
-                ImGui::Checkbox("Show Model Matrix in Selected", &selected_menu_.display_model_matrix);
+                ImGui::Checkbox("Show Model Matrix in Selected", &selected_menu.display_model_matrix);
+                ImGui::Checkbox("Show All Components in Selected", &selected_menu.display_all_components);
 
                 ImGui::EndMenu();
             }
 
-
-            if (ImGui::BeginMenu("Engine")) {
-
-                ImGui::Checkbox("RGB -> sRGB",    &engine_.enable_srgb_conversion);
-                ImGui::Checkbox("GPU/CPU Timers", &engine_.capture_stage_timings );
-
-                ImGui::BeginDisabled(!engine_.capture_stage_timings);
-                ImGui::SliderFloat(
-                    "Timing Interval, s", &engine_.stage_timing_averaging_interval_s,
-                    0.001f, 5.f, "%.3f", ImGuiSliderFlags_Logarithmic
-                );
-                ImGui::EndDisabled();
-
-                using HDRFormat = RenderEngine::HDRFormat;
-
-                const HDRFormat formats[3]{
-                    HDRFormat::R11F_G11F_B10F,
-                    HDRFormat::RGB16F,
-                    HDRFormat::RGB32F
-                };
-
-                const char* format_names[3]{
-                    "R11F_G11F_B10F",
-                    "RGB16F",
-                    "RGB32F",
-                };
-
-                size_t current_idx = 0;
-                for (const HDRFormat format : formats) {
-                    if (format == engine_.main_buffer_format) { break; }
-                    ++current_idx;
-                }
-
-                if (ImGui::BeginCombo("HDR Format", format_names[current_idx])) {
-                    for (size_t i{ 0 }; i < std::size(formats); ++i) {
-                        if (ImGui::Selectable(format_names[i], current_idx == i)) {
-                            engine_.main_buffer_format = formats[i];
-                        }
-                    }
-                    ImGui::EndCombo();
-                }
-
-                ImGui::EndMenu();
-            }
-
-
-            if (ImGui::BeginMenu("VFS")) {
-                vfs_control_.display();
-                ImGui::EndMenu();
-            }
-
-
+            if (ImGui::BeginMenu("Engine"))
             {
-                auto log_view = log_sink_.view();
-                const bool new_logs = log_view.size() > last_log_size_;
+                auto& engine = runtime.renderer;
+                ImGui::Checkbox("RGB -> sRGB", &engine.enable_srgb_conversion);
 
-                if (new_logs) {
-                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4{ 1.0, 1.0, 0.0, 1.0 });
+                // TODO: Reintroduce a way to pause measurements once that's supported.
+
+                // TODO: DurationSlider()/DurationDrag()?
+                auto interval = runtime.perf_assembly.flush_interval.to_seconds<float>();
+                if (ImGui::SliderFloat("Timing Interval, s", &interval,
+                    0.001f, 5.f, "%.3f", ImGuiSliderFlags_Logarithmic))
+                {
+                    runtime.perf_assembly.flush_interval = TimeDeltaNS::from_seconds(interval);
                 }
+
+                auto color_format = engine.main_color_format();
+                auto depth_format = engine.main_depth_format();
+                auto resolution   = engine.main_resolution();
+
+                bool do_respec = false;
+                do_respec |= ImGui::EnumCombo("Color Format", &color_format);
+                do_respec |= ImGui::EnumCombo("Depth Format", &depth_format);
+                ImGui::Checkbox("Fit Window", &engine.fit_window_size);
+                ImGui::BeginDisabled(engine.fit_window_size);
+                do_respec |= ImGui::SliderInt2("Main Resolution", &resolution.width, 16, 4096);
+                ImGui::EndDisabled();
+                if (do_respec)
+                    engine.respec_main_target(resolution, color_format, depth_format);
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("VFS"))
+            {
+                vfs_control.display(*this);
+                ImGui::EndMenu();
+            }
+
+            // Logs.
+            // TODO: This should probably be removed.
+            {
+                auto log_view = _log_sink.view();
+                const bool new_logs = log_view.size() > _last_log_size;
+
+                if (new_logs)
+                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4{ 1.0, 1.0, 0.0, 1.0 });
 
                 // NOTE: This is somewhat messy. If this is common, might be worth writing helpers.
                 thread_local bool logs_open_b4 = false;
                 const bool        logs_open    = ImGui::BeginMenu("Logs");
 
-                if (new_logs) {
+                if (new_logs)
                     ImGui::PopStyleColor();
-                }
 
-                const bool was_closed = !logs_open && logs_open_b4;
+                const bool was_closed = not logs_open and logs_open_b4;
 
-                if (logs_open) {
+                if (logs_open)
+                {
                     ImGui::TextUnformatted(log_view.begin(), log_view.end());
                     ImGui::EndMenu();
                 }
 
-                if (was_closed) {
-                    last_log_size_ = log_view.size();
-                }
+                if (was_closed)
+                    _last_log_size = log_view.size();
 
                 logs_open_b4 = logs_open;
             }
 
+            const auto num_tasks = runtime.async_cradle.task_counter.hint_num_tasks_in_flight();
+            if (num_tasks)
+                ImGui::Text("[%zu]", num_tasks);
 
-            const float size_gizmo     = ImGui::CalcTextSize(gizmo_info_str_template_).x;
-            const float size_fps       = ImGui::CalcTextSize(fps_str_template_).x;
-            const float size_frametime = ImGui::CalcTextSize(frametime_str_template_).x;
+            const float size_gizmo     = ImGui::CalcTextSize(_gizmo_info_str_template).x;
+            const float size_fps       = ImGui::CalcTextSize(_fps_str_template).x;
+            const float size_frametime = ImGui::CalcTextSize(_frametime_str_template).x;
 
             ImGui::SameLine(ImGui::GetContentRegionMax().x - (size_gizmo + size_fps + size_frametime));
-            ImGui::TextUnformatted(gizmo_info_str_.c_str());
+            ImGui::TextUnformatted(_gizmo_info_str.c_str());
             ImGui::SameLine(ImGui::GetContentRegionMax().x - (size_fps + size_frametime));
-            ImGui::TextUnformatted(fps_str_.c_str());
+            ImGui::TextUnformatted(_fps_str.c_str());
             ImGui::SameLine(ImGui::GetContentRegionMax().x - (size_frametime));
-            ImGui::TextUnformatted(frametime_str_.c_str());
+            ImGui::TextUnformatted(_frametime_str.c_str());
 
             ImGui::EndMainMenuBar();
         }
 
-
-        if (show_engine_hooks) {
-            if (ImGui::Begin("Render Engine")) {
-                stage_hooks_.display();
-            } ImGui::End();
+        if (show_frame_graph)
+        {
+            if (ImGui::Begin("Frame Graph"))
+                _display_frame_graph();
+            ImGui::End();
         }
 
-        if (show_selected) {
-            if (ImGui::Begin("Selected")) {
-                selected_menu_.display();
-            } ImGui::End();
+        if (show_engine_hooks)
+        {
+            if (ImGui::Begin("Render Engine"))
+                stage_hooks.display(*this);
+            ImGui::End();
         }
 
-        if (show_scene_list) {
-            if (ImGui::Begin("Scene")) {
-                scene_list_.display();
-            } ImGui::End();
+        if (show_selected)
+        {
+            if (ImGui::Begin("Selected"))
+                selected_menu.display(*this);
+            ImGui::End();
         }
 
-        if (show_asset_browser) {
-            if (ImGui::Begin("Assets")) {
-                asset_browser_.display();
-            } ImGui::End();
+        if (show_scene_list)
+        {
+            if (ImGui::Begin("Scene"))
+                scene_list.display(*this);
+            ImGui::End();
         }
 
-        if (show_demo_window) {
+        if (show_demo_window)
             ImGui::ShowDemoWindow();
+
+        if (show_asset_manager)
+        {
+            if (ImGui::Begin("Asset Manager"))
+                display_asset_manager_debug(runtime.asset_manager);
+            ImGui::End();
         }
 
-        if (show_asset_manager) {
-            if (ImGui::Begin("Asset Manager")) {
-                thread_local std::optional<SharedTextureAsset>            texture_asset;
-                thread_local std::optional<SharedJob<SharedTextureAsset>> last_texture_job;
-                thread_local std::string                                  texture_vpath;
-
-                thread_local std::optional<SharedModelAsset>            model_asset;
-                thread_local std::optional<SharedJob<SharedModelAsset>> last_model_job;
-                thread_local std::string                                model_vpath;
-
-                thread_local std::string last_error;
-
-
-                if (last_texture_job && !last_texture_job->is_ready()) {
-                    ImGui::TextUnformatted("Loading Texture...");
-                }
-                if (last_model_job && !last_model_job->is_ready()) {
-                    ImGui::TextUnformatted("Loading Model...");
-                }
-
-
-                if (last_texture_job && last_texture_job->is_ready()) {
-                    try {
-                        texture_asset = move_out(last_texture_job).get_result();
-                        make_available<Binding::Texture2D>(texture_asset->texture->id());
-                        last_error = {};
-                    } catch (const std::exception& e) {
-                        last_error = e.what();
-                    }
-                }
-                if (last_model_job && last_model_job->is_ready()) {
-                    try {
-                        model_asset = move_out(last_model_job).get_result();
-                        for (auto& mesh : model_asset->meshes) {
-                            visit([&]<typename T>(T& mesh_asset) {
-                                if (auto* asset = try_get(mesh_asset.diffuse )) { make_available<Binding::Texture2D>(asset->texture->id()); }
-                                if (auto* asset = try_get(mesh_asset.specular)) { make_available<Binding::Texture2D>(asset->texture->id()); }
-                                if (auto* asset = try_get(mesh_asset.normal  )) { make_available<Binding::Texture2D>(asset->texture->id()); }
-                                make_available<Binding::ArrayBuffer>       (mesh_asset.vertices->id());
-                                make_available<Binding::ElementArrayBuffer>(mesh_asset.indices->id() );
-                            }, mesh);
-                        }
-                    } catch (const std::exception& e) {
-                        last_error = e.what();
-                    }
-                }
-
-
-                if (texture_asset) {
-                    ImGui::TextUnformatted(texture_asset->path.entry().c_str());
-                    imgui::ImageGL(texture_asset->texture->id(), { 480, 480 });
-                }
-                if (model_asset) {
-                    ImGui::TextUnformatted(model_asset->path.entry().c_str());
-                    for (auto& mesh : model_asset->meshes) {
-                        size_t next_id{ 0 };
-                        GLuint ids[3];
-                        visit([&]<typename T>(T& mesh) {
-                            ImGui::TextUnformatted(mesh.path.subpath().begin());
-                            if (auto* asset = try_get(mesh.diffuse )) { ids[next_id++] = asset->texture->id(); }
-                            if (auto* asset = try_get(mesh.specular)) { ids[next_id++] = asset->texture->id(); }
-                            if (auto* asset = try_get(mesh.normal  )) { ids[next_id++] = asset->texture->id(); }
-                        }, mesh);
-                        const auto visible_ids = std::span(ids, next_id);
-                        using ranges::views::enumerate;
-                        for (auto [i, id] : enumerate(visible_ids)) {
-                            imgui::ImageGL(id, { 64, 64 });
-                            if (i < visible_ids.size() - 1) { ImGui::SameLine(); }
-                        }
-                    }
-                }
-
-
-                auto load_texture_later = on_signal([&, this] {
-                    try {
-                        Path path = vfs().resolve_path(VPath(texture_vpath));
-                        last_texture_job = asset_manager_.load_texture({ MOVE(path) }, ImageIntent::Unknown);
-                    } catch (const std::exception& e) {
-                        last_error = e.what();
-                    }
-                });
-                auto load_model_later = on_signal([&, this] {
-                    try {
-                        Path path = vfs().resolve_path(VPath(model_vpath));
-                        last_model_job = asset_manager_.load_model({ MOVE(path) });
-                    } catch (const std::exception& e) {
-                        last_error = e.what();
-                    }
-                });
-
-
-                if (ImGui::InputText("VPath##Texture", &texture_vpath, ImGuiInputTextFlags_EnterReturnsTrue)) {
-                    load_texture_later.set(true);
-                }
-                ImGui::SameLine();
-                if (ImGui::Button("Load Texture")) {
-                    load_texture_later.set(true);
-                }
-
-                if (ImGui::InputText("VPath##Model", &model_vpath, ImGuiInputTextFlags_EnterReturnsTrue)) {
-                    load_model_later.set(true);
-                }
-                ImGui::SameLine();
-                if (ImGui::Button("Load Model")) {
-                    load_model_later.set(true);
-                }
-
-
-
-
-
-
-                if (!last_error.empty()) {
-                    ImGui::TextUnformatted(last_error.c_str());
-                }
-            } ImGui::End();
+        if (show_resource_viewer)
+        {
+            if (ImGui::Begin("Resources"))
+                resource_viewer.display(*this);
+            ImGui::End();
         }
 
-        ImGui::PopStyleColor();
-    }
+        if (show_debug_window)
+        {
+            if (ImGui::Begin("Debug"))
+                _display_debug();
+            ImGui::End();
+        }
 
+        if (show_log_window)
+        {
+            if (ImGui::Begin("Logs"))
+                _display_logs();
+            ImGui::End();
+        }
+    }
 }
 
-
-void ImGuiApplicationAssembly::display() {
-    draw_widgets();
-    if (const auto camera = get_active<Camera, MTransform>(registry_)) {
-        const glm::mat4 view_mat = inverse(camera.get<MTransform>().model());
-        const glm::mat4 proj_mat = camera.get<Camera>().projection_mat();
-        gizmos_.display(view_mat, proj_mat);
+void ImGuiApplicationAssembly::display()
+{
+    ZoneScoped;
+    _draw_widgets();
+    if (const auto camera = get_active<Camera, MTransform>(runtime.registry))
+    {
+        const mat4 view_mat = inverse(camera.get<MTransform>().model());
+        const mat4 proj_mat = camera.get<Camera>().projection_mat();
+        gizmos.display(*this, view_mat, proj_mat);
     }
-    context_.render();
+    imgui_context.render();
 }
 
-
-void ImGuiApplicationAssembly::reset_dockspace(ImGuiID dockspace_id) {
+void ImGuiApplicationAssembly::_reset_dockspace(ImGuiID dockspace_id)
+{
     ImGui::DockBuilderRemoveNode(dockspace_id);
     auto flags = ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags{ ImGuiDockNodeFlags_DockSpace };
 	ImGui::DockBuilderAddNode(dockspace_id, flags);
@@ -484,9 +464,179 @@ void ImGuiApplicationAssembly::reset_dockspace(ImGuiID dockspace_id) {
     ImGui::DockBuilderDockWindow("Scene",         left_id       );
     ImGui::DockBuilderDockWindow("Render Engine", right_id      );
 
-
     ImGui::DockBuilderFinish(dockspace_id);
 }
 
+void ImGuiApplicationAssembly::_display_frame_graph()
+{
+    thread_local bool display_fps = false;
+
+    const char* overlay = nullptr;
+    if (display_fps)
+    {
+        thread_local String overlay_str; overlay_str.clear();
+        const float frametime_s = _avg_frame_timer.get_current_average();
+        const float fps         = 1 / frametime_s;
+        fmt::format_to(std::back_inserter(overlay_str), "{:6>.1f} FPS {:>5.2f} ms", fps, frametime_s * 1e3f);
+        overlay = overlay_str.c_str();
+    }
+    ImGui::PlotLines("##FrameTimes",
+        _frame_deltas.data(), int(_frame_deltas.size()), _frame_offset,
+        overlay, 0.f, _upper_frametime_limit, ImGui::GetContentRegionAvail());
+
+    ImGui::OpenPopupOnItemClick("FrameGraph Settings");
+    if (ImGui::BeginPopup("FrameGraph Settings"))
+    {
+        ImGui::DragInt("Num Frames", &_num_frames_plotted, 1.f, 1, 1200);
+        ImGui::DragFloat("Max Frame Time, ms", &_upper_frametime_limit, 1.f, 0.1f, 200.f);
+        ImGui::Checkbox("Display FPS", &display_fps);
+        ImGui::EndPopup();
+    }
+}
+
+void ImGuiApplicationAssembly::_display_debug()
+{
+    if (ImGui::TreeNode("Texture Swizzle"))
+    {
+        thread_local SwizzleRGBA swizzle = {};
+
+        ImGui::EnumCombo("R", &swizzle.r);
+        ImGui::EnumCombo("G", &swizzle.g);
+        ImGui::EnumCombo("B", &swizzle.b);
+        ImGui::EnumCombo("A", &swizzle.a);
+
+        if (ImGui::Button("Convert All Diffuse"))
+        {
+            for (auto [e, mtl] : runtime.registry.view<MaterialPhong>().each())
+            {
+                if (mtl.diffuse->id() != globals::default_diffuse_texture().id())
+                {
+                    // NOTE: Effectively doing a GL const_cast.
+                    RawTexture2D<>::from_id(mtl.diffuse->id()).set_swizzle_rgba(swizzle);
+                }
+            }
+        }
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNode("Skeletons"))
+    {
+        DEFER(ImGui::TreePop());
+
+        if (ImGui::TreeNode("Land"))
+        {
+            DEFER(ImGui::TreePop());
+
+            ImGui::TextUnformatted("Occupied:");
+            for (const auto& range : runtime.skeleton_storage._land.view_occupied())
+                ImGui::Text("[%zu, %zu]", range.base, range.end());
+
+            ImGui::TextUnformatted("Empty:");
+            for (const auto& range : runtime.skeleton_storage._land.view_empty())
+                ImGui::Text("[%zu, %zu)", range.base, range.end());
+        }
+
+        SkeletonID to_remove = nullid;
+        for (const auto& [id, entry] : runtime.skeleton_storage._table)
+        {
+            ImGui::PushID(id._value); DEFER(ImGui::PopID());
+            if (ImGui::Button("x"))
+                to_remove = id;
+            ImGui::SameLine();
+            ImGui::Text("[%zu] %s [%zu, %zu)",
+                id._value, entry.name.c_str(), entry.range.base, entry.range.end());
+        }
+
+        if (to_remove != nullid)
+        {
+            runtime.skeleton_storage.remove(to_remove);
+        }
+    }
+
+    // HMM: This might be worth moving elsewhere.
+    if (ImGui::TreeNode("GL API Limits"))
+    {
+        DEFER(ImGui::TreePop());
+
+        const auto table_flags =
+            ImGuiTableFlags_Borders     |
+            ImGuiTableFlags_Resizable   |
+            ImGuiTableFlags_Reorderable |
+            ImGuiTableFlags_Hideable    |
+            ImGuiTableFlags_SizingStretchProp |
+            ImGuiTableFlags_HighlightHoveredColumn;
+
+        const auto table = [](const char* name, auto enum_, auto&& value_func)
+        {
+            if (ImGui::TreeNode(name))
+            {
+                DEFER(ImGui::TreePop());
+                if (ImGui::BeginTable(name, 2, table_flags))
+                {
+                    DEFER(ImGui::EndTable());
+                    ImGui::TableSetupColumn("Name");
+                    ImGui::TableSetupColumn("Value");
+                    ImGui::TableHeadersRow();
+                    for (auto e : enum_iter(enum_))
+                    {
+                        ImGui::TableNextRow();
+                        ImGui::TableNextColumn();
+                        ImGui::TextUnformatted(enum_string(e));
+                        ImGui::TableNextColumn();
+                        value_func(glapi::get_limit(e));
+                    }
+                }
+            }
+        };
+
+        table("LimitB",   LimitB{},   [](GLboolean v)       { ImGui::Text("%i", i32(v));                     });
+        table("LimitI",   LimitI{},   [](i32 v)             { ImGui::Text("%i", v);                          });
+        table("LimitI64", LimitI64{}, [](i64 v)             { ImGui::Text("%" PRIi64, v);                    });
+        table("Limit3I",  Limit3I{},  [](Array<i32, 3> v)   { ImGui::Text("(%i, %i, %i)", v[0], v[1], v[2]); });
+        table("LimitF",   LimitF{},   [](float v)           { ImGui::Text("%.3f", v);                        });
+        table("Limit2F",  Limit2F{},  [](Array<float, 2> v) { ImGui::Text("(%.3f, %.3f)", v[0], v[1]);       });
+        table("LimitRF",  LimitRF{},  [](RangeF v)          { ImGui::Text("[%.3f, %.3f]", v.min, v.max);     });
+    }
+}
+
+void ImGuiApplicationAssembly::_display_logs()
+{
+    thread_local bool can_snap   = true;
+    thread_local bool force_snap = false;
+
+    // NOTE: Have to call outside of the popup, else
+    // it will be the scroll of the popup itsel.
+    thread_local float prev_max_scroll = {};
+    const float        cur_scroll = ImGui::GetScrollY();
+    const float        max_scroll = ImGui::GetScrollMaxY();
+
+    // HMM: There's no way this is the canonical way to detect a click over a window.
+    if (ImGui::IsWindowHovered() and ImGui::IsMouseReleased(ImGuiMouseButton_Right))
+        ImGui::OpenPopup("Logs Settings");
+    if (ImGui::BeginPopup("Logs Settings"))
+    {
+        DEFER(ImGui::EndPopup());
+        ImGui::Checkbox("Can Snap", &can_snap);
+        ImGui::Checkbox("Force Snap", &force_snap);
+
+        if (ImGui::Button("Dump Text"))
+            logstream() << "Hello, Friend!\n";
+
+        ImGui::Text("Scroll [Cur: %.3f, Max: %.3f]", cur_scroll, max_scroll);
+    }
+
+    // NOTE: SetScroll*() has a 1 frame delay. Calling SetNextWindowScroll()
+    // before Begin() can help avoid that. See the note in the "imgui.h".
+    const bool do_snap =
+        force_snap or
+        (can_snap and (cur_scroll == prev_max_scroll));
+
+    ImGui::TextUnformatted(_log_sink.view());
+
+    if (do_snap)
+        ImGui::SetScrollY(ImGui::GetScrollMaxY());
+
+    prev_max_scroll = max_scroll;
+}
 
 } // namespace josh

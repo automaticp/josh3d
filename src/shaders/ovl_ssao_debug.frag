@@ -1,34 +1,36 @@
 #version 330 core
 
-in  vec2 tex_coords;
-out vec4 frag_color;
+in vec2 uv;
 
-uniform sampler2D tex_noisy_occlusion;
+uniform sampler2D tex_backbuffer;
 uniform sampler2D tex_occlusion;
 
 /*
-enum class OverlayMode : GLint {
-    none    = 0,
-    noisy   = 1,
-    blurred = 2,
+enum class OverlayMode
+{
+    None      = 0,
+    Back      = 1,
+    Occlusion = 2,
 };
 */
 uniform int mode = 0;
 
+out vec4 frag_color;
 
 
-
-void main() {
+void main()
+{
     const float inv_gamma = 1.0 / 2.2;
 
     float out_value;
-    switch (mode) {
-        case 1: // noisy
-            out_value = pow(1.0 - texture(tex_noisy_occlusion, tex_coords).r, inv_gamma);
+    switch (mode)
+    {
+        case 1: // Backbuffer.
+            out_value = pow(1.0 - texture(tex_backbuffer, uv).r, inv_gamma);
             break;
-        case 2: // blurred
+        case 2: // Final Occlusion.
         default:
-            out_value = pow(1.0 - texture(tex_occlusion, tex_coords).r, inv_gamma);
+            out_value = pow(1.0 - texture(tex_occlusion, uv).r, inv_gamma);
             break;
     }
 

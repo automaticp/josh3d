@@ -16,7 +16,8 @@ To using strong integer types:
 
 */
 template<typename T, typename CRTP>
-struct Strong {
+struct Strong
+{
     using underlying_type = T;
 
     T value{};

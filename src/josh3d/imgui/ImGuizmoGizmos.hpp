@@ -1,44 +1,43 @@
 #pragma once
-#include "Camera.hpp"
-#include <entt/fwd.hpp>
+#include "EnumUtils.hpp"
+#include "Skeleton.hpp"
+#include "UIContextFwd.hpp"
 
 
 namespace josh {
 
 
-enum class GizmoOperation {
+enum class GizmoOperation
+{
     Translation,
     Rotation,
     Scaling
 };
+JOSH3D_DEFINE_ENUM_EXTRAS(GizmoOperation, Translation, Rotation, Scaling);
 
-
-enum class GizmoSpace {
+enum class GizmoSpace
+{
     World,
     Local
 };
+JOSH3D_DEFINE_ENUM_EXTRAS(GizmoSpace, World, Local);
 
-
-enum class GizmoLocation {
+enum class GizmoLocation
+{
     LocalOrigin,
     AABBMidpoint
 };
+JOSH3D_DEFINE_ENUM_EXTRAS(GizmoLocation, LocalOrigin, AABBMidpoint);
 
-
-class ImGuizmoGizmos {
-public:
-    GizmoOperation active_operation    { GizmoOperation::Translation };
-    GizmoSpace     active_space        { GizmoSpace::World           };
-    GizmoLocation  preferred_location  { GizmoLocation::AABBMidpoint };
-    bool           display_debug_window{ false                       };
-
-    ImGuizmoGizmos(entt::registry& registry) : registry_{ registry } {}
+struct ImGuizmoGizmos
+{
+    GizmoOperation active_operation     = GizmoOperation::Translation;
+    GizmoSpace     active_space         = GizmoSpace::World;
+    GizmoLocation  preferred_location   = GizmoLocation::AABBMidpoint;
+    bool           display_debug_window = false;
 
     void new_frame();
-    void display(const glm::mat4& view_mat, const glm::mat4& proj_mat);
-
-private:
-    entt::registry& registry_;
+    void display(UIContext& ui, const mat4& view_mat, const mat4& proj_mat);
 };
 
 

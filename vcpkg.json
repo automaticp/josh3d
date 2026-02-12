@@ -6,23 +6,28 @@
         "glfw3",
         "boost-iostreams",
         "boost-container",
+        "boost-unordered",
         "boost-scope",
         "boost-outcome",
         "boost-any",
+        "boost-interprocess",
+        "boost-uuid",
+        "boost-type-index",
+        "boost-predef",
+        "boost-preprocessor",
         "fmt",
         "doctest",
         "cxxopts",
         "nlohmann-json",
+        "jsoncons",
         "glm",
+        "libspng",
         "stb",
+        "cgltf",
         "assimp",
         "range-v3",
         "ctre",
-        {
-            "name": "imgui",
-            "features": [ "glfw-binding", "opengl3-binding", "docking-experimental" ]
-        },
-        "imguizmo",
         "entt"
-    ]
+    ],
+    "builtin-baseline": "cacf5994341f27e9a14a7b8724b0634b138ecb30"
 }

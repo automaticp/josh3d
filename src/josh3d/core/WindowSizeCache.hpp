@@ -1,8 +1,8 @@
 #pragma once
 #include "Region.hpp"
-#include <glfwpp/window.h>
-#include <cassert>
-#include <tuple>
+
+
+namespace glfw { class Window; }
 
 
 namespace josh {
@@ -32,10 +32,7 @@ public:
 
     // Begins tracking a particular window to update the size from.
     // Initializes the size by calling getSize() as well.
-    void track(glfw::Window& window) {
-        window_ = &window;
-        update_from_tracked();
-    }
+    void track(glfw::Window& window);
 
     // Updates the window size by calling getSize() on the tracked window.
     // UB if no window is tracked.
@@ -43,10 +40,7 @@ public:
     // only on resize events in callbacks using set_to().
     //
     // Prefer using set_to() whenever possible.
-    void update_from_tracked() {
-        assert(window_);
-        size_ = std::make_from_tuple<Size2I>(window_->getSize());
-    }
+    void update_from_tracked();
 
     // Manually sets the size of the window.
     // Can be used within window size or framebuffer size callbacks.

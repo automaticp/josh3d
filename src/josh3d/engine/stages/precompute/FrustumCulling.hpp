@@ -1,14 +1,14 @@
 #pragma once
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 
 
-namespace josh::stages::precompute {
+namespace josh {
 
 
-class FrustumCulling {
-public:
-    void operator()(RenderEnginePrecomputeInterface& engine);
+struct FrustumCulling
+{
+    void operator()(PrecomputeContext context);
 };
 
 
-} // namespace josh::stages::precompute
+} // namespace josh

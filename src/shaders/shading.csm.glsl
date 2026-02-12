@@ -3,11 +3,11 @@
 #define SHADING_CSM_GLSL
 
 
-struct CascadeView {
+struct CascadeView
+{
     mat4 projview;
     vec3 scale;
 };
-
 
 /*
 This dumb mumbo jumbo is here because I can't pass
@@ -21,20 +21,20 @@ GLSL is truly a kind of a shading language.
 #define CASCADE_VIEWS_SSBO_BINDING 0
 #endif
 
-
 layout (std430, binding = CASCADE_VIEWS_SSBO_BINDING) restrict readonly
-buffer _CascadeViewsBlock {
+buffer _CascadeViewsBlock
+{
     CascadeView cascade_views[];
 } _cvb;
 
 
-struct CascadeShadowParams {
+struct CascadeShadowParams
+{
     float base_bias_tx;
     float blend_size_best_tx;
     int   pcf_extent;
     float pcf_offset_inner_tx;
 };
-
 
 float directional_light_shadow_obscurance(
     sampler2DArrayShadow cascade_maps,
@@ -42,8 +42,6 @@ float directional_light_shadow_obscurance(
     CascadeShadowParams  params,
     vec3                 frag_pos_ws,
     vec3                 normal_ws);
-
-
 
 
 /*
@@ -59,7 +57,6 @@ Some notable terminology about particular cascades:
 
 - "Next" cascade is the next best resolution cascade after the "best" one.
   This one may be sampled in addition to "best" cascade, in case of blending.
-
 
 I use abbreviations to refer to specific "spaces":
 
@@ -86,13 +83,12 @@ I use abbreviations to refer to specific "spaces":
     Texel units/texel space of the shadowmap. Ratio to world units differs per cascade.
     1 in texel space covers one shadowmap texel (ikr).
 
-
 The abbreviations are convenient to perform quick sanity-checks on each calculation.
-
 */
 
 
-struct _CascadeSelection {
+struct _CascadeSelection
+{
     int   best_cascade_id;
     float next_cascade_blend_factor;
 };
@@ -104,18 +100,15 @@ _CascadeSelection _select_best_cascade_with_blending(
     vec3        pcf_padding_inner_ndc,
     vec3        blend_padding_ndc);
 
-
 int _select_best_cascade(
 //  CascadeView cascade_views[],
     vec3        frag_pos_ws,
     vec3        pcf_padding_inner_ndc);
 
-
 float _receiver_plane_bias(
     vec2  patch_offset_uv,
     vec2  texel_size_uv,
     vec3  normal_nss);
-
 
 float _directional_shadow_pcf_sample(
     sampler2DArrayShadow cascade_maps,
@@ -127,9 +120,6 @@ float _directional_shadow_pcf_sample(
     vec2  texel_size_uv,
     vec3  normal_nss,
     vec3  frag_pos_nss);
-
-
-
 
 
 float directional_light_shadow_obscurance(
@@ -197,7 +187,8 @@ float directional_light_shadow_obscurance(
     int   best_cascade_id;
     float next_cascade_blend = 0.0;
 
-    if (do_blend) {
+    if (do_blend)
+    {
         // Blend padding does not scale with the cascades, and always remains
         // as N texels of the "best" cascade for a given selection.
         const float blend_size_best_tx     = params.blend_size_best_tx;
@@ -205,23 +196,16 @@ float directional_light_shadow_obscurance(
         const vec3  blend_padding_best_ndc = vec3(blend_padding_best, 0.0);
 
         const _CascadeSelection selection =
-            _select_best_cascade_with_blending(
-            //  cascade_views,
-                frag_pos_ws,
-                pcf_padding_inner_ndc,
-                blend_padding_best_ndc
-            );
+            _select_best_cascade_with_blending(/*cascade_views,*/ frag_pos_ws,
+                pcf_padding_inner_ndc, blend_padding_best_ndc);
 
         best_cascade_id    = selection.best_cascade_id;
         next_cascade_blend = selection.next_cascade_blend_factor;
-
-    } else {
+    }
+    else
+    {
         best_cascade_id =
-            _select_best_cascade(
-            //  cascade_views,
-                frag_pos_ws,
-                pcf_padding_inner_ndc
-            );
+            _select_best_cascade(/*cascade_views,*/ frag_pos_ws, pcf_padding_inner_ndc);
     }
 
     // Everything that follows with biasing and PCF sampling
@@ -267,12 +251,12 @@ float directional_light_shadow_obscurance(
             pcf_offset_best_uv,
             texel_size_uv,
             normal_nss,
-            frag_pos_best_nss
-        );
+            frag_pos_best_nss);
 
-    if (do_blend) {
-
-        if (next_cascade_blend > 0.0) {
+    if (do_blend)
+    {
+        if (next_cascade_blend > 0.0)
+        {
             int next_cascade_id = best_cascade_id + 1;
 
             const mat4 next_cascade_projview = _cvb.cascade_views[next_cascade_id].projview;
@@ -292,22 +276,17 @@ float directional_light_shadow_obscurance(
                     pcf_offset_next_uv,
                     texel_size_uv,
                     normal_nss,
-                    frag_pos_next_nss
-                );
+                    frag_pos_next_nss);
 
             // FIXME: There's a bit of self-shadowing in the blend region that can
             // be eliminated with a small extra bias. But it shouldn't be there
             // in the first place. Both blending and pcf_offset accentuate it. Investigate.
             return mix(obscurance_best, obscurance_next, smoothstep(0.0, 1.0, next_cascade_blend));
         }
-
     }
 
     return obscurance_best;
 }
-
-
-
 
 bool _is_fragment_in_padded_box(
     vec3 frag_pos_ndc,
@@ -315,7 +294,6 @@ bool _is_fragment_in_padded_box(
 {
     return all(lessThan(abs(frag_pos_ndc), vec3(1.0) - padding_ndc));
 }
-
 
 _CascadeSelection _select_best_cascade_with_blending(
 //  CascadeView cascade_views[],
@@ -331,8 +309,8 @@ _CascadeSelection _select_best_cascade_with_blending(
     // We assume that cascades are stored in order from smallest
     // to largest, so the first match is the smallest projection,
     // that is highest resolution match.
-    for (int i = 0; i < last_cascade_id; ++i) {
-
+    for (int i = 0; i < last_cascade_id; ++i)
+    {
         const CascadeView cascade = _cvb.cascade_views[i];
 
         const vec4 frag_pos_cs  = cascade.projview * vec4(frag_pos_ws, 1.0);
@@ -349,13 +327,14 @@ _CascadeSelection _select_best_cascade_with_blending(
         const vec3 pcf_padding_best_ndc = pcf_padding_inner_ndc * (inner_cascade_scale / best_cascade_scale);
         const vec3 total_padding_ndc    = pcf_padding_best_ndc + blend_padding_ndc;
 
-        if (_is_fragment_in_padded_box(frag_pos_ndc, pcf_padding_best_ndc)) {
-            if (_is_fragment_in_padded_box(frag_pos_ndc, total_padding_ndc)) {
-
+        if (_is_fragment_in_padded_box(frag_pos_ndc, pcf_padding_best_ndc))
+        {
+            if (_is_fragment_in_padded_box(frag_pos_ndc, total_padding_ndc))
+            {
                 return _CascadeSelection(i, 0.0);
-
-            } else /* Welcome to THE BLEND ZONE!!! */ {
-
+            }
+            else /* Welcome to THE BLEND ZONE!!! */
+            {
                 const vec3 blend_start_ndc = vec3(1.0) - total_padding_ndc;
 
                 const vec3 next_blend_factors =
@@ -375,9 +354,6 @@ _CascadeSelection _select_best_cascade_with_blending(
     return _CascadeSelection(last_cascade_id, 0.0);
 }
 
-
-
-
 int _select_best_cascade(
 //  CascadeView cascade_views[],
     vec3        frag_pos_ws,
@@ -391,8 +367,8 @@ int _select_best_cascade(
     // We assume that cascades are stored in order from smallest
     // to largest, so the first match is the smallest projection,
     // that is highest resolution match.
-    for (int i = 0; i < last_cascade_id; ++i) {
-
+    for (int i = 0; i < last_cascade_id; ++i)
+    {
         const CascadeView cascade = _cvb.cascade_views[i];
 
         const vec4 frag_pos_cs  = cascade.projview * vec4(frag_pos_ws, 1.0);
@@ -401,19 +377,14 @@ int _select_best_cascade(
         const vec3 best_cascade_scale   = cascade.scale;
         const vec3 pcf_padding_best_ndc = pcf_padding_inner_ndc * (inner_cascade_scale / best_cascade_scale);
 
-        if (_is_fragment_in_padded_box(frag_pos_ndc, pcf_padding_best_ndc)) {
+        if (_is_fragment_in_padded_box(frag_pos_ndc, pcf_padding_best_ndc))
             return i;
-        }
-
     }
 
     // If we hit the last cascade or there's only one cascade total,
     // then select it, no padding.
     return last_cascade_id;
 }
-
-
-
 
 float _receiver_plane_bias(
     vec2  patch_offset_uv,
@@ -504,7 +475,6 @@ float _receiver_plane_bias(
     return sample_bias_nss;
 }
 
-
 float _directional_shadow_pcf_sample(
     sampler2DArrayShadow cascade_maps,
     int   cascade_id,
@@ -522,53 +492,50 @@ float _directional_shadow_pcf_sample(
 
     float obscurance = 0.0;
 
-    for (int x = -pcf_extent; x <= pcf_extent; ++x) {
-        for (int y = -pcf_extent; y <= pcf_extent; ++y) {
+    for (int x = -pcf_extent; x <= pcf_extent; ++x)
+    for (int y = -pcf_extent; y <= pcf_extent; ++y)
+    {
+        const vec2 patch_offset_uv = vec2(x, y) * pcf_offset_uv;
 
-            const vec2 patch_offset_uv = vec2(x, y) * pcf_offset_uv;
+        // We lift the patch by -max_sink plus additional base_bias.
+        //
+        // Some small base bias is still needed to account for two things:
+        //   1. Interpolated normals;
+        //   2. Normal-mapped surfaces.
+        // Both of them distort real geometric normals which are needed for precise
+        // geometric plane reconstruction, but are not usually present in the G-Buffer.
+        //
+        // Real geometric normals can be generated even for assets with interpolated
+        // normals with the geometry shader and then later stored in a separate layer
+        // of the G-Buffer at some performance and convinience cost. We don't do this here.
+        //
+        // Alternatively, geometric normals can be reconstructed from the depth buffer
+        // using the depth gradient. However, that probably won't behave well
+        // at the sharp edges of geometry. We don't do this here either.
+        //
+        // Base bias does not have to be large, you can get by with a bias of
+        // only about a fraction of the shadow map texel size. You might
+        // lose some very small scale detail, but you can maybe compensate with
+        // contact shadows.
+        const float bias_nss        = base_bias_nss + _receiver_plane_bias(patch_offset_uv, texel_size_uv, normal_nss);
+        const float reference_z_nss = frag_pos_nss.z - bias_nss;
 
-            // We lift the patch by -max_sink plus additional base_bias.
-            //
-            // Some small base bias is still needed to account for two things:
-            //   1. Interpolated normals;
-            //   2. Normal-mapped surfaces.
-            // Both of them distort real geometric normals which are needed for precise
-            // geometric plane reconstruction, but are not usually present in the G-Buffer.
-            //
-            // Real geometric normals can be generated even for assets with interpolated
-            // normals with the geometry shader and then later stored in a separate layer
-            // of the G-Buffer at some performance and convinience cost. We don't do this here.
-            //
-            // Alternatively, geometric normals can be reconstructed from the depth buffer
-            // using the depth gradient. However, that probably won't behave well
-            // at the sharp edges of geometry. We don't do this here either.
-            //
-            // Base bias does not have to be large, you can get by with a bias of
-            // only about a fraction of the shadow map texel size. You might
-            // lose some very small scale detail, but you can maybe compensate with
-            // contact shadows.
-            const float bias_nss        = base_bias_nss + _receiver_plane_bias(patch_offset_uv, texel_size_uv, normal_nss);
-            const float reference_z_nss = frag_pos_nss.z - bias_nss;
+        const vec4 lookup = vec4(
+            frag_pos_nss.xy + patch_offset_uv, // Actual coordinates;
+            cascade_id,                        // Texture index;
+            reference_z_nss                    // Reference value for shadow-testing.
+        );
 
-            const vec4 lookup = vec4(
-                frag_pos_nss.xy + patch_offset_uv, // Actual coordinates;
-                cascade_id,                        // Texture index;
-                reference_z_nss                    // Reference value for shadow-testing.
-            );
+        const float lit = texture(cascade_maps, lookup).r;
 
-            const float lit = texture(cascade_maps, lookup).r;
-
-            // Shadow sampler returns "how much of the fragment is lit"
-            // from GL_LESS comparison function. We need "how much of
-            // the fragment is in shadow".
-            obscurance += (1.0 - lit);
-        }
+        // Shadow sampler returns "how much of the fragment is lit"
+        // from GL_LESS comparison function. We need "how much of
+        // the fragment is in shadow".
+        obscurance += (1.0 - lit);
     }
 
     return obscurance / (pcf_order * pcf_order);
 }
-
-
 
 
 #endif

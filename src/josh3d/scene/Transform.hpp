@@ -1,20 +1,15 @@
 #pragma once
-#include <glm/ext/quaternion_common.hpp>
-#include <glm/ext/quaternion_geometric.hpp>
+#include "Math.hpp"
+#include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/quaternion_transform.hpp>
-#include <glm/ext/quaternion_trigonometric.hpp>
 #include <glm/gtc/quaternion.hpp>
-#include <glm/glm.hpp>
 #include <glm/ext.hpp>
-#include <glm/gtx/norm.hpp>
-#include <glm/gtx/quaternion.hpp>
 
 
 namespace josh {
 
 
-class MTransform;
-
+struct MTransform;
 
 /*
 Transform expressed as postion, orientation and scale.
@@ -30,83 +25,124 @@ Caveat is that it does not represent skew, and so it is not fully
 equivalent to a 4x4 homogeneous transformation matrix. Scaling
 only applies along the local basis.
 */
-class Transform {
-private:
-    glm::vec3 position_   { 0.f, 0.f, 0.f };
-    glm::quat orientation_{ 1.f, 0.f, 0.f, 0.f };
-    glm::vec3 scale_      { 1.f, 1.f, 1.f };
+struct Transform
+{
+    // Wow, such incredible encapsulation...
+    // I seemed to just *love* typing this out.
 
-public:
     Transform() = default;
 
-    Transform(const glm::vec3& position, const glm::quat& orientation, const glm::vec3& scale)
-        : position_   { position    }
-        , orientation_{ orientation }
-        , scale_      { scale       }
+    Transform(const vec3& position, const quat& orientation, const vec3& scale)
+        : _position   { position    }
+        , _orientation{ orientation }
+        , _scale      { scale       }
     {}
 
-    const glm::vec3& position()    const noexcept { return position_;    }
-    const glm::quat& orientation() const noexcept { return orientation_; }
-    const glm::vec3& scaling()     const noexcept { return scale_;       }
+    auto position()          noexcept ->       vec3& { return _position;    }
+    auto orientation()       noexcept ->       quat& { return _orientation; }
+    auto scaling()           noexcept ->       vec3& { return _scale;       }
+    auto position()    const noexcept -> const vec3& { return _position;    }
+    auto orientation() const noexcept -> const quat& { return _orientation; }
+    auto scaling()     const noexcept -> const vec3& { return _scale;       }
 
-    glm::vec3& position()    noexcept { return position_;    }
-    glm::quat& orientation() noexcept { return orientation_; }
-    glm::vec3& scaling()     noexcept { return scale_;       }
-
-
-
-    Transform& translate(const glm::vec3& delta) noexcept {
-        position_ += delta;
+    auto translate(const vec3& delta) noexcept
+        -> Transform&
+    {
+        _position += delta;
         return *this;
     }
 
-    Transform& rotate(const glm::quat& quaternion) noexcept {
-        orientation_ *= quaternion;
+    auto rotate(const quat& quaternion) noexcept
+        -> Transform&
+    {
+        _orientation *= quaternion;
         return *this;
     }
 
-    Transform& rotate(float angle_rad, const glm::vec3& axis) noexcept {
-        orientation_ = glm::rotate(orientation_, angle_rad, axis);
+    auto rotate(float angle_rad, const vec3& axis) noexcept
+        -> Transform&
+    {
+        _orientation = glm::rotate(_orientation, angle_rad, axis);
         return *this;
     }
 
-    Transform& scale(const glm::vec3& scale) noexcept {
-        scale_ *= scale;
+    auto scale(const glm::vec3& scale) noexcept
+        -> Transform&
+    {
+        _scale *= scale;
         return *this;
     }
-
 
     // Get an euler angle representation of rotation:
     // (X, Y, Z) == (Pitch, Yaw, Roll).
     // Differs from GLM in that the locking axis is Pitch not Yaw.
-    glm::vec3 get_euler() const noexcept {
-        const auto& q = orientation_;
-        const glm::quat q_shfl{ q.w, q.y, q.x, q.z };
-
-        const glm::vec3 euler{
-            glm::yaw(q_shfl),   // Pitch
-            glm::pitch(q_shfl), // Yaw
-            glm::roll(q_shfl)   // Roll
-        };
-        return euler;
-    }
+    //
+    // TODO: This should just be replaced by a corresponding free function.
+    auto get_euler() const noexcept -> vec3;
 
     // Sets the rotation from euler angles:
     // (X, Y, Z) == (Pitch, Yaw, Roll).
     // Works with angles taken from get_euler(),
     // NOT with GLM's eulerAngles().
-    void set_euler(const glm::vec3& euler) noexcept {
-        const glm::quat p{ glm::vec3{ euler.y, euler.x, euler.z } };
-        orientation_ = glm::quat{ p.w, p.y, p.x, p.z };
-    }
-
+    void set_euler(const vec3& euler) noexcept;
 
     // Compute a local MTransform (aka. Model/World matrix) from this Transform.
-    MTransform mtransform() const noexcept;
+    auto mtransform() const noexcept -> MTransform;
 
+    // NOTE: Currently keeping this semi-private because a tonn of places
+    // depend on the position()/orientation()/scaling() functions.
+    vec3 _position    = { 0.f, 0.f, 0.f };
+    quat _orientation = { 0.f, 0.f, 0.f, 1.f };
+    vec3 _scale       = { 1.f, 1.f, 1.f };
 };
 
+/*
+Get the Euler angle representation of rotation:
+    `(X, Y, Z) == (Pitch, Yaw, Roll)`
 
+Differs from GLM in that the locking axis is Pitch not Yaw.
+
+NOTE: These are technically Tait-Brian angles with mixed
+local and global axes. Hence all the gimbal lock fun.
+*/
+inline auto quat_to_euler(const quat& q) noexcept
+    -> vec3
+{
+    const auto q_shfl = quat::wxyz(q.w, q.y, q.x, q.z);
+    return {
+        glm::yaw  (q_shfl), // Pitch
+        glm::pitch(q_shfl), // Yaw
+        glm::roll (q_shfl), // Roll
+    };
+}
+
+/*
+Creates a rotation quaternion from Euler angles:
+    `(X, Y, Z) == (Pitch, Yaw, Roll)`
+
+Works with angles taken from quat_to_euler(),
+NOT with GLM's eulerAngles().
+*/
+inline auto euler_to_quat(const vec3& euler) noexcept
+    -> quat
+{
+    // This quaternion constructor is insane and will
+    // just interpret a vec3 argument as euler angles
+    // WTF GLM?
+    const quat p = { vec3{ euler.y, euler.x, euler.z } };
+    return quat::wxyz(p.w, p.y, p.x, p.z);
+}
+
+inline auto Transform::get_euler() const noexcept
+    -> vec3
+{
+    return quat_to_euler(_orientation);
+}
+
+inline void Transform::set_euler(const vec3& euler) noexcept
+{
+    _orientation = euler_to_quat(euler);
+}
 
 
 /*
@@ -122,78 +158,124 @@ Read matrix multiplication left-to-right: T * R * S.
 Primarily used for rendering and parent-child transformation chaining,
 use plain Transform in other cases.
 */
-class MTransform {
-private:
-    glm::mat4 model_{ 1.0f };
-
-public:
-    MTransform() = default;
-
-    explicit(false) MTransform(const glm::mat4& model) : model_{ model } {}
+struct MTransform
+{
+    MTransform() : _mat{ glm::identity<mat4>() } {}
+    explicit(false) MTransform(const mat4& model) : _mat{ model } {}
 
     // Aka. world->local change-of-basis.
-    const glm::mat4& model() const noexcept {
-        return model_;
-    }
+    auto model() const noexcept -> const mat4& { return _mat; }
+    auto normal_model() const noexcept -> mat3 { return transpose(inverse(_mat)); }
 
-    glm::mat3 normal_model() const noexcept {
-        return glm::transpose(glm::inverse(model_));
-    }
-
-
-    MTransform& translate(const glm::vec3& delta) noexcept {
-        model_ = glm::translate(model_, delta);
+    auto translate(const vec3& delta) noexcept
+        -> MTransform&
+    {
+        _mat = glm::translate(_mat, delta);
         return *this;
     }
 
-    MTransform& rotate(const glm::quat& quaternion) noexcept {
-        model_ = model_ * glm::mat4_cast(quaternion);
+    auto rotate(const quat& quaternion) noexcept
+        -> MTransform&
+    {
+        _mat = _mat * glm::mat4_cast(quaternion);
         return *this;
     }
 
-    MTransform& rotate(float angle_rad, const glm::vec3& axis) noexcept {
-        model_ = glm::rotate(model_, angle_rad, axis);
+    auto rotate(float angle_rad, const vec3& axis) noexcept
+        -> MTransform&
+    {
+        _mat = glm::rotate(_mat, angle_rad, axis);
         return *this;
     }
 
-    MTransform& scale(const glm::vec3& xyz_scaling) noexcept {
-        model_ = glm::scale(model_, xyz_scaling);
+    auto scale(const vec3& xyz_scaling) noexcept
+        -> MTransform&
+    {
+        _mat = glm::scale(_mat, xyz_scaling);
         return *this;
     }
 
-
-    MTransform operator*(const MTransform& other) const noexcept {
+    auto operator*(const MTransform& other) const noexcept
+        -> MTransform
+    {
         return { this->model() * other.model() };
     }
 
-
-    glm::vec3 decompose_position() const noexcept {
-        return { model_[3] };
+    auto decompose_position() const noexcept
+        -> vec3
+    {
+        return { _mat[3] };
     }
 
-    glm::vec3 decompose_local_scale() const noexcept {
+    auto decompose_local_scale() const noexcept
+        -> vec3
+    {
         return glm::sqrt(
-            glm::vec3{
-                glm::length2(model_[0]),
-                glm::length2(model_[1]),
-                glm::length2(model_[2])
+            vec3{
+                glm::length2(_mat[0]),
+                glm::length2(_mat[1]),
+                glm::length2(_mat[2])
             }
         );
     }
 
+    operator const mat4&() const noexcept { return _mat; }
 
+    // Same story as with Transform.
+    mat4 _mat{ 1.0f };
 };
 
 
-
-
-inline MTransform Transform::mtransform() const noexcept {
-    return MTransform()
-        .translate(position_)
-        .rotate(orientation_)
-        .scale(scale_);
+inline auto decompose_translation(const mat4& mat) noexcept
+    -> vec3
+{
+    return { mat[3] };
 }
 
+inline auto decompose_local_scale(const mat4& mat) noexcept
+    -> vec3
+{
+    const vec3 l2s_of_bases = {
+        glm::length2(mat[0]),
+        glm::length2(mat[1]),
+        glm::length2(mat[2])
+    };
+    return glm::sqrt(l2s_of_bases);
+}
+
+/*
+NOTE: Skew/Shear is not preserved.
+HMM: Is returning Transform a reasonable idea?
+*/
+inline auto decompose_trs(const mat4& mat) noexcept
+    -> Transform
+{
+    vec3 s;
+    quat r;
+    vec3 t;
+    vec3 _skew;
+    vec4 _perspective;
+    // TODO: We don't care about skew and perspective.
+    // Is there a simpler implementation?
+    glm::decompose(mat, s, r, t, _skew, _perspective);
+    return { t, r, s };
+}
+
+inline auto decompose_rotation(const mat4& mat) noexcept
+    -> quat
+{
+    // TODO: Surely there's a simpler way.
+    return decompose_trs(mat).orientation();
+}
+
+inline auto Transform::mtransform() const noexcept
+    -> MTransform
+{
+    return MTransform()
+        .translate(_position)
+        .rotate(_orientation)
+        .scale(_scale);
+}
 
 
 } // namespace josh

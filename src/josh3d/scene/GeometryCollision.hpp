@@ -82,8 +82,8 @@ inline bool is_fully_behind(
 
 
 inline bool is_fully_outside_of(
-    const AABB&                aabb,
-    const ViewFrustumAsPlanes& frustum) noexcept
+    const AABB&          aabb,
+    const FrustumPlanes& frustum) noexcept
 {
     return
         is_fully_in_front_of(aabb, frustum.near()  ) ||
@@ -96,8 +96,8 @@ inline bool is_fully_outside_of(
 
 
 inline bool is_fully_inside_of(
-    const AABB&                aabb,
-    const ViewFrustumAsPlanes& frustum) noexcept
+    const AABB&          aabb,
+    const FrustumPlanes& frustum) noexcept
 {
     return
         is_fully_behind(aabb, frustum.near()  ) &&
@@ -110,8 +110,8 @@ inline bool is_fully_inside_of(
 
 
 inline bool is_fully_outside_of(
-    const Sphere&              sphere,
-    const ViewFrustumAsPlanes& frustum) noexcept
+    const Sphere&        sphere,
+    const FrustumPlanes& frustum) noexcept
 {
     return
         is_fully_in_front_of(sphere, frustum.near()  ) ||

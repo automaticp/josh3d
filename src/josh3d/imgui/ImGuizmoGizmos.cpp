@@ -1,15 +1,16 @@
 #include "ImGuizmoGizmos.hpp"
 #include "AABB.hpp"
 #include "Components.hpp"
+#include "ContainerUtils.hpp"
 #include "SceneGraph.hpp"
 #include "ImGuiComponentWidgets.hpp"
 #include "Tags.hpp"
 #include "Transform.hpp"
 #include "Transform.hpp"
-#include "tags/Selected.hpp"
+#include "UIContext.hpp"
+#include "Selected.hpp"
 #include <ImGuizmo.h>
 #include <entt/entity/fwd.hpp>
-#include <exception>
 #include <glm/ext.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/quaternion_common.hpp>
@@ -26,15 +27,13 @@
 namespace josh {
 
 
-void ImGuizmoGizmos::new_frame() {
+void ImGuizmoGizmos::new_frame()
+{
     ImGuizmo::BeginFrame();
     ImGuizmo::SetImGuiContext(ImGui::GetCurrentContext());
     ImGuiIO& io = ImGui::GetIO();
     ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
 }
-
-
-
 
 /*
 When it comes to gizmo display and interaction there's a set of
@@ -125,21 +124,16 @@ This will require translation of all objects w.r.t. the midpoint. Should be doab
 
 (There may be more options for each point)
 */
-
-
-
-
 void ImGuizmoGizmos::display(
-    const glm::mat4& view_mat,
-    const glm::mat4& proj_mat)
+    UIContext&  ui,
+    const mat4& view_mat,
+    const mat4& proj_mat)
 {
-    using glm::mat3, glm::mat4, glm::vec3, glm::vec4, glm::quat;
-    auto& registry = registry_;
+    auto& registry = ui.runtime.registry;
 
     bool debug_window_open = false;
-    if (display_debug_window) {
+    if (display_debug_window)
         debug_window_open = ImGui::Begin("GizmoDebug");
-    }
 
     // MTransform must have been computed from the scene graph and individual Transforms.
     auto selected = registry.view<Selected, Transform, MTransform>();
@@ -148,8 +142,8 @@ void ImGuizmoGizmos::display(
     // Not every selected will necessarily have a Transform and MTransform, however.
     const auto num_selected = selected.size_hint();
 
-    if (num_selected != 0) {
-
+    if (num_selected != 0)
+    {
         // Filter the list of selected nodes for the ones that will
         // actually be affected by the transformation.
         //
@@ -166,39 +160,40 @@ void ImGuizmoGizmos::display(
         // For now, I don't care, maybe when there's a `node_allocator` I'll celebrate by adding
         // a second set.
 
-        thread_local std::unordered_set<entt::entity> transform_targets;
+        thread_local HashSet<Entity> transform_targets;
         transform_targets.clear(); // Ensure that it's clear before pushing new elements.
 
-        for (const entt::entity entity : selected) {
-            const entt::const_handle handle{ registry_, entity };
+        for (const Entity entity : selected)
+        {
+            const CHandle handle = { registry, entity };
 
-            entt::entity highest_selected{ entity };
-
-            traverse_ancestors_upwards(handle, [&](entt::const_handle ancestor) {
-                if (has_tag<Selected>(ancestor)) {
+            Entity highest_selected{ entity };
+            traverse_ancestors_upwards(handle, [&](CHandle ancestor)
+            {
+                if (has_tag<Selected>(ancestor))
                     highest_selected = ancestor.entity();
-                }
             });
 
             transform_targets.emplace(highest_selected);
         }
 
         // Bail early if there are no valid transform targets.
-        if (transform_targets.empty()) {
+        if (transform_targets.empty())
+        {
             // TODO: Probably reorder this so that you don't have to call this in 2 places.
-            if (display_debug_window) {
+            if (display_debug_window)
                 ImGui::End();
-            }
             return;
         }
 
         // Locate the gizmo at midpoint of all transform targets.
-        vec3 midpoint_world{ 0.f, 0.f, 0.f }; // Contravariant position of the midpoint in world-space.
+        vec3 midpoint_world = {}; // Contravariant position of the midpoint in world-space.
 
-        for (const entt::entity entity : transform_targets) {
-            const entt::handle handle{ registry, entity };
+        for (const Entity entity : transform_targets)
+        {
+            const Handle handle = { registry, entity };
 
-            if (preferred_location == GizmoLocation::AABBMidpoint &&
+            if (preferred_location == GizmoLocation::AABBMidpoint and
                 has_component<AABB>(handle))
             {
                 // If has world-space AABB, use the midpoint of that.
@@ -207,20 +202,17 @@ void ImGuizmoGizmos::display(
                 // Otherwise, use the position of the local origin.
                 midpoint_world += selected.get<MTransform>(entity).decompose_position();
             }
-
         }
         midpoint_world /= transform_targets.size();
 
         const vec3 gizmo_position = midpoint_world;
 
-
         // Get the orientation/scale of the gizmo from the active entity.
         //
         // TODO: We don't have LastSelected or ActiveSelected yet ;_;
         // We'll just grab any of the selected for now.
-        const entt::entity active_entity = *transform_targets.begin();
-        const mat3 gizmo_mat3 = selected.get<MTransform>(active_entity).model();
-
+        const Entity active_entity = *transform_targets.begin();
+        const mat3   gizmo_mat3    = selected.get<MTransform>(active_entity).model();
 
         // Since ImGuizmo tries to be "helpful" by being yada-yada "immediate mode" and
         // modifying the model matrix inplace, we'll have to use a fake model matrix for the gizmo.
@@ -235,61 +227,55 @@ void ImGuizmoGizmos::display(
         const mat4 old_gizmo_mat4 = glm::translate(gizmo_position) * mat4(gizmo_mat3);
         mat4       new_gizmo_mat4 = old_gizmo_mat4;
 
-        const ImGuizmo::MODE mode = [&] {
-            switch (active_space) {
+        const ImGuizmo::MODE mode = eval%[&]{
+            switch (active_space)
+            {
                 case GizmoSpace::World: return ImGuizmo::WORLD;
                 case GizmoSpace::Local: return ImGuizmo::LOCAL;
-                default: std::terminate();
+                default: panic();
             }
-        }();
+        };
 
-        const ImGuizmo::OPERATION operation = [&] {
-            switch (active_operation) {
+        const ImGuizmo::OPERATION operation = eval%[&]{
+            switch (active_operation)
+            {
                 case GizmoOperation::Translation: return ImGuizmo::TRANSLATE;
                 case GizmoOperation::Rotation:    return ImGuizmo::ROTATE;
                 case GizmoOperation::Scaling:     return ImGuizmo::SCALE_Y;
-                default: std::terminate();
+                default: panic();
             }
-        }();
+        };
 
         const bool manipulated =
-            ImGuizmo::Manipulate(
-                value_ptr(view_mat),
-                value_ptr(proj_mat),
-                operation,
-                mode,
-                value_ptr(new_gizmo_mat4));
-
-
-
+            ImGuizmo::Manipulate(value_ptr(view_mat), value_ptr(proj_mat),
+                operation, mode, value_ptr(new_gizmo_mat4));
 
         // Some debugging helpers.
-        thread_local mat4  last_O2N_gizmo {};
-        thread_local mat4  last_O2N_world {};
-        thread_local mat4  last_O2N_median{};
-        thread_local mat4  last_O2N_parent{};
-        thread_local mat4  last_O2N_local {};
+        thread_local mat4  last_O2N_gizmo  = {};
+        thread_local mat4  last_O2N_world  = {};
+        thread_local mat4  last_O2N_median = {};
+        thread_local mat4  last_O2N_parent = {};
+        thread_local mat4  last_O2N_local  = {};
 
-        thread_local GizmoOperation last_tweak{};
+        thread_local GizmoOperation last_tweak = {};
 
-        thread_local vec3  last_translation_world_dr {};
-        thread_local vec3  last_translation_parent_dr{};
-        thread_local vec3  last_translation_local_dr {};
+        thread_local vec3  last_translation_world_dr  = {};
+        thread_local vec3  last_translation_parent_dr = {};
+        thread_local vec3  last_translation_local_dr  = {};
 
-        thread_local vec3  last_rotation_gizmo_axis  {};
-        thread_local float last_rotation_gizmo_angle {};
-        thread_local vec3  last_rotation_world_axis  {};
-        thread_local float last_rotation_world_angle {};
-        thread_local vec3  last_rotation_parent_axis {};
-        thread_local float last_rotation_parent_angle{};
-        thread_local vec3  last_rotation_local_axis  {};
-        thread_local float last_rotation_local_angle {};
+        thread_local vec3  last_rotation_gizmo_axis   = {};
+        thread_local float last_rotation_gizmo_angle  = {};
+        thread_local vec3  last_rotation_world_axis   = {};
+        thread_local float last_rotation_world_angle  = {};
+        thread_local vec3  last_rotation_parent_axis  = {};
+        thread_local float last_rotation_parent_angle = {};
+        thread_local vec3  last_rotation_local_axis   = {};
+        thread_local float last_rotation_local_angle  = {};
 
-        thread_local float last_scaling_factor{};
+        thread_local float last_scaling_factor = {};
 
-
-        if (debug_window_open) {
-
+        if (debug_window_open)
+        {
             ImGui::TextUnformatted("Current Gizmo Matrix:");
             imgui::Matrix4x4DisplayWidget(new_gizmo_mat4);
             ImGui::Separator();
@@ -319,18 +305,17 @@ void ImGuizmoGizmos::display(
             ImGui::Text("det(dL) = %.3f", glm::determinant(last_O2N_local));
             ImGui::Separator();
 
-
             ImGui::BeginDisabled();
-            if (last_tweak == GizmoOperation::Translation) {
+            if (last_tweak == GizmoOperation::Translation)
+            {
                 ImGui::TextUnformatted("Last Tweak: Translation");
-
                 ImGui::InputFloat3("World dr",  value_ptr(last_translation_world_dr) );
                 ImGui::InputFloat3("Parent dr", value_ptr(last_translation_parent_dr));
                 ImGui::InputFloat3("Local dr",  value_ptr(last_translation_local_dr) );
-
-            } else if (last_tweak == GizmoOperation::Rotation) {
+            }
+            else if (last_tweak == GizmoOperation::Rotation)
+            {
                 ImGui::TextUnformatted("Last Tweak: Rotation");
-
                 vec4 gizmo_aa { last_rotation_gizmo_axis,  last_rotation_gizmo_angle  };
                 vec4 world_aa { last_rotation_world_axis,  last_rotation_world_angle  };
                 vec4 parent_aa{ last_rotation_parent_axis, last_rotation_parent_angle };
@@ -339,21 +324,17 @@ void ImGuizmoGizmos::display(
                 ImGui::InputFloat4("World Axis/Angle",  value_ptr(world_aa) );
                 ImGui::InputFloat4("Parent Axis/Angle", value_ptr(parent_aa));
                 ImGui::InputFloat4("Local Axis/Angle",  value_ptr(local_aa) );
-
-            } else if (last_tweak == GizmoOperation::Scaling) {
+            }
+            else if (last_tweak == GizmoOperation::Scaling)
+            {
                 ImGui::TextUnformatted("Last Tweak: Scaling");
-
                 ImGui::InputFloat("Scaling Factor", &last_scaling_factor);
             }
             ImGui::EndDisabled();
-
         }
 
-
-
-
-
-        if (manipulated) {
+        if (manipulated)
+        {
             last_tweak = active_operation;
 
             /*
@@ -388,7 +369,7 @@ void ImGuizmoGizmos::display(
                 v_B = inverse(A2B) * v_A
 
             */
-            const auto covariant     = [](const vec3& v) { return vec4(v, 0.f); };
+         // const auto covariant     = [](const vec3& v) { return vec4(v, 0.f); };
             const auto contravariant = [](const vec3& v) { return vec4(v, 1.f); };
 
 
@@ -422,8 +403,9 @@ void ImGuizmoGizmos::display(
             last_O2N_median = O2N_median;
 
 
-            for (const entt::entity entity : transform_targets) {
-                const entt::handle handle{ registry, entity };
+            for (const Entity entity : transform_targets)
+            {
+                const Handle handle = { registry, entity };
 
                 const MTransform& mtransform = handle.get<MTransform>();
 
@@ -448,7 +430,7 @@ void ImGuizmoGizmos::display(
                 const mat4 L2P = inverse(P2L);
 
                 const mat4 W2P = W2L * L2P;
-                const mat4 P2W = inverse(W2P);
+             // const mat4 P2W = inverse(W2P);
 
                 const mat4 M2P = M2W * W2P;
                 const mat4 P2M = inverse(M2P);
@@ -460,10 +442,8 @@ void ImGuizmoGizmos::display(
                 last_O2N_local  = O2N_local;
                 last_O2N_parent = O2N_parent;
 
-
-
-
-                if (active_operation == GizmoOperation::Translation) {
+                if (active_operation == GizmoOperation::Translation)
+                {
                     /*
                     Translation delta is taken from the parent space, because
                     the position field of the Transform is the origin of local
@@ -473,7 +453,6 @@ void ImGuizmoGizmos::display(
                     The positions of root nodes == offsets from world origin.
                     */
 
-
                     // The O2N transformations already encode the translation in each space.
                     const vec3 dr_world  = vec3(O2N_world[3] );
                     const vec3 dr_parent = vec3(O2N_parent[3]);
@@ -481,13 +460,12 @@ void ImGuizmoGizmos::display(
 
                     handle.get<Transform>().translate(dr_parent);
 
-
                     last_translation_world_dr  = dr_world;
                     last_translation_parent_dr = dr_parent;
                     last_translation_local_dr  = dr_local;
-
-
-                } else if (active_operation == GizmoOperation::Rotation) {
+                }
+                else if (active_operation == GizmoOperation::Rotation)
+                {
                     /*
                     We want to rotate around the midpoint of all the objects,
                     which means that the operation is actually a combination
@@ -499,7 +477,6 @@ void ImGuizmoGizmos::display(
                     When only one object is selected, the midpoint is equal to pivot,
                     so no translation takes place.
                     */
-
 
                     // Translation:
 
@@ -545,9 +522,7 @@ void ImGuizmoGizmos::display(
                     // parent. Not sure why, I must be missing something there.
                     const vec3 r_new_parent = P2M * contravariant(r_new_median); // Contravariant
 
-
                     handle.get<Transform>().position() = r_new_parent;
-
 
                     // Rotation:
 
@@ -566,7 +541,6 @@ void ImGuizmoGizmos::display(
                     const quat  rotation_local_quat = quat_cast(O2N_local);
                     const vec3  axis_local          = axis(rotation_local_quat);
                     const float angle_local         = angle(rotation_local_quat);
-
 
                     handle.get<Transform>().rotate(angle_world, axis_local);
                     //
@@ -604,9 +578,9 @@ void ImGuizmoGizmos::display(
                     last_rotation_parent_angle = angle_parent;
                     last_rotation_local_axis   = axis_local;
                     last_rotation_local_angle  = angle_local;
-
-
-                } else if (active_operation == GizmoOperation::Scaling) {
+                }
+                else if (active_operation == GizmoOperation::Scaling)
+                {
                     /*
                     Uniform scaling only.
 
@@ -619,7 +593,6 @@ void ImGuizmoGizmos::display(
                     So we need to get the matrix in gizmo space, make it uniform,
                     and then transform that to other spaces.
                     */
-
 
                     const float scale_factor_gizmo = O2N_gizmo[1][1];
                     const mat4 O2N_uniform_gizmo  = glm::scale(vec3(scale_factor_gizmo));
@@ -637,7 +610,6 @@ void ImGuizmoGizmos::display(
                     last_O2N_parent = O2N_uniform_parent;
                     last_O2N_local  = O2N_uniform_local;
 
-
                     // Translation:
                     //
                     // The steps for translation are very similar to how it's done in rotation.
@@ -648,7 +620,6 @@ void ImGuizmoGizmos::display(
 
                     handle.get<Transform>().position() = r_new_parent;
 
-
                     const float uniform_scale_factor = O2N_uniform_local[1][1];
 
                     // Overall, this is janky when the local basis has skew.
@@ -657,13 +628,10 @@ void ImGuizmoGizmos::display(
 
                     handle.get<Transform>().scale(vec3(uniform_scale_factor));
 
-
                     last_scaling_factor = uniform_scale_factor;
-
                 } // if (active_operation == ...)
             } // for (entity)
         } // if (manipulated)
-
 
         // Clear heap-allocated memory now, so that it's less likely to
         // interleave with other allocations following this.
@@ -672,10 +640,8 @@ void ImGuizmoGizmos::display(
         transform_targets.clear();
     }
 
-
-    if (display_debug_window) {
+    if (display_debug_window)
         ImGui::End();
-    }
 }
 
 

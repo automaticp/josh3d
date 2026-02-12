@@ -1,26 +1,23 @@
 #pragma once
 #include "GLAPIBinding.hpp"
+#include "stages/primary/GBufferStorage.hpp"
 #include "GLAPICommonTypes.hpp"
 #include "GLObjects.hpp"
 #include "ShaderPool.hpp"
-#include "stages/primary/GBufferStorage.hpp"
 #include "EnumUtils.hpp"
-#include "RenderEngine.hpp"
-#include "SharedStorage.hpp"
+#include "StageContext.hpp"
 #include "GLScalars.hpp"
 #include "VPath.hpp"
-#include <glbinding/gl/gl.h>
-#include <entt/entity/fwd.hpp>
+#include <tracy/Tracy.hpp>
 
 
+namespace josh {
 
 
-namespace josh::stages::overlay {
-
-
-class GBufferDebug {
-public:
-    enum class OverlayMode : GLint {
+struct GBufferDebug
+{
+    enum class OverlayMode : GLint
+    {
         None         = 0,
         Albedo       = 1,
         Specular     = 2,
@@ -32,51 +29,43 @@ public:
         ObjectID     = 8,
     };
 
-    OverlayMode mode{ OverlayMode::None };
+    OverlayMode mode = OverlayMode::None;
 
-    GBufferDebug(SharedStorageView<GBuffer> gbuffer)
-        : gbuffer_{ std::move(gbuffer) }
-    {}
-
-    void operator()(RenderEngineOverlayInterface& engine);
-
-
+    void operator()(OverlayContext context);
 
 private:
-    SharedStorageView<GBuffer> gbuffer_;
-
-    ShaderToken sp_ = shader_pool().get({
-        .vert = VPath("src/shaders/postprocess.vert"),
-        .frag = VPath("src/shaders/ovl_gbuffer_debug.frag")});
-
-    UniqueSampler integer_sampler_ = [] {
+    UniqueSampler integer_sampler_ = []{
         UniqueSampler s;
         s->set_min_mag_filters(MinFilter::Nearest, MagFilter::Nearest);
         return s;
     }();
 
+    ShaderToken sp_ = shader_pool().get({
+        .vert = VPath("src/shaders/postprocess.vert"),
+        .frag = VPath("src/shaders/ovl_gbuffer_debug.frag")});
 };
-
-
+JOSH3D_DEFINE_ENUM_EXTRAS(GBufferDebug::OverlayMode, None, Albedo, Specular, Position, Depth, DepthLinear, Normals, DrawRegion, ObjectID);
 
 
 inline void GBufferDebug::operator()(
-    RenderEngineOverlayInterface& engine)
+    OverlayContext context)
 {
+    ZSCGPUN("GBufferDebug");
+    if (mode == OverlayMode::None) return;
 
-    if (mode == OverlayMode::None) {
-        return;
-    }
+    auto* gbuffer = context.belt().try_get<GBuffer>();
 
-    BindGuard bound_camera = engine.bind_camera_ubo();
+    if (not gbuffer) return;
 
-    gbuffer_->depth_texture()    .bind_to_texture_unit(0);
-    gbuffer_->normals_texture()  .bind_to_texture_unit(1);
-    gbuffer_->albedo_texture()   .bind_to_texture_unit(2);
-    gbuffer_->specular_texture() .bind_to_texture_unit(3);
-    gbuffer_->object_id_texture().bind_to_texture_unit(4);
+    const BindGuard bcam = context.bind_camera_ubo();
 
-    BindGuard bound_integer_sampler = integer_sampler_->bind_to_texture_unit(4);
+    gbuffer->depth_texture()    .bind_to_texture_unit(0);
+    gbuffer->normals_texture()  .bind_to_texture_unit(1);
+    gbuffer->albedo_texture()   .bind_to_texture_unit(2);
+    gbuffer->specular_texture() .bind_to_texture_unit(3);
+    gbuffer->object_id_texture().bind_to_texture_unit(4);
+
+    const BindGuard bound_sampler = integer_sampler_->bind_to_texture_unit(4);
 
     const auto sp = sp_.get();
 
@@ -87,9 +76,9 @@ inline void GBufferDebug::operator()(
     sp.uniform("gbuffer.tex_specular", 3);
     sp.uniform("tex_object_id",        4);
 
+    const BindGuard bsp = sp.use();
 
-    engine.draw_fullscreen_quad(sp.use());
-
+    context.draw_quad_to_default(bsp);
 }
 
 

@@ -16,7 +16,6 @@ vec3 point_light_irradiance(
     return spectral_power * attenuation;
 }
 
-
 /*
 A [0, 1] factor that smoothly fades the point light near the edge of its volume.
 */

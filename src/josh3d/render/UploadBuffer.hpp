@@ -1,4 +1,5 @@
 #pragma once
+#include "Common.hpp"
 #include "CommonConcepts.hpp"
 #include "GLAPIBinding.hpp"
 #include "GLAPICommonTypes.hpp"
@@ -30,7 +31,8 @@ Overall, this finds use in drawing multiple lights, instancing, bindless resourc
 NOTE: Don't yell "BUT WHAT ABOUT PERSISTENT MAPPING" at me, this works fine as is.
 */
 template<trivially_copyable T>
-class UploadBuffer {
+class UploadBuffer
+{
 public:
     UploadBuffer() = default;
 
@@ -41,10 +43,16 @@ public:
     auto num_staged() const noexcept -> NumElems { return NumElems{ staged_.size() }; }
 
     // Clear staged storage and stage new data.
-    auto restage(std::ranges::range auto&& r) -> BufferRange;
+    auto restage(std::ranges::range auto&& r) -> ElemRange;
 
     // Stage new data by appending to the existing staged storage.
-    auto stage(std::ranges::range auto&& r) -> BufferRange;
+    auto stage(std::ranges::range auto&& r) -> ElemRange;
+
+    // Stage a single element by appending to the existing storage. Effectively push_back().
+    auto stage_one(const T& value) -> ElemRange;
+
+    // Obtain a readonly view to the staged storage.
+    auto view_staged() const noexcept -> Span<const T> { return staged_; }
 
     // Commit all data in staged storage to the GPU.
     void ensure_synced();
@@ -53,111 +61,154 @@ public:
     bool is_synced() const noexcept { return is_synced_; }
 
     // Commit staged data to the GPU and bind the buffer to the `index`.
-    auto bind_to_ssbo_index(GLuint index)
-        -> BindToken<BindingIndexed::ShaderStorageBuffer>;
+    auto bind_to_ssbo_index(u32 index)
+        -> BindToken<BindingI::ShaderStorageBuffer>;
 
     // Commit staged data to the GPU and bind the buffer `range` to the `index`.
-    auto bind_range_to_ssbo_index(const BufferRange& range, GLuint index)
-        -> BindToken<BindingIndexed::ShaderStorageBuffer>;
+    auto bind_range_to_ssbo_index(const ElemRange& range, u32 index)
+        -> BindToken<BindingI::ShaderStorageBuffer>;
+
+    // Commit staged data to the GPU and bind as the indirect draw buffer.
+    auto bind_to_indirect_draw()
+        -> BindToken<Binding::DrawIndirectBuffer>;
+
+    // Commit staged data to the GPU and bind as the indirect dispatch buffer.
+    auto bind_to_indirect_dispatch()
+        -> BindToken<Binding::DispatchIndirectBuffer>;
 
 private:
-    std::vector<T>  staged_;
+    Vector<T>       staged_;
     UniqueBuffer<T> buffer_;
-    bool            is_synced_{ true }; // Empty local storage is synced with empty buffer.
+    bool            is_synced_ = true; // Empty local storage is synced with empty buffer.
 
     void was_desynced() noexcept { is_synced_ = false; }
     void was_synced()   noexcept { is_synced_ = true;  }
 };
 
 
-
-
 template<trivially_copyable T>
-void UploadBuffer<T>::clear() {
-    if (!staged_.empty()) {
+void UploadBuffer<T>::clear()
+{
+    if (not staged_.empty())
+    {
         staged_.clear();
         was_desynced();
     }
 }
 
-
 template<trivially_copyable T>
 auto UploadBuffer<T>::restage(std::ranges::range auto&& r)
-    -> BufferRange
+    -> ElemRange
 {
     clear();
+
     std::ranges::copy(r, std::back_inserter(staged_));
     const NumElems num_new_staged = num_staged();
-    if (num_new_staged) {
+
+    if (num_new_staged)
         was_desynced();
-    }
+
     return { OffsetElems{ 0 }, num_new_staged };
 }
 
-
 template<trivially_copyable T>
 auto UploadBuffer<T>::stage(std::ranges::range auto&& r)
-    -> BufferRange
+    -> ElemRange
 {
-    const OffsetElems old_end{ num_staged() };
+    const auto old_end = OffsetElems(num_staged());
     std::ranges::copy(r, std::back_inserter(staged_));
-    const OffsetElems new_end{ num_staged() };
-    const NumElems num_new_staged{ new_end - old_end };
-    if (num_new_staged) {
+    const auto new_end = OffsetElems(num_staged());
+    const auto num_new_staged = NumElems(new_end - old_end);
+
+    if (num_new_staged)
         was_desynced();
-    }
+
     return { old_end, num_new_staged };
 }
 
+template<trivially_copyable T>
+auto UploadBuffer<T>::stage_one(const T& value)
+    -> ElemRange
+{
+    const auto old_end = OffsetElems(num_staged());
+    staged_.push_back(value);
+
+    was_desynced();
+
+    return { old_end, 1 };
+}
 
 template<trivially_copyable T>
-void UploadBuffer<T>::ensure_synced() {
-    if (!is_synced()) {
+void UploadBuffer<T>::ensure_synced()
+{
+    if (not is_synced())
+    {
         // TODO: Do we care about flags? Because they will be defaulted here.
         const bool was_reallocated =
             expand_to_fit_amortized(buffer_, num_staged());
 
-        if (!was_reallocated) {
+        if (not was_reallocated)
             buffer_->invalidate_contents();
-        }
 
         buffer_->upload_data(staged_);
         was_synced();
     }
 }
 
-
 template<trivially_copyable T>
-auto UploadBuffer<T>::bind_to_ssbo_index(GLuint index)
-    -> BindToken<BindingIndexed::ShaderStorageBuffer>
+auto UploadBuffer<T>::bind_to_ssbo_index(u32 index)
+    -> BindToken<BindingI::ShaderStorageBuffer>
 {
     ensure_synced();
 
-    if (num_staged()) {
+    if (num_staged())
+    {
         // We want to only bind the range that covers staged data,
         // even if amortized allocation might've left the buffer larger.
-        const BufferRange range{ OffsetElems{ 0 }, num_staged() };
-        return buffer_->template bind_range_to_index<BufferTargetIndexed::ShaderStorage>(range.offset, range.count, index);
-    } else /* nothing to bind, unbind the storage */ {
+        const ElemRange range = { OffsetElems{ 0 }, num_staged() };
+        return buffer_->template bind_range_to_index<BufferTargetI::ShaderStorage>(range.offset, range.count, index);
+    }
+    else /* nothing to bind, unbind the storage */
+    {
         // TODO: This is scuffed and should not be done like this.
         // The gl layer must be fixed instead to support BindTokens on unbind.
-        return RawBuffer<T, GLMutable>::from_id(0).template bind_to_index<BufferTargetIndexed::ShaderStorage>(index);
+        return RawBuffer<T, GLMutable>::from_id(0).template bind_to_index<BufferTargetI::ShaderStorage>(index);
     }
 }
 
-
 template<trivially_copyable T>
-auto UploadBuffer<T>::bind_range_to_ssbo_index(const BufferRange& range, GLuint index)
-    -> BindToken<BindingIndexed::ShaderStorageBuffer>
+auto UploadBuffer<T>::bind_range_to_ssbo_index(const ElemRange& range, u32 index)
+    -> BindToken<BindingI::ShaderStorageBuffer>
 {
     ensure_synced();
     assert(range.offset + range.count <= num_staged());
 
-    if (range.count) {
-        return buffer_->template bind_range_to_index<BufferTargetIndexed::ShaderStorage>(range.offset, range.count, index);
-    } else {
-        return RawBuffer<T, GLMutable>::from_id(0).template bind_to_index<BufferTargetIndexed::ShaderStorage>(index);
+    if (range.count)
+    {
+        return buffer_->template bind_range_to_index<BufferTargetI::ShaderStorage>(range.offset, range.count, index);
     }
+    else
+    {
+        return RawBuffer<T, GLMutable>::from_id(0).template bind_to_index<BufferTargetI::ShaderStorage>(index);
+    }
+}
+
+template<trivially_copyable T>
+auto UploadBuffer<T>::bind_to_indirect_draw()
+    -> BindToken<Binding::DrawIndirectBuffer>
+{
+    ensure_synced();
+    if (num_staged()) return buffer_->template bind<BufferTarget::DrawIndirect>();
+    else              return RawBuffer<T>::from_id(0).template bind<BufferTarget::DrawIndirect>();
+}
+
+template<trivially_copyable T>
+auto UploadBuffer<T>::bind_to_indirect_dispatch()
+    -> BindToken<Binding::DispatchIndirectBuffer>
+{
+    ensure_synced();
+    if (num_staged()) return buffer_->template bind<BufferTarget::DispatchIndirect>();
+    else              return RawBuffer<T>::from_id(0).template bind<BufferTarget::DispatchIndirect>();
 }
 
 

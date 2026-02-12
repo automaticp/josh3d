@@ -1,26 +1,34 @@
 #include "TerrainGeometry.hpp"
+#include "GLAPICore.hpp"
+#include "stages/primary/GBufferStorage.hpp"
 #include "GLProgram.hpp"
 #include "UniformTraits.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "Transform.hpp"
 #include "TerrainChunk.hpp"
+#include "Tracy.hpp"
 #include <entt/entt.hpp>
 
 
-
-
-namespace josh::stages::primary {
+namespace josh {
 
 
 void TerrainGeometry::operator()(
-    RenderEnginePrimaryInterface& engine)
+    PrimaryContext context)
 {
-    const auto& registry = engine.registry();
-    const RawProgram<> sp = sp_;
+    ZSCGPUN("TerrainGeometry");
+    const auto& registry = context.registry();
+    auto*       gbuffer  = context.belt().try_get<GBuffer>();
 
-    BindGuard bound_camera  = engine.bind_camera_ubo();
-    BindGuard bound_fbo     = gbuffer_->bind_draw();
-    BindGuard bound_program = sp.use();
+    if (not gbuffer) return;
+
+    const RawProgram<> sp = _sp;
+
+    glapi::set_viewport({ {}, gbuffer->resolution() });
+
+    const BindGuard bcam = context.bind_camera_ubo();
+    const BindGuard bfb  = gbuffer->bind_draw();
+    const BindGuard bsp  = sp.use();
 
     for (auto [entity, world_mtf, chunk]
         : registry.view<MTransform, TerrainChunk>().each())
@@ -32,10 +40,9 @@ void TerrainGeometry::operator()(
         sp.uniform("object_id",    entt::to_integral(entity));
         sp.uniform("test_color",   0);
 
-        chunk.mesh.draw(bound_program, bound_fbo);
+        chunk.mesh.draw(bsp, bfb);
     }
-
 }
 
 
-} // namespace josh::stages::primary
+} // namespace josh

@@ -106,11 +106,13 @@ auto AssetUnpacker::unpack_one_retired()
 }
 
 
-void AssetUnpacker::unpack_one_retired(Handle& handle) {
-    // For-loops are decieving here, we return after the first entity.
+void AssetUnpacker::unpack_one_retired(Handle& handle)
+{
+    // NOTE: For-loops are decieving here, we return after the first entity.
     handle = {};
 
-    for (const Entity entity : registry_.view<Retired<ModelJob>>()) {
+    for (const Entity entity : registry_.view<Retired<ModelJob>>())
+    {
         handle = { registry_, entity };
         ModelJob retired = MOVE(handle.get<Retired<ModelJob>>().value);
         handle.erase<Retired<ModelJob>>(); // Erase first, so that on exception the request is gone.
@@ -120,19 +122,20 @@ void AssetUnpacker::unpack_one_retired(Handle& handle) {
         return;
     }
 
-    for (const Entity entity : registry_.view<Retired<SkyboxJob>>()) {
+    for (const Entity entity : registry_.view<Retired<SkyboxJob>>())
+    {
         handle = { registry_, entity };
         SkyboxJob retired = MOVE(handle.get<Retired<SkyboxJob>>().value);
         handle.erase<Retired<SkyboxJob>>();
         SharedCubemapAsset asset = retired.get_result(); // Can rethrow the exception here.
         handle.emplace_or_replace<AssetPath>(MOVE(asset.path));
-        make_available<Binding::Cubemap>(asset.cubemap->id());
+        glapi::make_available<Binding::Cubemap>(asset.cubemap->id());
         handle.emplace_or_replace<Skybox>(MOVE(asset.cubemap));
 
         // TODO: Is this the right place to handle this?
-        if (!has_active<Skybox>(registry_)) {
+        if (!has_active<Skybox>(registry_))
             make_active<Skybox>(handle);
-        }
+
         return;
     }
 }

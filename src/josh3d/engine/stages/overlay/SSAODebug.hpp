@@ -1,67 +1,59 @@
 #pragma once
+#include "stages/primary/SSAO.hpp"
 #include "GLObjects.hpp"
 #include "GLTextures.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "EnumUtils.hpp"
-#include "SharedStorage.hpp"
 #include "VPath.hpp"
-#include "stages/primary/SSAO.hpp"
+#include "Tracy.hpp"
 
 
-namespace josh::stages::overlay {
+namespace josh {
 
 
-class SSAODebug {
-
-public:
-    enum class OverlayMode : GLint {
-        None    = 0,
-        Noisy   = 1,
-        Blurred = 2,
+struct SSAODebug
+{
+    enum class OverlayMode : i32
+    {
+        None,
+        Backbuffer,
+        Occlusion,
     };
 
-    OverlayMode mode{ OverlayMode::None };
+    OverlayMode mode = OverlayMode::None;
 
-    SSAODebug(SharedStorageView<AmbientOcclusionBuffers> input_ao) noexcept
-        : input_ao_{ std::move(input_ao) }
-    {}
-
-    void operator()(RenderEngineOverlayInterface& engine);
+    void operator()(OverlayContext context);
 
 private:
     ShaderToken sp_ = shader_pool().get({
-        .vert = VPath("src/shaders/postprocess.vert"),
+        .vert = VPath("src/shaders/screen_quad.vert"),
         .frag = VPath("src/shaders/ovl_ssao_debug.frag")});
-
-    SharedStorageView<AmbientOcclusionBuffers> input_ao_;
-
 };
-
-
+JOSH3D_DEFINE_ENUM_EXTRAS(SSAODebug::OverlayMode, None, Backbuffer, Occlusion);
 
 
 inline void SSAODebug::operator()(
-    RenderEngineOverlayInterface& engine)
+    OverlayContext context)
 {
+    ZSCGPUN("SSAODebug");
+    if (mode == OverlayMode::None) return;
 
-    if (mode == OverlayMode::None) {
-        return;
-    }
+    const auto* aobuffers = context.belt().try_get<AOBuffers>();
+    if (not aobuffers) return;
 
     const auto sp = sp_.get();
 
-    input_ao_->noisy_texture  .bind_to_texture_unit(0);
-    input_ao_->blurred_texture.bind_to_texture_unit(1);
+    aobuffers->backbuffer_texture().bind_to_texture_unit(0);
+    aobuffers->occlusion_texture() .bind_to_texture_unit(1);
 
-    sp.uniform("mode", to_underlying(mode));
-    sp.uniform("tex_noisy_occlusion", 0);
-    sp.uniform("tex_occlusion",       1);
+    sp.uniform("mode",           to_underlying(mode));
+    sp.uniform("tex_backbuffer", 0);
+    sp.uniform("tex_occlusion",  1);
 
-    engine.draw_fullscreen_quad(sp.use());
+    const BindGuard bsp = sp.use();
 
+    context.draw_quad_to_default(bsp);
 }
-
-
 
 
 } // namespace josh::stages::overlay

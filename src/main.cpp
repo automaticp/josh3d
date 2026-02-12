@@ -1,3 +1,12 @@
+#include "DemoScene.hpp"
+#include "Filesystem.hpp"
+#include "GlobalContext.hpp"
+#include "Logging.hpp"
+#include "GLUtils.hpp"
+#include "ThreadName.hpp"
+#include "VirtualFilesystem.hpp"
+#include "WindowSizeCache.hpp"
+#include "Tracy.hpp"
 #include <glbinding/gl/gl.h>
 #include <glbinding/glbinding.h>
 #include <glfwpp/glfwpp.h>
@@ -7,16 +16,6 @@
 #include <optional>
 #include <iostream>
 #include <vector>
-
-#include "DemoScene.hpp"
-#include "Filesystem.hpp"
-#include "GlobalContext.hpp"
-#include "Logging.hpp"
-#include "GLUtils.hpp"
-#include "VirtualFilesystem.hpp"
-#include "WindowSizeCache.hpp"
-
-
 
 
 static auto get_cli_options()
@@ -49,13 +48,15 @@ static auto get_cli_options()
     return options;
 }
 
-
 static auto try_parse_cli_args(cxxopts::Options& options, int argc, const char* argv[])
     -> std::optional<cxxopts::ParseResult>
 {
-    try {
+    try
+    {
         return options.parse(argc, argv);
-    } catch (const cxxopts::exceptions::parsing& e) {
+    }
+    catch (const cxxopts::exceptions::parsing& e)
+    {
         std::cerr
             << e.what()       << "\n"
             << options.help() << "\n";
@@ -63,48 +64,49 @@ static auto try_parse_cli_args(cxxopts::Options& options, int argc, const char* 
     }
 }
 
-
-
-
-int main(int argc, const char* argv[]) {
+auto main(int argc, const char* argv[])
+    -> int
+{
+    josh::set_current_thread_name("main");
 
     auto cli_options      = get_cli_options();
     auto cli_parse_result = try_parse_cli_args(cli_options, argc, argv);
 
-    if (!cli_parse_result.has_value()) {
+    if (not cli_parse_result.has_value())
         return 1;
-    }
-
 
     auto& cli_args = cli_parse_result.value();
 
-    if (cli_args.count("help")) {
+    if (cli_args.count("help"))
+    {
         std::cout << cli_options.help() << "\n";
         return 0;
     }
 
-    if (cli_args.count("vroots")) {
+    if (cli_args.count("vroots"))
+    {
         auto vroot_strigns = cli_args["vroots"].as<std::vector<std::string>>();
 
-        try {
-            for (auto&& vroot : vroot_strigns) {
+        try
+        {
+            for (auto&& vroot : vroot_strigns)
                 josh::vfs().roots().push_front(josh::Directory(std::move(vroot)));
-            }
-        } catch (const josh::error::DirectoryDoesNotExist& e) {
+        }
+        catch (const josh::DirectoryDoesNotExist& e)
+        {
             std::cerr << e.what() << "\n";
             return 1;
         }
     }
 
-
-    auto glfw_instance{ glfw::init() };
+    auto glfw_instance = glfw::init();
 
     glfw::WindowHints{
-        .scaleToMonitor = true,
-        .srgbCapable    = true,
+        .scaleToMonitor      = true,
+        .srgbCapable         = true,
         .contextVersionMajor = 4,
         .contextVersionMinor = 6,
-        .openglProfile = glfw::OpenGlProfile::Core,
+        .openglProfile       = glfw::OpenGlProfile::Core,
     }.apply();
 
     glfw::Window window{ 1280, 720, "Josh3D Demo" };
@@ -112,27 +114,36 @@ int main(int argc, const char* argv[]) {
     glfw::swapInterval(0);
     window.setInputModeCursor(glfw::CursorMode::Normal);
 
-
     glbinding::initialize(glfwGetProcAddress);
 
+    TracyGpuContext;
+    TracyGpuContextName("main", 4);
 
     josh::globals::RAIIContext globals_context;
     josh::globals::window_size.track(window);
 
-    auto hook_gl_logs_to = [&](std::ostream& os) {
-        if (cli_args["log-gl-errors"].as<bool>()) {
+    auto hook_gl_logs_to = [&](std::ostream& os)
+    {
+        if (cli_args["log-gl-errors"].as<bool>())
             josh::log_gl_errors(os);
-        }
-        if (cli_args["log-gl-shaders"].as<bool>()) {
-            josh::log_gl_shader_creation(os);
-        }
-    };
 
+        if (cli_args["log-gl-shaders"].as<bool>())
+            josh::log_gl_shader_creation(os);
+    };
 
     hook_gl_logs_to(josh::logstream()); // Hook now to report initialization failures.
 
+    const josh::RuntimeParams runtime_params = {
+        .main_window       = window,
+        .database_root     = ".josh3d/", // TODO: Un-hardcode
+        .task_pool_size    = 6,          // ''
+        .loading_pool_size = 6,          // ''
+        .main_resolution   = josh::globals::window_size.size(),
+        .main_format       = josh::HDRFormat::R11F_G11F_B10F
+    };
 
-    DemoScene application{ window };
+    auto runtime     = josh::Runtime(runtime_params);
+    auto application = DemoScene(window, runtime);
 
     // The initialization will only log to the previously set logstream.
     // Everything after will tee to the ImGui log window.
@@ -142,8 +153,9 @@ int main(int argc, const char* argv[]) {
 
     hook_gl_logs_to(josh::logstream()); // Now re-hook to a tee between console and ImGui window.
 
-
-    while (!application.is_done()) {
+    while (!application.is_done())
+    {
+        FrameMark;
         application.execute_frame();
         tee_ostream.flush(); // Does not auto flush, do it manually every frame.
     }

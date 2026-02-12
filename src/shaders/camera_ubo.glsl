@@ -9,9 +9,9 @@
 #define CAMERA_UBO_BINDING 0
 #endif
 
-
 layout (std140, binding = CAMERA_UBO_BINDING)
-uniform CameraBlock {
+uniform CameraBlock
+{
     Camera camera;
 };
 

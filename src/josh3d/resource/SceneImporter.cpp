@@ -5,22 +5,22 @@
 #include "LightCasters.hpp"
 #include "Logging.hpp"
 #include "ObjectLifecycle.hpp"
-#include "RuntimeError.hpp"
+#include "Errors.hpp"
 #include "SceneGraph.hpp"
+#include "ScopeExit.hpp"
 #include "Tags.hpp"
 #include "Transform.hpp"
 #include "ContainerUtils.hpp"
 #include "VPath.hpp"
 #include "VirtualFilesystem.hpp"
-#include "tags/ShadowCasting.hpp"
+#include "ShadowCasting.hpp"
 #include <entt/entity/fwd.hpp>
-#include <fstream>
 #include <glm/trigonometric.hpp>
 #include <nlohmann/json.hpp>
 #include <fmt/core.h>
 #include <fmt/format.h>
 #include <range/v3/view/enumerate.hpp>
-#include <boost/scope/defer.hpp>
+#include <fstream>
 #include <cstdint>
 #include <stdexcept>
 #include <string_view>
@@ -40,7 +40,7 @@ auto read_vec3(const json& j)
 {
     glm::vec3 v{};
     if (j.size() != 3) {
-        throw error::RuntimeError("Vector argument must be a three element array.");
+        throw RuntimeError("Vector argument must be a three element array.");
     }
     for (size_t i{ 0 }; i < 3; ++i) {
         v[int(i)] = j.at(i).get<float>();
@@ -100,7 +100,6 @@ void SceneImporter::import_from_json_file(const Path& json_file) {
 void SceneImporter::import_from_json(const json& j) {
 
     using ranges::views::enumerate;
-    using error::RuntimeError;
     using fmt::format;
 
     // Positive - for user specified or serialized ids;
@@ -118,7 +117,7 @@ void SceneImporter::import_from_json(const json& j) {
 
 
     thread_local std::unordered_map<ID, Entry> id2entry;
-    BOOST_SCOPE_DEFER [&] { id2entry.clear(); };
+    ON_SCOPE_EXIT([&]{ id2entry.clear(); });
 
 
     // TODO: This is an interesting idea that can help with all
@@ -292,7 +291,7 @@ auto get_asset_path(const json& j_entity)
     auto* vpath = try_find(j_entity, "vpath");
 
     if (path && vpath) {
-        throw error::RuntimeError("Either \"path\" or \"vpath\" must be specified, not both.");
+        throw RuntimeError("Either \"path\" or \"vpath\" must be specified, not both.");
     }
 
     if (path) {
@@ -301,7 +300,7 @@ auto get_asset_path(const json& j_entity)
         const auto vp = VPath(vpath->get<Path>());
         return { vfs().resolve_path(vp) };
     } else {
-        throw error::RuntimeError("External import needs \"path\" or \"vpath\" specified.");
+        throw RuntimeError("External import needs \"path\" or \"vpath\" specified.");
     }
 }
 

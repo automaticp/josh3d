@@ -1,69 +1,37 @@
 #pragma once
-#include "Attachments.hpp"
+#include "GLObjects.hpp"
 #include "GLTextures.hpp"
-#include "RenderEngine.hpp"
-#include "RenderTarget.hpp"
-#include "SharedStorage.hpp"
+#include "StageContext.hpp"
 #include "Region.hpp"
+#include "Tracy.hpp"
 
 
 namespace josh {
 
 
-class IDBuffer {
-public:
+struct IDBuffer
+{
+    [[nodiscard]] auto bind_draw()       noexcept { return _fbo->bind_draw(); }
+    [[nodiscard]] auto bind_read() const noexcept { return _fbo->bind_read(); }
 
-    IDBuffer(const Size2I& resolution)
-        : target_{
-            resolution,
-            { object_id_iformat }
-        }
-    {}
+    auto resolution()        const noexcept -> Extent2I { return _object_id->get_resolution(); }
+    auto object_id_texture() const noexcept -> RawTexture2D<> { return _object_id; }
 
-    [[nodiscard]] BindToken<Binding::DrawFramebuffer> bind_draw()       noexcept { return target_.bind_draw(); }
-    [[nodiscard]] BindToken<Binding::ReadFramebuffer> bind_read() const noexcept { return target_.bind_read(); }
+    static constexpr auto iformat_object_id = InternalFormat::R32UI;
+    static constexpr u32  slot_object_id    = 0; // In the internal FBO, this is rarely used.
 
-    auto object_id_attachment() const noexcept
-        -> const ShareableAttachment<Renderable::Texture2D>&
-    {
-        return target_.color_attachment();
-    }
-
-    auto share_object_id_attachment() noexcept
-        -> SharedAttachment<Renderable::Texture2D>
-    {
-        return target_.share_color_attachment();
-    }
-
-    auto object_id_texture() const noexcept
-        -> RawTexture2D<GLConst>
-    {
-        return object_id_attachment().texture();
-    }
-
-    Size2I resolution() const noexcept { return target_.resolution(); }
-    void resize(const Size2I& new_resolution) { target_.resize(new_resolution); }
-
-
-private:
-    using Target = RenderTarget<
-        NoDepthAttachment,
-        ShareableAttachment<Renderable::Texture2D>
-    >;
-
-    Target target_;
-
-    static constexpr auto object_id_iformat = InternalFormat::R32UI;
-
+    UniqueTexture2D   _object_id;
+    UniqueFramebuffer _fbo;
+    void _resize(Extent2I new_resolution);
 };
 
-
-} // namespace josh
-
-
-
-
-namespace josh::stages::primary {
+inline void IDBuffer::_resize(Extent2I new_resolution)
+{
+    if (_object_id->get_resolution() == new_resolution) return;
+    _object_id = {};
+    _object_id->allocate_storage(new_resolution, iformat_object_id);
+    _fbo->attach_texture_to_color_buffer(_object_id, 0);
+}
 
 
 /*
@@ -71,40 +39,28 @@ Provides the storage for the ObjectID, resizes and clears it on each pass.
 
 Place it before any other stages that draw into the IDBuffer.
 */
-class IDBufferStorage {
-public:
-    IDBufferStorage(const Size2I& resolution)
-        : idbuffer_{ resolution }
-    {}
+struct IDBufferStorage
+{
+    void operator()(PrimaryContext context);
 
-    auto share_write_view()       noexcept -> SharedStorageMutableView<IDBuffer> { return idbuffer_.share_mutable_view(); }
-    auto share_read_view()  const noexcept -> SharedStorageView<IDBuffer>        { return idbuffer_.share_view(); }
-    auto view_id_buffer()   const noexcept -> const IDBuffer&                    { return *idbuffer_; }
-    void resize(const Size2I& new_resolution)                                    { idbuffer_->resize(new_resolution); }
-
-    void operator()(RenderEnginePrimaryInterface& engine);
-
-private:
-    SharedStorage<IDBuffer> idbuffer_;
-
+    IDBuffer idbuffer;
 };
 
 
-
-
 inline void IDBufferStorage::operator()(
-    RenderEnginePrimaryInterface& engine)
+    PrimaryContext context)
 {
-    resize(engine.main_resolution());
+    ZSCGPUN("IDBufferStorage");
+    idbuffer._resize(context.main_resolution());
+
+    const BindGuard bfbo = idbuffer.bind_draw();
 
     // The ObjectID buffer is cleared with the null sentinel value.
-    constexpr entt::id_type null_color{ entt::null };
+    constexpr auto null_color = to_underlying(nullent);
+    glapi::clear_color_buffer(bfbo, 0, RGBAUI{ .r=null_color });
 
-    BindGuard bound_fbo{ idbuffer_->bind_draw() };
-
-    glapi::clear_color_buffer(bound_fbo, 0, RGBAUI{ .r=null_color });
-
+    context.belt().put_ref(idbuffer);
 }
 
 
-} // namespace josh::stages::primary
+} // namespace josh

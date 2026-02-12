@@ -1,24 +1,20 @@
 #pragma once
+#include "Semantics.hpp"
 
 
 namespace glfw { class Window; }
 
 namespace josh {
 
-
-class ImGuiContextWrapper {
-public:
+struct ImGuiContextWrapper
+    : Immovable<ImGuiContextWrapper>
+{
     ImGuiContextWrapper(glfw::Window& window);
 
     void new_frame() const;
-
     void render() const;
-
-    ImGuiContextWrapper(const ImGuiContextWrapper&) = delete;
-    ImGuiContextWrapper& operator=(const ImGuiContextWrapper&) = delete;
 
     ~ImGuiContextWrapper() noexcept;
 };
-
 
 } // namespace josh

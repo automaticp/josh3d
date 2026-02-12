@@ -6,7 +6,7 @@
 #include "PixelData.hpp"
 #include "Pixels.hpp"
 #include "PixelPackTraits.hpp" // IWYU pragma: keep
-#include "VertexPNUTB.hpp"
+#include "VertexStatic.hpp"
 #include <random>
 #include <utility>
 
@@ -35,19 +35,19 @@ template<of_signature<float(const Index2S&)> MappingF>
     const Extent2F& extents,
     const Size2S&   num_vertices_xy,
     MappingF&&      mapping_fun)
-        -> MeshData<VertexPNUTB>
+        -> MeshData<VertexStatic>
 {
     const size_t size_x = num_vertices_xy.width;
     const size_t size_y = num_vertices_xy.height;
 
     assert(size_x > 1 && size_y > 1);
 
-    MeshData<VertexPNUTB> result;
+    MeshData<VertexStatic> result;
     result.vertices.reserve(num_vertices_xy.area());
 
     for (size_t yid{ 0 }; yid < size_y; ++yid) {
         for (size_t xid{ 0 }; xid < size_x; ++xid) {
-            VertexPNUTB v{};
+            VertexStatic v{};
 
             v.uv.s = float(xid) / float(size_x - 1);
             v.uv.t = float(yid) / float(size_y - 1);
@@ -60,8 +60,7 @@ template<of_signature<float(const Index2S&)> MappingF>
             v.normal = glm::vec3{ 0.f, 1.f, 0.f };
 
             // Tangents are ignored for now.
-            v.tangent   = {};
-            v.bitangent = {};
+            v.tangent = {};
 
             result.vertices.emplace_back(v);
         }

@@ -1,4 +1,5 @@
 #pragma once
+#include "CommonConcepts.hpp"
 #include <atomic>
 #include <concepts>
 #include <exception>
@@ -11,10 +12,6 @@
 
 
 namespace josh {
-
-
-template<typename T>
-concept not_void = !std::same_as<T, void>;
 
 
 template<typename T>

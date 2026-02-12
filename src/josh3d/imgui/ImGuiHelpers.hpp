@@ -1,7 +1,7 @@
 #pragma once
+#include "CategoryCasts.hpp"
 #include <concepts>
 #include <type_traits>
-#include <functional>
 #include <utility>
 #include <imgui.h>
 
@@ -9,17 +9,19 @@
 namespace josh {
 
 
-inline void* void_id(std::integral auto value) noexcept {
-    return reinterpret_cast<void*>(value);
+inline auto void_id(std::integral auto value) noexcept
+    -> void*
+{
+    return reinterpret_cast<void*>(value); // NOLINT
 }
 
 template<typename EnumT>
     requires std::is_enum_v<EnumT>
-inline void* void_id(EnumT value) noexcept {
+inline auto void_id(EnumT value) noexcept
+    -> void*
+{
     return void_id(static_cast<std::underlying_type_t<EnumT>>(value));
 }
-
-
 
 /*
 An RAII-enabled "if statement wrapper".
@@ -61,119 +63,82 @@ does not allow you to do that when iterating over it.
 */
 template<typename ValueT, typename ConditionFunT, typename ResetFunT>
     requires std::convertible_to<std::invoke_result_t<ConditionFunT, const ValueT&>, bool>
-class OnValueCondition {
+class OnValueCondition
+{
+public:
+    void set(ValueT signal_value) { value_ = MOVE(signal_value); }
+    OnValueCondition(const OnValueCondition&) = delete;
+    OnValueCondition(OnValueCondition&&) = delete;
+    OnValueCondition& operator=(const OnValueCondition&) = delete;
+    OnValueCondition& operator=(OnValueCondition&&) = delete;
+    ~OnValueCondition() noexcept(noexcept(reset())) { reset(); }
+
 private:
-    ValueT value_;
+    ValueT        value_;
     ConditionFunT condition_;
-    ResetFunT reset_fun_;
+    ResetFunT     reset_fun_;
 
     template<typename ValT, typename ConditionF, typename ResetF>
     friend auto on_value_condition(ValT value, ConditionF&& condition, ResetF&& reset_fun)
         -> OnValueCondition<ValT, ConditionF, ResetF>;
 
     OnValueCondition(ValueT value, ConditionFunT&& condition, ResetFunT&& reset_fun)
-        : value_{ std::move(value) }
-        , condition_{ std::forward<ConditionFunT>(condition) }
-        , reset_fun_{ std::forward<ResetFunT>(reset_fun) }
+        : value_    { MOVE(value) }
+        , condition_{ FORWARD(condition) }
+        , reset_fun_{ FORWARD(reset_fun) }
     {}
 
-public:
-    void set(ValueT signal_value)
-        noexcept(noexcept(value_ = std::move(signal_value)))
-    {
-        value_ = std::move(signal_value);
-    }
-
-    OnValueCondition(const OnValueCondition&) = delete;
-    OnValueCondition(OnValueCondition&&) = delete;
-    OnValueCondition& operator=(const OnValueCondition&) = delete;
-    OnValueCondition& operator=(OnValueCondition&&) = delete;
-
-    ~OnValueCondition() noexcept(noexcept(reset())) { reset(); }
-
-private:
     void reset()
-        noexcept(noexcept(std::invoke(condition_, value_)) && noexcept(std::invoke(reset_fun_, value_)))
         requires std::invocable<ResetFunT, ValueT&>
     {
-        if (std::invoke(std::forward<ConditionFunT>(condition_), std::as_const(value_))) {
-            std::invoke(std::forward<ResetFunT>(reset_fun_), value_);
-        }
+        if (FORWARD(condition_)(std::as_const(value_)))
+            FORWARD(reset_fun_)(value_);
     }
 
     void reset()
-        noexcept(noexcept(std::invoke(condition_, value_)) && noexcept(std::invoke(reset_fun_)))
         requires std::invocable<ResetFunT>
     {
-        if (std::invoke(std::forward<ConditionFunT>(condition_), std::as_const(value_))) {
-            std::invoke(std::forward<ResetFunT>(reset_fun_));
-        }
+        if (FORWARD(condition_)(std::as_const(value_)))
+            FORWARD(reset_fun_)();
     }
-
 };
 
 
-
-
-// Factory constructor that preserves value category
-// as opposed to CTAD of OnValueCondition.
+/*
+Factory constructor that preserves value category as opposed to CTAD of OnValueCondition.
+*/
 template<typename ValT, typename ConditionF, typename ActionF>
 [[nodiscard]] auto on_value_condition(ValT initial_value, ConditionF&& condition, ActionF&& reset_fun)
     -> OnValueCondition<ValT, ConditionF, ActionF>
 {
     return {
-        std::move(initial_value),
-        std::forward<ConditionF>(condition),
-        std::forward<ActionF>(reset_fun)
+        MOVE(initial_value),
+        FORWARD(condition),
+        FORWARD(reset_fun)
     };
 }
 
-
-// OnValueCondition that triggers when the value changed
-// from initial sentinel.
+/*
+OnValueCondition that triggers when the value changed from initial sentinel.
+*/
 template<typename ValT, typename ActionF>
 [[nodiscard]] auto on_value_change_from(ValT sentinel_value, ActionF&& action_fun) {
     return on_value_condition(
-        std::move(sentinel_value),
+        MOVE(sentinel_value),
         [=](const ValT& val) { return val != sentinel_value; },
-        std::forward<ActionF>(action_fun)
+        FORWARD(action_fun)
     );
 }
 
-
-// OnValueCondition that triggers when the signal is set to `true`.
-// Initially disengaged.
+/*
+OnValueCondition that triggers when the signal is set to `true`.
+Initially disengaged.
+*/
 template<typename ActionF>
-[[nodiscard]] auto on_signal(ActionF&& action) {
-    return on_value_change_from(false, std::forward<ActionF>(action));
-}
-
-
-
-namespace imgui {
-
-
-// Wrapper of ImGui::Image that flips the image UVs
-// to accomodate the OpenGL bottom-left origin.
-inline void ImageGL(
-    ImTextureID   image_id,
-    const ImVec2& size,
-    const ImVec4& tint_color = { 1.0f, 1.0f, 1.0f, 1.0f },
-    const ImVec4& border_color = { 1.0f, 1.0f, 1.0f, 1.0f }) noexcept
+[[nodiscard]] auto on_signal(ActionF&& action)
 {
-    ImGui::Image(image_id, size, ImVec2{ 0.f, 1.f }, ImVec2{ 1.f, 0.f }, tint_color, border_color);
+    return on_value_change_from(false, FORWARD(action));
 }
 
 
-inline void ImageGL(
-    unsigned int  image_id,
-    const ImVec2& size,
-    const ImVec4& tint_color = { 1.0f, 1.0f, 1.0f, 1.0f },
-    const ImVec4& border_color = { 1.0f, 1.0f, 1.0f, 1.0f }) noexcept
-{
-    ImageGL(void_id(image_id), size, tint_color, border_color);
-}
-
-
-} // namespace imgui
 } // namespace josh

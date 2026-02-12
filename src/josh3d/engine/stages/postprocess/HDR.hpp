@@ -1,53 +1,46 @@
 #pragma once
 #include "GLAPIBinding.hpp"
 #include "GLObjects.hpp"
-#include "RenderEngine.hpp"
+#include "StageContext.hpp"
 #include "ShaderPool.hpp"
 #include "VPath.hpp"
-#include <entt/entity/fwd.hpp>
-#include <entt/entt.hpp>
+#include "Tracy.hpp"
 
 
+namespace josh {
 
 
-namespace josh::stages::postprocess {
+struct HDR
+{
+    bool  use_reinhard = false;
+    bool  use_exposure = true;
+    float exposure     = 1.0f;
 
-
-class HDR {
-public:
-    bool use_reinhard{ false };
-    bool use_exposure{ true };
-    float exposure{ 1.0f };
-
-    void operator()(RenderEnginePostprocessInterface& engine);
-
+    void operator()(PostprocessContext context);
 
 private:
     ShaderToken sp_ = shader_pool().get({
         .vert = VPath("src/shaders/postprocess.vert"),
         .frag = VPath("src/shaders/pp_hdr.frag")});
-
 };
 
 
-
-
 inline void HDR::operator()(
-    RenderEnginePostprocessInterface& engine)
+    PostprocessContext context)
 {
+    ZSCGPUN("HDR");
     const auto sp = sp_.get();
-    engine.screen_color().bind_to_texture_unit(0);
+    context.main_front_color_texture().bind_to_texture_unit(0);
+
     sp.uniform("color",        0);
     sp.uniform("use_reinhard", use_reinhard);
     sp.uniform("use_exposure", use_exposure);
     sp.uniform("exposure",     exposure);
 
-    BindGuard bound_program = sp.use();
-    engine.draw(bound_program);
+    const BindGuard bsp = sp.use();
 
+    context.draw_quad_and_swap(bsp);
 }
 
 
-
-
-} // namespace josh::stages::postprocess
+} // namespace josh

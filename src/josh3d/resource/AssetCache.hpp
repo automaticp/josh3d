@@ -58,7 +58,7 @@ private:
     struct Storage {
         static constexpr AssetKind asset_kind = KindV;
         using key_type      = AssetPath;
-        using shared_handle = Job<SharedAsset<KindV>>::shared_handle;
+        using shared_handle = Job<SharedAsset<KindV>>::shared_handle_type;
         using CacheMap      = std::unordered_map<key_type, StoredAsset<KindV>>;
         using PendingList   = std::vector<shared_handle>;
         using PendingMap    = std::unordered_map<key_type, PendingList>;
@@ -128,6 +128,10 @@ struct AssetCache::GetIfCachedAwaiter {
                 // that emplaced an entry into the pending list.
                 //
                 // NOTE: Ownership is taken away from the promise and transferred to the pending list.
+
+                // FIXME: This has a nasty bug later, where if the user side discards its ownership
+                // then upon erasing the list when resumed from pending, the coroutine will just be destroyed.
+                // I have no idea what I was thinking. We should not release ownership here at all.
                 it->second.emplace_back(h.promise().release_ownership());
                 return true;
             }

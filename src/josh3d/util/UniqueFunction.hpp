@@ -1,12 +1,12 @@
 #pragma once
+#include "CategoryCasts.hpp"
 #include "CommonConcepts.hpp"
 #include "AnyRef.hpp"
-#include <cstddef>
+#include "Semantics.hpp"
 #include <memory>
 #include <cassert>
 #include <type_traits>
 #include <typeinfo>
-#include <utility>
 
 
 
@@ -29,141 +29,102 @@ template<typename Signature>
 class UniqueFunction;
 
 template<typename ResT, typename ...ArgTs>
-class UniqueFunction<ResT(ArgTs...)> {
-private:
-    using self_type = UniqueFunction<ResT(ArgTs...)>;
-
-    class UFBase {
-    public:
-        virtual ResT operator()(ArgTs...) = 0;
-        virtual const std::type_info& type() const noexcept = 0;
-        virtual AnyRef      any_ref()       noexcept = 0;
-        virtual AnyConstRef any_ref() const noexcept = 0;
-        virtual ~UFBase() = default;
-    };
-
-    template<typename CallableT>
-    class UFConcrete final : public UFBase {
-    public:
-        CallableT target;
-
-        UFConcrete(CallableT&& target) : target{ std::move(target) } {}
-        ResT operator()(ArgTs... args) override { return target(std::forward<ArgTs>(args)...); }
-
-        const std::type_info& type() const noexcept override { return typeid(CallableT); }
-
-        AnyRef      any_ref()       noexcept override { return AnyRef{ target }; }
-        AnyConstRef any_ref() const noexcept override { return AnyConstRef{ target }; }
-
-    };
-
-    std::unique_ptr<UFBase> target_ptr_;
-
-
+class UniqueFunction<ResT(ArgTs...)>
+    : public MoveOnly<UniqueFunction<ResT(ArgTs...)>>
+{
 public:
+    using result_type = ResT;
+
     template<typename CallableT>
         requires
-            not_move_or_copy_constructor_of<UniqueFunction, CallableT> &&
+            not_move_or_copy_constructor_of<UniqueFunction, CallableT> and
             of_signature<CallableT, ResT(ArgTs...)>
     UniqueFunction(CallableT&& callable)
-        : target_ptr_{
-            std::make_unique<
-                UFConcrete<std::remove_reference_t<CallableT>>
-            >(std::forward<CallableT>(callable))
-        }
+        : target_ptr_{ std::make_unique<Concrete<std::decay_t<CallableT>>>(FORWARD(callable)) }
     {}
 
-    ResT operator()(ArgTs... args) {
-        assert(target_ptr_ && "UniqueFunction with no target has been invoked");
-        return (*target_ptr_)(std::forward<ArgTs>(args)...);
+    auto operator()(ArgTs... args)
+        -> result_type
+    {
+        assert(target_ptr_ && "UniqueFunction with no target has been invoked.");
+        return (*target_ptr_)(FORWARD(args)...);
     }
 
-
-    AnyRef target_as_any() noexcept {
-        assert(target_ptr_ && "UniqueFunction had no target");
+    auto target_as_any() noexcept
+        -> AnyRef
+    {
+        assert(target_ptr_ && "UniqueFunction had no target.");
         return target_ptr_->any_ref();
     }
 
-    AnyConstRef target_as_any() const noexcept {
-        assert(target_ptr_ && "UniqueFunction had no target");
+    auto target_as_any() const noexcept
+        -> AnyConstRef
+    {
+        assert(target_ptr_ && "UniqueFunction had no target.");
         return target_ptr_->any_ref();
     }
 
     template<typename CallableT>
-    CallableT* target_ptr() noexcept {
-        return try_get_target<CallableT>();
-    }
+    auto target_ptr() noexcept -> CallableT* { return _try_get_target<CallableT>(); }
+    template<typename CallableT>
+    auto target_ptr() const noexcept -> const CallableT* { return _try_get_target<CallableT>(); }
 
     template<typename CallableT>
-    const CallableT* target_ptr() const noexcept {
-        return try_get_target<CallableT>();
-    }
-
+    auto target_unchecked() noexcept -> CallableT& { return _get_unchecked<CallableT>(); }
     template<typename CallableT>
-    CallableT& target_unchecked() noexcept {
-        return get_unchecked<CallableT>();
-    }
+    auto target_unchecked() const noexcept-> const CallableT& { return _get_unchecked<CallableT>(); }
 
-    template<typename CallableT>
-    const CallableT& target_unchecked() const noexcept {
-        return get_unchecked<CallableT>();
-    }
-
-
-    const std::type_info& target_type() const noexcept {
-        assert(target_ptr_ && "UniqueFunction had no target");
+    auto target_type() const noexcept
+        -> const std::type_info&
+    {
+        assert(target_ptr_ && "UniqueFunction had no target.");
         return target_ptr_->type();
     }
 
-    operator bool() const noexcept { return bool(target_ptr_); }
-
-    void swap(UniqueFunction& other) noexcept {
-        std::swap(target_ptr_, other.target_ptr_);
-    }
-
-    UniqueFunction(const UniqueFunction&) = delete;
-    UniqueFunction& operator=(const UniqueFunction&) = delete;
-
-    UniqueFunction(UniqueFunction&& other) noexcept = default;
-    UniqueFunction& operator=(UniqueFunction&& other) noexcept = default;
+    explicit operator bool() const noexcept { return bool(target_ptr_); }
 
 private:
+    struct Base
+    {
+        virtual auto operator()(ArgTs...) -> ResT = 0;
+        virtual auto type()    const noexcept -> const std::type_info& = 0;
+        virtual auto any_ref()       noexcept -> AnyRef      = 0;
+        virtual auto any_ref() const noexcept -> AnyConstRef = 0;
+        virtual ~Base() = default;
+    };
+
+    template<typename CallableT>
+    struct Concrete final : Base
+    {
+        CallableT target;
+        Concrete(CallableT&& target) : target{ MOVE(target) } {}
+        auto operator()(ArgTs... args) -> ResT override { return target(FORWARD(args)...); }
+        auto type()    const noexcept -> const std::type_info& override { return typeid(CallableT); }
+        auto any_ref()       noexcept -> AnyRef      override { return AnyRef{ target }; }
+        auto any_ref() const noexcept -> AnyConstRef override { return AnyConstRef{ target }; }
+    };
+
+    std::unique_ptr<Base> target_ptr_;
+
     // Does not propagate constness to the target.
     // Use public target() functions for that.
     template<typename CallableT>
-    CallableT* try_get_target() const noexcept {
-        auto* wrapper_ptr = dynamic_cast<UFConcrete<CallableT>*>(target_ptr_.get());
+    auto _try_get_target() const noexcept
+        -> CallableT*
+    {
+        auto* wrapper_ptr = dynamic_cast<Concrete<CallableT>*>(target_ptr_.get());
         return wrapper_ptr ? &wrapper_ptr->target : nullptr;
     }
 
     template<typename CallableT>
-    CallableT& get_unchecked() const noexcept {
+    auto _get_unchecked() const noexcept
+        -> CallableT&
+    {
         assert(target_ptr_ && "Requested the target of UniqueFunction with no target.");
-        assert(target_ptr_->type() == typeid(CallableT) &&
-            "Requested type does not match the type of the target.");
-        return static_cast<UFConcrete<CallableT>&>(*target_ptr_).target;
+        assert(target_ptr_->type() == typeid(CallableT) && "Requested type does not match the type of the target.");
+        return static_cast<Concrete<CallableT>&>(*target_ptr_).target;
     }
 };
-
-
-// ADL pls
-template<typename ResT, typename ...ArgTs>
-void swap(UniqueFunction<ResT(ArgTs...)>& lhs,
-    UniqueFunction<ResT(ArgTs...)>& rhs) noexcept
-{
-    lhs.swap(rhs);
-}
-
-template<typename ResT, typename ...ArgTs>
-bool operator==(const UniqueFunction<ResT(ArgTs...)>& fun,
-    std::nullptr_t) noexcept
-{
-    return !fun;
-}
-
-
-
-
 
 
 } // namespace josh

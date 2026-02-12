@@ -15,8 +15,8 @@
 #include "GLUnique.hpp"
 #include "GLAPICore.hpp"
 #include "GLObjectHelpers.hpp"
+#include <glm/glm.hpp>
 #include <array>
-
 
 
 namespace josh {
@@ -41,7 +41,7 @@ void buffer_operations() noexcept {
         PreviousContents::InvalidateMappedRange,
         Persistence::NotPersistent
     };
-    const BufferRange range{ OffsetElems{ 0 }, NumElems{ 1 } };
+    const ElemRange range{ OffsetElems{ 0 }, NumElems{ 1 } };
     auto mapped = buf->map_range_for_write(range, policies);
 
     do {
@@ -102,7 +102,7 @@ void program_operations() {
 
 [[maybe_unused]]
 inline void foooo(Layer layer) noexcept {
-    static_cast<GLint>(layer);
+    auto _ [[maybe_unused]] = static_cast<GLint>(layer);
 }
 
 
@@ -180,9 +180,9 @@ void texture_operations() {
 
     }
 
-    max_num_levels({ 4096, 4096, 4096 }).value;
+    auto _ [[maybe_unused]] = max_num_levels({ 4096, 4096, 4096 }).value;
     // n.value;
-    allocate_texture<TextureTarget::Texture3D>(Size3I{ 0, 0, 0 }, InternalFormat::RGBA, NumLevels{ 7 });
+    auto _1 = allocate_texture<TextureTarget::Texture3D>(Size3I{ 0, 0, 0 }, InternalFormat::RGBA, NumLevels{ 7 });
 
 
 }

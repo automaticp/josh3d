@@ -1,407 +1,177 @@
 #pragma once
-#include "Attachments.hpp"
-#include "GLAPIBinding.hpp"
+#include "Belt.hpp"
+#include "EnumUtils.hpp"
 #include "GLAPICommonTypes.hpp"
-#include "GLBuffers.hpp"
 #include "GLFramebuffer.hpp"
 #include "GLMutability.hpp"
+#include "GLObjectHelpers.hpp"
 #include "GLTextures.hpp"
 #include "GPULayout.hpp"
 #include "FrameTimer.hpp"
 #include "GLObjects.hpp"
-#include "MeshRegistry.hpp"
-#include "Primitives.hpp"
-#include "RenderTarget.hpp"
+#include "Pipeline.hpp"
 #include "Region.hpp"
-#include "RenderStage.hpp"
-#include "SwapChain.hpp"
-#include <entt/fwd.hpp>
-#include <glbinding/gl/enum.h>
-#include <glbinding/gl/gl.h>
-#include <ranges>
-#include <string>
-#include <utility>
-#include <vector>
-
-
+#include "Skeleton.hpp"
+#include "StaticRing.hpp"
 
 
 namespace josh {
 
+struct Runtime;
+
+enum class HDRFormat : u32
+{
+    R11F_G11F_B10F  = u32(InternalFormat::R11F_G11F_B10F),
+    RGB16F          = u32(InternalFormat::RGB16F),
+    RGB32F          = u32(InternalFormat::RGB32F), // Don't know why you'd want this but...
+};
+JOSH3D_DEFINE_ENUM_EXTRAS(HDRFormat, R11F_G11F_B10F, RGB16F, RGB32F);
 
 /*
-Implementation base for wrapper types that constrain the actions avaliable
-to be done with the engine during various stages.
+NOTE: Currently *need* stencil for some operations, so the choice is slim.
 */
-class RenderEngineCommonInterface;
+enum class DSFormat : u32
+{
+    Depth24_Stencil8 = u32(InternalFormat::Depth24_Stencil8),
+    // No, does not work currently as it is impossible to blit from
+    // the floating point depth to the default fbo. We'd need
+    // a custom blit shader for that then... Meh.
+    // Depth32F_Stencil8 = u32(InternalFormat::Depth32F_Stencil8),
+};
+JOSH3D_DEFINE_ENUM_EXTRAS(DSFormat, Depth24_Stencil8);
 
+struct MainTarget
+{
+    auto resolution()    const noexcept -> Extent2I  { return _resolution; }
+    auto color_iformat() const noexcept -> HDRFormat { return _iformat_color; }
+    auto depth_iformat() const noexcept -> DSFormat  { return _iformat_depth; }
+    auto depth()         const noexcept -> RawTexture2D<> { return _depth; }
+    auto front_color()   const noexcept -> RawTexture2D<> { return _swapchain.current().color; }
+    auto back_color()    const noexcept -> RawTexture2D<> { return _swapchain.next().color; }
 
-/*
-A wrapper object that constrains the set of actions avaliable
-during precompute stages. Passed to the precompute stages
-as a proxy for RenderEngine.
-*/
-class RenderEnginePrecomputeInterface;
-
-
-/*
-A wrapper object that constrains the set of actions avaliable
-during primary stages. Passed to the primary stages
-as a proxy for RenderEngine.
-*/
-class RenderEnginePrimaryInterface;
-
-
-/*
-A wrapper object that constrains the set of actions avaliable
-during postprocessing stages. Passed to the postprocessing stages
-as a proxy for RenderEngine.
-*/
-class RenderEnginePostprocessInterface;
-
-
-/*
-A wrapper object that constrains the set of actions avaliable
-during overlay stages. Passed to the overlay stages
-as a proxy for RenderEngine.
-*/
-class RenderEngineOverlayInterface;
-
-
-
-
-
-
-
-
-class RenderEngine {
-public:
-    enum class HDRFormat : GLuint {
-        R11F_G11F_B10F  = GLuint(InternalFormat::R11F_G11F_B10F),
-        RGB16F          = GLuint(InternalFormat::RGB16F),
-        RGB32F          = GLuint(InternalFormat::RGB32F), // Don't know why you'd want this but...
+    struct Side
+    {
+        UniqueTexture2D   color;
+        UniqueFramebuffer fbo;
     };
+    Extent2I            _resolution    = { 0, 0 };
+    HDRFormat           _iformat_color = HDRFormat::R11F_G11F_B10F;
+    DSFormat            _iformat_depth = DSFormat::Depth24_Stencil8;
+    UniqueTexture2D     _depth; // Shared between front and back sides.
+    StaticRing<Side, 2> _swapchain;
+    void _respec(Extent2I resolution, HDRFormat iformat_color, DSFormat iformat_depth);
+    auto _front() noexcept -> Side& { return _swapchain.current(); }
+    auto _back()  noexcept -> Side& { return _swapchain.next();    }
+    void _swap()  noexcept { _swapchain.advance(); }
+};
 
-    HDRFormat main_buffer_format;
-    Size2I    main_resolution;
 
-    // Enables RGB -> sRGB conversion at the end of the postprocessing pass.
-    bool  enable_srgb_conversion{ true };
-    // Enables profiling of GPU/CPU times taken per each stage.
-    bool  capture_stage_timings { true };
-    // The wall-time interval between updates of the timers, in seconds.
-    // Note that the GPU timing is asyncronous and might lag behind by a frame or two.
-    float stage_timing_averaging_interval_s{ 0.5f };
+/*
+HMM: After various refactorings, this was squeezed to be just a container
+for the main render target and some parameters of the render() function.
 
+If not for the special control flow in render(), this could simply be
+the first primary pipeline stage.
+*/
+struct RenderEngine
+{
+    // Parameters of the main render target.
+    auto main_resolution()   const noexcept -> Extent2I { return _main_target.resolution(); }
+    auto main_depth_format() const noexcept -> DSFormat { return _main_target.depth_iformat(); }
+    auto main_color_format() const noexcept -> HDRFormat { return _main_target.color_iformat(); }
+    auto main_depth_texture() const noexcept -> RawTexture2D<> { return _main_target.depth(); }
+    // FIXME: Why is this BACK side?
+    auto main_color_texture() const noexcept -> RawTexture2D<> { return _main_target.back_color(); }
+    void respec_main_target(Extent2I resolution, HDRFormat color_iformat, DSFormat depth_iformat);
+
+    // Enables RGB -> sRGB conversion when blitting from main to the destination
+    // render target. This happens at the end of the postprocessing stages.
+    bool enable_srgb_conversion = true;
+
+    // Automatically resize the main target to window size on each call to render().
+    bool fit_window_size = true;
+
+    // Rendering stages that get executed on each call to render().
+    // Assemble this after creating the engine itself.
+    Pipeline pipeline;
+
+    // Communication channel for pipeline stages. The belt is swept
+    // in the beginning of the call to `render()`, *before* the pipeline
+    // is executed. You are free to peek after.
+    Belt belt;
 
     RenderEngine(
-        entt::registry&     registry,
-        const MeshRegistry& mesh_registry,
-        const Primitives&   primitives,
-        const Size2I&       main_resolution,
-        HDRFormat           main_buffer_format,
-        const FrameTimer&   frame_timer); // TODO: Should not be a reference. TODO: Why? I forgot...
+        Extent2I  main_resolution,
+        HDRFormat main_color_format = HDRFormat::R11F_G11F_B10F,
+        DSFormat  main_depth_format = DSFormat::Depth24_Stencil8);
 
+    // HMM: This might as well be a free function with how it couples together a bunch of stuff.
+    // TODO: Pass the destination FBO here? It needs to have depth+stencil and has other constraints...
+    void render(
+        Runtime&          runtime,
+        const Extent2I&   window_resolution,
+        const FrameTimer& frame_timer);
 
-    void render();
+    MainTarget _main_target; // FIXME: Why is this "private"?
 
+    // FIXME: This should be configurable, no? Just pass "destination" FBO to render?
+    inline static const RawDefaultFramebuffer<GLMutable> _default_fbo = {};
 
-    auto precompute_stages_view()  noexcept { return std::views::all(precompute_);  }
-    auto primary_stages_view()     noexcept { return std::views::all(primary_);     }
-    auto postprocess_stages_view() noexcept { return std::views::all(postprocess_); }
-    auto overlay_stages_view()     noexcept { return std::views::all(overlay_);   }
-
-
-    template<precompute_render_stage StageT>
-    void add_next_precompute_stage(std::string name, StageT&& stage) {
-        precompute_.emplace_back(
-            PrecomputeStage{
-                std::move(name), AnyPrecomputeStage{ std::forward<StageT>(stage) }
-            }
-        );
-    }
-
-    template<primary_render_stage StageT>
-    void add_next_primary_stage(std::string name, StageT&& stage) {
-        primary_.emplace_back(
-            PrimaryStage{
-                std::move(name), AnyPrimaryStage{ std::forward<StageT>(stage) }
-            }
-        );
-    }
-
-    template<postprocess_render_stage StageT>
-    void add_next_postprocess_stage(std::string name, StageT&& stage) {
-        postprocess_.emplace_back(
-            PostprocessStage{
-                std::move(name), AnyPostprocessStage{ std::forward<StageT>(stage) }
-            }
-        );
-    }
-
-    template<overlay_render_stage StageT>
-    void add_next_overlay_stage(std::string name, StageT&& stage) {
-        overlay_.emplace_back(
-            OverlayStage{
-                std::move(name), AnyOverlayStage{ std::forward<StageT>(stage) }
-            }
-        );
-    }
-
-
-    RawTexture2D<GLConst>   main_depth_texture()          const noexcept { return main_depth_.texture(); }
-    const auto&             main_depth_attachment()       const noexcept { return main_depth_;           }
-    auto                    share_main_depth_attachment()       noexcept { return main_depth_.share();   }
-
-    RawTexture2D<GLConst>   main_color_texture()          const noexcept { return main_swapchain_.back_target().color_attachment().texture(); }
-    const auto&             main_color_attachment()       const noexcept { return main_swapchain_.back_target().color_attachment();           }
-    auto                    share_main_color_attachment()       noexcept { return main_swapchain_.back_target().share_color_attachment();     }
-
-    const Primitives& primitives() const noexcept { return primitives_; }
-    const FrameTimer& frame_timer() const noexcept { return frame_timer_; }
-
-
-private:
-    friend RenderEngineCommonInterface;
-    friend RenderEnginePrecomputeInterface;
-    friend RenderEnginePrimaryInterface;
-    friend RenderEnginePostprocessInterface;
-    friend RenderEngineOverlayInterface;
-
-
-    std::vector<PrecomputeStage>  precompute_;
-    std::vector<PrimaryStage>     primary_;
-    std::vector<PostprocessStage> postprocess_;
-    std::vector<OverlayStage>     overlay_;
-
-    entt::registry&     registry_;
-    const MeshRegistry& mesh_registry_;
-    const Primitives&   primitives_;
-    const FrameTimer&   frame_timer_;
-
-
-    using MainTarget = RenderTarget<
-        SharedAttachment<Renderable::Texture2D>,    // Depth
-        ShareableAttachment<Renderable::Texture2D>  // Color
-    >;
-    using DepthAttachment = ShareableAttachment<Renderable::Texture2D>;
-
-    static auto make_main_depth(const Size2I& resolution)
-        -> DepthAttachment;
-
-    DepthAttachment main_depth_;
-
-    static auto make_main_swapchain(
-        const Size2I&    resolution,
-        InternalFormat   iformat,
-        DepthAttachment& depth)
-            -> SwapChain<MainTarget>;
-
-    SwapChain<MainTarget> main_swapchain_;
-
-
-    inline static const RawDefaultFramebuffer<GLMutable> default_fbo_;
-
-
-    struct CameraDataGPU {
-        alignas(std430::align_vec3)  glm::vec3   position_ws; // World-space position
-        alignas(std430::align_float) float       z_near;
-        alignas(std430::align_float) float       z_far;
-        alignas(std430::align_vec4)  glm::mat4   view;
-        alignas(std430::align_vec4)  glm::mat4   proj;
-        alignas(std430::align_vec4)  glm::mat4   projview;
-        alignas(std430::align_vec4)  glm::mat4   inv_view;
-        alignas(std430::align_vec4)  glm::mat3x4 normal_view; // mat3, but padding is needed for each column in std140
-        alignas(std430::align_vec4)  glm::mat4   inv_proj;
-        alignas(std430::align_vec4)  glm::mat4   inv_projview;
+    struct CameraDataGPU
+    {
+        alignas(std430::align_vec3)  vec3   position_ws; // World-space position
+        alignas(std430::align_float) float  z_near;
+        alignas(std430::align_float) float  z_far;
+        alignas(std430::align_vec4)  mat4   view;
+        alignas(std430::align_vec4)  mat4   proj;
+        alignas(std430::align_vec4)  mat4   projview;
+        alignas(std430::align_vec4)  mat4   inv_view;
+        alignas(std430::align_vec4)  mat3x4 normal_view; // mat3, but padding is needed for each column in std140
+        alignas(std430::align_vec4)  mat4   inv_proj;
+        alignas(std430::align_vec4)  mat4   inv_projview;
     };
 
-    CameraDataGPU               camera_data_;
-    UniqueBuffer<CameraDataGPU> camera_ubo_{ allocate_buffer<CameraDataGPU>(NumElems{ 1 }) };
-    void update_camera_data(
-        const glm::mat4& view,
-        const glm::mat4& proj,
-        float            z_near,
-        float            z_far) noexcept;
+    CameraDataGPU               _camera_data;
+    UniqueBuffer<CameraDataGPU> _camera_ubo = allocate_buffer<CameraDataGPU>(1);
 
-
-    void execute_precompute_stages();
-    void render_primary_stages();
-    void render_postprocess_stages();
-    void render_overlay_stages();
-
-    template<typename StagesContainerT, typename REInterfaceT>
-    void execute_stages(StagesContainerT& stages, REInterfaceT& engine_interface);
-
+    void _update_camera_data(
+        const mat4& view,
+        const mat4& proj,
+        float       z_near,
+        float       z_far) noexcept;
 };
 
 
-
-
-
-
-
-
-class RenderEngineCommonInterface {
-public:
-    auto meshes()       const noexcept -> const MeshRegistry&   { return engine_.mesh_registry_; }
-    auto registry()     const noexcept -> const entt::registry& { return engine_.registry_;      }
-    auto primitives()   const noexcept -> const Primitives&     { return engine_.primitives_;    }
-    auto camera_data()  const noexcept -> const auto&           { return engine_.camera_data_;   }
-    // TODO: Something about window resolution being separate?
-    // TODO: Also main_resolution() is not accurate in Overlay stages.
-    auto main_resolution() const noexcept -> const Size2I&     { return engine_.main_resolution; }
-    auto frame_timer()     const noexcept -> const FrameTimer& { return engine_.frame_timer_;    }
-
-    auto bind_camera_ubo(GLuint index = 0) const noexcept
-        -> BindToken<BindingIndexed::UniformBuffer>
+inline void MainTarget::_respec(
+    Extent2I  resolution,
+    HDRFormat iformat_color,
+    DSFormat  iformat_depth)
+{
+    // Handle depth separately, since it does not care about color format changes.
+    if (resolution != _resolution or
+        iformat_depth != _iformat_depth)
     {
-        return engine_.camera_ubo_->bind_to_index<BufferTargetIndexed::Uniform>(index);
+        _depth = {};
+        _depth->allocate_storage(resolution, enum_cast<InternalFormat>(iformat_depth));
+        for (auto& side : _swapchain.storage)
+            side.fbo->attach_texture_to_depth_buffer(_depth);
     }
 
-protected:
-    RenderEngine& engine_;
-    RenderEngineCommonInterface(RenderEngine& engine) : engine_{ engine } {}
-};
-
-
-
-
-
-
-
-
-class RenderEnginePrecomputeInterface : public RenderEngineCommonInterface {
-private:
-    friend class RenderEngine;
-    RenderEnginePrecomputeInterface(RenderEngine& engine)
-        : RenderEngineCommonInterface(engine)
-    {}
-
-public:
-    auto registry()       noexcept ->       entt::registry& { return engine_.registry_; }
-    auto registry() const noexcept -> const entt::registry& { return engine_.registry_; }
-};
-
-
-
-
-
-
-
-
-class RenderEnginePrimaryInterface : public RenderEngineCommonInterface {
-private:
-    friend class RenderEngine;
-    RenderEnginePrimaryInterface(RenderEngine& engine)
-        : RenderEngineCommonInterface(engine)
-    {}
-
-public:
-    // Effectively binds the main render target as the Draw framebuffer
-    // and invokes the callable argument.
-    //
-    // Note that it is illegal to bind any framebuffer object as
-    // a Draw framebuffer within the callable.
-    template<std::invocable<BindToken<Binding::DrawFramebuffer>> CallableT>
-    void draw(CallableT&& draw_func) {
-        BindGuard bound_fbo = engine_.main_swapchain_.back_target().bind_draw();
-        draw_func(bound_fbo.token());
+    if (resolution != _resolution or
+        iformat_color != _iformat_color)
+    {
+        for (auto& side : _swapchain.storage)
+        {
+            side.color = {};
+            side.color->allocate_storage(resolution, enum_cast<InternalFormat>(iformat_color));
+            side.fbo->attach_texture_to_color_buffer(side.color, 0);
+        }
     }
 
-    // The RenderEngine's main framebuffer is not exposed here because
-    // there's a high chance you'll be reading from it, as you're writing
-    // to it. Hear me? You! Yes, you. Think twice before implementing it again.
-    //
-    // I didn't allow it initially for a reason.
-
-    const auto& main_depth_attachment()       const noexcept { return engine_.main_depth_attachment();       }
-    auto        share_main_depth_attachment()       noexcept { return engine_.share_main_depth_attachment(); }
-
-    const auto& main_color_attachment()       const noexcept { return engine_.main_color_attachment();       }
-    auto        share_main_color_attachment()       noexcept { return engine_.share_main_color_attachment(); }
-
-};
-
-
-
-
-
-
-
-
-class RenderEnginePostprocessInterface : public RenderEngineCommonInterface {
-private:
-    friend class RenderEngine;
-    RenderEnginePostprocessInterface(RenderEngine& engine)
-        : RenderEngineCommonInterface(engine)
-    {}
-
-public:
-    RawTexture2D<GLConst> screen_color() const noexcept {
-        return engine_.main_swapchain_.front_target().color_attachment().texture();
-    }
-
-    RawTexture2D<GLConst> screen_depth() const noexcept {
-        return engine_.main_swapchain_.front_target().depth_attachment().texture();
-        // return engine_.depth_; // Is the same.
-    }
-
-    // Emit the draw call on the screen quad and adjust the render target state
-    // for the next stage in the chain.
-    //
-    // The screen color texture is INVALIDATED for sampling after this call.
-    // You have to call screen_color() again and bind the returned texture
-    // in order to sample the screen in the next call to draw().
-    void draw(BindToken<Binding::Program> bound_program) {
-        engine_.main_swapchain_.draw_and_swap([&](BindToken<Binding::DrawFramebuffer> bound_fbo) {
-            engine_.primitives().quad_mesh().draw(bound_program, bound_fbo);
-        });
-    }
-
-
-    // Emit the draw call on the screen quad and draw directly to the front buffer.
-    // DOES NOT advance the chain. You CANNOT SAMPLE THE SCREEN COLOR during this draw.
-    //
-    // Used as an optimization for draws that either override or blend with the screen.
-    void draw_to_front(BindToken<Binding::Program> bound_program) {
-        BindGuard bound_fbo{ engine_.main_swapchain_.front_target().bind_draw() };
-        engine_.primitives().quad_mesh().draw(bound_program, bound_fbo);
-    }
-
-};
-
-
-
-
-
-
-class RenderEngineOverlayInterface : public RenderEngineCommonInterface {
-private:
-    friend class RenderEngine;
-    RenderEngineOverlayInterface(RenderEngine& engine)
-        : RenderEngineCommonInterface(engine)
-    {}
-
-public:
-    // Emit the draw call on the screen quad and draw directly to the default buffer.
-    void draw_fullscreen_quad(BindToken<Binding::Program> bound_program) {
-        BindGuard bound_fbo{ engine_.default_fbo_.bind_draw() };
-        engine_.primitives().quad_mesh().draw(bound_program, bound_fbo);
-    }
-
-    // Effectively binds the default framebuffer as the Draw framebuffer
-    // and invokes the callable argument.
-    //
-    // Note that it is illegal to bind any framebuffer object as
-    // a Draw framebuffer within the callable.
-    template<std::invocable<BindToken<Binding::DrawFramebuffer>> CallableT>
-    void draw(CallableT&& draw_func) {
-        draw_func(engine_.default_fbo_.bind_draw());
-    }
-
-};
-
+    _resolution    = resolution;
+    _iformat_depth = iformat_depth;
+    _iformat_color = iformat_color;
+}
 
 
 } // namespace josh
