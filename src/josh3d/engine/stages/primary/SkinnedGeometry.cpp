@@ -7,7 +7,7 @@
 #include "StageContext.hpp"
 #include "UniformTraits.hpp"
 #include "SkinnedMesh.hpp"
-#include "VertexSkinned.hpp"
+#include "VertexFormats.hpp"
 #include "stages/primary/GBufferStorage.hpp"
 #include "AlphaTested.hpp"
 #include "Visible.hpp"

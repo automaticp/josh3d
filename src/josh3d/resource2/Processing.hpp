@@ -6,8 +6,7 @@
 #include "Scalars.hpp"
 #include "Elements.hpp"
 #include "ExternalScene.hpp"
-#include "VertexSkinned.hpp"
-#include "VertexStatic.hpp"
+#include "VertexFormats.hpp"
 
 
 /*

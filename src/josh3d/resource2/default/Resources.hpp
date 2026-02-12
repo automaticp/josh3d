@@ -15,8 +15,7 @@
 #include "Skeleton.hpp"
 #include "Transform.hpp"
 #include "UUID.hpp"
-#include "VertexSkinned.hpp"
-#include "VertexStatic.hpp"
+#include "VertexFormats.hpp"
 #include <cstdint>
 #include <memory>
 

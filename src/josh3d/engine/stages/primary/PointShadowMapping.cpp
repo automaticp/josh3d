@@ -8,7 +8,7 @@
 #include "DrawHelpers.hpp"
 #include "UniformTraits.hpp"
 #include "BoundingSphere.hpp"
-#include "VertexStatic.hpp"
+#include "VertexFormats.hpp"
 #include "ShadowCasting.hpp"
 #include "AlphaTested.hpp"
 #include "Materials.hpp"

@@ -23,8 +23,7 @@
 #include "Scalars.hpp"
 #include "SkeletalAnimation.hpp"
 #include "UUID.hpp"
-#include "VertexSkinned.hpp"
-#include "VertexStatic.hpp"
+#include "VertexFormats.hpp"
 #include "detail/SPNG.hpp"
 #include <fmt/format.h>
 #include <jsoncons/basic_json.hpp>

@@ -18,9 +18,8 @@
 #include "TextureHelpers.hpp"
 #include "CategoryCasts.hpp"
 #include "ThreadPool.hpp"
-#include "VertexStatic.hpp"
+#include "VertexFormats.hpp"
 #include "Coroutines.hpp"
-#include "VertexSkinned.hpp"
 #include <assimp/BaseImporter.h>
 #include <assimp/Importer.hpp>
 #include <assimp/anim.h>

@@ -4,8 +4,7 @@
 #include "AssetImporter.hpp"
 #include "CoroCore.hpp"
 #include "default/ResourceFiles.hpp"
-#include "VertexStatic.hpp"
-#include "VertexSkinned.hpp"
+#include "VertexFormats.hpp"
 #include <assimp/mesh.h>
 #include <jsoncons/json.hpp>
 

@@ -5,7 +5,7 @@
 #include "Resource.hpp"
 #include "Scalars.hpp"
 #include "SkeletonStorage.hpp"
-#include "VertexSkinned.hpp"
+#include "VertexFormats.hpp"
 #include "Skeleton.hpp"
 #include <memory>
 #include <vector>

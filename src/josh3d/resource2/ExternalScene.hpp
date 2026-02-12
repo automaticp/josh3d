@@ -9,7 +9,7 @@
 #include "Scalars.hpp"
 #include "StringHash.hpp"
 #include "Transform.hpp"
-#include "VertexFormat.hpp"
+#include "VertexFormats.hpp"
 #include <entt/entt.hpp>
 #include <cstring>
 #include <functional>

@@ -30,8 +30,7 @@
 #include "SkinnedMesh.hpp"
 #include "StaticMesh.hpp"
 #include "Transform.hpp"
-#include "VertexFormat.hpp"
-#include "VertexSkinned.hpp"
+#include "VertexFormats.hpp"
 #include "detail/CGLTF.hpp"
 #include "AlphaTested.hpp"
 #include <glbinding/gl/functions.h>

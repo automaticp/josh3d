@@ -19,7 +19,7 @@
 #include "Scalars.hpp"
 #include "StaticMesh.hpp"
 #include "UploadBuffer.hpp"
-#include "VertexStatic.hpp"
+#include "VertexFormats.hpp"
 #include "ViewFrustum.hpp"
 #include "AlphaTested.hpp"
 #include "Materials.hpp"

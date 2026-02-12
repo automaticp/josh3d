@@ -4,7 +4,7 @@
 #include "FileMapping.hpp"
 #include "../ResourceFiles.hpp"
 #include "Resources.hpp"
-#include "VertexSkinned.hpp"
+#include "VertexFormats.hpp"
 
 
 /*

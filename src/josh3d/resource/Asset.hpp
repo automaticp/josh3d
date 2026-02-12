@@ -11,8 +11,7 @@
 #include "MeshStorage.hpp"
 #include "SkeletalAnimation.hpp"
 #include "Skeleton.hpp"
-#include "VertexStatic.hpp"
-#include "VertexSkinned.hpp"
+#include "VertexFormats.hpp"
 #include <compare>
 #include <functional>
 #include <memory>

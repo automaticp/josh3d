@@ -5,7 +5,7 @@
 #include "Scalars.hpp"
 #include "Processing.hpp"
 #include "Throughporters.hpp"
-#include "VertexStatic.hpp"
+#include "VertexFormats.hpp"
 #include "detail/CGLTF.hpp"
 #include <cgltf.h>
 

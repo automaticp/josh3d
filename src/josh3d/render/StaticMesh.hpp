@@ -2,7 +2,7 @@
 #include "MeshStorage.hpp"
 #include "Resource.hpp"
 #include "Scalars.hpp"
-#include "VertexStatic.hpp"
+#include "VertexFormats.hpp"
 #include "LODPack.hpp"
 
 

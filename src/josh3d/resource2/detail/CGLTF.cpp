@@ -10,7 +10,7 @@
 #include "Processing.hpp"
 #include "Ranges.hpp"
 #include "Transform.hpp"
-#include "VertexFormat.hpp"
+#include "VertexFormats.hpp"
 #include <cgltf.h>
 #include <glm/ext.hpp>
 

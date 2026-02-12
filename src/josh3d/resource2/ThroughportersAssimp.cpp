@@ -17,8 +17,7 @@
 #include "SkeletalAnimation.hpp"
 #include "Skeleton.hpp"
 #include "TextureHelpers.hpp"
-#include "VertexSkinned.hpp"
-#include "VertexStatic.hpp"
+#include "VertexFormats.hpp"
 #include "detail/AssimpCommon.hpp"
 #include "detail/AssimpSceneRepr.hpp"
 #include <assimp/Importer.hpp>
