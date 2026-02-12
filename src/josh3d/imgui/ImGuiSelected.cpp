@@ -4,8 +4,8 @@
 #include "Components.hpp"
 #include "ImGuiComponentWidgets.hpp"
 #include "LightCasters.hpp"
-#include "Materials.hpp"
-#include "SkinnedMesh.hpp"
+#include "components/Materials.hpp"
+#include "components/SkinnedMesh.hpp"
 #include "Transform.hpp"
 #include "Selected.hpp"
 #include <entt/entity/entity.hpp>

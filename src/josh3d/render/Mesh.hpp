@@ -14,7 +14,10 @@
 
 namespace josh {
 
-
+/*
+*Very* outdated way to represent GPU mesh data. Use MeshStorage instead.
+TODO: Should be deprecated, but is still used in a few places unfortunately.
+*/
 class Mesh {
 private:
     SharedConstUntypedBuffer  vbo_;

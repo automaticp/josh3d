@@ -18,6 +18,8 @@ NOTE: This only defines the data layout of the skeleton.
 Each skeleton itself as a resource must be referenced by the SkinnedMesh.
 
 TODO: Encapsulate better.
+
+TODO: Deprecate. Use SkeletonStorage.
 */
 struct Skeleton
 {

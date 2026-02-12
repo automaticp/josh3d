@@ -8,6 +8,7 @@
 
 namespace josh {
 
+
 using StaticMeshID = MeshID<VertexStatic>;
 
 struct StaticMesh

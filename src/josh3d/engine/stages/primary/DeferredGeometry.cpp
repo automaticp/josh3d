@@ -7,14 +7,14 @@
 #include "GLAPICore.hpp"
 #include "GLProgram.hpp"
 #include "MeshStorage.hpp"
-#include "StaticMesh.hpp"
+#include "components/StaticMesh.hpp"
 #include "UniformTraits.hpp"
-#include "AlphaTested.hpp"
+#include "components/AlphaTested.hpp"
 #include "Transform.hpp"
 #include "StageContext.hpp"
 #include "Transform.hpp"
 #include "DefaultTextures.hpp"
-#include "Visible.hpp"
+#include "components/Visible.hpp"
 #include "Tracy.hpp"
 
 

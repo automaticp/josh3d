@@ -2,7 +2,8 @@
 #include "Components.hpp"
 #include "StageContext.hpp"
 #include "SkeletalAnimation.hpp"
-#include "SkinnedMesh.hpp"
+#include "components/SkinnedMesh.hpp"
+#include "components/Animation.hpp"
 #include "Transform.hpp"
 #include "Tracy.hpp"
 

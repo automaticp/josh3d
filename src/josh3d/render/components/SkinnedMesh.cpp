@@ -1,4 +1,4 @@
-#include "SkinnedMesh.hpp"
+#include "components/SkinnedMesh.hpp"
 #include <glm/ext/matrix_transform.hpp>
 #include <ranges>
 
@@ -17,17 +17,19 @@ PosedSkeleton::PosedSkeleton(std::shared_ptr<const Skeleton> skeleton)
 {}
 
 
-auto Pose::from_skeleton(const Skeleton& skeleton)
-    -> Pose
+auto Pose::from_skeleton(const Skeleton& skeleton) -> Pose
 {
     const auto num_joints = skeleton.joints.size();
     Pose pose;
+
     pose.M2Js.reserve(num_joints);
     pose.skinning_mats.reserve(num_joints);
-    for (const Joint& j : skeleton.joints) {
+    for (const Joint& j : skeleton.joints)
+    {
         pose.M2Js.push_back(inverse(j.inv_bind));
         pose.skinning_mats.push_back(glm::identity<mat4>());
     }
+
     return pose;
 }
 

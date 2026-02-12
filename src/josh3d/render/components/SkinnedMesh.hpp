@@ -17,7 +17,7 @@ namespace josh {
 using SkinnedMeshID = MeshID<VertexSkinned>;
 
 /*
-TODO: Encapsulate. TODO: Forget it.
+TODO: Encapsulate. TODO: Forget it, to be deprecated.
 */
 struct PosedSkeleton
 {
@@ -47,8 +47,7 @@ struct Pose
     Vector<mat4> M2Js;          // Mesh->Joint CoB matrices. It is convenient to store this.
     Vector<mat4> skinning_mats; // Per-joint B2J-equivalent active transformations in mesh space.
 
-    static auto from_skeleton(const Skeleton& skeleton)
-        -> Pose;
+    static auto from_skeleton(const Skeleton& skeleton) -> Pose;
 };
 
 struct SkinnedMe2h
@@ -67,10 +66,11 @@ Version 3 compatible with SkeletonStorage.
 struct SkinnedMe3h
 {
     LODPack<SkinnedMeshID, 8> lods;
-    ResourceUsage        usage;
-    SkeletonID           skeleton_id;
-    ResourceUsage        skeleton_usage;
-    uintptr              aba_tag = {};
+    ResourceUsage             usage;
+    SkeletonID                skeleton_id;
+    ResourceUsage             skeleton_usage;
+    uintptr                   aba_tag = {};
 };
+
 
 } // namespace josh

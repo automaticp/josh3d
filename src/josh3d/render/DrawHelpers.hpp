@@ -4,7 +4,7 @@
 #include "GLAPIBinding.hpp"
 #include "GLAPICore.hpp"
 #include "GLAPILimits.hpp"
-#include "Materials.hpp"
+#include "components/Materials.hpp"
 #include "MeshStorage.hpp"
 #include "Ranges.hpp"
 #include "Scalars.hpp"

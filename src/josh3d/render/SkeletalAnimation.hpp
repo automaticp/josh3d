@@ -68,28 +68,4 @@ struct Animation2lip
 };
 
 
-/*
-A hack to connect meshes to their animations.
-
-TODO: Deprecate.
-*/
-struct MeshAnimations
-{
-    std::vector<std::shared_ptr<const AnimationClip>> anims;
-};
-
-
-/*
-A component that represents an active animation.
-
-TODO: Deprecate.
-*/
-struct PlayingAnimation
-{
-    double                               current_time{};
-    std::shared_ptr<const AnimationClip> current_anim;
-    bool                                 paused      {}; // Hack, should be replaced with another component instead.
-};
-
-
 } // namespace josh

@@ -6,7 +6,7 @@
 #include "ComponentLoaders.hpp"
 #include "ECS.hpp"
 #include "GLAPIBinding.hpp"
-#include "Skybox.hpp"
+#include "components/Skybox.hpp"
 #include <cstddef>
 #include <type_traits>
 

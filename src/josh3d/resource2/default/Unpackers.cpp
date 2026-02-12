@@ -5,17 +5,17 @@
 #include "CoroCore.hpp"
 #include "Coroutines.hpp"
 #include "GLTextures.hpp"
-#include "Materials.hpp"
+#include "components/Materials.hpp"
 #include "Ranges.hpp"
 #include "ResourceRegistry.hpp"
 #include "ResourceUnpacker.hpp"
 #include "ECS.hpp"
 #include "Scalars.hpp"
 #include "SceneGraph.hpp"
-#include "SkinnedMesh.hpp"
-#include "StaticMesh.hpp"
+#include "components/SkinnedMesh.hpp"
+#include "components/StaticMesh.hpp"
 #include "Tags.hpp"
-#include "AlphaTested.hpp"
+#include "components/AlphaTested.hpp"
 
 
 namespace josh {

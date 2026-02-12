@@ -13,7 +13,7 @@
 #include "UniformTraits.hpp"
 #include "LightCasters.hpp"
 #include "StageContext.hpp"
-#include "Skybox.hpp"
+#include "components/Skybox.hpp"
 #include "Tracy.hpp"
 #include <glm/geometric.hpp>
 #include <glm/matrix.hpp>

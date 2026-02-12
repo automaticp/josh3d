@@ -5,7 +5,7 @@
 #include "UniformTraits.hpp"
 #include "StageContext.hpp"
 #include "Transform.hpp"
-#include "TerrainChunk.hpp"
+#include "components/TerrainChunk.hpp"
 #include "Tracy.hpp"
 #include <entt/entt.hpp>
 

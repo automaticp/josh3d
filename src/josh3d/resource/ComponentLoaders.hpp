@@ -2,7 +2,7 @@
 #include "Asset.hpp"
 #include "ECS.hpp"
 #include "Filesystem.hpp"
-#include "Skybox.hpp"
+#include "components/Skybox.hpp"
 
 
 /*

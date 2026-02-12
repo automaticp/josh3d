@@ -18,7 +18,7 @@
 #include "ImageData.hpp"
 #include "ImageProperties.hpp"
 #include "LightCasters.hpp"
-#include "Materials.hpp"
+#include "components/Materials.hpp"
 #include "MeshRegistry.hpp"
 #include "MeshStorage.hpp"
 #include "Name.hpp"
@@ -27,12 +27,12 @@
 #include "SceneGraph.hpp"
 #include "SkeletalAnimation.hpp"
 #include "SkeletonStorage.hpp"
-#include "SkinnedMesh.hpp"
-#include "StaticMesh.hpp"
+#include "components/SkinnedMesh.hpp"
+#include "components/StaticMesh.hpp"
 #include "Transform.hpp"
 #include "VertexFormats.hpp"
 #include "detail/CGLTF.hpp"
-#include "AlphaTested.hpp"
+#include "components/AlphaTested.hpp"
 #include <glbinding/gl/functions.h>
 #include <stb_image.h>
 #include <ranges>

@@ -16,9 +16,9 @@
 #include "stages/primary/CascadedShadowMapping.hpp"
 #include "stages/primary/GBufferStorage.hpp"
 #include "stages/primary/SSAO.hpp"
-#include "ShadowCasting.hpp"
+#include "components/ShadowCasting.hpp"
 #include "StageContext.hpp"
-#include "Visible.hpp"
+#include "components/Visible.hpp"
 #include "Tracy.hpp"
 #include <range/v3/all.hpp>
 #include <range/v3/view/map.hpp>

@@ -29,7 +29,7 @@
 #include "Transform.hpp"
 #include "VPath.hpp"
 #include "Selected.hpp"
-#include "ShadowCasting.hpp"
+#include "components/ShadowCasting.hpp"
 #include "Filesystem.hpp"
 #include "Tags.hpp"
 #include "stages/precompute/AnimationSystem.hpp"

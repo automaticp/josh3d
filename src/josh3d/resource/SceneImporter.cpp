@@ -13,7 +13,7 @@
 #include "ContainerUtils.hpp"
 #include "VPath.hpp"
 #include "VirtualFilesystem.hpp"
-#include "ShadowCasting.hpp"
+#include "components/ShadowCasting.hpp"
 #include <entt/entity/fwd.hpp>
 #include <glm/trigonometric.hpp>
 #include <nlohmann/json.hpp>

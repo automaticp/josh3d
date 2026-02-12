@@ -8,7 +8,7 @@
 #include "BoundingSphere.hpp"
 #include "Transform.hpp"
 #include "ViewFrustum.hpp"
-#include "Visible.hpp"
+#include "components/Visible.hpp"
 #include "Tracy.hpp"
 #include <utility>
 

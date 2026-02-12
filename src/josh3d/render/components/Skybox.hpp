@@ -5,7 +5,8 @@
 namespace josh {
 
 
-struct Skybox {
+struct Skybox
+{
     SharedConstCubemap cubemap;
 };
 

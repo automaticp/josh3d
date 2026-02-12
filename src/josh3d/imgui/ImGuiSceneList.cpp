@@ -15,11 +15,11 @@
 #include "ObjectLifecycle.hpp"
 #include "SceneGraph.hpp"
 #include "Tags.hpp"
-#include "TerrainChunk.hpp"
+#include "components/TerrainChunk.hpp"
 #include "Transform.hpp"
 #include "UIContext.hpp"
 #include "Selected.hpp"
-#include "ShadowCasting.hpp"
+#include "components/ShadowCasting.hpp"
 #include <entt/entity/entity.hpp>
 #include <entt/entity/fwd.hpp>
 #include <exception>

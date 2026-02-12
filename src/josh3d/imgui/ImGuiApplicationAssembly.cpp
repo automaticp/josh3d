@@ -18,7 +18,7 @@
 #include "ImGuizmoGizmos.hpp"
 #include "Camera.hpp"
 #include "Logging.hpp"
-#include "Materials.hpp"
+#include "components/Materials.hpp"
 #include "Ranges.hpp"
 #include "RenderEngine.hpp"
 #include "Region.hpp"
