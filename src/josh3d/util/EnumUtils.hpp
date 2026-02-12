@@ -1,7 +1,6 @@
 #pragma once
 #include "MapMacro.hpp"
 #include <concepts>
-#include <iterator>
 #include <span>
 #include <type_traits>
 

@@ -84,7 +84,7 @@ struct RenderEngine
     auto main_color_texture() const noexcept -> RawTexture2D<> { return _main_target.back_color(); }
     void respec_main_target(Extent2I resolution, HDRFormat color_iformat, DSFormat depth_iformat);
 
-    // Enables RGB -> sRGB conversion when blitting from main to  the destination
+    // Enables RGB -> sRGB conversion when blitting from main to the destination
     // render target. This happens at the end of the postprocessing stages.
     bool enable_srgb_conversion = true;
 

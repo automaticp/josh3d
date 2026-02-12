@@ -97,6 +97,9 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(FXAA)
 {
     ImGui::Checkbox("Use FXAA", &stage.use_fxaa);
 
+    ImGui::SliderScalar("Debug Mode", &stage.debug_mode, 0, 8);
+    ImGui::SliderScalar("Luma Mode", &stage.luma_mode, 0, 8);
+
     ImGui::SliderFloat("Gamma", &stage.gamma,
         0.f, 10.f, "%.1f", ImGuiSliderFlags_Logarithmic);
 
@@ -105,6 +108,11 @@ JOSH3D_SIMPLE_STAGE_HOOK_BODY(FXAA)
 
     ImGui::DragFloat("Rel. Threshold", &stage.relative_contrast_threshold,
         0.005f, 0.f, 1.f, "%.4f", ImGuiSliderFlags_Logarithmic);
+
+    ImGui::SliderFloat("Px. Blend Strength", &stage.pixel_blend_strength, 0, 1);
+    ImGui::SliderFloat("Gradient Thresh.", &stage.gradient_threshold_fraction, 0, 1);
+    ImGui::SliderScalar("Stride Table", &stage.stride_table_idx, 0, 8);
+    ImGui::SliderFloat("Guess Jump", &stage.guess_jump, 0, 32);
 }
 
 JOSH3D_SIMPLE_STAGE_HOOK_BODY(GammaCorrection)
