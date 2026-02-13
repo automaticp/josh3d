@@ -3,6 +3,8 @@
 #include "Scalars.hpp"
 #include "CommonConcepts.hpp"
 #include "CategoryCasts.hpp"
+#include <cassert>
+#include <concepts>
 #include <type_traits>
 #include <utility>
 
@@ -74,6 +76,31 @@ template<usize N> requires (N > 1 + usize(vmax<u8>)  and N - 1 <= usize(vmax<u16
 template<usize N> requires (N > 1 + usize(vmax<u16>) and N - 1 <= usize(vmax<u32>)) struct smallest_uindex<N> { using type = u32; };
 template<usize N> requires (N > 1 + usize(vmax<u32>) and N - 1 <= usize(vmax<u64>)) struct smallest_uindex<N> { using type = u64; };
 template<usize N> using smallest_uindex_t = smallest_uindex<N>::type;
+
+
+/*
+Ceiling division.
+PRE: numer >= 0 and denom > 0
+*/
+auto div_up(std::integral auto numer, std::integral auto denom) noexcept
+{
+    assert(numer >= 0);
+    assert(denom > 0);
+    auto res = numer / denom;
+    if (numer % denom) res += 1;
+    return res;
+}
+
+/*
+Useful when rounding up to boundaries.
+PRE: number > 0 and start >= 0
+*/
+auto next_multiple_of(std::integral auto number, std::integral auto start) noexcept
+{
+    assert(numer > 0);
+    assert(start >= 0);
+    return number * div_up(start, number);
+}
 
 
 /*

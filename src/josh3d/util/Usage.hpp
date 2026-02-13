@@ -1,5 +1,7 @@
 #pragma once
 #include "CategoryCasts.hpp"
+#include "CommonConcepts.hpp"
+#include "Scalars.hpp"
 #include "Semantics.hpp"
 #include <atomic>
 #include <utility>
@@ -8,98 +10,103 @@
 namespace josh {
 namespace detail {
 
-
 template<typename T>
-class UsageValue {
-public:
+struct UsageValue
+{
     using value_type = T;
 
     explicit UsageValue() = default;
-    UsageValue(value_type value) : value_{ MOVE(value) } {}
+    UsageValue(value_type value) : _value{ MOVE(value) } {}
 
     // Value of the "used" item if has_usage() is true. T{} otherwise.
-    auto value() const noexcept -> const T& { return value_; }
+    auto value() const noexcept -> const T& { return _value; }
 
     UsageValue(const UsageValue& other)            = default;
     UsageValue& operator=(const UsageValue& other) = default;
 
     UsageValue(UsageValue&& other) noexcept
-        : value_{ std::exchange(other.value_, value_type{}) }
+        : _value{ std::exchange(other._value, value_type{}) }
     {}
 
-    UsageValue& operator=(UsageValue&& other) noexcept {
-        value_ = std::exchange(other.value_, value_type{});
+    UsageValue& operator=(UsageValue&& other) noexcept
+    {
+        _value = std::exchange(other._value, value_type{});
         return *this;
     }
 
-protected:
-    T value_{};
+    T _value{};
 };
 
-
-// EBO for UsageToken<void>.
+/*
+EBO for Usage<void>.
+*/
 template<>
-class UsageValue<void> {
-public:
+struct UsageValue<void>
+{
     using value_type = void;
 };
 
 
 template<typename RefCountT>
-class UsageRC {
-public:
+struct UsageRC
+{
     using refcount_type = RefCountT;
 
     explicit UsageRC() = default;
 
     UsageRC(refcount_type& refcount)
-        : refcount_ptr_{ &refcount }
+        : _refcount_ptr{ &refcount }
     {
-        increment_count();
+        _increment_count();
     }
 
     // Does this own "usage" of a real item, or is this a "null" usage?
-    bool has_usage() const noexcept { return bool(refcount_ptr_); }
+    bool has_usage() const noexcept { return bool(_refcount_ptr); }
 
     UsageRC(const UsageRC& other) noexcept
-        : refcount_ptr_{ other.refcount_ptr_ }
+        : _refcount_ptr{ other._refcount_ptr }
     {
-        if (refcount_ptr_) increment_count();
+        if (_refcount_ptr) _increment_count();
     }
 
-    UsageRC& operator=(const UsageRC& other) noexcept {
+    auto operator=(const UsageRC& other) noexcept -> UsageRC&
+    {
         if (this == &other) return *this; // To please clang-tidy. Not actually needed.
-        if (refcount_ptr_) decrement_count();
-        refcount_ptr_ = other.refcount_ptr_;
-        if (refcount_ptr_) increment_count();
+        if (_refcount_ptr) _decrement_count();
+        _refcount_ptr = other._refcount_ptr;
+        if (_refcount_ptr) _increment_count();
         return *this;
     }
 
     UsageRC(UsageRC&& other) noexcept
-        : refcount_ptr_{ std::exchange(other.refcount_ptr_, nullptr) }
+        : _refcount_ptr{ std::exchange(other._refcount_ptr, nullptr) }
     {}
 
-    UsageRC& operator=(UsageRC&& other) noexcept {
-        if (refcount_ptr_) decrement_count();
-        refcount_ptr_ = std::exchange(other.refcount_ptr_, nullptr);
+    auto operator=(UsageRC&& other) noexcept -> UsageRC&
+    {
+        if (_refcount_ptr) _decrement_count();
+        _refcount_ptr = std::exchange(other._refcount_ptr, nullptr);
         return *this;
     }
 
-    ~UsageRC() noexcept {
-        if (refcount_ptr_) decrement_count();
+    ~UsageRC() noexcept
+    {
+        if (_refcount_ptr) _decrement_count();
     }
 
-protected:
-    refcount_type* refcount_ptr_{};
+    refcount_type* _refcount_ptr = {};
 
 private:
-    void increment_count() noexcept {
-        refcount_ptr_->fetch_add(1, std::memory_order_relaxed);
+    void _increment_count() noexcept
+    {
+        _refcount_ptr->fetch_add(1, std::memory_order_relaxed);
     }
-    void decrement_count() noexcept {
+
+    void _decrement_count() noexcept
+    {
         // Not acq_rel since we don't read the result.
         // This technically doesn't synchronize with anything and is just like relaxed.
-        refcount_ptr_->fetch_sub(1, std::memory_order_release);
+        _refcount_ptr->fetch_sub(1, std::memory_order_release);
     }
 };
 
@@ -122,20 +129,31 @@ NOTE: This is currently not fleshed out, the idea is to track transfer of usage
 in more detail through a special control block type, not through a dumb atomic refcount,
 with hooks for private->public transfer of ownership, "release hints", etc.
 */
-template<typename T, typename RefCountT = std::atomic<size_t>>
-class [[nodiscard]] Usage
-    : public Copyable<Usage<T>>
-    , public detail::UsageValue<T>
-    , public detail::UsageRC<RefCountT>
+template<typename T, typename RefCount = std::atomic<size_t>>
+struct [[nodiscard]] Usage
+    : Copyable<Usage<T>>
+    , detail::UsageValue<T>
+    , detail::UsageRC<RefCount>
 {
-public:
     Usage() = default;
 
-    Usage(T value, RefCountT& refcount)
-        : detail::UsageValue<T>     { MOVE(value) }
-        , detail::UsageRC<RefCountT>{ refcount    }
+    Usage(T value, RefCount& refcount)
+        : detail::UsageValue<T>    { MOVE(value) }
+        , detail::UsageRC<RefCount>{ refcount    }
     {}
+};
 
+template<typename RefCount>
+struct [[nodiscard]] Usage<void, RefCount>
+    : Copyable<Usage<void>>
+    , detail::UsageValue<void>
+    , detail::UsageRC<RefCount>
+{
+    Usage() = default;
+
+    Usage(RefCount& refcount)
+        : detail::UsageRC<RefCount>{ refcount }
+    {}
 };
 
 

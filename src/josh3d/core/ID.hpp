@@ -19,16 +19,19 @@ struct IDBase
 
     explicit constexpr IDBase(u64 value) noexcept : _value(value) {}
 
-    friend constexpr auto operator==(const CRTP& lhs, const CRTP& rhs) noexcept
-        -> bool
+    friend constexpr bool operator==(const CRTP& lhs, const CRTP& rhs) noexcept
     {
         return lhs._value == rhs._value;
+    }
+
+    friend constexpr auto operator<=>(const CRTP& lhs, const CRTP& rhs) noexcept
+    {
+        return lhs._value <=> rhs._value;
     }
 };
 
 template<typename T>
-auto hash_value(IDBase<T> id) noexcept
-    -> usize
+auto hash_value(IDBase<T> id) noexcept -> usize
 {
     return boost::hash_value(id._value);
 }

@@ -37,6 +37,9 @@ public:
     // Execute the tasks in the queue until empty.
     // Returns the number of tasks executed.
     // Exceptions thrown by the underlying tasks are propagated.
+    //
+    // FIXME: The number of tasks executed should be an out param
+    // so that the caller can still have this info on exception.
     auto flush_strong()
         -> size_t
     {
