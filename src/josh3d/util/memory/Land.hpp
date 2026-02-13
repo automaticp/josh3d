@@ -1,7 +1,7 @@
 #pragma once
 #include "Common.hpp"
 #include "Errors.hpp"
-#include "Memory.hpp"
+#include "memory/Helpers.hpp"
 #include "Ranges.hpp"
 #include "Scalars.hpp"
 #include "CategoryCasts.hpp"

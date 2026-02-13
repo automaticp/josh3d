@@ -16,7 +16,7 @@
 #include "detail/SPNG.hpp"
 #include "AssetImporter.hpp"
 #include "Ranges.hpp"
-#include "MallocSupport.hpp"
+#include "memory/MallocSupport.hpp"
 #include "TextureHelpers.hpp"
 #include "ImageData.hpp"
 #include <fmt/format.h>

@@ -1,7 +1,7 @@
 #include "TextureHelpers.hpp"
 #include "Channels.hpp"
 #include "Filesystem.hpp"
-#include "MallocSupport.hpp"
+#include "memory/MallocSupport.hpp"
 #include "ReadFile.hpp"
 #include "Region.hpp"
 #include <algorithm>

@@ -7,7 +7,7 @@
 #include "MeshRegistry.hpp"
 #include "Ranges.hpp"
 #include "Errors.hpp"
-#include "MallocSupport.hpp"
+#include "memory/MallocSupport.hpp"
 #include <glm/ext.hpp>
 #include <stb_image.h>
 #include <limits>

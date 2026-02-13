@@ -9,7 +9,7 @@
 #include "PixelData.hpp"
 #include "ImageData.hpp"
 #include "Filesystem.hpp"
-#include "MallocSupport.hpp"
+#include "memory/MallocSupport.hpp"
 #include "Pixels.hpp"
 #include "Errors.hpp"
 #include "Region.hpp"

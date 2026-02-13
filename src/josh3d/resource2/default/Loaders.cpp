@@ -11,7 +11,7 @@
 #include "GLPixelPackTraits.hpp"
 #include "GLTextures.hpp"
 #include "LODPack.hpp"
-#include "MallocSupport.hpp"
+#include "memory/MallocSupport.hpp"
 #include "ResourceFiles.hpp"
 #include "MeshRegistry.hpp"
 #include "MeshStorage.hpp"
