@@ -1,6 +1,6 @@
 #include "AssimpCommon.hpp"
 #include "AssetImporter.hpp"
-#include "Coroutines.hpp"
+#include "async/Coroutines.hpp"
 #include "default/Resources.hpp"
 #include "ResourceDatabase.hpp"
 #include "UUID.hpp"

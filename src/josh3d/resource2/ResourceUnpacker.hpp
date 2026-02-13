@@ -1,13 +1,13 @@
 #pragma once
 #include "AnyRef.hpp"
-#include "AsyncCradle.hpp"
 #include "CommonConcepts.hpp"
+#include "AsyncCradle.hpp"
+#include "async/TaskCounterGuard.hpp"
 #include "Resource.hpp"
 #include "ResourceDatabase.hpp"
 #include "ResourceLoader.hpp"
 #include "ResourceRegistry.hpp"
 #include "Scalars.hpp"
-#include "TaskCounterGuard.hpp"
 #include "TypeInfo.hpp"
 #include <boost/container_hash/hash.hpp>
 

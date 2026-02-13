@@ -2,7 +2,7 @@
 #include "Common.hpp"
 #include "Asset.hpp"
 #include "AssetImporter.hpp"
-#include "CoroCore.hpp"
+#include "async/CoroCore.hpp"
 #include "default/ResourceFiles.hpp"
 #include "VertexFormats.hpp"
 #include <assimp/mesh.h>

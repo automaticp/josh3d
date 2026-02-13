@@ -1,8 +1,8 @@
 #include "OffscreenContext.hpp"
 #include "CategoryCasts.hpp"
 #include "Common.hpp"
-#include "Future.hpp"
-#include "ThreadName.hpp"
+#include "async/Future.hpp"
+#include "async/ThreadAttributes.hpp"
 #include "Tracy.hpp"
 #include <glfwpp/window.h>
 #include <exception>

@@ -1,7 +1,7 @@
 #pragma once
 #include "CategoryCasts.hpp"
 #include "ContainerUtils.hpp"
-#include "CoroCore.hpp"
+#include "../CoroCore.hpp"
 #include "ScopeExit.hpp"
 #include <cassert>
 #include <concepts>

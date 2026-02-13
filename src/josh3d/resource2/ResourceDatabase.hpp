@@ -5,7 +5,7 @@
 #include "Resource.hpp"
 #include "Scalars.hpp"
 #include "StringHash.hpp"
-#include "ThreadsafeQueue.hpp"
+#include "async/ThreadsafeQueue.hpp"
 #include "UUID.hpp"
 #include <functional>
 #include <fstream> // IWYU pragma: keep (tool is drunk)

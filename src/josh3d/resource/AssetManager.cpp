@@ -12,14 +12,14 @@
 #include "ImageData.hpp"
 #include "MeshRegistry.hpp"
 #include "OffscreenContext.hpp"
+#include "async/ThreadPool.hpp"
+#include "async/Coroutines.hpp"
 #include "ScopeExit.hpp"
 #include "SkeletalAnimation.hpp"
 #include "Skeleton.hpp"
 #include "TextureHelpers.hpp"
 #include "CategoryCasts.hpp"
-#include "ThreadPool.hpp"
 #include "VertexFormats.hpp"
-#include "Coroutines.hpp"
 #include <assimp/BaseImporter.h>
 #include <assimp/Importer.hpp>
 #include <assimp/anim.h>

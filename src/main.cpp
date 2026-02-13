@@ -3,7 +3,7 @@
 #include "GlobalContext.hpp"
 #include "Logging.hpp"
 #include "GLUtils.hpp"
-#include "ThreadName.hpp"
+#include "async/ThreadAttributes.hpp"
 #include "VirtualFilesystem.hpp"
 #include "WindowSizeCache.hpp"
 #include "Tracy.hpp"

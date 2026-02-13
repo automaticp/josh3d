@@ -1,6 +1,6 @@
 #include "ShaderWatcher.hpp"
 #include "Errors.hpp"
-#include "ThreadName.hpp"
+#include "async/ThreadAttributes.hpp"
 #include <ranges>
 
 

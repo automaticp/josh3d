@@ -1,7 +1,7 @@
 #pragma once
 #include "ExternalScene.hpp"
 #include "AsyncCradle.hpp"
-#include "Coroutines.hpp"
+#include "async/Coroutines.hpp"
 #include "ECS.hpp"
 #include "Filesystem.hpp"
 #include "Processing.hpp"

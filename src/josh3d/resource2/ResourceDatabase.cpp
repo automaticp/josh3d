@@ -8,7 +8,7 @@
 #include "Ranges.hpp"
 #include "Resource.hpp"
 #include "Errors.hpp"
-#include "ThreadsafeQueue.hpp"
+#include "async/ThreadsafeQueue.hpp"
 #include "UUID.hpp"
 #include <algorithm>
 #include <boost/interprocess/exceptions.hpp>

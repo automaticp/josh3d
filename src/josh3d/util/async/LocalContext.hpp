@@ -1,9 +1,9 @@
 #pragma once
 #include "CategoryCasts.hpp"
 #include "Semantics.hpp"
-#include "ThreadsafeQueue.hpp"
 #include "UniqueFunction.hpp"
-#include "TaskCounterGuard.hpp"
+#include "async/ThreadsafeQueue.hpp"
+#include "async/TaskCounterGuard.hpp"
 #include <chrono>
 #include <thread>
 

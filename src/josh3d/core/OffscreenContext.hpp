@@ -1,9 +1,9 @@
 #pragma once
 #include "CategoryCasts.hpp"
-#include "Future.hpp"
+#include "async/Future.hpp"
+#include "async/ThreadsafeQueue.hpp"
 #include "GLFenceSync.hpp"
 #include "GLMutability.hpp"
-#include "ThreadsafeQueue.hpp"
 #include "UniqueFunction.hpp"
 #include <concepts>
 #include <latch>

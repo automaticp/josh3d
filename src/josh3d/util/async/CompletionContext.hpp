@@ -1,7 +1,7 @@
 #pragma once
-#include "CoroCore.hpp"
-#include "Coroutines.hpp"
-#include "ThreadsafeQueue.hpp"
+#include "async/CoroCore.hpp"
+#include "async/Coroutines.hpp"
+#include "async/ThreadsafeQueue.hpp"
 #include "UniqueFunction.hpp"
 #include <atomic>
 #include <cassert>

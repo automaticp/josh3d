@@ -7,7 +7,7 @@
 #include "ImageProperties.hpp"
 #include "PixelPackTraits.hpp"
 #include "ContainerUtils.hpp"
-#include "CoroCore.hpp"
+#include "async/CoroCore.hpp"
 #include "GLObjectHelpers.hpp"
 #include "GLTextures.hpp"
 #include "Errors.hpp"

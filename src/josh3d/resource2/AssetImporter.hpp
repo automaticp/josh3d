@@ -2,10 +2,10 @@
 #include "AsyncCradle.hpp"
 #include "Common.hpp"
 #include "CommonConcepts.hpp"
-#include "Coroutines.hpp"
+#include "async/Coroutines.hpp"
+#include "async/TaskCounterGuard.hpp"
 #include "Filesystem.hpp"
 #include "ResourceDatabase.hpp"
-#include "TaskCounterGuard.hpp"
 #include "TypeInfo.hpp"
 #include "UUID.hpp"
 #include <fmt/core.h>

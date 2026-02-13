@@ -1,11 +1,11 @@
 #pragma once
-#include "CompletionContext.hpp"
-#include "LocalContext.hpp"
-#include "OffscreenContext.hpp"
 #include "Scalars.hpp"
 #include "Semantics.hpp"
-#include "TaskCounterGuard.hpp"
-#include "ThreadPool.hpp"
+#include "async/CompletionContext.hpp"
+#include "async/LocalContext.hpp"
+#include "OffscreenContext.hpp"
+#include "async/TaskCounterGuard.hpp"
+#include "async/ThreadPool.hpp"
 
 
 namespace glfw { class Window; }
