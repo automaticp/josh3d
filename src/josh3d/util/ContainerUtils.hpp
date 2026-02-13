@@ -1,12 +1,10 @@
 #pragma once
 #include "CategoryCasts.hpp"
 #include "CommonConcepts.hpp"
-#include "KitchenSink.hpp" // TODO: Remove. Currently others depend on this.
-#include "Errors.hpp"      // "
 #include "Scalars.hpp"
-#include <concepts>
+#include "KitchenSink.hpp" // TODO: Remove. Currently others depend on this.
+#include "Errors.hpp"      // -//-
 #include <type_traits>
-#include <utility>
 #include <algorithm>
 
 
@@ -16,8 +14,8 @@ namespace josh {
 template<typename T, typename KeyT>
 concept has_map_find_interface = requires(T map, KeyT key)
 {
-    { map.find(key) } -> std::same_as<typename T::iterator>;
-    { map.end()     } -> std::same_as<typename T::iterator>;
+    { map.find(key) } -> same_as<typename T::iterator>;
+    { map.end()     } -> same_as<typename T::iterator>;
 };
 
 /*
@@ -30,10 +28,8 @@ Use the other ugly:
     if (auto* item = try_find(map, key)) { ... }
 
 */
-template<typename T, typename KeyT>
-    requires has_map_find_interface<T, std::decay_t<KeyT>>
-auto try_find(T& map, KeyT&& key)
-    -> T::pointer
+template<typename T, typename KeyT> requires has_map_find_interface<T, decay_t<KeyT>>
+auto try_find(T& map, KeyT&& key) -> T::pointer
 {
     if (auto it = map.find(key); it != map.end())
         return &(*it);
@@ -41,10 +37,8 @@ auto try_find(T& map, KeyT&& key)
         return decltype(&(*it))(nullptr);
 }
 
-template<typename T, typename KeyT>
-    requires has_map_find_interface<T, std::decay_t<KeyT>>
-auto try_find(const T& map, KeyT&& key)
-    -> T::const_pointer
+template<typename T, typename KeyT> requires has_map_find_interface<T, decay_t<KeyT>>
+auto try_find(const T& map, KeyT&& key) -> T::const_pointer
 {
     if (auto it = map.find(key); it != map.end())
         return &(*it);
@@ -52,10 +46,8 @@ auto try_find(const T& map, KeyT&& key)
         return decltype(&(*it))(nullptr);
 }
 
-template<typename T, typename KeyT>
-    requires has_map_find_interface<T, std::decay_t<KeyT>>
-auto try_find_value(T& map, KeyT&& key)
-    -> T::mapped_type*
+template<typename T, typename KeyT> requires has_map_find_interface<T, decay_t<KeyT>>
+auto try_find_value(T& map, KeyT&& key) -> T::mapped_type*
 {
     if (auto it = map.find(key); it != map.end())
         return &(it->second);
@@ -63,10 +55,8 @@ auto try_find_value(T& map, KeyT&& key)
         return decltype(&(it->second))(nullptr);
 }
 
-template<typename T, typename KeyT>
-    requires has_map_find_interface<T, std::decay_t<KeyT>>
-auto try_find_value(const T& map, KeyT&& key)
-    -> const T::mapped_type*
+template<typename T, typename KeyT> requires has_map_find_interface<T, decay_t<KeyT>>
+auto try_find_value(const T& map, KeyT&& key) -> const T::mapped_type*
 {
     if (auto it = map.find(key); it != map.end())
         return &(it->second);
@@ -82,12 +72,10 @@ then the other overloads will be picked.
 That would be bad since then rvalues can bind as temporaries
 to `const T&` and return a dangling pointer to a subobject.
 */
-template<typename T, typename KeyT>
-    requires has_map_find_interface<std::decay_t<T>, std::decay_t<KeyT>>
+template<typename T, typename KeyT> requires has_map_find_interface<decay_t<T>, decay_t<KeyT>>
 auto try_find(T&& rvalue, KeyT&& key) = delete;
 
-template<typename T, typename KeyT>
-    requires has_map_find_interface<std::decay_t<T>, std::decay_t<KeyT>>
+template<typename T, typename KeyT> requires has_map_find_interface<decay_t<T>, decay_t<KeyT>>
 auto try_find_value(T&& rvalue, KeyT&& key) = delete;
 
 
@@ -105,18 +93,16 @@ Enables this pattern:
 
 */
 template<has_optional_interface T>
-auto try_get(T& opt)
-    -> auto*
+auto try_get(T& opt) -> auto*
 {
-    using value_type = std::decay_t<decltype(*opt)>;
+    using value_type = decay_t<decltype(*opt)>;
     return opt ? &(*opt) : static_cast<value_type*>(nullptr);
 }
 
 template<has_optional_interface T>
-auto try_get(const T& opt)
-    -> const auto*
+auto try_get(const T& opt) -> const auto*
 {
-    using value_type = std::decay_t<decltype(*opt)>;
+    using value_type = decay_t<decltype(*opt)>;
     opt ? &(*opt) : static_cast<const value_type*>(nullptr);
 }
 
@@ -148,7 +134,7 @@ concept has_variant_get_interface = requires(T var)
 template<typename T, typename AltT>
 concept has_variant_alternative_interface = requires(T var)
 {
-    { holds_alternative<AltT>(var) } -> std::same_as<bool>;
+    { holds_alternative<AltT>(var) } -> same_as<bool>;
 };
 
 /*
@@ -168,8 +154,7 @@ auto move_out(T& variant)
 Yes WG21, thank you, I *love* typing.
 */
 template<typename AlternativeT, has_variant_alternative_interface<AlternativeT> T>
-auto is(const T& variant) noexcept
-    -> bool
+bool is(const T& variant) noexcept
 {
     return holds_alternative<AlternativeT>(variant);
 }
@@ -180,9 +165,9 @@ Discard/destroy any movable type by creating a scope, moving
 the object there and closing the scope right after.
  */
 template<forwarded_as_rvalue T>
-void discard(T&& object) noexcept(std::is_nothrow_move_constructible_v<std::decay_t<T>>)
+void discard(T&& object) noexcept(std::is_nothrow_move_constructible_v<decay_t<T>>)
 {
-    auto _ = static_cast<std::remove_reference_t<T>&&>(object);
+    auto _ = MOVE(object);
 }
 
 
@@ -223,33 +208,35 @@ auto defer_convert(Func&& func) noexcept
 template<typename T>
 concept has_pop_back_interface = requires(T container)
 {
-    { container.back()     } -> std::same_as<typename T::reference>;
+    { container.back()     } -> same_as<typename T::reference>;
     { container.pop_back() };
 };
 
 template<typename T>
 concept has_pop_front_interface = requires(T container)
 {
-    { container.front()     } -> std::same_as<typename T::reference>;
+    { container.front()     } -> same_as<typename T::reference>;
     { container.pop_front() };
 };
 
 template<typename T>
 concept has_pop_queue_interface = requires(T queue_like)
 {
-    { queue_like.front() } -> std::same_as<typename T::reference>;
+    { queue_like.front() } -> same_as<typename T::reference>;
     ( queue_like.pop()   );
 };
 
 /*
 `pop_back()` that actually returns a value.
+
+Implicitly requires nothrow move-constructibility, which in a sane codebase
+is true for approximately 100% of the types, so whatever.
 */
 template<has_pop_back_interface T>
-auto pop_back(T& container)
-    -> std::decay_t<T>::value_type
+auto pop_back(T& container) -> decay_t<T>::value_type
 {
-    using value_type = std::decay_t<T>::value_type;
-    value_type value = std::move(container.back());
+    using value_type = decay_t<T>::value_type;
+    value_type value = MOVE(container.back());
     container.pop_back();
     return value;
 }
@@ -258,11 +245,10 @@ auto pop_back(T& container)
 `pop_front()` that actually returns a value.
 */
 template<has_pop_front_interface T>
-auto pop_front(T& container)
-    -> std::decay_t<T>::value_type
+auto pop_front(T& container) -> decay_t<T>::value_type
 {
-    using value_type = std::decay_t<T>::value_type;
-    value_type value = std::move(container.front());
+    using value_type = decay_t<T>::value_type;
+    value_type value = MOVE(container.front());
     container.pop_front();
     return value;
 }
@@ -271,16 +257,15 @@ auto pop_front(T& container)
 `pop()` that actually returns a value.
 */
 template<has_pop_queue_interface T>
-auto pop(T& queue_like)
-    -> std::decay_t<T>::value_type
+auto pop(T& queue_like) -> decay_t<T>::value_type
 {
-    using value_type = std::decay_t<T>::value_type;
-    value_type value = std::move(queue_like.front());
+    using value_type = decay_t<T>::value_type;
+    value_type value = MOVE(queue_like.front());
     queue_like.pop();
     return value;
 }
 
-
+// HMM: This is a strange place to put this.
 struct BSearchResult
 {
     uindex prev_idx = {};

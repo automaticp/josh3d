@@ -58,13 +58,12 @@ Suspend the current coroutine and resume it on the specified executor.
 */
 template<executor E>
 [[nodiscard]]
-auto reschedule_to(E& executor)
-    -> awaiter<void> auto
+auto reschedule_to(E& executor) -> awaiter<void> auto
 {
     struct Awaiter
     {
         E& executor;
-        auto await_ready() const noexcept -> bool { return false; }
+        bool await_ready() const noexcept { return false; }
         void await_suspend(std::coroutine_handle<> h)
         {
             auto resumer = [h] { h.resume(); };
@@ -129,8 +128,7 @@ Niebloid cpo thing for `is_ready(r)`.
 constexpr struct is_ready_fn
 {
     template<readyable R_>
-    auto operator()(R_&& readyable) const
-        -> bool
+    bool operator()(R_&& readyable) const
     {
         using R = std::decay_t<R_>;
         if constexpr (detail::has_member_is_ready<R>)
@@ -149,8 +147,7 @@ constexpr struct is_ready_fn
 Adapt an arbitrary predicate as a readyable on the fly.
 */
 template<of_signature<bool()> F>
-constexpr auto as_readyable(F&& f) noexcept
-    -> readyable auto
+constexpr auto as_readyable(F&& f) noexcept -> readyable auto
 {
     struct ReadyableAdaptor
     {
@@ -196,9 +193,8 @@ auto if_not_ready(T&& readyable, std::coroutine_handle<PromiseT>* out_suspended 
         T                                readyable;
         std::coroutine_handle<PromiseT>* out_suspended;
 
-        auto await_ready() const noexcept -> bool { return is_ready(readyable); }
-        auto await_suspend(std::coroutine_handle<PromiseT> h) const noexcept
-            -> bool
+        bool await_ready() const noexcept { return is_ready(readyable); }
+        bool await_suspend(std::coroutine_handle<PromiseT> h) const noexcept
         {
             const bool suspend = not is_ready(readyable);
             if (suspend and out_suspended)
@@ -206,7 +202,7 @@ auto if_not_ready(T&& readyable, std::coroutine_handle<PromiseT>* out_suspended 
 
             return suspend;
         }
-        auto await_resume() const noexcept -> bool { return is_ready(readyable); }
+        bool await_resume() const noexcept { return is_ready(readyable); }
     };
     return Awaiter{ readyable, out_suspended };
 }
@@ -217,16 +213,14 @@ Suspends the current coroutine to get its address, then resumes it.
 Can be useful to get a unique identifier for each coroutine.
 */
 [[nodiscard]]
-inline auto peek_coroutine_address()
-    -> awaiter<void*> auto
+inline auto peek_coroutine_address() -> awaiter<void*> auto
 {
     struct Awaiter
     {
         void* result;
 
-        auto await_ready() const noexcept -> bool { return false; }
-        auto await_suspend(std::coroutine_handle<> h) noexcept
-            -> bool
+        bool await_ready() const noexcept { return false; }
+        bool await_suspend(std::coroutine_handle<> h) noexcept
         {
             result = h.address();
             // Then just pray that the compiler is smart enough to not actually suspend.
@@ -302,7 +296,7 @@ struct CompletionNotifier
             {
                 WhenAllState* state;
 
-                auto await_ready() const noexcept -> bool { return false; }
+                bool await_ready() const noexcept { return false; }
                 auto await_suspend(std::coroutine_handle<> self) const noexcept
                     -> std::coroutine_handle<>
                 {
@@ -356,8 +350,7 @@ auto until_all_ready(R&& awaitables)
                 WhenAllReadyAwaitable& self;
                 // NOTE: Need to suspend to set the parent coroutine first.
                 // Can only resume early if the range is empty.
-                auto await_ready() noexcept
-                    -> bool
+                bool await_ready() noexcept
                 {
                     return std::ranges::size(self.awaitables) == 0;
                 }
@@ -366,8 +359,7 @@ auto until_all_ready(R&& awaitables)
                 {
                     self.state.parent_coroutine = parent_coroutine;
 
-                    auto attach_continuation = [](auto& awaitable)
-                        -> CompletionNotifier
+                    auto attach_continuation = [](auto& awaitable) -> CompletionNotifier
                     {
                         co_await awaitable;
                     };
@@ -389,7 +381,7 @@ auto until_all_ready(R&& awaitables)
                             return continuation.handle;
                         }
                     }
-                    panic();
+                    safe_unreachable();
                 }
                 void await_resume() const noexcept {}
             };
@@ -435,8 +427,7 @@ auto until_all_succeed(R&& awaitables)
             {
                 WhenAllSucceedAwaitable& self;
 
-                auto await_ready() noexcept
-                    -> bool
+                bool await_ready() noexcept
                 {
                     return std::ranges::size(self.awaitables) == 0;
                 }
@@ -467,7 +458,7 @@ auto until_all_succeed(R&& awaitables)
                             return continuation.handle;
                         }
                     }
-                    panic();
+                    safe_unreachable();
                 }
                 void await_resume() const
                 {

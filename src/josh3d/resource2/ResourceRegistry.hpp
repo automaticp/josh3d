@@ -8,6 +8,7 @@
 #include "ResourceInfo.hpp"
 #include "Errors.hpp"
 #include "Scalars.hpp"
+#include "Any.hpp"
 #include "UUID.hpp"
 #include <fmt/core.h>
 #include <cassert>

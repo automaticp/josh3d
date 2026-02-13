@@ -1,7 +1,7 @@
 #pragma once
+#include "CategoryCasts.hpp"
 #include "CommonConcepts.hpp"
 #include <atomic>
-#include <concepts>
 #include <exception>
 #include <stdexcept>
 #include <variant>
@@ -24,54 +24,47 @@ class Promise;
 template<typename T>
 auto make_future_promise_pair() -> std::pair<Future<T>, Promise<T>>;
 
-
 template<typename T>
 auto get_result(Future<T> future) -> T;
-
 
 template<not_void T>
 void set_result(Promise<T> promise, T result);
 void set_result(Promise<void> promise);
 
-
 template<typename T>
 void set_exception(Promise<T> promise, std::exception_ptr exception);
 
 
-
-
-class broken_promise : public std::logic_error {
-public:
+struct broken_promise : std::logic_error
+{
     using std::logic_error::logic_error;
 };
-
-
 
 
 namespace detail {
 
 template<typename T>
-struct FPState {
+struct FPState
+{
     using storage_type = std::variant<std::monostate, T, std::exception_ptr>;
-    storage_type     value_or_exception{};
-    std::atomic_flag ready = ATOMIC_FLAG_INIT;
-    // Imagine not guaranteeing clear state before C++20...
+    storage_type     value_or_exception = {};
+    std::atomic_flag ready              = ATOMIC_FLAG_INIT;
 };
 
 template<>
-struct FPState<void> {
+struct FPState<void>
+{
     using storage_type = std::exception_ptr;
     storage_type     value_or_exception = nullptr;
-    std::atomic_flag ready = ATOMIC_FLAG_INIT;
+    std::atomic_flag ready              = ATOMIC_FLAG_INIT;
 };
 
 } // namespace detail
 
 
-
-
 template<typename T>
-class Promise {
+class Promise
+{
 public:
     Promise() = delete;
     friend auto make_future_promise_pair<T>() -> std::pair<Future<T>, Promise<T>>;
@@ -88,14 +81,14 @@ public:
 
     ~Promise() noexcept;
 private:
-    Promise(std::shared_ptr<detail::FPState<T>>&& state) noexcept : state_{ std::move(state) } {}
+    Promise(std::shared_ptr<detail::FPState<T>>&& state) noexcept : state_{ MOVE(state) } {}
     std::shared_ptr<detail::FPState<T>> state_;
 };
 
 
-
 template<typename T>
-class Future {
+class Future
+{
 public:
     Future() = delete;
     friend auto make_future_promise_pair<T>() -> std::pair<Future<T>, Promise<T>>;
@@ -111,33 +104,29 @@ public:
     Future& operator=(Future&&)      = default;
 
 private:
-    Future(std::shared_ptr<detail::FPState<T>>&& state) noexcept : state_{ std::move(state) } {}
+    Future(std::shared_ptr<detail::FPState<T>>&& state) noexcept : state_{ MOVE(state) } {}
     std::shared_ptr<detail::FPState<T>> state_;
 };
 
 
-
-
 template<typename T>
-auto make_future_promise_pair()
-    -> std::pair<Future<T>, Promise<T>>
+auto make_future_promise_pair() -> std::pair<Future<T>, Promise<T>>
 {
     auto ptr_promise = std::make_shared<detail::FPState<T>>();
     auto ptr_future  = ptr_promise;
-    return { Future<T>(std::move(ptr_future)), Promise<T>(std::move(ptr_promise)) };
+    return { Future<T>(MOVE(ptr_future)), Promise<T>(MOVE(ptr_promise)) };
 }
 
-
-
-
 template<typename T>
-bool Promise<T>::is_moved_from() const noexcept {
-    return !bool(state_);
+bool Promise<T>::is_moved_from() const noexcept
+{
+    return not bool(state_);
 }
 
 template<not_void T>
-void set_result(Promise<T> promise, T result) {
-    promise.state_->value_or_exception = std::move(result);
+void set_result(Promise<T> promise, T result)
+{
+    promise.state_->value_or_exception = MOVE(result);
 
 #ifndef NDEBUG
     bool was_set_before =
@@ -154,7 +143,8 @@ void set_result(Promise<T> promise, T result) {
     // that is, if the Future has been discarded.
 }
 
-inline void set_result(Promise<void> promise) {
+inline void set_result(Promise<void> promise)
+{
 #ifndef NDEBUG
     bool was_set_before =
         promise.state_->ready.test_and_set(std::memory_order_acq_rel);
@@ -168,8 +158,9 @@ inline void set_result(Promise<void> promise) {
 }
 
 template<typename T>
-void set_exception(Promise<T> promise, std::exception_ptr exception) { // NOLINT(performance-unnecessary-value-param)
-    promise.state_->value_or_exception = std::move(exception);
+void set_exception(Promise<T> promise, std::exception_ptr exception) // NOLINT(performance-unnecessary-value-param)
+{
+    promise.state_->value_or_exception = MOVE(exception);
 
 #ifndef NDEBUG
     bool was_set_before =
@@ -184,10 +175,11 @@ void set_exception(Promise<T> promise, std::exception_ptr exception) { // NOLINT
 }
 
 template<typename T>
-Promise<T>::~Promise() noexcept {
+Promise<T>::~Promise() noexcept
+{
     // Broooken proooomiseees...
-    if (!is_moved_from() &&
-        !state_->ready.test(std::memory_order_acquire))
+    if (not is_moved_from() and
+        not state_->ready.test(std::memory_order_acquire))
     {
         state_->value_or_exception = std::make_exception_ptr(broken_promise("broken_promise"));
         state_->ready.test_and_set(std::memory_order_release);
@@ -196,57 +188,58 @@ Promise<T>::~Promise() noexcept {
 }
 
 
-
-
 template<typename T>
-bool Future<T>::is_moved_from() const noexcept {
-    return !bool(state_);
+bool Future<T>::is_moved_from() const noexcept
+{
+    return not bool(state_);
 }
 
 template<typename T>
-bool Future<T>::is_available() const noexcept {
+bool Future<T>::is_available() const noexcept
+{
     // TODO: Should we check is_moved_from()?
     return state_->ready.test(std::memory_order_acquire);
 }
 
 template<typename T>
-void Future<T>::wait_for_result() const noexcept {
+void Future<T>::wait_for_result() const noexcept
+{
     state_->ready.wait(false, std::memory_order_acquire);
 }
 
 template<typename T>
-auto get_result(Future<T> future)
-    -> T
+auto get_result(Future<T> future) -> T
 {
     future.wait_for_result();
 
-    struct Visitor {
-        T operator()(T&& value) const {
-            return std::move(value);
+    struct Visitor
+    {
+        auto operator()(T&& value) const -> T
+        {
+            return MOVE(value);
         }
-        [[noreturn]] T operator()(std::exception_ptr&& exception) const {
-            std::rethrow_exception(std::move(exception));
+        [[noreturn]] auto operator()(std::exception_ptr&& exception) const -> T
+        {
+            std::rethrow_exception(MOVE(exception));
         }
-        [[noreturn]] T operator()(std::monostate) const {
+        [[noreturn]] auto operator()(std::monostate) const -> T
+        {
             assert(false);
             std::terminate();
         }
     };
 
-    return std::visit(Visitor{}, std::move(future.state_->value_or_exception));
+    return std::visit(Visitor{}, MOVE(future.state_->value_or_exception));
 }
-
 
 template<>
-inline void get_result<void>(Future<void> future) {
-
+inline void get_result<void>(Future<void> future)
+{
     future.wait_for_result();
 
-    if (future.state_->value_or_exception) {
-        std::rethrow_exception(std::move(future.state_->value_or_exception));
-    }
+    if (future.state_->value_or_exception)
+        std::rethrow_exception(MOVE(future.state_->value_or_exception));
 }
-
 
 
 } // namespace josh

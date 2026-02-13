@@ -1,7 +1,10 @@
 #pragma once
 #include "CategoryCasts.hpp"
+#include "CommonConcepts.hpp"
 #include "ContainerUtils.hpp"
 #include "../CoroCore.hpp"
+#include "Errors.hpp"
+#include "Scalars.hpp"
 #include "ScopeExit.hpp"
 #include <cassert>
 #include <concepts>
@@ -15,7 +18,8 @@ namespace josh::detail {
 
 
 template<typename CoroT>
-class GeneratorPromise {
+class GeneratorPromise
+{
 public:
     using coroutine_type = CoroT;
     using handle_type    = coroutine_type::handle_type;
@@ -39,10 +43,11 @@ public:
 
     bool has_any_result() const noexcept { return result_.index() != 0; }
 
-    [[nodiscard]] auto extract_result() -> result_type {
-        if      (is<result_type>       (result_)) { return move_out<result_type>(result_); }
-        else if (is<std::exception_ptr>(result_)) { std::rethrow_exception(move_out<std::exception_ptr>(result_)); }
-        else { std::terminate(); /* Invalid state. */ }
+    [[nodiscard]] auto extract_result() -> result_type
+    {
+        if      (is<result_type>       (result_)) return move_out<result_type>(result_);
+        else if (is<std::exception_ptr>(result_)) std::rethrow_exception(move_out<std::exception_ptr>(result_));
+        else safe_unreachable();
     }
 
 private:
@@ -51,29 +56,28 @@ private:
 };
 
 
-
-
 /*
 A single atomic state that prevents setting a continuation
 after ready signal has been issued.
 */
-class ReadyAndContinuation {
+class ReadyAndContinuation
+{
 public:
-    auto is_ready() const noexcept
-        -> bool
+    bool is_ready() const noexcept
     {
         return to_flag(packed.load(std::memory_order_acquire));
     }
 
-    auto continuation() const noexcept
-        -> std::coroutine_handle<>
+    auto continuation() const noexcept -> std::coroutine_handle<>
     {
         return to_handle(packed.load(std::memory_order_acquire));
     }
 
-    void wait_until_ready() const noexcept {
-        while (true) {
-            const uintptr_t old = packed.load(std::memory_order_acquire);
+    void wait_until_ready() const noexcept
+    {
+        while (true)
+        {
+            const uintptr old = packed.load(std::memory_order_acquire);
             if (to_flag(old)) return;
             // Can spuriously unblock after the continuation was set.
             // If the ready flag is not set though, we'll just wait again.
@@ -81,37 +85,39 @@ public:
         }
     }
 
-    auto try_set_continuation(std::coroutine_handle<> handle) noexcept
-        -> bool
+    bool try_set_continuation(std::coroutine_handle<> handle) noexcept
     {
         // We expect that we are not ready, and the continuation is not set.
-        uintptr_t expected = 0;
+        uintptr expected = 0;
 
         // The continuation must be set only if we are not ready.
         // The operation does not change the ready state.
-        const uintptr_t desired = to_packed(false, handle);
+        const uintptr desired = to_packed(false, handle);
 
         const bool success =
             packed.compare_exchange_strong(expected, desired, std::memory_order_acq_rel);
 
-        if (!success) {
+        if (not success)
+        {
             // This can fail for two reasons:
             //   1. Ready flag is already set;
             //   2. Continuation is already set.
             // Only the first one should be reported to the user.
             // The second one is a bug, and should be instead asserted.
-            const uintptr_t observed = expected;
-            if (to_flag(observed)) {
+            const uintptr observed = expected;
+
+            if (to_flag(observed))
                 return false;
-            }
-            assert(!to_handle(observed) && "Setting a continuation when it was already set.");
+
+            assert(not to_handle(observed) && "Setting a continuation when it was already set.");
             return false; // FIXME: Maybe terminate?
         }
         return true;
     }
 
-    void became_ready() noexcept {
-        const uintptr_t flag_mask = 1;
+    void became_ready() noexcept
+    {
+        const uintptr flag_mask = 1;
         const auto previous [[maybe_unused]] =
             packed.fetch_or(flag_mask, std::memory_order_release);
         assert(not (previous & flag_mask) && "Became ready twice.");
@@ -119,39 +125,37 @@ public:
     }
 
 private:
-    std::atomic<uintptr_t> packed = 0;
+    std::atomic<uintptr> packed = 0;
 
-    static auto to_handle(uintptr_t packed) noexcept
-        -> std::coroutine_handle<>
+    static auto to_handle(uintptr packed) noexcept -> std::coroutine_handle<>
     {
-        const uintptr_t mask    = ~uintptr_t(1); // Wipe the lowest bit.
-        void*           address = (void*)(packed & mask); // NOLINT(performance-*)
+        const uintptr mask    = ~uintptr(1); // Wipe the lowest bit.
+        void*         address = (void*)(packed & mask); // NOLINT(performance-*)
         return std::coroutine_handle<>::from_address(address);
     }
 
-    static auto to_flag(uintptr_t packed) noexcept
-        -> bool
+    static bool to_flag(uintptr packed) noexcept
     {
-        const uintptr_t mask = uintptr_t(1); // Get the lowest bit.
-        const bool      flag = bool(packed & mask);
+        const uintptr mask = uintptr(1); // Get the lowest bit.
+        const bool    flag = bool(packed & mask);
         return flag;
     }
 
     static auto to_packed(bool flag, std::coroutine_handle<> handle) noexcept
-        -> uintptr_t
+        -> uintptr
     {
-        const uintptr_t lowest_1      = uintptr_t(1);
-        const uintptr_t address_value = uintptr_t(handle.address());
-        const uintptr_t flag_value    = uintptr_t(flag & lowest_1);
+        const uintptr lowest_1      = uintptr(1);
+        const uintptr address_value = uintptr(handle.address());
+        const uintptr flag_value    = uintptr(flag & lowest_1);
         assert(!(address_value & lowest_1) && "Lowest bit already occupied. Cannot do magic packing.");
         return address_value | flag_value;
     }
-
 };
 
 
 template<typename CRTP, typename CoroT>
-class JobPromiseCommon {
+class JobPromiseCommon
+{
 public:
     using promise_type       = CRTP;
     using coroutine_type     = CoroT;
@@ -159,22 +163,20 @@ public:
     using handle_type        = std::coroutine_handle<promise_type>;
     using shared_handle_type = shared_coroutine_handle<promise_type>;
 
-    auto get_return_object()
-        -> coroutine_type
+    auto get_return_object() -> coroutine_type
     {
         return coroutine_type(handle_type::from_promise(self()));
     }
 
-    auto initial_suspend() const noexcept
-        -> std::suspend_never
+    auto initial_suspend() const noexcept -> std::suspend_never
     {
         return {};
     }
 
-    auto final_suspend() const noexcept
-        -> awaiter<void, promise_type> auto
+    auto final_suspend() const noexcept -> awaiter<void, promise_type> auto
     {
-        struct FinalAwaiter {
+        struct FinalAwaiter
+        {
             bool await_ready() const noexcept { return false; }
             auto await_suspend(handle_type h) const noexcept
                 -> std::coroutine_handle<>
@@ -189,9 +191,12 @@ public:
                 // we should be okay when transferring control to another coroutine.
                 ON_SCOPE_EXIT([&]{ if (p.is_owning()) p.release_ownership(); });
                 // Transfer control to "parent" coroutine, if any.
-                if (std::coroutine_handle<> continuation = p.packed_state_.continuation()) {
+                if (std::coroutine_handle<> continuation = p.packed_state_.continuation())
+                {
                     return continuation;
-                } else {
+                }
+                else
+                {
                     return std::noop_coroutine();
                 }
             }
@@ -200,8 +205,8 @@ public:
         return FinalAwaiter{};
     }
 
-
-    void unhandled_exception() noexcept {
+    void unhandled_exception() noexcept
+    {
         self().result_value() = std::current_exception();
         packed_state_.became_ready();
     }
@@ -214,8 +219,7 @@ public:
     // became ready. You can read the result instead.
     //
     // No continuation must have been set previously.
-    auto try_set_continuation(std::coroutine_handle<> handle) noexcept
-        -> bool
+    bool try_set_continuation(std::coroutine_handle<> handle) noexcept
     {
         return packed_state_.try_set_continuation(handle);
     }
@@ -223,17 +227,18 @@ public:
 
     // Ready state.
 
-    auto is_ready() const noexcept
-        -> bool
+    bool is_ready() const noexcept
     {
         const bool ready = packed_state_.is_ready();
-        if constexpr (not std::same_as<result_type, void>) {
+        if constexpr (not_void<result_type>)
+        {
             if (ready) { assert(self().has_result_value()); }
         }
         return ready;
     }
 
-    void wait_for_result() const noexcept {
+    void wait_for_result() const noexcept
+    {
         packed_state_.wait_until_ready();
     }
 
@@ -241,24 +246,22 @@ public:
     // Manual ownership handling.
     // TODO: Does this need to be public?
 
-    auto is_owning() const noexcept
-        -> bool
+    bool is_owning() const noexcept
     {
         return bool(handle_);
     }
 
-    void give_ownership(shared_handle_type handle) noexcept {
+    void give_ownership(shared_handle_type handle) noexcept
+    {
         assert(!handle_);
         handle_ = MOVE(handle);
     }
 
-    auto release_ownership() noexcept
-        -> shared_handle_type
+    auto release_ownership() noexcept -> shared_handle_type
     {
         assert(handle_);
         return MOVE(handle_);
     }
-
 
 protected:
     // The promise will own the coroutine until final_suspend().
@@ -277,8 +280,6 @@ private:
 };
 
 
-
-
 template<typename CoroT, typename ResultT>
 class JobPromise
     : public JobPromiseCommon<JobPromise<CoroT, ResultT>, CoroT>
@@ -292,29 +293,28 @@ public:
     using shared_handle_type = shared_coroutine_handle<promise_type>;
 
     template<std::convertible_to<result_type> U>
-    void return_value(U&& value) noexcept(noexcept(result_value() = FORWARD(value))) {
+    void return_value(U&& value) noexcept(noexcept(result_value() = FORWARD(value)))
+    {
         assert(result_value().index() == 0);
         result_value() = FORWARD(value);
         this->packed_state_.became_ready();
     }
 
-    auto get_result()
-        -> result_type&
+    auto get_result() -> result_type&
     {
-        if      (is<result_type>       (result_value())) { return get<result_type>(result_value()); }
-        else if (is<std::exception_ptr>(result_value())) { std::rethrow_exception(get<std::exception_ptr>(result_value())); }
-        else { std::terminate(); }
+        if      (is<result_type>       (result_value())) return get<result_type>(result_value());
+        else if (is<std::exception_ptr>(result_value())) std::rethrow_exception(get<std::exception_ptr>(result_value()));
+        else safe_unreachable();
     }
 
     // NOTE: This will make any following is_ready() call terminate because we assert that we have a value.
     // We need to make sure that this is only ever called before the Job is destroyed 100%, pinky promise.
     [[nodiscard]]
-    auto extract_result()
-        -> result_type
+    auto extract_result() -> result_type
     {
-        if      (is<result_type>       (result_value())) { return move_out<result_type>(result_value()); }
-        else if (is<std::exception_ptr>(result_value())) { std::rethrow_exception(move_out<std::exception_ptr>(result_value())); }
-        else { std::terminate(); /* Invalid state */ }
+        if      (is<result_type>       (result_value())) return move_out<result_type>(result_value());
+        else if (is<std::exception_ptr>(result_value())) std::rethrow_exception(move_out<std::exception_ptr>(result_value()));
+        else safe_unreachable();
     }
 
 
@@ -323,28 +323,26 @@ public:
 
     // Manual result handling.
 
-    auto has_result_value() const noexcept
-        -> bool
+    bool has_result_value() const noexcept
     {
         return result_value_.index() != 0;
     }
 
     // This can be emplaced externally. Does not signal readiness.
     template<std::convertible_to<result_value_type> U>
-    void set_result_value(U&& value) {
+    void set_result_value(U&& value)
+    {
         result_value() = FORWARD(value);
     }
 
-    auto get_result_value() const
-        -> const result_value_type&
+    auto get_result_value() const -> const result_value_type&
     {
         return result_value();
     }
 
     // Take the result value away. Expects that readiness has *not* been signalled yet.
     [[nodiscard]]
-    auto extract_result_value()
-        -> result_value_type
+    auto extract_result_value() -> result_value_type
     {
         assert(!this->is_ready());
         return move_out(result_value());
@@ -369,44 +367,45 @@ public:
     using handle_type    = std::coroutine_handle<promise_type>;
     using shared_handle  = shared_coroutine_handle<promise_type>;
 
-    void return_void() noexcept {
+    void return_void() noexcept
+    {
         this->packed_state_.became_ready();
     }
 
-    void get_result() {
-        if (result_value()) { std::rethrow_exception(result_value()); }
+    void get_result()
+    {
+        if (result_value()) std::rethrow_exception(result_value());
     }
 
-    void extract_result() {
-        if (result_value()) { std::rethrow_exception(std::exchange(result_value(), std::exception_ptr(nullptr))); }
+    void extract_result()
+    {
+        if (result_value()) std::rethrow_exception(std::exchange(result_value(), std::exception_ptr(nullptr)));
     }
 
     using result_value_type = std::exception_ptr;
 
     // Manual result handling.
 
-    auto has_result_value() const noexcept
-        -> bool
+    bool has_result_value() const noexcept
     {
         return bool(result_value_);
     }
 
     // This can be emplaced externally. Does not signal readiness.
     template<std::convertible_to<result_value_type> U>
-    void set_result_value(U&& value) {
+    void set_result_value(U&& value)
+    {
         result_value() = FORWARD(value);
     }
 
-    auto get_result_value() const
-        -> const result_value_type&
+    auto get_result_value() const -> const result_value_type&
     {
         return result_value();
     }
 
     // Take the result value away. Expects that readiness has *not* been signalled yet.
     [[nodiscard]]
-    auto extract_result_value()
-        -> result_value_type
+    auto extract_result_value() -> result_value_type
     {
         assert(!this->is_ready());
         return std::exchange(result_value(), std::exception_ptr(nullptr));

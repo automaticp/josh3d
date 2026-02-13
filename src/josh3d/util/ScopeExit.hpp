@@ -8,37 +8,43 @@ Fancy template implementations kill compile times for no reason.
 namespace josh {
 
 
-#define ON_SCOPE_EXIT(...) \
-    const auto JOSH3D_CONCAT(_scope_exit_fn_, __LINE__) = __VA_ARGS__; \
-    const struct JOSH3D_CONCAT(_scope_exit_, __LINE__) {               \
-        decltype(JOSH3D_CONCAT(_scope_exit_fn_, __LINE__)) f;          \
-        ~JOSH3D_CONCAT(_scope_exit_, __LINE__)() { f(); }              \
-    } JOSH3D_CONCAT(_scope_exit_, __LINE__){                           \
-        JOSH3D_CONCAT(_scope_exit_fn_, __LINE__)                       \
-    }
-
-/*
-Alternative, single-statement spelling for ON_SCOPE_EXIT(...).
-*/
-#define DEFER(...) ON_SCOPE_EXIT([&]{ __VA_ARGS__; })
-
 namespace detail {
 auto uncaught_exceptions() noexcept -> int;
 } // namespace detail
 
+// NOLINTNEXTLINE(bugprone-reserved-identifier)
+#define _ON_SCOPE_EXIT_IMPL(fn, Type, ...) \
+    const auto fn = __VA_ARGS__; \
+    const struct Type            \
+    {                            \
+        decltype(fn) f;          \
+        ~Type() { f(); }         \
+    } Type{ fn }
+
+// NOLINTNEXTLINE(bugprone-reserved-identifier)
+#define _ON_SCOPE_FAIL_IMPL(fn, Type, ...) \
+    const auto fn = __VA_ARGS__;           \
+    const struct Type                      \
+    {                                      \
+        int initial_uncaught;              \
+        decltype(fn) f;                    \
+        ~Type()                            \
+        {                                  \
+            if (::josh::detail::uncaught_exceptions() > initial_uncaught) f(); \
+        }                                  \
+    } Type{ ::josh::detail::uncaught_exceptions(), fn }
+
+
+#define ON_SCOPE_EXIT(...) \
+    _ON_SCOPE_EXIT_IMPL(JOSH3D_CONCAT(_scope_exit_fn_, __LINE__), JOSH3D_CONCAT(_scope_exit_, __LINE__), __VA_ARGS__)
 
 #define ON_SCOPE_FAIL(...) \
-    const auto JOSH3D_CONCAT(_scope_fail_fn_, __LINE__) = __VA_ARGS__;         \
-    const struct JOSH3D_CONCAT(_scope_fail_, __LINE__) {                       \
-        int initial_uncaught;                                                  \
-        decltype(JOSH3D_CONCAT(_scope_fail_fn_, __LINE__)) f;                  \
-        ~JOSH3D_CONCAT(_scope_fail_, __LINE__)() {                             \
-            if (::josh::detail::uncaught_exceptions() > initial_uncaught) f(); \
-        }                                                                      \
-    } JOSH3D_CONCAT(_scope_fail_, __LINE__){                                   \
-        ::josh::detail::uncaught_exceptions(),                                 \
-        JOSH3D_CONCAT(_scope_fail_fn_, __LINE__)                               \
-    }
+    _ON_SCOPE_FAIL_IMPL(JOSH3D_CONCAT(_scope_fail_fn_, __LINE__), JOSH3D_CONCAT(_scope_fail_, __LINE__), __VA_ARGS__)
+
+/*
+Alternative, single-statement spelling for ON_SCOPE_EXIT(...). Very convenient.
+*/
+#define DEFER(...) ON_SCOPE_EXIT([&]{ __VA_ARGS__; })
 
 
 } // namespace josh

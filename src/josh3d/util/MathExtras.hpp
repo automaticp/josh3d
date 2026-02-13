@@ -9,8 +9,7 @@
 
 namespace josh {
 
-inline auto gaussian_cdf(float x) noexcept
-    -> float
+inline auto gaussian_cdf(float x) noexcept -> float
 {
     return (1.f + std::erf(x / std::numbers::sqrt2_v<float>)) / 2.f;
 }

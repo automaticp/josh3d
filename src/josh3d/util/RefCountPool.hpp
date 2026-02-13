@@ -1,13 +1,10 @@
 #pragma once
 #include "Common.hpp"
 #include "memory/PageAllocator.hpp"
-#include <memory>
 
 
 namespace josh {
 
-template<typename T, typename Deleter = std::default_delete<T>>
-using UniquePtr = std::unique_ptr<T, Deleter>;
 
 /*
 A datastructure that manages a stable pool of refcounts.

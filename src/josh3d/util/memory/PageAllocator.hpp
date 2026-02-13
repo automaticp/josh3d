@@ -20,9 +20,7 @@ struct PageAllocator
     // PRE: nbytes > 0
     [[nodiscard]]
     static auto allocate(usize nbytes) -> void*;
-
     static void deallocate(void* ptr, usize nbytes);
-
     static const usize page_size;
 };
 

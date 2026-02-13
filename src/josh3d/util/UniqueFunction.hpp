@@ -43,22 +43,19 @@ public:
         : target_ptr_{ std::make_unique<Concrete<std::decay_t<CallableT>>>(FORWARD(callable)) }
     {}
 
-    auto operator()(ArgTs... args)
-        -> result_type
+    auto operator()(ArgTs... args) -> result_type
     {
         assert(target_ptr_ && "UniqueFunction with no target has been invoked.");
         return (*target_ptr_)(FORWARD(args)...);
     }
 
-    auto target_as_any() noexcept
-        -> AnyRef
+    auto target_as_any() noexcept -> AnyRef
     {
         assert(target_ptr_ && "UniqueFunction had no target.");
         return target_ptr_->any_ref();
     }
 
-    auto target_as_any() const noexcept
-        -> AnyConstRef
+    auto target_as_any() const noexcept -> AnyConstRef
     {
         assert(target_ptr_ && "UniqueFunction had no target.");
         return target_ptr_->any_ref();
@@ -66,16 +63,17 @@ public:
 
     template<typename CallableT>
     auto target_ptr() noexcept -> CallableT* { return _try_get_target<CallableT>(); }
+
     template<typename CallableT>
     auto target_ptr() const noexcept -> const CallableT* { return _try_get_target<CallableT>(); }
 
     template<typename CallableT>
     auto target_unchecked() noexcept -> CallableT& { return _get_unchecked<CallableT>(); }
+
     template<typename CallableT>
     auto target_unchecked() const noexcept-> const CallableT& { return _get_unchecked<CallableT>(); }
 
-    auto target_type() const noexcept
-        -> const std::type_info&
+    auto target_type() const noexcept -> const std::type_info&
     {
         assert(target_ptr_ && "UniqueFunction had no target.");
         return target_ptr_->type();
@@ -109,16 +107,14 @@ private:
     // Does not propagate constness to the target.
     // Use public target() functions for that.
     template<typename CallableT>
-    auto _try_get_target() const noexcept
-        -> CallableT*
+    auto _try_get_target() const noexcept -> CallableT*
     {
         auto* wrapper_ptr = dynamic_cast<Concrete<CallableT>*>(target_ptr_.get());
         return wrapper_ptr ? &wrapper_ptr->target : nullptr;
     }
 
     template<typename CallableT>
-    auto _get_unchecked() const noexcept
-        -> CallableT&
+    auto _get_unchecked() const noexcept -> CallableT&
     {
         assert(target_ptr_ && "Requested the target of UniqueFunction with no target.");
         assert(target_ptr_->type() == typeid(CallableT) && "Requested type does not match the type of the target.");

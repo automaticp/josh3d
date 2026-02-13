@@ -11,6 +11,7 @@ Because I'm done typing this out again and again.
 */
 namespace josh {
 
+
 /*
 NOTE: Constants instead of `using` because the linter then has "constant" color.
 */
@@ -18,6 +19,7 @@ constexpr auto enumerate = ranges::views::enumerate;
 constexpr auto zip       = ranges::views::zip;
 constexpr auto transform = std::views::transform;
 constexpr auto reverse   = std::views::reverse;
+
 
 /*
 Similar to `views::iota()`, but actually compiles the first time around.

@@ -5,8 +5,7 @@
 namespace josh::detail {
 
 
-auto uncaught_exceptions() noexcept
-    -> int
+auto uncaught_exceptions() noexcept -> int
 {
     return std::uncaught_exceptions();
 }

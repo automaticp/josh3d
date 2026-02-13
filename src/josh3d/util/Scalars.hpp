@@ -19,6 +19,9 @@ NOTE: Currently not used consistently, but one day...
 */
 namespace josh {
 
+
+using byte    = unsigned char; // I have a 2-hour long lecture about why std::byte was a mistake.
+using ubyte   = unsigned char;
 using u8      = uint8_t;
 using u16     = uint16_t;
 using u32     = uint32_t;
@@ -34,5 +37,6 @@ using idiff   = ptrdiff_t; // Index difference.
 using ptrdiff = ptrdiff_t; // Pointer difference.
 using uintptr = uintptr_t; // Pointer representation as an unsigned integer.
 using i32sz   = i32;       // For compatibility with the GLsizei.
+
 
 } // namespace josh

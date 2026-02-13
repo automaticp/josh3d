@@ -1,12 +1,15 @@
 #pragma once
+#include "CommonConcepts.hpp"
 #include "MapMacro.hpp"
-#include <concepts>
-#include <span>
 #include <type_traits>
+#include <span>
+#include <string_view> // IWYU pragma: keep
 
 
 namespace josh {
 
+
+using std::underlying_type_t;
 
 template<typename EnumT>
 concept enumeration = std::is_enum_v<EnumT>;
@@ -14,20 +17,22 @@ concept enumeration = std::is_enum_v<EnumT>;
 template<typename EnumT>
 concept enum_class =
     enumeration<EnumT> &&
-    !std::is_convertible_v<EnumT, std::underlying_type_t<EnumT>>;
+    // TODO: Is is explicitly using the `is_convertible` trait as opposed to
+    // `convertible_to` concept because it is implicit-only? Was I *that* ahead of the game?
+    not std::is_convertible_v<EnumT, underlying_type_t<EnumT>>;
 
 template<enumeration EnumT>
 constexpr auto to_underlying(EnumT enum_value) noexcept
-    -> std::underlying_type_t<EnumT>
+    -> underlying_type_t<EnumT>
 {
-    return static_cast<std::underlying_type_t<EnumT>>(enum_value);
+    return static_cast<underlying_type_t<EnumT>>(enum_value);
 }
 
 template<typename T>
 struct underlying_type_or_type { using type = T; };
 
 template<enumeration EnumT>
-struct underlying_type_or_type<EnumT> { using type = std::underlying_type_t<EnumT>; };
+struct underlying_type_or_type<EnumT> { using type = underlying_type_t<EnumT>; };
 
 template<typename T>
 using underlying_type_or_type_t = underlying_type_or_type<T>::type;
@@ -40,9 +45,8 @@ constexpr auto to_underlying_or_value(EnumOrInt value) noexcept
 }
 
 template<typename To, enumeration FromEnumT>
-    requires std::same_as<underlying_type_or_type_t<To>, std::underlying_type_t<FromEnumT>>
-constexpr auto enum_cast(FromEnumT enum_value) noexcept
-    -> To
+    requires same_as<underlying_type_or_type_t<To>, underlying_type_t<FromEnumT>>
+constexpr auto enum_cast(FromEnumT enum_value) noexcept -> To
 {
     return static_cast<To>(to_underlying(enum_value));
 }
@@ -89,8 +93,7 @@ constexpr auto enum_cast(FromEnumT enum_value) noexcept
             default: return "";                             \
         }                                                   \
     }                                                       \
-    constexpr auto enum_valid(EnumType value) noexcept      \
-        -> bool                                             \
+    constexpr bool enum_valid(EnumType value) noexcept      \
     {                                                       \
         switch (value)                                      \
         {                                                   \
@@ -105,8 +108,7 @@ constexpr auto enum_cast(FromEnumT enum_value) noexcept
     using enum EnumType;                                    \
     constexpr enum EnumType values[]{ __VA_ARGS__ };        \
     }                                                       \
-    constexpr auto enum_size(EnumType) noexcept             \
-        -> size_t                                           \
+    constexpr auto enum_size(EnumType) noexcept -> size_t   \
     {                                                       \
         return std::size(enum_detail::E##EnumType::values); \
     }                                                       \
@@ -117,16 +119,14 @@ constexpr auto enum_cast(FromEnumT enum_value) noexcept
     }
 
 template<enumeration E>
-constexpr auto enum_size() noexcept
-    -> size_t
+constexpr auto enum_size() noexcept -> size_t
 {
     // NOTE: Just (ab)using ADL.
     return enum_size(E{});
 }
 
 template<enumeration E>
-constexpr auto enum_iter() noexcept
-    -> std::span<const E>
+constexpr auto enum_iter() noexcept -> std::span<const E>
 {
     return enum_iter(E{});
 }

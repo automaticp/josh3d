@@ -34,26 +34,15 @@ advantage of using virtual polymorphism goes out the window so much, that you mi
 as well start asking yourself why you chose to use it in the first place, as opposed to,
 say, `std::variant`.
 
-(I know why dont explain its the 90's you didnt know better the book said you should yada-yada I get it chill)
-
 To preserve this unbounded-set -> unbounded-set mapping we can use `type_index`
 and dispatch based on some `unordered_map<type_index, function<void(AnyRef)>>` or similar.
 
 Hence, this:
 */
-
-
-class AnyRef {
-private:
-    void* ptr_;
-    const std::type_info* type_info_;
-
-    // For non-const -> const conversion.
-    friend class AnyConstRef;
-
+class AnyRef
+{
 public:
-    template<typename T>
-        requires not_move_or_copy_constructor_of<AnyRef, T>
+    template<typename T> requires not_move_or_copy_constructor_of<AnyRef, T>
     explicit AnyRef(T& object) noexcept
         : ptr_{ std::addressof(object) }
         , type_info_{ &typeid(object) }
@@ -66,30 +55,31 @@ public:
 
     // UB if the types do not match.
     template<typename T>
-    auto target_unchecked() const noexcept -> T& {
+    auto target_unchecked() const noexcept -> T&
+    {
         assert(typeid(T) == type() && "Requested type does not match the type-erased target.");
         return *static_cast<T*>(ptr_);
     }
 
     // `nullptr` if the types do not match.
     template<typename T>
-    auto target_ptr() const noexcept -> T* {
+    auto target_ptr() const noexcept -> T*
+    {
         return typeid(T) == type() ? *static_cast<T*>(ptr_) : nullptr;
     }
 
+private:
+    void*                 ptr_;
+    const std::type_info* type_info_;
+
+    friend class AnyConstRef; // For non-const -> const conversion.
 };
 
 
-
-
-class AnyConstRef {
-private:
-    const void* ptr_;
-    const std::type_info* type_info_;
-
+class AnyConstRef
+{
 public:
-    template<typename T>
-        requires not_move_or_copy_constructor_of<AnyConstRef, T>
+    template<typename T> requires not_move_or_copy_constructor_of<AnyConstRef, T>
     explicit AnyConstRef(const T& object) noexcept
         : ptr_{ std::addressof(object) }
         , type_info_{ &typeid(object) }
@@ -107,20 +97,23 @@ public:
 
     // UB if the types do not match.
     template<typename T>
-    auto target_unchecked() const noexcept -> const T& {
+    auto target_unchecked() const noexcept -> const T&
+    {
         assert(typeid(T) == type() && "Requested type does not match the type-erased target.");
         return *static_cast<const T*>(ptr_);
     }
 
     // `nullptr` if the types do not match.
     template<typename T>
-    auto target_ptr() const noexcept -> const T* {
+    auto target_ptr() const noexcept -> const T*
+    {
         return typeid(T) == type() ? *static_cast<const T*>(ptr_) : nullptr;
     }
 
+private:
+    const void*           ptr_;
+    const std::type_info* type_info_;
 };
-
-
 
 
 } // namespace josh

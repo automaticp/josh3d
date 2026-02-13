@@ -4,8 +4,13 @@
 #include <cstdint>
 
 
+/*
+Vocabulary of 1-, 2-, and 3-dimensional offsets, extents and regions.
 
-
+NOTE: This is quite old and could use a rework. I seem to have *loved* typing!
+TODO: Yes, `NumericT` thanks, couldn't have figured it out myself.
+TODO: Maybe shorten the (width, height, depth) to simply (w, h, d)?
+*/
 namespace josh {
 
 
@@ -14,28 +19,20 @@ concept index_representable =
     std::integral<NumericT> &&
     !std::same_as<NumericT, bool>;
 
-
 template<typename NumericT>
 concept offset_representable =
     std::floating_point<NumericT> ||
     index_representable<NumericT>;
-
-
-
 
 template<typename NumericT>
 concept size_representable =
     std::integral<NumericT> &&
     !std::same_as<NumericT, bool>;
 
-
 template<typename NumericT>
 concept extent_representable =
     std::floating_point<NumericT> ||
     size_representable<NumericT>;
-
-
-
 
 template<typename NumericT>
 concept region_representable =
@@ -43,13 +40,7 @@ concept region_representable =
     extent_representable<NumericT>;
 
 
-
-
-
-/*
-Primary templates.
-*/
-
+/* Primary templates. */
 
 template<offset_representable NumericT> struct Offset1;
 template<offset_representable NumericT> struct Offset2;
@@ -62,10 +53,7 @@ template<region_representable NumericT> struct Region2;
 template<region_representable NumericT> struct Region3;
 
 
-/*
-Common specializations. Closer to OpenGL conventions than to standard library.
-*/
-
+/* Common specializations. Closer to OpenGL conventions than to standard library. */
 
 using Offset1I = Offset1<int32_t>;
 using Offset1U = Offset1<uint32_t>;
@@ -85,11 +73,9 @@ using Offset3S = Offset3<size_t>;
 using Offset3F = Offset3<float>;
 using Offset3D = Offset3<double>;
 
-
 template<index_representable NumericT> using Index1 = Offset1<NumericT>;
 template<index_representable NumericT> using Index2 = Offset2<NumericT>;
 template<index_representable NumericT> using Index3 = Offset3<NumericT>;
-
 
 using Index1I = Index1<int32_t>;
 using Index1U = Index1<uint32_t>;
@@ -102,9 +88,6 @@ using Index2S = Index2<size_t>;
 using Index3I = Index3<int32_t>;
 using Index3U = Index3<uint32_t>;
 using Index3S = Index3<size_t>;
-
-
-
 
 using Extent1I = Extent1<int32_t>;
 using Extent1U = Extent1<uint32_t>;
@@ -124,11 +107,9 @@ using Extent3S = Extent3<size_t>;
 using Extent3F = Extent3<float>;
 using Extent3D = Extent3<double>;
 
-
 template<size_representable NumericT> using Size1 = Extent1<NumericT>;
 template<size_representable NumericT> using Size3 = Extent3<NumericT>;
 template<size_representable NumericT> using Size2 = Extent2<NumericT>;
-
 
 using Size1I = Size1<int32_t>;
 using Size1U = Size1<uint32_t>;
@@ -141,9 +122,6 @@ using Size2S = Size2<size_t>;
 using Size3I = Size3<int32_t>;
 using Size3U = Size3<uint32_t>;
 using Size3S = Size3<size_t>;
-
-
-
 
 using Region1I = Region1<int32_t>;
 using Region1U = Region1<uint32_t>;
@@ -165,14 +143,10 @@ using Region3D = Region3<double>;
 
 
 
-
-
-
-
-
 template<offset_representable NumericT>
-struct Offset1 {
-    NumericT x{};
+struct Offset1
+{
+    NumericT x = {};
 
     // Implicitly decaying to underlying value.
     constexpr operator NumericT() const noexcept { return x; }
@@ -186,9 +160,7 @@ struct Offset1 {
 
     template<offset_representable NumericU>
     constexpr explicit Offset1(const Offset1<NumericU>& other) noexcept
-        : Offset1{
-            static_cast<NumericT>(other.x),
-        }
+        : Offset1{ static_cast<NumericT>(other.x) }
     {}
 
     constexpr Offset1(const Offset1& other) = default; // non-explicit
@@ -198,19 +170,18 @@ struct Offset1 {
     // constexpr Offset1& operator=(const NumericT& x) noexcept { this->x = x; }
 
     template<offset_representable NumericU>
-    constexpr bool operator==(const Offset1<NumericU>& other) const noexcept {
+    constexpr bool operator==(const Offset1<NumericU>& other) const noexcept
+    {
         return x == other.x;
     }
-
 };
 
 
-
-
 template<offset_representable NumericT>
-struct Offset2 {
-    NumericT x{};
-    NumericT y{};
+struct Offset2
+{
+    NumericT x = {};
+    NumericT y = {};
 
     // It is often desirable to specify null-offset.
     constexpr Offset2() noexcept = default;
@@ -232,20 +203,19 @@ struct Offset2 {
     constexpr Offset2& operator=(const Offset2& other) = default;
 
     template<offset_representable NumericU>
-    constexpr bool operator==(const Offset2<NumericU>& other) const noexcept {
+    constexpr bool operator==(const Offset2<NumericU>& other) const noexcept
+    {
         return x == other.x && y == other.y;
     }
-
 };
 
 
-
-
 template<offset_representable NumericT>
-struct Offset3 {
-    NumericT x{};
-    NumericT y{};
-    NumericT z{};
+struct Offset3
+{
+    NumericT x = {};
+    NumericT y = {};
+    NumericT z = {};
 
     constexpr Offset3() noexcept = default;
 
@@ -277,7 +247,8 @@ struct Offset3 {
     {}
 
     template<offset_representable NumericU>
-    constexpr explicit operator Offset2<NumericU>() const noexcept {
+    constexpr explicit operator Offset2<NumericU>() const noexcept
+    {
         return {
             static_cast<NumericU>(x),
             static_cast<NumericU>(y)
@@ -285,24 +256,19 @@ struct Offset3 {
     }
 
     template<offset_representable NumericU>
-    constexpr bool operator==(const Offset3<NumericU>& other) const noexcept {
+    constexpr bool operator==(const Offset3<NumericU>& other) const noexcept
+    {
         return
-            x == other.x &&
-            y == other.y &&
+            x == other.x and
+            y == other.y and
             z == other.z;
     }
-
 };
 
 
-
-
-
-
-
-
 template<extent_representable NumericT>
-struct Extent1 {
+struct Extent1
+{
     NumericT width;
 
     operator NumericT() const noexcept { return width; }
@@ -322,21 +288,16 @@ struct Extent1 {
     constexpr Extent1& operator=(const Extent1& other) = default;
 
     template<extent_representable NumericU>
-    constexpr bool operator==(const Extent1<NumericU>& other) const noexcept {
+    constexpr bool operator==(const Extent1<NumericU>& other) const noexcept
+    {
         return width == other.width;
     }
-
 };
 
 
-
-
-
-
-
-
 template<extent_representable NumericT>
-struct Extent2 {
+struct Extent2
+{
     NumericT width;
     NumericT height;
 
@@ -357,32 +318,27 @@ struct Extent2 {
     constexpr Extent2& operator=(const Extent2& other) = default;
 
     template<std::floating_point FloatT = float>
-    constexpr FloatT aspect_ratio() const noexcept {
-        return
-            static_cast<FloatT>(width) /
-            static_cast<FloatT>(height);
+    constexpr auto aspect_ratio() const noexcept -> FloatT
+    {
+        return FloatT(width) / FloatT(height);
     }
 
     // A product of width and height.
     constexpr auto area() const noexcept { return width * height; }
 
     template<extent_representable NumericU>
-    constexpr bool operator==(const Extent2<NumericU>& other) const noexcept {
+    constexpr bool operator==(const Extent2<NumericU>& other) const noexcept
+    {
         return
-            width  == other.width &&
+            width  == other.width and
             height == other.height;
     }
-
 };
 
 
-
-
-
-
-
 template<extent_representable NumericT>
-struct Extent3 {
+struct Extent3
+{
     NumericT width;
     NumericT height;
     NumericT depth;
@@ -415,7 +371,8 @@ struct Extent3 {
     {}
 
     template<extent_representable NumericU>
-    constexpr explicit operator Extent2<NumericU>() const noexcept {
+    constexpr explicit operator Extent2<NumericU>() const noexcept
+    {
         return {
             static_cast<NumericU>(width),
             static_cast<NumericU>(height)
@@ -423,10 +380,9 @@ struct Extent3 {
     }
 
     template<std::floating_point FloatT = float>
-    constexpr FloatT aspect_ratio() const noexcept {
-        return
-            static_cast<FloatT>(width) /
-            static_cast<FloatT>(height);
+    constexpr auto aspect_ratio() const noexcept -> FloatT
+    {
+        return FloatT(width) / FloatT(height);
     }
 
     // A product of width and height.
@@ -437,100 +393,94 @@ struct Extent3 {
     template<extent_representable NumericU>
     constexpr bool operator==(const Extent3<NumericU>& other) const noexcept {
         return
-            width  == other.width  &&
-            height == other.height &&
+            width  == other.width  and
+            height == other.height and
             depth  == other.depth;
     }
-
 };
 
 
 
-
-
-
-
-
 template<region_representable NumericT>
-struct Region1 {
+struct Region1
+{
     Offset1<NumericT> offset;
     Extent1<NumericT> extent;
 };
 
 
 template<region_representable NumericT>
-struct Region2 {
+struct Region2
+{
     Offset2<NumericT> offset;
     Extent2<NumericT> extent;
 };
 
 
 template<region_representable NumericT>
-struct Region3 {
+struct Region3
+{
     Offset3<NumericT> offset;
     Extent3<NumericT> extent;
 };
 
 
 
-
-
-
-
-
-
 template<typename NumT>
-constexpr Extent1<NumT> operator-(const Offset1<NumT>& lhs, const Offset1<NumT>& rhs) noexcept {
+constexpr Extent1<NumT> operator-(const Offset1<NumT>& lhs, const Offset1<NumT>& rhs) noexcept
+{
     return { lhs.x - rhs.x };
 }
 
 template<typename NumT>
-constexpr Offset1<NumT> operator+(const Offset1<NumT>& lhs, const Extent1<NumT>& rhs) noexcept {
+constexpr Offset1<NumT> operator+(const Offset1<NumT>& lhs, const Extent1<NumT>& rhs) noexcept
+{
     return { lhs.x + rhs.width };
 }
 
 template<typename NumT>
-constexpr Offset1<NumT> operator+(const Extent1<NumT>& lhs, const Offset1<NumT>& rhs) noexcept {
+constexpr Offset1<NumT> operator+(const Extent1<NumT>& lhs, const Offset1<NumT>& rhs) noexcept
+{
     return rhs + lhs;
 }
 
 
-
-
 template<typename NumT>
-constexpr Extent2<NumT> operator-(const Offset2<NumT>& lhs, const Offset2<NumT>& rhs) noexcept {
+constexpr Extent2<NumT> operator-(const Offset2<NumT>& lhs, const Offset2<NumT>& rhs) noexcept
+{
     return { lhs.x - rhs.x, lhs.y - rhs.y };
 }
 
 template<typename NumT>
-constexpr Offset2<NumT> operator+(const Offset2<NumT>& lhs, const Extent2<NumT>& rhs) noexcept {
+constexpr Offset2<NumT> operator+(const Offset2<NumT>& lhs, const Extent2<NumT>& rhs) noexcept
+{
     return { lhs.x + rhs.width, lhs.y + rhs.height };
 }
 
 template<typename NumT>
-constexpr Offset2<NumT> operator+(const Extent2<NumT>& lhs, const Offset2<NumT>& rhs) noexcept {
+constexpr Offset2<NumT> operator+(const Extent2<NumT>& lhs, const Offset2<NumT>& rhs) noexcept
+{
     return rhs + lhs;
 }
 
 
-
-
 template<typename NumT>
-constexpr Extent3<NumT> operator-(const Offset3<NumT>& lhs, const Offset3<NumT>& rhs) noexcept {
+constexpr Extent3<NumT> operator-(const Offset3<NumT>& lhs, const Offset3<NumT>& rhs) noexcept
+{
     return { lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z };
 }
 
 template<typename NumT>
-constexpr Offset3<NumT> operator+(const Offset3<NumT>& lhs, const Extent3<NumT>& rhs) noexcept {
+constexpr Offset3<NumT> operator+(const Offset3<NumT>& lhs, const Extent3<NumT>& rhs) noexcept
+{
     return { lhs.x + rhs.width, lhs.y + rhs.height, lhs.z + rhs.depth };
 }
 
 template<typename NumT>
-constexpr Offset3<NumT> operator+(const Extent3<NumT>& lhs, const Offset3<NumT>& rhs) noexcept {
+constexpr Offset3<NumT> operator+(const Extent3<NumT>& lhs, const Offset3<NumT>& rhs) noexcept
+{
     return rhs + lhs;
 }
-
-
 
 
 } // namespace josh

@@ -20,37 +20,28 @@ concept mallocable =
     std::is_standard_layout_v<T>;
 
 
-struct FreeDeleter {
-    void operator()(void* data) const noexcept {
-        std::free(data);
-    }
+struct FreeDeleter
+{
+    void operator()(void* data) const noexcept { std::free(data); }
 };
-
 
 template<mallocable T>
 using unique_malloc_ptr = std::unique_ptr<T, FreeDeleter>;
 
 
-template<mallocable ArrayT>
-    requires (std::is_unbounded_array_v<ArrayT>)
+template<mallocable ArrayT> requires (std::is_unbounded_array_v<ArrayT>)
 auto malloc_unique(size_t num_elements) noexcept
     -> unique_malloc_ptr<ArrayT>
 {
     using T = std::remove_extent_t<ArrayT>;
-    return unique_malloc_ptr<ArrayT>{
-        (T*)std::malloc(sizeof(T) * num_elements)
-    };
+    return unique_malloc_ptr<ArrayT>{ (T*)std::malloc(sizeof(T) * num_elements) };
 }
 
-
-template<mallocable T>
-    requires (!std::is_array_v<T>)
+template<mallocable T> requires (!std::is_array_v<T>)
 auto malloc_unique() noexcept
     -> unique_malloc_ptr<T>
 {
-    return unique_malloc_ptr<T>{
-        (T*)std::malloc(sizeof(T))
-    };
+    return unique_malloc_ptr<T>{ (T*)std::malloc(sizeof(T)) };
 }
 
 

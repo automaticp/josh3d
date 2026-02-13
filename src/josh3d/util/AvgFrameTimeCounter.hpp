@@ -9,6 +9,8 @@ namespace josh {
 /*
 Small helper for displaying average frametime/FPS
 with a configurable averaging interval.
+
+NOTE: This is very old.
 */
 class AvgFrameTimeCounter {
 public:

@@ -1,4 +1,5 @@
 #pragma once
+#include "Common.hpp"
 #include "detail/Coroutines.hpp"
 #include "async/CoroCore.hpp"
 #include "CategoryCasts.hpp"
@@ -17,7 +18,8 @@ namespace josh {
 NOTE: Not tested or used anywhere. Might work?
 */
 template<typename T>
-class Generator {
+class Generator
+{
 public:
     using result_type        = T;
     using value_type         = T;
@@ -27,15 +29,16 @@ public:
 
     Generator(handle_type handle) : handle_{ handle } {}
 
-    auto operator()()
-        -> std::optional<result_type>
+    auto operator()() -> Optional<result_type>
     {
         handle_type   h = handle_.get();
         promise_type& p = h.promise();
-        if (!h.done()) {
+        if (not h.done())
+        {
             h.resume(); // UB if h.done(), so guard.
             // Check again, because we might have `co_return`ed after last resume().
-            if (!h.done()) {
+            if (not h.done())
+            {
                 return { p.extract_result() };
             }
         }
@@ -45,8 +48,6 @@ public:
 private:
     unique_handle_type handle_;
 };
-
-
 
 
 /*
@@ -85,22 +86,21 @@ public:
 
     // Is the task completed. Synchronized by an atomic.
     // If `true`, retrieving the result will not block.
-    auto is_ready() const noexcept
-        -> bool
+    bool is_ready() const noexcept
     {
         return handle_ && handle_.get().promise().is_ready();
     }
 
     // Block until the job has finished.
-    void wait_until_ready() const noexcept {
+    void wait_until_ready() const noexcept
+    {
         assert(handle_);
         promise_type& p = handle_.get().promise();
         p.wait_for_result();
     }
 
     // Obtain the result or raise an exception.
-    auto get_result() const&
-        -> result_ref_type
+    auto get_result() const& -> result_ref_type
     {
         assert(handle_);
         promise_type& p = handle_.get().promise();
@@ -108,8 +108,7 @@ public:
         return p.get_result();
     }
 
-    auto get_result() &&
-        -> result_type
+    auto get_result() && -> result_type
     {
         assert(handle_);
         promise_type& p = handle_.get().promise();
@@ -120,20 +119,24 @@ public:
     auto operator co_await() const& noexcept
         -> awaiter<result_ref_type> auto
     {
-        struct Awaiter {
+        struct Awaiter
+        {
             const Job& self;
-            auto await_ready() const noexcept -> bool { return self.is_ready(); }
+            bool await_ready() const noexcept { return self.is_ready(); }
             auto await_suspend(std::coroutine_handle<> parent) const noexcept
                 -> std::coroutine_handle<>
             {
-                if (self.handle_.get().promise().try_set_continuation(parent)) {
+                if (self.handle_.get().promise().try_set_continuation(parent))
+                {
                     // If we succesfully set ourselves as a continuation, then we
                     // shouldn't resume anything.
                     //
                     // NOTE: I think noop coroutine is required, we cannot just
                     // return a null coroutine handle.
                     return std::noop_coroutine();
-                } else {
+                }
+                else
+                {
                     // Otherwise, the try_set_continuation() failed because
                     // the job became ready. We can resume ourselves instead,
                     // as the result is now available.
@@ -148,17 +151,17 @@ public:
     auto operator co_await() && noexcept
         -> awaiter<result_type> auto
     {
-        struct Awaiter {
+        struct Awaiter
+        {
             Job&& self;
-            auto await_ready() const noexcept -> bool { return self.is_ready(); }
+            bool await_ready() const noexcept { return self.is_ready(); }
             auto await_suspend(std::coroutine_handle<> parent) const noexcept
                 -> std::coroutine_handle<>
             {
-                if (self.handle_.get().promise().try_set_continuation(parent)) {
+                if (self.handle_.get().promise().try_set_continuation(parent))
                     return std::noop_coroutine();
-                } else {
+                else
                     return parent;
-                }
             }
             auto await_resume() const -> result_type { return MOVE(self).get_result(); }
         };
@@ -208,21 +211,20 @@ public:
 
     // Is the task completed. Synchronized by an atomic.
     // If `true`, retrieving the result will not block.
-    auto is_ready() const noexcept
-        -> bool
+    bool is_ready() const noexcept
     {
         return handle_ && handle_.get().promise().is_ready();
     }
 
     // Block until the job has finished.
-    void wait_until_ready() const noexcept {
+    void wait_until_ready() const noexcept
+    {
         assert(handle_);
         typename Job<T>::promise_type& p = handle_.get().promise();
         p.wait_for_result();
     }
 
-    auto get_result() const
-        -> result_cref_type
+    auto get_result() const -> result_cref_type
     {
         assert(handle_);
         typename Job<T>::promise_type& p = handle_.get().promise();
@@ -234,7 +236,8 @@ public:
     auto operator co_await() const noexcept
         -> awaiter<result_cref_type> auto
     {
-        struct Awaiter {
+        struct Awaiter
+        {
             const SharedJob& self;
             bool await_ready() const noexcept { return self.is_ready(); }
             bool await_suspend(std::coroutine_handle<>) const noexcept { return !self.is_ready(); }
@@ -242,7 +245,6 @@ public:
         };
         return Awaiter{ *this };
     }
-
 
 private:
     Job<T>::shared_handle_type handle_;
