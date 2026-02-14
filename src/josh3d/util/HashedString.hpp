@@ -22,7 +22,6 @@ for declaring string identifiers for different purposes, like:
 
 */
 namespace josh {
-
 namespace detail {
 
 template<usize N, typename CharT>
@@ -104,13 +103,16 @@ struct BasicFixedHashedString
         else   return {};
     }
 
-    constexpr auto operator==(const BasicFixedHashedString& other) const noexcept
-        -> bool
-    { return hash() == other.hash(); }
+    constexpr bool operator==(const BasicFixedHashedString& other) const noexcept
+    {
+        return hash() == other.hash();
+    }
 
     constexpr auto operator<=>(const BasicFixedHashedString& other) const noexcept
         -> std::strong_ordering
-    { return operator<=>(hash(), other.hash()); }
+    {
+        return operator<=>(hash(), other.hash());
+    }
 
     hash_type _hash{};
 };

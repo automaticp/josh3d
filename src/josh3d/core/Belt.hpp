@@ -45,12 +45,12 @@ struct Belt
 
     // Check if the slot T contains an item.
     template<typename T>
-    auto has() const noexcept -> bool;
+    bool has() const noexcept;
 
     // Remove an item from slot T if it exists.
     // Returns true if an item was indeed removed.
     template<typename T>
-    auto drop() -> bool;
+    bool drop();
 
     // Decrement lives of all items and remove them if the life count
     // reaches 0. Returns the number of items removed.
@@ -71,8 +71,7 @@ struct Belt
 
 
 template<typename T>
-auto Belt::put(T&& item, u32 extra_lives)
-    -> T&
+auto Belt::put(T&& item, u32 extra_lives) -> T&
 {
     const u32 lives = extra_lives + 1;
     auto [it, was_emplaced] = _packages.try_emplace(type_id<T>(), lives, false, FORWARD(item));
@@ -85,8 +84,7 @@ auto Belt::put(T&& item, u32 extra_lives)
 }
 
 template<typename T>
-auto Belt::put_ref(T& item_ref, u32 extra_lives)
-    -> T&
+auto Belt::put_ref(T& item_ref, u32 extra_lives) -> T&
 {
     const u32 lives = extra_lives + 1;
     auto [it, was_emplaced] = _packages.try_emplace(type_id<T>(), lives, true, &item_ref);
@@ -98,8 +96,7 @@ auto Belt::put_ref(T& item_ref, u32 extra_lives)
 }
 
 template<typename T>
-auto Belt::get()
-    -> T&
+auto Belt::get() -> T&
 {
     T* item_ptr = try_get<T>();
     if (not item_ptr)
@@ -109,8 +106,7 @@ auto Belt::get()
 }
 
 template<typename T>
-auto Belt::try_get()
-    -> T*
+auto Belt::try_get() -> T*
 {
     const TypeIndex type = type_id<T>();
     Package* package = try_find_value(_packages, type);
@@ -132,21 +128,18 @@ auto Belt::try_get()
 }
 
 template<typename T>
-auto Belt::has() const noexcept
-    -> bool
+bool Belt::has() const noexcept
 {
     return _packages.contains(type_id<T>());
 }
 
 template<typename T>
-auto Belt::drop()
-    -> bool
+bool Belt::drop()
 {
     return _packages.erase(type_id<T>());
 }
 
-inline auto Belt::sweep()
-    -> usize
+inline auto Belt::sweep() -> usize
 {
     usize num_erased = 0;
     auto it = _packages.begin();
@@ -172,8 +165,7 @@ inline auto Belt::sweep()
     return num_erased;
 }
 
-inline auto Belt::size() const noexcept
-    -> usize
+inline auto Belt::size() const noexcept -> usize
 {
     return _packages.size();
 }
